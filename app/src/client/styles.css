@@ -247,6 +247,30 @@ body {
   transform: none !important;
 }
 
+.reachat-page button[title="Upload"] {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid #9ab9dd;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1d4e84;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reachat-page button[title="Upload"]:hover {
+  background: #dfebfc;
+  color: #154378;
+}
+
+.reachat-page button[title="Upload"] svg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
 .error-message {
   margin-top: 0.75rem;
   color: #8a1020;

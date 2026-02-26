@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Chat,
   ChatSuggestions,
@@ -7,6 +7,7 @@ import {
   SessionMessages,
   SessionMessagesHeader,
   type MentionItem,
+  type ChatInputRef,
   type Session,
   type Suggestion,
   type SlashCommandItem,
@@ -80,6 +81,7 @@ export function ChatPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [pendingFile, setPendingFile] = useState<File | undefined>();
   const streamRef = useRef<EventSource | undefined>(undefined);
+  const chatInputRef = useRef<ChatInputRef | null>(null);
   const canCreateWorkspace =
     createWorkspaceName.trim().length > 0 && createOwnerName.trim().length > 0;
 
@@ -270,6 +272,31 @@ export function ChatPage() {
 
   function onUploadFile(file: File) {
     setPendingFile(file);
+  }
+
+  function onChatInputClickCapture(event: MouseEvent<HTMLDivElement>) {
+    if (!pendingFile || isLoading) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const sendButton = target.closest("button[title='Send']");
+    if (!sendButton) {
+      return;
+    }
+
+    const currentMessage = chatInputRef.current?.getValue().trim() ?? "";
+    if (currentMessage.length > 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    void onSendMessage("");
   }
 
   async function onSendMessage(message: string) {
@@ -583,16 +610,19 @@ export function ChatPage() {
                 void onSendMessage(suggestion);
               }}
             />
-            <ChatInput
-              placeholder="Discuss tasks, decisions, and questions..."
-              allowedFiles={[".md", ".txt"]}
-              mentions={{
-                onSearch: searchMentions,
-              }}
-              commands={{
-                items: COMMAND_ITEMS,
-              }}
-            />
+            <div onClickCapture={onChatInputClickCapture}>
+              <ChatInput
+                ref={chatInputRef}
+                placeholder="Discuss tasks, decisions, and questions..."
+                allowedFiles={[".md", ".txt"]}
+                mentions={{
+                  onSearch: searchMentions,
+                }}
+                commands={{
+                  items: COMMAND_ITEMS,
+                }}
+              />
+            </div>
           </SessionMessagePanel>
         </Chat>
 

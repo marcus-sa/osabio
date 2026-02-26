@@ -132,7 +132,7 @@ For Phase 1 dogfooding: one Workspace, one Project ("AI-Native Business Manageme
 | Entity | Scope | Description | Key Properties |
 |--------|-------|-------------|----------------|
 | **Workspace** | Root | Top-level container and multi-tenant boundary. Everything lives inside a workspace. One user can have multiple workspaces (e.g., separating businesses). | name, owner, created_at |
-| **Person** | Workspace | A team member or stakeholder. Workspace-scoped because people work across projects. Linked to entities in any project via OWNS, DECIDED_BY, ASSIGNED_TO edges. | name, role, contact info, identities[] |
+| **Person** | Workspace | A team member or stakeholder. Workspace-scoped because people work across projects. Linked to entities in any project via OWNS, DECIDED_BY, ASSIGNED_TO edges. **Person nodes are authoritative identity records — they are only created through explicit actions (workspace creation, IAM integration, manual invite), never inferred from chat extraction.** When the extraction pipeline detects a name in conversation that doesn't match an existing Person node, it stores the reference as an unresolved string attribute (e.g., `decided_by: "Sarah"`) and optionally surfaces a suggestion: "You mentioned Sarah — want to add her to the workspace?" which triggers the IAM flow. | name, role, contact info, identities[] |
 | **Conversation** | Workspace | A chat session or message thread. Workspace-scoped because a single conversation can produce entities across multiple projects. Never requires a projectId. | messages[], embedding, source, timestamp |
 | **Meeting** | Workspace | A meeting with transcript (subtype of Conversation). Same scoping rules as Conversation. | title, attendees[], transcript_ref, calendar_event_ref, source_provider, recorded_at |
 | **Project** | Workspace | A bounded initiative or workstream within a workspace | name, status, description, created_at |
@@ -157,6 +157,8 @@ For Phase 1 dogfooding: one Workspace, one Project ("AI-Native Business Manageme
 | **SUPERSEDED_BY** | Decision → Decision | reason, superseded_at |
 | **ATTENDED_BY** | Meeting → Person | role (organizer, attendee, optional) |
 | **MEMBER_OF** | Person → Workspace | role (owner, member), joined_at |
+| **BRANCHED_FROM** | Conversation → Conversation | branched_at, context_entities[] |
+| **TOUCHED_BY** | Project → Conversation | first_mention_at, entity_count (derived from extraction — computed when entities extracted from a conversation are linked to a project) |
 
 ### 3.2 Extraction Pipeline
 
@@ -174,6 +176,13 @@ The extraction pipeline is the system's core intelligence layer. Every incoming 
 #### Extraction Prompt Strategy
 
 The extraction prompt receives the current message plus relevant graph context (via vector search + graph traversal). It outputs structured JSON with high-confidence extractions only. The system errs on the side of missing things rather than creating noise — building trust over time as accuracy proves out.
+
+**Critical rules:**
+
+- **Only extract from user messages.** Never run extraction on assistant-generated responses — this creates feedback loops where the system re-extracts its own paraphrases of already-captured entities.
+- **Person references are resolved, not created.** When a name is detected, match it against existing Person nodes in the workspace. If a match is found, create the appropriate relationship edges (OWNS, DECIDED_BY, etc.). If no match is found, store as an unresolved string attribute on the related entity (e.g., `decided_by: "Sarah"`) and flag for a suggestion: "You mentioned Sarah — want to add her to the workspace?" Person nodes are only created through IAM (workspace creation, OAuth, manual invite), never inferred from extraction.
+- **Placeholder filtering.** The prompt includes negative examples of non-entities ("my project", "the thing", "this idea"). A server-side blocklist provides a deterministic safety net, dropping known placeholder phrases before persistence.
+- **Confidence-gated display.** Store entities at ≥0.6 confidence. Display inline EntityCards at ≥0.85 confidence only. Entities between 0.6–0.85 are stored silently for later corroboration or review.
 
 Explicit entity references via @mentions and #project tags bypass the extraction pipeline entirely and create direct graph links, ensuring zero-loss for intentional references.
 
@@ -310,12 +319,14 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
    - After project captured: "Just me for now" / "I have a small team" / "Let me tell you about key decisions"
    - After threshold met: "Looks good, let's go" / "I want to add more context" / "Show me what you extracted"
    - Post-onboarding in normal chat, suggestions shift to contextual actions: "Create a task for this" / "Add as a decision" / "What depends on this?"
-5. **Workspace onboarding conversation:** Creating a workspace collects two fields (workspace name, owner name), creates the root nodes (`workspace:xyz` + `person:owner` + `MEMBER_OF` edge), and drops the user into chat. The system sends the first message with suggestions — no empty state. The onboarding uses the same chat route with an `onboarding_complete: false` flag on the workspace that enriches the system prompt with guided questions. The system conversationally asks about the business, current projects, people involved, key decisions, tools in use, and biggest concerns. Each answer is extracted in real-time and rendered inline using the component catalog — the user sees `EntityCard` components appearing in the chat as the system confirms what it understood ("Got it:" followed by rendered entity cards). Suggestions guide each turn so the user always has clear next steps. Onboarding completes when the graph reaches minimum threshold (≥1 project + ≥1 person + ≥1 decision or question) or after 7 guided turns — at which point the system renders an `OnboardingSummary` component and offers to continue or dive in. Completion triggers on explicit confirmation, the user changing topic, or uploading a document. The flag flips, the system prompt switches to standard chat, and the conversation continues seamlessly in the same view.
+
+   **Conversation sidebar:** List of conversations grouped by project (derived from `TOUCHED_BY` edges computed during extraction). Auto-generated conversation titles from first extraction or first few messages. New conversation button. Unlinked conversations (no extracted entities or multi-project) grouped separately. Debug panel (collapsed by default) toggleable for entity list and extraction log during dogfooding.
+5. **Workspace onboarding conversation:** Creating a workspace collects two fields (workspace name, owner name), creates the root nodes (`workspace:xyz` + `person:owner` + `MEMBER_OF` edge), and drops the user into chat. The system sends the first message with suggestions — no empty state. The onboarding uses the same chat route with an `onboarding_complete: false` flag on the workspace that enriches the system prompt with guided questions. The system conversationally asks about the business, current projects, people involved, key decisions, tools in use, and biggest concerns. Each answer is extracted in real-time and rendered inline using the component catalog — the user sees `EntityCard` components appearing in the chat as the system confirms what it understood ("Got it:" followed by rendered entity cards). Suggestions guide each turn so the user always has clear next steps. Onboarding completes when the graph reaches minimum threshold (≥1 project + ≥1 decision or question — the owner Person already exists from workspace creation) or after 7 guided turns — at which point the system renders an `OnboardingSummary` component and offers to continue or dive in. Completion triggers on explicit confirmation, the user changing topic, or uploading a document. The flag flips, the system prompt switches to standard chat, and the conversation continues seamlessly in the same view.
 6. **Document upload for graph seeding:** Users can optionally drop a document (markdown or plain text in Phase 1) into the onboarding chat to bootstrap a dense initial graph. The document is chunked respecting section boundaries, each chunk runs through Haiku extraction with the same structured JSON output, and entities are deduplicated against existing nodes (embedding similarity + LLM context of current graph state). A plan document like a 400-line MVP spec might yield 50–100 nodes in one shot — features, decisions, dependencies, risks, tech choices — all with relationships. After ingestion, the system summarizes what it extracted and continues the conversation with smarter follow-up questions based on gaps or ambiguities in the document ("Your plan mentions SurrealDB but flags a maturity risk — have you evaluated fallbacks?"). The document doesn't replace the onboarding conversation, it accelerates it. All extracted nodes link back to the source document as provenance. This is not a separate UI — it's a file attachment in the chat, like any messaging app.
 7. **Smoke tests:** Bun script for API/SSE/search/graph checks (health, message flow, extraction writes, embedding storage, semantic search, RELATE edges). Plus a short manual frontend verification checklist (streaming, @mentions, inline annotations).
 8. **Dogfooding checkpoint:** Run the onboarding conversation for the dogfooding workspace ("AI-Native Business Management Platform"), uploading this MVP plan as the seed document. Start using the tool to plan and track building the tool itself. Every architecture decision becomes a graph node.
 
-*Deliverable: A working chat that talks to an LLM and builds a knowledge graph from conversations. Extracted entities render as rich inline components via Reachat's component catalog. Suggestions guide the user through onboarding and contextual actions. Workspace creation is a self-service onboarding conversation that bootstraps the graph. Document upload accelerates graph seeding.*
+*Deliverable: A working chat that talks to an LLM and builds a knowledge graph from conversations. Extracted entities render as rich inline components via Reachat's component catalog. Suggestions guide the user through onboarding and contextual actions. Conversation sidebar groups chats by project automatically. Workspace creation is a self-service onboarding conversation that bootstraps the graph. Document upload accelerates graph seeding.*
 
 ---
 
@@ -328,8 +339,10 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
 3. **Chat → Graph navigation:** Clicking an inline annotation in chat navigates to that node in the graph. Clicking a conversation reference in the graph jumps to that chat message.
 4. **Search and filter:** Full-text and semantic search across the graph. Filter by entity type, project, person, date range.
 5. **Extraction pipeline v2:** Iterate on extraction quality based on real dogfooding data. Tune confidence thresholds. Add relationship strength scoring.
+6. **Conversation branching:** Select a message range or click "branch from here" to create a focused sub-conversation. Creates a new Conversation with `BRANCHED_FROM` edge to parent. Branch carries forward relevant graph context (parent's extracted entities pre-loaded for high-confidence project/feature resolution). Branched conversations display as nested under their parent in the sidebar.
+7. **Conversation drift detection:** After each extraction, the system checks whether newly extracted entities share any `entity_relation` or project ancestry with the conversation's earlier entities. If the last 3–4 messages produce entities belonging to a different project cluster than the conversation's existing entities, the system surfaces a contextual suggestion: "This seems like a separate thread — branch into a new conversation about [detected topic]?" The suggestion names the new topic based on the most recent extracted entities. If ignored, the system doesn't nag — the entities still get extracted and linked to the correct projects regardless. This is a UX quality signal, not a functional gate. Reinforces the anti-bloat strategy: shorter, focused conversations that map cleanly to projects and produce better graph provenance.
 
-*Deliverable: Two connected views (chat + graph) with bidirectional navigation. The graph is useful for understanding project state at a glance.*
+*Deliverable: Two connected views (chat + graph) with bidirectional navigation. Conversation branching enables focused sub-threads. Drift detection suggests branching when conversations become unfocused. The graph is useful for understanding project state at a glance.*
 
 ---
 
@@ -379,7 +392,54 @@ The platform has three core views, each serving a distinct purpose in the user's
 
 > **Design principle:** Chat to think, graph to understand, feed to act.
 
-### 5.2 Chat View Details
+### 5.2 Conversation Navigation & History
+
+Unlike ChatGPT/Claude where chat history is a flat list of hundreds of conversations, conversations here are organized by the knowledge graph. The graph *is* the navigation layer for chat history.
+
+**Sidebar structure:**
+
+```
+Workspace Name
+├── Projects (grouped by extraction)
+│   ├── Schack Systems
+│   │   ├── Active conversations (2)
+│   │   └── Recent activity summary
+│   └── Consulting
+│       └── Active conversations (1)
+├── Unlinked conversations (3)
+└── [+ New conversation]
+```
+
+Conversations are grouped under projects they touched, derived from `TOUCHED_BY` edges (computed automatically when extracted entities link to a project). Conversations that didn't produce extractions or touched multiple projects equally appear in "Unlinked." No user-assigned folders or categories.
+
+**Anti-bloat strategy:**
+
+1. **Graph-based grouping** — conversations cluster under projects automatically via extraction. No manual organization.
+2. **Auto-generated titles** — after a conversation's first extraction (or first few messages), the system generates a descriptive title. No "New Chat (47)" syndrome.
+3. **Natural archiving** — conversations where all extracted entities are resolved (tasks completed, decisions confirmed) fade from the "active" sidebar view. Still accessible via graph provenance links, just deprioritized.
+4. **Graph-powered search** — "find where we discussed SurrealDB" is a graph query (find entity nodes mentioning SurrealDB → follow `extraction_relation` edges to source conversations), not keyword search through conversation titles.
+5. **Conversation summaries** — after a conversation goes inactive (no new messages for X hours), the system generates a one-line summary stored on the Conversation node. Sidebar shows summaries on hover.
+6. **Branching reduces scope** — instead of one mega-conversation covering 15 topics, branching encourages focused conversations. Each is shorter, more findable, and more useful as graph provenance.
+7. **Drift detection prompts branching** — when the extraction pipeline detects that recent messages are producing entities unrelated to the conversation's earlier entity cluster (different project, no shared relationships), the system suggests branching via a contextual suggestion pill: "This seems like a separate thread — branch into a new conversation about [detected topic]?" Non-intrusive — if ignored, extraction continues correctly regardless.
+
+**Conversation branching:**
+
+The user is chatting about one topic, realizes a sub-problem deserves its own focused thread, and branches:
+
+1. User selects a message range or clicks "branch from here"
+2. Creates a new Conversation node with `BRANCHED_FROM` edge to parent
+3. The new conversation carries forward relevant graph context — entities from the parent conversation are pre-loaded so the extraction pipeline has high-confidence project/feature resolution from the first message
+4. Branched conversations display as nested under their parent in the sidebar
+5. Both conversations remain active — the parent continues for the original topic
+6. The system can also *suggest* branching when it detects conversation drift — this surfaces as a suggestion pill, not a modal or interruption
+
+**Phasing:**
+
+- **Phase 1:** Conversation list in sidebar, grouped by project (via `TOUCHED_BY`). Auto-generated titles. New conversation button.
+- **Phase 2:** Branching with `BRANCHED_FROM` edges. Nested sidebar display. Branch carries forward parent context. Drift detection suggests branching when conversations become unfocused.
+- **Phase 3:** Auto-archiving. Graph-powered conversation search. Conversation summaries. Inactive conversation deprioritization.
+
+### 5.3 Chat View Details
 
 - Clean textarea with Reachat's rich text input (Tiptap v3)
 - Trigger characters: `@` for people/entities, `#` for projects/features, `/` for commands
