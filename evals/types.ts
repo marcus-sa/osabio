@@ -15,5 +15,5 @@ export type ExtractionEvalOutput = {
   extractedEntities: Array<{ kind: string; text: string; confidence: number }>;
   personCount: number;
   ownerPersonCount: number;
-  evidenceRows: Array<{ evidence?: string }>;
+  evidenceRows: Array<{ evidence?: string; fromText?: string; model?: string }>;
 };

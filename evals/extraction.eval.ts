@@ -1,8 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { spawn, type ChildProcess } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { evalite, createScorer } from "evalite";
 import { Factuality } from "autoevals";
+import { afterAll, beforeAll } from "vitest";
 import { RecordId, Surreal } from "surrealdb";
 import { entityPrecisionScorer } from "./scorers/entity-precision";
 import { entityRecallScorer } from "./scorers/entity-recall";
@@ -10,14 +13,17 @@ import { noPhantomPersonsScorer } from "./scorers/no-phantom-persons";
 import { evidenceGroundedScorer } from "./scorers/evidence-grounded";
 import { noPlaceholdersScorer } from "./scorers/no-placeholders";
 import type { ExtractionEvalOutput, GoldenCase } from "./types";
+import { normalizeForSubstring } from "./scorers/shared";
 
-const baseUrl = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
 const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
-const surrealNamespace = process.env.SURREAL_NAMESPACE ?? "brain";
-const surrealDatabase = process.env.SURREAL_DATABASE ?? "app";
+const evalNamespace = `eval_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+const evalDatabase = `extraction_${Math.floor(Math.random() * 100000)}`;
+const evalPort = Number(process.env.EVAL_PORT ?? "3207");
+const baseUrl = `http://127.0.0.1:${evalPort}`;
 const extractionModel = process.env.EXTRACTION_MODEL ?? "anthropic/claude-3.5-haiku";
+const schemaPath = join(process.cwd(), "schema", "surreal-schema.surql");
 
 const cacheDir = process.env.EVAL_CACHE_DIR ?? "eval-results/cache";
 const cachePath = join(cacheDir, "extraction-cache.json");
@@ -25,10 +31,21 @@ const resultCache = loadCache(cachePath);
 const cases = JSON.parse(readFileSync(join(process.cwd(), "evals", "data", "golden-cases.json"), "utf8")) as GoldenCase[];
 
 let surreal: Surreal | undefined;
+let evalServerProcess: ChildProcess | undefined;
+let environmentReadyPromise: Promise<void> | undefined;
+let teardownRegistered = false;
+
+beforeAll(async () => {
+  await ensureEvalEnvironment();
+}, 120_000);
+
+afterAll(async () => {
+  await teardownEvalEnvironment();
+}, 120_000);
 
 const factualityScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCase>({
   name: "factuality",
-  description: "Average factual grounding score for extracted entity texts against source input.",
+  description: "Average factual grounding score for extracted entity texts against matched provenance evidence snippets.",
   scorer: async ({ input, output }) => {
     if (output.extractedEntities.length === 0) {
       return { score: 1 };
@@ -36,11 +53,12 @@ const factualityScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCa
 
     let total = 0;
     for (const entity of output.extractedEntities) {
+      const snippet = resolveEntityEvidenceSnippet(entity.text, output.evidenceRows, input.input);
       try {
         const result = await Factuality({
-          input: input.input,
+          input: snippet,
           output: entity.text,
-          expected: input.input,
+          expected: snippet,
           model: process.env.AUTOEVAL_MODEL,
         });
         total += result.score ?? 0;
@@ -65,7 +83,15 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     factualityScorer,
   ],
   columns: ({ input, output, scores }) => [
+    { label: "Model", value: extractionModel },
+    { label: "Precision", value: formatScoreCell(scoreByName(scores, "entity-precision")) },
+    { label: "Recall", value: formatScoreCell(scoreByName(scores, "entity-recall")) },
+    { label: "NoPeople", value: formatScoreCell(scoreByName(scores, "no-phantom-persons")) },
+    { label: "Evidence", value: formatScoreCell(scoreByName(scores, "evidence-grounded")) },
+    { label: "NoPlace", value: formatScoreCell(scoreByName(scores, "no-placeholders")) },
+    { label: "Factual", value: formatScoreCell(scoreByName(scores, "factuality")) },
     { label: "Case", value: input.id },
+    { label: "Expected", value: input.expectedEntities.length },
     { label: "Extracted", value: output.extractedEntities.length },
     { label: "People", value: `${output.personCount}/${output.ownerPersonCount}` },
     {
@@ -75,12 +101,41 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
   ],
 });
 
+function scoreByName(
+  scores: Array<{ name: string; score: number | null }>,
+  name: string,
+): number | null {
+  const match = scores.find((score) => score.name === name);
+  return match?.score ?? null;
+}
+
+function formatScoreCell(value: number | null): string {
+  if (value === null || Number.isNaN(value)) {
+    return "-";
+  }
+
+  return value.toFixed(2);
+}
+
+function resolveEntityEvidenceSnippet(
+  entityText: string,
+  evidenceRows: Array<{ evidence?: string; fromText?: string; model?: string }>,
+  fallbackInput: string,
+): string {
+  const normalizedEntityText = normalizeForSubstring(entityText);
+  const matched = evidenceRows.find((row) => normalizeForSubstring(row.fromText ?? "") === normalizedEntityText);
+  const snippet = matched?.evidence ?? evidenceRows[0]?.evidence ?? fallbackInput;
+  return snippet.trim().length > 0 ? snippet : fallbackInput;
+}
+
 async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
   const cacheKey = `${extractionModel}:${testCase.id}`;
   const cached = resultCache[cacheKey];
   if (cached) {
     return cached;
   }
+
+  await ensureEvalEnvironment();
 
   const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
     method: "POST",
@@ -115,11 +170,11 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       | undefined;
 
     const [evidenceRows] = await db
-      .query<[Array<{ evidence?: string }>]>(
-        "SELECT evidence FROM extraction_relation WHERE `in` = $source;",
+      .query<[Array<{ evidence?: string; from_text?: string; model?: string }>]>(
+        "SELECT evidence, from_text, model FROM extraction_relation WHERE `in` = $source;",
         { source: new RecordId("message", message.userMessageId) },
       )
-      .collect<[Array<{ evidence?: string }>]>();
+      .collect<[Array<{ evidence?: string; from_text?: string; model?: string }>]>();
 
     const personCount = await loadWorkspacePeopleCount(db, workspaceRecord);
 
@@ -129,7 +184,11 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       extractedEntities: extractionEvent?.entities ?? [],
       personCount,
       ownerPersonCount,
-      evidenceRows,
+      evidenceRows: evidenceRows.map((row) => ({
+        evidence: row.evidence,
+        fromText: row.from_text,
+        model: row.model,
+      })),
     };
 
     resultCache[cacheKey] = output;
@@ -148,7 +207,7 @@ async function getSurreal(): Promise<Surreal> {
   surreal = new Surreal();
   await surreal.connect(surrealUrl);
   await surreal.signin({ username: surrealUsername, password: surrealPassword });
-  await surreal.use({ namespace: surrealNamespace, database: surrealDatabase });
+  await surreal.use({ namespace: evalNamespace, database: evalDatabase });
   return surreal;
 }
 
@@ -253,6 +312,132 @@ async function cleanupWorkspace(targetWorkspaceId: string): Promise<void> {
     ].join(" "),
     { workspace },
   );
+}
+
+async function ensureEvalEnvironment(): Promise<void> {
+  if (!environmentReadyPromise) {
+    environmentReadyPromise = setupEvalEnvironment().catch((error) => {
+      environmentReadyPromise = undefined;
+      throw error;
+    });
+  }
+
+  return environmentReadyPromise;
+}
+
+async function setupEvalEnvironment(): Promise<void> {
+  const db = await getSurreal();
+  await db.query(`DEFINE NAMESPACE ${evalNamespace};`).catch((error) => {
+    if (!isAlreadyExistsError(error)) {
+      throw error;
+    }
+  });
+  await db.use({ namespace: evalNamespace, database: evalDatabase });
+  await db.query(`REMOVE DATABASE ${evalDatabase};`).catch(() => undefined);
+  await db.query(`DEFINE DATABASE ${evalDatabase};`).catch((error) => {
+    if (!isAlreadyExistsError(error)) {
+      throw error;
+    }
+  });
+  await db.use({ namespace: evalNamespace, database: evalDatabase });
+
+  const schemaSql = readFileSync(schemaPath, "utf8");
+  await db.query(schemaSql).catch((error) => {
+    if (!isAlreadyExistsError(error)) {
+      throw error;
+    }
+  });
+
+  if (!evalServerProcess) {
+    evalServerProcess = spawn("bun", ["run", "app/server.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        PORT: String(evalPort),
+        SURREAL_NAMESPACE: evalNamespace,
+        SURREAL_DATABASE: evalDatabase,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  }
+
+  await waitForHealth(`${baseUrl}/healthz`, evalServerProcess, 20_000);
+  registerTeardown();
+}
+
+function registerTeardown(): void {
+  if (teardownRegistered) {
+    return;
+  }
+  teardownRegistered = true;
+
+  const runTeardown = () => {
+    void teardownEvalEnvironment();
+  };
+
+  process.once("exit", runTeardown);
+  process.once("SIGINT", runTeardown);
+  process.once("SIGTERM", runTeardown);
+}
+
+async function teardownEvalEnvironment(): Promise<void> {
+  if (evalServerProcess) {
+    evalServerProcess.kill();
+    await waitForExit(evalServerProcess).catch(() => undefined);
+    evalServerProcess = undefined;
+  }
+
+  const db = surreal;
+  if (!db) {
+    return;
+  }
+
+  await db.query(`REMOVE DATABASE ${evalDatabase};`).catch(() => undefined);
+  await db.query(`REMOVE NAMESPACE ${evalNamespace};`).catch(() => undefined);
+  await db.close().catch(() => undefined);
+  surreal = undefined;
+}
+
+async function waitForHealth(url: string, processHandle: ChildProcess, timeoutMs: number): Promise<void> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (processHandle.exitCode !== null) {
+      throw new Error(`Eval server exited early with code ${processHandle.exitCode}`);
+    }
+
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Keep polling.
+    }
+
+    await sleep(200);
+  }
+
+  throw new Error(`Timed out waiting for eval server health at ${url}`);
+}
+
+async function waitForExit(processHandle: ChildProcess): Promise<void> {
+  if (processHandle.exitCode !== null) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    processHandle.once("exit", () => resolve());
+    processHandle.once("error", reject);
+  });
+}
+
+function isAlreadyExistsError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes("already exists");
 }
 
 function loadCache(path: string): Record<string, ExtractionEvalOutput> {

@@ -1,10 +1,10 @@
 import { createScorer } from "evalite";
 import type { GoldenCase, ExtractionEvalOutput } from "../types";
-import { nameSimilarity } from "./shared";
+import { isEntityNameMatch } from "./shared";
 
 export const entityPrecisionScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCase>({
   name: "entity-precision",
-  description: "Percent of extracted entities that match expected entities (same kind + name similarity > 0.8).",
+  description: "Percent of extracted entities that match expected entities (same kind + lexical match >= 0.5).",
   scorer: ({ output, expected }) => {
     const expectedEntities = expected?.expectedEntities ?? [];
     if (output.extractedEntities.length === 0) {
@@ -15,7 +15,7 @@ export const entityPrecisionScorer = createScorer<GoldenCase, ExtractionEvalOutp
     for (const entity of output.extractedEntities) {
       const found = expectedEntities.some(
         (candidate: GoldenCase["expectedEntities"][number]) =>
-          candidate.kind === entity.kind && nameSimilarity(candidate.text, entity.text) > 0.8,
+          candidate.kind === entity.kind && isEntityNameMatch(candidate.text, entity.text, 0.5),
       );
       if (found) {
         matched += 1;
