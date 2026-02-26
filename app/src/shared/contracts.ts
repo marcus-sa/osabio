@@ -68,6 +68,7 @@ export type WorkspaceBootstrapMessage = {
   role: "user" | "assistant";
   text: string;
   createdAt: string;
+  suggestions?: string[];
 };
 
 export type WorkspaceBootstrapResponse = {
@@ -90,6 +91,7 @@ export type AssistantMessageEvent = {
   type: "assistant_message";
   messageId: string;
   text: string;
+  suggestions?: string[];
 };
 
 export type ExtractionEvent = {

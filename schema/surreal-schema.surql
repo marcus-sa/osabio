@@ -13,6 +13,7 @@ DEFINE FIELD conversation ON message TYPE record<conversation>;
 DEFINE FIELD role ON message TYPE string ASSERT $value IN ["user", "assistant"];
 DEFINE FIELD text ON message TYPE string;
 DEFINE FIELD createdAt ON message TYPE datetime;
+DEFINE FIELD suggestions ON message TYPE option<array<string>>;
 DEFINE FIELD clientMessageId ON message TYPE option<string>;
 DEFINE FIELD embedding ON message TYPE option<array<float>>;
 DEFINE INDEX message_conversation_createdAt ON message FIELDS conversation, createdAt;

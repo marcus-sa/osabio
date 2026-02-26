@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 
 import { randomUUID } from "node:crypto";
-import { embed, generateObject, generateText } from "ai";
+import { embed, generateObject } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import appHtml from "./src/client/index.html";
 import type {
@@ -87,6 +87,7 @@ type MessageContextRow = {
   role: "user" | "assistant";
   text: string;
   createdAt: Date | string;
+  suggestions?: string[];
 };
 
 type SearchEntityRow = {
@@ -192,6 +193,11 @@ const extractionResultSchema = z.object({
   tools: z.array(z.string().min(1)),
 });
 
+const assistantReplySchema = z.object({
+  message: z.string().min(1),
+  suggestions: z.array(z.string().min(1)).max(3),
+});
+
 const encoder = new TextEncoder();
 const streams = new Map<string, StreamState>();
 
@@ -286,11 +292,17 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
   const conversationRecord = new RecordId("conversation", conversationId);
   const ownerRecord = new RecordId("person", ownerId);
   const starterMessageRecord = new RecordId("message", randomUUID());
+  const starterSuggestions = [
+    "I'll describe my project",
+    "I have a document to upload",
+    "I'm running multiple projects",
+  ];
 
   const starterMessage = [
-    `I’m your workspace copilot for ${parsed.data.name}.`,
-    "Let’s get this set up quickly.",
-    "What is the business or venture you’re building right now?",
+    `Hey ${parsed.data.ownerDisplayName}!`,
+    "I'm ready to help you build out your workspace.",
+    "Tell me about what you're working on - what's the main project or business you want to track here?",
+    "If you have an existing document (like a plan or spec), you can drop it in and I'll extract everything from it.",
   ].join(" ");
 
   const transaction = await surreal.beginTransaction();
@@ -330,6 +342,7 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
       conversation: conversationRecord,
       role: "assistant",
       text: starterMessage,
+      suggestions: starterSuggestions,
       createdAt: now,
     });
 
@@ -362,7 +375,7 @@ async function handleWorkspaceBootstrap(workspaceId: string): Promise<Response> 
     const conversationRecord = await resolveWorkspaceBootstrapConversation(workspaceRecord);
     const [messageRows] = await surreal
       .query<[MessageContextRow[]]>(
-        "SELECT id, role, text, createdAt FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT 80;",
+        "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT 80;",
         {
           conversation: conversationRecord,
         },
@@ -374,6 +387,7 @@ async function handleWorkspaceBootstrap(workspaceId: string): Promise<Response> 
       role: row.role,
       text: row.text,
       createdAt: toIsoString(row.createdAt),
+      ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
     const seeds = await loadWorkspaceSeeds(workspaceRecord, 40);
@@ -711,12 +725,13 @@ async function processChatMessage(input: {
       now,
     });
 
-    const assistantText = await generateAssistantReply({
+    const assistantReply = await generateAssistantReply({
       onboardingState: onboardingAfter,
       contextRows,
       latestUserText: input.userText,
       workspaceRecord: input.workspaceRecord,
     });
+    const assistantText = assistantReply.message;
 
     for (const token of assistantText.split(" ")) {
       emitEvent(input.messageId, {
@@ -732,6 +747,7 @@ async function processChatMessage(input: {
       conversation: conversationRecord,
       role: "assistant",
       text: assistantText,
+      ...(assistantReply.suggestions.length > 0 ? { suggestions: assistantReply.suggestions } : {}),
       createdAt: now,
     });
 
@@ -772,6 +788,7 @@ async function processChatMessage(input: {
       type: "assistant_message",
       messageId: input.messageId,
       text: assistantText,
+      ...(assistantReply.suggestions.length > 0 ? { suggestions: assistantReply.suggestions } : {}),
     });
 
     emitEvent(input.messageId, {
@@ -860,7 +877,7 @@ async function generateAssistantReply(input: {
   contextRows: MessageContextRow[];
   latestUserText: string;
   workspaceRecord: RecordId<"workspace", string>;
-}): Promise<string> {
+}): Promise<{ message: string; suggestions: string[] }> {
   let systemPrompt =
     "You are helping a product team capture actionable project state. Respond concisely with clear next actions.";
 
@@ -871,6 +888,7 @@ async function generateAssistantReply(input: {
       "Ask one natural question at a time like a smart colleague, never as a form.",
       "Cover these topics over 5-7 turns: business/venture, current projects, people involved, most important decision, tools used, biggest bottleneck.",
       "Confirm captured entities inline in plain language.",
+      "Return exactly 3 short clickable follow-up suggestions that move onboarding forward.",
       "Do not dump all questions at once.",
       "Current extracted context:",
       summary,
@@ -883,15 +901,19 @@ async function generateAssistantReply(input: {
       "You are finishing onboarding for a workspace.",
       "Summarize what has been captured in a concise bullet list and ask if anything is missing or incorrect.",
       "End with an invitation to proceed into normal chat.",
+      "Return exactly 3 short clickable follow-up suggestions.",
       "Current extracted context:",
       summary,
     ].join(" ");
   }
 
-  const assistantResponse = await generateText({
+  const assistantResponse = await generateObject({
     model: assistantModel,
+    schema: assistantReplySchema,
     system: systemPrompt,
     prompt: [
+      "Return JSON with this shape: { message: string, suggestions: string[] }.",
+      "Suggestions must be short and actionable. Do not include numbering or punctuation-only entries.",
       "Conversation context:",
       formatContextRows(input.contextRows),
       "",
@@ -900,12 +922,22 @@ async function generateAssistantReply(input: {
     ].join("\n"),
   });
 
-  const assistantText = assistantResponse.text.trim();
+  const assistantText = assistantResponse.object.message.trim();
   if (assistantText.length === 0) {
     throw new Error("assistant response was empty");
   }
 
-  return assistantText;
+  const suggestions = [...new Set(assistantResponse.object.suggestions.map((value) => value.trim()))]
+    .filter((value) => value.length > 0)
+    .slice(0, 3);
+  if (suggestions.length === 0) {
+    throw new Error("assistant suggestions were empty");
+  }
+
+  return {
+    message: assistantText,
+    suggestions,
+  };
 }
 
 async function ingestAttachment(input: {

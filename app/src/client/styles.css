@@ -220,6 +220,18 @@ body {
   cursor: pointer;
 }
 
+.workspace-form button:disabled {
+  background: #97b4d9;
+  color: #e8f1ff;
+  cursor: not-allowed;
+}
+
+/* Reachat's framer-motion message wrappers can remain in hidden state; force visible. */
+.reachat-page [style*="translateY(20px)"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 .error-message {
   margin-top: 0.75rem;
   color: #8a1020;

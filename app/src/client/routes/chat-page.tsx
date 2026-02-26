@@ -1,31 +1,25 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Chat,
+  ChatSuggestions,
   ChatInput,
-  SessionMessage,
   SessionMessagePanel,
   SessionMessages,
   SessionMessagesHeader,
   type MentionItem,
   type Session,
+  type Suggestion,
   type SlashCommandItem,
 } from "reachat";
 import type {
   ChatMessageResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
-  ExtractedEntity,
-  ExtractedRelationship,
   OnboardingSeedItem,
   SearchEntityResponse,
   StreamEvent as ChatStreamEvent,
   WorkspaceBootstrapResponse,
 } from "../../shared/contracts";
-
-type ConversationExtraction = {
-  entities: ExtractedEntity[];
-  relationships: ExtractedRelationship[];
-};
 
 type WorkspaceState = {
   id: string;
@@ -80,14 +74,12 @@ export function ChatPage() {
   const [backendConversationId, setBackendConversationId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
-  const [extractionsByConversationId, setExtractionsByConversationId] = useState<
-    Record<string, ConversationExtraction>
-  >({});
   const [seedItems, setSeedItems] = useState<OnboardingSeedItem[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [pendingFile, setPendingFile] = useState<File | undefined>();
-  const [highlightedSourceId, setHighlightedSourceId] = useState<string | undefined>();
-  const [conversationSourceMessageById, setConversationSourceMessageById] = useState<Record<string, string>>({});
   const streamRef = useRef<EventSource | undefined>(undefined);
+  const canCreateWorkspace =
+    createWorkspaceName.trim().length > 0 && createOwnerName.trim().length > 0;
 
   const activeSession = useMemo(
     () => sessions.find((session) => session.id === activeSessionId),
@@ -139,7 +131,7 @@ export function ChatPage() {
 
   function applyBootstrapPayload(payload: WorkspaceBootstrapResponse) {
     const conversations: Session["conversations"] = [];
-    const messageSourceMap: Record<string, string> = {};
+    let latestSuggestions: string[] = [];
 
     for (const message of payload.messages) {
       if (message.role === "user") {
@@ -148,7 +140,6 @@ export function ChatPage() {
           question: message.text,
           createdAt: new Date(message.createdAt),
         });
-        messageSourceMap[message.id] = message.id;
         continue;
       }
 
@@ -156,6 +147,9 @@ export function ChatPage() {
       if (last && !last.response) {
         last.response = message.text;
         last.updatedAt = new Date(message.createdAt);
+        if (message.suggestions && message.suggestions.length > 0) {
+          latestSuggestions = message.suggestions;
+        }
         continue;
       }
 
@@ -165,6 +159,9 @@ export function ChatPage() {
         response: message.text,
         createdAt: new Date(message.createdAt),
       });
+      if (message.suggestions && message.suggestions.length > 0) {
+        latestSuggestions = message.suggestions;
+      }
     }
 
     setSessions([
@@ -177,8 +174,13 @@ export function ChatPage() {
       },
     ]);
 
-    setConversationSourceMessageById(messageSourceMap);
     setSeedItems(payload.seeds);
+    setSuggestions(
+      latestSuggestions.map((content, index) => ({
+        id: `bootstrap-suggestion-${index}-${content}`,
+        content,
+      })),
+    );
     setBackendConversationId(payload.conversationId);
     setWorkspace({
       id: payload.workspaceId,
@@ -215,7 +217,12 @@ export function ChatPage() {
 
     const name = createWorkspaceName.trim();
     const ownerDisplayName = createOwnerName.trim();
-    if (!name || !ownerDisplayName || isCreatingWorkspace) {
+    if (isCreatingWorkspace) {
+      return;
+    }
+
+    if (!name || !ownerDisplayName) {
+      setErrorMessage("Workspace name and owner display name are required");
       return;
     }
 
@@ -227,35 +234,36 @@ export function ChatPage() {
       ownerDisplayName,
     };
 
-    let response: Response;
     try {
-      response = await fetch("/api/workspaces", {
+      const response = await fetch("/api/workspaces", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
+
+      if (!response.ok) {
+        const body = await response.text();
+        setErrorMessage(body);
+        return;
+      }
+
+      const payload = (await response.json()) as Partial<CreateWorkspaceResponse>;
+      if (typeof payload.workspaceId !== "string" || payload.workspaceId.trim().length === 0) {
+        throw new Error("create workspace response is missing workspaceId");
+      }
+
+      window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, payload.workspaceId);
+      await bootstrapWorkspace(payload.workspaceId);
+      setCreateWorkspaceName("");
+      setCreateOwnerName("");
     } catch (error) {
-      const messageText = error instanceof Error ? error.message : "Network error";
+      const messageText = error instanceof Error ? error.message : "Workspace creation failed";
       setErrorMessage(messageText);
+    } finally {
       setIsCreatingWorkspace(false);
-      return;
     }
-
-    if (!response.ok) {
-      const body = await response.text();
-      setErrorMessage(body);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-
-    const payload = (await response.json()) as CreateWorkspaceResponse;
-    window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, payload.workspaceId);
-    await bootstrapWorkspace(payload.workspaceId);
-    setCreateWorkspaceName("");
-    setCreateOwnerName("");
-    setIsCreatingWorkspace(false);
   }
 
   function onUploadFile(file: File) {
@@ -274,6 +282,7 @@ export function ChatPage() {
 
     setErrorMessage(undefined);
     setIsLoading(true);
+    setSuggestions([]);
 
     const clientMessageId = crypto.randomUUID();
     const currentAttachment = pendingFile;
@@ -356,11 +365,6 @@ export function ChatPage() {
 
     const payload = (await response.json()) as ChatMessageResponse;
     setBackendConversationId(payload.conversationId);
-    setConversationSourceMessageById((existing) => ({
-      ...existing,
-      [clientMessageId]: payload.userMessageId,
-    }));
-
     if (streamRef.current) {
       streamRef.current.close();
       streamRef.current = undefined;
@@ -399,6 +403,12 @@ export function ChatPage() {
 
       if (parsed.type === "assistant_message") {
         streamedText = parsed.text;
+        setSuggestions(
+          (parsed.suggestions ?? []).map((content, index) => ({
+            id: `suggestion-${parsed.messageId}-${index}-${content}`,
+            content,
+          })),
+        );
         setSessions((existing) =>
           existing.map((session) =>
             session.id === activeSessionId
@@ -417,17 +427,6 @@ export function ChatPage() {
               : session,
           ),
         );
-        return;
-      }
-
-      if (parsed.type === "extraction") {
-        setExtractionsByConversationId((existing) => ({
-          ...existing,
-          [clientMessageId]: {
-            entities: parsed.entities,
-            relationships: parsed.relationships,
-          },
-        }));
         return;
       }
 
@@ -520,6 +519,7 @@ export function ChatPage() {
               value={createWorkspaceName}
               onChange={(event) => setCreateWorkspaceName(event.target.value)}
               placeholder="Acme Labs"
+              required
             />
           </label>
           <label>
@@ -528,9 +528,10 @@ export function ChatPage() {
               value={createOwnerName}
               onChange={(event) => setCreateOwnerName(event.target.value)}
               placeholder="Marcus"
+              required
             />
           </label>
-          <button type="submit" disabled={isCreatingWorkspace || isBootstrapping}>
+          <button type="submit" disabled={!canCreateWorkspace || isCreatingWorkspace || isBootstrapping}>
             {isCreatingWorkspace ? "Creating..." : "Create Workspace"}
           </button>
         </form>
@@ -544,13 +545,6 @@ export function ChatPage() {
       <div className="workspace-toolbar">
         <div>
           <strong>{workspace.name}</strong>
-          <span className="workspace-state">
-            {workspace.onboardingComplete
-              ? "Onboarding complete"
-              : workspace.onboardingState === "summary_pending"
-                ? "Onboarding summary"
-                : "Onboarding in progress"}
-          </span>
         </div>
         {pendingFile ? (
           <div className="pending-file">
@@ -567,7 +561,7 @@ export function ChatPage() {
           viewType="chat"
           sessions={sessions}
           activeSessionId={activeSession.id}
-          isLoading={isLoading || isBootstrapping}
+          isLoading={isLoading}
           onSendMessage={onSendMessage}
           onStopMessage={onStopMessage}
           onFileUpload={onUploadFile}
@@ -576,61 +570,13 @@ export function ChatPage() {
             <SessionMessagesHeader>
               <div className="reachat-header">Workspace Chat + Extraction</div>
             </SessionMessagesHeader>
-            <SessionMessages>
-              {(conversations) =>
-                conversations.map((conversation, index) => {
-                  const extraction = extractionsByConversationId[conversation.id];
-                  const sourceMessageId = conversationSourceMessageById[conversation.id];
-                  const isHighlighted = Boolean(highlightedSourceId && sourceMessageId === highlightedSourceId);
-                  return (
-                    <SessionMessage
-                      key={conversation.id}
-                      conversation={conversation}
-                      isLast={index === conversations.length - 1}
-                    >
-                      {isHighlighted ? <div className="source-match-tag">Source match</div> : undefined}
-
-                      {extraction ? (
-                        <div className="extraction-block">
-                          {extraction.entities.length > 0 ? (
-                            <div className="extraction-row">
-                              {extraction.entities.map((entity) => (
-                                <span
-                                  key={`${entity.id}:${entity.sourceKind}:${entity.sourceId}`}
-                                  className="entity-badge"
-                                  title={`source ${entity.sourceKind}: ${entity.sourceId}`}
-                                >
-                                  {entity.kind} • {entity.text} • {entity.confidence.toFixed(2)}
-                                </span>
-                              ))}
-                            </div>
-                          ) : undefined}
-
-                          {extraction.relationships.length > 0 ? (
-                            <div className="extraction-row">
-                              {extraction.relationships.map((relationship) => (
-                                <span
-                                  key={relationship.id}
-                                  className="relationship-badge"
-                                  title={
-                                    relationship.sourceId
-                                      ? `source ${relationship.sourceKind}: ${relationship.sourceId}`
-                                      : "relationship"
-                                  }
-                                >
-                                  {relationship.kind} • {relationship.fromId} -&gt; {relationship.toId} •{" "}
-                                  {relationship.confidence.toFixed(2)}
-                                </span>
-                              ))}
-                            </div>
-                          ) : undefined}
-                        </div>
-                      ) : undefined}
-                    </SessionMessage>
-                  );
-                })
-              }
-            </SessionMessages>
+            <SessionMessages />
+            <ChatSuggestions
+              suggestions={suggestions}
+              onSuggestionClick={(suggestion) => {
+                void onSendMessage(suggestion);
+              }}
+            />
             <ChatInput
               placeholder="Discuss tasks, decisions, and questions..."
               allowedFiles={[".md", ".txt"]}
@@ -652,7 +598,6 @@ export function ChatPage() {
               <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
                 <button
                   type="button"
-                  onClick={() => setHighlightedSourceId(seed.sourceKind === "message" ? seed.sourceId : undefined)}
                 >
                   <span className="seed-kind">{seed.kind}</span>
                   <span className="seed-text">{seed.text}</span>
