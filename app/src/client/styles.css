@@ -1,0 +1,162 @@
+:root {
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  color: #13263f;
+  background: radial-gradient(circle at 10% 20%, #d3e8ff 0%, #f4f8fc 45%, #ffffff 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.nav-link {
+  color: #0057cc;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.app-main {
+  border: 1px solid #bbd2ef;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 16px 40px rgba(0, 36, 85, 0.08);
+}
+
+.chat-page {
+  padding: 1rem;
+}
+
+.chat-messages {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.chat-message {
+  border-radius: 12px;
+  padding: 0.75rem;
+  border: 1px solid #d1deed;
+  background: #ffffff;
+}
+
+.chat-message.user {
+  background: #e9f3ff;
+  border-color: #a4c9f5;
+}
+
+.chat-message p {
+  margin: 0.4rem 0;
+  white-space: pre-wrap;
+}
+
+.entity-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.entity-list li {
+  display: grid;
+  grid-template-columns: 90px 1fr 56px;
+  gap: 0.4rem;
+  align-items: center;
+  background: #f6fbff;
+  border: 1px solid #d7e8fa;
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.85rem;
+}
+
+.entity-kind {
+  text-transform: capitalize;
+  font-weight: 700;
+}
+
+.entity-kind.task {
+  color: #0f5e2e;
+}
+
+.entity-kind.decision {
+  color: #8a4b00;
+}
+
+.entity-kind.question {
+  color: #1a3f8f;
+}
+
+.entity-confidence {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.chat-form textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #9db8d8;
+  border-radius: 10px;
+  padding: 0.7rem;
+  font: inherit;
+}
+
+.chat-form button {
+  width: 140px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: #0057cc;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-form button:disabled {
+  background: #7da5d8;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin-top: 0.75rem;
+  color: #8a1020;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .app-shell {
+    padding: 0.8rem 0.6rem 1.2rem;
+  }
+
+  .entity-list li {
+    grid-template-columns: 75px 1fr;
+  }
+
+  .entity-confidence {
+    display: none;
+  }
+}
