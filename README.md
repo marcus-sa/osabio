@@ -1,9 +1,7 @@
-# AI-Native Business Management Platform
+# MVP Build Plan: AI-Native Business Management Platform
 
 **Codename:** Schack Systems / Project Brain
-
 **Date:** February 2026
-
 **Author:** Marcus
 
 ---
@@ -43,7 +41,7 @@ Every technology choice optimizes for tight integration, minimal moving parts, a
 |-------|-----------|-----------|
 | **Database** | SurrealDB | Graph + vector + document in one system. Eliminates need for Postgres + Pinecone + Neo4j. JS/TS SDK available. |
 | **Backend** | TypeScript (Hono) | Same language top-to-bottom. Extraction pipeline is I/O bound (LLM calls), not CPU bound — Node excels here. Hono runs on Node, Deno, Bun, and Cloudflare Workers for future deployment flexibility. Shared types with frontend eliminate serialization bugs. |
-| **Chat UI** | Reachat | Same ecosystem as Reagraph (reaviz). Built-in @mentions, /commands, rich text via Tiptap v3. Designed for LLM interfaces. |
+| **Chat UI** | Reachat | Same ecosystem as Reagraph (reaviz). Built-in @mentions, /commands, rich text via Tiptap v3. Component catalog for rendering custom entity cards and extraction summaries inline. Suggestions for contextual prompt buttons. Designed for LLM interfaces. |
 | **Graph UI** | Reagraph | WebGL graph visualization for React. Path finding, expand/collapse, clustering. Same design language as Reachat. |
 | **LLM Layer** | Anthropic / OpenAI API | Powers the extraction pipeline and conversational reasoning. Provider-agnostic architecture. |
 | **Streaming** | Vercel AI SDK | Handles LLM streaming protocol between backend and Reachat UI. Native TypeScript — no bridging needed. |
@@ -299,13 +297,25 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
 1. **SurrealDB setup:** Define schema for all entity types and relationship edges, starting from the Workspace root. Configure vector index (HNSW) for embeddings on message and entity nodes. Write SurrealQL functions for entity retrieval and graph traversal.
 2. **TypeScript backend API (Hono):** REST/WebSocket endpoints for chat messages, streaming LLM responses, and graph queries. SurrealDB JS SDK integration. Message persistence and embedding generation (OpenRouter). Shared type definitions with frontend.
 3. **Extraction pipeline v1:** LLM prompt (Haiku 4.5) that takes a message + context and outputs structured JSON with entities and relationships. Initial focus on tasks, decisions, and questions. Confidence scoring to filter noise. Extracted relationships stored as `extraction_relation` edges with `{kind, confidence, source_message}` — no premature ontology resolution. Entity and message nodes embedded via OpenRouter for semantic search.
-4. **Reachat frontend:** Basic chat textarea with LLM streaming (Sonnet 4.5). Configure @mention support with entity search against SurrealDB. Inline annotations showing extracted entities as subtle highlights.
-5. **Workspace onboarding conversation:** Creating a workspace drops the user into a guided chat — no forms. The system uses a specialized system prompt to conversationally ask about the business, current projects, people involved, key decisions being faced, tools in use, and biggest concerns. Each answer is extracted in real-time using the standard extraction pipeline. By the end of 5–7 exchanges, the workspace graph contains 5–15 initial nodes (workspace, projects, people, decisions, questions) with edges. The user sees the graph building as they talk, demonstrating the core value loop in the first two minutes. The onboarding prompt adapts based on answers (solo founder gets different follow-ups than someone with a team) and confirms extracted entities inline ("Got it — I've created a project called X with you as the owner"). This flow doubles as the best smoke test for the extraction pipeline: if it can't produce a clean initial graph from a guided conversation, it's not ready for open-ended usage.
+4. **Reachat frontend:** Chat textarea with LLM streaming (Sonnet 4.5). Configure @mention support with entity search against SurrealDB. Two key Reachat features used from day one:
+
+   **Component catalog:** Register custom components that the LLM can render inline in chat messages. Extracted entities appear as rich interactive cards inside the conversation, not just text. Phase 1 catalog:
+   - `EntityCard` — extracted entity with type icon, name, status, confidence indicator. Rendered inline when the system confirms extractions.
+   - `ExtractionSummary` — batch of EntityCards after document upload or multi-entity extraction. Shows entity count and relationship count.
+   - `DuplicatePrompt` — "Did you mean the same 'auth feature'?" with merge/keep action buttons. Surfaces `POSSIBLE_DUPLICATE` entity relations for user resolution.
+   - `OnboardingSummary` — end-of-onboarding graph summary showing all captured entities grouped by type, with a confirm/continue action.
+
+   **Suggestions:** Clickable prompt buttons rendered below system messages. The LLM returns suggestions alongside each response. Used throughout onboarding to guide the conversation without forcing form-filling:
+   - After first message: "I'll describe my project" / "I have a document to upload" / "I'm running multiple projects"
+   - After project captured: "Just me for now" / "I have a small team" / "Let me tell you about key decisions"
+   - After threshold met: "Looks good, let's go" / "I want to add more context" / "Show me what you extracted"
+   - Post-onboarding in normal chat, suggestions shift to contextual actions: "Create a task for this" / "Add as a decision" / "What depends on this?"
+5. **Workspace onboarding conversation:** Creating a workspace collects two fields (workspace name, owner name), creates the root nodes (`workspace:xyz` + `person:owner` + `MEMBER_OF` edge), and drops the user into chat. The system sends the first message with suggestions — no empty state. The onboarding uses the same chat route with an `onboarding_complete: false` flag on the workspace that enriches the system prompt with guided questions. The system conversationally asks about the business, current projects, people involved, key decisions, tools in use, and biggest concerns. Each answer is extracted in real-time and rendered inline using the component catalog — the user sees `EntityCard` components appearing in the chat as the system confirms what it understood ("Got it:" followed by rendered entity cards). Suggestions guide each turn so the user always has clear next steps. Onboarding completes when the graph reaches minimum threshold (≥1 project + ≥1 person + ≥1 decision or question) or after 7 guided turns — at which point the system renders an `OnboardingSummary` component and offers to continue or dive in. Completion triggers on explicit confirmation, the user changing topic, or uploading a document. The flag flips, the system prompt switches to standard chat, and the conversation continues seamlessly in the same view.
 6. **Document upload for graph seeding:** Users can optionally drop a document (markdown or plain text in Phase 1) into the onboarding chat to bootstrap a dense initial graph. The document is chunked respecting section boundaries, each chunk runs through Haiku extraction with the same structured JSON output, and entities are deduplicated against existing nodes (embedding similarity + LLM context of current graph state). A plan document like a 400-line MVP spec might yield 50–100 nodes in one shot — features, decisions, dependencies, risks, tech choices — all with relationships. After ingestion, the system summarizes what it extracted and continues the conversation with smarter follow-up questions based on gaps or ambiguities in the document ("Your plan mentions SurrealDB but flags a maturity risk — have you evaluated fallbacks?"). The document doesn't replace the onboarding conversation, it accelerates it. All extracted nodes link back to the source document as provenance. This is not a separate UI — it's a file attachment in the chat, like any messaging app.
 7. **Smoke tests:** Bun script for API/SSE/search/graph checks (health, message flow, extraction writes, embedding storage, semantic search, RELATE edges). Plus a short manual frontend verification checklist (streaming, @mentions, inline annotations).
 8. **Dogfooding checkpoint:** Run the onboarding conversation for the dogfooding workspace ("AI-Native Business Management Platform"), uploading this MVP plan as the seed document. Start using the tool to plan and track building the tool itself. Every architecture decision becomes a graph node.
 
-*Deliverable: A working chat that talks to an LLM and builds a knowledge graph from conversations. Workspace creation is a self-service onboarding conversation that bootstraps the graph. Entities are visible as inline annotations.*
+*Deliverable: A working chat that talks to an LLM and builds a knowledge graph from conversations. Extracted entities render as rich inline components via Reachat's component catalog. Suggestions guide the user through onboarding and contextual actions. Workspace creation is a self-service onboarding conversation that bootstraps the graph. Document upload accelerates graph seeding.*
 
 ---
 

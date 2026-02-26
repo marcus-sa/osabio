@@ -20,6 +20,7 @@ import type {
   StreamEvent as ChatStreamEvent,
   WorkspaceBootstrapResponse,
 } from "../../shared/contracts";
+import { chatComponentCatalog } from "../chat-component-catalog";
 
 type WorkspaceState = {
   id: string;
@@ -75,6 +76,7 @@ export function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [seedItems, setSeedItems] = useState<OnboardingSeedItem[]>([]);
+  const [isSeedPanelOpen, setIsSeedPanelOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [pendingFile, setPendingFile] = useState<File | undefined>();
   const streamRef = useRef<EventSource | undefined>(undefined);
@@ -546,6 +548,9 @@ export function ChatPage() {
         <div>
           <strong>{workspace.name}</strong>
         </div>
+        <button type="button" className="seed-toggle" onClick={() => setIsSeedPanelOpen((current) => !current)}>
+          {isSeedPanelOpen ? "Hide live graph seed" : "Show live graph seed"} ({seedItems.length})
+        </button>
         {pendingFile ? (
           <div className="pending-file">
             Attached: {pendingFile.name}
@@ -556,11 +561,12 @@ export function ChatPage() {
         ) : undefined}
       </div>
 
-      <div className="onboarding-layout">
+      <div className={`onboarding-layout${isSeedPanelOpen ? " onboarding-layout--with-seeds" : ""}`}>
         <Chat
           viewType="chat"
           sessions={sessions}
           activeSessionId={activeSession.id}
+          components={chatComponentCatalog}
           isLoading={isLoading}
           onSendMessage={onSendMessage}
           onStopMessage={onStopMessage}
@@ -590,26 +596,28 @@ export function ChatPage() {
           </SessionMessagePanel>
         </Chat>
 
-        <aside className="seed-panel">
-          <h3>Live Graph Seed</h3>
-          <p>Entities extracted during onboarding and document ingestion.</p>
-          <ul>
-            {seedItems.map((seed) => (
-              <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
-                <button
-                  type="button"
-                >
-                  <span className="seed-kind">{seed.kind}</span>
-                  <span className="seed-text">{seed.text}</span>
-                  <span className="seed-meta">
-                    {seed.confidence.toFixed(2)} · {seed.sourceKind}
-                  </span>
-                  {seed.sourceLabel ? <span className="seed-label">{seed.sourceLabel}</span> : undefined}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        {isSeedPanelOpen ? (
+          <aside className="seed-panel">
+            <h3>Live Graph Seed</h3>
+            <p>Entities extracted during onboarding and document ingestion.</p>
+            <ul>
+              {seedItems.map((seed) => (
+                <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
+                  <button
+                    type="button"
+                  >
+                    <span className="seed-kind">{seed.kind}</span>
+                    <span className="seed-text">{seed.text}</span>
+                    <span className="seed-meta">
+                      {seed.confidence.toFixed(2)} · {seed.sourceKind}
+                    </span>
+                    {seed.sourceLabel ? <span className="seed-label">{seed.sourceLabel}</span> : undefined}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        ) : undefined}
       </div>
 
       {errorMessage ? <p className="error-message">{errorMessage}</p> : undefined}

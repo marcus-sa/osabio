@@ -206,10 +206,16 @@ if (!openRouterApiKey || openRouterApiKey.trim().length === 0) {
   throw new Error("OPENROUTER_API_KEY is required");
 }
 
-const extractionThresholdValue = Bun.env.EXTRACTION_CONFIDENCE_THRESHOLD ?? "0.75";
-const extractionThreshold = Number(extractionThresholdValue);
-if (!Number.isFinite(extractionThreshold) || extractionThreshold < 0 || extractionThreshold > 1) {
-  throw new Error("EXTRACTION_CONFIDENCE_THRESHOLD must be a number between 0 and 1");
+const extractionStoreThreshold = parseUnitInterval(
+  Bun.env.EXTRACTION_STORE_THRESHOLD ?? Bun.env.EXTRACTION_CONFIDENCE_THRESHOLD ?? "0.6",
+  "EXTRACTION_STORE_THRESHOLD",
+);
+const extractionDisplayThreshold = parseUnitInterval(
+  Bun.env.EXTRACTION_DISPLAY_THRESHOLD ?? "0.85",
+  "EXTRACTION_DISPLAY_THRESHOLD",
+);
+if (extractionDisplayThreshold < extractionStoreThreshold) {
+  throw new Error("EXTRACTION_DISPLAY_THRESHOLD must be greater than or equal to EXTRACTION_STORE_THRESHOLD");
 }
 
 const assistantModelId = Bun.env.ASSISTANT_MODEL ?? "openai/gpt-4.1-mini";
@@ -731,7 +737,10 @@ async function processChatMessage(input: {
       latestUserText: input.userText,
       workspaceRecord: input.workspaceRecord,
     });
-    const assistantText = assistantReply.message;
+    const summaryBlock = buildExtractionSummaryComponentBlock(persistedEntities, persistedRelationships);
+    const assistantText = summaryBlock
+      ? `${assistantReply.message.trim()}\n\n${summaryBlock}`
+      : assistantReply.message.trim();
 
     for (const token of assistantText.split(" ")) {
       emitEvent(input.messageId, {
@@ -913,6 +922,7 @@ async function generateAssistantReply(input: {
     system: systemPrompt,
     prompt: [
       "Return JSON with this shape: { message: string, suggestions: string[] }.",
+      "Message must be plain text only. Do not include markdown code fences or component JSON.",
       "Suggestions must be short and actionable. Do not include numbering or punctuation-only entries.",
       "Conversation context:",
       formatContextRows(input.contextRows),
@@ -1063,7 +1073,7 @@ async function persistExtractionOutput(input: {
 }): Promise<PersistExtractionResult> {
   const entities = dedupeExtractedEntities(input.output.entities);
   const relationships = input.output.relationships
-    .filter((relationship) => relationship.confidence >= extractionThreshold)
+    .filter((relationship) => relationship.confidence >= extractionStoreThreshold)
     .map((relationship) => ({
       ...relationship,
       kind: relationship.kind.trim(),
@@ -1192,7 +1202,7 @@ function dedupeExtractedEntities(entities: ExtractionPromptEntity[]): Extraction
       continue;
     }
 
-    if (entity.confidence < extractionThreshold) {
+    if (entity.confidence < extractionStoreThreshold) {
       continue;
     }
 
@@ -1207,6 +1217,56 @@ function dedupeExtractedEntities(entities: ExtractionPromptEntity[]): Extraction
   }
 
   return [...byTempId.values()];
+}
+
+function buildExtractionSummaryComponentBlock(
+  entities: ExtractedEntity[],
+  relationships: ExtractedRelationship[],
+): string | undefined {
+  const summaryEntities = new Map<
+    string,
+    { kind: ExtractableEntityKind; name: string; confidence: number; status: "captured" }
+  >();
+
+  for (const entity of [...entities].sort((a, b) => b.confidence - a.confidence)) {
+    if (entity.kind === "workspace" || entity.confidence < extractionDisplayThreshold) {
+      continue;
+    }
+
+    const name = entity.text.trim();
+    if (name.length === 0) {
+      continue;
+    }
+
+    const key = `${entity.kind}:${normalizeName(name)}`;
+    if (!summaryEntities.has(key)) {
+      summaryEntities.set(key, {
+        kind: entity.kind as ExtractableEntityKind,
+        name,
+        confidence: entity.confidence,
+        status: "captured",
+      });
+    }
+  }
+
+  if (summaryEntities.size === 0) {
+    return undefined;
+  }
+
+  const relationshipCount = relationships.filter(
+    (relationship) => relationship.confidence >= extractionDisplayThreshold,
+  ).length;
+
+  const summarySpec = {
+    type: "ExtractionSummary",
+    props: {
+      title: "Captured from your latest message",
+      entities: [...summaryEntities.values()].slice(0, 6),
+      relationshipCount,
+    },
+  };
+
+  return ["```component", JSON.stringify(summarySpec, null, 2), "```"].join("\n");
 }
 
 async function upsertGraphEntity(input: {
@@ -2382,6 +2442,15 @@ function parsePositiveInteger(value: string, envName: string): number {
   if (!Number.isInteger(parsed) || parsed < 1) {
     throw new Error(`${envName} must be a positive integer`);
   }
+  return parsed;
+}
+
+function parseUnitInterval(value: string, envName: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(`${envName} must be a number between 0 and 1`);
+  }
+
   return parsed;
 }
 
