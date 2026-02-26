@@ -323,12 +323,8 @@ const server = Bun.serve({
     "/api/entities/search": {
       GET: withRequestLogging("GET /api/entities/search", "GET", (request) => handleEntitySearch(new URL(request.url))),
     },
-    "/": {
-      GET: withRequestLogging("GET /", "GET", async () => htmlResponse()),
-    },
-    "/*": {
-      GET: withRequestLogging("GET /*", "GET", async () => htmlResponse()),
-    },
+    "/": appHtml,
+    "/*": appHtml,
   },
 });
 
@@ -3302,14 +3298,6 @@ function jsonResponse(payload: object, status: number): Response {
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
-    },
-  });
-}
-
-function htmlResponse(): Response {
-  return new Response(appHtml as unknown as BodyInit, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
     },
   });
 }
