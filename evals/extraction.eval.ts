@@ -23,12 +23,14 @@ const evalDatabase = `extraction_${Math.floor(Math.random() * 100000)}`;
 const evalPort = Number(process.env.EVAL_PORT ?? "3207");
 const baseUrl = `http://127.0.0.1:${evalPort}`;
 const extractionModel = process.env.EXTRACTION_MODEL ?? "anthropic/claude-3.5-haiku";
+const autoevalModel = requireEnv("AUTOEVAL_MODEL");
 const schemaPath = join(process.cwd(), "schema", "surreal-schema.surql");
 
 const cacheDir = process.env.EVAL_CACHE_DIR ?? "eval-results/cache";
 const cachePath = join(cacheDir, "extraction-cache.json");
 const resultCache = loadCache(cachePath);
 const cases = JSON.parse(readFileSync(join(process.cwd(), "evals", "data", "golden-cases.json"), "utf8")) as GoldenCase[];
+assertAutoevalEnv();
 
 let surreal: Surreal | undefined;
 let evalServerProcess: ChildProcess | undefined;
@@ -54,17 +56,13 @@ const factualityScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCa
     let total = 0;
     for (const entity of output.extractedEntities) {
       const snippet = resolveEntityEvidenceSnippet(entity.text, output.evidenceRows, input.input);
-      try {
-        const result = await Factuality({
-          input: snippet,
-          output: entity.text,
-          expected: snippet,
-          model: process.env.AUTOEVAL_MODEL,
-        });
-        total += result.score ?? 0;
-      } catch {
-        total += 0;
-      }
+      const result = await Factuality({
+        input: snippet,
+        output: entity.text,
+        expected: snippet,
+        model: autoevalModel,
+      });
+      total += result.score ?? 0;
     }
 
     return { score: total / output.extractedEntities.length };
@@ -451,4 +449,31 @@ function loadCache(path: string): Record<string, ExtractionEvalOutput> {
 function saveCache(path: string, cache: Record<string, ExtractionEvalOutput>): void {
   mkdirSync(cacheDir, { recursive: true });
   writeFileSync(path, JSON.stringify(cache, null, 2));
+}
+
+function assertAutoevalEnv(): void {
+  const hasOpenAiKey = hasEnv("OPENAI_API_KEY");
+  const hasBraintrustKey = hasEnv("BRAINTRUST_API_KEY");
+  if (!hasOpenAiKey && !hasBraintrustKey) {
+    throw new Error(
+      "Missing evaluator credentials. Set OPENAI_API_KEY (recommended for OPENAI_BASE_URL/OpenRouter) or BRAINTRUST_API_KEY.",
+    );
+  }
+
+  if (!hasEnv("OPENAI_BASE_URL")) {
+    throw new Error("Missing OPENAI_BASE_URL for autoevals provider routing.");
+  }
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function hasEnv(name: string): boolean {
+  const value = process.env[name];
+  return value !== undefined && value.trim().length > 0;
 }
