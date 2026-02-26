@@ -43,11 +43,16 @@ beforeAll(async () => {
 
   await withTimeout(() => surreal.query(`DEFINE NAMESPACE ${testNamespace};`), 10_000, "define test namespace");
   await withTimeout(
+    () => surreal.use({ namespace: testNamespace }),
+    10_000,
+    "switch to test namespace",
+  );
+  await withTimeout(() => surreal.query(`DEFINE DATABASE ${testDatabase};`), 10_000, "define test database");
+  await withTimeout(
     () => surreal.use({ namespace: testNamespace, database: testDatabase }),
     10_000,
     "switch to test namespace/database",
   );
-  await withTimeout(() => surreal.query(`DEFINE DATABASE ${testDatabase};`), 10_000, "define test database");
 
   const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
   await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");

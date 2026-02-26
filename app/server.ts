@@ -1702,7 +1702,14 @@ async function upsertGraphEntity(input: {
 
   const entityRecord = new RecordId(input.extracted.kind, randomUUID()) as GraphEntityRecord;
   await surreal.create(entityRecord).content(
-    buildEntityRecordContent(input.extracted.kind, input.extracted.text, input.extracted.confidence, input.now, candidateEmbedding),
+    buildEntityRecordContent(
+      input.extracted.kind,
+      input.extracted.text,
+      input.extracted.confidence,
+      input.now,
+      candidateEmbedding,
+      input.sourceMessageRecord,
+    ),
   );
 
   await createProvenanceEdge({
@@ -1991,6 +1998,7 @@ function buildEntityRecordContent(
   confidence: number,
   now: Date,
   embedding?: number[],
+  sourceMessageRecord?: RecordId<"message", string>,
 ): Record<string, unknown> {
   if (kind === "project") {
     return {
@@ -2018,6 +2026,7 @@ function buildEntityRecordContent(
       status: "open",
       extraction_confidence: confidence,
       extracted_at: now,
+      ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,
@@ -2030,6 +2039,7 @@ function buildEntityRecordContent(
       status: "extracted",
       extraction_confidence: confidence,
       extracted_at: now,
+      ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,
@@ -2041,6 +2051,7 @@ function buildEntityRecordContent(
     status: "open",
     extraction_confidence: confidence,
     extracted_at: now,
+    ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
     ...(embedding ? { embedding } : {}),
     created_at: now,
     updated_at: now,
