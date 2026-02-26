@@ -42,6 +42,8 @@ Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields
 - Clause order: `SELECT ... FROM ... WHERE ... LIMIT ... FETCH ...` - `LIMIT` must come before `FETCH`.
 - ORDER BY fields must be in the SELECT clause - you cannot order by fields not selected.
 - Always include every `ORDER BY` field in the `SELECT` projection. Example: if ordering decisions/questions by `created_at DESC`, select `summary, created_at` or `text, created_at` (not just `summary` / `text`).
+- Known issue: Surreal can throw `Expected a single result output when using the ONLY keyword` when a statement uses `ONLY` and returns no record output.
+- Workaround: force a return clause. In SDK calls that map to `ONLY` (for example `relate(...)`), use `.output("after")` so the statement returns a record.
 - Type query results directly. Access `RecordId.id` directly - do NOT create wrapper functions like `extractRecordId()`, `toString()`, etc:
   ```typescript
   const rows = await selectMany("SELECT id, name FROM gladiator WHERE totalWins > 0;") as Array<{ id: RecordId; name: string }>;

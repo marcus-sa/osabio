@@ -317,7 +317,7 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
     await transaction.relate(ownerRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
       role: "owner",
       added_at: now,
-    });
+    }).output("after");
 
     await transaction.create(conversationRecord).content({
       createdAt: now,
@@ -1121,7 +1121,7 @@ async function persistExtractionOutput(input: {
       created_at: input.now,
       from_text: relationship.fromText,
       to_text: relationship.toText,
-    });
+    }).output("after");
 
     persistedRelationships.push({
       id: relationRecord.id as string,
@@ -1270,7 +1270,7 @@ async function upsertGraphEntity(input: {
     if (projectRecord) {
       await surreal.relate(entityRecord, new RecordId("belongs_to", randomUUID()), projectRecord, {
         added_at: input.now,
-      });
+      }).output("after");
     }
   }
 
@@ -1284,7 +1284,7 @@ async function upsertGraphEntity(input: {
       created_at: input.now,
       from_text: input.extracted.text,
       to_text: bestCandidate.text,
-    });
+    }).output("after");
   }
 
   return {
@@ -1309,7 +1309,7 @@ async function createProvenanceEdge(input: {
     created_at: input.now,
     model: input.model,
     from_text: input.fromText,
-  });
+  }).output("after");
 }
 
 function buildEntityRecordContent(
@@ -1919,7 +1919,7 @@ async function ensureWorkspaceProjectEdge(
   if (edgeRows.length === 0) {
     await surreal.relate(workspaceRecord, new RecordId("has_project", randomUUID()), projectRecord, {
       added_at: now,
-    });
+    }).output("after");
   }
 }
 
@@ -1941,7 +1941,7 @@ async function ensureProjectFeatureEdge(
   if (edgeRows.length === 0) {
     await surreal.relate(projectRecord, new RecordId("has_feature", randomUUID()), featureRecord, {
       added_at: now,
-    });
+    }).output("after");
   }
 }
 
@@ -1963,7 +1963,7 @@ async function ensureWorkspaceMemberEdge(
   if (edgeRows.length === 0) {
     await surreal.relate(personRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
       added_at: now,
-    });
+    }).output("after");
   }
 }
 
