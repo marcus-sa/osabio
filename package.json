@@ -8,6 +8,7 @@
     "start": "bun run app/server.ts",
     "typecheck": "tsc --noEmit",
     "smoke:phase1": "bun run app/scripts/smoke-phase1.ts",
+    "smoke:logging": "bun run app/scripts/smoke-logging.ts",
     "smoke:onboarding": "bun run app/scripts/smoke-onboarding.ts",
     "smoke:readme-import": "bun run app/scripts/smoke-readme-import.ts"
   },
@@ -15,6 +16,7 @@
     "@openrouter/ai-sdk-provider": "^2.2.3",
     "@tanstack/react-router": "^1.131.24",
     "ai": "^6.0.101",
+    "pino": "^10.3.1",
     "reachat": "^3.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

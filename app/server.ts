@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { embed, generateObject } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import appHtml from "./src/client/index.html";
+import { getRequestLogger, serializeError } from "./src/server/logging";
+import { runWithRequestContext } from "./src/server/request-context";
 import type {
   ChatMessageResponse,
   CreateWorkspaceRequest,
@@ -159,6 +161,12 @@ type OnboardingCounts = {
   questionCount: number;
 };
 
+type RouteRequest = Request & {
+  params: Record<string, string>;
+};
+
+type RouteHandler = (request: RouteRequest) => Response | Promise<Response>;
+
 class HttpError extends Error {
   readonly status: number;
 
@@ -247,36 +255,70 @@ const extractionModel = openrouter(extractionModelId, {
 });
 const embeddingModel = openrouter.textEmbeddingModel(embeddingModelId);
 
+const port = Number(Bun.env.PORT ?? "3000");
+
 const server = Bun.serve({
-  port: Number(Bun.env.PORT ?? "3000"),
+  port,
   idleTimeout: 0,
   routes: {
     "/healthz": {
-      GET: () => jsonResponse({ status: "ok" }, 200),
+      GET: withRequestLogging("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
     },
     "/api/workspaces": {
-      POST: (request) => handleCreateWorkspace(request),
+      POST: withRequestLogging("POST /api/workspaces", "POST", (request) => handleCreateWorkspace(request)),
     },
     "/api/workspaces/:workspaceId/bootstrap": {
-      GET: (request) => handleWorkspaceBootstrap(request.params.workspaceId),
+      GET: withRequestLogging(
+        "GET /api/workspaces/:workspaceId/bootstrap",
+        "GET",
+        (request) => handleWorkspaceBootstrap(request.params.workspaceId),
+      ),
     },
     "/api/chat/messages": {
-      POST: (request) => handlePostChatMessage(request),
+      POST: withRequestLogging("POST /api/chat/messages", "POST", (request) => handlePostChatMessage(request)),
     },
     "/api/chat/stream/:messageId": {
-      GET: (request) => handleChatStream(request.params.messageId),
+      GET: withRequestLogging("GET /api/chat/stream/:messageId", "GET", (request) =>
+        handleChatStream(request.params.messageId),
+      ),
     },
     "/api/entities/search": {
-      GET: (request) => handleEntitySearch(new URL(request.url)),
+      GET: withRequestLogging("GET /api/entities/search", "GET", (request) => handleEntitySearch(new URL(request.url))),
     },
-    "/": appHtml,
-    "/*": appHtml,
+    "/": {
+      GET: withRequestLogging("GET /", "GET", async () => htmlResponse()),
+    },
+    "/*": {
+      GET: withRequestLogging("GET /*", "GET", async () => htmlResponse()),
+    },
   },
 });
 
-console.log(`Brain app running at http://127.0.0.1:${server.port}`);
+logInfo("server.started", "Brain app server started", {
+  port: server.port,
+  host: "127.0.0.1",
+  assistantModelId,
+  extractionModelId,
+  embeddingModelId,
+  embeddingDimension,
+  extractionStoreThreshold,
+  extractionDisplayThreshold,
+  surrealTransport: surrealUrl.startsWith("wss://")
+    ? "wss"
+    : surrealUrl.startsWith("ws://")
+      ? "ws"
+      : surrealUrl.startsWith("https://")
+        ? "https"
+        : "http",
+  surrealNamespace,
+  surrealDatabase,
+  openRouterReasoningEnabled: openRouterReasoning !== undefined,
+});
 
 async function handleCreateWorkspace(request: Request): Promise<Response> {
+  const startedAt = performance.now();
+  logInfo("workspace.create.started", "Workspace creation started");
+
   let body: unknown;
   try {
     body = await request.json();
@@ -288,6 +330,8 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
   if (!parsed.ok) {
     return jsonError(parsed.error, 400);
   }
+
+  logDebug("http.request.validated", "Workspace request validated");
 
   const now = new Date();
   const workspaceId = randomUUID();
@@ -355,7 +399,10 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
     await transaction.commit();
   } catch (error) {
     await transaction.cancel();
-    logServerError("create workspace failed", error);
+    logError("workspace.create.failed", "Workspace creation failed", error, {
+      workspaceId,
+      conversationId,
+    });
     const errorText = error instanceof Error ? error.message : "workspace creation failed";
     return jsonError(errorText, 500);
   }
@@ -367,10 +414,19 @@ async function handleCreateWorkspace(request: Request): Promise<Response> {
     onboardingComplete: false,
   };
 
+  logInfo("workspace.create.completed", "Workspace creation completed", {
+    workspaceId,
+    conversationId,
+    durationMs: elapsedMs(startedAt),
+  });
+
   return jsonResponse(response, 200);
 }
 
 async function handleWorkspaceBootstrap(workspaceId: string): Promise<Response> {
+  const startedAt = performance.now();
+  logInfo("workspace.bootstrap.started", "Workspace bootstrap started", { workspaceId });
+
   try {
     const workspaceRecord = await resolveWorkspaceRecord(workspaceId);
     const workspace = await surreal.select<WorkspaceRow>(workspaceRecord);
@@ -409,24 +465,39 @@ async function handleWorkspaceBootstrap(workspaceId: string): Promise<Response> 
       seeds,
     };
 
+    logInfo("workspace.bootstrap.completed", "Workspace bootstrap completed", {
+      workspaceId,
+      conversationId: conversationRecord.id as string,
+      messageCount: messages.length,
+      seedCount: seeds.length,
+      durationMs: elapsedMs(startedAt),
+    });
+
     return jsonResponse(payload, 200);
   } catch (error) {
     if (error instanceof HttpError) {
+      logWarn("workspace.bootstrap.http_error", "Workspace bootstrap failed with client-facing error", {
+        workspaceId,
+        statusCode: error.status,
+      });
       return jsonError(error.message, error.status);
     }
 
-    logServerError("workspace bootstrap failed", error, { workspaceId });
+    logError("workspace.bootstrap.failed", "Workspace bootstrap failed", error, { workspaceId });
     const errorText = error instanceof Error ? error.message : "workspace bootstrap failed";
     return jsonError(errorText, 500);
   }
 }
 
 async function handlePostChatMessage(request: Request): Promise<Response> {
+  const startedAt = performance.now();
+  logInfo("chat.message.ingress.started", "Chat message ingress started");
+
   let parsed: { ok: true; data: ParsedIncomingMessage } | { ok: false; error: string };
   try {
     parsed = await parseIncomingMessageRequest(request);
   } catch (error) {
-    logServerError("parse incoming message failed", error);
+    logError("chat.message.parse.failed", "Parsing incoming chat message failed", error);
     const errorText = error instanceof Error ? error.message : "invalid request body";
     return jsonError(errorText, 400);
   }
@@ -442,9 +513,21 @@ async function handlePostChatMessage(request: Request): Promise<Response> {
   const messageText = userText.length > 0 ? userText : `Uploaded document: ${parsed.data.attachment?.fileName ?? "attachment"}`;
   const userMessageRecord = new RecordId("message", randomUUID());
 
+  logDebug("http.request.validated", "Chat message request validated", {
+    workspaceId,
+    conversationId,
+    hasAttachment: parsed.data.attachment !== undefined,
+  });
+
   let workspaceRecord: RecordId<"workspace", string>;
 
   try {
+    logInfo("chat.message.persist.started", "Persisting user chat message", {
+      workspaceId,
+      conversationId,
+      messageId,
+    });
+
     workspaceRecord = await resolveWorkspaceRecord(workspaceId);
     const workspace = await surreal.select<WorkspaceRow>(workspaceRecord);
     if (!workspace) {
@@ -498,12 +581,29 @@ async function handlePostChatMessage(request: Request): Promise<Response> {
       await transaction.cancel();
       throw error;
     }
+
+    logInfo("chat.message.persist.completed", "User chat message persisted", {
+      workspaceId,
+      conversationId,
+      messageId,
+      userMessageId: userMessageRecord.id as string,
+    });
   } catch (error) {
     if (error instanceof HttpError) {
+      logWarn("chat.message.persist.http_error", "Chat message persistence failed with client-facing error", {
+        workspaceId,
+        conversationId,
+        messageId,
+        statusCode: error.status,
+      });
       return jsonError(error.message, error.status);
     }
 
-    logServerError("persist user message failed", error, { conversationId, messageId });
+    logError("chat.message.persist.failed", "Persisting user chat message failed", error, {
+      workspaceId,
+      conversationId,
+      messageId,
+    });
     const errorText = error instanceof Error ? error.message : "failed to persist user message";
     return jsonError(errorText, 500);
   }
@@ -511,6 +611,12 @@ async function handlePostChatMessage(request: Request): Promise<Response> {
   streams.set(messageId, {
     queue: [],
     finished: false,
+  });
+
+  logInfo("chat.message.process.started", "Async chat processing started", {
+    workspaceId,
+    conversationId,
+    messageId,
   });
 
   void processChatMessage({
@@ -530,18 +636,27 @@ async function handlePostChatMessage(request: Request): Promise<Response> {
     streamUrl: `/api/chat/stream/${messageId}`,
   };
 
+  logInfo("chat.message.ingress.completed", "Chat message ingress completed", {
+    workspaceId,
+    conversationId,
+    messageId,
+    durationMs: elapsedMs(startedAt),
+  });
+
   return jsonResponse(response, 200);
 }
 
 function handleChatStream(messageId: string): Response {
   const state = streams.get(messageId);
   if (!state) {
+    logWarn("sse.stream.not_found", "SSE stream not found", { messageId });
     return jsonError("stream not found", 404);
   }
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       state.controller = controller;
+      logInfo("sse.stream.opened", "SSE stream opened", { messageId, queuedEventCount: state.queue.length });
 
       for (const event of state.queue) {
         controller.enqueue(encodeSse(event));
@@ -550,7 +665,7 @@ function handleChatStream(messageId: string): Response {
 
       if (state.finished) {
         controller.close();
-        cleanupStream(messageId);
+        cleanupStream(messageId, "finished_before_start");
         return;
       }
 
@@ -559,7 +674,7 @@ function handleChatStream(messageId: string): Response {
       }, 15_000);
     },
     cancel() {
-      cleanupStream(messageId);
+      cleanupStream(messageId, "client_cancelled");
     },
   });
 
@@ -574,6 +689,7 @@ function handleChatStream(messageId: string): Response {
 }
 
 async function handleEntitySearch(url: URL): Promise<Response> {
+  const startedAt = performance.now();
   const workspaceId = url.searchParams.get("workspaceId")?.trim();
   if (!workspaceId) {
     return jsonError("workspaceId is required", 400);
@@ -593,6 +709,18 @@ async function handleEntitySearch(url: URL): Promise<Response> {
   }
 
   const limit = Math.min(Math.floor(parsedLimit), 100);
+  logDebug("http.request.validated", "Entity search request validated", {
+    workspaceId,
+    projectId,
+    limit,
+    queryLength: query.length,
+  });
+  logInfo("entity.search.started", "Entity search started", {
+    workspaceId,
+    projectId,
+    limit,
+  });
+
   let workspaceRecord: RecordId<"workspace", string>;
   let projectRecord: RecordId<"project", string> | undefined;
 
@@ -603,10 +731,18 @@ async function handleEntitySearch(url: URL): Promise<Response> {
     }
   } catch (error) {
     if (error instanceof HttpError) {
+      logWarn("entity.search.http_error", "Entity search failed with client-facing error", {
+        workspaceId,
+        projectId,
+        statusCode: error.status,
+      });
       return jsonError(error.message, error.status);
     }
 
-    logServerError("scope validation failed", error, { workspaceId, projectId });
+    logError("entity.search.scope_validation.failed", "Entity search scope validation failed", error, {
+      workspaceId,
+      projectId,
+    });
     const errorText = error instanceof Error ? error.message : "failed to validate scope";
     return jsonError(errorText, 500);
   }
@@ -645,6 +781,14 @@ async function handleEntitySearch(url: URL): Promise<Response> {
     } satisfies SearchEntityResponse))
     .slice(0, limit);
 
+  logInfo("entity.search.completed", "Entity search completed", {
+    workspaceId,
+    projectId,
+    limit,
+    resultCount: responseRows.length,
+    durationMs: elapsedMs(startedAt),
+  });
+
   return jsonResponse(responseRows, 200);
 }
 
@@ -656,6 +800,14 @@ async function processChatMessage(input: {
   userText: string;
   attachment?: IncomingAttachment;
 }): Promise<void> {
+  const startedAt = performance.now();
+  logInfo("chat.message.process.execution.started", "Chat message processing execution started", {
+    conversationId: input.conversationId,
+    messageId: input.messageId,
+    workspaceId: input.workspaceRecord.id as string,
+    hasAttachment: input.attachment !== undefined,
+  });
+
   try {
     const now = new Date();
     const conversationRecord = new RecordId("conversation", input.conversationId);
@@ -764,11 +916,7 @@ async function processChatMessage(input: {
       updatedAt: now,
     });
 
-    void persistEmbeddings(assistantMessageRecord, assistantText, embeddingTargets).catch((error: unknown) => {
-      logServerError("embedding persistence failed", error, {
-        messageId: assistantMessageRecord.id,
-      });
-    });
+    void persistEmbeddings(assistantMessageRecord, assistantText, embeddingTargets).catch(() => undefined);
 
     emitEvent(input.messageId, {
       type: "extraction",
@@ -804,10 +952,22 @@ async function processChatMessage(input: {
       type: "done",
       messageId: input.messageId,
     });
-  } catch (error) {
-    logServerError("chat processing failed", error, {
+
+    logInfo("chat.message.process.execution.completed", "Chat message processing execution completed", {
       conversationId: input.conversationId,
       messageId: input.messageId,
+      workspaceId: input.workspaceRecord.id as string,
+      entityCount: persistedEntities.length,
+      relationshipCount: persistedRelationships.length,
+      seedCount: seedItems.length,
+      durationMs: elapsedMs(startedAt),
+    });
+  } catch (error) {
+    logError("chat.message.process.execution.failed", "Chat message processing execution failed", error, {
+      conversationId: input.conversationId,
+      messageId: input.messageId,
+      workspaceId: input.workspaceRecord.id as string,
+      durationMs: elapsedMs(startedAt),
     });
     const errorText = userFacingError(error, "chat processing failed");
     emitEvent(input.messageId, {
@@ -957,68 +1117,99 @@ async function ingestAttachment(input: {
   attachment: IncomingAttachment;
   now: Date;
 }): Promise<PersistExtractionResult> {
+  const startedAt = performance.now();
   const documentRecord = new RecordId("document", randomUUID());
-  await surreal.create(documentRecord).content({
-    workspace: input.workspaceRecord,
-    name: input.attachment.fileName,
-    mime_type: input.attachment.mimeType,
-    size_bytes: input.attachment.sizeBytes,
-    uploaded_at: input.now,
+  const workspaceId = input.workspaceRecord.id as string;
+  const conversationId = input.conversationRecord.id as string;
+
+  logInfo("attachment.ingest.started", "Attachment ingestion started", {
+    workspaceId,
+    conversationId,
+    documentId: documentRecord.id as string,
+    fileSizeBytes: input.attachment.sizeBytes,
   });
 
-  const chunks = splitDocumentIntoChunks(input.attachment.content);
-  const persistedEntities: ExtractedEntity[] = [];
-  const persistedRelationships: ExtractedRelationship[] = [];
-  const seeds: OnboardingSeedItem[] = [];
-  const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
-  const tools: string[] = [];
-
-  for (const chunk of chunks) {
-    const chunkRecord = new RecordId("document_chunk", randomUUID());
-    const chunkEmbedding = await createEmbedding(chunk.content);
-
-    await surreal.create(chunkRecord).content({
-      document: documentRecord,
+  try {
+    await surreal.create(documentRecord).content({
       workspace: input.workspaceRecord,
-      content: chunk.content,
-      ...(chunk.heading ? { section_heading: chunk.heading } : {}),
-      position: chunk.position,
-      ...(chunkEmbedding ? { embedding: chunkEmbedding } : {}),
-      created_at: input.now,
+      name: input.attachment.fileName,
+      mime_type: input.attachment.mimeType,
+      size_bytes: input.attachment.sizeBytes,
+      uploaded_at: input.now,
     });
 
-    const extraction = await extractStructuredGraph({
-      contextRows: [],
-      latestText: chunk.content,
-      onboarding: true,
-      heading: chunk.heading,
+    const chunks = splitDocumentIntoChunks(input.attachment.content);
+    const persistedEntities: ExtractedEntity[] = [];
+    const persistedRelationships: ExtractedRelationship[] = [];
+    const seeds: OnboardingSeedItem[] = [];
+    const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
+    const tools: string[] = [];
+
+    for (const chunk of chunks) {
+      const chunkRecord = new RecordId("document_chunk", randomUUID());
+      const chunkEmbedding = await createEmbedding(chunk.content);
+
+      await surreal.create(chunkRecord).content({
+        document: documentRecord,
+        workspace: input.workspaceRecord,
+        content: chunk.content,
+        ...(chunk.heading ? { section_heading: chunk.heading } : {}),
+        position: chunk.position,
+        ...(chunkEmbedding ? { embedding: chunkEmbedding } : {}),
+        created_at: input.now,
+      });
+
+      const extraction = await extractStructuredGraph({
+        contextRows: [],
+        latestText: chunk.content,
+        onboarding: true,
+        heading: chunk.heading,
+      });
+
+      const result = await persistExtractionOutput({
+        workspaceRecord: input.workspaceRecord,
+        sourceRecord: chunkRecord,
+        sourceKind: "document_chunk",
+        sourceLabel: chunk.heading ? `${input.attachment.fileName} · ${chunk.heading}` : input.attachment.fileName,
+        promptText: chunk.content,
+        output: extraction,
+        sourceChunkRecord: chunkRecord,
+        now: input.now,
+      });
+
+      persistedEntities.push(...result.entities);
+      persistedRelationships.push(...result.relationships);
+      seeds.push(...result.seeds);
+      embeddingTargets.push(...result.embeddingTargets);
+      tools.push(...result.tools);
+    }
+
+    logInfo("attachment.ingest.completed", "Attachment ingestion completed", {
+      workspaceId,
+      conversationId,
+      documentId: documentRecord.id as string,
+      entityCount: persistedEntities.length,
+      relationshipCount: persistedRelationships.length,
+      chunkCount: chunks.length,
+      durationMs: elapsedMs(startedAt),
     });
 
-    const result = await persistExtractionOutput({
-      workspaceRecord: input.workspaceRecord,
-      sourceRecord: chunkRecord,
-      sourceKind: "document_chunk",
-      sourceLabel: chunk.heading ? `${input.attachment.fileName} · ${chunk.heading}` : input.attachment.fileName,
-      promptText: chunk.content,
-      output: extraction,
-      sourceChunkRecord: chunkRecord,
-      now: input.now,
+    return {
+      entities: persistedEntities,
+      relationships: persistedRelationships,
+      seeds,
+      embeddingTargets,
+      tools,
+    };
+  } catch (error) {
+    logError("attachment.ingest.failed", "Attachment ingestion failed", error, {
+      workspaceId,
+      conversationId,
+      documentId: documentRecord.id as string,
+      durationMs: elapsedMs(startedAt),
     });
-
-    persistedEntities.push(...result.entities);
-    persistedRelationships.push(...result.relationships);
-    seeds.push(...result.seeds);
-    embeddingTargets.push(...result.embeddingTargets);
-    tools.push(...result.tools);
+    throw error;
   }
-
-  return {
-    entities: persistedEntities,
-    relationships: persistedRelationships,
-    seeds,
-    embeddingTargets,
-    tools,
-  };
 }
 
 async function extractStructuredGraph(input: {
@@ -1027,37 +1218,62 @@ async function extractStructuredGraph(input: {
   onboarding: boolean;
   heading?: string;
 }): Promise<ExtractionPromptOutput> {
-  const extractionOutput = await generateObject({
-    model: extractionModel,
-    schema: extractionResultSchema,
-    system: [
-      "Extract structured business entities and relationships from the provided text.",
-      "Return only high-confidence extractions with explicit entity references.",
-      "Entity kinds: project, person, feature, task, decision, question.",
-      "Each entity must include a tempId.",
-      "Each relationship must reference entities via fromTempId and toTempId.",
-      "Each relationship must include fromText and toText snippets from the source text.",
-      "Relationship kind is uppercase snake_case when possible (for example DEPENDS_ON, BLOCKS, RELATES_TO).",
-      "Capture tools/providers explicitly mentioned in the tools array.",
-      "Always include the tools key; use an empty array when no tools are mentioned.",
-      "Confidence values must be between 0 and 1.",
-      input.onboarding
-        ? "Prioritize foundational onboarding entities: projects, people, first decisions, open questions, and constraints."
-        : "Prioritize actionable entities and direct relationships.",
-    ].join(" "),
-    prompt: [
-      "Conversation context:",
-      formatContextRows(input.contextRows),
-      input.heading ? `Section heading: ${input.heading}` : "",
-      "",
-      "Source text:",
-      input.latestText,
-    ]
-      .filter((line) => line.length > 0)
-      .join("\n"),
+  const startedAt = performance.now();
+  logInfo("extraction.generate.started", "Structured extraction started", {
+    onboarding: input.onboarding,
+    hasHeading: input.heading !== undefined,
+    contextMessageCount: input.contextRows.length,
+    sourceLength: input.latestText.length,
   });
 
-  return extractionOutput.object as ExtractionPromptOutput;
+  try {
+    const extractionOutput = await generateObject({
+      model: extractionModel,
+      schema: extractionResultSchema,
+      system: [
+        "Extract structured business entities and relationships from the provided text.",
+        "Return only high-confidence extractions with explicit entity references.",
+        "Entity kinds: project, person, feature, task, decision, question.",
+        "Each entity must include a tempId.",
+        "Each relationship must reference entities via fromTempId and toTempId.",
+        "Each relationship must include fromText and toText snippets from the source text.",
+        "Relationship kind is uppercase snake_case when possible (for example DEPENDS_ON, BLOCKS, RELATES_TO).",
+        "Capture tools/providers explicitly mentioned in the tools array.",
+        "Always include the tools key; use an empty array when no tools are mentioned.",
+        "Confidence values must be between 0 and 1.",
+        input.onboarding
+          ? "Prioritize foundational onboarding entities: projects, people, first decisions, open questions, and constraints."
+          : "Prioritize actionable entities and direct relationships.",
+      ].join(" "),
+      prompt: [
+        "Conversation context:",
+        formatContextRows(input.contextRows),
+        input.heading ? `Section heading: ${input.heading}` : "",
+        "",
+        "Source text:",
+        input.latestText,
+      ]
+        .filter((line) => line.length > 0)
+        .join("\n"),
+    });
+
+    const output = extractionOutput.object as ExtractionPromptOutput;
+    logInfo("extraction.generate.completed", "Structured extraction completed", {
+      onboarding: input.onboarding,
+      entityCount: output.entities.length,
+      relationshipCount: output.relationships.length,
+      toolCount: output.tools.length,
+      durationMs: elapsedMs(startedAt),
+    });
+
+    return output;
+  } catch (error) {
+    logError("extraction.generate.failed", "Structured extraction failed", error, {
+      onboarding: input.onboarding,
+      durationMs: elapsedMs(startedAt),
+    });
+    throw error;
+  }
 }
 
 async function persistExtractionOutput(input: {
@@ -1071,121 +1287,154 @@ async function persistExtractionOutput(input: {
   sourceChunkRecord?: RecordId<"document_chunk", string>;
   now: Date;
 }): Promise<PersistExtractionResult> {
-  const entities = dedupeExtractedEntities(input.output.entities);
-  const relationships = input.output.relationships
-    .filter((relationship) => relationship.confidence >= extractionStoreThreshold)
-    .map((relationship) => ({
-      ...relationship,
-      kind: relationship.kind.trim(),
-      fromTempId: relationship.fromTempId.trim(),
-      toTempId: relationship.toTempId.trim(),
-      fromText: relationship.fromText.trim(),
-      toText: relationship.toText.trim(),
-    }))
-    .filter(
-      (relationship) =>
-        relationship.kind.length > 0 &&
-        relationship.fromTempId.length > 0 &&
-        relationship.toTempId.length > 0 &&
-        relationship.fromText.length > 0 &&
-        relationship.toText.length > 0,
-    );
+  const startedAt = performance.now();
+  logInfo("extraction.persist.started", "Extraction persistence started", {
+    workspaceId: input.workspaceRecord.id as string,
+    sourceKind: input.sourceKind,
+    sourceId: input.sourceRecord.id as string,
+    candidateEntityCount: input.output.entities.length,
+    candidateRelationshipCount: input.output.relationships.length,
+  });
 
-  const persistedEntities: ExtractedEntity[] = [];
-  const persistedRelationships: ExtractedRelationship[] = [];
-  const seeds: OnboardingSeedItem[] = [];
-  const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
-  const entityByTempId = new Map<string, { record: GraphEntityRecord; text: string; id: string; kind: EntityKind }>();
+  try {
+    const entities = dedupeExtractedEntities(input.output.entities);
+    const relationships = input.output.relationships
+      .filter((relationship) => relationship.confidence >= extractionStoreThreshold)
+      .map((relationship) => ({
+        ...relationship,
+        kind: relationship.kind.trim(),
+        fromTempId: relationship.fromTempId.trim(),
+        toTempId: relationship.toTempId.trim(),
+        fromText: relationship.fromText.trim(),
+        toText: relationship.toText.trim(),
+      }))
+      .filter(
+        (relationship) =>
+          relationship.kind.length > 0 &&
+          relationship.fromTempId.length > 0 &&
+          relationship.toTempId.length > 0 &&
+          relationship.fromText.length > 0 &&
+          relationship.toText.length > 0,
+      );
 
-  const workspaceProjects = await loadWorkspaceProjects(input.workspaceRecord);
+    const persistedEntities: ExtractedEntity[] = [];
+    const persistedRelationships: ExtractedRelationship[] = [];
+    const seeds: OnboardingSeedItem[] = [];
+    const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
+    const entityByTempId = new Map<
+      string,
+      { record: GraphEntityRecord; text: string; id: string; kind: EntityKind }
+    >();
 
-  for (const extracted of entities) {
-    const persisted = await upsertGraphEntity({
-      workspaceRecord: input.workspaceRecord,
-      workspaceProjects,
-      sourceRecord: input.sourceRecord,
-      sourceKind: input.sourceKind,
-      promptText: input.promptText,
-      extracted,
-      sourceMessageRecord: input.sourceMessageRecord,
-      sourceChunkRecord: input.sourceChunkRecord,
-      now: input.now,
-    });
+    const workspaceProjects = await loadWorkspaceProjects(input.workspaceRecord);
 
-    entityByTempId.set(extracted.tempId, {
-      record: persisted.record,
-      text: persisted.text,
-      id: persisted.record.id as string,
-      kind: persisted.kind,
-    });
+    for (const extracted of entities) {
+      const persisted = await upsertGraphEntity({
+        workspaceRecord: input.workspaceRecord,
+        workspaceProjects,
+        sourceRecord: input.sourceRecord,
+        sourceKind: input.sourceKind,
+        promptText: input.promptText,
+        extracted,
+        sourceMessageRecord: input.sourceMessageRecord,
+        sourceChunkRecord: input.sourceChunkRecord,
+        now: input.now,
+      });
 
-    persistedEntities.push({
-      id: persisted.record.id as string,
-      kind: persisted.kind,
-      text: persisted.text,
-      confidence: extracted.confidence,
-      sourceKind: input.sourceKind,
-      sourceId: input.sourceRecord.id as string,
-    });
-
-    seeds.push({
-      id: persisted.record.id as string,
-      kind: persisted.kind,
-      text: persisted.text,
-      confidence: extracted.confidence,
-      sourceKind: input.sourceKind,
-      sourceId: input.sourceRecord.id as string,
-      ...(input.sourceLabel ? { sourceLabel: input.sourceLabel } : {}),
-    });
-
-    if (persisted.created) {
-      embeddingTargets.push({
+      entityByTempId.set(extracted.tempId, {
         record: persisted.record,
         text: persisted.text,
+        id: persisted.record.id as string,
+        kind: persisted.kind,
+      });
+
+      persistedEntities.push({
+        id: persisted.record.id as string,
+        kind: persisted.kind,
+        text: persisted.text,
+        confidence: extracted.confidence,
+        sourceKind: input.sourceKind,
+        sourceId: input.sourceRecord.id as string,
+      });
+
+      seeds.push({
+        id: persisted.record.id as string,
+        kind: persisted.kind,
+        text: persisted.text,
+        confidence: extracted.confidence,
+        sourceKind: input.sourceKind,
+        sourceId: input.sourceRecord.id as string,
+        ...(input.sourceLabel ? { sourceLabel: input.sourceLabel } : {}),
+      });
+
+      if (persisted.created) {
+        embeddingTargets.push({
+          record: persisted.record,
+          text: persisted.text,
+        });
+      }
+    }
+
+    for (const relationship of relationships) {
+      const from = entityByTempId.get(relationship.fromTempId);
+      const to = entityByTempId.get(relationship.toTempId);
+      if (!from || !to) {
+        continue;
+      }
+
+      const relationRecord = new RecordId("entity_relation", randomUUID());
+      await surreal.relate(from.record, relationRecord, to.record, {
+        kind: relationship.kind,
+        confidence: relationship.confidence,
+        ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
+        ...(input.sourceChunkRecord ? { source_chunk: input.sourceChunkRecord } : {}),
+        extracted_at: input.now,
+        created_at: input.now,
+        from_text: relationship.fromText,
+        to_text: relationship.toText,
+      }).output("after");
+
+      persistedRelationships.push({
+        id: relationRecord.id as string,
+        kind: relationship.kind,
+        fromId: from.id,
+        toId: to.id,
+        confidence: relationship.confidence,
+        sourceKind: input.sourceKind,
+        sourceId: input.sourceRecord.id as string,
+        ...(input.sourceMessageRecord ? { sourceMessageId: input.sourceMessageRecord.id as string } : {}),
+        fromText: relationship.fromText,
+        toText: relationship.toText,
       });
     }
-  }
 
-  for (const relationship of relationships) {
-    const from = entityByTempId.get(relationship.fromTempId);
-    const to = entityByTempId.get(relationship.toTempId);
-    if (!from || !to) {
-      continue;
-    }
-
-    const relationRecord = new RecordId("entity_relation", randomUUID());
-    await surreal.relate(from.record, relationRecord, to.record, {
-      kind: relationship.kind,
-      confidence: relationship.confidence,
-      ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
-      ...(input.sourceChunkRecord ? { source_chunk: input.sourceChunkRecord } : {}),
-      extracted_at: input.now,
-      created_at: input.now,
-      from_text: relationship.fromText,
-      to_text: relationship.toText,
-    }).output("after");
-
-    persistedRelationships.push({
-      id: relationRecord.id as string,
-      kind: relationship.kind,
-      fromId: from.id,
-      toId: to.id,
-      confidence: relationship.confidence,
+    logInfo("extraction.persist.completed", "Extraction persistence completed", {
+      workspaceId: input.workspaceRecord.id as string,
       sourceKind: input.sourceKind,
       sourceId: input.sourceRecord.id as string,
-      ...(input.sourceMessageRecord ? { sourceMessageId: input.sourceMessageRecord.id as string } : {}),
-      fromText: relationship.fromText,
-      toText: relationship.toText,
+      persistedEntityCount: persistedEntities.length,
+      persistedRelationshipCount: persistedRelationships.length,
+      seedCount: seeds.length,
+      toolCount: input.output.tools.length,
+      durationMs: elapsedMs(startedAt),
     });
-  }
 
-  return {
-    entities: persistedEntities,
-    relationships: persistedRelationships,
-    seeds,
-    embeddingTargets,
-    tools: input.output.tools.map((tool) => tool.trim()).filter((tool) => tool.length > 0),
-  };
+    return {
+      entities: persistedEntities,
+      relationships: persistedRelationships,
+      seeds,
+      embeddingTargets,
+      tools: input.output.tools.map((tool) => tool.trim()).filter((tool) => tool.length > 0),
+    };
+  } catch (error) {
+    logError("extraction.persist.failed", "Extraction persistence failed", error, {
+      workspaceId: input.workspaceRecord.id as string,
+      sourceKind: input.sourceKind,
+      sourceId: input.sourceRecord.id as string,
+      durationMs: elapsedMs(startedAt),
+    });
+    throw error;
+  }
 }
 
 function dedupeExtractedEntities(entities: ExtractionPromptEntity[]): ExtractionPromptEntity[] {
@@ -1741,18 +1990,42 @@ async function persistEmbeddings(
   assistantText: string,
   entities: Array<{ record: GraphEntityRecord; text: string }>,
 ): Promise<void> {
-  const messageEmbedding = await createEmbedding(assistantText);
-  if (messageEmbedding) {
-    await surreal.update(assistantMessageRecord).merge({ embedding: messageEmbedding });
-  }
+  const startedAt = performance.now();
+  logInfo("embedding.persist.started", "Embedding persistence started", {
+    messageId: assistantMessageRecord.id as string,
+    entityCount: entities.length,
+  });
 
-  for (const entity of entities) {
-    const entityEmbedding = await createEmbedding(entity.text);
-    if (!entityEmbedding) {
-      continue;
+  try {
+    const messageEmbedding = await createEmbedding(assistantText);
+    if (messageEmbedding) {
+      await surreal.update(assistantMessageRecord).merge({ embedding: messageEmbedding });
     }
 
-    await surreal.update(entity.record).merge({ embedding: entityEmbedding });
+    let embeddedEntityCount = 0;
+    for (const entity of entities) {
+      const entityEmbedding = await createEmbedding(entity.text);
+      if (!entityEmbedding) {
+        continue;
+      }
+
+      await surreal.update(entity.record).merge({ embedding: entityEmbedding });
+      embeddedEntityCount += 1;
+    }
+
+    logInfo("embedding.persist.completed", "Embedding persistence completed", {
+      messageId: assistantMessageRecord.id as string,
+      entityCount: entities.length,
+      embeddedEntityCount,
+      durationMs: elapsedMs(startedAt),
+    });
+  } catch (error) {
+    logError("embedding.persist.failed", "Embedding persistence failed", error, {
+      messageId: assistantMessageRecord.id as string,
+      entityCount: entities.length,
+      durationMs: elapsedMs(startedAt),
+    });
+    throw error;
   }
 }
 
@@ -1768,9 +2041,10 @@ async function createEmbedding(value: string): Promise<number[] | undefined> {
   });
 
   if (result.embedding.length !== embeddingDimension) {
-    console.warn(
-      `Skipping embedding write because vector dimension ${result.embedding.length} does not match EMBEDDING_DIMENSION=${embeddingDimension}`,
-    );
+    logWarn("embedding.dimension_mismatch", "Skipping embedding write due to vector dimension mismatch", {
+      actualDimension: result.embedding.length,
+      configuredDimension: embeddingDimension,
+    });
     return undefined;
   }
 
@@ -2227,12 +2501,12 @@ function emitEvent(messageId: string, event: StreamEvent): void {
     state.finished = true;
     if (state.controller) {
       state.controller.close();
-      cleanupStream(messageId);
+      cleanupStream(messageId, event.type === "done" ? "completed" : "error_event");
     }
   }
 }
 
-function cleanupStream(messageId: string): void {
+function cleanupStream(messageId: string, reason: string): void {
   const state = streams.get(messageId);
   if (!state) {
     return;
@@ -2243,6 +2517,7 @@ function cleanupStream(messageId: string): void {
   }
 
   streams.delete(messageId);
+  logInfo("sse.stream.closed", "SSE stream closed", { messageId, reason });
 }
 
 function encodeSse(event: StreamEvent): Uint8Array {
@@ -2510,53 +2785,82 @@ function userFacingError(error: unknown, fallback: string): string {
   return error.message;
 }
 
-function logServerError(context: string, error: unknown, meta?: Record<string, unknown>): void {
-  console.error(`[${context}]`, {
-    ...(meta ?? {}),
-    error: serializeError(error),
-  });
+function logDebug(event: string, message: string, meta?: Record<string, unknown>): void {
+  getRequestLogger().debug(
+    {
+      event,
+      ...(meta ?? {}),
+    },
+    message,
+  );
 }
 
-function serializeError(error: unknown, depth = 0): Record<string, unknown> | unknown {
-  if (depth > 2) {
-    return { message: "max depth reached" };
-  }
+function logInfo(event: string, message: string, meta?: Record<string, unknown>): void {
+  getRequestLogger().info(
+    {
+      event,
+      ...(meta ?? {}),
+    },
+    message,
+  );
+}
 
-  if (!(error instanceof Error)) {
-    return error;
-  }
+function logWarn(event: string, message: string, meta?: Record<string, unknown>): void {
+  getRequestLogger().warn(
+    {
+      event,
+      ...(meta ?? {}),
+    },
+    message,
+  );
+}
 
-  const candidate = error as Error & {
-    cause?: unknown;
-    statusCode?: unknown;
-    responseBody?: unknown;
-    data?: unknown;
-    url?: unknown;
+function logError(event: string, message: string, error: unknown, meta?: Record<string, unknown>): void {
+  getRequestLogger().error(
+    {
+      event,
+      ...(meta ?? {}),
+      err: serializeError(error),
+    },
+    message,
+  );
+}
+
+function withRequestLogging(route: string, method: string, handler: RouteHandler): RouteHandler {
+  return async (request: RouteRequest) => {
+    const startedAt = performance.now();
+    const headerValue = request.headers.get("x-request-id")?.trim();
+    const requestId = headerValue && headerValue.length > 0 ? headerValue : randomUUID();
+    const path = new URL(request.url).pathname;
+
+    return runWithRequestContext(
+      {
+        requestId,
+        method,
+        route,
+        path,
+      },
+      async () => {
+        logDebug("http.request.received", "HTTP request received");
+
+        try {
+          const response = await handler(request);
+          const responseWithRequestId = withRequestIdHeader(response, requestId);
+          logInfo("http.request.completed", "HTTP request completed", {
+            statusCode: responseWithRequestId.status,
+            durationMs: elapsedMs(startedAt),
+          });
+          return responseWithRequestId;
+        } catch (error) {
+          logError("http.request.failed", "HTTP request failed", error, {
+            durationMs: elapsedMs(startedAt),
+          });
+          const fallback = jsonError("internal server error", 500);
+          return withRequestIdHeader(fallback, requestId);
+        }
+      },
+    );
   };
-
-  const serialized: Record<string, unknown> = {
-    name: candidate.name,
-    message: candidate.message,
-    stack: candidate.stack,
-  };
-
-  if (candidate.statusCode !== undefined) {
-    serialized.statusCode = candidate.statusCode;
-  }
-  if (candidate.url !== undefined) {
-    serialized.url = candidate.url;
-  }
-  if (candidate.responseBody !== undefined) {
-    serialized.responseBody = candidate.responseBody;
-  }
-  if (candidate.data !== undefined) {
-    serialized.data = candidate.data;
-  }
-  if (candidate.cause !== undefined) {
-    serialized.cause = serializeError(candidate.cause, depth + 1);
-  }
-
-  return serialized;
 }
 
 function extractCauseMessage(error: Error & { cause?: unknown }): string | undefined {
@@ -2591,4 +2895,27 @@ function jsonResponse(payload: object, status: number): Response {
       "Access-Control-Allow-Origin": "*",
     },
   });
+}
+
+function htmlResponse(): Response {
+  return new Response(appHtml as unknown as BodyInit, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+function withRequestIdHeader(response: Response, requestId: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set("x-request-id", requestId);
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function elapsedMs(startedAt: number): number {
+  return Number((performance.now() - startedAt).toFixed(2));
 }
