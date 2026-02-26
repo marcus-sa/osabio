@@ -3,9 +3,12 @@ export type ExpectedEntity = {
   text: string;
 };
 
+export type GoldenCaseIntent = "strict_single" | "multi_allowed";
+
 export type GoldenCase = {
   id: string;
   input: string;
+  intent: GoldenCaseIntent;
   expectedEntities: ExpectedEntity[];
 };
 

@@ -2,115 +2,230 @@
   {
     "id": "decision-basic",
     "input": "I decided we should use TypeScript for the backend.",
-    "expectedEntities": [{ "kind": "decision", "text": "use TypeScript for the backend" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text": "use TypeScript for the backend"
+      }
+    ]
   },
   {
     "id": "task-deadline",
     "input": "Task: finalize auth middleware by Friday.",
-    "expectedEntities": [{ "kind": "task", "text": "finalize auth middleware" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text": "finalize auth middleware"
+      }
+    ]
   },
   {
     "id": "question-basic",
     "input": "Should we ship OAuth before SSO, or do both together?",
-    "expectedEntities": [{ "kind": "question", "text": "ship OAuth before SSO" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "question",
+        "text": "ship OAuth before SSO"
+      }
+    ]
   },
   {
     "id": "feature-basic",
     "input": "The main feature is real-time dependency conflict detection across projects.",
-    "expectedEntities": [{ "kind": "feature", "text": "real-time dependency conflict detection" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "feature",
+        "text": "real-time dependency conflict detection"
+      }
+    ]
   },
   {
     "id": "project-basic",
     "input": "Our project is called Schack Systems.",
-    "expectedEntities": [{ "kind": "project", "text": "Schack Systems" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "project",
+        "text": "Schack Systems"
+      }
+    ]
   },
   {
     "id": "multi-entity",
     "input": "Project Atlas needs an auth feature. I decided to use SurrealDB, and we have one open question about IAM scopes.",
+    "intent": "multi_allowed",
     "expectedEntities": [
-      { "kind": "project", "text": "Atlas" },
-      { "kind": "feature", "text": "auth feature" },
-      { "kind": "decision", "text": "use SurrealDB" },
-      { "kind": "question", "text": "IAM scopes" }
+      {
+        "kind": "project",
+        "text": "Atlas"
+      },
+      {
+        "kind": "feature",
+        "text": "auth feature"
+      },
+      {
+        "kind": "decision",
+        "text": "use SurrealDB"
+      },
+      {
+        "kind": "question",
+        "text": "IAM scopes"
+      }
     ]
   },
   {
     "id": "person-owner-attribution",
     "input": "I decided to use event sourcing for audit logs.",
-    "expectedEntities": [{ "kind": "decision", "text": "use event sourcing" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text": "use event sourcing"
+      }
+    ]
   },
   {
     "id": "person-unresolved",
     "input": "Sarah should handle auth this week.",
-    "expectedEntities": [{ "kind": "task", "text": "handle auth" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text": "handle auth"
+      }
+    ]
   },
   {
     "id": "person-resolved-existing",
     "input": "Marcus and I discussed moving to TypeScript.",
+    "intent": "multi_allowed",
     "expectedEntities": [
-      { "kind": "person", "text": "Marcus" },
-      { "kind": "decision", "text": "moving to TypeScript" }
+      {
+        "kind": "person",
+        "text": "Marcus"
+      },
+      {
+        "kind": "decision",
+        "text": "moving to TypeScript"
+      }
     ]
   },
   {
     "id": "assistant-context-not-source",
     "input": "Let's move forward with schema validation first.",
-    "expectedEntities": [{ "kind": "decision", "text": "schema validation first" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text": "schema validation first"
+      }
+    ]
   },
   {
     "id": "placeholder-project-rejection",
     "input": "My project needs work.",
+    "intent": "strict_single",
     "expectedEntities": []
   },
   {
     "id": "placeholder-feature-rejection",
     "input": "The feature is broken.",
+    "intent": "strict_single",
     "expectedEntities": []
   },
   {
     "id": "placeholder-allowed-real-name",
     "input": "I'm building Schack Systems and shipping the first release in April.",
-    "expectedEntities": [{ "kind": "project", "text": "Schack Systems" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "project",
+        "text": "Schack Systems"
+      }
+    ]
   },
   {
     "id": "grounded-evidence",
     "input": "We will prioritize the onboarding summary card for this sprint.",
-    "expectedEntities": [{ "kind": "feature", "text": "onboarding summary card" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "feature",
+        "text": "onboarding summary card"
+      }
+    ]
   },
   {
     "id": "implicit-context-low-confidence",
     "input": "This feels risky unless we improve it.",
+    "intent": "strict_single",
     "expectedEntities": []
   },
   {
     "id": "document-like-chunk-1",
     "input": "The platform will ingest chat, extract decisions and tasks, store them in SurrealDB, and render component cards for high-confidence entities.",
+    "intent": "multi_allowed",
     "expectedEntities": [
-      { "kind": "decision", "text": "store them in SurrealDB" },
-      { "kind": "task", "text": "extract decisions and tasks" }
+      {
+        "kind": "decision",
+        "text": "store them in SurrealDB"
+      },
+      {
+        "kind": "task",
+        "text": "extract decisions and tasks"
+      }
     ]
   },
   {
     "id": "document-like-chunk-2",
     "input": "Deduplicate features by embedding similarity and keep the more descriptive name when merged.",
-    "expectedEntities": [{ "kind": "feature", "text": "Deduplicate features by embedding similarity" }]
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      {
+        "kind": "feature",
+        "text": "Deduplicate features by embedding similarity"
+      }
+    ]
   },
   {
     "id": "question-uncertainty",
     "input": "I'm not sure whether to use ws:// or wss:// for local development.",
-    "expectedEntities": [{ "kind": "question", "text": "use ws or wss for local development" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "question",
+        "text": "use ws or wss for local development"
+      }
+    ]
   },
   {
     "id": "task-owner-name",
     "input": "Jordan is responsible for writing the smoke test this afternoon.",
-    "expectedEntities": [{ "kind": "task", "text": "writing the smoke test" }]
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text": "writing the smoke test"
+      }
+    ]
   },
   {
     "id": "decision-and-question",
     "input": "We decided to keep person linking field-based for phase one, but should we add graph edges in phase two?",
+    "intent": "multi_allowed",
     "expectedEntities": [
-      { "kind": "decision", "text": "keep person linking field-based for phase one" },
-      { "kind": "question", "text": "add graph edges in phase two" }
+      {
+        "kind": "decision",
+        "text": "keep person linking field-based for phase one"
+      },
+      {
+        "kind": "question",
+        "text": "add graph edges in phase two"
+      }
     ]
   }
 ]

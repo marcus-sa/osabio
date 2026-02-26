@@ -12,7 +12,8 @@ import { entityRecallScorer } from "./scorers/entity-recall";
 import { noPhantomPersonsScorer } from "./scorers/no-phantom-persons";
 import { evidenceGroundedScorer } from "./scorers/evidence-grounded";
 import { noPlaceholdersScorer } from "./scorers/no-placeholders";
-import type { ExtractionEvalOutput, GoldenCase } from "./types";
+import { noExtraEntitiesScorer } from "./scorers/no-extra-entities";
+import type { ExtractionEvalOutput, GoldenCase, GoldenCaseIntent } from "./types";
 import { normalizeForSubstring } from "./scorers/shared";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -31,6 +32,39 @@ const cachePath = join(cacheDir, "extraction-cache.json");
 const resultCache = loadCache(cachePath);
 const cases = JSON.parse(readFileSync(join(process.cwd(), "evals", "data", "golden-cases.json"), "utf8")) as GoldenCase[];
 assertAutoevalEnv();
+
+const intentScoreWeights: Record<
+  GoldenCaseIntent,
+  Record<
+    | "entity-precision"
+    | "entity-recall"
+    | "no-extra-entities"
+    | "no-phantom-persons"
+    | "evidence-grounded"
+    | "no-placeholders"
+    | "factuality",
+    number
+  >
+> = {
+  strict_single: {
+    "entity-precision": 0.2,
+    "entity-recall": 0.2,
+    "no-extra-entities": 0.25,
+    "no-phantom-persons": 0.15,
+    "evidence-grounded": 0.1,
+    "no-placeholders": 0.05,
+    factuality: 0.05,
+  },
+  multi_allowed: {
+    "entity-precision": 0.3,
+    "entity-recall": 0.3,
+    "no-extra-entities": 0.05,
+    "no-phantom-persons": 0.15,
+    "evidence-grounded": 0.1,
+    "no-placeholders": 0.05,
+    factuality: 0.05,
+  },
+};
 
 let surreal: Surreal | undefined;
 let evalServerProcess: ChildProcess | undefined;
@@ -75,6 +109,7 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
   scorers: [
     entityPrecisionScorer,
     entityRecallScorer,
+    noExtraEntitiesScorer,
     noPhantomPersonsScorer,
     evidenceGroundedScorer,
     noPlaceholdersScorer,
@@ -84,17 +119,19 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     { label: "Model", value: extractionModel },
     { label: "Precision", value: formatScoreCell(scoreByName(scores, "entity-precision")) },
     { label: "Recall", value: formatScoreCell(scoreByName(scores, "entity-recall")) },
+    { label: "NoExtra", value: formatScoreCell(scoreByName(scores, "no-extra-entities")) },
     { label: "NoPeople", value: formatScoreCell(scoreByName(scores, "no-phantom-persons")) },
     { label: "Evidence", value: formatScoreCell(scoreByName(scores, "evidence-grounded")) },
     { label: "NoPlace", value: formatScoreCell(scoreByName(scores, "no-placeholders")) },
     { label: "Factual", value: formatScoreCell(scoreByName(scores, "factuality")) },
+    { label: "Intent", value: input.intent },
     { label: "Case", value: input.id },
     { label: "Expected", value: input.expectedEntities.length },
     { label: "Extracted", value: output.extractedEntities.length },
     { label: "People", value: `${output.personCount}/${output.ownerPersonCount}` },
     {
       label: "Avg",
-      value: (scores.reduce((acc, score) => acc + (score.score ?? 0), 0) / Math.max(scores.length, 1)).toFixed(2),
+      value: computeWeightedAverage(input.intent, scores).toFixed(2),
     },
   ],
 });
@@ -102,17 +139,44 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
 function scoreByName(
   scores: Array<{ name: string; score: number | null }>,
   name: string,
-): number | null {
+): number {
   const match = scores.find((score) => score.name === name);
-  return match?.score ?? null;
-}
-
-function formatScoreCell(value: number | null): string {
-  if (value === null || Number.isNaN(value)) {
-    return "-";
+  if (!match || match.score === null || Number.isNaN(match.score)) {
+    throw new Error(`Missing score for scorer: ${name}`);
   }
 
+  return match.score;
+}
+
+function formatScoreCell(value: number): string {
   return value.toFixed(2);
+}
+
+function computeWeightedAverage(
+  intent: GoldenCaseIntent,
+  scores: Array<{ name: string; score: number | null }>,
+): number {
+  const weights = intentScoreWeights[intent];
+  if (!weights) {
+    throw new Error(`Unknown golden case intent: ${intent}`);
+  }
+
+  let weightedTotal = 0;
+  let weightTotal = 0;
+  for (const [scorerName, weight] of Object.entries(weights)) {
+    if (weight <= 0) {
+      continue;
+    }
+
+    weightedTotal += scoreByName(scores, scorerName) * weight;
+    weightTotal += weight;
+  }
+
+  if (weightTotal === 0) {
+    throw new Error(`No scorer weights configured for intent: ${intent}`);
+  }
+
+  return weightedTotal / weightTotal;
 }
 
 function resolveEntityEvidenceSnippet(
