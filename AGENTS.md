@@ -47,6 +47,7 @@ Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields
   const result = rows.map((row) => ({ gladiatorId: row.id.id as string, name: row.name }));
   ```
 - Do NOT use `FETCH` in queries if you need the raw RecordId reference. `FETCH` resolves references to full objects.
+- For `TYPE RELATION` tables, do NOT write edges with `CREATE`. `CREATE` produces non-relation records and will fail relation constraints. Use `RELATE` (or SDK `relate(...)`) to create actual relation edges.
 - For nested arrays (2D grids), use explicit type: `DEFINE FIELD grid ON match TYPE array<array<string>>;` - plain `array` silently rejects nested arrays in SCHEMAFULL mode.
 - Keep all Surreal tables in `schema/surreal-schema.surql` as `SCHEMAFULL`. Do NOT introduce `SCHEMALESS` tables.
 - In `SCHEMAFULL`, every persisted nested key must be explicitly declared. For `array<object>` fields, always define `field[*].subField` entries for all written properties.
