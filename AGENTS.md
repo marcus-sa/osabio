@@ -19,6 +19,29 @@
 - Prefer explicit hard failures over silent degradation, synthetic defaults, or "best effort" recovery.
 - Only introduce fallback behavior when explicitly requested, and document the reason in code comments.
 
+## Testing Setup
+
+- Install deps: `bun install`
+- Run deterministic unit tests (no LLM/API calls): `bun test tests/unit/`
+- Run smoke test: `bun test tests/smoke/`
+- Run eval suite: `bun run eval`
+- Run eval watch mode: `bun run eval:watch`
+
+### Smoke Test Isolation
+
+- Smoke tests create an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
+- Smoke tests require a reachable SurrealDB server at `SURREAL_URL` with credentials from env.
+- Smoke tests boot a dedicated app server process with test `SURREAL_NAMESPACE`, `SURREAL_DATABASE`, and `PORT`; do not point smoke runs at shared production-like DBs.
+
+### Eval Requirements
+
+- Evals call the real extraction model through existing app wiring.
+- Required env: `OPENROUTER_API_KEY` and `EXTRACTION_MODEL` (set to Haiku model when needed).
+- Optional env:
+  - `AUTOEVAL_MODEL` for `autoevals` factuality scorer model override.
+  - `EVAL_RESULTS_DIR` for evalite sqlite output.
+  - `EVAL_CACHE_DIR` for extraction eval cache.
+
 ## SurrealDB SDK v2
 
 Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields

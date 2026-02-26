@@ -1,0 +1,29 @@
+{
+  "entities": [
+    {
+      "tempId": "e1",
+      "kind": "decision",
+      "text": "Use TypeScript over Rust for backend",
+      "confidence": 0.91,
+      "evidence": "I've decided to use TypeScript over Rust for the backend"
+    },
+    {
+      "tempId": "e2",
+      "kind": "person",
+      "text": "Marcus",
+      "confidence": 0.88,
+      "evidence": "Marcus and I discussed it"
+    }
+  ],
+  "relationships": [
+    {
+      "kind": "DECIDED_BY",
+      "fromTempId": "e1",
+      "toTempId": "e2",
+      "confidence": 0.9,
+      "fromText": "Use TypeScript over Rust for backend",
+      "toText": "Marcus"
+    }
+  ],
+  "tools": ["TypeScript", "SurrealDB"]
+}

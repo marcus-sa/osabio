@@ -216,6 +216,7 @@ DEFINE FIELD extracted_at ON extraction_relation TYPE datetime;
 DEFINE FIELD created_at ON extraction_relation TYPE datetime;
 DEFINE FIELD model ON extraction_relation TYPE option<string>;
 DEFINE FIELD from_text ON extraction_relation TYPE option<string>;
+DEFINE FIELD evidence ON extraction_relation TYPE option<string>;
 DEFINE FIELD to_text ON extraction_relation TYPE option<string>;
 DEFINE INDEX extraction_relation_confidence ON extraction_relation FIELDS confidence;
 DEFINE INDEX extraction_relation_extracted_at ON extraction_relation FIELDS extracted_at;

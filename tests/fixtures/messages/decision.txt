@@ -1,0 +1,1 @@
+I've decided to use TypeScript over Rust for the backend.

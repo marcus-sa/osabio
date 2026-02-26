@@ -1,0 +1,11 @@
+{
+  "entities": [
+    {
+      "tempId": "e1",
+      "kind": "decision",
+      "text": "Use TypeScript"
+    }
+  ],
+  "relationships": [],
+  "tools": []
+}

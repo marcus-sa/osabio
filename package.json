@@ -4,9 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch app/server.ts",
+    "dev": "bun --watch --env-file=.env app/server.ts",
     "start": "bun run app/server.ts",
     "typecheck": "tsc --noEmit",
+    "test": "bun test tests/unit/",
+    "test:smoke": "bun test --env-file=.env tests/smoke/",
+    "eval": "evalite run evals/",
+    "eval:watch": "evalite watch evals/",
     "smoke:phase1": "bun run app/scripts/smoke-phase1.ts",
     "smoke:logging": "bun run app/scripts/smoke-logging.ts",
     "smoke:onboarding": "bun run app/scripts/smoke-onboarding.ts",
@@ -29,7 +33,11 @@
     "@types/node": "^24.5.2",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.4",
+    "autoevals": "^0.0.132",
     "bun-types": "^1.3.5",
-    "typescript": "^5.9.2"
+    "dotenv": "^17.3.1",
+    "evalite": "^0.19.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.18"
   }
 }

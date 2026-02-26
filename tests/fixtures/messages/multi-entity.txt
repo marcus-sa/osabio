@@ -1,0 +1,1 @@
+Project Atlas needs auth hardening. Sarah should handle auth this sprint, and we decided to ship OAuth first.
