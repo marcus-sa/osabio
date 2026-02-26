@@ -13,7 +13,9 @@ DEFINE FIELD role ON message TYPE string ASSERT $value IN ["user", "assistant"];
 DEFINE FIELD text ON message TYPE string;
 DEFINE FIELD createdAt ON message TYPE datetime;
 DEFINE FIELD clientMessageId ON message TYPE option<string>;
+DEFINE FIELD embedding ON message TYPE option<array<float>>;
 DEFINE INDEX message_conversation_createdAt ON message FIELDS conversation, createdAt;
+DEFINE INDEX idx_message_embedding ON message FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE entity SCHEMAFULL;
 DEFINE FIELD kind ON entity TYPE string ASSERT $value IN ["task", "decision", "question"];
@@ -58,7 +60,13 @@ DEFINE FIELD status ON task TYPE string;
 DEFINE FIELD priority ON task TYPE option<string>;
 DEFINE FIELD created_at ON task TYPE datetime;
 DEFINE FIELD updated_at ON task TYPE option<datetime>;
+DEFINE FIELD source_message ON task TYPE option<record<message>>;
+DEFINE FIELD extraction_confidence ON task TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
+DEFINE FIELD extracted_at ON task TYPE option<datetime>;
+DEFINE FIELD embedding ON task TYPE option<array<float>>;
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
+DEFINE INDEX task_source_message ON task FIELDS source_message;
+DEFINE INDEX idx_task_embedding ON task FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE decision SCHEMAFULL;
 DEFINE FIELD summary ON decision TYPE string;
@@ -68,7 +76,13 @@ DEFINE FIELD decided_at ON decision TYPE option<datetime>;
 DEFINE FIELD status ON decision TYPE string ASSERT $value IN ["extracted", "proposed", "confirmed", "superseded"];
 DEFINE FIELD created_at ON decision TYPE datetime;
 DEFINE FIELD updated_at ON decision TYPE option<datetime>;
+DEFINE FIELD source_message ON decision TYPE option<record<message>>;
+DEFINE FIELD extraction_confidence ON decision TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
+DEFINE FIELD extracted_at ON decision TYPE option<datetime>;
+DEFINE FIELD embedding ON decision TYPE option<array<float>>;
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
+DEFINE INDEX decision_source_message ON decision FIELDS source_message;
+DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE question SCHEMAFULL;
 DEFINE FIELD text ON question TYPE string;
@@ -77,7 +91,13 @@ DEFINE FIELD status ON question TYPE string;
 DEFINE FIELD context ON question TYPE option<string>;
 DEFINE FIELD created_at ON question TYPE datetime;
 DEFINE FIELD updated_at ON question TYPE option<datetime>;
+DEFINE FIELD source_message ON question TYPE option<record<message>>;
+DEFINE FIELD extraction_confidence ON question TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
+DEFINE FIELD extracted_at ON question TYPE option<datetime>;
+DEFINE FIELD embedding ON question TYPE option<array<float>>;
 DEFINE INDEX question_status ON question FIELDS status;
+DEFINE INDEX question_source_message ON question FIELDS source_message;
+DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE person SCHEMAFULL;
 DEFINE FIELD name ON person TYPE string;
@@ -137,6 +157,19 @@ DEFINE TABLE depends_on TYPE RELATION IN task | feature OUT task | feature SCHEM
 DEFINE FIELD type ON depends_on TYPE string ASSERT $value IN ["blocks", "needs", "soft"];
 DEFINE FIELD added_at ON depends_on TYPE option<datetime>;
 
+DEFINE TABLE extraction_relation TYPE RELATION IN task | decision | question OUT task | decision | question SCHEMAFULL;
+DEFINE FIELD kind ON extraction_relation TYPE string ASSERT string::len(string::trim($value)) > 0;
+DEFINE FIELD confidence ON extraction_relation TYPE float ASSERT $value >= 0 AND $value <= 1;
+DEFINE FIELD source_message ON extraction_relation TYPE record<message>;
+DEFINE FIELD extracted_at ON extraction_relation TYPE datetime;
+DEFINE FIELD created_at ON extraction_relation TYPE datetime;
+DEFINE FIELD from_text ON extraction_relation TYPE option<string>;
+DEFINE FIELD to_text ON extraction_relation TYPE option<string>;
+DEFINE INDEX extraction_relation_kind ON extraction_relation FIELDS kind;
+DEFINE INDEX extraction_relation_confidence ON extraction_relation FIELDS confidence;
+DEFINE INDEX extraction_relation_source_message ON extraction_relation FIELDS source_message;
+DEFINE INDEX extraction_relation_extracted_at ON extraction_relation FIELDS extracted_at;
+
 DEFINE TABLE decided_in TYPE RELATION IN decision OUT conversation | meeting SCHEMAFULL;
 DEFINE FIELD message_ref ON decided_in TYPE option<record<message>>;
 DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
@@ -161,3 +194,65 @@ DEFINE FIELD superseded_at ON superseded_by TYPE datetime;
 DEFINE TABLE attended_by TYPE RELATION IN meeting OUT person SCHEMAFULL;
 DEFINE FIELD role ON attended_by TYPE option<string> ASSERT $value = NONE OR $value IN ["organizer", "attendee"];
 DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
+
+DEFINE FUNCTION fn::entity_search($q: string, $limit: int) {
+  LET $query = string::lowercase(string::trim($q));
+  LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
+
+  LET $task_rows = SELECT
+    id,
+    "task" AS kind,
+    title AS text,
+    extraction_confidence AS confidence,
+    source_message AS sourceMessage
+  FROM task
+  WHERE source_message != NONE
+    AND extraction_confidence != NONE
+    AND string::contains(string::lowercase(title), $query)
+  ORDER BY created_at DESC
+  LIMIT $safe_limit;
+
+  LET $decision_rows = SELECT
+    id,
+    "decision" AS kind,
+    summary AS text,
+    extraction_confidence AS confidence,
+    source_message AS sourceMessage
+  FROM decision
+  WHERE source_message != NONE
+    AND extraction_confidence != NONE
+    AND string::contains(string::lowercase(summary), $query)
+  ORDER BY created_at DESC
+  LIMIT $safe_limit;
+
+  LET $question_rows = SELECT
+    id,
+    "question" AS kind,
+    text AS text,
+    extraction_confidence AS confidence,
+    source_message AS sourceMessage
+  FROM question
+  WHERE source_message != NONE
+    AND extraction_confidence != NONE
+    AND string::contains(string::lowercase(text), $query)
+  ORDER BY created_at DESC
+  LIMIT $safe_limit;
+
+  RETURN array::flatten([$task_rows, $decision_rows, $question_rows]);
+};
+
+DEFINE FUNCTION fn::conversation_recent($conversation: record<conversation>, $limit: int) {
+  LET $safe_limit = math::min([math::max([$limit, 1]), 50]);
+  RETURN SELECT id, role, text, createdAt
+  FROM message
+  WHERE conversation = $conversation
+  ORDER BY createdAt DESC
+  LIMIT $safe_limit;
+};
+
+DEFINE FUNCTION fn::entity_neighbors($entity: record) {
+  RETURN SELECT
+    ->extraction_relation->(task, decision, question) AS outgoing,
+    <-extraction_relation<-(task, decision, question) AS incoming
+  FROM $entity;
+};

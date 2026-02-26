@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   Chat,
   ChatInput,
+  SessionMessage,
   SessionMessagePanel,
   SessionMessages,
   SessionMessagesHeader,
@@ -9,77 +10,18 @@ import {
   type Session,
   type SlashCommandItem,
 } from "reachat";
+import type {
+  ChatMessageRequest,
+  ChatMessageResponse,
+  ExtractedEntity,
+  ExtractedRelationship,
+  SearchEntityResponse,
+  StreamEvent as ChatStreamEvent,
+} from "../../shared/contracts";
 
-type EntityKind = "task" | "decision" | "question";
-type RelationshipKind = "BELONGS_TO" | "DEPENDS_ON";
-
-type ExtractedEntity = {
-  id: string;
-  kind: EntityKind;
-  text: string;
-  confidence: number;
-  sourceMessageId: string;
-};
-
-type ExtractedRelationship = {
-  id: string;
-  type: RelationshipKind;
-  fromText: string;
-  toText: string;
-  confidence: number;
-  sourceMessageId: string;
-};
-
-type ChatMessageRequest = {
-  clientMessageId: string;
-  conversationId?: string;
-  text: string;
-};
-
-type ChatMessageResponse = {
-  messageId: string;
-  conversationId: string;
-  streamUrl: string;
-};
-
-type TokenEvent = {
-  type: "token";
-  messageId: string;
-  token: string;
-};
-
-type AssistantMessageEvent = {
-  type: "assistant_message";
-  messageId: string;
-  text: string;
-};
-
-type ExtractionEvent = {
-  type: "extraction";
-  messageId: string;
+type ConversationExtraction = {
   entities: ExtractedEntity[];
   relationships: ExtractedRelationship[];
-};
-
-type DoneEvent = {
-  type: "done";
-  messageId: string;
-};
-
-type ErrorEvent = {
-  type: "error";
-  messageId: string;
-  error: string;
-};
-
-type ChatStreamEvent = TokenEvent | AssistantMessageEvent | ExtractionEvent | DoneEvent | ErrorEvent;
-
-type SearchEntityResponse = {
-  id: string;
-  kind: EntityKind;
-  text: string;
-  confidence: number;
-  sourceMessageId: string;
 };
 
 const COMMAND_ITEMS: SlashCommandItem[] = [
@@ -120,6 +62,9 @@ export function ChatPage() {
   const [backendConversationId, setBackendConversationId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [extractionsByConversationId, setExtractionsByConversationId] = useState<
+    Record<string, ConversationExtraction>
+  >({});
   const streamRef = useRef<EventSource | undefined>(undefined);
 
   const activeSession = useMemo(
@@ -142,7 +87,7 @@ export function ChatPage() {
       id: row.id,
       label: `${row.kind}: ${row.text.slice(0, 48)}`,
       description: `confidence ${row.confidence.toFixed(2)}`,
-      value: `@${row.kind}:${row.id}`,
+      value: `@${row.id}`,
     }));
   }
 
@@ -220,8 +165,6 @@ export function ChatPage() {
     }
 
     let streamedText = "";
-    let extractedEntities: ExtractedEntity[] = [];
-    let extractedRelationships: ExtractedRelationship[] = [];
 
     const stream = new EventSource(payload.streamUrl);
     streamRef.current = stream;
@@ -276,8 +219,13 @@ export function ChatPage() {
       }
 
       if (parsed.type === "extraction") {
-        extractedEntities = parsed.entities;
-        extractedRelationships = parsed.relationships;
+        setExtractionsByConversationId((existing) => ({
+          ...existing,
+          [clientMessageId]: {
+            entities: parsed.entities,
+            relationships: parsed.relationships,
+          },
+        }));
         return;
       }
 
@@ -290,21 +238,6 @@ export function ChatPage() {
       }
 
       if (parsed.type === "done") {
-        const entitySummary = extractedEntities
-          .map((entity) => `- ${entity.kind}: ${entity.text} (${entity.confidence.toFixed(2)})`)
-          .join("\n");
-        const relationshipSummary = extractedRelationships
-          .map(
-            (relationship) =>
-              `- ${relationship.type}: ${relationship.fromText} -> ${relationship.toText} (${relationship.confidence.toFixed(2)})`,
-          )
-          .join("\n");
-
-        const extractionSummary = [
-          entitySummary ? `\n\nExtracted entities:\n${entitySummary}` : "",
-          relationshipSummary ? `\n\nExtracted relationships:\n${relationshipSummary}` : "",
-        ].join("");
-
         setSessions((existing) =>
           existing.map((session) =>
             session.id === activeSessionId
@@ -315,7 +248,7 @@ export function ChatPage() {
                     conversation.id === clientMessageId
                       ? {
                           ...conversation,
-                          response: `${streamedText}${extractionSummary}`,
+                          response: streamedText,
                           updatedAt: new Date(),
                         }
                       : conversation,
@@ -363,7 +296,53 @@ export function ChatPage() {
           <SessionMessagesHeader>
             <div className="reachat-header">Phase 1 Chat + Extraction</div>
           </SessionMessagesHeader>
-          <SessionMessages />
+          <SessionMessages>
+            {(conversations) =>
+              conversations.map((conversation, index) => {
+                const extraction = extractionsByConversationId[conversation.id];
+                return (
+                  <SessionMessage
+                    key={conversation.id}
+                    conversation={conversation}
+                    isLast={index === conversations.length - 1}
+                  >
+                    {extraction ? (
+                      <div className="extraction-block">
+                        {extraction.entities.length > 0 ? (
+                          <div className="extraction-row">
+                            {extraction.entities.map((entity) => (
+                              <span
+                                key={entity.id}
+                                className="entity-badge"
+                                title={`source message: ${entity.sourceMessageId}`}
+                              >
+                                {entity.kind} • {entity.text} • {entity.confidence.toFixed(2)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : undefined}
+
+                        {extraction.relationships.length > 0 ? (
+                          <div className="extraction-row">
+                            {extraction.relationships.map((relationship) => (
+                              <span
+                                key={relationship.id}
+                                className="relationship-badge"
+                                title={`source message: ${relationship.sourceMessageId}`}
+                              >
+                                {relationship.kind} • {relationship.fromId} -&gt; {relationship.toId} •{" "}
+                                {relationship.confidence.toFixed(2)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : undefined}
+                      </div>
+                    ) : undefined}
+                  </SessionMessage>
+                );
+              })
+            }
+          </SessionMessages>
           <ChatInput
             placeholder="Discuss tasks, decisions, and questions..."
             mentions={{

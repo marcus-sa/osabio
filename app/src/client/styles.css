@@ -58,6 +58,42 @@ body {
   font-weight: 600;
 }
 
+.extraction-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.extraction-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.entity-badge,
+.relationship-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  line-height: 1;
+  padding: 0.34rem 0.62rem;
+  border: 1px solid transparent;
+}
+
+.entity-badge {
+  background: rgba(15, 114, 71, 0.1);
+  color: #0b5e3d;
+  border-color: rgba(14, 110, 69, 0.25);
+}
+
+.relationship-badge {
+  background: rgba(9, 86, 171, 0.1);
+  color: #0e4f96;
+  border-color: rgba(9, 86, 171, 0.24);
+}
+
 @media (max-width: 700px) {
   .app-shell {
     padding: 0.8rem 0.6rem 1.2rem;

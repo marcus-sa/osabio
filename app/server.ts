@@ -1,14 +1,21 @@
 /// <reference types="bun-types" />
 
 import { randomUUID } from "node:crypto";
-import { generateObject, generateText } from "ai";
+import { embed, generateObject, generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import appHtml from "./src/client/index.html";
+import type {
+  ChatMessageRequest,
+  ChatMessageResponse,
+  EntityKind,
+  ExtractedEntity,
+  ExtractedRelationship,
+  SearchEntityResponse,
+  StreamEvent,
+} from "./src/shared/contracts";
 import { RecordId, Surreal } from "surrealdb";
 import { z } from "zod";
 
-type EntityKind = "task" | "decision" | "question";
-type RelationshipKind = "BELONGS_TO" | "DEPENDS_ON";
 type OpenRouterReasoningEffort = "xhigh" | "high" | "medium" | "low" | "minimal" | "none";
 
 type OpenRouterReasoningOptions = {
@@ -18,80 +25,29 @@ type OpenRouterReasoningOptions = {
   effort?: OpenRouterReasoningEffort;
 };
 
-type ExtractedEntity = {
-  id: string;
+type GraphEntityRecord = RecordId<"task" | "decision" | "question", string>;
+
+type ExtractionPromptEntity = {
+  tempId: string;
   kind: EntityKind;
   text: string;
   confidence: number;
-  sourceMessageId: string;
 };
 
-type ExtractedRelationship = {
-  id: string;
-  type: RelationshipKind;
-  fromText: string;
-  toText: string;
+type ExtractionPromptRelationship = {
+  kind: string;
+  fromTempId: string;
+  toTempId: string;
   confidence: number;
-  sourceMessageId: string;
+  fromText?: string;
+  toText?: string;
 };
-
-type ChatMessageRequest = {
-  clientMessageId: string;
-  conversationId?: string;
-  text: string;
-};
-
-type ChatMessageResponse = {
-  messageId: string;
-  conversationId: string;
-  streamUrl: string;
-};
-
-type TokenEvent = {
-  type: "token";
-  messageId: string;
-  token: string;
-};
-
-type AssistantMessageEvent = {
-  type: "assistant_message";
-  messageId: string;
-  text: string;
-};
-
-type ExtractionEvent = {
-  type: "extraction";
-  messageId: string;
-  entities: ExtractedEntity[];
-  relationships: ExtractedRelationship[];
-};
-
-type DoneEvent = {
-  type: "done";
-  messageId: string;
-};
-
-type ErrorEvent = {
-  type: "error";
-  messageId: string;
-  error: string;
-};
-
-type StreamEvent = TokenEvent | AssistantMessageEvent | ExtractionEvent | DoneEvent | ErrorEvent;
 
 type StreamState = {
   queue: StreamEvent[];
   controller?: ReadableStreamDefaultController<Uint8Array>;
   finished: boolean;
   keepAliveId?: ReturnType<typeof setInterval>;
-};
-
-type SearchEntityResponse = {
-  id: string;
-  kind: EntityKind;
-  text: string;
-  confidence: number;
-  sourceMessageId: string;
 };
 
 type ConversationRow = {
@@ -107,18 +63,18 @@ type MessageContextRow = {
   createdAt: Date | string;
 };
 
-type EntityRow = {
-  id: RecordId<"entity", string>;
+type SearchEntityRow = {
+  id: RecordId<"task" | "decision" | "question", string>;
   kind: EntityKind;
   text: string;
   confidence: number;
   sourceMessage: RecordId<"message", string>;
-  createdAt: Date | string;
 };
 
 const extractionResultSchema = z.object({
   entities: z.array(
     z.object({
+      tempId: z.string().min(1),
       kind: z.enum(["task", "decision", "question"]),
       text: z.string().min(1),
       confidence: z.number().min(0).max(1),
@@ -126,10 +82,12 @@ const extractionResultSchema = z.object({
   ),
   relationships: z.array(
     z.object({
-      type: z.enum(["BELONGS_TO", "DEPENDS_ON"]),
-      fromText: z.string().min(1),
-      toText: z.string().min(1),
+      kind: z.string().min(1),
+      fromTempId: z.string().min(1),
+      toTempId: z.string().min(1),
       confidence: z.number().min(0).max(1),
+      fromText: z.string().min(1).optional(),
+      toText: z.string().min(1).optional(),
     }),
   ),
 });
@@ -150,6 +108,11 @@ if (!Number.isFinite(extractionThreshold) || extractionThreshold < 0 || extracti
 
 const assistantModelId = Bun.env.ASSISTANT_MODEL ?? "openai/gpt-4.1-mini";
 const extractionModelId = Bun.env.EXTRACTION_MODEL ?? "openai/gpt-4.1-mini";
+const embeddingModelId = Bun.env.OPENROUTER_EMBEDDING_MODEL ?? "openai/text-embedding-3-small";
+const embeddingDimension = parsePositiveInteger(
+  Bun.env.EMBEDDING_DIMENSION ?? "1536",
+  "EMBEDDING_DIMENSION",
+);
 const openRouterReasoning = parseOpenRouterReasoning();
 
 const surrealUrl = Bun.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -178,6 +141,7 @@ const extractionModel = openrouter(extractionModelId, {
   plugins: [{ id: "response-healing" }],
   ...(openRouterReasoning ? { extraBody: { reasoning: openRouterReasoning } } : {}),
 });
+const embeddingModel = openrouter.textEmbeddingModel(embeddingModelId);
 
 const server = Bun.serve({
   port: Number(Bun.env.PORT ?? "3000"),
@@ -314,24 +278,27 @@ async function handleEntitySearch(url: URL): Promise<Response> {
     return jsonError("limit must be a positive number", 400);
   }
 
-  const limit = Math.min(parsedLimit, 100);
+  const limit = Math.min(Math.floor(parsedLimit), 100);
 
   const [rows] = await surreal
-    .query<[EntityRow[]]>(
-      "SELECT id, kind, text, confidence, sourceMessage, createdAt FROM entity ORDER BY createdAt DESC LIMIT 300;",
+    .query<[SearchEntityRow[]]>(
+      "RETURN fn::entity_search($query, $limit);",
+      {
+        query,
+        limit,
+      },
     )
-    .collect<[EntityRow[]]>();
+    .collect<[SearchEntityRow[]]>();
 
   const responseRows = rows
-    .filter((row) => row.text.toLowerCase().includes(query))
-    .slice(0, limit)
     .map((row) => ({
       id: row.id.id as string,
       kind: row.kind,
       text: row.text,
       confidence: row.confidence,
       sourceMessageId: row.sourceMessage.id as string,
-    } satisfies SearchEntityResponse));
+    } satisfies SearchEntityResponse))
+    .slice(0, limit);
 
   return jsonResponse(responseRows, 200);
 }
@@ -376,9 +343,11 @@ async function processChatMessage(
       schema: extractionResultSchema,
       system: [
         "Extract structured business entities and relationships from the conversation.",
-        "Return only high-confidence extractions.",
+        "Return only high-confidence extractions with explicit entity references.",
         "Entity kinds: task, decision, question.",
-        "Relationship types: BELONGS_TO, DEPENDS_ON.",
+        "Each entity must include a tempId.",
+        "Each relationship must reference entities via fromTempId and toTempId.",
+        "Relationship kind is free-form uppercase snake_case when possible (for example DEPENDS_ON, BLOCKS, RELATES_TO).",
         "Confidence values must be between 0 and 1.",
       ].join(" "),
       prompt: [
@@ -393,30 +362,51 @@ async function processChatMessage(
       ].join("\n"),
     });
 
-    const filteredEntities = extractionOutput.object.entities
-      .filter((entity) => entity.confidence >= extractionThreshold)
-      .map((entity) => ({
-        id: randomUUID(),
-        kind: entity.kind,
-        text: entity.text,
-        confidence: entity.confidence,
-        sourceMessageId: messageId,
-      } satisfies ExtractedEntity));
+    const dedupedEntitiesByTempId = new Map<string, ExtractionPromptEntity>();
+    for (const entity of extractionOutput.object.entities as ExtractionPromptEntity[]) {
+      const normalizedTempId = entity.tempId.trim();
+      if (normalizedTempId.length === 0) {
+        continue;
+      }
 
-    const filteredRelationships = extractionOutput.object.relationships
+      const existing = dedupedEntitiesByTempId.get(normalizedTempId);
+      if (!existing || entity.confidence > existing.confidence) {
+        dedupedEntitiesByTempId.set(normalizedTempId, {
+          ...entity,
+          tempId: normalizedTempId,
+          text: entity.text.trim(),
+        });
+      }
+    }
+
+    const filteredEntities = [...dedupedEntitiesByTempId.values()]
+      .filter((entity) => entity.confidence >= extractionThreshold)
+      .filter((entity) => entity.text.length > 0);
+
+    const filteredRelationships = (extractionOutput.object.relationships as ExtractionPromptRelationship[])
       .filter((relationship) => relationship.confidence >= extractionThreshold)
       .map((relationship) => ({
-        id: randomUUID(),
-        type: relationship.type,
-        fromText: relationship.fromText,
-        toText: relationship.toText,
-        confidence: relationship.confidence,
-        sourceMessageId: messageId,
-      } satisfies ExtractedRelationship));
+        ...relationship,
+        kind: relationship.kind.trim(),
+        fromTempId: relationship.fromTempId.trim(),
+        toTempId: relationship.toTempId.trim(),
+        fromText: relationship.fromText?.trim(),
+        toText: relationship.toText?.trim(),
+      }))
+      .filter(
+        (relationship) =>
+          relationship.kind.length > 0 &&
+          relationship.fromTempId.length > 0 &&
+          relationship.toTempId.length > 0,
+      );
 
     const now = new Date();
     const assistantMessageRecord = new RecordId("message", messageId);
     const conversationRecord = new RecordId("conversation", conversationId);
+    const sourceMessageId = assistantMessageRecord.id as string;
+    const persistedEntities: ExtractedEntity[] = [];
+    const persistedRelationships: ExtractedRelationship[] = [];
+    const entitiesByTempId = new Map<string, { record: GraphEntityRecord; text: string; id: string }>();
 
     const transaction = await surreal.beginTransaction();
     try {
@@ -428,23 +418,64 @@ async function processChatMessage(
       });
 
       for (const entity of filteredEntities) {
-        await transaction.create(new RecordId("entity", entity.id)).content({
+        const entityRecord = createGraphEntityRecord(entity.kind, randomUUID());
+        const entityId = entityRecord.id as string;
+
+        await transaction.create(entityRecord).content(
+          buildEntityRecordContent(entity.kind, entity.text, entity.confidence, assistantMessageRecord, now),
+        );
+
+        entitiesByTempId.set(entity.tempId, {
+          record: entityRecord,
+          text: entity.text,
+          id: entityId,
+        });
+
+        persistedEntities.push({
+          id: entityId,
           kind: entity.kind,
           text: entity.text,
           confidence: entity.confidence,
-          sourceMessage: assistantMessageRecord,
-          createdAt: now,
+          sourceMessageId,
         });
       }
 
       for (const relationship of filteredRelationships) {
-        await transaction.create(new RecordId("relationship", relationship.id)).content({
-          type: relationship.type,
-          fromText: relationship.fromText,
-          toText: relationship.toText,
+        const fromEntity = entitiesByTempId.get(relationship.fromTempId);
+        const toEntity = entitiesByTempId.get(relationship.toTempId);
+
+        if (!fromEntity || !toEntity) {
+          console.warn(
+            `Skipping extracted relationship (${relationship.kind}) because an endpoint tempId was not resolved`,
+          );
+          continue;
+        }
+
+        const relationshipRecord = new RecordId("extraction_relation", randomUUID());
+        const fromText = relationship.fromText ?? fromEntity.text;
+        const toText = relationship.toText ?? toEntity.text;
+
+        await transaction.create(relationshipRecord).content({
+          in: fromEntity.record,
+          out: toEntity.record,
+          kind: relationship.kind,
           confidence: relationship.confidence,
-          sourceMessage: assistantMessageRecord,
-          createdAt: now,
+          source_message: assistantMessageRecord,
+          extracted_at: now,
+          created_at: now,
+          from_text: fromText,
+          to_text: toText,
+        });
+
+        persistedRelationships.push({
+          id: relationshipRecord.id as string,
+          kind: relationship.kind,
+          fromId: fromEntity.id,
+          toId: toEntity.id,
+          confidence: relationship.confidence,
+          sourceMessageId,
+          fromText,
+          toText,
         });
       }
 
@@ -458,11 +489,23 @@ async function processChatMessage(
       throw error;
     }
 
+    void persistEmbeddings(
+      assistantMessageRecord,
+      assistantText,
+      [...entitiesByTempId.values()].map((entity) => ({
+        record: entity.record,
+        text: entity.text,
+      })),
+    ).catch((error: unknown) => {
+      const errorText = error instanceof Error ? error.message : "embedding persistence failed";
+      console.warn(`Embedding persistence failed: ${errorText}`);
+    });
+
     emitEvent(messageId, {
       type: "extraction",
       messageId,
-      entities: filteredEntities,
-      relationships: filteredRelationships,
+      entities: persistedEntities,
+      relationships: persistedRelationships,
     });
 
     emitEvent(messageId, {
@@ -485,13 +528,61 @@ async function processChatMessage(
   }
 }
 
+async function persistEmbeddings(
+  assistantMessageRecord: RecordId<"message", string>,
+  assistantText: string,
+  entities: Array<{ record: GraphEntityRecord; text: string }>,
+): Promise<void> {
+  const messageEmbedding = await createEmbedding(assistantText);
+  if (messageEmbedding) {
+    await surreal.update(assistantMessageRecord).merge({ embedding: messageEmbedding });
+  }
+
+  for (const entity of entities) {
+    const entityEmbedding = await createEmbedding(entity.text);
+    if (!entityEmbedding) {
+      continue;
+    }
+
+    await surreal.update(entity.record).merge({ embedding: entityEmbedding });
+  }
+}
+
+async function createEmbedding(value: string): Promise<number[] | undefined> {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  try {
+    const result = await embed({
+      model: embeddingModel,
+      value: normalized,
+    });
+
+    if (result.embedding.length !== embeddingDimension) {
+      console.warn(
+        `Skipping embedding write because vector dimension ${result.embedding.length} does not match EMBEDDING_DIMENSION=${embeddingDimension}`,
+      );
+      return undefined;
+    }
+
+    return result.embedding;
+  } catch (error) {
+    const errorText = error instanceof Error ? error.message : "embedding call failed";
+    console.warn(`Embedding generation failed: ${errorText}`);
+    return undefined;
+  }
+}
+
 async function loadConversationContext(conversationId: string): Promise<MessageContextRow[]> {
   const conversationRecord = new RecordId("conversation", conversationId);
   const [rows] = await surreal
     .query<[MessageContextRow[]]>(
-      "SELECT id, role, text, createdAt FROM message WHERE conversation = $conversation ORDER BY createdAt DESC LIMIT 8;",
+      "RETURN fn::conversation_recent($conversation, $limit);",
       {
         conversation: conversationRecord,
+        limit: 8,
       },
     )
     .collect<[MessageContextRow[]]>();
@@ -576,6 +667,60 @@ function parseChatMessageRequest(body: unknown):
       text: payload.text.trim(),
     },
   };
+}
+
+function createGraphEntityRecord(kind: EntityKind, id: string): GraphEntityRecord {
+  return new RecordId(kind, id) as GraphEntityRecord;
+}
+
+function buildEntityRecordContent(
+  kind: EntityKind,
+  text: string,
+  confidence: number,
+  sourceMessage: RecordId<"message", string>,
+  now: Date,
+): Record<string, unknown> {
+  if (kind === "task") {
+    return {
+      title: text,
+      status: "open",
+      source_message: sourceMessage,
+      extraction_confidence: confidence,
+      extracted_at: now,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  if (kind === "decision") {
+    return {
+      summary: text,
+      status: "extracted",
+      source_message: sourceMessage,
+      extraction_confidence: confidence,
+      extracted_at: now,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  return {
+    text,
+    status: "open",
+    source_message: sourceMessage,
+    extraction_confidence: confidence,
+    extracted_at: now,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function parsePositiveInteger(value: string, envName: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${envName} must be a positive integer`);
+  }
+  return parsed;
 }
 
 function parseOpenRouterReasoning(): OpenRouterReasoningOptions | undefined {

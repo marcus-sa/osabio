@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun --watch app/server.ts",
     "start": "bun run app/server.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke:phase1": "bun run app/scripts/smoke-phase1.ts"
   },
   "dependencies": {
     "@openrouter/ai-sdk-provider": "^2.2.3",
