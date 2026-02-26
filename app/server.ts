@@ -1,9 +1,14 @@
 /// <reference types="bun-types" />
 
 import { randomUUID } from "node:crypto";
+import { generateObject, generateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import appHtml from "./src/client/index.html";
+import { RecordId, Surreal } from "surrealdb";
+import { z } from "zod";
 
 type EntityKind = "task" | "decision" | "question";
+type RelationshipKind = "BELONGS_TO" | "DEPENDS_ON";
 
 type ExtractedEntity = {
   id: string;
@@ -13,17 +18,13 @@ type ExtractedEntity = {
   sourceMessageId: string;
 };
 
-type MessageRecord = {
+type ExtractedRelationship = {
   id: string;
-  role: "user" | "assistant";
-  text: string;
-  createdAt: string;
-  entities: ExtractedEntity[];
-};
-
-type Conversation = {
-  id: string;
-  messages: MessageRecord[];
+  type: RelationshipKind;
+  fromText: string;
+  toText: string;
+  confidence: number;
+  sourceMessageId: string;
 };
 
 type ChatMessageRequest = {
@@ -54,6 +55,7 @@ type ExtractionEvent = {
   type: "extraction";
   messageId: string;
   entities: ExtractedEntity[];
+  relationships: ExtractedRelationship[];
 };
 
 type DoneEvent = {
@@ -84,10 +86,81 @@ type SearchEntityResponse = {
   sourceMessageId: string;
 };
 
-const encoder = new TextEncoder();
+type ConversationRow = {
+  id: RecordId<"conversation", string>;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
 
-const conversations = new Map<string, Conversation>();
+type MessageContextRow = {
+  id: RecordId<"message", string>;
+  role: "user" | "assistant";
+  text: string;
+  createdAt: Date | string;
+};
+
+type EntityRow = {
+  id: RecordId<"entity", string>;
+  kind: EntityKind;
+  text: string;
+  confidence: number;
+  sourceMessage: RecordId<"message", string>;
+  createdAt: Date | string;
+};
+
+const extractionResultSchema = z.object({
+  entities: z.array(
+    z.object({
+      kind: z.enum(["task", "decision", "question"]),
+      text: z.string().min(1),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+  relationships: z.array(
+    z.object({
+      type: z.enum(["BELONGS_TO", "DEPENDS_ON"]),
+      fromText: z.string().min(1),
+      toText: z.string().min(1),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+});
+
+const encoder = new TextEncoder();
 const streams = new Map<string, StreamState>();
+
+const openAiApiKey = Bun.env.OPENAI_API_KEY;
+if (!openAiApiKey || openAiApiKey.trim().length === 0) {
+  throw new Error("OPENAI_API_KEY is required");
+}
+
+const extractionThresholdValue = Bun.env.EXTRACTION_CONFIDENCE_THRESHOLD ?? "0.75";
+const extractionThreshold = Number(extractionThresholdValue);
+if (!Number.isFinite(extractionThreshold) || extractionThreshold < 0 || extractionThreshold > 1) {
+  throw new Error("EXTRACTION_CONFIDENCE_THRESHOLD must be a number between 0 and 1");
+}
+
+const assistantModelId = Bun.env.ASSISTANT_MODEL ?? "gpt-4.1-mini";
+const extractionModelId = Bun.env.EXTRACTION_MODEL ?? "gpt-4.1-mini";
+
+const surrealUrl = Bun.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
+const surrealUsername = Bun.env.SURREAL_USERNAME ?? "root";
+const surrealPassword = Bun.env.SURREAL_PASSWORD ?? "root";
+const surrealNamespace = Bun.env.SURREAL_NAMESPACE ?? "brain";
+const surrealDatabase = Bun.env.SURREAL_DATABASE ?? "app";
+
+const surreal = new Surreal();
+await surreal.connect(surrealUrl);
+await surreal.signin({ username: surrealUsername, password: surrealPassword });
+await surreal.use({ namespace: surrealNamespace, database: surrealDatabase });
+
+const schemaSql = await Bun.file(new URL("../schema/surreal-schema.surql", import.meta.url)).text();
+if (schemaSql.trim().length === 0) {
+  throw new Error("schema/surreal-schema.surql is empty");
+}
+await surreal.query(schemaSql).collect();
+
+const openai = createOpenAI({ apiKey: openAiApiKey });
 
 const server = Bun.serve({
   port: Number(Bun.env.PORT ?? "3000"),
@@ -127,20 +200,35 @@ async function handlePostChatMessage(request: Request): Promise<Response> {
   const conversationId = parsed.data.conversationId ?? randomUUID();
   const messageId = randomUUID();
 
-  const conversation: Conversation = conversations.get(conversationId) ?? {
-    id: conversationId,
-    messages: [],
-  };
+  try {
+    const now = new Date();
+    const conversationRecord = new RecordId("conversation", conversationId);
+    const existingConversation = await surreal.select<ConversationRow>(conversationRecord);
 
-  conversation.messages.push({
-    id: parsed.data.clientMessageId,
-    role: "user",
-    text: parsed.data.text,
-    createdAt: new Date().toISOString(),
-    entities: [],
-  });
+    if (existingConversation) {
+      await surreal.update(conversationRecord).merge({
+        updatedAt: now,
+      });
+    } else {
+      await surreal.create(conversationRecord).content({
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
 
-  conversations.set(conversationId, conversation);
+    const userMessageRecord = new RecordId("message", randomUUID());
+    await surreal.create(userMessageRecord).content({
+      conversation: conversationRecord,
+      role: "user",
+      text: parsed.data.text,
+      createdAt: now,
+      clientMessageId: parsed.data.clientMessageId,
+    });
+  } catch (error) {
+    const errorText = error instanceof Error ? error.message : "failed to persist user message";
+    return jsonError(errorText, 500);
+  }
+
   streams.set(messageId, {
     queue: [],
     finished: false,
@@ -197,7 +285,7 @@ function handleChatStream(messageId: string): Response {
   });
 }
 
-function handleEntitySearch(url: URL): Response {
+async function handleEntitySearch(url: URL): Promise<Response> {
   const query = url.searchParams.get("q")?.trim().toLowerCase();
   if (!query) {
     return jsonError("q is required", 400);
@@ -210,25 +298,25 @@ function handleEntitySearch(url: URL): Response {
   }
 
   const limit = Math.min(parsedLimit, 100);
-  const rows: SearchEntityResponse[] = [];
 
-  for (const conversation of conversations.values()) {
-    for (const message of conversation.messages) {
-      for (const entity of message.entities) {
-        if (entity.text.toLowerCase().includes(query)) {
-          rows.push({
-            id: entity.id,
-            kind: entity.kind,
-            text: entity.text,
-            confidence: entity.confidence,
-            sourceMessageId: entity.sourceMessageId,
-          });
-        }
-      }
-    }
-  }
+  const [rows] = await surreal
+    .query<[EntityRow[]]>(
+      "SELECT id, kind, text, confidence, sourceMessage, createdAt FROM entity ORDER BY createdAt DESC LIMIT 300;",
+    )
+    .collect<[EntityRow[]]>();
 
-  return jsonResponse(rows.slice(0, limit), 200);
+  const responseRows = rows
+    .filter((row) => row.text.toLowerCase().includes(query))
+    .slice(0, limit)
+    .map((row) => ({
+      id: row.id.id as string,
+      kind: row.kind,
+      text: row.text,
+      confidence: row.confidence,
+      sourceMessageId: row.sourceMessage.id as string,
+    } satisfies SearchEntityResponse));
+
+  return jsonResponse(responseRows, 200);
 }
 
 async function processChatMessage(
@@ -237,7 +325,25 @@ async function processChatMessage(
   promptText: string,
 ): Promise<void> {
   try {
-    const assistantText = `I captured this input: ${promptText}. I will track related tasks, decisions, and questions for this conversation.`;
+    const contextRows = await loadConversationContext(conversationId);
+
+    const assistantResponse = await generateText({
+      model: openai(assistantModelId),
+      system:
+        "You are helping a product team capture actionable project state. Respond concisely with clear next actions.",
+      prompt: [
+        "Conversation context:",
+        formatContextRows(contextRows),
+        "",
+        "Latest user message:",
+        promptText,
+      ].join("\n"),
+    });
+
+    const assistantText = assistantResponse.text.trim();
+    if (assistantText.length === 0) {
+      throw new Error("assistant response was empty");
+    }
 
     for (const token of assistantText.split(" ")) {
       emitEvent(messageId, {
@@ -245,27 +351,101 @@ async function processChatMessage(
         messageId,
         token: `${token} `,
       });
-      await Bun.sleep(40);
+      await Bun.sleep(25);
     }
 
-    const entities = extractEntities(promptText, messageId);
-    const conversation = conversations.get(conversationId);
-    if (!conversation) {
-      throw new Error("conversation missing in state");
-    }
-
-    conversation.messages.push({
-      id: messageId,
-      role: "assistant",
-      text: assistantText,
-      createdAt: new Date().toISOString(),
-      entities,
+    const extractionOutput = await generateObject({
+      model: openai(extractionModelId),
+      schema: extractionResultSchema,
+      system: [
+        "Extract structured business entities and relationships from the conversation.",
+        "Return only high-confidence extractions.",
+        "Entity kinds: task, decision, question.",
+        "Relationship types: BELONGS_TO, DEPENDS_ON.",
+        "Confidence values must be between 0 and 1.",
+      ].join(" "),
+      prompt: [
+        "Conversation context:",
+        formatContextRows(contextRows),
+        "",
+        "Latest user message:",
+        promptText,
+        "",
+        "Assistant response:",
+        assistantText,
+      ].join("\n"),
     });
+
+    const filteredEntities = extractionOutput.object.entities
+      .filter((entity) => entity.confidence >= extractionThreshold)
+      .map((entity) => ({
+        id: randomUUID(),
+        kind: entity.kind,
+        text: entity.text,
+        confidence: entity.confidence,
+        sourceMessageId: messageId,
+      } satisfies ExtractedEntity));
+
+    const filteredRelationships = extractionOutput.object.relationships
+      .filter((relationship) => relationship.confidence >= extractionThreshold)
+      .map((relationship) => ({
+        id: randomUUID(),
+        type: relationship.type,
+        fromText: relationship.fromText,
+        toText: relationship.toText,
+        confidence: relationship.confidence,
+        sourceMessageId: messageId,
+      } satisfies ExtractedRelationship));
+
+    const now = new Date();
+    const assistantMessageRecord = new RecordId("message", messageId);
+    const conversationRecord = new RecordId("conversation", conversationId);
+
+    const transaction = await surreal.beginTransaction();
+    try {
+      await transaction.create(assistantMessageRecord).content({
+        conversation: conversationRecord,
+        role: "assistant",
+        text: assistantText,
+        createdAt: now,
+      });
+
+      for (const entity of filteredEntities) {
+        await transaction.create(new RecordId("entity", entity.id)).content({
+          kind: entity.kind,
+          text: entity.text,
+          confidence: entity.confidence,
+          sourceMessage: assistantMessageRecord,
+          createdAt: now,
+        });
+      }
+
+      for (const relationship of filteredRelationships) {
+        await transaction.create(new RecordId("relationship", relationship.id)).content({
+          type: relationship.type,
+          fromText: relationship.fromText,
+          toText: relationship.toText,
+          confidence: relationship.confidence,
+          sourceMessage: assistantMessageRecord,
+          createdAt: now,
+        });
+      }
+
+      await transaction.update(conversationRecord).merge({
+        updatedAt: now,
+      });
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.cancel();
+      throw error;
+    }
 
     emitEvent(messageId, {
       type: "extraction",
       messageId,
-      entities,
+      entities: filteredEntities,
+      relationships: filteredRelationships,
     });
 
     emitEvent(messageId, {
@@ -286,6 +466,30 @@ async function processChatMessage(
       error: errorText,
     });
   }
+}
+
+async function loadConversationContext(conversationId: string): Promise<MessageContextRow[]> {
+  const conversationRecord = new RecordId("conversation", conversationId);
+  const [rows] = await surreal
+    .query<[MessageContextRow[]]>(
+      "SELECT id, role, text, createdAt FROM message WHERE conversation = $conversation ORDER BY createdAt DESC LIMIT 8;",
+      {
+        conversation: conversationRecord,
+      },
+    )
+    .collect<[MessageContextRow[]]>();
+
+  return [...rows].reverse();
+}
+
+function formatContextRows(rows: MessageContextRow[]): string {
+  if (rows.length === 0) {
+    return "(no prior messages)";
+  }
+
+  return rows
+    .map((row) => `${row.role.toUpperCase()}: ${row.text}`)
+    .join("\n");
 }
 
 function emitEvent(messageId: string, event: StreamEvent) {
@@ -355,43 +559,6 @@ function parseChatMessageRequest(body: unknown):
       text: payload.text.trim(),
     },
   };
-}
-
-function extractEntities(promptText: string, sourceMessageId: string): ExtractedEntity[] {
-  const lower = promptText.toLowerCase();
-  const entities: ExtractedEntity[] = [];
-
-  if (lower.includes("task") || lower.includes("todo") || lower.includes("need to")) {
-    entities.push({
-      id: randomUUID(),
-      kind: "task",
-      text: promptText,
-      confidence: 0.91,
-      sourceMessageId,
-    });
-  }
-
-  if (lower.includes("decide") || lower.includes("decision") || lower.includes("we should")) {
-    entities.push({
-      id: randomUUID(),
-      kind: "decision",
-      text: promptText,
-      confidence: 0.87,
-      sourceMessageId,
-    });
-  }
-
-  if (lower.includes("?") || lower.includes("question") || lower.includes("how should")) {
-    entities.push({
-      id: randomUUID(),
-      kind: "question",
-      text: promptText,
-      confidence: 0.84,
-      sourceMessageId,
-    });
-  }
-
-  return entities;
 }
 
 function jsonError(message: string, status: number): Response {

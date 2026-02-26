@@ -1,0 +1,50 @@
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v3.0.0
+    container_name: brain-surrealdb
+    user: root
+    command:
+      - start
+      - --user
+      - root
+      - --pass
+      - root
+      - --allow-guests
+      - rocksdb:/data/brain.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - surrealdb-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD, /surreal, isready]
+      interval: 2s
+      timeout: 10s
+      retries: 10
+
+  surrealdb-init:
+    image: surrealdb/surrealdb:v3.0.0
+    container_name: brain-surrealdb-init
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+    volumes:
+      - ./schema:/schema:ro
+    entrypoint: ["/surreal"]
+    command:
+      - import
+      - --endpoint
+      - http://surrealdb:8000
+      - --ns
+      - brain
+      - --db
+      - app
+      - -u
+      - root
+      - -p
+      - root
+      - /schema/surreal-schema.surql
+    restart: "no"
+
+volumes:
+  surrealdb-data:

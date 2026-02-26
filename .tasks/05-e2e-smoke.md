@@ -4,6 +4,7 @@
 Validate the single-process app end-to-end.
 
 ## Scenarios
+- `docker compose up surrealdb surrealdb-init` succeeds and schema imports.
 - `/healthz` returns `{ status: "ok" }`.
 - Chat request returns stream metadata.
 - SSE stream reaches `done`.

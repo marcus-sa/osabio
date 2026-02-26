@@ -1,6 +1,17 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import {
+  Chat,
+  ChatInput,
+  SessionMessagePanel,
+  SessionMessages,
+  SessionMessagesHeader,
+  type MentionItem,
+  type Session,
+  type SlashCommandItem,
+} from "reachat";
 
 type EntityKind = "task" | "decision" | "question";
+type RelationshipKind = "BELONGS_TO" | "DEPENDS_ON";
 
 type ExtractedEntity = {
   id: string;
@@ -10,11 +21,13 @@ type ExtractedEntity = {
   sourceMessageId: string;
 };
 
-type ChatMessage = {
+type ExtractedRelationship = {
   id: string;
-  role: "user" | "assistant";
-  text: string;
-  entities?: ExtractedEntity[];
+  type: RelationshipKind;
+  fromText: string;
+  toText: string;
+  confidence: number;
+  sourceMessageId: string;
 };
 
 type ChatMessageRequest = {
@@ -45,6 +58,7 @@ type ExtractionEvent = {
   type: "extraction";
   messageId: string;
   entities: ExtractedEntity[];
+  relationships: ExtractedRelationship[];
 };
 
 type DoneEvent = {
@@ -60,25 +74,90 @@ type ErrorEvent = {
 
 type ChatStreamEvent = TokenEvent | AssistantMessageEvent | ExtractionEvent | DoneEvent | ErrorEvent;
 
+type SearchEntityResponse = {
+  id: string;
+  kind: EntityKind;
+  text: string;
+  confidence: number;
+  sourceMessageId: string;
+};
+
+const COMMAND_ITEMS: SlashCommandItem[] = [
+  {
+    id: "task",
+    label: "task",
+    description: "Record a task",
+    type: "insert",
+    value: "task: ",
+  },
+  {
+    id: "decision",
+    label: "decision",
+    description: "Record a decision",
+    type: "insert",
+    value: "decision: ",
+  },
+  {
+    id: "question",
+    label: "question",
+    description: "Record an open question",
+    type: "insert",
+    value: "question: ",
+  },
+];
+
 export function ChatPage() {
-  const [conversationId, setConversationId] = useState<string | undefined>();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isSending, setIsSending] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([
+    {
+      id: "phase-1",
+      title: "Phase 1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      conversations: [],
+    },
+  ]);
+  const [activeSessionId] = useState("phase-1");
+  const [backendConversationId, setBackendConversationId] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const streamRef = useRef<EventSource | undefined>(undefined);
 
-  const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
+  const activeSession = useMemo(
+    () => sessions.find((session) => session.id === activeSessionId),
+    [sessions, activeSessionId],
+  );
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  if (!activeSession) {
+    throw new Error("active session missing");
+  }
 
-    const text = input.trim();
-    if (!text || isSending) {
+  async function searchMentions(query: string): Promise<MentionItem[]> {
+    const response = await fetch(`/api/entities/search?q=${encodeURIComponent(query)}&limit=8`);
+    if (!response.ok) {
+      throw new Error(`entity search failed: ${response.status}`);
+    }
+
+    const rows = (await response.json()) as SearchEntityResponse[];
+    return rows.map((row) => ({
+      id: row.id,
+      label: `${row.kind}: ${row.text.slice(0, 48)}`,
+      description: `confidence ${row.confidence.toFixed(2)}`,
+      value: `@${row.kind}:${row.id}`,
+    }));
+  }
+
+  async function onSendMessage(message: string) {
+    if (isLoading) {
+      return;
+    }
+
+    const text = message.trim();
+    if (!text) {
       return;
     }
 
     setErrorMessage(undefined);
-    setIsSending(true);
+    setIsLoading(true);
 
     const clientMessageId = crypto.randomUUID();
     const requestBody: ChatMessageRequest = {
@@ -86,20 +165,28 @@ export function ChatPage() {
       text,
     };
 
-    if (conversationId) {
-      requestBody.conversationId = conversationId;
+    if (backendConversationId) {
+      requestBody.conversationId = backendConversationId;
     }
 
-    setMessages((existing) => [
-      ...existing,
-      {
-        id: clientMessageId,
-        role: "user",
-        text,
-      },
-    ]);
-
-    setInput("");
+    setSessions((existing) =>
+      existing.map((session) =>
+        session.id === activeSessionId
+          ? {
+              ...session,
+              updatedAt: new Date(),
+              conversations: [
+                ...session.conversations,
+                {
+                  id: clientMessageId,
+                  question: text,
+                  createdAt: new Date(),
+                },
+              ],
+            }
+          : session,
+      ),
+    );
 
     let response: Response;
     try {
@@ -111,136 +198,185 @@ export function ChatPage() {
         body: JSON.stringify(requestBody),
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Network error";
-      setErrorMessage(message);
-      setIsSending(false);
+      const messageText = error instanceof Error ? error.message : "Network error";
+      setErrorMessage(messageText);
+      setIsLoading(false);
       return;
     }
 
     if (!response.ok) {
       const body = await response.text();
       setErrorMessage(body);
-      setIsSending(false);
+      setIsLoading(false);
       return;
     }
 
     const payload = (await response.json()) as ChatMessageResponse;
-    setConversationId(payload.conversationId);
+    setBackendConversationId(payload.conversationId);
 
-    setMessages((existing) => [
-      ...existing,
-      {
-        id: payload.messageId,
-        role: "assistant",
-        text: "",
-      },
-    ]);
+    if (streamRef.current) {
+      streamRef.current.close();
+      streamRef.current = undefined;
+    }
+
+    let streamedText = "";
+    let extractedEntities: ExtractedEntity[] = [];
+    let extractedRelationships: ExtractedRelationship[] = [];
 
     const stream = new EventSource(payload.streamUrl);
+    streamRef.current = stream;
+
     stream.onmessage = (messageEvent) => {
       const parsed = JSON.parse(messageEvent.data) as ChatStreamEvent;
 
       if (parsed.type === "token") {
-        setMessages((existing) =>
-          existing.map((item) =>
-            item.id === parsed.messageId
+        streamedText = `${streamedText}${parsed.token}`;
+        setSessions((existing) =>
+          existing.map((session) =>
+            session.id === activeSessionId
               ? {
-                  ...item,
-                  text: `${item.text}${parsed.token}`,
+                  ...session,
+                  conversations: session.conversations.map((conversation) =>
+                    conversation.id === clientMessageId
+                      ? {
+                          ...conversation,
+                          response: streamedText,
+                          updatedAt: new Date(),
+                        }
+                      : conversation,
+                  ),
                 }
-              : item,
+              : session,
           ),
         );
         return;
       }
 
       if (parsed.type === "assistant_message") {
-        setMessages((existing) =>
-          existing.map((item) =>
-            item.id === parsed.messageId
+        streamedText = parsed.text;
+        setSessions((existing) =>
+          existing.map((session) =>
+            session.id === activeSessionId
               ? {
-                  ...item,
-                  text: parsed.text,
+                  ...session,
+                  conversations: session.conversations.map((conversation) =>
+                    conversation.id === clientMessageId
+                      ? {
+                          ...conversation,
+                          response: streamedText,
+                          updatedAt: new Date(),
+                        }
+                      : conversation,
+                  ),
                 }
-              : item,
+              : session,
           ),
         );
         return;
       }
 
       if (parsed.type === "extraction") {
-        setMessages((existing) =>
-          existing.map((item) =>
-            item.id === parsed.messageId
-              ? {
-                  ...item,
-                  entities: parsed.entities,
-                }
-              : item,
-          ),
-        );
+        extractedEntities = parsed.entities;
+        extractedRelationships = parsed.relationships;
         return;
       }
 
       if (parsed.type === "error") {
         setErrorMessage(parsed.error);
-        setIsSending(false);
+        setIsLoading(false);
         stream.close();
+        streamRef.current = undefined;
         return;
       }
 
       if (parsed.type === "done") {
-        setIsSending(false);
+        const entitySummary = extractedEntities
+          .map((entity) => `- ${entity.kind}: ${entity.text} (${entity.confidence.toFixed(2)})`)
+          .join("\n");
+        const relationshipSummary = extractedRelationships
+          .map(
+            (relationship) =>
+              `- ${relationship.type}: ${relationship.fromText} -> ${relationship.toText} (${relationship.confidence.toFixed(2)})`,
+          )
+          .join("\n");
+
+        const extractionSummary = [
+          entitySummary ? `\n\nExtracted entities:\n${entitySummary}` : "",
+          relationshipSummary ? `\n\nExtracted relationships:\n${relationshipSummary}` : "",
+        ].join("");
+
+        setSessions((existing) =>
+          existing.map((session) =>
+            session.id === activeSessionId
+              ? {
+                  ...session,
+                  updatedAt: new Date(),
+                  conversations: session.conversations.map((conversation) =>
+                    conversation.id === clientMessageId
+                      ? {
+                          ...conversation,
+                          response: `${streamedText}${extractionSummary}`,
+                          updatedAt: new Date(),
+                        }
+                      : conversation,
+                  ),
+                }
+              : session,
+          ),
+        );
+
+        setIsLoading(false);
         stream.close();
+        streamRef.current = undefined;
       }
     };
 
     stream.onerror = () => {
       setErrorMessage("SSE stream disconnected");
-      setIsSending(false);
+      setIsLoading(false);
       stream.close();
+      streamRef.current = undefined;
     };
   }
 
+  function onStopMessage() {
+    if (!streamRef.current) {
+      return;
+    }
+
+    streamRef.current.close();
+    streamRef.current = undefined;
+    setIsLoading(false);
+  }
+
   return (
-    <section className="chat-page">
-      <div className="chat-panel">
-        <div className="chat-messages">
-          {messages.map((message) => (
-            <article key={message.id} className={`chat-message ${message.role}`}>
-              <header>
-                <strong>{message.role === "user" ? "You" : "Assistant"}</strong>
-              </header>
-              <p>{message.text}</p>
-              {message.entities && message.entities.length > 0 ? (
-                <ul className="entity-list">
-                  {message.entities.map((entity) => (
-                    <li key={entity.id}>
-                      <span className={`entity-kind ${entity.kind}`}>{entity.kind}</span>
-                      <span className="entity-text">{entity.text}</span>
-                      <span className="entity-confidence">{entity.confidence.toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : undefined}
-            </article>
-          ))}
-        </div>
-
-        <form className="chat-form" onSubmit={onSubmit}>
-          <textarea
-            value={input}
-            onChange={(nextEvent) => setInput(nextEvent.target.value)}
-            placeholder="Type a message with a task, decision, or question..."
-            rows={4}
+    <section className="reachat-page">
+      <Chat
+        viewType="chat"
+        sessions={sessions}
+        activeSessionId={activeSession.id}
+        isLoading={isLoading}
+        onSendMessage={onSendMessage}
+        onStopMessage={onStopMessage}
+      >
+        <SessionMessagePanel>
+          <SessionMessagesHeader>
+            <div className="reachat-header">Phase 1 Chat + Extraction</div>
+          </SessionMessagesHeader>
+          <SessionMessages />
+          <ChatInput
+            placeholder="Discuss tasks, decisions, and questions..."
+            mentions={{
+              onSearch: searchMentions,
+            }}
+            commands={{
+              items: COMMAND_ITEMS,
+            }}
           />
-          <button type="submit" disabled={!canSend}>
-            {isSending ? "Streaming..." : "Send"}
-          </button>
-        </form>
+        </SessionMessagePanel>
+      </Chat>
 
-        {errorMessage ? <p className="error-message">{errorMessage}</p> : undefined}
-      </div>
+      {errorMessage ? <p className="error-message">{errorMessage}</p> : undefined}
     </section>
   );
 }

@@ -5,11 +5,10 @@ Establish one Bun TypeScript app that serves both React frontend and API routes 
 
 ## Deliverables
 - App layout:
-  - `app/server.ts` for API + static file serving
+  - `app/server.ts` for API + Bun HTML import serving
   - `app/src/client` for React + TanStack Router
-  - `app/public` generated bundle output
-- API contract typed in server code.
-- Startup builds browser bundle before serving traffic.
+- API contract typed in server code and shared event payloads.
+- Runtime env contract documented (`OPENAI_API_KEY`, SurrealDB connection vars).
 
 ## API Contracts
 - `POST /api/chat/messages`

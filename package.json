@@ -6,12 +6,17 @@
   "scripts": {
     "dev": "bun --watch app/server.ts",
     "start": "bun run app/server.ts",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.34",
     "@tanstack/react-router": "^1.131.24",
+    "ai": "^6.0.101",
+    "reachat": "^3.0.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "surrealdb": "2.0.0-alpha.18",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
