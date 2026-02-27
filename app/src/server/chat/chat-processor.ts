@@ -1,5 +1,5 @@
 import { RecordId } from "surrealdb";
-import type { ExtractedEntity, ExtractedRelationship, OnboardingSeedItem } from "../../shared/contracts";
+import type { ExtractedEntity, ExtractedRelationship, OnboardingAction, OnboardingSeedItem } from "../../shared/contracts";
 import { buildExtractionComponentBlock } from "../extraction/components";
 import { loadAssistantConversationContext, loadConversationGraphContext, loadExtractionConversationContext } from "../extraction/context-loaders";
 import { ingestAttachment } from "../extraction/document-ingestion";
@@ -22,6 +22,7 @@ export async function processChatMessage(input: {
   userMessageRecord: RecordId<"message", string>;
   userText: string;
   attachment?: IncomingAttachment;
+  onboardingAction?: OnboardingAction;
 }): Promise<void> {
   const startedAt = performance.now();
   logInfo("chat.message.process.execution.started", "Chat message processing execution started", {
@@ -56,6 +57,7 @@ export async function processChatMessage(input: {
     const seedItems: OnboardingSeedItem[] = [];
     const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
     const extractedTools: string[] = [];
+    const unresolvedAssigneeNames = new Set<string>();
 
     if (input.attachment) {
       const ingestion = await ingestAttachment({
@@ -77,6 +79,9 @@ export async function processChatMessage(input: {
       seedItems.push(...ingestion.seeds);
       embeddingTargets.push(...ingestion.embeddingTargets);
       extractedTools.push(...ingestion.tools);
+      for (const unresolvedName of ingestion.unresolvedAssigneeNames) {
+        unresolvedAssigneeNames.add(unresolvedName);
+      }
     }
 
     const textExtraction = await extractStructuredGraph({
@@ -110,6 +115,9 @@ export async function processChatMessage(input: {
     seedItems.push(...textPersistence.seeds);
     embeddingTargets.push(...textPersistence.embeddingTargets);
     extractedTools.push(...textPersistence.tools);
+    for (const unresolvedName of textPersistence.unresolvedAssigneeNames) {
+      unresolvedAssigneeNames.add(unresolvedName);
+    }
 
     const dedupedTools = [...new Set(extractedTools.map((tool) => tool.trim()).filter((tool) => tool.length > 0))];
     await appendExtractedTools(input.deps.surreal, input.workspaceRecord, extractedTools, now);
@@ -124,13 +132,15 @@ export async function processChatMessage(input: {
       surreal: input.deps.surreal,
       workspaceRecord: input.workspaceRecord,
       workspace,
-      userText: input.userText,
-      hasAttachment: Boolean(input.attachment),
+      onboardingAction: input.onboardingAction,
       now,
     });
 
     let assistantText = "";
     let assistantSuggestions: string[] = [];
+    const unresolvedAssigneeSuggestions = [...unresolvedAssigneeNames].map(
+      (name) => `You mentioned ${name} - want to add them to workspace people?`,
+    );
 
     if (onboardingAfter === "complete") {
       const workspaceOwnerRecord = await getWorkspaceOwnerRecord({
@@ -191,6 +201,11 @@ export async function processChatMessage(input: {
         await Bun.sleep(25);
       }
     }
+
+    assistantSuggestions = sanitizeAssistantSuggestions(
+      [...assistantSuggestions, ...unresolvedAssigneeSuggestions],
+      3,
+    );
 
     const summaryBlock = buildExtractionComponentBlock(
       persistedEntities,
@@ -297,4 +312,10 @@ export async function processChatMessage(input: {
       error: errorText,
     });
   }
+}
+
+function sanitizeAssistantSuggestions(suggestions: string[], limit: number): string[] {
+  return [...new Set(suggestions.map((value) => value.trim()))]
+    .filter((value) => value.length > 0 && value.length <= 140)
+    .slice(0, limit);
 }

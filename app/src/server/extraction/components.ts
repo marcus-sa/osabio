@@ -1,6 +1,6 @@
 import type { EntityKind, ExtractedEntity, ExtractedRelationship } from "../../shared/contracts";
 import { normalizeName } from "./normalize";
-import { shouldDisplayExtraction } from "./filtering";
+import { shouldDisplayExtraction } from "./validation";
 
 type ExtractableEntityKind = Exclude<EntityKind, "workspace">;
 

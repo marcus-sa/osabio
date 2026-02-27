@@ -6,24 +6,25 @@
       "text": "Use TypeScript over Rust for backend",
       "confidence": 0.91,
       "evidence": "I've decided to use TypeScript over Rust for the backend",
+      "assignee_name": "Marcus",
       "resolvedFromMessageId": "msg-root-context"
     },
     {
       "tempId": "e2",
-      "kind": "person",
-      "text": "Marcus",
+      "kind": "task",
+      "text": "Finalize schema migration",
       "confidence": 0.88,
-      "evidence": "Marcus and I discussed it"
+      "evidence": "Finalize schema migration this week"
     }
   ],
   "relationships": [
     {
-      "kind": "DECIDED_BY",
-      "fromTempId": "e1",
-      "toTempId": "e2",
+      "kind": "DEPENDS_ON",
+      "fromTempId": "e2",
+      "toTempId": "e1",
       "confidence": 0.9,
-      "fromText": "Use TypeScript over Rust for backend",
-      "toText": "Marcus"
+      "fromText": "Finalize schema migration",
+      "toText": "Use TypeScript over Rust for backend"
     }
   ],
   "tools": ["TypeScript", "SurrealDB"]

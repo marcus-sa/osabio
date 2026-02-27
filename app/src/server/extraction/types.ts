@@ -53,6 +53,7 @@ export type PersistExtractionResult = {
   seeds: OnboardingSeedItem[];
   embeddingTargets: Array<{ record: GraphEntityRecord; text: string }>;
   tools: string[];
+  unresolvedAssigneeNames: string[];
 };
 
 export type TempEntityReference = {
@@ -60,12 +61,6 @@ export type TempEntityReference = {
   text: string;
   id: string;
   kind: EntityKind;
-};
-
-export type PersonMentionReference = {
-  tempId: string;
-  name: string;
-  record?: RecordId<"person", string>;
 };
 
 export type WorkspaceRow = {

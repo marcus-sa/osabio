@@ -2,17 +2,31 @@ import { z } from "zod";
 
 const extractionEntityBaseSchema = z.object({
   tempId: z.string().min(1),
-  kind: z.enum(["project", "person", "feature", "task", "decision", "question"]),
-  text: z.string().min(1),
+  kind: z.enum(["project", "feature", "task", "decision", "question"]),
+  text: z.string().min(3).max(200),
   confidence: z.number().min(0).max(1),
   evidence: z.string().min(1),
+}).strict();
+
+const extractionEntityWithAssigneeSchema = extractionEntityBaseSchema.extend({
+  assignee_name: z.string().min(1),
 }).strict();
 
 const extractionEntityWithResolvedFromSchema = extractionEntityBaseSchema.extend({
   resolvedFromMessageId: z.string().min(1),
 }).strict();
 
-export const extractionEntitySchema = z.union([extractionEntityBaseSchema, extractionEntityWithResolvedFromSchema]);
+const extractionEntityWithAssigneeAndResolvedFromSchema = extractionEntityBaseSchema.extend({
+  assignee_name: z.string().min(1),
+  resolvedFromMessageId: z.string().min(1),
+}).strict();
+
+const extractionEntitySchema = z.union([
+  extractionEntityBaseSchema,
+  extractionEntityWithAssigneeSchema,
+  extractionEntityWithResolvedFromSchema,
+  extractionEntityWithAssigneeAndResolvedFromSchema,
+]);
 
 export const extractionRelationshipSchema = z.object({
   kind: z.string().min(1),

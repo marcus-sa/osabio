@@ -11,11 +11,12 @@ import { entityPrecisionScorer } from "./scorers/entity-precision";
 import { entityRecallScorer } from "./scorers/entity-recall";
 import { noPhantomPersonsScorer } from "./scorers/no-phantom-persons";
 import { evidenceGroundedScorer } from "./scorers/evidence-grounded";
-import { noPlaceholdersScorer } from "./scorers/no-placeholders";
 import { noExtraEntitiesScorer } from "./scorers/no-extra-entities";
 import { noContextBleedScorer } from "./scorers/no-context-bleed";
 import { evidenceSourceCurrentMessageScorer } from "./scorers/evidence-source-current-message";
 import { resolvedFromLineageScorer } from "./scorers/resolved-from-lineage";
+import { toolFilteringScorer } from "./scorers/tool-filtering";
+import { forbiddenKindsScorer } from "./scorers/forbidden-kinds";
 import type { ExtractionEvalOutput, GoldenCase, GoldenCaseIntent } from "./types";
 import { normalizeForSubstring } from "./scorers/shared";
 
@@ -46,10 +47,11 @@ const intentScoreWeights: Record<
     | "no-extra-entities"
     | "no-phantom-persons"
     | "evidence-grounded"
-    | "no-placeholders"
     | "no-context-bleed"
     | "evidence-source-current-message"
     | "resolved-from-lineage"
+    | "tool-filtering"
+    | "forbidden-kinds"
     | "factuality",
     number
   >
@@ -60,10 +62,11 @@ const intentScoreWeights: Record<
     "no-extra-entities": 0.2,
     "no-phantom-persons": 0.13,
     "evidence-grounded": 0.09,
-    "no-placeholders": 0.05,
     "no-context-bleed": 0.05,
     "evidence-source-current-message": 0.06,
     "resolved-from-lineage": 0.04,
+    "tool-filtering": 0.08,
+    "forbidden-kinds": 0.1,
     factuality: 0.02,
   },
   multi_allowed: {
@@ -72,10 +75,11 @@ const intentScoreWeights: Record<
     "no-extra-entities": 0.05,
     "no-phantom-persons": 0.12,
     "evidence-grounded": 0.09,
-    "no-placeholders": 0.05,
     "no-context-bleed": 0.05,
     "evidence-source-current-message": 0.07,
     "resolved-from-lineage": 0.04,
+    "tool-filtering": 0.04,
+    "forbidden-kinds": 0.06,
     factuality: 0.03,
   },
 };
@@ -126,10 +130,11 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     noExtraEntitiesScorer,
     noPhantomPersonsScorer,
     evidenceGroundedScorer,
-    noPlaceholdersScorer,
     noContextBleedScorer,
     evidenceSourceCurrentMessageScorer,
     resolvedFromLineageScorer,
+    toolFilteringScorer,
+    forbiddenKindsScorer,
     factualityScorer,
   ],
   columns: ({ input, output, scores }) => [
@@ -139,10 +144,11 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     { label: "NoExtra", value: formatScoreCell(scoreByName(scores, "no-extra-entities")) },
     { label: "NoPeople", value: formatScoreCell(scoreByName(scores, "no-phantom-persons")) },
     { label: "Evidence", value: formatScoreCell(scoreByName(scores, "evidence-grounded")) },
-    { label: "NoPlace", value: formatScoreCell(scoreByName(scores, "no-placeholders")) },
     { label: "NoCtxBleed", value: formatScoreCell(scoreByName(scores, "no-context-bleed")) },
     { label: "EvSrc", value: formatScoreCell(scoreByName(scores, "evidence-source-current-message")) },
     { label: "Lineage", value: formatScoreCell(scoreByName(scores, "resolved-from-lineage")) },
+    { label: "Tools", value: formatScoreCell(scoreByName(scores, "tool-filtering")) },
+    { label: "Kinds", value: formatScoreCell(scoreByName(scores, "forbidden-kinds")) },
     { label: "Factual", value: formatScoreCell(scoreByName(scores, "factuality")) },
     { label: "Intent", value: input.intent },
     { label: "Case", value: input.id },
@@ -214,7 +220,10 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
   const cacheKey = buildCaseCacheKey(extractionModel, testCase);
   const cached = resultCache[cacheKey];
   if (cached) {
-    return cached;
+    return {
+      ...cached,
+      extractedTools: cached.extractedTools ?? [],
+    };
   }
 
   await ensureEvalEnvironment();
@@ -276,6 +285,12 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       }>]>();
 
     const personCount = await loadWorkspacePeopleCount(db, workspaceRecord);
+    const [workspaceToolRows] = await db
+      .query<[Array<{ tools?: string[] }>]>("SELECT tools FROM $workspace LIMIT 1;", {
+        workspace: workspaceRecord,
+      })
+      .collect<[Array<{ tools?: string[] }>]>(); 
+    const extractedTools = workspaceToolRows[0]?.tools ?? [];
 
     output = {
       caseId: testCase.id,
@@ -283,6 +298,7 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       userMessageId: message.userMessageId,
       contextMessageIds,
       extractedEntities: extractionEvent?.entities ?? [],
+      extractedTools,
       personCount,
       ownerPersonCount,
       evidenceRows: evidenceRows.map((row) => ({
@@ -584,7 +600,7 @@ function hasEnv(name: string): boolean {
 }
 
 function buildCaseCacheKey(modelId: string, testCase: GoldenCase): string {
-  const cacheVersion = "lineage-v2";
+  const cacheVersion = "classification-v3";
   const caseHash = createHash("sha256").update(JSON.stringify(testCase)).digest("hex").slice(0, 24);
   return `${cacheVersion}:${modelId}:${testCase.id}:${caseHash}`;
 }

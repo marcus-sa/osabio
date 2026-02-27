@@ -3,24 +3,35 @@
     "id": "architecture-grounding",
     "input": "We're building an AI-native business management platform with SurrealDB, cross-project conflict detection, GitHub commit awareness, and Slack ingestion.",
     "requiredAnchors": ["SurrealDB", "GitHub", "Slack", "conflict detection"],
+    "forbiddenSuggestions": ["Describe current projects", "List key team members"],
     "expectedMinSuggestions": 1
   },
   {
     "id": "database-status-followup",
     "input": "We chose SurrealDB but still need to de-risk scaling and define a fallback migration path.",
     "requiredAnchors": ["SurrealDB", "scaling", "fallback", "migration"],
+    "forbiddenSuggestions": ["Describe current projects"],
     "expectedMinSuggestions": 1
   },
   {
     "id": "tool-sequencing",
     "input": "We need sequencing for GitHub integration versus Slack bot ingestion, and commit awareness should ship first.",
     "requiredAnchors": ["GitHub", "Slack", "commit awareness", "sequencing"],
+    "forbiddenSuggestions": ["List key team members"],
     "expectedMinSuggestions": 1
   },
   {
     "id": "people-and-schema",
     "input": "Marcus is driving extraction, Dana is reviewing schemafull constraints, and we're refining onboarding prompts.",
     "requiredAnchors": ["Marcus", "Dana", "schemafull", "onboarding"],
+    "forbiddenSuggestions": ["Describe current projects", "Identify biggest bottleneck"],
+    "expectedMinSuggestions": 1
+  },
+  {
+    "id": "grounded-not-generic",
+    "input": "Our stack includes SurrealDB and Bun, and we still need a rollback plan for schema migrations.",
+    "requiredAnchors": ["SurrealDB", "Bun", "rollback", "schema"],
+    "forbiddenSuggestions": ["Describe current projects", "List key team members", "Identify biggest bottleneck"],
     "expectedMinSuggestions": 1
   },
   {

@@ -14,6 +14,7 @@ describe("extraction schema validation", () => {
     if (parsed.ok) {
       expect(parsed.data.entities.length).toBeGreaterThan(0);
       expect(parsed.data.relationships.length).toBeGreaterThan(0);
+      expect(parsed.data.entities[0]?.assignee_name).toBe("Marcus");
     }
   });
 
@@ -40,6 +41,13 @@ describe("extraction schema validation", () => {
 
   it("fails when resolvedFromMessageId is present but empty", () => {
     const payload = JSON.parse(readFileSync(join(fixturesDir, "invalid-resolved-from.json"), "utf8")) as unknown;
+    const parsed = parseExtractionOutput(payload);
+
+    expect(parsed.ok).toBe(false);
+  });
+
+  it("fails when kind is person", () => {
+    const payload = JSON.parse(readFileSync(join(fixturesDir, "invalid-person-kind.json"), "utf8")) as unknown;
     const parsed = parseExtractionOutput(payload);
 
     expect(parsed.ok).toBe(false);

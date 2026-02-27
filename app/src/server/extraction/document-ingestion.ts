@@ -47,6 +47,7 @@ export async function ingestAttachment(input: {
     const seeds = [];
     const embeddingTargets = [];
     const tools = [];
+    const unresolvedAssigneeNames = [];
 
     for (const chunk of chunks) {
       const chunkRecord = new RecordId("document_chunk", randomUUID());
@@ -92,6 +93,7 @@ export async function ingestAttachment(input: {
       seeds.push(...result.seeds);
       embeddingTargets.push(...result.embeddingTargets);
       tools.push(...result.tools);
+      unresolvedAssigneeNames.push(...result.unresolvedAssigneeNames);
     }
 
     logInfo("attachment.ingest.completed", "Attachment ingestion completed", {
@@ -110,6 +112,7 @@ export async function ingestAttachment(input: {
       seeds,
       embeddingTargets,
       tools,
+      unresolvedAssigneeNames,
     };
   } catch (error) {
     logError("attachment.ingest.failed", "Attachment ingestion failed", error, {

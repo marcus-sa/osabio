@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { dedupeExtractedEntities, hasGroundedEvidence } from "../../app/src/server/extraction/filtering";
+import { hasGroundedEvidence, postValidateEntities } from "../../app/src/server/extraction/validation";
 import type { ExtractionPromptEntity } from "../../app/src/server/extraction/schema";
 
 describe("evidence validation", () => {
@@ -13,15 +13,15 @@ describe("evidence validation", () => {
     expect(hasGroundedEvidence("migrate to Go for lower memory footprint", message)).toBe(false);
   });
 
-  it("allows minor whitespace and punctuation differences", () => {
-    expect(hasGroundedEvidence("use   TypeScript over Rust, for the backend service", message)).toBe(true);
+  it("requires a literal evidence substring", () => {
+    expect(hasGroundedEvidence("use   TypeScript over Rust, for the backend service", message)).toBe(false);
   });
 
   it("rejects empty evidence", () => {
     expect(hasGroundedEvidence("", message)).toBe(false);
   });
 
-  it("drops entities with non-grounded evidence during dedupe", () => {
+  it("drops entities with non-grounded evidence during post validation", () => {
     const entities: ExtractionPromptEntity[] = [
       {
         tempId: "d1",
@@ -32,11 +32,10 @@ describe("evidence validation", () => {
       },
     ];
 
-    const output = dedupeExtractedEntities({
+    const output = postValidateEntities({
       entities,
       sourceText: message,
       storeThreshold: 0.6,
-      sourceKind: "message",
     });
     expect(output).toHaveLength(0);
   });

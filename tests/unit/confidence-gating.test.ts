@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { shouldDisplayExtraction, shouldStoreExtraction } from "../../app/src/server/extraction/filtering";
+import { shouldDisplayExtraction, shouldStoreExtraction } from "../../app/src/server/extraction/validation";
 
 describe("confidence gating", () => {
   it("drops entities below store threshold", () => {

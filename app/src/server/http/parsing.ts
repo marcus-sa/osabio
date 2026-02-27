@@ -1,4 +1,4 @@
-import type { CreateWorkspaceRequest } from "../../shared/contracts";
+import type { CreateWorkspaceRequest, OnboardingAction } from "../../shared/contracts";
 import { HttpError } from "./errors";
 
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
@@ -16,8 +16,11 @@ export type ParsedIncomingMessage = {
   workspaceId: string;
   conversationId?: string;
   text: string;
+  onboardingAction?: OnboardingAction;
   attachment?: IncomingAttachment;
 };
+
+const onboardingActions = new Set(["finalize_onboarding", "continue_onboarding"]);
 
 export function parseCreateWorkspaceRequest(body: unknown):
   | { ok: true; data: CreateWorkspaceRequest }
@@ -57,6 +60,7 @@ export async function parseIncomingMessageRequest(
     const workspaceIdValue = formData.get("workspaceId");
     const conversationIdValue = formData.get("conversationId");
     const textValue = formData.get("text");
+    const onboardingActionValue = formData.get("onboardingAction");
 
     if (typeof clientMessageIdValue !== "string" || clientMessageIdValue.trim().length === 0) {
       return { ok: false, error: "clientMessageId is required" };
@@ -89,6 +93,12 @@ export async function parseIncomingMessageRequest(
       typeof conversationIdValue === "string" && conversationIdValue.trim().length > 0
         ? conversationIdValue.trim()
         : undefined;
+    const onboardingAction = typeof onboardingActionValue === "string" && onboardingActionValue.trim().length > 0
+      ? onboardingActionValue.trim()
+      : undefined;
+    if (onboardingAction && !onboardingActions.has(onboardingAction)) {
+      return { ok: false, error: "onboardingAction must be finalize_onboarding or continue_onboarding" };
+    }
 
     return {
       ok: true,
@@ -97,6 +107,7 @@ export async function parseIncomingMessageRequest(
         workspaceId: workspaceIdValue.trim(),
         ...(conversationId ? { conversationId } : {}),
         text,
+        ...(onboardingAction ? { onboardingAction: onboardingAction as OnboardingAction } : {}),
         ...(attachment ? { attachment } : {}),
       },
     };
@@ -131,6 +142,10 @@ export async function parseIncomingMessageRequest(
     return { ok: false, error: "conversationId must not be empty when provided" };
   }
 
+  if (payload.onboardingAction && !onboardingActions.has(payload.onboardingAction)) {
+    return { ok: false, error: "onboardingAction must be finalize_onboarding or continue_onboarding" };
+  }
+
   return {
     ok: true,
     data: {
@@ -138,6 +153,7 @@ export async function parseIncomingMessageRequest(
       workspaceId: payload.workspaceId.trim(),
       ...(payload.conversationId ? { conversationId: payload.conversationId.trim() } : {}),
       text: payload.text.trim(),
+      ...(payload.onboardingAction ? { onboardingAction: payload.onboardingAction } : {}),
     },
   };
 }

@@ -3,8 +3,6 @@ import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import type { EntityKind, OnboardingState } from "../../shared/contracts";
 import { chatComponentSystemPrompt } from "../chat/chat-component-system-prompt";
-import { normalizeName } from "../extraction/normalize";
-import { logWarn } from "../http/observability";
 import { loadOnboardingSummary } from "./onboarding-state";
 
 type MessageContextRow = {
@@ -15,62 +13,10 @@ type MessageContextRow = {
   suggestions?: string[];
 };
 
-type SuggestionGroundingInput = {
-  latestEntities: Array<{ kind: EntityKind; text: string; confidence: number }>;
-  latestTools: string[];
-  latestUserText: string;
-};
-
-export type SuggestionGroundingAnchor = {
-  value: string;
-  normalized: string;
-  source: "tool" | "entity" | "user_term" | "user_phrase";
-};
-
 const assistantReplySchema = z.object({
   message: z.string().min(1),
   suggestions: z.array(z.string().min(1)).max(3),
 });
-
-const suggestionStopWords = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "by",
-  "for",
-  "from",
-  "how",
-  "i",
-  "in",
-  "is",
-  "it",
-  "me",
-  "my",
-  "of",
-  "on",
-  "or",
-  "our",
-  "that",
-  "the",
-  "this",
-  "to",
-  "we",
-  "what",
-  "with",
-  "you",
-  "your",
-]);
-
-const blockedGenericSuggestionTemplates = [
-  "list key team members",
-  "describe current project",
-  "describe current projects",
-  "identify biggest bottleneck",
-];
 
 export async function generateOnboardingAssistantReply(input: {
   assistantModel: any;
@@ -82,14 +28,43 @@ export async function generateOnboardingAssistantReply(input: {
   latestEntities: Array<{ kind: EntityKind; text: string; confidence: number }>;
   latestTools: string[];
 }): Promise<{ message: string; suggestions: string[] }> {
-  const suggestionAnchors = buildSuggestionGroundingAnchors({
-    latestEntities: input.latestEntities,
-    latestTools: input.latestTools,
-    latestUserText: input.latestUserText,
-  });
+  const suggestionAnchors = buildSuggestionAnchors(input.latestUserText, input.latestEntities, input.latestTools);
+  const suggestionQualityRules = [
+    "You are helping a product team capture actionable project state.",
+    "Suggestion quality rules:",
+    "- Suggestions are 0-3 short clickable strings.",
+    "- Mandatory algorithm:",
+    "  1) Build candidate anchors by copying exact phrases from latest user message or latest extraction context.",
+    "  2) Prefer concrete anchors: person names, tool names, feature/task phrases (for example SurrealDB, GitHub commit awareness, Slack ingestion, schemafull constraints, onboarding prompts).",
+    "  3) Use only anchors from the provided 'Allowed suggestion anchors' list.",
+    "  4) If the allowed anchor list is empty, return suggestions: [].",
+    "  5) Every suggestion must include at least one allowed anchor phrase verbatim.",
+    "  6) Suggestions must ask about next-step details (risk, sequencing, ownership, scope, dependency, rollout, validation) for that anchor.",
+    "  7) Never ask for unrelated generic onboarding info (team/business/project overviews) unless that exact wording exists in allowed anchors.",
+    "- Never output generic suggestions detached from latest context.",
+    "- Forbidden generic suggestions or equivalents:",
+    "  - Describe current projects",
+    "  - Describe your current project",
+    "  - List key team members",
+    "  - Identify biggest bottleneck",
+    "  - Tell me about your business",
+    "  - Tell me about the overall project",
+    "  - Describe the business for these tasks",
+    "  - Explain the context of these tasks",
+    "- Low-signal turn rule: if latest user message is only filler/acknowledgment (for example 'ok', 'sounds good', 'ok and to be'), return suggestions: [].",
+    "- Example input: Marcus is driving extraction, Dana is reviewing schemafull constraints, and we're refining onboarding prompts.",
+    "- Good suggestions: What risk should Dana prioritize in schemafull constraints? | What is the next milestone for onboarding prompts? | What dependency is blocking extraction work for Marcus?",
+    "- Bad suggestions: Tell me about the overall project | Describe the business for these tasks",
+    "- Example input: We're building ... with SurrealDB, cross-project conflict detection, GitHub commit awareness, and Slack ingestion.",
+    "- Good suggestions: Which risk is highest for SurrealDB this week? | Should GitHub commit awareness ship before Slack ingestion? | What test validates cross-project conflict detection?",
+    "- Example input: ok and to be",
+    "- Good suggestions: []",
+  ].join("\n");
 
   let systemPrompt = [
-    "You are helping a product team capture actionable project state. Respond concisely with clear next actions.",
+    suggestionQualityRules,
+    "",
+    "Respond concisely with clear next actions.",
     "",
     "## UI Components",
     chatComponentSystemPrompt,
@@ -98,21 +73,19 @@ export async function generateOnboardingAssistantReply(input: {
   if (input.onboardingState === "active") {
     const summary = await loadOnboardingSummary(input.surreal, input.workspaceRecord);
     systemPrompt = [
+      suggestionQualityRules,
+      "",
       "You are onboarding a newly created workspace.",
       "Ask one natural question at a time like a smart colleague, never as a form.",
       "Cover these topics over 5-7 turns: business/venture, current projects, people involved, most important decision, tools used, biggest bottleneck.",
       "Keep acknowledgment to one sentence max.",
-      "Reference at least one specific extracted entity or tool from the latest extraction context by name.",
       "Ask exactly one concrete follow-up question in every response.",
-      "Do not produce generic praise or encouragement without a grounded follow-up question.",
       "Confirm captured entities inline in plain language.",
-      "Generate up to 3 short clickable follow-up suggestions that move onboarding forward.",
-      "Each suggestion must reference at least one current-turn grounding anchor.",
-      "Do not dump all questions at once.",
+      "Generate up to 3 short clickable follow-up suggestions.",
+      "Apply the Suggestion quality rules exactly.",
+      "Do not use generic onboarding-checklist suggestions.",
       "Current extracted context:",
       summary,
-      "Current-turn suggestion grounding anchors:",
-      formatSuggestionAnchors(suggestionAnchors),
       "",
       "## UI Components",
       chatComponentSystemPrompt,
@@ -122,15 +95,18 @@ export async function generateOnboardingAssistantReply(input: {
   if (input.onboardingState === "summary_pending") {
     const summary = await loadOnboardingSummary(input.surreal, input.workspaceRecord);
     systemPrompt = [
+      suggestionQualityRules,
+      "",
       "You are finishing onboarding for a workspace.",
-      "Summarize what has been captured in a concise bullet list and ask if anything is missing or incorrect.",
-      "End with an invitation to proceed into normal chat.",
+      "Summarize what has been captured in a concise bullet list.",
+      "Ask the user to choose one of two explicit actions:",
+      "- Looks good, let's go",
+      "- I want to add more",
       "Generate up to 3 short clickable follow-up suggestions.",
-      "Each suggestion must reference at least one current-turn grounding anchor.",
+      "Apply the Suggestion quality rules exactly.",
+      "Do not use generic onboarding-checklist suggestions.",
       "Current extracted context:",
       summary,
-      "Current-turn suggestion grounding anchors:",
-      formatSuggestionAnchors(suggestionAnchors),
       "",
       "## UI Components",
       chatComponentSystemPrompt,
@@ -144,193 +120,64 @@ export async function generateOnboardingAssistantReply(input: {
     prompt: [
       "Return JSON with this shape: { message: string, suggestions: string[] }.",
       "Message may include markdown and ```component fenced JSON when useful.",
-      "Suggestions must be short and actionable. Do not include numbering or punctuation-only entries.",
-      "Each suggestion must include wording from the latest user turn's entities, tools, or message terms.",
-      "Drop generic suggestions that are not grounded in the latest user turn.",
+      "Suggestions must be short and actionable, plain strings only.",
+      "When in doubt, prefer suggestions: [] over generic suggestions.",
       "Conversation context:",
       formatContextRows(input.contextRows),
       "",
+      "Allowed suggestion anchors (suggestions must include at least one verbatim):",
+      formatSuggestionAnchors(suggestionAnchors),
+      "",
       "Latest extraction context:",
       formatLatestExtractionContext(input.latestEntities, input.latestTools),
-      "",
-      "Grounding anchors (must reference at least one per suggestion):",
-      formatSuggestionAnchors(suggestionAnchors),
       "",
       "Latest user message:",
       input.latestUserText,
     ].join("\n"),
   });
 
-  let assistantText = assistantResponse.object.message.trim();
+  const assistantText = assistantResponse.object.message.trim();
   if (assistantText.length === 0) {
     throw new Error("assistant response was empty");
   }
 
-  if (input.onboardingState === "active") {
-    const enforced = enforceActiveOnboardingReply(assistantText, input.latestEntities, input.latestTools);
-    if (enforced.corrected) {
-      logWarn("onboarding.reply.corrected", "Corrected onboarding assistant reply that failed quality guard", {
-        reason: enforced.reason,
-      });
-      assistantText = enforced.message;
-    }
-  }
-
-  const normalizedGeneratedSuggestions = [...new Set(assistantResponse.object.suggestions.map((value) => value.trim()))]
-    .filter((value) => value.length > 0);
-  const suggestions = filterGroundedSuggestions({
-    suggestions: normalizedGeneratedSuggestions,
-    anchors: suggestionAnchors,
-  });
-  if (suggestions.length < normalizedGeneratedSuggestions.length) {
-    logWarn("onboarding.suggestions.filtered", "Dropped onboarding suggestions that were not grounded in latest turn", {
-      onboardingState: input.onboardingState,
-      generatedCount: normalizedGeneratedSuggestions.length,
-      groundedCount: suggestions.length,
-      droppedCount: normalizedGeneratedSuggestions.length - suggestions.length,
-    });
-  }
+  const firstPassSuggestions = sanitizeSuggestions(assistantResponse.object.suggestions, 3);
 
   return {
     message: assistantText,
-    suggestions,
+    suggestions: keepSuggestionsWithAnchors(firstPassSuggestions, suggestionAnchors),
   };
 }
 
-export function buildSuggestionGroundingAnchors(input: SuggestionGroundingInput): SuggestionGroundingAnchor[] {
-  const anchors = new Map<string, SuggestionGroundingAnchor>();
-
-  for (const tool of input.latestTools) {
-    addSuggestionAnchor(anchors, tool, "tool");
-  }
-
-  for (const entity of input.latestEntities.slice().sort((a, b) => b.confidence - a.confidence)) {
-    addSuggestionAnchor(anchors, entity.text, "entity");
-  }
-
-  for (const term of extractUserMessageGroundingTerms(input.latestUserText)) {
-    addSuggestionAnchor(anchors, term.value, term.source);
-  }
-
-  return [...anchors.values()].slice(0, 20);
+function sanitizeSuggestions(suggestions: string[], limit: number): string[] {
+  return [...new Set(suggestions.map((value) => value.trim()))]
+    .filter((value) => value.length > 0 && value.length <= 140)
+    .slice(0, limit);
 }
 
-export function filterGroundedSuggestions(input: {
-  suggestions: string[];
-  anchors: SuggestionGroundingAnchor[];
-  limit?: number;
-}): string[] {
-  const dedupedSuggestions = [...new Set(input.suggestions.map((value) => value.trim()))].filter((value) =>
-    value.length > 0 && !isBlockedGenericSuggestion(value)
-  );
-  if (input.anchors.length === 0) {
-    return [];
-  }
+function buildSuggestionAnchors(
+  latestUserText: string,
+  entities: Array<{ kind: EntityKind; text: string; confidence: number }>,
+  tools: string[],
+): string[] {
+  const anchors = [...tools, ...entities.map((entity) => entity.text)];
+  const properNouns = [
+    ...(latestUserText.match(/\b[A-Z][A-Za-z0-9_-]{2,}\b/g) ?? []),
+    ...entities.flatMap((entity) => entity.text.match(/\b[A-Z][A-Za-z0-9_-]{2,}\b/g) ?? []),
+  ];
 
-  return dedupedSuggestions
-    .filter((suggestion) => hasStrongSuggestionGrounding(suggestion, input.anchors))
-    .slice(0, input.limit ?? 3);
+  anchors.push(...properNouns);
+  return [...new Set(anchors.map((value) => value.trim()))]
+    .filter((value) => value.length >= 3)
+    .slice(0, 12);
 }
 
-function formatSuggestionAnchors(anchors: SuggestionGroundingAnchor[]): string {
+function formatSuggestionAnchors(anchors: string[]): string {
   if (anchors.length === 0) {
     return "(none)";
   }
 
-  return anchors.map((anchor) => `- ${anchor.value}`).join("\n");
-}
-
-function addSuggestionAnchor(
-  anchors: Map<string, SuggestionGroundingAnchor>,
-  value: string,
-  source: SuggestionGroundingAnchor["source"],
-): void {
-  const trimmedValue = value.trim();
-  if (trimmedValue.length < 3) {
-    return;
-  }
-
-  const normalizedValue = normalizeName(trimmedValue);
-  if (normalizedValue.length < 3 || anchors.has(normalizedValue)) {
-    return;
-  }
-
-  anchors.set(normalizedValue, {
-    value: trimmedValue,
-    normalized: normalizedValue,
-    source,
-  });
-}
-
-function extractUserMessageGroundingTerms(text: string): Array<{
-  value: string;
-  source: "user_term" | "user_phrase";
-}> {
-  const normalizedText = normalizeName(text);
-  if (normalizedText.length === 0) {
-    return [];
-  }
-
-  const tokens = normalizedText
-    .split(" ")
-    .filter((token) => token.length >= 4 && !suggestionStopWords.has(token))
-    .slice(0, 20);
-
-  const terms: Array<{ value: string; source: "user_term" | "user_phrase" }> = tokens.map((value) => ({
-    value,
-    source: "user_term",
-  }));
-  for (let index = 0; index < tokens.length - 1; index += 1) {
-    const phrase = `${tokens[index]} ${tokens[index + 1]}`;
-    if (phrase.length >= 9) {
-      terms.push({
-        value: phrase,
-        source: "user_phrase",
-      });
-    }
-    if (terms.length >= 32) {
-      break;
-    }
-  }
-
-  return terms;
-}
-
-function hasStrongSuggestionGrounding(
-  suggestion: string,
-  anchors: SuggestionGroundingAnchor[],
-): boolean {
-  const normalizedSuggestion = normalizeName(suggestion);
-  if (normalizedSuggestion.length === 0) {
-    return false;
-  }
-
-  const matchedAnchors = anchors.filter((anchor) => normalizedSuggestion.includes(anchor.normalized));
-  if (matchedAnchors.length === 0) {
-    return false;
-  }
-
-  if (matchedAnchors.some((anchor) => anchor.source === "tool" || anchor.source === "entity")) {
-    return true;
-  }
-
-  if (matchedAnchors.some((anchor) => anchor.source === "user_phrase")) {
-    return true;
-  }
-
-  const uniqueUserTermMatches = new Set(
-    matchedAnchors
-      .filter((anchor) => anchor.source === "user_term")
-      .map((anchor) => anchor.normalized),
-  );
-  return uniqueUserTermMatches.size >= 2;
-}
-
-function isBlockedGenericSuggestion(value: string): boolean {
-  const normalizedValue = normalizeName(value);
-  return blockedGenericSuggestionTemplates.some((template) =>
-    normalizedValue === template || normalizedValue.startsWith(`${template} `)
-  );
+  return anchors.map((anchor) => `- ${anchor}`).join("\n");
 }
 
 function formatContextRows(rows: MessageContextRow[]): string {
@@ -355,60 +202,33 @@ function formatLatestExtractionContext(
   return lines.length > 0 ? lines.join("\n") : "(no extracted entities or tools)";
 }
 
-function enforceActiveOnboardingReply(
-  message: string,
-  entities: Array<{ kind: EntityKind; text: string; confidence: number }>,
-  tools: string[],
-): { message: string; corrected: boolean; reason?: string } {
-  const groundingTerm = selectGroundingReference(entities, tools);
-  const questionCount = [...message].filter((char) => char === "?").length;
-  const hasGroundingReference = groundingTerm ? includesGroundingReference(message, [groundingTerm]) : true;
-
-  if (questionCount === 1 && hasGroundingReference) {
-    return { message, corrected: false };
+function keepSuggestionsWithAnchors(suggestions: string[], anchors: string[]): string[] {
+  if (anchors.length === 0) {
+    return [];
   }
 
-  const reason = questionCount !== 1
-    ? "reply did not contain exactly one follow-up question"
-    : "reply did not reference extracted entity or tool";
-  const base = message.replace(/\?/g, ".").trim();
-  const groundedPrefix = hasGroundingReference || !groundingTerm ? "" : `I captured ${groundingTerm}. `;
-  const followUp = buildOnboardingFollowUpQuestion(groundingTerm);
-  return {
-    message: `${groundedPrefix}${base} ${followUp}`.trim(),
-    corrected: true,
-    reason,
-  };
+  return suggestions.filter((suggestion) => includesAnyAnchor(suggestion, anchors));
 }
 
-function selectGroundingReference(
-  entities: Array<{ kind: EntityKind; text: string; confidence: number }>,
-  tools: string[],
-): string | undefined {
-  const tool = tools.find((value) => value.trim().length >= 3);
-  if (tool) {
-    return tool.trim();
+function includesAnyAnchor(suggestion: string, anchors: string[]): boolean {
+  const normalizedSuggestion = normalizeForAnchorMatch(suggestion);
+  for (const anchor of anchors) {
+    const normalizedAnchor = normalizeForAnchorMatch(anchor);
+    if (normalizedAnchor.length === 0) {
+      continue;
+    }
+    if (normalizedSuggestion.includes(normalizedAnchor)) {
+      return true;
+    }
   }
 
-  const topEntity = entities
-    .slice()
-    .sort((a, b) => b.confidence - a.confidence)
-    .find((entity) => entity.text.trim().length >= 3);
-  return topEntity?.text.trim();
+  return false;
 }
 
-function includesGroundingReference(message: string, refs: string[]): boolean {
-  const normalizedMessage = normalizeName(message);
-  const normalizedRefs = refs.map((value) => normalizeName(value)).filter((value) => value.length >= 3);
-  if (normalizedRefs.length === 0) {
-    return true;
-  }
-  return normalizedRefs.some((value) => normalizedMessage.includes(value));
-}
-
-function buildOnboardingFollowUpQuestion(groundingTerm?: string): string {
-  if (!groundingTerm) {
-    return "What should we capture next to move onboarding forward?";
-  }
-  return `What's the current status of ${groundingTerm}?`;
+function normalizeForAnchorMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }

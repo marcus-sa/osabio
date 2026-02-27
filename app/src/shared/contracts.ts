@@ -19,6 +19,7 @@ export type ChatMessageRequest = {
   workspaceId: string;
   conversationId?: string;
   text: string;
+  onboardingAction?: OnboardingAction;
 };
 
 export type ChatMessageResponse = {
@@ -30,6 +31,7 @@ export type ChatMessageResponse = {
 };
 
 export type OnboardingState = "active" | "summary_pending" | "complete";
+export type OnboardingAction = "finalize_onboarding" | "continue_onboarding";
 
 export type ExtractedEntity = {
   id: string;

@@ -1,13 +1,6 @@
 import { createScorer } from "evalite";
 import type { SuggestionGoldenCase, SuggestionsEvalOutput } from "../types";
 
-const blockedTemplates = [
-  "list key team members",
-  "describe current project",
-  "describe current projects",
-  "identify biggest bottleneck",
-];
-
 function normalize(value: string): string {
   return value
     .toLowerCase()
@@ -18,20 +11,23 @@ function normalize(value: string): string {
 
 export const noGenericSuggestionsScorer = createScorer<SuggestionGoldenCase, SuggestionsEvalOutput, SuggestionGoldenCase>({
   name: "no-generic-suggestions",
-  description: "Score 1 when suggestions avoid known generic templates.",
+  description: "Score 1 when case-specific forbidden suggestions are absent.",
   scorer: ({ output, expected }) => {
-    const additionalBlocked = (expected.forbiddenSuggestions ?? []).map((value) => normalize(value));
-    const activeBlocked = [...blockedTemplates, ...additionalBlocked];
-    const matchedBlocked = output.suggestions.filter((suggestion) => {
+    const forbidden = (expected.forbiddenSuggestions ?? []).map((value) => normalize(value));
+    if (forbidden.length === 0) {
+      return { score: 1 };
+    }
+
+    const matchedForbidden = output.suggestions.filter((suggestion) => {
       const normalizedSuggestion = normalize(suggestion);
-      return activeBlocked.some((template) =>
+      return forbidden.some((template) =>
         normalizedSuggestion === template || normalizedSuggestion.startsWith(`${template} `)
       );
     });
 
     return {
-      score: matchedBlocked.length === 0 ? 1 : 0,
-      metadata: matchedBlocked.length === 0 ? undefined : { matchedBlocked },
+      score: matchedForbidden.length === 0 ? 1 : 0,
+      metadata: matchedForbidden.length === 0 ? undefined : { matchedForbidden },
     };
   },
 });

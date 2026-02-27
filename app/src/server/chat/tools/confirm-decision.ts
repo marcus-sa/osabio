@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { confirmDecisionRecord, getDecisionRecordForWorkspace, getWorkspaceOwnerRecord } from "../../graph/queries";
-import { isExplicitDecisionApproval, requireToolContext, toDecisionRecordId } from "./helpers";
+import { requireToolContext, toDecisionRecordId } from "./helpers";
 import type { ChatToolDeps } from "./types";
 
 const CONFIRMABLE_STATUSES = new Set(["provisional", "inferred"]);
@@ -19,10 +19,6 @@ export function createConfirmDecisionTool(deps: ChatToolDeps) {
 
       if (context.actor !== "chat_agent") {
         throw new Error("confirm_decision is only available for chat_agent context");
-      }
-
-      if (!isExplicitDecisionApproval(context.latestUserText)) {
-        throw new Error("confirm_decision requires explicit user approval in the current message");
       }
 
       const decisionRecord = toDecisionRecordId(input.decision_id);

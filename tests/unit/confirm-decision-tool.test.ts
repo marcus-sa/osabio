@@ -41,32 +41,6 @@ describe("confirm_decision tool guards", () => {
     ).rejects.toThrow("only available for chat_agent");
   });
 
-  it("rejects calls without explicit human approval text", async () => {
-    const tool = createConfirmDecisionTool({
-      surreal: {} as any,
-      embeddingModel: {} as any,
-      embeddingDimension: 1536,
-      extractionModelId: "test-model",
-    });
-
-    await expect(
-      tool.execute!(
-        { decision_id: "decision:d-1" },
-        {
-          toolCallId: "call-2",
-          messages: [],
-          experimental_context: {
-            actor: "chat_agent",
-            workspaceRecord: new RecordId("workspace", "w-1"),
-            conversationRecord: new RecordId("conversation", "c-1"),
-            currentMessageRecord: new RecordId("message", "m-1"),
-            latestUserText: "what are the tradeoffs again?",
-          },
-        } as any,
-      ),
-    ).rejects.toThrow("requires explicit user approval");
-  });
-
   it("rejects non-confirmable decision statuses", async () => {
     const query = makeQueryMock([
       [[{ id: new RecordId("decision", "d-1") }]],
@@ -88,14 +62,14 @@ describe("confirm_decision tool guards", () => {
       tool.execute!(
         { decision_id: "decision:d-1" },
         {
-          toolCallId: "call-3",
+          toolCallId: "call-2",
           messages: [],
           experimental_context: {
             actor: "chat_agent",
             workspaceRecord: new RecordId("workspace", "w-1"),
             conversationRecord: new RecordId("conversation", "c-1"),
             currentMessageRecord: new RecordId("message", "m-1"),
-            latestUserText: "yes, go with that",
+            latestUserText: "what are the tradeoffs again?",
           },
         } as any,
       ),

@@ -1,5 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { OnboardingState } from "../../shared/contracts";
+import type { OnboardingAction, OnboardingState } from "../../shared/contracts";
 
 export type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -31,8 +31,7 @@ export async function transitionOnboardingState(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
   workspace: WorkspaceRow;
-  userText: string;
-  hasAttachment: boolean;
+  onboardingAction?: OnboardingAction;
   now: Date;
 }): Promise<OnboardingState> {
   if (input.workspace.onboarding_complete) {
@@ -40,7 +39,7 @@ export async function transitionOnboardingState(input: {
   }
 
   if (input.workspace.onboarding_summary_pending) {
-    if (shouldFinalizeOnboarding(input.userText, input.hasAttachment)) {
+    if (input.onboardingAction === "finalize_onboarding") {
       await input.surreal.update(input.workspaceRecord).merge({
         onboarding_complete: true,
         onboarding_summary_pending: false,
@@ -66,29 +65,6 @@ export async function transitionOnboardingState(input: {
   }
 
   return "active";
-}
-
-function shouldFinalizeOnboarding(userText: string, hasAttachment: boolean): boolean {
-  if (hasAttachment) {
-    return true;
-  }
-
-  const normalized = userText.trim().toLowerCase();
-  if (normalized.length === 0) {
-    return true;
-  }
-
-  const correctionPattern = /(missing|change|correct|actually|remove|not exactly|update)/;
-  if (correctionPattern.test(normalized)) {
-    return false;
-  }
-
-  const confirmPattern = /(looks good|let'?s go|sounds good|yep|yes|ready|start)/;
-  if (confirmPattern.test(normalized)) {
-    return true;
-  }
-
-  return true;
 }
 
 async function loadOnboardingCounts(

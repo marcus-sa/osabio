@@ -98,6 +98,30 @@ body {
   padding: 0.2rem 0.45rem;
 }
 
+.onboarding-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.1rem 0.1rem 0.2rem;
+}
+
+.onboarding-action-buttons button {
+  border: 1px solid #9fbfe4;
+  border-radius: 10px;
+  background: #fff;
+  color: #1c4f86;
+  padding: 0.42rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.onboarding-action-buttons button:disabled {
+  cursor: not-allowed;
+  color: #6f88a6;
+  border-color: #c2d4ea;
+}
+
 .onboarding-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

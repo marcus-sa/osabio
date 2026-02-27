@@ -8,7 +8,8 @@
         "kind": "decision",
         "text": "use TypeScript for the backend"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "task-deadline",
@@ -19,7 +20,8 @@
         "kind": "task",
         "text": "finalize auth middleware"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "question-basic",
@@ -30,7 +32,8 @@
         "kind": "question",
         "text": "ship OAuth before SSO"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "feature-basic",
@@ -41,7 +44,8 @@
         "kind": "feature",
         "text": "real-time dependency conflict detection"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "project-basic",
@@ -52,7 +56,8 @@
         "kind": "project",
         "text": "Schack Systems"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "multi-entity",
@@ -75,7 +80,9 @@
         "kind": "question",
         "text": "IAM scopes"
       }
-    ]
+    ],
+    "expectedTools": ["SurrealDB"],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "person-owner-attribution",
@@ -86,37 +93,32 @@
         "kind": "decision",
         "text": "use event sourcing"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "person-unresolved",
     "input": "Sarah should handle auth this week.",
-    "intent": "multi_allowed",
+    "intent": "strict_single",
     "expectedEntities": [
       {
         "kind": "task",
         "text": "handle auth"
-      },
-      {
-        "kind": "feature",
-        "text": "auth"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "person-resolved-existing",
     "input": "Marcus and I discussed moving to TypeScript.",
-    "intent": "multi_allowed",
+    "intent": "strict_single",
     "expectedEntities": [
-      {
-        "kind": "person",
-        "text": "Marcus"
-      },
       {
         "kind": "decision",
         "text": "moving to TypeScript"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "assistant-context-not-source",
@@ -142,19 +144,23 @@
         "kind": "decision",
         "text_contains": "SurrealDB"
       }
-    ]
+    ],
+    "expectedTools": ["SurrealDB"],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "placeholder-project-rejection",
     "input": "My project needs work.",
     "intent": "strict_single",
-    "expectedEntities": []
+    "expectedEntities": [],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "placeholder-feature-rejection",
     "input": "The feature is broken.",
     "intent": "strict_single",
-    "expectedEntities": []
+    "expectedEntities": [],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "placeholder-allowed-real-name",
@@ -165,7 +171,8 @@
         "kind": "project",
         "text": "Schack Systems"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "project-and-release-commitment",
@@ -180,7 +187,8 @@
         "kind": "decision",
         "text": "shipping the first release in April"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "grounded-evidence",
@@ -191,13 +199,15 @@
         "kind": "feature",
         "text": "onboarding summary card"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "implicit-context-low-confidence",
     "input": "This feels risky unless we improve it.",
     "intent": "strict_single",
-    "expectedEntities": []
+    "expectedEntities": [],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "long-context-first-option-resolution",
@@ -259,7 +269,9 @@
         "kind": "decision",
         "text_contains": "SurrealDB"
       }
-    ]
+    ],
+    "expectedTools": ["SurrealDB"],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "document-like-chunk-1",
@@ -274,7 +286,9 @@
         "kind": "task",
         "text": "extract decisions and tasks"
       }
-    ]
+    ],
+    "expectedTools": ["SurrealDB"],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "document-like-chunk-2",
@@ -285,7 +299,8 @@
         "kind": "feature",
         "text": "Deduplicate features by embedding similarity"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "question-uncertainty",
@@ -296,7 +311,8 @@
         "kind": "question",
         "text": "use ws or wss for local development"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "task-owner-name",
@@ -307,7 +323,8 @@
         "kind": "task",
         "text": "writing the smoke test"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
   },
   {
     "id": "decision-and-question",
@@ -322,6 +339,49 @@
         "kind": "question",
         "text": "add graph edges in phase two"
       }
-    ]
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "tool-adoption-positive",
+    "input": "Our stack includes SurrealDB and Bun.",
+    "intent": "strict_single",
+    "expectedEntities": [],
+    "expectedTools": ["SurrealDB", "Bun"],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "tool-reference-rejection",
+    "input": "Existing PM tools like Linear and Notion are not what we are building.",
+    "intent": "strict_single",
+    "expectedEntities": [],
+    "forbiddenTools": ["Linear", "Notion"],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "tool-considered-then-chosen",
+    "input": "We considered Redis but chose Memcached for caching.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "Memcached"
+      }
+    ],
+    "expectedTools": ["Memcached"],
+    "forbiddenTools": ["Redis"],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "commitment-language-decision",
+    "input": "Let's move forward with schema validation first.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text": "schema validation"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
   }
 ]

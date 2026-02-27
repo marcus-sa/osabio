@@ -31,13 +31,24 @@ export async function persistEmbeddings(input: {
         .collect<[unknown]>();
 
       const assistantRows = Array.isArray(assistantResult) ? assistantResult : [assistantResult];
-      if (assistantRows.length !== 1 || typeof assistantRows[0] !== "object" || !assistantRows[0]) {
-        throw new Error("assistant message embedding update did not return a record");
-      }
+      const assistantRecord = assistantRows.length === 1 && typeof assistantRows[0] === "object" && assistantRows[0]
+        ? (assistantRows[0] as { id?: RecordId<"message", string> })
+        : undefined;
+      if (!assistantRecord?.id) {
+        const verified = await verifyEmbeddingPresent(
+          input.surreal,
+          input.assistantMessageRecord,
+          messageEmbedding.length,
+        );
+        if (!verified) {
+          throw new Error("assistant message embedding update verification failed");
+        }
 
-      const assistantRecord = assistantRows[0] as { id?: RecordId<"message", string> };
-      if (!assistantRecord.id) {
-        throw new Error("assistant message embedding update did not include id");
+        logWarn(
+          "embedding.persist.unexpected_update_output",
+          "assistant message embedding update returned no row but verification succeeded",
+          { messageId: input.assistantMessageRecord.id as string },
+        );
       }
     }
 
@@ -59,16 +70,25 @@ export async function persistEmbeddings(input: {
         .collect<[unknown]>();
 
       const entityRows = Array.isArray(entityResult) ? entityResult : [entityResult];
-      if (entityRows.length !== 1 || typeof entityRows[0] !== "object" || !entityRows[0]) {
-        throw new Error(
-          `entity embedding update did not return a record for ${entity.record.tb}:${entity.record.id as string}`,
+      const entityRecord = entityRows.length === 1 && typeof entityRows[0] === "object" && entityRows[0]
+        ? (entityRows[0] as { id?: GraphEntityRecord })
+        : undefined;
+      if (!entityRecord?.id) {
+        const verified = await verifyEmbeddingPresent(
+          input.surreal,
+          entity.record as RecordId<string, string>,
+          entityEmbedding.length,
         );
-      }
+        if (!verified) {
+          throw new Error(
+            `entity embedding update verification failed for ${entity.record.tb}:${entity.record.id as string}`,
+          );
+        }
 
-      const entityRecord = entityRows[0] as { id?: GraphEntityRecord };
-      if (!entityRecord.id) {
-        throw new Error(
-          `entity embedding update did not include id for ${entity.record.tb}:${entity.record.id as string}`,
+        logWarn(
+          "embedding.persist.unexpected_update_output",
+          "entity embedding update returned no row but verification succeeded",
+          { record: `${entity.record.tb}:${entity.record.id as string}` },
         );
       }
 
@@ -115,4 +135,17 @@ export async function createEmbedding(
   }
 
   return result.embedding;
+}
+
+async function verifyEmbeddingPresent(
+  surreal: Surreal,
+  record: RecordId<string, string>,
+  expectedDimension: number,
+): Promise<boolean> {
+  const selected = await surreal.select<{ id?: RecordId<string, string>; embedding?: number[] }>(record);
+  if (!selected?.id) {
+    return false;
+  }
+
+  return Array.isArray(selected.embedding) && selected.embedding.length === expectedDimension;
 }

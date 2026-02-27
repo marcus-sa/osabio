@@ -22,6 +22,9 @@ export type GoldenCase = {
   expectedResolvedFromContextIndex?: number;
   forbiddenContextOnlyPhrases?: string[];
   expectedEntities: ExpectedEntity[];
+  expectedTools?: string[];
+  forbiddenTools?: string[];
+  forbiddenExtractedKinds?: ExpectedEntityKind[];
 };
 
 export type ExtractionEvalOutput = {
@@ -30,6 +33,7 @@ export type ExtractionEvalOutput = {
   userMessageId: string;
   contextMessageIds: string[];
   extractedEntities: Array<{ kind: string; text: string; confidence: number }>;
+  extractedTools: string[];
   personCount: number;
   ownerPersonCount: number;
   evidenceRows: Array<{

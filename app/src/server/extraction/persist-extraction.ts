@@ -1,27 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import type { EntityKind, ExtractedEntity, ExtractedRelationship, OnboardingSeedItem, SourceKind } from "../../shared/contracts";
-import { dedupeExtractedEntities } from "./filtering";
 import { resolveValidatedResolvedFromMessageId } from "./provenance";
 import type { ExtractionPromptEntity, ExtractionPromptOutput } from "./schema";
 import {
-  applyPersonReferenceFromRelationship,
   appendWorkspaceTools,
-  createProvenanceEdge,
-  loadWorkspaceKindCandidates,
   normalizeRelationshipKind,
-  resolveWorkspacePersonMention,
   upsertGraphEntity,
 } from "./entity-upsert";
+import { findWorkspacePersonByName, resolvePersonAttributionPatch } from "./person";
 import type {
   GraphEntityRecord,
   PersistExtractionResult,
-  PersonMentionReference,
   SourceRecord,
   TempEntityReference,
 } from "./types";
 import { elapsedMs, logError, logInfo } from "../http/observability";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
+import { postValidateEntities, postValidateRelationships } from "./validation";
 
 export async function persistExtractionOutput(input: {
   surreal: Surreal;
@@ -50,47 +46,32 @@ export async function persistExtractionOutput(input: {
   });
 
   try {
-    const entities = dedupeExtractedEntities({
+    const entities = postValidateEntities({
       entities: input.output.entities,
       sourceText: input.promptText,
       storeThreshold: input.extractionStoreThreshold,
-      sourceKind: input.sourceKind,
     });
     if (input.sourceKind === "message" && !input.sourceMessageRecord) {
       throw new Error("message extraction persistence requires sourceMessageRecord");
     }
 
     const extractionHistoryMessageIds = new Set(input.extractionHistoryMessageIds ?? []);
-    const relationships = input.output.relationships
-      .filter((relationship) => relationship.confidence >= input.extractionStoreThreshold)
-      .map((relationship) => ({
-        ...relationship,
-        kind: normalizeRelationshipKind(relationship.kind),
-        fromTempId: relationship.fromTempId.trim(),
-        toTempId: relationship.toTempId.trim(),
-        fromText: relationship.fromText.trim(),
-        toText: relationship.toText.trim(),
-      }))
-      .filter(
-        (relationship) =>
-          relationship.kind.length > 0 &&
-          relationship.fromTempId.length > 0 &&
-          relationship.toTempId.length > 0 &&
-          relationship.fromText.length > 0 &&
-          relationship.toText.length > 0,
-      );
+    const relationships = postValidateRelationships({
+      relationships: input.output.relationships,
+      storeThreshold: input.extractionStoreThreshold,
+    }).map((relationship) => ({
+      ...relationship,
+      kind: normalizeRelationshipKind(relationship.kind),
+    }));
 
     const persistedEntities: ExtractedEntity[] = [];
     const persistedRelationships: ExtractedRelationship[] = [];
     const seeds: OnboardingSeedItem[] = [];
     const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
     const entityByTempId = new Map<string, TempEntityReference>();
-    const personMentionsByTempId = new Map<string, PersonMentionReference>();
+    const unresolvedAssigneeNames = new Set<string>();
 
     const workspaceProjects = await loadWorkspaceProjects(input.surreal, input.workspaceRecord);
-    const personCandidates = entities.some((entity) => entity.kind === "person")
-      ? await loadWorkspaceKindCandidates(input.surreal, input.workspaceRecord, "person")
-      : [];
 
     for (const extracted of entities) {
       const resolvedFromMessageId = resolveValidatedResolvedFromMessageId({
@@ -103,66 +84,6 @@ export async function persistExtractionOutput(input: {
         ? new RecordId("message", resolvedFromMessageId)
         : undefined;
 
-      if (extracted.kind === "person") {
-        const personMatch = await resolveWorkspacePersonMention(
-          input.embeddingModel,
-          input.embeddingDimension,
-          extracted.text,
-          personCandidates,
-        );
-        personMentionsByTempId.set(extracted.tempId, {
-          tempId: extracted.tempId,
-          name: extracted.text,
-          ...(personMatch ? { record: personMatch.id as RecordId<"person", string> } : {}),
-        });
-
-        if (!personMatch) {
-          continue;
-        }
-
-        await createProvenanceEdge({
-          surreal: input.surreal,
-          sourceRecord: input.sourceRecord,
-          targetRecord: personMatch.id,
-          confidence: extracted.confidence,
-          model: input.extractionModelId,
-          now: input.now,
-          fromText: extracted.text,
-          evidence: extracted.evidence,
-          evidenceSourceRecord: input.sourceMessageRecord,
-          resolvedFromRecord: resolvedFromMessageRecord,
-        });
-
-        entityByTempId.set(extracted.tempId, {
-          record: personMatch.id,
-          text: personMatch.text,
-          id: personMatch.id.id as string,
-          kind: "person",
-        });
-
-        persistedEntities.push({
-          id: personMatch.id.id as string,
-          kind: "person",
-          text: personMatch.text,
-          confidence: extracted.confidence,
-          sourceKind: input.sourceKind,
-          sourceId: input.sourceRecord.id as string,
-        });
-
-        seeds.push({
-          id: personMatch.id.id as string,
-          kind: "person",
-          text: personMatch.text,
-          confidence: extracted.confidence,
-          sourceKind: input.sourceKind,
-          sourceId: input.sourceRecord.id as string,
-          ...(input.sourceLabel ? { sourceLabel: input.sourceLabel } : {}),
-        });
-
-        continue;
-      }
-
-      const extractedNonPerson = extracted as ExtractionPromptEntity & { kind: Exclude<EntityKind, "workspace" | "person"> };
       const persisted = await upsertGraphEntity({
         surreal: input.surreal,
         embeddingModel: input.embeddingModel,
@@ -173,7 +94,7 @@ export async function persistExtractionOutput(input: {
         sourceRecord: input.sourceRecord,
         sourceKind: input.sourceKind,
         promptText: input.promptText,
-        extracted: extractedNonPerson,
+        extracted: extracted as ExtractionPromptEntity & { kind: Exclude<EntityKind, "workspace" | "person"> },
         sourceMessageRecord: input.sourceMessageRecord,
         sourceChunkRecord: input.sourceChunkRecord,
         resolvedFromMessageRecord,
@@ -212,17 +133,25 @@ export async function persistExtractionOutput(input: {
           text: persisted.text,
         });
       }
+
+      const assigneeName = "assignee_name" in extracted ? extracted.assignee_name : undefined;
+      if (assigneeName) {
+        const attribution = await applyAssigneeReference({
+          surreal: input.surreal,
+          workspaceRecord: input.workspaceRecord,
+          entityRecord: persisted.record,
+          entityKind: persisted.kind,
+          assigneeName,
+          now: input.now,
+        });
+
+        if (!attribution.resolved) {
+          unresolvedAssigneeNames.add(attribution.assigneeName);
+        }
+      }
     }
 
     for (const relationship of relationships) {
-      await applyPersonReferenceFromRelationship({
-        surreal: input.surreal,
-        relationship,
-        personMentionsByTempId,
-        entityByTempId,
-        now: input.now,
-      });
-
       const from = entityByTempId.get(relationship.fromTempId);
       const to = entityByTempId.get(relationship.toTempId);
       if (!from || !to) {
@@ -263,6 +192,7 @@ export async function persistExtractionOutput(input: {
       persistedRelationshipCount: persistedRelationships.length,
       seedCount: seeds.length,
       toolCount: input.output.tools.length,
+      unresolvedAssigneeCount: unresolvedAssigneeNames.size,
       durationMs: elapsedMs(startedAt),
     });
 
@@ -272,6 +202,7 @@ export async function persistExtractionOutput(input: {
       seeds,
       embeddingTargets,
       tools: input.output.tools.map((tool) => tool.trim()).filter((tool) => tool.length > 0),
+      unresolvedAssigneeNames: [...unresolvedAssigneeNames],
     };
   } catch (error) {
     logError("extraction.persist.failed", "Extraction persistence failed", error, {
@@ -282,6 +213,94 @@ export async function persistExtractionOutput(input: {
     });
     throw error;
   }
+}
+
+async function applyAssigneeReference(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  entityRecord: GraphEntityRecord;
+  entityKind: Exclude<EntityKind, "workspace" | "person">;
+  assigneeName: string;
+  now: Date;
+}): Promise<{ resolved: boolean; assigneeName: string }> {
+  const assigneeName = input.assigneeName.trim();
+  if (assigneeName.length === 0) {
+    return { resolved: true, assigneeName };
+  }
+
+  const personRecord = await findWorkspacePersonByName({
+    surreal: input.surreal,
+    workspaceRecord: input.workspaceRecord,
+    personName: assigneeName,
+  });
+
+  const patch = resolvePersonAttributionPatch({
+    targetKind: input.entityKind,
+    assigneeName,
+    ...(personRecord ? { personRecordId: personRecord.id as string } : {}),
+  });
+
+  if (patch.kind === "feature") {
+    if (patch.field === "owner" && personRecord) {
+      await input.surreal.update(input.entityRecord as RecordId<"feature", string>).merge({
+        owner: personRecord,
+        updated_at: input.now,
+      });
+      return { resolved: true, assigneeName };
+    }
+
+    await input.surreal.update(input.entityRecord as RecordId<"feature", string>).merge({
+      owner_name: patch.value,
+      updated_at: input.now,
+    });
+    return { resolved: false, assigneeName };
+  }
+
+  if (patch.kind === "task") {
+    if (patch.field === "owner" && personRecord) {
+      await input.surreal.update(input.entityRecord as RecordId<"task", string>).merge({
+        owner: personRecord,
+        updated_at: input.now,
+      });
+      return { resolved: true, assigneeName };
+    }
+
+    await input.surreal.update(input.entityRecord as RecordId<"task", string>).merge({
+      owner_name: patch.value,
+      updated_at: input.now,
+    });
+    return { resolved: false, assigneeName };
+  }
+
+  if (patch.kind === "decision") {
+    if (patch.field === "decided_by" && personRecord) {
+      await input.surreal.update(input.entityRecord as RecordId<"decision", string>).merge({
+        decided_by: personRecord,
+        updated_at: input.now,
+      });
+      return { resolved: true, assigneeName };
+    }
+
+    await input.surreal.update(input.entityRecord as RecordId<"decision", string>).merge({
+      decided_by_name: patch.value,
+      updated_at: input.now,
+    });
+    return { resolved: false, assigneeName };
+  }
+
+  if (patch.field === "assigned_to" && personRecord) {
+    await input.surreal.update(input.entityRecord as RecordId<"question", string>).merge({
+      assigned_to: personRecord,
+      updated_at: input.now,
+    });
+    return { resolved: true, assigneeName };
+  }
+
+  await input.surreal.update(input.entityRecord as RecordId<"question", string>).merge({
+    assigned_to_name: patch.value,
+    updated_at: input.now,
+  });
+  return { resolved: false, assigneeName };
 }
 
 export async function appendExtractedTools(

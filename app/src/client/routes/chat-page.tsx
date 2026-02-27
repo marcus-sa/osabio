@@ -16,6 +16,7 @@ import type {
   ChatMessageResponse,
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
+  OnboardingAction,
   OnboardingSeedItem,
   SearchEntityResponse,
   StreamEvent as ChatStreamEvent,
@@ -295,7 +296,7 @@ export function ChatPage() {
     void onSendMessage("");
   }
 
-  async function onSendMessage(message: string) {
+  async function onSendMessage(message: string, options?: { onboardingAction?: OnboardingAction }) {
     if (isLoading || !workspace) {
       return;
     }
@@ -352,6 +353,9 @@ export function ChatPage() {
         if (backendConversationId) {
           formData.set("conversationId", backendConversationId);
         }
+        if (options?.onboardingAction) {
+          formData.set("onboardingAction", options.onboardingAction);
+        }
         formData.set("file", currentAttachment);
 
         response = await fetch("/api/chat/messages", {
@@ -369,6 +373,7 @@ export function ChatPage() {
             workspaceId: workspace.id,
             text,
             ...(backendConversationId ? { conversationId: backendConversationId } : {}),
+            ...(options?.onboardingAction ? { onboardingAction: options.onboardingAction } : {}),
           }),
         });
       }
@@ -606,6 +611,30 @@ export function ChatPage() {
                 void onSendMessage(suggestion);
               }}
             />
+            {workspace.onboardingState === "summary_pending" ? (
+              <div className="onboarding-action-buttons">
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() =>
+                    void onSendMessage("Looks good, let's go.", {
+                      onboardingAction: "finalize_onboarding",
+                    })}
+                >
+                  Looks good, let's go
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() =>
+                    void onSendMessage("I want to add more.", {
+                      onboardingAction: "continue_onboarding",
+                    })}
+                >
+                  I want to add more
+                </button>
+              </div>
+            ) : undefined}
             <div onClickCapture={onChatInputClickCapture}>
               <ChatInput
                 ref={chatInputRef}

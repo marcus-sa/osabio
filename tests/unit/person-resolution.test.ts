@@ -1,12 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { resolvePersonReferencePatch } from "../../app/src/server/extraction/person";
+import { resolvePersonAttributionPatch } from "../../app/src/server/extraction/person";
 
-describe("person resolution", () => {
+describe("person attribution mapping", () => {
   it("maps known people to record-reference fields", () => {
-    const patch = resolvePersonReferencePatch({
+    const patch = resolvePersonAttributionPatch({
       targetKind: "decision",
-      relationshipKind: "DECIDED_BY",
-      personName: "Marcus",
+      assigneeName: "Marcus",
       personRecordId: "marcus",
     });
 
@@ -18,10 +17,9 @@ describe("person resolution", () => {
   });
 
   it("maps unresolved names to *_name fields", () => {
-    const patch = resolvePersonReferencePatch({
+    const patch = resolvePersonAttributionPatch({
       targetKind: "decision",
-      relationshipKind: "DECIDED_BY",
-      personName: "Sarah",
+      assigneeName: "Sarah",
     });
 
     expect(patch).toEqual({
@@ -31,31 +29,29 @@ describe("person resolution", () => {
     });
   });
 
-  it("does not include any person-creation instruction", () => {
-    const patch = resolvePersonReferencePatch({
+  it("maps tasks to owner_name when unresolved", () => {
+    const patch = resolvePersonAttributionPatch({
       targetKind: "task",
-      relationshipKind: "ASSIGNED_TO",
-      personName: "Sarah",
+      assigneeName: "Jordan",
     });
 
-    expect(patch).toBeDefined();
-    expect(Object.keys(patch ?? {})).not.toContain("createPerson");
+    expect(patch).toEqual({
+      kind: "task",
+      field: "owner_name",
+      value: "Jordan",
+    });
   });
 
-  it("supports multiple unresolved names in one extraction batch", () => {
-    const names = ["Sarah", "Jordan", "Priya"];
-    const patches = names.map((name) =>
-      resolvePersonReferencePatch({
-        targetKind: "question",
-        relationshipKind: "ASSIGNED_TO",
-        personName: name,
-      }),
-    );
+  it("maps questions to assigned_to_name when unresolved", () => {
+    const patch = resolvePersonAttributionPatch({
+      targetKind: "question",
+      assigneeName: "Priya",
+    });
 
-    expect(patches).toEqual([
-      { kind: "question", field: "assigned_to_name", value: "Sarah" },
-      { kind: "question", field: "assigned_to_name", value: "Jordan" },
-      { kind: "question", field: "assigned_to_name", value: "Priya" },
-    ]);
+    expect(patch).toEqual({
+      kind: "question",
+      field: "assigned_to_name",
+      value: "Priya",
+    });
   });
 });

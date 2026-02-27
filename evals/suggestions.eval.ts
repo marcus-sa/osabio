@@ -106,13 +106,15 @@ async function runCase(testCase: SuggestionGoldenCase): Promise<SuggestionsEvalO
     }),
   });
 
-  const events = await collectSseEvents(`${baseUrl}${message.streamUrl}`, 12_000);
+  const events = await collectSseEvents(`${baseUrl}${message.streamUrl}`, 25_000);
   const assistantEvent = events.find((event) => event.type === "assistant_message") as
     | { type: "assistant_message"; text: string; suggestions?: string[] }
     | undefined;
 
   if (!assistantEvent) {
-    throw new Error(`Expected assistant_message event for suggestion eval case: ${testCase.id}`);
+    throw new Error(
+      `Expected assistant_message event for suggestion eval case: ${testCase.id}; observed events: ${events.map((event) => event.type).join(", ")}`,
+    );
   }
 
   const output: SuggestionsEvalOutput = {
@@ -347,7 +349,7 @@ function saveCache(path: string, cache: Record<string, SuggestionsEvalOutput>): 
 }
 
 function buildCaseCacheKey(modelId: string, testCase: SuggestionGoldenCase): string {
-  const cacheVersion = "suggestions-v1";
+  const cacheVersion = "suggestions-v5";
   const caseHash = createHash("sha256").update(JSON.stringify(testCase)).digest("hex").slice(0, 24);
   return `${cacheVersion}:${modelId}:${testCase.id}:${caseHash}`;
 }

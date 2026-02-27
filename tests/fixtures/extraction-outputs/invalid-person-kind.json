@@ -1,0 +1,13 @@
+{
+  "entities": [
+    {
+      "tempId": "e1",
+      "kind": "person",
+      "text": "Marcus",
+      "confidence": 0.9,
+      "evidence": "Marcus"
+    }
+  ],
+  "relationships": [],
+  "tools": []
+}

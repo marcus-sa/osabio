@@ -2,17 +2,14 @@ import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import { isRicherEntityName } from "./dedup";
 import { isFuzzyNameMatch, normalizeName } from "./normalize";
-import { resolvePersonReferencePatch } from "./person";
-import type { ExtractionPromptEntity, ExtractionPromptRelationship } from "./schema";
+import type { ExtractionPromptEntity } from "./schema";
 import type {
   CandidateEntityRow,
   ExtractableEntityKind,
   GraphEntityRecord,
   PersistableExtractableEntityKind,
-  PersonMentionReference,
   ProjectScopeRow,
   SourceRecord,
-  TempEntityReference,
 } from "./types";
 import { ensureProjectFeatureEdge, ensureWorkspaceProjectEdge, resolveEntityProject } from "../workspace/workspace-scope";
 import { createEmbedding } from "./embedding-writeback";
@@ -228,173 +225,6 @@ export async function maybeUpgradeMergedEntityName(
   });
 
   return incomingText;
-}
-
-export async function resolveWorkspacePersonMention(
-  embeddingModel: any,
-  embeddingDimension: number,
-  mentionText: string,
-  candidates: CandidateEntityRow[],
-): Promise<CandidateEntityRow | undefined> {
-  const normalizedMention = normalizeName(mentionText);
-  if (normalizedMention.length === 0) {
-    return undefined;
-  }
-
-  const exactMatch = candidates.find((candidate) => normalizeName(candidate.text) === normalizedMention);
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  const mentionParts = normalizedMention.split(" ").filter((part) => part.length > 0);
-  if (mentionParts.length === 1) {
-    const shortNameMatches = candidates.filter((candidate) => {
-      const normalizedCandidate = normalizeName(candidate.text);
-      const candidateParts = normalizedCandidate.split(" ").filter((part) => part.length > 0);
-      return candidateParts.includes(mentionParts[0]);
-    });
-
-    if (shortNameMatches.length === 1) {
-      return shortNameMatches[0];
-    }
-  }
-
-  const mentionEmbedding = await createEmbedding(embeddingModel, embeddingDimension, mentionText);
-  if (!mentionEmbedding) {
-    return undefined;
-  }
-
-  let bestCandidate: CandidateEntityRow | undefined;
-  let bestSimilarity = -1;
-
-  for (const candidate of candidates) {
-    if (!candidate.embedding) {
-      continue;
-    }
-
-    const similarity = cosineSimilarity(mentionEmbedding, candidate.embedding);
-    if (similarity > bestSimilarity) {
-      bestSimilarity = similarity;
-      bestCandidate = candidate;
-    }
-  }
-
-  if (!bestCandidate) {
-    return undefined;
-  }
-
-  const normalizedCandidate = normalizeName(bestCandidate.text);
-  const fuzzyMatch = isFuzzyNameMatch(normalizedMention, normalizedCandidate);
-  if (bestSimilarity > 0.95 && fuzzyMatch) {
-    return bestCandidate;
-  }
-
-  return undefined;
-}
-
-export async function applyPersonReferenceFromRelationship(input: {
-  surreal: Surreal;
-  relationship: ExtractionPromptRelationship;
-  personMentionsByTempId: Map<string, PersonMentionReference>;
-  entityByTempId: Map<string, TempEntityReference>;
-  now: Date;
-}): Promise<void> {
-  const fromPerson = input.personMentionsByTempId.get(input.relationship.fromTempId);
-  const toPerson = input.personMentionsByTempId.get(input.relationship.toTempId);
-  if ((fromPerson && toPerson) || (!fromPerson && !toPerson)) {
-    return;
-  }
-
-  const person = fromPerson ?? toPerson;
-  if (!person) {
-    return;
-  }
-
-  const targetTempId = fromPerson ? input.relationship.toTempId : input.relationship.fromTempId;
-  const targetEntity = input.entityByTempId.get(targetTempId);
-  if (!targetEntity) {
-    return;
-  }
-
-  if (
-    targetEntity.kind !== "feature" &&
-    targetEntity.kind !== "task" &&
-    targetEntity.kind !== "decision" &&
-    targetEntity.kind !== "question"
-  ) {
-    return;
-  }
-
-  const patch = resolvePersonReferencePatch({
-    targetKind: targetEntity.kind,
-    relationshipKind: input.relationship.kind,
-    personName: person.name,
-    ...(person.record ? { personRecordId: person.record.id as string } : {}),
-  });
-  if (!patch) {
-    return;
-  }
-
-  if (patch.kind === "feature") {
-    if (patch.field === "owner" && person.record) {
-      await input.surreal.update(targetEntity.record as RecordId<"feature", string>).merge({
-        owner: person.record,
-        updated_at: input.now,
-      });
-      return;
-    }
-
-    await input.surreal.update(targetEntity.record as RecordId<"feature", string>).merge({
-      owner_name: patch.value,
-      updated_at: input.now,
-    });
-    return;
-  }
-
-  if (patch.kind === "task") {
-    if (patch.field === "owner" && person.record) {
-      await input.surreal.update(targetEntity.record as RecordId<"task", string>).merge({
-        owner: person.record,
-        updated_at: input.now,
-      });
-      return;
-    }
-
-    await input.surreal.update(targetEntity.record as RecordId<"task", string>).merge({
-      owner_name: patch.value,
-      updated_at: input.now,
-    });
-    return;
-  }
-
-  if (patch.kind === "decision") {
-    if (patch.field === "decided_by" && person.record) {
-      await input.surreal.update(targetEntity.record as RecordId<"decision", string>).merge({
-        decided_by: person.record,
-        updated_at: input.now,
-      });
-      return;
-    }
-
-    await input.surreal.update(targetEntity.record as RecordId<"decision", string>).merge({
-      decided_by_name: patch.value,
-      updated_at: input.now,
-    });
-    return;
-  }
-
-  if (patch.field === "assigned_to" && person.record) {
-    await input.surreal.update(targetEntity.record as RecordId<"question", string>).merge({
-      assigned_to: person.record,
-      updated_at: input.now,
-    });
-    return;
-  }
-
-  await input.surreal.update(targetEntity.record as RecordId<"question", string>).merge({
-    assigned_to_name: patch.value,
-    updated_at: input.now,
-  });
 }
 
 export async function createProvenanceEdge(input: {

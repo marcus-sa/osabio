@@ -15,25 +15,6 @@ export function requireToolContext(options: ToolExecutionOptions): ChatToolExecu
   return context;
 }
 
-export function isExplicitDecisionApproval(userText: string): boolean {
-  const normalized = userText.trim().toLowerCase();
-  if (normalized.length === 0) {
-    return false;
-  }
-
-  const patterns = [
-    /\byes\b/,
-    /\bgo with that\b/,
-    /\bconfirmed\b/,
-    /\bapprove(d)?\b/,
-    /\blet'?s do that\b/,
-    /\bship it\b/,
-    /\blooks good\b/,
-  ];
-
-  return patterns.some((pattern) => pattern.test(normalized));
-}
-
 export function toDecisionRecordId(value: string): RecordId<"decision", string> {
   const normalized = value.trim();
   if (normalized.length === 0) {

@@ -41,6 +41,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   const messageId = randomUUID();
   const workspaceId = parsed.data.workspaceId;
   const userText = parsed.data.text.trim();
+  const onboardingAction = parsed.data.onboardingAction;
   const messageText = userText.length > 0 ? userText : `Uploaded document: ${parsed.data.attachment?.fileName ?? "attachment"}`;
   const userMessageRecord = new RecordId("message", randomUUID());
 
@@ -155,6 +156,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     userMessageRecord,
     userText: messageText,
     attachment: parsed.data.attachment,
+    ...(onboardingAction ? { onboardingAction } : {}),
   });
 
   const response: ChatMessageResponse = {

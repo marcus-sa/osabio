@@ -107,6 +107,7 @@ describe("onboarding smoke", () => {
         workspaceId: create.workspaceId,
         conversationId: create.conversationId,
         text: "Looks good, let's go.",
+        onboardingAction: "finalize_onboarding",
       }),
     });
 
