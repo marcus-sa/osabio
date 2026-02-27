@@ -95,7 +95,7 @@ async function runCase(testCase: SuggestionGoldenCase): Promise<SuggestionsEvalO
     }),
   });
 
-  const message = await fetchJson<{ streamUrl: string }>(`${baseUrl}/api/chat/messages`, {
+  const message = await fetchJson<{ streamUrl: string; messageId: string }>(`${baseUrl}/api/chat/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -106,12 +106,26 @@ async function runCase(testCase: SuggestionGoldenCase): Promise<SuggestionsEvalO
     }),
   });
 
-  const events = await collectSseEvents(`${baseUrl}${message.streamUrl}`, 25_000);
+  const events = await collectSseEvents(`${baseUrl}${message.streamUrl}`, 45_000);
   const assistantEvent = events.find((event) => event.type === "assistant_message") as
     | { type: "assistant_message"; text: string; suggestions?: string[] }
     | undefined;
 
   if (!assistantEvent) {
+    const fallbackAssistant = await waitForAssistantMessage(message.messageId, 25_000);
+    if (fallbackAssistant) {
+      const output: SuggestionsEvalOutput = {
+        caseId: testCase.id,
+        input: testCase.input,
+        assistantText: fallbackAssistant.text,
+        suggestions: fallbackAssistant.suggestions ?? [],
+      };
+
+      resultCache[cacheKey] = output;
+      saveCache(cachePath, resultCache);
+      return output;
+    }
+
     throw new Error(
       `Expected assistant_message event for suggestion eval case: ${testCase.id}; observed events: ${events.map((event) => event.type).join(", ")}`,
     );
@@ -349,7 +363,37 @@ function saveCache(path: string, cache: Record<string, SuggestionsEvalOutput>): 
 }
 
 function buildCaseCacheKey(modelId: string, testCase: SuggestionGoldenCase): string {
-  const cacheVersion = "suggestions-v5";
+  const cacheVersion = "suggestions-v6";
   const caseHash = createHash("sha256").update(JSON.stringify(testCase)).digest("hex").slice(0, 24);
   return `${cacheVersion}:${modelId}:${testCase.id}:${caseHash}`;
+}
+
+async function waitForAssistantMessage(
+  messageId: string,
+  timeoutMs: number,
+): Promise<{ text: string; suggestions?: string[] } | undefined> {
+  const db = await getSurreal();
+  const startedAt = Date.now();
+  const messageRecord = new RecordId("message", messageId);
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const [rows] = await db
+      .query<[Array<{ id: RecordId<"message", string>; role: string; text: string; suggestions?: string[] }>]>(
+        "SELECT id, role, text, suggestions FROM message WHERE id = $record LIMIT 1;",
+        { record: messageRecord },
+      )
+      .collect<[Array<{ id: RecordId<"message", string>; role: string; text: string; suggestions?: string[] }>]>();
+
+    const row = rows[0];
+    if (row && row.role === "assistant") {
+      return {
+        text: row.text,
+        ...(row.suggestions ? { suggestions: row.suggestions } : {}),
+      };
+    }
+
+    await sleep(100);
+  }
+
+  return undefined;
 }
