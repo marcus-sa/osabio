@@ -91,11 +91,15 @@
   {
     "id": "person-unresolved",
     "input": "Sarah should handle auth this week.",
-    "intent": "strict_single",
+    "intent": "multi_allowed",
     "expectedEntities": [
       {
         "kind": "task",
         "text": "handle auth"
+      },
+      {
+        "kind": "feature",
+        "text": "auth"
       }
     ]
   },
@@ -153,12 +157,27 @@
   },
   {
     "id": "placeholder-allowed-real-name",
-    "input": "I'm building Schack Systems and shipping the first release in April.",
+    "input": "I'm building Schack Systems.",
     "intent": "strict_single",
     "expectedEntities": [
       {
         "kind": "project",
         "text": "Schack Systems"
+      }
+    ]
+  },
+  {
+    "id": "project-and-release-commitment",
+    "input": "I'm building Schack Systems and shipping the first release in April.",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      {
+        "kind": "project",
+        "text": "Schack Systems"
+      },
+      {
+        "kind": "decision",
+        "text": "shipping the first release in April"
       }
     ]
   },

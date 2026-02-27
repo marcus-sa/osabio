@@ -34,6 +34,8 @@ const resultCache = loadCache(cachePath);
 const cases = JSON.parse(readFileSync(join(process.cwd(), "evals", "data", "golden-cases.json"), "utf8")) as GoldenCase[];
 assertAutoevalEnv();
 
+// strict_single is reserved for unambiguous one-entity probes.
+// Cases where multiple extractions are semantically valid should use multi_allowed.
 const intentScoreWeights: Record<
   GoldenCaseIntent,
   Record<
