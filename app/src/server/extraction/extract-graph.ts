@@ -15,6 +15,8 @@ export async function extractStructuredGraph(input: {
   sourceText: string;
   onboarding: boolean;
   heading?: string;
+  workspaceName?: string;
+  projectNames?: string[];
 }): Promise<ExtractionPromptOutput> {
   const startedAt = performance.now();
   logInfo("extraction.generate.started", "Structured extraction started", {
@@ -43,6 +45,9 @@ export async function extractStructuredGraph(input: {
         "",
         "Existing graph context (semantic index of prior extracted entities):",
         formatExtractionGraphContext(input.graphContext),
+        "",
+        "Workspace scope:",
+        formatWorkspaceScope(input.workspaceName, input.projectNames),
         input.heading ? `Section heading: ${input.heading}` : "",
         "",
         "Current source text:",
@@ -98,6 +103,21 @@ function formatExtractionGraphContext(rows: ExtractionGraphContextRow[]): string
       return `[entity:${table}:${row.id.id as string}] ${row.kind}: ${row.text} (confidence ${row.confidence.toFixed(2)}, source message ${row.sourceMessage.id as string})`;
     })
     .join("\n");
+}
+
+function formatWorkspaceScope(workspaceName?: string, projectNames?: string[]): string {
+  if (!workspaceName) {
+    return "(no workspace context)";
+  }
+
+  const lines = [`Workspace: "${workspaceName}"`];
+  if (projectNames && projectNames.length > 0) {
+    lines.push(`Existing projects: ${projectNames.map((name) => `"${name}"`).join(", ")}`);
+  } else {
+    lines.push("Existing projects: none");
+  }
+
+  return lines.join("\n");
 }
 
 function formatResolvedFromConstraints(

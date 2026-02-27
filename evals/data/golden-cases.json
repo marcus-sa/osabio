@@ -398,5 +398,91 @@
       { "from_kind": "decision", "to_kind": "feature", "to_text_contains": "audit logs" }
     ],
     "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "project-no-keyword-launch",
+    "input": "We need to build the payment processing and the user onboarding flows.",
+    "intent": "multi_allowed",
+    "workspace_name": "FinVault",
+    "expectedEntities": [
+      { "kind": "project", "text_contains": "payment processing" },
+      { "kind": "project", "text_contains": "onboarding" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "feature-within-project",
+    "input": "The authentication module needs to support OAuth and SSO.",
+    "intent": "multi_allowed",
+    "workspace_name": "FinVault",
+    "workspace_seed": [
+      { "kind": "project", "text": "User Management" }
+    ],
+    "expectedEntities": [
+      { "kind": "feature", "text_contains": "authentication" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "project-as-workspace-workstream",
+    "input": "We need a real-time analytics dashboard for tracking merchant activity.",
+    "intent": "strict_single",
+    "workspace_name": "FinVault",
+    "expectedEntities": [
+      { "kind": "project", "text_contains": "analytics dashboard" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "project-with-features-inline",
+    "input": "The notification system needs to handle alerts and digests.",
+    "intent": "multi_allowed",
+    "workspace_name": "TradeSync",
+    "expectedEntities": [
+      { "kind": "project", "text_contains": "notification system" },
+      { "kind": "feature", "text_contains": "alerts" },
+      { "kind": "feature", "text_contains": "digests" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "feature-within-existing-project",
+    "input": "Search needs full-text and vector search capabilities.",
+    "intent": "multi_allowed",
+    "workspace_name": "Meridian",
+    "workspace_seed": [
+      { "kind": "project", "text": "Knowledge Base" }
+    ],
+    "expectedEntities": [
+      { "kind": "feature", "text_contains": "search" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "project-new-workstream-in-workspace",
+    "input": "We're adding compliance reporting to cover GDPR and SOC2 requirements.",
+    "intent": "multi_allowed",
+    "workspace_name": "TradeSync",
+    "workspace_seed": [
+      { "kind": "project", "text": "Order Routing" }
+    ],
+    "expectedEntities": [
+      { "kind": "project", "text_contains": "compliance reporting" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "feature-capability-under-project",
+    "input": "We need CSV export and PDF generation for the reports.",
+    "intent": "multi_allowed",
+    "workspace_name": "TradeSync",
+    "workspace_seed": [
+      { "kind": "project", "text": "Compliance Reporting" }
+    ],
+    "expectedEntities": [
+      { "kind": "feature", "text_contains": "CSV export" },
+      { "kind": "feature", "text_contains": "PDF generation" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
   }
 ]

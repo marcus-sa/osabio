@@ -165,8 +165,11 @@ export function resolveEntityProject(
     return projects[0].id;
   }
 
-  const haystack = `${promptText}\n${entityText}`.toLowerCase();
-  const matchingProjects = projects.filter((project) => haystack.includes(project.name.toLowerCase()));
+  const haystack = `${promptText}\n${entityText}`;
+  const matchingProjects = projects.filter((project) => {
+    const escaped = project.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${escaped}\\b`, "i").test(haystack);
+  });
 
   if (matchingProjects.length !== 1) {
     return undefined;

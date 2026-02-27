@@ -36,6 +36,7 @@ export type GoldenCase = {
   expectedTools?: string[];
   forbiddenTools?: string[];
   forbiddenExtractedKinds?: ExpectedEntityKind[];
+  workspace_name?: string;
   workspace_seed?: WorkspaceSeedItem[];
   expectedRelations?: ExpectedRelation[];
 };
