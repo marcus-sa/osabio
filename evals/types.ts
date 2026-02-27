@@ -1,7 +1,16 @@
-export type ExpectedEntity = {
-  kind: "project" | "person" | "feature" | "task" | "decision" | "question";
-  text: string;
-};
+type ExpectedEntityKind = "project" | "person" | "feature" | "task" | "decision" | "question";
+
+export type ExpectedEntity =
+  | {
+      kind: ExpectedEntityKind;
+      text: string;
+      text_contains?: never;
+    }
+  | {
+      kind: ExpectedEntityKind;
+      text?: never;
+      text_contains: string;
+    };
 
 export type GoldenCaseIntent = "strict_single" | "multi_allowed";
 

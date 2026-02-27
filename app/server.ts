@@ -205,10 +205,11 @@ if (!assistantModelId || assistantModelId.trim().length === 0) {
   throw new Error("ASSISTANT_MODEL is required");
 }
 
-const extractionModelId = Bun.env.EXTRACTION_MODEL;
+const extractionModelId = Bun.env.EXTRACTION_MODEL as string | undefined;
 if (!extractionModelId || extractionModelId.trim().length === 0) {
   throw new Error("EXTRACTION_MODEL is required");
 }
+const extractionModelIdValue = extractionModelId;
 
 const embeddingModelId = Bun.env.OPENROUTER_EMBEDDING_MODEL;
 if (!embeddingModelId || embeddingModelId.trim().length === 0) {
@@ -258,7 +259,7 @@ const assistantModel = openrouter(assistantModelId, {
   plugins: [{ id: "response-healing" }],
   ...(openRouterReasoning ? { extraBody: { reasoning: openRouterReasoning } } : {}),
 });
-const extractionModel = openrouter(extractionModelId, {
+const extractionModel = openrouter(extractionModelIdValue, {
   plugins: [{ id: "response-healing" }],
   ...(openRouterReasoning ? { extraBody: { reasoning: openRouterReasoning } } : {}),
 });
@@ -307,7 +308,7 @@ logInfo("server.started", "Brain app server started", {
   port: server.port,
   host: "127.0.0.1",
   assistantModelId,
-  extractionModelId,
+  extractionModelId: extractionModelIdValue,
   embeddingModelId,
   embeddingDimension,
   extractionStoreThreshold,
@@ -1349,7 +1350,10 @@ async function extractStructuredGraph(input: {
         "Each entity must include evidence as a direct snippet from Source text supporting the extraction.",
         "Use conversation context only for disambiguation; only extract entities evidenced in Source text.",
         "Context may resolve pronouns or references (for example that/it/this), but context alone must not introduce new entities.",
-        "When resolving pronouns from context, put the canonical referenced name in entity text and keep the source pronoun phrase in evidence.",
+        "When resolving pronouns from context, put the canonical referenced concept in entity text and keep the source pronoun phrase in evidence.",
+        "For confirmations like yes, let's go with that, sounds good, or I agree, resolve the decision text to the referenced concept from context (for example Use SurrealDB for the graph layer), not the literal confirmation phrase.",
+        "Evidence must stay as the user's literal words from Source text (for example Yes, let's go with that).",
+        "If a confirmation cannot be resolved to one specific concept from context, do not emit an entity.",
         "When source text is a single question with alternatives (X or Y), extract one question entity for the decision point and do not extract each option as a separate entity.",
         "Commitment language indicates a decision entity, not a feature: let's go with, let's move forward with, we decided, I'm choosing, settled on, committed to.",
         "Declarative document/spec statements are valid extraction sources even without conversational markers like I decided or we should.",
@@ -1467,7 +1471,7 @@ async function persistExtractionOutput(input: {
           sourceRecord: input.sourceRecord,
           targetRecord: personMatch.id,
           confidence: extracted.confidence,
-          model: extractionModelId,
+          model: extractionModelIdValue,
           now: input.now,
           fromText: extracted.text,
           evidence: extracted.evidence,
@@ -1646,7 +1650,7 @@ async function upsertGraphEntity(input: {
       sourceRecord: input.sourceRecord,
       targetRecord: exactNameCandidate.id,
       confidence: input.extracted.confidence,
-      model: extractionModelId,
+      model: extractionModelIdValue,
       now: input.now,
       fromText: input.extracted.text,
       evidence: input.extracted.evidence,
@@ -1691,7 +1695,7 @@ async function upsertGraphEntity(input: {
       sourceRecord: input.sourceRecord,
       targetRecord: bestCandidate.id,
       confidence: input.extracted.confidence,
-      model: extractionModelId,
+      model: extractionModelIdValue,
       now: input.now,
       fromText: input.extracted.text,
       evidence: input.extracted.evidence,
@@ -1721,7 +1725,7 @@ async function upsertGraphEntity(input: {
     sourceRecord: input.sourceRecord,
     targetRecord: entityRecord,
     confidence: input.extracted.confidence,
-    model: extractionModelId,
+    model: extractionModelIdValue,
     now: input.now,
     fromText: input.extracted.text,
     evidence: input.extracted.evidence,

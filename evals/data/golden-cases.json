@@ -139,7 +139,7 @@
     "expectedEntities": [
       {
         "kind": "decision",
-        "text": "SurrealDB"
+        "text_contains": "SurrealDB"
       }
     ]
   },

@@ -1,6 +1,6 @@
 import { createScorer } from "evalite";
 import type { GoldenCase, ExtractionEvalOutput } from "../types";
-import { isEntityNameMatch } from "./shared";
+import { matchesExpectedEntity } from "./shared";
 
 export const noExtraEntitiesScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCase>({
   name: "no-extra-entities",
@@ -18,9 +18,7 @@ export const noExtraEntitiesScorer = createScorer<GoldenCase, ExtractionEvalOutp
 
     const unmatchedExpected = [...expectedEntities];
     for (const entity of extractedEntities) {
-      const matchedIndex = unmatchedExpected.findIndex(
-        (candidate) => candidate.kind === entity.kind && isEntityNameMatch(candidate.text, entity.text, 0.5),
-      );
+      const matchedIndex = unmatchedExpected.findIndex((candidate) => matchesExpectedEntity(candidate, entity, 0.5));
 
       if (matchedIndex === -1) {
         return { score: 0 };

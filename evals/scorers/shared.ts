@@ -1,3 +1,5 @@
+import type { ExpectedEntity } from "../types";
+
 function normalize(value: string): string {
   return value
     .toLowerCase()
@@ -39,4 +41,25 @@ export function isEntityNameMatch(a: string, b: string, threshold = 0.5): boolea
 
 export function normalizeForSubstring(value: string): string {
   return normalize(value);
+}
+
+export function matchesExpectedEntity(
+  expectedEntity: ExpectedEntity,
+  extractedEntity: { kind: string; text: string },
+  threshold = 0.5,
+): boolean {
+  if (expectedEntity.kind !== extractedEntity.kind) {
+    return false;
+  }
+
+  if ("text_contains" in expectedEntity) {
+    const expectedSubstring = normalizeForSubstring(expectedEntity.text_contains);
+    if (expectedSubstring.length === 0) {
+      return false;
+    }
+
+    return normalizeForSubstring(extractedEntity.text).includes(expectedSubstring);
+  }
+
+  return isEntityNameMatch(expectedEntity.text, extractedEntity.text, threshold);
 }
