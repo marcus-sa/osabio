@@ -61,18 +61,187 @@ The original plan called for a Rust backend. TypeScript is the better choice for
 - **Iteration speed.** During dogfooding, the extraction pipeline prompts and graph schema will change daily. TypeScript's hot-reload and rapid iteration cycle matters more than Rust's compile-time guarantees at this stage.
 - **Escape hatch.** If post-MVP scale demands it, specific hot paths (batch extraction, graph traversal) can be rewritten in Rust as isolated services. The architecture doesn't prevent this — it just defers the complexity until it's justified by real load.
 
-### 2.2 LLM Model Strategy
+### 2.2 LLM Model Strategy & Chat Router
 
-The platform uses different models for different jobs, optimizing for cost, latency, and intelligence where each matters most.
+The platform uses different models for different jobs, and routes chat requests through an intent-based router that selects both the **agent mode** (system prompt + tool set) and the **model** (cost/quality tradeoff).
+
+#### Model Assignments
 
 | Job | Model | Rationale |
 |-----|-------|-----------|
-| **Extraction** (per-message) | Claude Haiku 4.5 | Fastest, cheapest. Excellent at structured JSON output, entity classification, and relationship detection. At ~$0.25/MTok input / $1.25/MTok output, affordable to run on every message. Extraction runs in background — user never waits for it. |
-| **Chat conversation** (user-facing) | Claude Sonnet 4.5 | The user is chatting with the system — this is the product experience. Sonnet provides the quality users expect at reasonable cost. |
-| **Reasoning** (feed, conflicts, MCP context) | Claude Sonnet 4.5 | Multi-hop graph reasoning, conflict classification ("is this actually a conflict?"), and context synthesis require real judgment. Runs async so latency doesn't matter. |
-| **Document editing** (Tiptap AI) | Claude Sonnet 4.5 | PRD generation and document edits need quality. Schema-aware edits require understanding document structure and graph context simultaneously. |
+| **Extraction** (per-message, background) | Claude Haiku 4.5 | Fastest, cheapest. Excellent at structured JSON output. ~$0.25/MTok input / $1.25/MTok output. Runs in background — user never waits. |
+| **Chat — Graph lookup** (status, retrieval) | Claude Haiku 4.5 | Simple factual queries against the graph ("what did we decide about auth?", "what tasks are open?") don't need Sonnet-level reasoning. Haiku + graph context is fast and cheap. |
+| **Chat — Design Partner** (brainstorm, early-stage) | Claude Sonnet 4.5 | Active co-designer that asks probing questions, challenges assumptions, identifies gaps, helps shape products. Requires judgment and creativity. |
+| **Chat — Management Agent** (active projects) | Claude Sonnet 4.5 | Operational assistant using graph query and decision tools. Tracks progress, surfaces conflicts, manages decisions. Default for established projects. |
+| **Chat — Deep analysis** (complex reasoning) | Claude Opus 4.5 | Rare premium path for detected high-complexity reasoning: multi-project conflict analysis, architecture trade-off evaluation, strategy synthesis across the full graph. |
+| **Reasoning** (feed, conflicts, MCP) | Claude Sonnet 4.5 | Async multi-hop graph reasoning and conflict classification. Latency doesn't matter. |
+| **Document editing** (Tiptap AI) | Claude Sonnet 4.5 | PRD generation and schema-aware document edits. |
 
-**Architecture principle:** Extraction and chat are separate LLM calls with a shared graph context step. User sends a message → system builds graph context (semantic search + conversation entities + project state, see Chat Agent Graph Awareness in 3.2) → Sonnet streams a conversational response with graph context injected into system prompt → simultaneously, Haiku processes the same message for entity extraction in the background using the full conversation context. If extraction fails or is slow, the chat experience is unaffected.
+#### Chat Router
+
+A lightweight intent-based router selects agent mode + model for each chat message. **No extra LLM classification call** — deterministic heuristics only.
+
+**Router inputs:**
+- Workspace state (has projects? project status?)
+- Conversation state (existing entities, current topic)
+- Message text (intent signals)
+- User flags (explicit brainstorm request, explicit status request)
+
+**Routing logic:**
+
+```
+function routeChatMessage(workspace, conversation, message):
+
+  // 1. Agent mode selection (system prompt + tools)
+  if no projects in workspace:
+    agentMode = DESIGN_PARTNER
+  else if activeProject?.status == "designing":
+    agentMode = DESIGN_PARTNER
+  else if detectDesignIntent(message):
+    // "let's brainstorm", "I have an idea", "what if we...", "help me think through"
+    agentMode = DESIGN_PARTNER
+  else:
+    agentMode = MANAGEMENT_AGENT
+
+  // 2. Model selection (cost/quality)
+  if detectLookupIntent(message):
+    // "what's the status of", "what did we decide", "show me", "list all"
+    model = HAIKU
+  else if detectDeepAnalysis(message):
+    // "analyze the tradeoffs", "compare approaches across all projects"
+    // "what are the second-order effects of"
+    model = OPUS
+  else:
+    model = SONNET  // default fallback
+
+  return { agentMode, model }
+```
+
+**Intent detection heuristics (no LLM needed):**
+
+```
+LOOKUP_SIGNALS = [
+  /^(?:what|show|list|find|get|check)\s+(?:is|are|was|were|the|my|our)/i,
+  /\b(?:status|progress|open tasks|active|pending|decided)\b/i,
+  /\b(?:remind me|what did we|when did)\b/i,
+]
+
+DESIGN_SIGNALS = [
+  /\b(?:brainstorm|idea|what if|should we consider|help me think|flesh out|design)\b/i,
+  /\b(?:how could|what about|explore|pros and cons|tradeoffs)\b/i,
+  /\b(?:I'm thinking|let's figure out|not sure about|new project|new product)\b/i,
+]
+
+DEEP_ANALYSIS_SIGNALS = [
+  /\b(?:analyze|compare across|second.order|implications|comprehensive|full review)\b/i,
+  /\b(?:all projects|entire graph|everything we)\b/i,
+]
+```
+
+**Ambiguous messages default to Sonnet + current agent mode.** The router is conservative — it only downgrades to Haiku or upgrades to Opus when signals are strong.
+
+#### Agent Modes
+
+Each agent mode defines a **system prompt** and **tool emphasis**, not a different codebase. Both modes share the same graph, tools, and extraction pipeline.
+
+**Design Partner Agent:**
+
+```
+System prompt emphasis:
+- You are a co-designer helping flesh out ideas and products
+- Ask probing questions: who's the user? what's the riskiest assumption?
+  how is this different from X? what happens at scale?
+- Challenge assumptions constructively
+- Identify gaps the user hasn't addressed
+- Every question you ask will be stored as a Question entity
+- Track which questions have been answered vs still open
+- After several turns, summarize: "We've covered X, Y, Z.
+  Still open: A, B, C. Want to tackle any of these now?"
+
+Tool emphasis:
+- search_entities (find related prior art in graph)
+- check_constraints (does this conflict with existing decisions?)
+- create_provisional_decision (capture design decisions as they emerge)
+
+Active during:
+- Workspace with no projects
+- Projects with status: "designing"
+- Explicit brainstorm requests
+```
+
+**Management Agent:**
+
+```
+System prompt emphasis:
+- You are an operational assistant for active projects
+- Answer questions from graph context
+- Surface conflicts and dependencies proactively
+- Help manage decisions: resolve, check constraints, create provisional, confirm
+- Reference specific entities by name
+- Be concise and actionable
+
+Tool emphasis:
+- All graph query tools
+- All decision tools (resolve, check_constraints, create_provisional, confirm)
+- get_project_status (proactive status summaries)
+
+Active during:
+- Projects with status: "active" or "building"
+- Status checks and operational questions
+- Default mode when intent is unclear and projects exist
+```
+
+#### Agent-Generated Questions as Graph Entities
+
+When the Design Partner agent asks a question, it becomes a Question entity in the graph:
+
+```
+{
+  kind: "question",
+  text: "Who is the target user for this platform?",
+  status: "asked",              // asked → answered → deferred → resolved
+  asked_by: "design_agent",
+  asked_in: message:xyz,        // the message where the agent asked
+  answered_in?: message:abc,    // set when user answers
+  answer_summary?: string,      // extracted from user's response
+  project?: project:id,
+  priority: "blocking" | "important" | "exploratory"
+}
+```
+
+**Status lifecycle:**
+- `asked` → agent posed the question, awaiting user response
+- `answered` → user responded in conversation, answer extracted and linked
+- `deferred` → user explicitly said "later" or moved on, surfaces in feed
+- `resolved` → answer confirmed and linked to a Decision or other entity
+
+**Deferred questions become backlog items.** They appear in the feed. The agent tracks unanswered questions and can resurface them: "You still haven't addressed how multi-tenancy will work — want to tackle that now?"
+
+When the user answers a previously asked question in a later conversation, the extraction pipeline links the answer back to the original Question entity via `resolved_from` on the `extraction_relation` edge.
+
+#### Telemetry
+
+Every routed chat message logs:
+
+```
+{
+  message_id,
+  detected_intent: "lookup" | "design" | "management" | "deep_analysis" | "ambiguous",
+  agent_mode: "design_partner" | "management",
+  selected_model: "haiku" | "sonnet" | "opus",
+  fallback: boolean,           // true if ambiguous → Sonnet
+  latency_ms: number,
+  input_tokens: number,
+  output_tokens: number,
+  estimated_cost_usd: number,
+  tools_called: string[],
+  entities_extracted: number    // from parallel extraction
+}
+```
+
+This data drives future routing optimization: which intents are misclassified, where is Haiku sufficient, how often does Opus actually help, what's the cost distribution across agent modes.
+
+**Architecture principle:** Extraction and chat are separate LLM calls with a shared graph context step. User sends a message → router selects agent mode + model → system builds graph context (see Chat Agent Graph Awareness in 3.2) → selected model streams response with tools → simultaneously, Haiku processes the same message for entity extraction in the background. If extraction fails or is slow, the chat experience is unaffected. Agent-generated questions are written to the graph by the chat handler after the response streams.
 
 **Provider agnosticism:** The Vercel AI SDK abstracts model providers. If pricing shifts or a competitor model outperforms on extraction (e.g., GPT-4o-mini, Gemini Flash), swap models without changing the pipeline. The extraction prompt uses strict JSON schemas with Zod validation — if the model returns malformed JSON, retry once, then drop silently. Better to miss an extraction than block the pipeline.
 
@@ -288,6 +457,7 @@ Chat agent (Sonnet)  ─→ graph query + decision tools ←─  Coding agents (
                               SurrealDB graph
                                     ↓
                            Feed (review surface)
+```
 ```
 
 The `resolve_decision` and `create_provisional_decision` MCP tools (section 3.4) are also available to the chat agent, enabling it to answer questions like "should I use REST or tRPC?" by reasoning over the graph — the same way a coding agent would via MCP.
@@ -537,7 +707,7 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
    - Post-onboarding in normal chat, suggestions shift to contextual actions: "Create a task for this" / "Add as a decision" / "What depends on this?"
 
    **Conversation sidebar:** List of conversations grouped by project (derived from `TOUCHED_BY` edges computed during extraction). Auto-generated conversation titles from first extraction or first few messages. New conversation button. Unlinked conversations (no extracted entities or multi-project) grouped separately. Debug panel (collapsed by default) toggleable for entity list and extraction log during dogfooding.
-5. **Workspace onboarding conversation:** Creating a workspace collects two fields (workspace name, owner name), creates the root nodes (`workspace:xyz` + `person:owner` + `MEMBER_OF` edge), and drops the user into chat. The system sends the first message with suggestions — no empty state. The onboarding uses the same chat route with an `onboarding_complete: false` flag on the workspace that enriches the system prompt with guided questions. The system conversationally asks about the business, current projects, people involved, key decisions, tools in use, and biggest concerns. Each answer is extracted in real-time and rendered inline using the component catalog — the user sees `EntityCard` components appearing in the chat as the system confirms what it understood ("Got it:" followed by rendered entity cards). Suggestions guide each turn so the user always has clear next steps. Onboarding completes when the graph reaches minimum threshold (≥1 project + ≥1 decision or question — the owner Person already exists from workspace creation) or after 7 guided turns — at which point the system renders an `OnboardingSummary` component and offers to continue or dive in. Completion triggers on explicit confirmation, the user changing topic, or uploading a document. The flag flips, the system prompt switches to standard chat, and the conversation continues seamlessly in the same view.
+5. **Workspace onboarding conversation:** Creating a workspace collects two fields (workspace name, owner name), creates the root nodes (`workspace:xyz` + `person:owner` + `MEMBER_OF` edge), and drops the user into chat. The chat router (section 2.2) automatically selects the **Design Partner agent** because no projects exist yet. The Design Partner doesn't just record what the user says — it actively helps flesh out the product or business by asking probing questions, challenging assumptions, and identifying gaps. Every question the agent asks becomes a Question entity in the graph (`status: "asked"`, `asked_by: "design_agent"`). When the user answers, the Question updates to `status: "answered"` with the response linked. When the user defers ("I'll figure that out later"), the Question stays `status: "deferred"` and surfaces in the feed as a pending item. Each answer is extracted in real-time and rendered inline using the component catalog. Suggestions guide each turn. Onboarding completes when the graph reaches minimum threshold (≥1 project + ≥1 decision or question — the owner Person already exists from workspace creation) or after 7 guided turns — at which point the system renders an `OnboardingSummary` component showing captured entities and open questions. The router then switches to Management Agent mode for projects with `status: "active"`, while projects still in `status: "designing"` continue using the Design Partner. The user can always trigger Design Partner mode explicitly ("let's brainstorm about X").
 6. **Document upload for graph seeding:** Users can optionally drop a document (markdown or plain text in Phase 1) into the onboarding chat to bootstrap a dense initial graph. The document is chunked respecting section boundaries, each chunk runs through Haiku extraction with the same structured JSON output, and entities are deduplicated against existing nodes (embedding similarity + LLM context of current graph state). A plan document like a 400-line MVP spec might yield 50–100 nodes in one shot — features, decisions, dependencies, risks, tech choices — all with relationships. After ingestion, the system summarizes what it extracted and continues the conversation with smarter follow-up questions based on gaps or ambiguities in the document ("Your plan mentions SurrealDB but flags a maturity risk — have you evaluated fallbacks?"). The document doesn't replace the onboarding conversation, it accelerates it. All extracted nodes link back to the source document as provenance. This is not a separate UI — it's a file attachment in the chat, like any messaging app.
 7. **Testing infrastructure:** Three-layer testing strategy using Evalite, Autoevals, and Bun test:
 
@@ -548,7 +718,7 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
    **Layer 3 — Integration smoke tests (Bun script, full pipeline):** Hit the running stack end-to-end: health check → create workspace → send message → wait for extraction → assert entity exists with correct type, extraction_relation edge, evidence field, embedding vector → assert no phantom Person nodes → assert component block generated → cleanup.
 8. **Dogfooding checkpoint:** Run the onboarding conversation for the dogfooding workspace ("AI-Native Business Management Platform"), uploading this MVP plan as the seed document. Start using the tool to plan and track building the tool itself. Every architecture decision becomes a graph node.
 
-*Deliverable: A working chat that talks to an LLM and builds a knowledge graph from conversations. The chat agent is graph-aware via system prompt injection — it can answer questions about existing decisions, tasks, and project state from the knowledge graph. Extracted entities render as rich inline components via Reachat's component catalog. Suggestions guide the user through onboarding and contextual actions. Conversation sidebar groups chats by project automatically. Workspace creation is a self-service onboarding conversation that bootstraps the graph. Document upload accelerates graph seeding.*
+*Deliverable: A working chat with two agent modes — Design Partner (co-designer for early-stage projects, asks probing questions stored as Question entities) and Management Agent (operational assistant for active projects with graph query and decision tools). An intent-based router selects agent mode and model (Haiku for lookups, Sonnet for design/management, Opus for deep analysis) using deterministic heuristics with telemetry. The chat builds a knowledge graph from conversations with extracted entities rendered as rich inline components. Suggestions guide the user. Conversation sidebar groups chats by project. Workspace onboarding uses the Design Partner to flesh out the product, not just record what the user says. Document upload accelerates graph seeding.*
 
 ---
 
