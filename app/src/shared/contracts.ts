@@ -73,6 +73,35 @@ export type WorkspaceBootstrapMessage = {
   suggestions?: string[];
 };
 
+export type ConversationSidebarItem = {
+  id: string;
+  title: string;
+  updatedAt: string;
+};
+
+export type ProjectFeatureActivity = {
+  featureId: string;
+  featureName: string;
+  latestActivityAt: string;
+};
+
+export type ProjectConversationGroup = {
+  projectId: string;
+  projectName: string;
+  conversations: ConversationSidebarItem[];
+  featureActivity: ProjectFeatureActivity[];
+};
+
+export type WorkspaceConversationSidebarResponse = {
+  groups: ProjectConversationGroup[];
+  unlinked: ConversationSidebarItem[];
+};
+
+export type WorkspaceConversationResponse = {
+  conversationId: string;
+  messages: WorkspaceBootstrapMessage[];
+};
+
 export type WorkspaceBootstrapResponse = {
   workspaceId: string;
   workspaceName: string;
@@ -81,6 +110,7 @@ export type WorkspaceBootstrapResponse = {
   conversationId: string;
   messages: WorkspaceBootstrapMessage[];
   seeds: OnboardingSeedItem[];
+  sidebar: WorkspaceConversationSidebarResponse;
 };
 
 export type TokenEvent = {

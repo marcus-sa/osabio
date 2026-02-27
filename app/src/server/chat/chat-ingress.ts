@@ -8,6 +8,7 @@ import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import type { ConversationRow, WorkspaceRow } from "../extraction/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
+import { deriveMessageTitle } from "../workspace/conversation-sidebar";
 import { processChatMessage } from "./chat-processor";
 
 export function createChatIngressHandlers(deps: ServerDependencies): {
@@ -89,6 +90,8 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
           createdAt: now,
           updatedAt: now,
           workspace: workspaceRecord,
+          title: deriveMessageTitle(messageText),
+          title_source: "message",
           ...(workspace.onboarding_complete ? {} : { source: "onboarding" }),
         });
       }

@@ -5,6 +5,7 @@ import type {
   OnboardingSeedItem,
   WorkspaceBootstrapMessage,
   WorkspaceBootstrapResponse,
+  WorkspaceConversationResponse,
   SourceKind,
   EntityKind,
 } from "../../shared/contracts";
@@ -18,6 +19,7 @@ import { jsonError, jsonResponse, toIsoString } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { toOnboardingState } from "../onboarding/onboarding-state";
 import { resolveWorkspaceRecord } from "./workspace-scope";
+import { buildWorkspaceConversationSidebar } from "./conversation-sidebar";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -47,10 +49,15 @@ type ProvenanceEdgeRow = {
 export function createWorkspaceRouteHandlers(deps: ServerDependencies): {
   handleCreateWorkspace: (request: Request) => Promise<Response>;
   handleWorkspaceBootstrap: (workspaceId: string) => Promise<Response>;
+  handleWorkspaceSidebar: (workspaceId: string) => Promise<Response>;
+  handleWorkspaceConversation: (workspaceId: string, conversationId: string) => Promise<Response>;
 } {
   return {
     handleCreateWorkspace: (request: Request) => handleCreateWorkspace(deps, request),
     handleWorkspaceBootstrap: (workspaceId: string) => handleWorkspaceBootstrap(deps, workspaceId),
+    handleWorkspaceSidebar: (workspaceId: string) => handleWorkspaceSidebar(deps, workspaceId),
+    handleWorkspaceConversation: (workspaceId: string, conversationId: string) =>
+      handleWorkspaceConversation(deps, workspaceId, conversationId),
   };
 }
 
@@ -129,6 +136,8 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
       updatedAt: now,
       workspace: workspaceRecord,
       source: "onboarding",
+      title: "Onboarding",
+      title_source: "message",
     });
 
     await transaction.create(starterMessageRecord).content({
@@ -197,6 +206,7 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
 
     const seeds = await loadWorkspaceSeeds(deps, workspaceRecord, 40);
     const onboardingState = toOnboardingState(workspace);
+    const sidebar = await buildWorkspaceConversationSidebar(deps.surreal, workspaceRecord);
 
     const payload: WorkspaceBootstrapResponse = {
       workspaceId: workspace.id.id as string,
@@ -206,6 +216,7 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
       conversationId: conversationRecord.id as string,
       messages,
       seeds,
+      sidebar,
     };
 
     logInfo("workspace.bootstrap.completed", "Workspace bootstrap completed", {
@@ -353,4 +364,109 @@ async function readSourceLabel(deps: ServerDependencies, sourceRecord: SourceRec
   }
 
   return document.name;
+}
+
+async function handleWorkspaceSidebar(deps: ServerDependencies, workspaceId: string): Promise<Response> {
+  const startedAt = performance.now();
+  logInfo("workspace.sidebar.started", "Workspace sidebar request started", { workspaceId });
+
+  try {
+    const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    const sidebar = await buildWorkspaceConversationSidebar(deps.surreal, workspaceRecord);
+
+    logInfo("workspace.sidebar.completed", "Workspace sidebar request completed", {
+      workspaceId,
+      groupCount: sidebar.groups.length,
+      unlinkedCount: sidebar.unlinked.length,
+      durationMs: elapsedMs(startedAt),
+    });
+
+    return jsonResponse(sidebar, 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      logWarn("workspace.sidebar.http_error", "Workspace sidebar failed with client-facing error", {
+        workspaceId,
+        statusCode: error.status,
+      });
+      return jsonError(error.message, error.status);
+    }
+
+    logError("workspace.sidebar.failed", "Workspace sidebar request failed", error, { workspaceId });
+    const errorText = error instanceof Error ? error.message : "workspace sidebar failed";
+    return jsonError(errorText, 500);
+  }
+}
+
+async function handleWorkspaceConversation(
+  deps: ServerDependencies,
+  workspaceId: string,
+  conversationId: string,
+): Promise<Response> {
+  const startedAt = performance.now();
+  logInfo("workspace.conversation.started", "Workspace conversation request started", {
+    workspaceId,
+    conversationId,
+  });
+
+  try {
+    const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    const conversationRecord = new RecordId("conversation", conversationId);
+    const conversation = await deps.surreal.select<{
+      id: RecordId<"conversation", string>;
+      workspace: RecordId<"workspace", string>;
+    }>(conversationRecord);
+
+    if (!conversation) {
+      throw new HttpError(404, `conversation not found: ${conversationId}`);
+    }
+
+    if ((conversation.workspace.id as string) !== (workspaceRecord.id as string)) {
+      throw new HttpError(400, "conversation does not belong to workspace");
+    }
+
+    const [messageRows] = await deps.surreal
+      .query<[MessageContextRow[]]>(
+        "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT 80;",
+        { conversation: conversationRecord },
+      )
+      .collect<[MessageContextRow[]]>();
+
+    const messages = messageRows.map((row) => ({
+      id: row.id.id as string,
+      role: row.role,
+      text: row.text,
+      createdAt: toIsoString(row.createdAt),
+      ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
+    } satisfies WorkspaceBootstrapMessage));
+
+    const payload: WorkspaceConversationResponse = {
+      conversationId,
+      messages,
+    };
+
+    logInfo("workspace.conversation.completed", "Workspace conversation request completed", {
+      workspaceId,
+      conversationId,
+      messageCount: messages.length,
+      durationMs: elapsedMs(startedAt),
+    });
+
+    return jsonResponse(payload, 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      logWarn("workspace.conversation.http_error", "Workspace conversation failed with client-facing error", {
+        workspaceId,
+        conversationId,
+        statusCode: error.status,
+      });
+      return jsonError(error.message, error.status);
+    }
+
+    logError("workspace.conversation.failed", "Workspace conversation request failed", error, {
+      workspaceId,
+      conversationId,
+    });
+    const errorText = error instanceof Error ? error.message : "workspace conversation failed";
+    return jsonError(errorText, 500);
+  }
 }

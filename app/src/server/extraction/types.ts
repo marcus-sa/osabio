@@ -78,6 +78,8 @@ export type ConversationRow = {
   updatedAt: Date | string;
   workspace: RecordId<"workspace", string>;
   source?: string;
+  title?: string;
+  title_source?: "message" | "entity";
 };
 
 export type IncomingAttachment = {

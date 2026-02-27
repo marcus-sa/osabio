@@ -46,6 +46,24 @@ export async function startServer(): Promise<void> {
           (request) => workspaceHandlers.handleWorkspaceBootstrap(request.params.workspaceId),
         ),
       },
+      "/api/workspaces/:workspaceId/sidebar": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/sidebar",
+          "GET",
+          (request) => workspaceHandlers.handleWorkspaceSidebar(request.params.workspaceId),
+        ),
+      },
+      "/api/workspaces/:workspaceId/conversations/:conversationId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/conversations/:conversationId",
+          "GET",
+          (request) =>
+            workspaceHandlers.handleWorkspaceConversation(
+              request.params.workspaceId,
+              request.params.conversationId,
+            ),
+        ),
+      },
       "/api/chat/messages": {
         POST: withRequestLogging("POST /api/chat/messages", "POST", (request) => chatHandlers.handlePostChatMessage(request)),
       },

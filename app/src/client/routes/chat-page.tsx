@@ -21,6 +21,8 @@ import type {
   SearchEntityResponse,
   StreamEvent as ChatStreamEvent,
   WorkspaceBootstrapResponse,
+  WorkspaceConversationSidebarResponse,
+  WorkspaceConversationResponse,
 } from "../../shared/contracts";
 import { chatComponentCatalog } from "../chat-component-catalog";
 
@@ -75,6 +77,8 @@ export function ChatPage() {
   ]);
   const [activeSessionId] = useState("main");
   const [backendConversationId, setBackendConversationId] = useState<string | undefined>();
+  const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
+  const [sidebar, setSidebar] = useState<WorkspaceConversationSidebarResponse | undefined>();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [seedItems, setSeedItems] = useState<OnboardingSeedItem[]>([]);
@@ -102,6 +106,85 @@ export function ChatPage() {
 
   if (!activeSession) {
     throw new Error("active session missing");
+  }
+
+  async function refreshSidebar(workspaceId: string) {
+    try {
+      const response = await fetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/sidebar`);
+      if (response.ok) {
+        const payload = (await response.json()) as WorkspaceConversationSidebarResponse;
+        setSidebar(payload);
+      }
+    } catch {
+      // Sidebar refresh is non-critical; silently ignore
+    }
+  }
+
+  async function loadConversation(workspaceId: string, conversationId: string) {
+    try {
+      const response = await fetch(
+        `/api/workspaces/${encodeURIComponent(workspaceId)}/conversations/${encodeURIComponent(conversationId)}`,
+      );
+      if (!response.ok) {
+        const body = await response.text();
+        setErrorMessage(body);
+        return;
+      }
+
+      const payload = (await response.json()) as WorkspaceConversationResponse;
+      const conversations: Session["conversations"] = [];
+      let latestSuggestions: string[] = [];
+
+      for (const message of payload.messages) {
+        if (message.role === "user") {
+          conversations.push({
+            id: message.id,
+            question: message.text,
+            createdAt: new Date(message.createdAt),
+          });
+          continue;
+        }
+
+        const last = conversations[conversations.length - 1];
+        if (last && !last.response) {
+          last.response = message.text;
+          last.updatedAt = new Date(message.createdAt);
+          latestSuggestions = message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
+          continue;
+        }
+
+        conversations.push({
+          id: `assistant-${message.id}`,
+          question: "System kickoff",
+          response: message.text,
+          createdAt: new Date(message.createdAt),
+        });
+        latestSuggestions = message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
+      }
+
+      setSessions([
+        {
+          id: "main",
+          title: workspace?.name ?? "Workspace Chat",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          conversations,
+        },
+      ]);
+
+      setSuggestions(
+        latestSuggestions.map((content, index) => ({
+          id: `conv-suggestion-${index}-${content}`,
+          content,
+        })),
+      );
+
+      setActiveConversationId(conversationId);
+      setBackendConversationId(conversationId);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : "Failed to load conversation";
+      setErrorMessage(messageText);
+    }
   }
 
   async function bootstrapWorkspace(workspaceId: string) {
@@ -183,6 +266,8 @@ export function ChatPage() {
       })),
     );
     setBackendConversationId(payload.conversationId);
+    setActiveConversationId(payload.conversationId);
+    setSidebar(payload.sidebar);
     setWorkspace({
       id: payload.workspaceId,
       name: payload.workspaceName,
@@ -190,6 +275,30 @@ export function ChatPage() {
       onboardingState: payload.onboardingState,
       conversationId: payload.conversationId,
     });
+  }
+
+  function onNewConversation() {
+    setActiveConversationId(undefined);
+    setBackendConversationId(undefined);
+    setSessions([
+      {
+        id: "main",
+        title: workspace?.name ?? "Workspace Chat",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        conversations: [],
+      },
+    ]);
+    setSuggestions([]);
+    setErrorMessage(undefined);
+  }
+
+  function onSelectConversation(conversationId: string) {
+    if (conversationId === activeConversationId || isLoading || !workspace) {
+      return;
+    }
+
+    void loadConversation(workspace.id, conversationId);
   }
 
   async function searchMentions(query: string): Promise<MentionItem[]> {
@@ -394,7 +503,12 @@ export function ChatPage() {
     }
 
     const payload = (await response.json()) as ChatMessageResponse;
+    const isNewConversation = !backendConversationId;
     setBackendConversationId(payload.conversationId);
+    if (isNewConversation) {
+      setActiveConversationId(payload.conversationId);
+    }
+
     if (streamRef.current) {
       streamRef.current.close();
       streamRef.current = undefined;
@@ -516,6 +630,11 @@ export function ChatPage() {
         setIsLoading(false);
         stream.close();
         streamRef.current = undefined;
+
+        // Refresh sidebar after stream completes
+        if (workspace) {
+          void refreshSidebar(workspace.id);
+        }
       }
     };
 
@@ -589,90 +708,156 @@ export function ChatPage() {
         ) : undefined}
       </div>
 
-      <div className={`onboarding-layout${isSeedPanelOpen ? " onboarding-layout--with-seeds" : ""}`}>
-        <Chat
-          viewType="chat"
-          sessions={sessions}
-          activeSessionId={activeSession.id}
-          components={chatComponentCatalog}
-          isLoading={isLoading}
-          onSendMessage={onSendMessage}
-          onStopMessage={onStopMessage}
-          onFileUpload={onUploadFile}
-        >
-          <SessionMessagePanel>
-            <SessionMessagesHeader>
-              <div className="reachat-header">Workspace Chat + Extraction</div>
-            </SessionMessagesHeader>
-            <SessionMessages />
-            <ChatSuggestions
-              suggestions={suggestions}
-              onSuggestionClick={(suggestion) => {
-                void onSendMessage(suggestion);
-              }}
-            />
-            {workspace.onboardingState === "summary_pending" ? (
-              <div className="onboarding-action-buttons">
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() =>
-                    void onSendMessage("Looks good, let's go.", {
-                      onboardingAction: "finalize_onboarding",
-                    })}
-                >
-                  Looks good, let's go
-                </button>
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() =>
-                    void onSendMessage("I want to add more.", {
-                      onboardingAction: "continue_onboarding",
-                    })}
-                >
-                  I want to add more
-                </button>
+      <div className="workspace-layout">
+        <aside className="conversation-sidebar">
+          <button
+            type="button"
+            className="sidebar-new-conversation"
+            onClick={onNewConversation}
+            disabled={isLoading}
+          >
+            New conversation
+          </button>
+
+          {sidebar?.groups.map((group) => (
+            <div key={group.projectId} className="sidebar-project-group">
+              <div className="sidebar-project-header">
+                <span className="sidebar-project-name">{group.projectName}</span>
+                <span className="sidebar-project-count">{group.conversations.length}</span>
               </div>
-            ) : undefined}
-            <div onClickCapture={onChatInputClickCapture}>
-              <ChatInput
-                ref={chatInputRef}
-                placeholder="Discuss tasks, decisions, and questions..."
-                allowedFiles={[".md", ".txt"]}
-                mentions={{
-                  onSearch: searchMentions,
-                }}
-                commands={{
-                  items: COMMAND_ITEMS,
+              {group.featureActivity.length > 0 ? (
+                <div className="sidebar-feature-activity">
+                  {group.featureActivity.map((feature) => (
+                    <span key={feature.featureId} className="sidebar-feature-chip">
+                      {feature.featureName}
+                    </span>
+                  ))}
+                </div>
+              ) : undefined}
+              <ul className="sidebar-conversation-list">
+                {group.conversations.map((conv) => (
+                  <li key={conv.id}>
+                    <button
+                      type="button"
+                      className={`sidebar-conversation-item${conv.id === activeConversationId ? " sidebar-conversation-item--active" : ""}`}
+                      onClick={() => onSelectConversation(conv.id)}
+                    >
+                      {conv.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          {sidebar && sidebar.unlinked.length > 0 ? (
+            <div className="sidebar-project-group">
+              <div className="sidebar-project-header">
+                <span className="sidebar-project-name sidebar-unlinked-label">Unlinked</span>
+                <span className="sidebar-project-count">{sidebar.unlinked.length}</span>
+              </div>
+              <ul className="sidebar-conversation-list">
+                {sidebar.unlinked.map((conv) => (
+                  <li key={conv.id}>
+                    <button
+                      type="button"
+                      className={`sidebar-conversation-item${conv.id === activeConversationId ? " sidebar-conversation-item--active" : ""}`}
+                      onClick={() => onSelectConversation(conv.id)}
+                    >
+                      {conv.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : undefined}
+        </aside>
+
+        <div className={`chat-main${isSeedPanelOpen ? " chat-main--with-seeds" : ""}`}>
+          <Chat
+            viewType="chat"
+            sessions={sessions}
+            activeSessionId={activeSession.id}
+            components={chatComponentCatalog}
+            isLoading={isLoading}
+            onSendMessage={onSendMessage}
+            onStopMessage={onStopMessage}
+            onFileUpload={onUploadFile}
+          >
+            <SessionMessagePanel>
+              <SessionMessagesHeader>
+                <div className="reachat-header">Workspace Chat + Extraction</div>
+              </SessionMessagesHeader>
+              <SessionMessages />
+              <ChatSuggestions
+                suggestions={suggestions}
+                onSuggestionClick={(suggestion) => {
+                  void onSendMessage(suggestion);
                 }}
               />
-            </div>
-          </SessionMessagePanel>
-        </Chat>
-
-        {isSeedPanelOpen ? (
-          <aside className="seed-panel">
-            <h3>Live Graph Seed</h3>
-            <p>Entities extracted during onboarding and document ingestion.</p>
-            <ul>
-              {seedItems.map((seed) => (
-                <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
+              {workspace.onboardingState === "summary_pending" ? (
+                <div className="onboarding-action-buttons">
                   <button
                     type="button"
+                    disabled={isLoading}
+                    onClick={() =>
+                      void onSendMessage("Looks good, let's go.", {
+                        onboardingAction: "finalize_onboarding",
+                      })}
                   >
-                    <span className="seed-kind">{seed.kind}</span>
-                    <span className="seed-text">{seed.text}</span>
-                    <span className="seed-meta">
-                      {seed.confidence.toFixed(2)} · {seed.sourceKind}
-                    </span>
-                    {seed.sourceLabel ? <span className="seed-label">{seed.sourceLabel}</span> : undefined}
+                    Looks good, let's go
                   </button>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        ) : undefined}
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() =>
+                      void onSendMessage("I want to add more.", {
+                        onboardingAction: "continue_onboarding",
+                      })}
+                  >
+                    I want to add more
+                  </button>
+                </div>
+              ) : undefined}
+              <div onClickCapture={onChatInputClickCapture}>
+                <ChatInput
+                  ref={chatInputRef}
+                  placeholder="Discuss tasks, decisions, and questions..."
+                  allowedFiles={[".md", ".txt"]}
+                  mentions={{
+                    onSearch: searchMentions,
+                  }}
+                  commands={{
+                    items: COMMAND_ITEMS,
+                  }}
+                />
+              </div>
+            </SessionMessagePanel>
+          </Chat>
+
+          {isSeedPanelOpen ? (
+            <aside className="seed-panel">
+              <h3>Live Graph Seed</h3>
+              <p>Entities extracted during onboarding and document ingestion.</p>
+              <ul>
+                {seedItems.map((seed) => (
+                  <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
+                    <button
+                      type="button"
+                    >
+                      <span className="seed-kind">{seed.kind}</span>
+                      <span className="seed-text">{seed.text}</span>
+                      <span className="seed-meta">
+                        {seed.confidence.toFixed(2)} · {seed.sourceKind}
+                      </span>
+                      {seed.sourceLabel ? <span className="seed-label">{seed.sourceLabel}</span> : undefined}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          ) : undefined}
+        </div>
       </div>
 
       {errorMessage ? <p className="error-message">{errorMessage}</p> : undefined}

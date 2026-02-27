@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "setup": "bun install",
+    "archive": "rm -rf node_modules"
+  }
+}

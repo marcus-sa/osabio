@@ -5,8 +5,11 @@ DEFINE FIELD workspace ON conversation TYPE record<workspace>;
 DEFINE FIELD source ON conversation TYPE option<string>;
 DEFINE FIELD timestamp ON conversation TYPE option<datetime>;
 DEFINE FIELD messages ON conversation TYPE option<array<record<message>>>;
+DEFINE FIELD title ON conversation TYPE option<string>;
+DEFINE FIELD title_source ON conversation TYPE option<string> ASSERT $value = NONE OR $value IN ["message", "entity"];
 DEFINE FIELD embedding ON conversation TYPE option<array<float>>;
 DEFINE INDEX conversation_createdAt ON conversation FIELDS createdAt;
+DEFINE INDEX conversation_workspace ON conversation FIELDS workspace;
 
 DEFINE TABLE message SCHEMAFULL;
 DEFINE FIELD conversation ON message TYPE record<conversation>;
@@ -252,6 +255,12 @@ DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
 
 DEFINE TABLE belongs_to TYPE RELATION IN task | decision | question OUT feature | project SCHEMAFULL;
 DEFINE FIELD added_at ON belongs_to TYPE datetime;
+
+DEFINE TABLE touched_by TYPE RELATION IN project OUT conversation SCHEMAFULL;
+DEFINE FIELD first_mention_at ON touched_by TYPE datetime;
+DEFINE FIELD entity_count ON touched_by TYPE int ASSERT $value >= 1;
+DEFINE INDEX touched_by_unique ON touched_by FIELDS `in`, out UNIQUE;
+DEFINE INDEX touched_by_out ON touched_by FIELDS out;
 
 DEFINE TABLE conflicts_with TYPE RELATION IN decision | feature OUT decision | feature SCHEMAFULL;
 DEFINE FIELD description ON conflicts_with TYPE option<string>;

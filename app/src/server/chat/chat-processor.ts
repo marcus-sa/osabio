@@ -13,6 +13,7 @@ import { generateOnboardingAssistantReply } from "../onboarding/onboarding-reply
 import type { ServerDependencies } from "../runtime/types";
 import { runGraphAwareChat } from "./handler";
 import { getWorkspaceOwnerRecord } from "../graph/queries";
+import { refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../workspace/conversation-sidebar";
 
 export async function processChatMessage(input: {
   deps: ServerDependencies;
@@ -121,6 +122,9 @@ export async function processChatMessage(input: {
 
     const dedupedTools = [...new Set(extractedTools.map((tool) => tool.trim()).filter((tool) => tool.length > 0))];
     await appendExtractedTools(input.deps.surreal, input.workspaceRecord, extractedTools, now);
+
+    await refreshConversationTouchedBy(input.deps.surreal, conversationRecord);
+    await maybeUpgradeConversationTitle(input.deps.surreal, conversationRecord);
 
     const onboardingBefore = workspace.onboarding_complete
       ? "complete"
