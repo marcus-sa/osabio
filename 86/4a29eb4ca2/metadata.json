@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "864a29eb4ca2",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/governance-feed-ui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/chat-component-catalog.tsx",
+    "app/src/client/components/graph/EntityBadge.tsx",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/components/graph/GraphToolbar.tsx",
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/graph/ProvenanceSection.tsx",
+    "app/src/client/components/graph/RelationshipList.tsx",
+    "app/src/client/components/graph/graph-theme.ts",
+    "app/src/client/components/layout/ViewTabs.tsx",
+    "app/src/client/graph/actions.ts",
+    "app/src/client/router.tsx",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/routes/graph-page.tsx",
+    "app/src/client/stores/view-state.ts",
+    "app/src/client/styles.css",
+    "app/src/server/entities/entity-actions-route.ts",
+    "app/src/server/entities/entity-detail-route.ts",
+    "app/src/server/graph/graph-route.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/graph/transform.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/shared/chat-component-definitions.ts",
+    "app/src/shared/contracts.ts",
+    "bun.lock",
+    "package.json",
+    "tests/unit/graph-theme.test.ts",
+    "tests/unit/graph-transform.test.ts",
+    "tests/unit/graph-view-state.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/86/4a29eb4ca2/0/metadata.json",
+      "transcript": "/86/4a29eb4ca2/0/full.jsonl",
+      "context": "/86/4a29eb4ca2/0/context.md",
+      "content_hash": "/86/4a29eb4ca2/0/content_hash.txt",
+      "prompt": "/86/4a29eb4ca2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 438,
+    "cache_creation_tokens": 601603,
+    "cache_read_tokens": 9417361,
+    "output_tokens": 38611,
+    "api_call_count": 94
+  }
+}
