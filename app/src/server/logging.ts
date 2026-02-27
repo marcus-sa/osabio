@@ -1,12 +1,12 @@
 import pino, { type Logger, type LevelWithSilent } from "pino";
 import { getRequestContext } from "./request-context";
 
-const runtimeEnv = Bun.env.NODE_ENV;
+const runtimeEnv = process.env.NODE_ENV;
 if (!runtimeEnv || runtimeEnv.trim().length === 0) {
   throw new Error("NODE_ENV is required");
 }
 
-const configuredLevel = Bun.env.LOG_LEVEL?.trim();
+const configuredLevel = process.env.LOG_LEVEL?.trim();
 if (!configuredLevel || configuredLevel.length === 0) {
   throw new Error("LOG_LEVEL is required");
 }

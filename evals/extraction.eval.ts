@@ -1,12 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
-import { spawn, type ChildProcess } from "node:child_process";
-import { setTimeout as sleep } from "node:timers/promises";
+import { createHash } from "node:crypto";
 import { evalite, createScorer } from "evalite";
 import { Factuality } from "autoevals";
 import { afterAll, beforeAll } from "vitest";
-import { RecordId, Surreal } from "surrealdb";
+import { RecordId } from "surrealdb";
 import { entityPrecisionScorer } from "./scorers/entity-precision";
 import { entityRecallScorer } from "./scorers/entity-recall";
 import { noPhantomPersonsScorer } from "./scorers/no-phantom-persons";
@@ -19,17 +17,22 @@ import { toolFilteringScorer } from "./scorers/tool-filtering";
 import { forbiddenKindsScorer } from "./scorers/forbidden-kinds";
 import type { ExtractionEvalOutput, GoldenCase, GoldenCaseIntent } from "./types";
 import { normalizeForSubstring } from "./scorers/shared";
+import { extractStructuredGraph } from "../app/src/server/extraction/extract-graph";
+import { persistExtractionOutput, appendExtractedTools } from "../app/src/server/extraction/persist-extraction";
+import { loadExtractionConversationContext, loadConversationGraphContext } from "../app/src/server/extraction/context-loaders";
+import type { SourceRecord } from "../app/src/server/extraction/types";
+import {
+  type EvalRuntime,
+  setupEvalRuntime,
+  teardownEvalRuntime,
+  seedWorkspace,
+  seedConversationContext,
+  seedUserMessage,
+  loadWorkspacePeopleCount,
+} from "./eval-test-kit";
 
-const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
-const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
-const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
-const evalNamespace = `eval_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-const evalDatabase = `extraction_${Math.floor(Math.random() * 100000)}`;
-const evalPort = Number(process.env.EVAL_PORT ?? "3207");
-const baseUrl = `http://127.0.0.1:${evalPort}`;
 const extractionModel = process.env.EXTRACTION_MODEL ?? "anthropic/claude-3.5-haiku";
 const autoevalModel = requireEnv("AUTOEVAL_MODEL");
-const schemaPath = join(process.cwd(), "schema", "surreal-schema.surql");
 
 const cacheDir = process.env.EVAL_CACHE_DIR ?? "eval-results/cache";
 const cachePath = join(cacheDir, "extraction-cache.json");
@@ -84,17 +87,14 @@ const intentScoreWeights: Record<
   },
 };
 
-let surreal: Surreal | undefined;
-let evalServerProcess: ChildProcess | undefined;
-let environmentReadyPromise: Promise<void> | undefined;
-let teardownRegistered = false;
+let runtime: EvalRuntime;
 
 beforeAll(async () => {
-  await ensureEvalEnvironment();
+  runtime = await setupEvalRuntime("extraction");
 }, 120_000);
 
 afterAll(async () => {
-  await teardownEvalEnvironment();
+  await teardownEvalRuntime(runtime);
 }, 120_000);
 
 const factualityScorer = createScorer<GoldenCase, ExtractionEvalOutput, GoldenCase>({
@@ -226,386 +226,105 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     };
   }
 
-  await ensureEvalEnvironment();
+  const { workspaceRecord, conversationRecord, ownerPersonCount } = await seedWorkspace(runtime.surreal);
+  const conversationId = conversationRecord.id as string;
+  const seededContext = testCase.context ?? [];
+  const contextMessageIds = seededContext.length > 0
+    ? await seedConversationContext(runtime.surreal, conversationRecord, seededContext)
+    : [];
 
-  const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: `Eval ${testCase.id} ${Date.now()}`,
-      ownerDisplayName: "Marcus",
-    }),
+  const userMessageRecord = await seedUserMessage(runtime.surreal, conversationRecord, testCase.input);
+
+  const extractionConversationContext = await loadExtractionConversationContext({
+    surreal: runtime.surreal,
+    conversationId,
+    currentMessageRecord: userMessageRecord,
+  });
+  const extractionGraphContext = await loadConversationGraphContext(runtime.surreal, conversationId, 60);
+
+  const extraction = await extractStructuredGraph({
+    extractionModel: runtime.extractionModel,
+    conversationHistory: extractionConversationContext.conversationHistory,
+    currentMessage: extractionConversationContext.currentMessage,
+    graphContext: extractionGraphContext,
+    sourceText: testCase.input,
+    onboarding: true,
   });
 
-  const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
-  let output: ExtractionEvalOutput | undefined;
+  const now = new Date();
+  const persistence = await persistExtractionOutput({
+    surreal: runtime.surreal,
+    embeddingModel: runtime.embeddingModel,
+    embeddingDimension: runtime.config.embeddingDimension,
+    extractionModelId: runtime.config.extractionModelId,
+    extractionStoreThreshold: runtime.config.extractionStoreThreshold,
+    workspaceRecord,
+    sourceRecord: userMessageRecord as SourceRecord,
+    sourceKind: "message",
+    sourceLabel: testCase.input.slice(0, 140),
+    promptText: testCase.input,
+    output: extraction,
+    sourceMessageRecord: userMessageRecord,
+    extractionHistoryMessageIds: extractionConversationContext.conversationHistory.map(
+      (row) => row.id.id as string,
+    ),
+    now,
+  });
 
-  try {
-    const db = await getSurreal();
-    const ownerPersonCount = await loadWorkspacePeopleCount(db, workspaceRecord);
-    const conversationRecord = new RecordId("conversation", workspace.conversationId);
-    const seededContext = testCase.context ?? [];
-    const contextMessageIds = seededContext.length > 0
-      ? await seedConversationContext(db, conversationRecord, seededContext)
-      : [];
+  await appendExtractedTools(runtime.surreal, workspaceRecord, persistence.tools, now);
 
-    const message = await fetchJson<{ streamUrl: string; userMessageId: string }>(`${baseUrl}/api/chat/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientMessageId: randomUUID(),
-        workspaceId: workspace.workspaceId,
-        conversationId: workspace.conversationId,
-        text: testCase.input,
-      }),
-    });
-
-    const events = await collectSseEvents(`${baseUrl}${message.streamUrl}`, 8_000);
-    const extractionEvent = events.find((event) => event.type === "extraction") as
-      | { type: "extraction"; entities: Array<{ kind: string; text: string; confidence: number }> }
-      | undefined;
-
-    const [evidenceRows] = await db
-      .query<[Array<{
-        evidence?: string;
-        from_text?: string;
-        model?: string;
-        evidence_source?: RecordId<"message", string>;
-        resolved_from?: RecordId<"message", string>;
-      }>]>(
-        "SELECT evidence, from_text, model, evidence_source, resolved_from FROM extraction_relation WHERE `in` = $source;",
-        { source: new RecordId("message", message.userMessageId) },
-      )
-      .collect<[Array<{
-        evidence?: string;
-        from_text?: string;
-        model?: string;
-        evidence_source?: RecordId<"message", string>;
-        resolved_from?: RecordId<"message", string>;
-      }>]>();
-
-    const personCount = await loadWorkspacePeopleCount(db, workspaceRecord);
-    const [workspaceToolRows] = await db
-      .query<[Array<{ tools?: string[] }>]>("SELECT tools FROM $workspace LIMIT 1;", {
-        workspace: workspaceRecord,
-      })
-      .collect<[Array<{ tools?: string[] }>]>(); 
-    const extractedTools = workspaceToolRows[0]?.tools ?? [];
-
-    output = {
-      caseId: testCase.id,
-      input: testCase.input,
-      userMessageId: message.userMessageId,
-      contextMessageIds,
-      extractedEntities: extractionEvent?.entities ?? [],
-      extractedTools,
-      personCount,
-      ownerPersonCount,
-      evidenceRows: evidenceRows.map((row) => ({
-        evidence: row.evidence,
-        fromText: row.from_text,
-        model: row.model,
-        evidenceSourceId: row.evidence_source?.id as string | undefined,
-        resolvedFromId: row.resolved_from?.id as string | undefined,
-      })),
-    };
-
-    resultCache[cacheKey] = output;
-    saveCache(cachePath, resultCache);
-    return output;
-  } finally {
-    await waitForWorkspaceEmbeddingWriteback(workspace.workspaceId).catch(() => undefined);
-    await cleanupWorkspace(workspace.workspaceId).catch(() => undefined);
-  }
-}
-
-async function getSurreal(): Promise<Surreal> {
-  if (surreal) {
-    return surreal;
-  }
-
-  surreal = new Surreal();
-  await surreal.connect(surrealUrl);
-  await surreal.signin({ username: surrealUsername, password: surrealPassword });
-  await surreal.use({ namespace: evalNamespace, database: evalDatabase });
-  return surreal;
-}
-
-async function loadWorkspacePeopleCount(
-  db: Surreal,
-  workspace: RecordId<"workspace", string>,
-): Promise<number> {
-  const [people] = await db
-    .query<[Array<{ id: RecordId<"person", string> }>]>(
-      "SELECT id FROM person WHERE id IN (SELECT VALUE `in` FROM member_of WHERE out = $workspace);",
-      { workspace },
+  const [evidenceRows] = await runtime.surreal
+    .query<[Array<{
+      evidence?: string;
+      from_text?: string;
+      model?: string;
+      evidence_source?: RecordId<"message", string>;
+      resolved_from?: RecordId<"message", string>;
+    }>]>(
+      "SELECT evidence, from_text, model, evidence_source, resolved_from FROM extraction_relation WHERE `in` = $source;",
+      { source: userMessageRecord },
     )
-    .collect<[Array<{ id: RecordId<"person", string> }>]>() ;
+    .collect<[Array<{
+      evidence?: string;
+      from_text?: string;
+      model?: string;
+      evidence_source?: RecordId<"message", string>;
+      resolved_from?: RecordId<"message", string>;
+    }>]>();
 
-  return people.length;
-}
+  const personCount = await loadWorkspacePeopleCount(runtime.surreal, workspaceRecord);
+  const [workspaceToolRows] = await runtime.surreal
+    .query<[Array<{ tools?: string[] }>]>("SELECT tools FROM $workspace LIMIT 1;", {
+      workspace: workspaceRecord,
+    })
+    .collect<[Array<{ tools?: string[] }>]>();
+  const extractedTools = workspaceToolRows[0]?.tools ?? [];
 
-type StreamEvent =
-  | { type: "extraction"; entities: Array<{ kind: string; text: string; confidence: number }> }
-  | { type: "done" }
-  | { type: "error"; error: string }
-  | { type: string };
-
-async function collectSseEvents(streamUrl: string, timeoutMs: number): Promise<StreamEvent[]> {
-  const response = await fetch(streamUrl, { headers: { Accept: "text/event-stream" } });
-  if (!response.ok || !response.body) {
-    throw new Error(`Failed to open SSE stream (${response.status})`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  const events: StreamEvent[] = [];
-  let buffer = "";
-
-  const timeout = setTimeout(() => {
-    void reader.cancel();
-  }, timeoutMs);
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const segments = buffer.split("\n\n");
-      buffer = segments.pop() ?? "";
-
-      for (const segment of segments) {
-        const line = segment.split("\n").find((currentLine) => currentLine.startsWith("data: "));
-        if (!line) {
-          continue;
-        }
-
-        const event = JSON.parse(line.slice(6)) as StreamEvent;
-        events.push(event);
-
-        if (event.type === "error" && "error" in event) {
-          throw new Error(`SSE error: ${event.error}`);
-        }
-
-        if (event.type === "done") {
-          return events;
-        }
-      }
-    }
-  } finally {
-    clearTimeout(timeout);
-    reader.releaseLock();
-  }
-
-  return events;
-}
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Request failed (${response.status}) ${url}: ${body}`);
-  }
-
-  return (await response.json()) as T;
-}
-
-async function cleanupWorkspace(targetWorkspaceId: string): Promise<void> {
-  const db = await getSurreal();
-  const workspace = new RecordId("workspace", targetWorkspaceId);
-
-  await db.query(
-    [
-      "DELETE extraction_relation WHERE `in` IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
-      "DELETE entity_relation WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
-      "DELETE has_project WHERE `in` = $workspace;",
-      "DELETE task WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
-      "DELETE decision WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
-      "DELETE question WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
-      "DELETE message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace);",
-      "DELETE conversation WHERE workspace = $workspace;",
-      "DELETE member_of WHERE out = $workspace;",
-      "DELETE $workspace;",
-    ].join(" "),
-    { workspace },
-  );
-}
-
-async function waitForWorkspaceEmbeddingWriteback(targetWorkspaceId: string): Promise<void> {
-  const db = await getSurreal();
-  const workspace = new RecordId("workspace", targetWorkspaceId);
-  const startedAt = Date.now();
-  const timeoutMs = 2_500;
-
-  while (Date.now() - startedAt < timeoutMs) {
-    const [assistantRows] = await db
-      .query<[Array<{ id: RecordId<"message", string> }>]>(
-        "SELECT id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace) AND role = 'assistant' AND embedding = NONE LIMIT 1;",
-        { workspace },
-      )
-      .collect<[Array<{ id: RecordId<"message", string> }>]>();
-
-    const [taskRows] = await db
-      .query<[Array<{ id: RecordId<"task", string> }>]>(
-        "SELECT id FROM task WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)) AND embedding = NONE LIMIT 1;",
-        { workspace },
-      )
-      .collect<[Array<{ id: RecordId<"task", string> }>]>();
-
-    const [decisionRows] = await db
-      .query<[Array<{ id: RecordId<"decision", string> }>]>(
-        "SELECT id FROM decision WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)) AND embedding = NONE LIMIT 1;",
-        { workspace },
-      )
-      .collect<[Array<{ id: RecordId<"decision", string> }>]>();
-
-    const [questionRows] = await db
-      .query<[Array<{ id: RecordId<"question", string> }>]>(
-        "SELECT id FROM question WHERE source_message IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)) AND embedding = NONE LIMIT 1;",
-        { workspace },
-      )
-      .collect<[Array<{ id: RecordId<"question", string> }>]>();
-
-    if (
-      assistantRows.length === 0 &&
-      taskRows.length === 0 &&
-      decisionRows.length === 0 &&
-      questionRows.length === 0
-    ) {
-      return;
-    }
-
-    await sleep(50);
-  }
-}
-
-async function ensureEvalEnvironment(): Promise<void> {
-  if (!environmentReadyPromise) {
-    environmentReadyPromise = setupEvalEnvironment().catch((error) => {
-      environmentReadyPromise = undefined;
-      throw error;
-    });
-  }
-
-  return environmentReadyPromise;
-}
-
-async function setupEvalEnvironment(): Promise<void> {
-  const db = await getSurreal();
-  await db.query(`DEFINE NAMESPACE ${evalNamespace};`).catch((error) => {
-    if (!isAlreadyExistsError(error)) {
-      throw error;
-    }
-  });
-  await db.use({ namespace: evalNamespace, database: evalDatabase });
-  await db.query(`REMOVE DATABASE ${evalDatabase};`).catch(() => undefined);
-  await db.query(`DEFINE DATABASE ${evalDatabase};`).catch((error) => {
-    if (!isAlreadyExistsError(error)) {
-      throw error;
-    }
-  });
-  await db.use({ namespace: evalNamespace, database: evalDatabase });
-
-  const schemaSql = readFileSync(schemaPath, "utf8");
-  await db.query(schemaSql).catch((error) => {
-    if (!isAlreadyExistsError(error)) {
-      throw error;
-    }
-  });
-
-  if (!evalServerProcess) {
-    evalServerProcess = spawn("bun", ["run", "app/server.ts"], {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        PORT: String(evalPort),
-        SURREAL_NAMESPACE: evalNamespace,
-        SURREAL_DATABASE: evalDatabase,
-      },
-      stdio: ["ignore", "inherit", "inherit"],
-    });
-  }
-
-  await waitForHealth(`${baseUrl}/healthz`, evalServerProcess, 20_000);
-  registerTeardown();
-}
-
-function registerTeardown(): void {
-  if (teardownRegistered) {
-    return;
-  }
-  teardownRegistered = true;
-
-  const runTeardown = () => {
-    void teardownEvalEnvironment();
+  const output: ExtractionEvalOutput = {
+    caseId: testCase.id,
+    input: testCase.input,
+    userMessageId: userMessageRecord.id as string,
+    contextMessageIds,
+    extractedEntities: persistence.entities.map((e) => ({
+      kind: e.kind,
+      text: e.text,
+      confidence: e.confidence,
+    })),
+    extractedTools,
+    personCount,
+    ownerPersonCount,
+    evidenceRows: evidenceRows.map((row) => ({
+      evidence: row.evidence,
+      fromText: row.from_text,
+      model: row.model,
+      evidenceSourceId: row.evidence_source?.id as string | undefined,
+      resolvedFromId: row.resolved_from?.id as string | undefined,
+    })),
   };
 
-  process.once("exit", runTeardown);
-  process.once("SIGINT", runTeardown);
-  process.once("SIGTERM", runTeardown);
-}
-
-async function teardownEvalEnvironment(): Promise<void> {
-  if (evalServerProcess) {
-    evalServerProcess.kill();
-    await waitForExit(evalServerProcess).catch(() => undefined);
-    evalServerProcess = undefined;
-  }
-
-  const db = surreal;
-  if (!db) {
-    return;
-  }
-
-  await db.query(`REMOVE DATABASE ${evalDatabase};`).catch(() => undefined);
-  await db.query(`REMOVE NAMESPACE ${evalNamespace};`).catch(() => undefined);
-  await db.close().catch(() => undefined);
-  surreal = undefined;
-}
-
-async function waitForHealth(url: string, processHandle: ChildProcess, timeoutMs: number): Promise<void> {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
-    if (processHandle.exitCode !== null) {
-      throw new Error(`Eval server exited early with code ${processHandle.exitCode}`);
-    }
-
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Keep polling.
-    }
-
-    await sleep(200);
-  }
-
-  throw new Error(`Timed out waiting for eval server health at ${url}`);
-}
-
-async function waitForExit(processHandle: ChildProcess): Promise<void> {
-  if (processHandle.exitCode !== null) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    processHandle.once("exit", () => resolve());
-    processHandle.once("error", reject);
-  });
-}
-
-function isAlreadyExistsError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return error.message.includes("already exists");
+  resultCache[cacheKey] = output;
+  saveCache(cachePath, resultCache);
+  return output;
 }
 
 function loadCache(path: string): Record<string, ExtractionEvalOutput> {
@@ -652,25 +371,4 @@ function buildCaseCacheKey(modelId: string, testCase: GoldenCase): string {
   const cacheVersion = "classification-v3";
   const caseHash = createHash("sha256").update(JSON.stringify(testCase)).digest("hex").slice(0, 24);
   return `${cacheVersion}:${modelId}:${testCase.id}:${caseHash}`;
-}
-
-async function seedConversationContext(
-  db: Surreal,
-  conversationRecord: RecordId<"conversation", string>,
-  context: Array<{ role: "user" | "assistant"; text: string }>,
-): Promise<string[]> {
-  const now = Date.now();
-  const messageIds: string[] = [];
-  for (const [index, message] of context.entries()) {
-    const seededMessageRecord = new RecordId("message", randomUUID());
-    await db.create(seededMessageRecord).content({
-      conversation: conversationRecord,
-      role: message.role,
-      text: message.text,
-      createdAt: new Date(now + index),
-    });
-    messageIds.push(seededMessageRecord.id as string);
-  }
-
-  return messageIds;
 }

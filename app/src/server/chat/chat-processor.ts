@@ -198,7 +198,7 @@ export async function processChatMessage(input: {
           messageId: input.messageId,
           token: `${token} `,
         });
-        await Bun.sleep(25);
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
     }
 
