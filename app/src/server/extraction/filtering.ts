@@ -83,7 +83,8 @@ export function dedupeExtractedEntities(
 
     const normalizedEntity = normalizeEntityKind(entity, hasDecisionCommitmentLanguage);
     const existing = byTempId.get(tempId);
-    const resolvedFromMessageId = normalizedEntity.resolvedFromMessageId?.trim();
+    const resolvedFromMessageId = ("resolvedFromMessageId" in normalizedEntity ? normalizedEntity.resolvedFromMessageId : undefined)
+      ?.trim();
     if (!existing || normalizedEntity.confidence > existing.confidence) {
       byTempId.set(tempId, {
         ...normalizedEntity,

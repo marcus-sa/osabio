@@ -1,13 +1,18 @@
 import { z } from "zod";
 
-export const extractionEntitySchema = z.object({
+const extractionEntityBaseSchema = z.object({
   tempId: z.string().min(1),
   kind: z.enum(["project", "person", "feature", "task", "decision", "question"]),
   text: z.string().min(1),
   confidence: z.number().min(0).max(1),
   evidence: z.string().min(1),
-  resolvedFromMessageId: z.string().min(1).optional(),
-});
+}).strict();
+
+const extractionEntityWithResolvedFromSchema = extractionEntityBaseSchema.extend({
+  resolvedFromMessageId: z.string().min(1),
+}).strict();
+
+export const extractionEntitySchema = z.union([extractionEntityBaseSchema, extractionEntityWithResolvedFromSchema]);
 
 export const extractionRelationshipSchema = z.object({
   kind: z.string().min(1),
@@ -16,13 +21,13 @@ export const extractionRelationshipSchema = z.object({
   confidence: z.number().min(0).max(1),
   fromText: z.string().min(1),
   toText: z.string().min(1),
-});
+}).strict();
 
 export const extractionResultSchema = z.object({
   entities: z.array(extractionEntitySchema),
   relationships: z.array(extractionRelationshipSchema),
   tools: z.array(z.string().min(1)),
-});
+}).strict();
 
 export type ExtractionPromptEntity = z.infer<typeof extractionEntitySchema>;
 export type ExtractionPromptRelationship = z.infer<typeof extractionRelationshipSchema>;

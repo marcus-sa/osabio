@@ -460,7 +460,7 @@ async function setupEvalEnvironment(): Promise<void> {
         SURREAL_NAMESPACE: evalNamespace,
         SURREAL_DATABASE: evalDatabase,
       },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["ignore", "inherit", "inherit"],
     });
   }
 

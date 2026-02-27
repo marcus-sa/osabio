@@ -1506,7 +1506,7 @@ async function persistExtractionOutput(input: {
 
     for (const extracted of entities) {
       const resolvedFromMessageId = resolveValidatedResolvedFromMessageId({
-        resolvedFromMessageId: extracted.resolvedFromMessageId,
+        resolvedFromMessageId: "resolvedFromMessageId" in extracted ? extracted.resolvedFromMessageId : undefined,
         sourceKind: input.sourceKind,
         sourceMessageId: input.sourceMessageRecord?.id as string | undefined,
         extractionHistoryMessageIds,
