@@ -6,3 +6,4 @@ eval-results/
 .env.*
 !.env.example
 **/CLAUDE.md
+.nwave/des/logs

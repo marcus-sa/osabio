@@ -383,5 +383,20 @@
       }
     ],
     "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "decision-with-feature-link",
+    "input": "I decided to use event sourcing for audit logs.",
+    "intent": "multi_allowed",
+    "workspace_seed": [
+      { "kind": "feature", "text": "audit logs" }
+    ],
+    "expectedEntities": [
+      { "kind": "decision", "text_contains": "event sourcing" }
+    ],
+    "expectedRelations": [
+      { "from_kind": "decision", "to_kind": "feature", "to_text_contains": "audit logs" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
   }
 ]

@@ -6,6 +6,7 @@ import { RecordId, Surreal } from "surrealdb";
 import type { StreamEvent } from "../app/src/shared/contracts";
 import type { SseRegistry } from "../app/src/server/streaming/sse-registry";
 import type { ServerConfig } from "../app/src/server/runtime/config";
+import type { WorkspaceSeedItem } from "./types";
 
 export type EvalRuntime = {
   surreal: Surreal;
@@ -93,11 +94,13 @@ export async function teardownEvalRuntime(runtime: EvalRuntime): Promise<void> {
 
 export async function seedWorkspace(surreal: Surreal): Promise<{
   workspaceRecord: RecordId<"workspace", string>;
+  projectRecord: RecordId<"project", string>;
   conversationRecord: RecordId<"conversation", string>;
   ownerPersonCount: number;
 }> {
   const now = new Date();
   const workspaceRecord = new RecordId("workspace", randomUUID());
+  const projectRecord = new RecordId("project", randomUUID());
   const conversationRecord = new RecordId("conversation", randomUUID());
   const ownerRecord = new RecordId("person", randomUUID());
 
@@ -111,6 +114,17 @@ export async function seedWorkspace(surreal: Surreal): Promise<{
     created_at: now,
     updated_at: now,
   });
+
+  await surreal.create(projectRecord).content({
+    name: "Eval Project",
+    status: "active",
+    created_at: now,
+    updated_at: now,
+  });
+
+  await surreal.relate(workspaceRecord, new RecordId("has_project", randomUUID()), projectRecord, {
+    added_at: now,
+  }).output("after");
 
   await surreal.create(ownerRecord).content({
     name: "Marcus",
@@ -130,7 +144,7 @@ export async function seedWorkspace(surreal: Surreal): Promise<{
     source: "onboarding",
   });
 
-  return { workspaceRecord, conversationRecord, ownerPersonCount: 1 };
+  return { workspaceRecord, projectRecord, conversationRecord, ownerPersonCount: 1 };
 }
 
 export async function seedConversationContext(
@@ -181,6 +195,65 @@ export async function loadWorkspacePeopleCount(
   return people.length;
 }
 
+
+export async function seedGraphEntities(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  projectRecord: RecordId<"project", string>,
+  conversationRecord: RecordId<"conversation", string>,
+  seeds: WorkspaceSeedItem[],
+): Promise<void> {
+  const now = new Date();
+  const seedMessageRecord = new RecordId("message", randomUUID());
+  await surreal.create(seedMessageRecord).content({
+    conversation: conversationRecord,
+    role: "assistant",
+    text: "Workspace seed context.",
+    createdAt: new Date(now.getTime() - 60_000),
+  });
+
+  for (const seed of seeds) {
+    const entityRecord = new RecordId(seed.kind, randomUUID());
+    await surreal.create(entityRecord).content(buildSeedEntityContent(seed.kind, seed.text, now));
+
+    await surreal.relate(seedMessageRecord, new RecordId("extraction_relation", randomUUID()), entityRecord, {
+      confidence: 0.95,
+      extracted_at: now,
+      created_at: now,
+      model: "seed",
+      from_text: seed.text,
+      evidence: seed.text,
+      evidence_source: seedMessageRecord,
+    }).output("after");
+
+    if (seed.kind === "feature") {
+      await surreal.relate(projectRecord, new RecordId("has_feature", randomUUID()), entityRecord as RecordId<"feature", string>, {
+        added_at: now,
+      }).output("after");
+    }
+
+    if (seed.kind === "task" || seed.kind === "decision" || seed.kind === "question") {
+      await surreal.relate(entityRecord, new RecordId("belongs_to", randomUUID()), projectRecord, {
+        added_at: now,
+      }).output("after");
+    }
+
+    if (seed.kind === "project") {
+      await surreal.relate(workspaceRecord, new RecordId("has_project", randomUUID()), entityRecord as RecordId<"project", string>, {
+        added_at: now,
+      }).output("after");
+    }
+  }
+}
+
+function buildSeedEntityContent(kind: string, text: string, now: Date): Record<string, unknown> {
+  const base = { created_at: now, updated_at: now };
+  if (kind === "project") return { ...base, name: text, status: "active" };
+  if (kind === "feature") return { ...base, name: text, status: "active" };
+  if (kind === "task") return { ...base, title: text, status: "open" };
+  if (kind === "decision") return { ...base, summary: text, status: "extracted" };
+  return { ...base, text, status: "open" };
+}
 
 export function createEventCollector(): SseRegistry & { getEvents(messageId: string): StreamEvent[] } {
   const events = new Map<string, StreamEvent[]>();

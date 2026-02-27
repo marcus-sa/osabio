@@ -15,6 +15,7 @@ import { evidenceSourceCurrentMessageScorer } from "./scorers/evidence-source-cu
 import { resolvedFromLineageScorer } from "./scorers/resolved-from-lineage";
 import { toolFilteringScorer } from "./scorers/tool-filtering";
 import { forbiddenKindsScorer } from "./scorers/forbidden-kinds";
+import { relationRecallScorer } from "./scorers/relation-recall";
 import type { ExtractionEvalOutput, GoldenCase, GoldenCaseIntent } from "./types";
 import { normalizeForSubstring } from "./scorers/shared";
 import { extractStructuredGraph } from "../app/src/server/extraction/extract-graph";
@@ -28,6 +29,7 @@ import {
   seedWorkspace,
   seedConversationContext,
   seedUserMessage,
+  seedGraphEntities,
   loadWorkspacePeopleCount,
 } from "./eval-test-kit";
 
@@ -55,7 +57,8 @@ const intentScoreWeights: Record<
     | "resolved-from-lineage"
     | "tool-filtering"
     | "forbidden-kinds"
-    | "factuality",
+    | "factuality"
+    | "relation-recall",
     number
   >
 > = {
@@ -71,10 +74,11 @@ const intentScoreWeights: Record<
     "tool-filtering": 0.08,
     "forbidden-kinds": 0.1,
     factuality: 0.02,
+    "relation-recall": 0,
   },
   multi_allowed: {
-    "entity-precision": 0.25,
-    "entity-recall": 0.25,
+    "entity-precision": 0.23,
+    "entity-recall": 0.23,
     "no-extra-entities": 0.05,
     "no-phantom-persons": 0.12,
     "evidence-grounded": 0.09,
@@ -84,6 +88,7 @@ const intentScoreWeights: Record<
     "tool-filtering": 0.04,
     "forbidden-kinds": 0.06,
     factuality: 0.03,
+    "relation-recall": 0.04,
   },
 };
 
@@ -135,6 +140,7 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     resolvedFromLineageScorer,
     toolFilteringScorer,
     forbiddenKindsScorer,
+    relationRecallScorer,
     factualityScorer,
   ],
   columns: ({ input, output, scores }) => [
@@ -149,6 +155,7 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     { label: "Lineage", value: formatScoreCell(scoreByName(scores, "resolved-from-lineage")) },
     { label: "Tools", value: formatScoreCell(scoreByName(scores, "tool-filtering")) },
     { label: "Kinds", value: formatScoreCell(scoreByName(scores, "forbidden-kinds")) },
+    { label: "RelRecall", value: formatScoreCell(scoreByName(scores, "relation-recall")) },
     { label: "Factual", value: formatScoreCell(scoreByName(scores, "factuality")) },
     { label: "Intent", value: input.intent },
     { label: "Case", value: input.id },
@@ -223,15 +230,20 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     return {
       ...cached,
       extractedTools: cached.extractedTools ?? [],
+      extractedRelations: cached.extractedRelations ?? [],
     };
   }
 
-  const { workspaceRecord, conversationRecord, ownerPersonCount } = await seedWorkspace(runtime.surreal);
+  const { workspaceRecord, projectRecord, conversationRecord, ownerPersonCount } = await seedWorkspace(runtime.surreal);
   const conversationId = conversationRecord.id as string;
   const seededContext = testCase.context ?? [];
   const contextMessageIds = seededContext.length > 0
     ? await seedConversationContext(runtime.surreal, conversationRecord, seededContext)
     : [];
+
+  if (testCase.workspace_seed && testCase.workspace_seed.length > 0) {
+    await seedGraphEntities(runtime.surreal, workspaceRecord, projectRecord, conversationRecord, testCase.workspace_seed);
+  }
 
   const userMessageRecord = await seedUserMessage(runtime.surreal, conversationRecord, testCase.input);
 
@@ -300,6 +312,27 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     .collect<[Array<{ tools?: string[] }>]>();
   const extractedTools = workspaceToolRows[0]?.tools ?? [];
 
+  const [relationRows] = await runtime.surreal
+    .query<[Array<{
+      kind: string;
+      in: { tb: string };
+      out: { tb: string };
+      from_text: string;
+      to_text: string;
+      confidence: number;
+    }>]>(
+      "SELECT kind, `in`, out, from_text, to_text, confidence FROM entity_relation WHERE source_message = $source AND kind != 'POSSIBLE_DUPLICATE';",
+      { source: userMessageRecord },
+    )
+    .collect<[Array<{
+      kind: string;
+      in: { tb: string };
+      out: { tb: string };
+      from_text: string;
+      to_text: string;
+      confidence: number;
+    }>]>();
+
   const output: ExtractionEvalOutput = {
     caseId: testCase.id,
     input: testCase.input,
@@ -319,6 +352,14 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       model: row.model,
       evidenceSourceId: row.evidence_source?.id as string | undefined,
       resolvedFromId: row.resolved_from?.id as string | undefined,
+    })),
+    extractedRelations: relationRows.map((row) => ({
+      kind: row.kind,
+      fromKind: row.in.tb,
+      fromText: row.from_text,
+      toKind: row.out.tb,
+      toText: row.to_text,
+      confidence: row.confidence,
     })),
   };
 

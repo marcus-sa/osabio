@@ -14,6 +14,17 @@ export type ExpectedEntity =
 
 export type GoldenCaseIntent = "strict_single" | "multi_allowed";
 
+export type ExpectedRelation = {
+  from_kind: ExpectedEntityKind;
+  to_kind: ExpectedEntityKind;
+  to_text_contains: string;
+};
+
+export type WorkspaceSeedItem = {
+  kind: ExpectedEntityKind;
+  text: string;
+};
+
 export type GoldenCase = {
   id: string;
   input: string;
@@ -25,6 +36,8 @@ export type GoldenCase = {
   expectedTools?: string[];
   forbiddenTools?: string[];
   forbiddenExtractedKinds?: ExpectedEntityKind[];
+  workspace_seed?: WorkspaceSeedItem[];
+  expectedRelations?: ExpectedRelation[];
 };
 
 export type ExtractionEvalOutput = {
@@ -42,6 +55,14 @@ export type ExtractionEvalOutput = {
     model?: string;
     evidenceSourceId?: string;
     resolvedFromId?: string;
+  }>;
+  extractedRelations: Array<{
+    kind: string;
+    fromKind: string;
+    fromText: string;
+    toKind: string;
+    toText: string;
+    confidence: number;
   }>;
 };
 
