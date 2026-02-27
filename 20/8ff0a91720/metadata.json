@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "208ff0a91720",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/governance-feed-ui",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/graph/RelationshipList.tsx",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/graph/transform.ts",
+    "tests/unit/graph-transform.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/20/8ff0a91720/0/metadata.json",
+      "transcript": "/20/8ff0a91720/0/full.jsonl",
+      "context": "/20/8ff0a91720/0/context.md",
+      "content_hash": "/20/8ff0a91720/0/content_hash.txt",
+      "prompt": "/20/8ff0a91720/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 576,
+    "cache_creation_tokens": 1214386,
+    "cache_read_tokens": 20854033,
+    "output_tokens": 60048,
+    "api_call_count": 202
+  }
+}
