@@ -289,7 +289,6 @@ Chat agent (Sonnet)  ─→ graph query + decision tools ←─  Coding agents (
                                     ↓
                            Feed (review surface)
 ```
-```
 
 The `resolve_decision` and `create_provisional_decision` MCP tools (section 3.4) are also available to the chat agent, enabling it to answer questions like "should I use REST or tRPC?" by reasoning over the graph — the same way a coding agent would via MCP.
 
