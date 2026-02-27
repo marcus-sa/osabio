@@ -82,9 +82,9 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
   const ownerRecord = new RecordId("person", ownerId);
   const starterMessageRecord = new RecordId("message", randomUUID());
   const starterSuggestions = [
-    "I'll describe my project",
-    "I have a document to upload",
-    "I'm running multiple projects",
+    "Describe your primary project and goal",
+    "Share the biggest current bottleneck",
+    "Upload a plan or spec to extract",
   ];
 
   const starterMessage = [

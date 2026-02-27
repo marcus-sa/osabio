@@ -151,9 +151,7 @@ export function ChatPage() {
       if (last && !last.response) {
         last.response = message.text;
         last.updatedAt = new Date(message.createdAt);
-        if (message.suggestions && message.suggestions.length > 0) {
-          latestSuggestions = message.suggestions;
-        }
+        latestSuggestions = message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
         continue;
       }
 
@@ -163,9 +161,7 @@ export function ChatPage() {
         response: message.text,
         createdAt: new Date(message.createdAt),
       });
-      if (message.suggestions && message.suggestions.length > 0) {
-        latestSuggestions = message.suggestions;
-      }
+      latestSuggestions = message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
     }
 
     setSessions([
