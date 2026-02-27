@@ -116,12 +116,26 @@
   },
   {
     "id": "assistant-context-not-source",
-    "input": "Let's move forward with schema validation first.",
+    "context": [
+      {
+        "role": "user",
+        "text": "What database should we use?"
+      },
+      {
+        "role": "assistant",
+        "text": "I'd recommend SurrealDB for its graph capabilities and multi-model query support."
+      }
+    ],
+    "input": "Yes, let's go with that.",
+    "forbiddenContextOnlyPhrases": [
+      "graph capabilities",
+      "multi-model query support"
+    ],
     "intent": "strict_single",
     "expectedEntities": [
       {
         "kind": "decision",
-        "text": "schema validation first"
+        "text": "SurrealDB"
       }
     ]
   },

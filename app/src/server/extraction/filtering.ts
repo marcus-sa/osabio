@@ -51,6 +51,7 @@ export function dedupeExtractedEntities(
   storeThreshold: number,
 ): ExtractionPromptEntity[] {
   const byTempId = new Map<string, ExtractionPromptEntity>();
+  const hasDecisionCommitmentLanguage = hasCommitmentIndicator(sourceText);
 
   for (const entity of entities) {
     const tempId = entity.tempId.trim();
@@ -80,10 +81,11 @@ export function dedupeExtractedEntities(
       continue;
     }
 
+    const normalizedEntity = normalizeEntityKind(entity, hasDecisionCommitmentLanguage);
     const existing = byTempId.get(tempId);
-    if (!existing || entity.confidence > existing.confidence) {
+    if (!existing || normalizedEntity.confidence > existing.confidence) {
       byTempId.set(tempId, {
-        ...entity,
+        ...normalizedEntity,
         tempId,
         text,
         evidence,
@@ -91,5 +93,75 @@ export function dedupeExtractedEntities(
     }
   }
 
-  return [...byTempId.values()];
+  return pruneQuestionAlternatives([...byTempId.values()], sourceText);
+}
+
+const commitmentIndicators = [
+  /let'?s\s+go\s+with/i,
+  /let'?s\s+move\s+forward\s+with/i,
+  /\bwe\s+decided\b/i,
+  /\bi(?:'m| am)?\s+choosing\b/i,
+  /\bgoing\s+with\b/i,
+  /\bsettled\s+on\b/i,
+  /\bcommitted\s+to\b/i,
+];
+
+function hasCommitmentIndicator(sourceText: string): boolean {
+  return commitmentIndicators.some((pattern) => pattern.test(sourceText));
+}
+
+function normalizeEntityKind(
+  entity: ExtractionPromptEntity,
+  hasDecisionCommitmentLanguage: boolean,
+): ExtractionPromptEntity {
+  if (!hasDecisionCommitmentLanguage || entity.kind !== "feature") {
+    return entity;
+  }
+
+  return {
+    ...entity,
+    kind: "decision",
+  };
+}
+
+function pruneQuestionAlternatives(
+  entities: ExtractionPromptEntity[],
+  sourceText: string,
+): ExtractionPromptEntity[] {
+  const questionMarkCount = [...sourceText].filter((char) => char === "?").length;
+  if (questionMarkCount !== 1) {
+    return entities;
+  }
+
+  const questionEntities = entities.filter((entity) => entity.kind === "question");
+  if (questionEntities.length !== 1) {
+    return entities;
+  }
+
+  const [questionEntity] = questionEntities;
+  const normalizedQuestionText = normalizeName(questionEntity.text);
+  if (normalizedQuestionText.length === 0) {
+    return entities;
+  }
+
+  return entities.filter((entity) => {
+    if (entity.kind === "question") {
+      return true;
+    }
+
+    const normalizedEntityText = normalizeName(entity.text);
+    if (normalizedEntityText.length === 0) {
+      return false;
+    }
+
+    if (normalizedEntityText.split(" ").length > 4) {
+      return true;
+    }
+
+    if (!normalizedQuestionText.includes(normalizedEntityText)) {
+      return true;
+    }
+
+    return entity.confidence > questionEntity.confidence;
+  });
 }

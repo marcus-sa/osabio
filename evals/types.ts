@@ -9,6 +9,8 @@ export type GoldenCase = {
   id: string;
   input: string;
   intent: GoldenCaseIntent;
+  context?: Array<{ role: "user" | "assistant"; text: string }>;
+  forbiddenContextOnlyPhrases?: string[];
   expectedEntities: ExpectedEntity[];
 };
 
