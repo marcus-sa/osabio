@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import { HttpError } from "../http/errors";
 import { elapsedMs, logError, logInfo } from "../http/observability";
 import { createEmbedding } from "./embedding-writeback";
 import { extractStructuredGraph } from "./extract-graph";
+import { splitDocumentIntoChunks } from "./markdown-chunker";
 import { persistExtractionOutput } from "./persist-extraction";
 import type { IncomingAttachment, PersistExtractionResult, SourceRecord } from "./types";
 
@@ -123,82 +123,4 @@ export async function ingestAttachment(input: {
     });
     throw error;
   }
-}
-
-function splitDocumentIntoChunks(content: string): Array<{ heading?: string; content: string; position: number }> {
-  const normalized = content.replace(/\r\n/g, "\n").trim();
-  if (normalized.length === 0) {
-    throw new HttpError(400, "uploaded file content is empty");
-  }
-
-  const lines = normalized.split("\n");
-  const sections: Array<{ heading?: string; text: string }> = [];
-
-  let currentHeading: string | undefined;
-  let currentLines: string[] = [];
-
-  for (const line of lines) {
-    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line.trim());
-    if (headingMatch) {
-      if (currentLines.length > 0) {
-        sections.push({
-          heading: currentHeading,
-          text: currentLines.join("\n").trim(),
-        });
-      }
-
-      currentHeading = headingMatch[2].trim();
-      currentLines = [];
-      continue;
-    }
-
-    currentLines.push(line);
-  }
-
-  if (currentLines.length > 0) {
-    sections.push({
-      heading: currentHeading,
-      text: currentLines.join("\n").trim(),
-    });
-  }
-
-  const maxChunkChars = 2400;
-  const chunks: Array<{ heading?: string; content: string; position: number }> = [];
-  let position = 0;
-
-  for (const section of sections) {
-    if (section.text.length === 0) {
-      continue;
-    }
-
-    if (section.text.length <= maxChunkChars) {
-      chunks.push({
-        heading: section.heading,
-        content: section.text,
-        position,
-      });
-      position += 1;
-      continue;
-    }
-
-    let cursor = 0;
-    while (cursor < section.text.length) {
-      const slice = section.text.slice(cursor, cursor + maxChunkChars).trim();
-      if (slice.length > 0) {
-        chunks.push({
-          heading: section.heading,
-          content: slice,
-          position,
-        });
-        position += 1;
-      }
-      cursor += maxChunkChars;
-    }
-  }
-
-  if (chunks.length === 0) {
-    throw new HttpError(400, "uploaded file produced no extractable chunks");
-  }
-
-  return chunks;
 }
