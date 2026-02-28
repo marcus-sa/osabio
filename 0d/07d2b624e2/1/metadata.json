@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0d07d2b624e2",
+  "session_id": "afd88dd1-4f7f-405d-8aa9-ca7e355b00ac",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-28T06:26:18.370213Z",
+  "branch": "marcus-sa/entity-categories",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "app/src/server/extraction/prompt.ts",
+    "app/src/server/extraction/provenance.ts",
+    "evals/eval-test-kit.ts",
+    "evals/extraction.eval.ts",
+    "tests/unit/provenance-validation.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b11e97650643",
+  "checkpoint_transcript_start": 684,
+  "transcript_lines_at_start": 684,
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 93629,
+    "cache_read_tokens": 2673786,
+    "output_tokens": 14131,
+    "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-28T06:26:17.346217Z",
+    "agent_lines": 79,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 80,
+    "agent_percentage": 98.75
+  }
+}
