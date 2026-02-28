@@ -408,7 +408,7 @@ function hasEnv(name: string): boolean {
 }
 
 function buildCaseCacheKey(modelId: string, testCase: GoldenCase): string {
-  const cacheVersion = "classification-v6";
+  const cacheVersion = "classification-v7";
   const caseHash = createHash("sha256").update(JSON.stringify(testCase)).digest("hex").slice(0, 24);
   return `${cacheVersion}:${modelId}:${testCase.id}:${caseHash}`;
 }

@@ -32,6 +32,7 @@ export async function extractStructuredGraph(input: {
     const extractionOutput = await generateObject({
       model: input.extractionModel,
       schema: extractionResultSchema,
+      temperature: 0,
       system: buildExtractionSystemPrompt({ onboarding: input.onboarding }),
       prompt: [
         "Conversation history (reference resolution only):",
