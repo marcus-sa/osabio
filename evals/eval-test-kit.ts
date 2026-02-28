@@ -124,9 +124,9 @@ export async function seedWorkspace(surreal: Surreal, workspaceName?: string): P
     updated_at: now,
   });
 
-  await surreal.relate(workspaceRecord, new RecordId("has_project", randomUUID()), projectRecord, {
-    added_at: now,
-  }).output("after");
+  // NOTE: Do NOT link default eval project to workspace via has_project.
+  // Only workspace_seed projects should appear in workspace scope so the
+  // extraction LLM sees the correct project list for project-vs-feature classification.
 
   await surreal.create(ownerRecord).content({
     name: "Marcus",

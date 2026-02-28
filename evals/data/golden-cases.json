@@ -421,7 +421,8 @@
       { "kind": "project", "text": "User Management" }
     ],
     "expectedEntities": [
-      { "kind": "feature", "text_contains": "authentication" }
+      { "kind": "feature", "text_contains": "OAuth" },
+      { "kind": "feature", "text_contains": "SSO" }
     ],
     "forbiddenExtractedKinds": ["person"]
   },
