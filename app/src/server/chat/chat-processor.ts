@@ -14,6 +14,7 @@ import type { ServerDependencies } from "../runtime/types";
 import { runGraphAwareChat } from "./handler";
 import { getWorkspaceOwnerRecord } from "../graph/queries";
 import { refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../workspace/conversation-sidebar";
+import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 
 export async function processChatMessage(input: {
   deps: ServerDependencies;
@@ -53,6 +54,8 @@ export async function processChatMessage(input: {
       currentMessageRecord: input.userMessageRecord,
     });
     const extractionGraphContext = await loadConversationGraphContext(input.deps.surreal, input.conversationId, 60);
+    const workspaceProjects = await loadWorkspaceProjects(input.deps.surreal, input.workspaceRecord);
+    const workspaceProjectNames = workspaceProjects.map((project) => project.name);
     const persistedEntities: ExtractedEntity[] = [];
     const persistedRelationships: ExtractedRelationship[] = [];
     const seedItems: OnboardingSeedItem[] = [];
@@ -72,6 +75,8 @@ export async function processChatMessage(input: {
         conversationRecord,
         userMessageRecord: input.userMessageRecord,
         attachment: input.attachment,
+        workspaceName: workspace.name,
+        projectNames: workspaceProjectNames,
         now,
         onChunkResult: (chunkResult) => {
           if (chunkResult.entities.length > 0 || chunkResult.relationships.length > 0) {
@@ -109,6 +114,8 @@ export async function processChatMessage(input: {
       graphContext: extractionGraphContext,
       sourceText: input.userText,
       onboarding: !workspace.onboarding_complete,
+      workspaceName: workspace.name,
+      projectNames: workspaceProjectNames,
     });
 
     const textPersistence = await persistExtractionOutput({

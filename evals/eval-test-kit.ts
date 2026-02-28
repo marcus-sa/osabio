@@ -92,20 +92,22 @@ export async function teardownEvalRuntime(runtime: EvalRuntime): Promise<void> {
   await runtime.surreal.close().catch(() => undefined);
 }
 
-export async function seedWorkspace(surreal: Surreal): Promise<{
+export async function seedWorkspace(surreal: Surreal, workspaceName?: string): Promise<{
   workspaceRecord: RecordId<"workspace", string>;
+  workspaceName: string;
   projectRecord: RecordId<"project", string>;
   conversationRecord: RecordId<"conversation", string>;
   ownerPersonCount: number;
 }> {
   const now = new Date();
+  const resolvedWorkspaceName = workspaceName ?? `Eval ${Date.now()}`;
   const workspaceRecord = new RecordId("workspace", randomUUID());
   const projectRecord = new RecordId("project", randomUUID());
   const conversationRecord = new RecordId("conversation", randomUUID());
   const ownerRecord = new RecordId("person", randomUUID());
 
   await surreal.create(workspaceRecord).content({
-    name: `Eval ${Date.now()}`,
+    name: resolvedWorkspaceName,
     status: "active",
     onboarding_complete: false,
     onboarding_turn_count: 0,
@@ -144,7 +146,7 @@ export async function seedWorkspace(surreal: Surreal): Promise<{
     source: "onboarding",
   });
 
-  return { workspaceRecord, projectRecord, conversationRecord, ownerPersonCount: 1 };
+  return { workspaceRecord, workspaceName: resolvedWorkspaceName, projectRecord, conversationRecord, ownerPersonCount: 1 };
 }
 
 export async function seedConversationContext(

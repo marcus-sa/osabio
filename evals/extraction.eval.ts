@@ -22,6 +22,7 @@ import { extractStructuredGraph } from "../app/src/server/extraction/extract-gra
 import { persistExtractionOutput, appendExtractedTools } from "../app/src/server/extraction/persist-extraction";
 import { loadExtractionConversationContext, loadConversationGraphContext } from "../app/src/server/extraction/context-loaders";
 import type { SourceRecord } from "../app/src/server/extraction/types";
+import { loadWorkspaceProjects } from "../app/src/server/workspace/workspace-scope";
 import {
   type EvalRuntime,
   setupEvalRuntime,
@@ -234,7 +235,7 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     };
   }
 
-  const { workspaceRecord, projectRecord, conversationRecord, ownerPersonCount } = await seedWorkspace(runtime.surreal);
+  const { workspaceRecord, workspaceName, projectRecord, conversationRecord, ownerPersonCount } = await seedWorkspace(runtime.surreal, testCase.workspace_name);
   const conversationId = conversationRecord.id as string;
   const seededContext = testCase.context ?? [];
   const contextMessageIds = seededContext.length > 0
@@ -253,6 +254,8 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     currentMessageRecord: userMessageRecord,
   });
   const extractionGraphContext = await loadConversationGraphContext(runtime.surreal, conversationId, 60);
+  const workspaceProjects = await loadWorkspaceProjects(runtime.surreal, workspaceRecord);
+  const workspaceProjectNames = workspaceProjects.map((project) => project.name);
 
   const extraction = await extractStructuredGraph({
     extractionModel: runtime.extractionModel,
@@ -261,6 +264,8 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
     graphContext: extractionGraphContext,
     sourceText: testCase.input,
     onboarding: true,
+    workspaceName,
+    projectNames: workspaceProjectNames,
   });
 
   const now = new Date();

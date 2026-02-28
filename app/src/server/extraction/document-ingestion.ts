@@ -18,6 +18,8 @@ export async function ingestAttachment(input: {
   conversationRecord: RecordId<"conversation", string>;
   userMessageRecord: RecordId<"message", string>;
   attachment: IncomingAttachment;
+  workspaceName?: string;
+  projectNames?: string[];
   now: Date;
   onChunkResult?: (result: PersistExtractionResult) => void;
 }): Promise<PersistExtractionResult> {
@@ -71,6 +73,8 @@ export async function ingestAttachment(input: {
         sourceText: chunk.content,
         onboarding: true,
         heading: chunk.heading,
+        workspaceName: input.workspaceName,
+        projectNames: input.projectNames,
       });
 
       const result = await persistExtractionOutput({
