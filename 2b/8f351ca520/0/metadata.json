@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2b8f351ca520",
+  "session_id": "afd88dd1-4f7f-405d-8aa9-ca7e355b00ac",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-28T05:58:44.543271Z",
+  "branch": "marcus-sa/entity-categories",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "app/src/server/extraction/prompt.ts",
+    "evals/data/golden-cases.json",
+    "evals/eval-test-kit.ts",
+    "evals/extraction.eval.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e081a79d9324",
+  "token_usage": {
+    "input_tokens": 45,
+    "cache_creation_tokens": 123626,
+    "cache_read_tokens": 3717659,
+    "output_tokens": 21534,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-28T05:58:44.125245Z",
+    "agent_lines": 15,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 100
+  }
+}
