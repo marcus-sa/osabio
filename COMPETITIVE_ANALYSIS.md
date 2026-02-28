@@ -18,6 +18,7 @@ The market for AI-powered business management and knowledge tools is fragmented 
 | **Agent Reasoning Infrastructure** | Entire | Code-level traceability and semantic reasoning for agent sessions | Agent coordination, shared memory thesis | We provide business-level context (decisions, constraints, cross-project); they provide code-level traceability. Complementary layers. |
 | **Agent Task Tracking** | Beads | Git-backed graph issue tracker for coding agents | Agent-optimized task management, dependency graphs | We provide cross-project intelligence, decision governance, and business context above the repo level. Beads handles per-repo agent task coordination. Complementary — bidirectional sync integration target. |
 | **Enterprise Knowledge** | Atlassian Rovo, Glean | AI search across enterprise tools | Cross-tool integration | We're graph-native, not search-bolted-on; built for small teams, not enterprises |
+| **Autonomous AI Operations** | Polsia | Full-autonomy AI that runs your company: codes, markets, handles inbox 24/7 | AI-run business operations, solo founder target | We provide the governance layer autonomous agents need: decision provenance, conflict detection, authority scoping, reviewable feed. Same ambition, opposite trust model. |
 
 ---
 
@@ -254,24 +255,61 @@ Not a competitor — a potential integration target. Beads solves agent task tra
 
 ---
 
+### 9. Polsia — Autonomous AI Company Runner (Philosophical Competitor)
+
+**What:** An autonomous AI system that plans, codes, and markets your company 24/7. $49/mo + 20% revenue share. Solo-founder built, reportedly $700K+ ARR. Each company gets a web server, database, email address, and API credits. The AI runs one autonomous task nightly plus on-demand credits. Live terminal shows the AI working. Handles inbox management, investor replies, cold outreach, support, and coding.
+
+**Business model:** Incubator-style. Low base fee, revenue share when the business makes money. Targets solo founders who want to fully automate company operations.
+
+**Strengths:**
+- Validates the "AI runs your business" thesis at scale — real ARR, real users
+- Maximally aggressive on autonomy — AI acts without human in the loop
+- Full-stack: coding + marketing + operations + inbox in one system
+- Low friction: describe your company, AI starts running immediately
+- Revenue-aligned pricing (20% share) means they're incentivized for outcomes
+
+**Weaknesses (our differentiation):**
+- **No decision provenance:** No record of what was decided, why, or based on what evidence. If the AI makes a bad call overnight, you can't trace the reasoning.
+- **No governance surface:** No feed, no review queue, no approval flow. You either trust the AI fully or you don't use it. Product Hunt users flagged this: "the AI made a commitment on your behalf you'd want to walk back" is an unsolved problem.
+- **No conflict detection:** Multiple autonomous tasks can contradict each other with no system to catch it. AI sends a pricing email at 2am that contradicts the pricing decided yesterday.
+- **No authority scoping:** The AI can do everything — no IAM, no permission boundaries, no provisional decisions. Full autonomy with no guardrails.
+- **No knowledge graph:** No persistent structured memory between tasks. Context is per-task, not organizational. User on Product Hunt asked "where is the data, how can I reach it, how can I make sure it will still be there in a month?"
+- **No cross-project intelligence:** Each task is isolated. No awareness of how one decision affects another.
+
+**Where they sit vs us:**
+
+| Dimension | Polsia | Our Platform |
+|-----------|--------|-------------|
+| Autonomy level | Full — AI acts freely | Governed — AI acts within authority scopes |
+| Decision tracking | None | Knowledge graph with full provenance |
+| Governance | Trust or don't use | Feed-based review, provisional decisions, human confirms |
+| Conflict detection | None | Cross-project graph traversal |
+| Memory model | Per-task context | Persistent knowledge graph across all tasks |
+| Target user | Solo founder who wants to fully delegate | Solo founder who wants to delegate with oversight |
+| Business model | $49/mo + 20% rev share | SaaS (TBD) |
+
+**Strategic takeaway:** Polsia proves the market for AI-run businesses exists and is growing fast. But their "full autonomy, zero governance" model creates the exact problems our platform solves. As AI agents become more capable and take on higher-stakes tasks, the governance gap becomes existential — one bad autonomous decision at 3am can undo weeks of work. Our positioning: same ambition (AI runs your business), opposite trust model (every decision is traceable, reviewable, and overridable). Polsia is the "move fast" version. We're the "move fast with a graph that makes guardrails invisible" version.
+
 ## White Space Analysis
 
 ### What Nobody Does Well
 
-| Capability | Tana | Zine | Granola | Rezonant | Lindy | Entire | Beads | Us |
-|-----------|------|------|---------|----------|-------|--------|-------|-----|
-| Auto-extract from conversation | ◐ | ✗ | ◐ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Decision modeling with status | ✗ | ✗ | ✗ | ◐ | ✗ | ✗ | ✗ | ✓ |
-| Cross-project conflict detection | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Code-aware (GitHub drift) | ✗ | ◐ | ✗ | ✓ | ✗ | ◐ | ◐ | ✓ |
-| MCP for coding agents | ✓ | ✓ | ✗ | ◐ | ✗ | ◐ | ✓ | ✓ |
-| Action feed (proactive) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Agent coordination layer | ✗ | ✗ | ✗ | ✗ | ◐ | ◐ | ◐ | ✓ |
-| Agent task tracking (per-repo) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ◐ |
-| Agent reasoning traceability | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ |
-| Chat-first interface | ◐ | ◐ | ✗ | ✗ | ◐ | ✗ | ✗ | ✓ |
-| Graph visualization | ◐ | ◐ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
-| Solo founder / small team focus | ◐ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
+| Capability | Tana | Zine | Granola | Rezonant | Lindy | Entire | Beads | Polsia | Us |
+|-----------|------|------|---------|----------|-------|--------|-------|--------|-----|
+| Auto-extract from conversation | ◐ | ✗ | ◐ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Decision modeling with status | ✗ | ✗ | ✗ | ◐ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Cross-project conflict detection | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Code-aware (GitHub drift) | ✗ | ◐ | ✗ | ✓ | ✗ | ◐ | ◐ | ◐ | ✓ |
+| MCP for coding agents | ✓ | ✓ | ✗ | ◐ | ✗ | ◐ | ✓ | ✗ | ✓ |
+| Action feed (proactive) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Agent coordination layer | ✗ | ✗ | ✗ | ✗ | ◐ | ◐ | ◐ | ✗ | ✓ |
+| Agent task tracking (per-repo) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ◐ |
+| Agent reasoning traceability | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ |
+| Chat-first interface | ◐ | ◐ | ✗ | ✗ | ◐ | ✗ | ✗ | ◐ | ✓ |
+| Graph visualization | ◐ | ◐ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Solo founder / small team focus | ◐ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ |
+| Full autonomy (agents act freely) | ✗ | ✗ | ✗ | ✗ | ◐ | ✗ | ✗ | ✓ | ✗ |
+| Decision governance / oversight | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ |
 
 ✓ = core capability, ◐ = partial/emerging, ✗ = absent
 
