@@ -3,34 +3,36 @@
   "checkpoint_id": "3846aa7b56c7",
   "session_id": "51fb9c4e-9986-42d4-9a35-6e30e6a2cdb7",
   "strategy": "manual-commit",
-  "created_at": "2026-02-27T17:44:11.639888Z",
-  "branch": "marcus-sa/project-feature-distinction",
-  "checkpoints_count": 1,
+  "created_at": "2026-02-28T04:00:50.59618Z",
+  "checkpoints_count": 0,
   "files_touched": [
+    "app/src/server/extraction/extract-graph.ts",
     "app/src/server/chat/chat-processor.ts",
     "app/src/server/extraction/document-ingestion.ts",
-    "app/src/server/extraction/extract-graph.ts",
     "app/src/server/extraction/prompt.ts",
-    "app/src/server/workspace/workspace-scope.ts",
     "evals/data/golden-cases.json",
-    "tests/unit/resolve-entity-project.test.ts"
+    "tests/unit/resolve-entity-project.test.ts",
+    "app/src/server/workspace/workspace-scope.ts",
+    "evals/types.ts",
+    "evals/eval-test-kit.ts",
+    "evals/extraction.eval.ts"
   ],
   "agent": "Claude Code",
-  "turn_id": "5c9098da93dd",
+  "turn_id": "923389530158",
   "token_usage": {
-    "input_tokens": 105,
-    "cache_creation_tokens": 186621,
-    "cache_read_tokens": 5623662,
-    "output_tokens": 23849,
-    "api_call_count": 67
+    "input_tokens": 183,
+    "cache_creation_tokens": 475516,
+    "cache_read_tokens": 10923279,
+    "output_tokens": 35246,
+    "api_call_count": 111
   },
   "initial_attribution": {
-    "calculated_at": "2026-02-27T17:44:10.677414Z",
-    "agent_lines": 179,
+    "calculated_at": "2026-02-28T04:00:49.776397Z",
+    "agent_lines": 0,
     "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 179,
-    "agent_percentage": 100
+    "total_committed": 0,
+    "agent_percentage": 0
   }
 }

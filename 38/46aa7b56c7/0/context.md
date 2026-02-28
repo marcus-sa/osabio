@@ -21,3 +21,29 @@ The user has attached these files. Read them before proceeding.
 
 Create a PR
 
+### Prompt 3
+
+this is wrong: {
+    "id": "feature-within-existing-project",
+    "input": "We need to add a notification system to handle alerts and digests.",
+    "intent": "multi_allowed",
+    "workspace_seed": [
+      { "kind": "project", "text": "Atlas" }
+    ],
+    "expectedEntities": [
+      { "kind": "feature", "text_contains": "notification system" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+
+notification system is a project, and alerts and digests are features belonging to that project...
+
+### Prompt 4
+
+there are many more wrong cases.
+e.g "Atlas" doesnt seem liek a project, it seems like the name of the workspace
+
+### Prompt 5
+
+commit amned
+
