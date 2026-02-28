@@ -808,6 +808,19 @@ body {
   text-transform: uppercase;
 }
 
+.category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.12rem 0.38rem;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  text-transform: capitalize;
+}
+
 /* Relationship list in detail panel */
 
 .relationship-group {

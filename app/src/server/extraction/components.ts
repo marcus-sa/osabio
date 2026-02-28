@@ -1,4 +1,4 @@
-import type { EntityKind, ExtractedEntity, ExtractedRelationship } from "../../shared/contracts";
+import type { EntityCategory, EntityKind, ExtractedEntity, ExtractedRelationship } from "../../shared/contracts";
 import { normalizeName } from "./normalize";
 import { shouldDisplayExtraction } from "./validation";
 
@@ -9,6 +9,7 @@ type CardEntity = {
   name: string;
   confidence: number;
   status: "captured";
+  category?: EntityCategory;
 };
 
 export function buildExtractionComponentBlock(
@@ -35,6 +36,7 @@ export function buildExtractionComponentBlock(
         name,
         confidence: entity.confidence,
         status: "captured",
+        ...(entity.category ? { category: entity.category } : {}),
       });
     }
   }

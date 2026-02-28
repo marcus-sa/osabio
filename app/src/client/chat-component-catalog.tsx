@@ -5,6 +5,7 @@ import {
   type EntityCardProps,
   type ExtractionSummaryProps,
 } from "../shared/chat-component-definitions";
+import { CategoryBadge } from "./components/graph/CategoryBadge";
 import { useViewState } from "./stores/view-state";
 
 const kindLabelByKind: Record<ExtractableKind, string> = {
@@ -40,7 +41,10 @@ function EntityCard(props: EntityCardProps) {
   return (
     <article className="entity-card">
       <div className="entity-card-header">
-        <span className="entity-kind">{kindLabelByKind[props.kind]}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+          <span className="entity-kind">{kindLabelByKind[props.kind]}</span>
+          {props.category ? <CategoryBadge category={props.category} /> : undefined}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
           {props.entityId ? (
             <button
@@ -74,6 +78,7 @@ function ExtractionSummary(props: ExtractionSummaryProps) {
             confidence={entity.confidence}
             status={entity.status}
             entityId={entity.entityId}
+            category={entity.category}
           />
         ))}
       </div>

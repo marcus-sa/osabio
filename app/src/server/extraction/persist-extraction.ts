@@ -108,6 +108,8 @@ export async function persistExtractionOutput(input: {
         kind: persisted.kind,
       });
 
+      const extractedCategory = "category" in extracted ? extracted.category : undefined;
+
       persistedEntities.push({
         id: persisted.record.id as string,
         kind: persisted.kind,
@@ -115,6 +117,7 @@ export async function persistExtractionOutput(input: {
         confidence: extracted.confidence,
         sourceKind: input.sourceKind,
         sourceId: input.sourceRecord.id as string,
+        ...(extractedCategory ? { category: extractedCategory } : {}),
       });
 
       seeds.push({
@@ -125,6 +128,7 @@ export async function persistExtractionOutput(input: {
         sourceKind: input.sourceKind,
         sourceId: input.sourceRecord.id as string,
         ...(input.sourceLabel ? { sourceLabel: input.sourceLabel } : {}),
+        ...(extractedCategory ? { category: extractedCategory } : {}),
       });
 
       if (persisted.created) {

@@ -6,7 +6,8 @@
     "expectedEntities": [
       {
         "kind": "decision",
-        "text": "use TypeScript for the backend"
+        "text": "use TypeScript for the backend",
+        "expectedCategory": "engineering"
       }
     ],
     "forbiddenExtractedKinds": ["person"]
@@ -18,7 +19,8 @@
     "expectedEntities": [
       {
         "kind": "task",
-        "text": "finalize auth middleware"
+        "text": "finalize auth middleware",
+        "expectedCategory": "engineering"
       }
     ],
     "forbiddenExtractedKinds": ["person"]
@@ -482,6 +484,151 @@
     "expectedEntities": [
       { "kind": "feature", "text_contains": "CSV export" },
       { "kind": "feature", "text_contains": "PDF generation" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-research",
+    "input": "We need to research pricing models for B2B SaaS.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "research pricing models",
+        "expectedCategory": "research"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-engineering",
+    "input": "Let's build the auth middleware next.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "auth middleware",
+        "expectedCategory": "engineering"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-sales",
+    "input": "I should reach out to potential customers for early feedback.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "reach out",
+        "expectedCategory": "sales"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-operations",
+    "input": "Need to set up the CI/CD pipeline for staging.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "CI/CD",
+        "expectedCategory": "operations"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-design",
+    "input": "Design the dashboard wireframes for the main screen.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "dashboard wireframes",
+        "expectedCategory": "design"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-task-marketing",
+    "input": "Write a launch announcement blog post for the beta release.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "launch announcement",
+        "expectedCategory": "marketing"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-decision-engineering",
+    "input": "We'll use PostgreSQL for the main database.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "PostgreSQL",
+        "expectedCategory": "engineering"
+      }
+    ],
+    "expectedTools": ["PostgreSQL"],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-decision-sales",
+    "input": "Let's target mid-market B2B companies first.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "mid-market B2B",
+        "expectedCategory": "sales"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-decision-design",
+    "input": "We'll go with a single-page onboarding flow instead of multi-step.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "single-page onboarding",
+        "expectedCategory": "design"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-decision-operations",
+    "input": "Let's use Terraform for all infrastructure management.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "Terraform",
+        "expectedCategory": "operations"
+      }
+    ],
+    "expectedTools": ["Terraform"],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "category-decision-marketing",
+    "input": "We'll position the product as a developer-first platform.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "developer-first",
+        "expectedCategory": "marketing"
+      }
     ],
     "forbiddenExtractedKinds": ["person"]
   }

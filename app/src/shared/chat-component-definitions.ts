@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ENTITY_CATEGORIES } from "./contracts";
 
 export const extractableKindSchema = z.enum(["project", "person", "feature", "task", "decision", "question"]);
 
@@ -8,6 +9,7 @@ export const entityCardPropsSchema = z.object({
   confidence: z.number().min(0).max(1),
   status: z.string().min(1),
   entityId: z.string().optional(),
+  category: z.enum(ENTITY_CATEGORIES).optional(),
 });
 
 export const extractionSummaryPropsSchema = z.object({

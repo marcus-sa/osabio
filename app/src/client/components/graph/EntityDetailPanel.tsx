@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import type { EntityDetailResponse, EntityKind } from "../../../shared/contracts";
+import type { EntityCategory, EntityDetailResponse, EntityKind } from "../../../shared/contracts";
+import { ENTITY_CATEGORIES } from "../../../shared/contracts";
+import { CategoryBadge } from "./CategoryBadge";
 import { EntityBadge } from "./EntityBadge";
 import { RelationshipList } from "./RelationshipList";
 import { ProvenanceSection } from "./ProvenanceSection";
@@ -152,6 +154,12 @@ export function EntityDetailPanel({
             <>
               <dt>Status</dt>
               <dd>{status}</dd>
+            </>
+          ) : undefined}
+          {typeof detail.entity.data.category === "string" && (ENTITY_CATEGORIES as readonly string[]).includes(detail.entity.data.category) ? (
+            <>
+              <dt>Category</dt>
+              <dd><CategoryBadge category={detail.entity.data.category as EntityCategory} /></dd>
             </>
           ) : undefined}
           {detail.entity.data.confidence !== undefined ? (

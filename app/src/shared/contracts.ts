@@ -2,6 +2,9 @@ export type EntityKind = "workspace" | "project" | "person" | "feature" | "task"
 
 export type SourceKind = "message" | "document_chunk";
 
+export const ENTITY_CATEGORIES = ["engineering", "research", "marketing", "operations", "design", "sales"] as const;
+export type EntityCategory = (typeof ENTITY_CATEGORIES)[number];
+
 export type CreateWorkspaceRequest = {
   name: string;
   ownerDisplayName: string;
@@ -40,6 +43,7 @@ export type ExtractedEntity = {
   confidence: number;
   sourceKind: SourceKind;
   sourceId: string;
+  category?: EntityCategory;
 };
 
 export type ExtractedRelationship = {
@@ -63,6 +67,7 @@ export type OnboardingSeedItem = {
   sourceKind: SourceKind;
   sourceId: string;
   sourceLabel?: string;
+  category?: EntityCategory;
 };
 
 export type WorkspaceBootstrapMessage = {

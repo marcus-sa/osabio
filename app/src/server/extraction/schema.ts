@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ENTITY_CATEGORIES } from "../../shared/contracts";
 
 const extractionEntityBaseSchema = z.object({
   tempId: z.string().min(1),
@@ -6,6 +7,7 @@ const extractionEntityBaseSchema = z.object({
   text: z.string().min(3).max(200),
   confidence: z.number().min(0).max(1),
   evidence: z.string().min(1),
+  category: z.enum(ENTITY_CATEGORIES).optional(),
 }).strict();
 
 const extractionEntityWithAssigneeSchema = extractionEntityBaseSchema.extend({

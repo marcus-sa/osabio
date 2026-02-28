@@ -89,6 +89,8 @@ DEFINE FIELD source_message ON task TYPE option<record<message>>;
 DEFINE FIELD extraction_confidence ON task TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON task TYPE option<datetime>;
 DEFINE FIELD embedding ON task TYPE option<array<float>>;
+DEFINE FIELD category ON task TYPE option<string>
+  ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
 DEFINE INDEX task_source_message ON task FIELDS source_message;
 DEFINE INDEX idx_task_embedding ON task FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
@@ -112,6 +114,8 @@ DEFINE FIELD source_message ON decision TYPE option<record<message>>;
 DEFINE FIELD extraction_confidence ON decision TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON decision TYPE option<datetime>;
 DEFINE FIELD embedding ON decision TYPE option<array<float>>;
+DEFINE FIELD category ON decision TYPE option<string>
+  ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
 DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
@@ -128,6 +132,8 @@ DEFINE FIELD source_message ON question TYPE option<record<message>>;
 DEFINE FIELD extraction_confidence ON question TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON question TYPE option<datetime>;
 DEFINE FIELD embedding ON question TYPE option<array<float>>;
+DEFINE FIELD category ON question TYPE option<string>
+  ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE INDEX question_status ON question FIELDS status;
 DEFINE INDEX question_source_message ON question FIELDS source_message;
 DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
