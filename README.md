@@ -319,12 +319,85 @@ For Phase 1 dogfooding: one Workspace, one Project ("AI-Native Business Manageme
 | **Person** | Workspace | A team member or stakeholder. Workspace-scoped because people work across projects. Linked to entities in any project via OWNS, DECIDED_BY, ASSIGNED_TO edges. **Person nodes are authoritative identity records — they are only created through explicit actions (workspace creation, IAM integration, manual invite), never inferred from chat extraction.** When the extraction pipeline detects a name in conversation that doesn't match an existing Person node, it stores the reference as an unresolved string attribute (e.g., `decided_by: "Sarah"`) and optionally surfaces a suggestion: "You mentioned Sarah — want to add her to the workspace?" which triggers the IAM flow. | name, role, contact info, identities[] |
 | **Conversation** | Workspace | A chat session or message thread. Workspace-scoped because a single conversation can produce entities across multiple projects. Never requires a projectId. | messages[], embedding, source, timestamp |
 | **Meeting** | Workspace | A meeting with transcript (subtype of Conversation). Same scoping rules as Conversation. | title, attendees[], transcript_ref, calendar_event_ref, source_provider, recorded_at |
-| **Project** | Workspace | A bounded initiative or workstream within a workspace | name, status, description, created_at |
-| **Feature** | Project | A distinct capability or component within a project. Maps to a PRD. Natural grouping layer between Project and Task. | name, status, description, prd (progressive), owner |
-| **Task** | Project/Feature | An actionable commitment with an owner | title, owner, deadline, status, priority, category |
+| **Project** | Workspace | A bounded initiative or workstream within a workspace | name, status, description_entries[], created_at |
+| **Feature** | Project | A distinct capability or component within a project. Maps to a PRD. Natural grouping layer between Project and Task. | name, status, description_entries[], prd (progressive), owner |
+| **Task** | Project/Feature | An actionable commitment with an owner | title, description, owner, deadline, status, priority, category |
 | **Decision** | Project/Feature | A ratified choice with context | summary, rationale, decided_by, decided_at, status (extracted / proposed / confirmed / superseded) |
 | **Question** | Project/Feature | An unanswered question or open item | text, assigned_to, status, context |
 | **Learning** | Workspace | A behavioral modification for an agent. Human-created learnings are active immediately. Agent-suggested learnings require human approval before activation. Active learnings are injected into the target agent's system prompt during context build. Analogous to CTX's "persistent memory" or Claude Code plugin "instincts," but stored as graph entities with provenance and approval flow. Introduced in Phase 4. | text, target_agent, suggested_by, status (active / pending_approval / dismissed), source_conversation |
+
+#### Living Descriptions (Projects and Features)
+
+Project and Feature descriptions are **append-only timelines** that auto-update as the graph evolves. Each entry captures what changed, why, and what triggered the change. Task descriptions are simple editable strings — tasks are short-lived enough that they don't need a changelog.
+
+**Description entry model:**
+
+```typescript
+interface DescriptionEntry {
+  text: string;           // the updated description paragraph
+  reasoning: string;      // why this edit was made
+  triggered_by: string[]; // entity IDs that caused the update (decision, feature, commit, task)
+  created_at: datetime;
+  model: string;          // which LLM generated it
+}
+
+// Project.description_entries and Feature.description_entries are arrays
+// The "current description" is the latest entry's text
+// The full array is the evolution history
+```
+
+**SurrealDB schema:**
+
+```sql
+DEFINE FIELD description_entries ON TABLE project TYPE array<object>;
+DEFINE FIELD description_entries.*.text ON TABLE project TYPE string;
+DEFINE FIELD description_entries.*.reasoning ON TABLE project TYPE string;
+DEFINE FIELD description_entries.*.triggered_by ON TABLE project TYPE array<record>;
+DEFINE FIELD description_entries.*.created_at ON TABLE project TYPE datetime DEFAULT time::now();
+DEFINE FIELD description_entries.*.model ON TABLE project TYPE string;
+-- Same for feature table
+```
+
+**Auto-update triggers (handled in backend after entity changes):**
+
+| Trigger | Description entry generated | Example |
+|---------|---------------------------|---------|
+| Decision confirmed in project | Incorporate the decision into project description | "Uses JWT with refresh tokens for session management." Reasoning: "Decision confirmed: Use JWT with refresh tokens" |
+| Feature created in project | Add the feature's scope to project description | "Includes user authentication with login, registration, and password reset." Reasoning: "Feature added: User Authentication" |
+| Feature marked complete | Update project description with implementation details | "Auth middleware deployed with rate limiting." Reasoning: "Feature completed: User Authentication" |
+| Task completed | Refine feature description with implementation specifics | "Rate limiting set to 100 req/min per user using token bucket." Reasoning: "Task completed: Configure rate limiting" |
+| Commit linked to decision | Add implementation context | "JWT implementation uses RS256 signing." Reasoning: "Commit abc123 linked to Decision: JWT auth" |
+| Multiple related changes | Batch into single entry | Combines several task completions into one coherent description update |
+
+**Generation:** After a triggering event, queue a description update job. The job queries the current description (latest entry), the triggering entity, and relevant context from the graph, then prompts the LLM (Haiku) to generate a new description entry that incorporates the new information. The LLM sees: current description, what changed, and why — it produces a refined description and a one-line reasoning string.
+
+**Description timeline view (UI):** The entity detail panel (Phase 2) and the OS desktop entity window (Phase 4) show the description timeline. Each entry is expandable to show reasoning and the triggering entities (clickable links to those decisions, tasks, commits). The current description is the top-level summary; the timeline below shows how it got there.
+
+```
+Project: Auth System
+Current: "User authentication system using JWT with refresh 
+tokens. Auth middleware deployed with rate limiting at 100 
+req/min. Supports login, registration, and password reset."
+
+▼ Description History
+  📝 Mar 3 — Added rate limiting details
+     Reasoning: Tasks completed: Implement auth middleware, 
+     Configure rate limiting
+     → task:auth-middleware, task:rate-limiting
+
+  📝 Mar 1 — Added JWT decision context  
+     Reasoning: Decision confirmed: Use JWT with refresh tokens
+     → decision:jwt-auth
+
+  📝 Feb 28 — Initial description
+     Reasoning: Project created from onboarding conversation
+     → conversation:onboarding
+```
+
+**Phasing:**
+- Phase 1: Static description string on projects/features (manual or from extraction)
+- Phase 2: Description entry array schema, entity detail panel shows description history
+- Phase 3: Auto-update triggers fire on decision/feature/task/commit changes, LLM generates entries
 
 #### Relationship Types (Graph Edges)
 
