@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0777f9518087",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/entity-categories",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "app/src/server/extraction/extract-graph.ts",
+    "app/src/server/extraction/prompt.ts",
+    "evals/extraction.eval.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/07/77f9518087/0/metadata.json",
+      "transcript": "/07/77f9518087/0/full.jsonl",
+      "context": "/07/77f9518087/0/context.md",
+      "content_hash": "/07/77f9518087/0/content_hash.txt",
+      "prompt": "/07/77f9518087/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 39,
+    "cache_creation_tokens": 175487,
+    "cache_read_tokens": 3870032,
+    "output_tokens": 14061,
+    "api_call_count": 31
+  }
+}
