@@ -173,3 +173,65 @@ export type SearchEntityResponse = {
   sourceId: string;
   sourceKind: SourceKind;
 };
+
+// --- Graph view types ---
+
+export type ReagraphNode = {
+  id: string;
+  label: string;
+  fill: string;
+  data: {
+    kind: EntityKind;
+    connectionCount: number;
+    status?: string;
+  };
+};
+
+export type ReagraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  data: {
+    type: string;
+    confidence: number;
+  };
+};
+
+export type GraphResponse = {
+  nodes: ReagraphNode[];
+  edges: ReagraphEdge[];
+};
+
+export type EntityDetailResponse = {
+  entity: {
+    id: string;
+    kind: EntityKind;
+    name: string;
+    data: Record<string, unknown>;
+  };
+  relationships: Array<{
+    id: string;
+    kind: EntityKind;
+    name: string;
+    relationKind: string;
+    direction: "incoming" | "outgoing";
+    confidence: number;
+  }>;
+  provenance: Array<{
+    sourceId: string;
+    sourceKind: "message" | "document_chunk";
+    confidence: number;
+    extractedAt: string;
+    evidence?: string;
+    evidenceSource?: string;
+    resolvedFrom?: string;
+    fromText?: string;
+  }>;
+};
+
+export type EntityActionRequest = {
+  action: "confirm" | "override" | "complete";
+  notes?: string;
+  newSummary?: string;
+};

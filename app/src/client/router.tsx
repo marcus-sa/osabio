@@ -1,16 +1,14 @@
-import { Link, Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 import { ChatPage } from "./routes/chat-page";
+import { GraphPage } from "./routes/graph-page";
+import { ViewTabs } from "./components/layout/ViewTabs";
 
 const rootRoute = createRootRoute({
   component: () => (
     <div className="app-shell">
       <header className="app-header">
-        <h1>Brain Phase 1</h1>
-        <nav>
-          <Link to="/" className="nav-link">
-            Chat
-          </Link>
-        </nav>
+        <h1>Brain</h1>
+        <ViewTabs />
       </header>
       <main className="app-main">
         <Outlet />
@@ -25,7 +23,13 @@ const chatRoute = createRoute({
   component: ChatPage,
 });
 
-const routeTree = rootRoute.addChildren([chatRoute]);
+const graphRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/graph",
+  component: GraphPage,
+});
+
+const routeTree = rootRoute.addChildren([chatRoute, graphRoute]);
 
 export const router = createRouter({ routeTree });
 

@@ -10,6 +10,9 @@ import { ensureDefaultWorkspaceProjectScope } from "../workspace/workspace-scope
 import { createWorkspaceRouteHandlers } from "../workspace/workspace-routes";
 import { createChatIngressHandlers } from "../chat/chat-ingress";
 import { createEntitySearchHandler } from "../entities/entity-search-route";
+import { createGraphRouteHandler } from "../graph/graph-route";
+import { createEntityDetailHandler } from "../entities/entity-detail-route";
+import { createEntityActionsHandler } from "../entities/entity-actions-route";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -28,6 +31,9 @@ export async function startServer(): Promise<void> {
   const workspaceHandlers = createWorkspaceRouteHandlers(deps);
   const chatHandlers = createChatIngressHandlers(deps);
   const entitySearchHandler = createEntitySearchHandler(deps);
+  const graphHandler = createGraphRouteHandler(deps);
+  const entityDetailHandler = createEntityDetailHandler(deps);
+  const entityActionsHandler = createEntityActionsHandler(deps);
 
   const server = Bun.serve({
     port: config.port,
@@ -74,6 +80,21 @@ export async function startServer(): Promise<void> {
       },
       "/api/entities/search": {
         GET: withRequestLogging("GET /api/entities/search", "GET", (request) => entitySearchHandler(new URL(request.url))),
+      },
+      "/api/graph/:workspaceId": {
+        GET: withRequestLogging("GET /api/graph/:workspaceId", "GET", (request) =>
+          graphHandler(request.params.workspaceId, new URL(request.url)),
+        ),
+      },
+      "/api/entities/:entityId": {
+        GET: withRequestLogging("GET /api/entities/:entityId", "GET", (request) =>
+          entityDetailHandler(request.params.entityId, new URL(request.url)),
+        ),
+      },
+      "/api/entities/:entityId/actions": {
+        POST: withRequestLogging("POST /api/entities/:entityId/actions", "POST", (request) =>
+          entityActionsHandler(request.params.entityId, request),
+        ),
       },
       "/": appHtml,
       "/*": appHtml,

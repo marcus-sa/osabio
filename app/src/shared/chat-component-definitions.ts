@@ -7,6 +7,7 @@ export const entityCardPropsSchema = z.object({
   name: z.string().min(1),
   confidence: z.number().min(0).max(1),
   status: z.string().min(1),
+  entityId: z.string().optional(),
 });
 
 export const extractionSummaryPropsSchema = z.object({

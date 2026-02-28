@@ -99,6 +99,25 @@ export type RankedMessage = {
   createdAt: string;
 };
 
+export type GraphViewRawEntity = {
+  id: string;
+  kind: GraphEntityTable;
+  name: string;
+};
+
+export type GraphViewRawEdge = {
+  id: string;
+  kind: string;
+  fromId: string;
+  toId: string;
+  confidence: number;
+};
+
+export type GraphViewRawResult = {
+  entities: GraphViewRawEntity[];
+  edges: GraphViewRawEdge[];
+};
+
 type EntitySearchCandidate = {
   id: GraphEntityRecord;
   kind: SearchEntityKind;
@@ -1373,4 +1392,274 @@ export async function listDecisionConstraintCandidates(input: {
     ...(input.projectRecord ? { projectRecord: input.projectRecord } : {}),
     limit: input.limit,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Graph view queries
+// ---------------------------------------------------------------------------
+
+type EntityRelationRow = {
+  id: RecordId<"entity_relation", string>;
+  in: GraphEntityRecord;
+  out: GraphEntityRecord;
+  kind: string;
+  confidence: number;
+};
+
+async function collectEntityRelationEdges(
+  surreal: Surreal,
+  entityIds: RecordId<string, string>[],
+): Promise<GraphViewRawEdge[]> {
+  if (entityIds.length === 0) {
+    return [];
+  }
+
+  const [rows] = await surreal
+    .query<[EntityRelationRow[]]>(
+      [
+        "SELECT id, `in`, out, kind, confidence",
+        "FROM entity_relation",
+        "WHERE `in` IN $entityIds AND out IN $entityIds;",
+      ].join(" "),
+      { entityIds },
+    )
+    .collect<[EntityRelationRow[]]>();
+
+  return rows.map((row) => ({
+    id: toRecordIdString(row.id),
+    fromId: toRecordIdString(row.in),
+    toId: toRecordIdString(row.out),
+    kind: row.kind,
+    confidence: row.confidence,
+  }));
+}
+
+async function resolveEntityNames(
+  surreal: Surreal,
+  records: GraphEntityRecord[],
+): Promise<GraphViewRawEntity[]> {
+  const entities: GraphViewRawEntity[] = [];
+
+  for (const record of records) {
+    const name = await readEntityName(surreal, record);
+    if (!name) {
+      continue;
+    }
+
+    entities.push({
+      id: toRecordIdString(record),
+      kind: record.table.name as GraphEntityTable,
+      name,
+    });
+  }
+
+  return entities;
+}
+
+export async function getProjectGraphView(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  projectRecord: RecordId<"project", string>;
+}): Promise<GraphViewRawResult> {
+  const scoped = await isEntityInWorkspace(input.surreal, input.workspaceRecord, input.projectRecord);
+  if (!scoped) {
+    throw new Error("project is outside the current workspace scope");
+  }
+
+  const allRecords: GraphEntityRecord[] = [input.projectRecord as GraphEntityRecord];
+  const seen = new Set<string>();
+  seen.add(toRecordIdString(input.projectRecord));
+
+  const addRecord = (record: GraphEntityRecord) => {
+    const key = toRecordIdString(record);
+    if (!seen.has(key)) {
+      seen.add(key);
+      allRecords.push(record);
+    }
+  };
+
+  // Features via has_feature
+  const [featureRows] = await input.surreal
+    .query<[Array<RecordId<"feature", string>>]>(
+      "SELECT VALUE out FROM has_feature WHERE `in` = $project;",
+      { project: input.projectRecord },
+    )
+    .collect<[Array<RecordId<"feature", string>>]>();
+
+  for (const record of featureRows) {
+    addRecord(record as GraphEntityRecord);
+  }
+
+  // Tasks/decisions/questions via belongs_to WHERE out = project
+  const [belongsToRows] = await input.surreal
+    .query<[Array<RecordId<"task" | "decision" | "question", string>>]>(
+      "SELECT VALUE `in` FROM belongs_to WHERE out = $project;",
+      { project: input.projectRecord },
+    )
+    .collect<[Array<RecordId<"task" | "decision" | "question", string>>]>();
+
+  for (const record of belongsToRows) {
+    addRecord(record as GraphEntityRecord);
+  }
+
+  // Tasks via features' has_task + decisions/questions that belong_to features
+  if (featureRows.length > 0) {
+    const [featureTaskRows] = await input.surreal
+      .query<[Array<RecordId<"task", string>>]>(
+        "SELECT VALUE out FROM has_task WHERE `in` IN $features;",
+        { features: featureRows },
+      )
+      .collect<[Array<RecordId<"task", string>>]>();
+
+    for (const record of featureTaskRows) {
+      addRecord(record as GraphEntityRecord);
+    }
+
+    const [featureBelongsRows] = await input.surreal
+      .query<[Array<RecordId<"task" | "decision" | "question", string>>]>(
+        "SELECT VALUE `in` FROM belongs_to WHERE out IN $features;",
+        { features: featureRows },
+      )
+      .collect<[Array<RecordId<"task" | "decision" | "question", string>>]>();
+
+    for (const record of featureBelongsRows) {
+      addRecord(record as GraphEntityRecord);
+    }
+  }
+
+  // Entities extracted from workspace messages (catches decisions/questions/tasks without belongs_to edges)
+  const [provenanceRows] = await input.surreal
+    .query<[Array<GraphEntityRecord>]>(
+      [
+        "SELECT VALUE out FROM extraction_relation",
+        "WHERE `in` IN (SELECT VALUE id FROM message WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace));",
+      ].join(" "),
+      { workspace: input.workspaceRecord },
+    )
+    .collect<[Array<GraphEntityRecord>]>();
+
+  for (const record of provenanceRows) {
+    const table = record.table.name;
+    if (table === "task" || table === "decision" || table === "question" || table === "feature" || table === "person") {
+      addRecord(record as GraphEntityRecord);
+    }
+  }
+
+  // Persons via member_of WHERE out = workspace
+  const [personRows] = await input.surreal
+    .query<[Array<RecordId<"person", string>>]>(
+      "SELECT VALUE `in` FROM member_of WHERE out = $workspace;",
+      { workspace: input.workspaceRecord },
+    )
+    .collect<[Array<RecordId<"person", string>>]>();
+
+  for (const record of personRows) {
+    addRecord(record as GraphEntityRecord);
+  }
+
+  const entities = await resolveEntityNames(input.surreal, allRecords);
+  const edges = await collectEntityRelationEdges(input.surreal, allRecords);
+
+  return { entities, edges };
+}
+
+export async function getFocusedGraphView(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  centerEntityRecord: GraphEntityRecord;
+  depth: number;
+}): Promise<GraphViewRawResult> {
+  const clampedDepth = Math.max(1, Math.min(3, input.depth));
+
+  const scoped = await isEntityInWorkspace(input.surreal, input.workspaceRecord, input.centerEntityRecord);
+  if (!scoped) {
+    throw new Error("entity is outside the current workspace scope");
+  }
+
+  const collected = new Map<string, GraphEntityRecord>();
+  collected.set(toRecordIdString(input.centerEntityRecord), input.centerEntityRecord);
+
+  let frontier: RecordId<string, string>[] = [input.centerEntityRecord];
+
+  for (let hop = 0; hop < clampedDepth; hop++) {
+    if (frontier.length === 0) {
+      break;
+    }
+
+    const [rows] = await input.surreal
+      .query<[EntityRelationRow[]]>(
+        [
+          "SELECT id, `in`, out, kind, confidence",
+          "FROM entity_relation",
+          "WHERE `in` IN $currentIds OR out IN $currentIds;",
+        ].join(" "),
+        { currentIds: frontier },
+      )
+      .collect<[EntityRelationRow[]]>();
+
+    const nextFrontier: RecordId<string, string>[] = [];
+
+    for (const row of rows) {
+      for (const endpoint of [row.in, row.out]) {
+        const key = toRecordIdString(endpoint);
+        if (collected.has(key)) {
+          continue;
+        }
+
+        const inScope = await isEntityInWorkspace(input.surreal, input.workspaceRecord, endpoint);
+        if (!inScope) {
+          continue;
+        }
+
+        collected.set(key, endpoint);
+        nextFrontier.push(endpoint);
+      }
+    }
+
+    frontier = nextFrontier;
+  }
+
+  const allRecords = Array.from(collected.values());
+  const entities = await resolveEntityNames(input.surreal, allRecords);
+  const edges = await collectEntityRelationEdges(input.surreal, allRecords);
+
+  return { entities, edges };
+}
+
+export async function getWorkspaceGraphOverview(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+}): Promise<GraphViewRawResult> {
+  // Projects via has_project
+  const [projectRows] = await input.surreal
+    .query<[Array<RecordId<"project", string>>]>(
+      "SELECT VALUE out FROM has_project WHERE `in` = $workspace;",
+      { workspace: input.workspaceRecord },
+    )
+    .collect<[Array<RecordId<"project", string>>]>();
+
+  const allRecords: GraphEntityRecord[] = [];
+
+  for (const record of projectRows) {
+    allRecords.push(record as GraphEntityRecord);
+  }
+
+  // Features via has_feature for each project
+  if (projectRows.length > 0) {
+    const [featureRows] = await input.surreal
+      .query<[Array<RecordId<"feature", string>>]>(
+        "SELECT VALUE out FROM has_feature WHERE `in` IN $projects;",
+        { projects: projectRows },
+      )
+      .collect<[Array<RecordId<"feature", string>>]>();
+
+    for (const record of featureRows) {
+      allRecords.push(record as GraphEntityRecord);
+    }
+  }
+
+  const entities = await resolveEntityNames(input.surreal, allRecords);
+  const edges = await collectEntityRelationEdges(input.surreal, allRecords);
+
+  return { entities, edges };
 }
