@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f470f82e1bfc",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/orchestrator-agents",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/prompt.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/70f82e1bfc/0/metadata.json",
+      "transcript": "/f4/70f82e1bfc/0/full.jsonl",
+      "context": "/f4/70f82e1bfc/0/context.md",
+      "content_hash": "/f4/70f82e1bfc/0/content_hash.txt",
+      "prompt": "/f4/70f82e1bfc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 71225,
+    "cache_read_tokens": 2441693,
+    "output_tokens": 13557,
+    "api_call_count": 43
+  }
+}
