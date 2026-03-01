@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b729c1c165e1",
+  "session_id": "b05e540f-ae2e-4fe3-8b3f-cb5501bc45b5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-01T01:39:28.601355Z",
+  "branch": "marcus-sa/orchestrator-agents",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0d61329f00a3",
+  "checkpoint_transcript_start": 1063,
+  "transcript_lines_at_start": 1063,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 162279,
+    "cache_read_tokens": 749549,
+    "output_tokens": 3268,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-01T01:39:28.019501Z",
+    "agent_lines": 90,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 90,
+    "agent_percentage": 100
+  }
+}
