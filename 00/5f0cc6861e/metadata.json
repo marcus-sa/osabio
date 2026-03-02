@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "005f0cc6861e",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/git-commit-evidence",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/webhook/github-commit-processor.ts",
+    "app/src/server/webhook/types.ts",
+    "tests/smoke/smoke-test-kit.ts",
+    "tests/unit/decision-link-classification.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/00/5f0cc6861e/0/metadata.json",
+      "transcript": "/00/5f0cc6861e/0/full.jsonl",
+      "context": "/00/5f0cc6861e/0/context.md",
+      "content_hash": "/00/5f0cc6861e/0/content_hash.txt",
+      "prompt": "/00/5f0cc6861e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5858,
+    "cache_creation_tokens": 367817,
+    "cache_read_tokens": 17178849,
+    "output_tokens": 51982,
+    "api_call_count": 168
+  }
+}

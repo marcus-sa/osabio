@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "005f0cc6861e",
+  "session_id": "424e31e2-b693-4e14-9f0b-019fb104bd76",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T16:21:49.902529Z",
+  "branch": "marcus-sa/git-commit-evidence",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/webhook/github-commit-processor.ts",
+    "app/src/server/webhook/types.ts",
+    "tests/smoke/smoke-test-kit.ts",
+    "tests/unit/decision-link-classification.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f1b1be4e19e6",
+  "token_usage": {
+    "input_tokens": 5858,
+    "cache_creation_tokens": 367817,
+    "cache_read_tokens": 17178849,
+    "output_tokens": 51982,
+    "api_call_count": 168
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T16:21:48.191339Z",
+    "agent_lines": 99,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 99,
+    "agent_percentage": 100
+  }
+}

@@ -1,0 +1,317 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/kolkata-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+let's plan implementation for gh issue Git commits as source type for outcome/decision evidence #48
+
+answers to open questions:
+- github webhook as ingestion mechanism
+- commits should automatically be linked if confidence is high enough. if too low, ask user to confirm
+- granularity: i think we should only care about commits on default branch
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+dont bother with idempotency for 5 now. create gh issue instead
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+make interface for git commit processor
+
+---
+
+implement plan
+
+---
+
+ehh, shouldnt the git_commit record include message?
+
+---
+
+why do we crea bout stats and files changed ?
+
+---
+
+continue implementation
+
+---
+
+fix the maxSteps: 5
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial setup**: User asked to plan implementation for GitHub issue #48 "Git commits as source type for outcome/decision evidence". They provided answers to open questions:
+   - GitHub webhook as ingestion mechanism
+   - Commits should automatically be linked if confidence is high enough, otherwise ask user to confirm
+   - Only care about commits on default branch
+
+2. **Branch rename**: System instruction said to rename branch with "marcus-sa/" prefix. The branch was already `marcus-sa/git-commit-evidence`.
+
+3. **Issue exploration**: Fetched GH issue #48 which described modeling git commits as source records with relations to existing entities.
+
+4. **Plan mode**: Entered plan mode, launched Explore and Plan agents to understand the codebase architecture thoroughly.
+
+5. **Plan creation**: Created a detailed plan at `/Users/marcus/.claude/plans/pure-toasting-ripple.md` with 11 steps.
+
+6. **User feedback - idempotency**: User said "dont bother with idempotency for now. create gh issue instead". Created GH issue #63 for deferred idempotency work and updated the plan.
+
+7. **User feedback - interface first**: User said "make interface for git commit processor". Created `app/src/server/webhook/types.ts` with types for GitHub push events, commit processing input/output, and webhook processing.
+
+8. **User feedback - stats/files fields**: User questioned "why do we care about stats and files changed?" - I agreed these were unnecessary (nothing consumes them) and removed `files_changed`, `stats_additions`, `stats_deletions` from schema and `filesChanged`, `statsAdditions`, `statsDeletions`, `added`/`removed`/`modified` from webhook types.
+
+9. **Implementation**: User said "implement plan". Created 8 tasks and implemented them all:
+   - Task 1: Schema changes
+   - Task 2: Type system updates
+   - Task 3: Entity upsert pipeline widening
+   - Task 4: Persist extraction updates
+   - Task 5: Provenance query update
+   - Task 6: Config + workspace graph context loader
+   - Task 7: Webhook route handler + commit processor (new files)
+   - Task 8: Route registration
+
+10. **Type check**: Ran `npx tsc --noEmit`, found two errors:
+    - Pre-existing: `pm/agent.ts` line 136 `maxSteps` not in type
+    - Our code: unused `logWarn` import in webhook route - fixed by removing it
+
+11. **Unit tests**: Ran `bun test tests/unit/` - 119 pass, 3 pre-existing failures (logger initialization issue), no new failures.
+
+12. **User's most recent request**: "fix the maxSteps: 5" - referring to the pre-existing error in `pm/agent.ts`. I was investigating the `ai` SDK v6 to find the correct property name when the summary was requested. The `CallSettings` type doesn't have `maxSteps` - it was likely renamed or moved to a different parameter location in the `generateText` function signature.
+
+Let me trace through the key files and changes precisely.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested implementation of GitHub issue #48 "Git commits as source type for outcome/decision evidence". The goal is to add a GitHub webhook endpoint that ingests commits pushed to a repository's default branch, runs them through the existing extraction pipeline, and creates provenance edges linking commits to entities they reference. High-confidence decision links are created automatically (≥0.85); low-confidence matches (0.6–0.85) create observations for user review. The user provided specific answers to open questions: use GitHub webhook for ingestion, auto-link if confidence is high enough otherwise ask user to confirm, and only care about commits on the default branch.
+
+2. Key Technical Concepts:
+   - SurrealDB SCHEMAFULL tables with TYPE RELATION constraints
+   - Extraction pipeline: `extractStructuredGraph()` → `persistExtractionOutput()` → embedding writeback
+   - Source/provenance architecture: `extraction_relation` edges from source records to entities
+   - `implemented_by` relation for decision→commit evidence (separate from extraction provenance)
+   - GitHub webhook signature verification (HMAC SHA-256)
+   - Async fire-and-forget processing (return 202 immediately, process in background)
+   - Confidence-based auto-linking thresholds
+   - Observation entity for low-confidence matches requiring user confirmation
+   - Workspace-scoped webhook URLs
+   - Entity dedup via cosine similarity on embeddings
+   - `SourceRecord` / `SourceKind` type unions widened to include `"git_commit"`
+
+3. Files and Code Sections:
+
+   - **`schema/surreal-schema.surql`** - Core schema file for all SurrealDB tables
+     - Added `workspace`, `embedding` fields to `git_commit` table + indexes
+     - Added `source_commit` field (option<record<git_commit>>) to `task`, `decision`, `question` tables + indexes
+     - Widened `extraction_relation` IN constraint from `message | document_chunk` to `message | document_chunk | git_commit`
+     - Added `source_commit` field + index to `entity_relation` table
+     - Updated `fn::entity_search_workspace` and `fn::entity_search_project` to include entities with `source_commit` in workspace git_commits (added OR branches and `$workspace_commits` variable)
+     - Removed `files_changed`, `stats_additions`, `stats_deletions` fields after user feedback
+
+   - **`app/src/shared/contracts.ts`** - Shared type contracts between client/server
+     - Changed `SourceKind` from `"message" | "document_chunk"` to `"message" | "document_chunk" | "git_commit"`
+     - Changed `EntityDetailResponse.provenance[].sourceKind` from inline union to `SourceKind`
+
+   - **`app/src/server/extraction/types.ts`** - Extraction pipeline types
+     - Changed `SourceRecord` from `TbRecordId<"message" | "document_chunk">` to `TbRecordId<"message" | "document_chunk" | "git_commit">`
+
+   - **`app/src/server/graph/queries.ts`** - Graph query functions
+     - Updated `EntityProvenance.sourceKind` to include `"git_commit"`
+     - Updated `getEntityDetail` provenance query to include `OR \`in\` IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace)`
+     - Widened `in` type from `RecordId<"message" | "document_chunk">` to include `"git_commit"`
+     - Changed sourceKind derivation to three-way discriminator: `document_chunk` / `git_commit` / `message`
+
+   - **`app/src/server/extraction/entity-upsert.ts`** - Entity upsert and dedup logic
+     - Added `sourceCommitRecord?: RecordId<"git_commit", string>` to `upsertGraphEntity` input
+     - Threaded `sourceCommitRecord` to `buildEntityRecordContent` call
+     - Added `source_commit` spread to POSSIBLE_DUPLICATE entity_relation RELATE
+     - Updated `buildEntityRecordContent` signature to accept `sourceCommitRecord` parameter (after `sourceMessageRecord`)
+     - Added `...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {})` to task, decision, question record content
+     - Updated `loadWorkspaceKindCandidates` queries for task/decision/question to include `OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace)`
+
+   - **`app/src/server/extraction/persist-extraction.ts`** - Extraction persistence orchestrator
+     - Added `sourceCommitRecord?: RecordId<"git_commit", string>` to `persistExtractionOutput` input
+     - Threaded to `upsertGraphEntity` calls
+     - Added `source_commit` spread to entity_relation RELATE calls
+
+   - **`app/src/server/extraction/context-loaders.ts`** - Extraction context loading
+     - Added `GraphEntityRecord` import
+     - Added new `loadWorkspaceGraphContext()` function for workspace-scoped graph context (no conversation scope), querying extraction_relation edges from messages, document_chunks, and git_commits in the workspace
+
+   - **`app/src/server/runtime/config.ts`** - Server configuration
+     - Added `githubWebhookSecret?: string` to `ServerConfig`
+     - Added `const githubWebhookSecret = Bun.env.GITHUB_WEBHOOK_SECRET?.trim() || undefined;`
+     - Added spread to return object
+
+   - **`app/src/server/runtime/start-server.ts`** - Route registration
+     - Imported `createGitHubWebhookHandler`
+     - Created handler instance
+     - Registered `POST /api/workspaces/:workspaceId/webhooks/github` route
+
+   - **`app/src/server/webhook/types.ts`** (NEW) - Webhook type definitions
+     ```typescript
+     export type GitHubPushCommit = {
+       id: string; message: string; timestamp: string; url: string;
+       author: { name: string; email: string; username?: string; };
+     };
+     export type GitHubPushEvent = {
+       ref: string;
+       repository: { full_name: string; default_branch: string; html_url: string; };
+       commits: GitHubPushCommit[];
+     };
+     export type CommitInput = {
+       sha: string; message: string; authoredAt: string; authorName: string;
+       authorEmail: string; authorUsername?: string; url: string; repository: string;
+     };
+     export type ProcessCommitInput = { surreal: Surreal; extractionModel: unknown; embeddingModel: unknown; embeddingDimension: number; extractionStoreThreshold: number; extractionModelId: string; workspaceRecord: RecordId<"workspace", string>; commit: CommitInput; workspaceName?: string; projectNames?: string[]; autoLinkThreshold: number; now: Date; };
+     export type ProcessCommitResult = { commitRecord: RecordId<"git_commit", string>; entities: ExtractedEntity[]; relationships: ExtractedRelationship[]; autoLinkedDecisions: string[]; observationsCreated: string[]; };
+     export type ProcessWebhookInput = { surreal: Surreal; extractionModel: unknown; embeddingModel: unknown; embeddingDimension: number; extractionStoreThreshold: number; extractionModelId: string; workspaceRecord: RecordId<"workspace", string>; event: GitHubPushEvent; autoLinkThreshold: number; };
+     export type ProcessWebhookResult = { commitsProcessed: number; commitsSkipped: number; totalEntities: number; totalRelationships: number; autoLinkedDecisions: string[]; observationsCreated: string[]; };
+     ```
+
+   - **`app/src/server/webhook/github-webhook-route.ts`** (NEW) - Webhook HTTP handler
+     - `createGitHubWebhookHandler(deps)` factory pattern
+     - Verifies `x-hub-signature-256` via HMAC SHA-256 with constant-time comparison (skips if no secret configured)
+     - Checks `x-github-event === "push"` (returns 200 for other events)
+     - Filters to default branch only (`ref === refs/heads/${default_branch}`)
+     - Returns 202 immediately, fires `processGitCommits()` as void promise (fire-and-forget)
+     - `verifyGitHubSignature()` uses Web Crypto API
+
+   - **`app/src/server/webhook/github-commit-processor.ts`** (NEW) - Commit processing logic
+     - `processGitCommits()` processes all commits from a push event sequentially
+     - `processCommit()` per-commit: resolves author → creates git_commit record with embedding → loads workspace graph context → runs `extractStructuredGraph()` → runs `persistExtractionOutput()` → auto-links decisions (≥0.85 creates `implemented_by` edge, <0.85 creates observation via `createObservation()`)
+     - Uses `loadWorkspaceProjects()` for project name context
+     - Queries workspace name for extraction context
+
+4. Errors and fixes:
+   - **Unused import `logWarn`**: `tsc --noEmit` reported `TS6133: 'logWarn' is declared but its value is never read` in `github-webhook-route.ts`. Fixed by changing import from `{ logError, logInfo, logWarn }` to `{ logError, logInfo }`.
+   - **Pre-existing `maxSteps` error**: `pm/agent.ts:136` has `maxSteps: 5` which is not a valid property in the `ai` SDK v6 `CallSettings` type. This was pre-existing before our changes. User explicitly asked to fix it as the most recent request.
+   - **File read errors during session resume**: Several Edit calls failed with "File has not been read yet" after session resume. Fixed by re-reading the files before editing.
+   - **User feedback on over-engineering**: User asked "why do we care about stats and files changed?" regarding `files_changed`, `stats_additions`, `stats_deletions` fields. Removed them from both schema and types since nothing in the implementation consumes them.
+
+5. Problem Solving:
+   - Designed workspace-scoped webhook URL pattern to route commits to correct workspace
+   - Solved the "no conversation context" problem for commit extraction by creating `loadWorkspaceGraphContext()` that queries across all sources in a workspace
+   - Handled GitHub's 10-second webhook timeout with async fire-and-forget processing (return 202 immediately)
+   - Deferred idempotency handling to GH issue #63 per user request
+   - Created observation-based confirmation flow for low-confidence decision matches using existing `createObservation()` infrastructure
+
+6. All user messages:
+   - "let's plan implementation for gh issue Git commits as source type for outcome/decision evidence #48 answers to open questions: github webhook as ingestion mechanism, commits should automatically be linked if confidence is high enough. if too low, ask user to confirm, granularity: i think we should only care about commits on default branch"
+   - "dont bother with idempotency for now. create gh issue instead"
+   - "make interface for git commit processor"
+   - "ehh, shouldnt the git_commit record include message?"
+   - "why do we care about stats and files changed?"
+   - "continue implementation"
+   - "implement plan"
+   - "fix the maxSteps: 5"
+
+7. Pending Tasks:
+   - Fix the `maxSteps: 5` error in `app/src/server/agents/pm/agent.ts` line 136 - the `ai` SDK v6 (`^6.0.101`) `CallSettings` type does not have `maxSteps`. Need to find the correct property name in the SDK.
+
+8. Current Work:
+   The user's most recent request was "fix the maxSteps: 5" referring to the pre-existing TypeScript error in `app/src/server/agents/pm/agent.ts:136`. I was investigating the `ai` SDK v6 to determine what `maxSteps` was renamed to. I found that:
+   - The `ai` package version is `^6.0.101`
+   - `CallSettings` type does not contain `maxSteps` or `maxToolRoundtrips`
+   - The `generateText` function signature includes `stopWhen` and `prepareStep` parameters
+   - The error is: `Object literal may only specify known properties, and 'maxSteps' does not exist in type 'CallSettings & ...'`
+   
+   The `generateText` call is at lines 107-137 of `pm/agent.ts` and uses `experimental_context` (custom context) and `maxSteps: 5`.
+
+9. Optional Next Step:
+   Find the correct replacement for `maxSteps` in `ai` SDK v6. Based on the `generateText` signature seen in the types, the SDK appears to use a `stopWhen` pattern or the property may have been renamed. Need to check the SDK's type definitions more carefully or look at the `generateText` function's full parameter type to find where tool loop limits are configured. The user explicitly said "fix the maxSteps: 5".
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-kolkata-v1/424e31e2-b693-4e14-9f0b-019fb104bd76.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Continue from where you left off.
+
+---
+
+Continue from where you left off.
+
+---
+
+https://ai-sdk.dev/docs/migration-guides/migration-guide-5-0#maxsteps-removal
+
+---
+
+let's write a smoketest
+
+---
+
+"Decided to use TypeScript for the backend API instead of Go" - this is too explicit.
+
+---
+
+this git commit will then create a decision with a llm generated message from the git commit message?
+
+---
+
+commit
+
+---
+
+175 |         "SELECT id, out FROM extraction_relation WHERE `in` = $commit;",
+176 |         { commit: commit.id },
+177 |       )
+178 |       .collect<[Array<{ id: RecordId; out: RecordId }>]>();
+179 | 
+180 |     expect(edgeRows.length).toBeGreaterThan(0);
+                                  ^
+error: expect(received).toBeGreaterThan(expected)
+
+Expected: > 0
+Received: 0
+
+      at <anonymous> (/Users/marcus/conductor/workspaces/brain/kolkata-v1/tests/smoke/github-webhook.test.ts:180:29)
+✗ github webhook smoke > accepts push to default branch and creates git_commit with extraction [950.31ms]
+
+---
+
+is it better to use github webhooks or link_commit(hash, entity_ids) agent tool as decsribed in https://github.com/marcus-sa/brain/issues/52 or both?
+
+---
+
+add env var to skip teardown of surrealdb ns & db
+
+---
+
+"Decisions with confidence ≥0.85 auto-linked; lower confidence creates confirmation observation" have we tested the negative cases?
+
+---
+
+sure
+
+---
+
+commit
