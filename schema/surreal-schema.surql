@@ -304,6 +304,12 @@ DEFINE TABLE superseded_by TYPE RELATION IN decision OUT decision SCHEMAFULL;
 DEFINE FIELD reason ON superseded_by TYPE option<string>;
 DEFINE FIELD superseded_at ON superseded_by TYPE datetime;
 
+DEFINE TABLE branched_from TYPE RELATION IN conversation OUT conversation SCHEMAFULL;
+DEFINE FIELD branched_at ON branched_from TYPE datetime;
+DEFINE FIELD branch_point_message ON branched_from TYPE record<message>;
+DEFINE INDEX branched_from_out ON branched_from FIELDS out;
+DEFINE INDEX branched_from_in ON branched_from FIELDS `in`;
+
 DEFINE TABLE attended_by TYPE RELATION IN meeting OUT person SCHEMAFULL;
 DEFINE FIELD role ON attended_by TYPE option<string> ASSERT $value = NONE OR $value IN ["organizer", "attendee"];
 DEFINE FIELD added_at ON attended_by TYPE option<datetime>;

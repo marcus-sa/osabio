@@ -24,6 +24,7 @@ export type ConversationGroupInput = {
   title?: string;
   updatedAt: string;
   touchedBy: Array<{ projectId: string; entityCount: number }>;
+  parentId?: string;
 };
 
 export type GroupingResult = {
@@ -418,6 +419,26 @@ type FeatureActivityRow = {
   latestActivityAt: Date | string;
 };
 
+type BranchedFromRow = {
+  in: RecordId<"conversation", string>;
+  out: RecordId<"conversation", string>;
+};
+
+/**
+ * Recursively attaches branch conversations to their parent items.
+ */
+function attachBranches(
+  item: ConversationSidebarItem,
+  childrenMap: Map<string, ConversationSidebarItem[]>,
+): ConversationSidebarItem {
+  const children = childrenMap.get(item.id);
+  if (!children || children.length === 0) return item;
+  return {
+    ...item,
+    branches: children.map((child) => attachBranches(child, childrenMap)),
+  };
+}
+
 export async function buildWorkspaceConversationSidebar(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
@@ -439,6 +460,20 @@ export async function buildWorkspaceConversationSidebar(
     )
     .collect<[TouchedByRow[]]>();
 
+  // Load branched_from edges to build parent/child relationships
+  const [branchEdges] = await surreal
+    .query<[BranchedFromRow[]]>(
+      "SELECT `in`, out FROM branched_from WHERE `in` IN $conversations;",
+      { conversations: conversationIds },
+    )
+    .collect<[BranchedFromRow[]]>();
+
+  // Build branch parent/child maps
+  const parentMap = new Map<string, string>();
+  for (const edge of branchEdges) {
+    parentMap.set(edge.in.id as string, edge.out.id as string);
+  }
+
   // Build touched_by lookup by conversation
   const touchedByMap = new Map<string, Array<{ projectId: string; entityCount: number }>>();
   for (const row of touchedByRows) {
@@ -448,34 +483,61 @@ export async function buildWorkspaceConversationSidebar(
     touchedByMap.set(convId, existing);
   }
 
-  // Build conversation input for grouping
-  const conversationInputs: ConversationGroupInput[] = conversationRows.map((row) => ({
-    id: row.id.id as string,
-    title: row.title,
-    updatedAt: toIsoString(row.updatedAt),
-    touchedBy: touchedByMap.get(row.id.id as string) ?? [],
-  }));
+  // Build sidebar items for ALL conversations (including branches)
+  const allItems = new Map<string, ConversationSidebarItem>();
+  for (const row of conversationRows) {
+    const id = row.id.id as string;
+    allItems.set(id, {
+      id,
+      title: row.title ?? "Untitled",
+      updatedAt: toIsoString(row.updatedAt),
+      ...(parentMap.has(id) ? { parentId: parentMap.get(id) } : {}),
+    });
+  }
+
+  // Build children lookup (parentId -> child items)
+  const childrenMap = new Map<string, ConversationSidebarItem[]>();
+  for (const [childId, parentId] of parentMap) {
+    const childItem = allItems.get(childId);
+    if (!childItem) continue;
+    const children = childrenMap.get(parentId) ?? [];
+    children.push(childItem);
+    childrenMap.set(parentId, children);
+  }
+
+  // Only group root conversations (those without a parent)
+  const conversationInputs: ConversationGroupInput[] = conversationRows
+    .filter((row) => !parentMap.has(row.id.id as string))
+    .map((row) => ({
+      id: row.id.id as string,
+      title: row.title,
+      updatedAt: toIsoString(row.updatedAt),
+      touchedBy: touchedByMap.get(row.id.id as string) ?? [],
+    }));
 
   const { groups, unlinked } = groupConversationsByProject(conversationInputs);
 
-  // Load project names and build groups
+  // Load project names and build groups, attaching branches
   const projectGroups: ProjectConversationGroup[] = [];
   for (const [projectId, conversations] of groups) {
     const projectRecord = new RecordId("project", projectId);
     const project = await surreal.select<{ name: string }>(projectRecord);
     if (!project) continue;
 
-    const featureActivity = await loadProjectFeatureActivity(surreal, projectRecord, conversations);
+    const withBranches = conversations.map((conv) => attachBranches(conv, childrenMap));
+    const featureActivity = await loadProjectFeatureActivity(surreal, projectRecord, withBranches);
 
     projectGroups.push({
       projectId,
       projectName: project.name,
-      conversations,
+      conversations: withBranches,
       featureActivity,
     });
   }
 
-  return { groups: projectGroups, unlinked };
+  const unlinkedWithBranches = unlinked.map((conv) => attachBranches(conv, childrenMap));
+
+  return { groups: projectGroups, unlinked: unlinkedWithBranches };
 }
 
 async function loadProjectFeatureActivity(

@@ -88,12 +88,15 @@ export type WorkspaceBootstrapMessage = {
   text: string;
   createdAt: string;
   suggestions?: string[];
+  inherited?: boolean;
 };
 
 export type ConversationSidebarItem = {
   id: string;
   title: string;
   updatedAt: string;
+  parentId?: string;
+  branches?: ConversationSidebarItem[];
 };
 
 export type ProjectFeatureActivity = {
@@ -253,6 +256,16 @@ export type EntityDetailResponse = {
     resolvedFrom?: string;
     fromText?: string;
   }>;
+};
+
+export type BranchConversationRequest = {
+  messageId: string;
+};
+
+export type BranchConversationResponse = {
+  conversationId: string;
+  parentConversationId: string;
+  branchPointMessageId: string;
 };
 
 export type EntityActionRequest = {

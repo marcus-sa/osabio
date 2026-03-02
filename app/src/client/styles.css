@@ -1048,3 +1048,49 @@ body {
 .animate-highlight {
   animation: highlight-message 2s ease-out;
 }
+
+/* Branch: inherited messages */
+.message-inherited {
+  opacity: 0.55;
+  border-left: 2px solid var(--border, #d0d0d0);
+  padding-left: 8px;
+}
+
+.branch-divider {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted-foreground, #888);
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border, #d0d0d0);
+  margin-bottom: 8px;
+}
+
+.branch-message-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0 8px auto;
+  padding: 4px;
+  color: var(--muted-foreground, #888);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+}
+
+[data-message-id]:hover .branch-message-btn {
+  opacity: 0.5;
+}
+
+.branch-message-btn:hover {
+  opacity: 1 !important;
+  background: var(--accent, #f0f0f0);
+  border-color: var(--border, #d0d0d0);
+}
+
+.branch-message-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.2 !important;
+}

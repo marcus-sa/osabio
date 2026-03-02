@@ -20,6 +20,7 @@ import type { ServerDependencies } from "../runtime/types";
 import { toOnboardingState } from "../onboarding/onboarding-state";
 import { resolveWorkspaceRecord } from "./workspace-scope";
 import { buildWorkspaceConversationSidebar } from "./conversation-sidebar";
+import { loadMessagesWithInheritance } from "../chat/branch-chain";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -28,14 +29,6 @@ type WorkspaceRow = {
   onboarding_complete: boolean;
   onboarding_turn_count: number;
   onboarding_summary_pending: boolean;
-};
-
-type MessageContextRow = {
-  id: RecordId<"message", string>;
-  role: "user" | "assistant";
-  text: string;
-  createdAt: Date | string;
-  suggestions?: string[];
 };
 
 type ProvenanceEdgeRow = {
@@ -187,21 +180,16 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
     }
 
     const conversationRecord = await resolveWorkspaceBootstrapConversation(deps, workspaceRecord);
-    const [messageRows] = await deps.surreal
-      .query<[MessageContextRow[]]>(
-        "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT 80;",
-        {
-          conversation: conversationRecord,
-        },
-      )
-      .collect<[MessageContextRow[]]>();
+    const conversationId = conversationRecord.id as string;
+    const rawMessages = await loadMessagesWithInheritance(deps.surreal, conversationId, 80);
 
-    const messages = messageRows.map((row) => ({
-      id: row.id.id as string,
+    const messages = rawMessages.map((row) => ({
+      id: row.id,
       role: row.role,
       text: row.text,
       createdAt: toIsoString(row.createdAt),
       ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
+      ...(row.inherited ? { inherited: true } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
     const seeds = await loadWorkspaceSeeds(deps, workspaceRecord, 40);
@@ -424,19 +412,15 @@ async function handleWorkspaceConversation(
       throw new HttpError(400, "conversation does not belong to workspace");
     }
 
-    const [messageRows] = await deps.surreal
-      .query<[MessageContextRow[]]>(
-        "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT 80;",
-        { conversation: conversationRecord },
-      )
-      .collect<[MessageContextRow[]]>();
+    const rawMessages = await loadMessagesWithInheritance(deps.surreal, conversationId, 80);
 
-    const messages = messageRows.map((row) => ({
-      id: row.id.id as string,
+    const messages = rawMessages.map((row) => ({
+      id: row.id,
       role: row.role,
       text: row.text,
       createdAt: toIsoString(row.createdAt),
       ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
+      ...(row.inherited ? { inherited: true } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
     const payload: WorkspaceConversationResponse = {

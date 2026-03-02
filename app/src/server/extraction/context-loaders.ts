@@ -59,6 +59,7 @@ export async function loadConversationGraphContext(
   surreal: Surreal,
   conversationId: string,
   limit: number,
+  options?: { inheritedEntityIds?: RecordId[] },
 ): Promise<ExtractionGraphContextRow[]> {
   const conversationRecord = new RecordId("conversation", conversationId);
   const [rows] = await surreal
@@ -108,6 +109,51 @@ export async function loadConversationGraphContext(
       sourceMessage: row.in,
     });
     seen.add(entityId);
+  }
+
+  // Merge inherited entities from parent conversation when branch has sparse context
+  if (options?.inheritedEntityIds && options.inheritedEntityIds.length > 0 && items.length < 5) {
+    const [inheritedRows] = await surreal
+      .query<[ConversationProvenanceRow[]]>(
+        [
+          "SELECT `in`, out, confidence, extracted_at",
+          "FROM extraction_relation",
+          "WHERE out IN $entityIds",
+          "ORDER BY extracted_at DESC",
+          "LIMIT $limit;",
+        ].join(" "),
+        { entityIds: options.inheritedEntityIds, limit },
+      )
+      .collect<[ConversationProvenanceRow[]]>();
+
+    for (const row of inheritedRows) {
+      const entityId = row.out.id as string;
+      if (seen.has(entityId)) continue;
+
+      const entityTable = row.out.tb;
+      if (
+        entityTable !== "project" &&
+        entityTable !== "person" &&
+        entityTable !== "feature" &&
+        entityTable !== "task" &&
+        entityTable !== "decision" &&
+        entityTable !== "question"
+      ) {
+        continue;
+      }
+
+      const entityText = await readEntityText(surreal, row.out);
+      if (!entityText) continue;
+
+      items.push({
+        id: row.out,
+        kind: entityTable as ExtractableEntityKind,
+        text: entityText,
+        confidence: row.confidence,
+        sourceMessage: row.in,
+      });
+      seen.add(entityId);
+    }
   }
 
   return items;

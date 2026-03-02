@@ -14,6 +14,7 @@ import { createGraphRouteHandler } from "../graph/graph-route";
 import { createEntityDetailHandler } from "../entities/entity-detail-route";
 import { createEntityActionsHandler } from "../entities/entity-actions-route";
 import { createWorkItemAcceptHandler } from "../entities/work-item-accept-route";
+import { createBranchConversationHandler } from "../chat/branch-conversation";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -37,6 +38,7 @@ export async function startServer(): Promise<void> {
   const entityDetailHandler = createEntityDetailHandler(deps);
   const entityActionsHandler = createEntityActionsHandler(deps);
   const workItemAcceptHandler = createWorkItemAcceptHandler(deps);
+  const branchConversationHandler = createBranchConversationHandler(deps);
 
   const server = Bun.serve({
     port: config.port,
@@ -97,6 +99,18 @@ export async function startServer(): Promise<void> {
       "/api/entities/:entityId/actions": {
         POST: withRequestLogging("POST /api/entities/:entityId/actions", "POST", (request) =>
           entityActionsHandler(request.params.entityId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/conversations/:parentId/branch": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/conversations/:parentId/branch",
+          "POST",
+          (request) =>
+            branchConversationHandler(
+              request.params.workspaceId,
+              request.params.parentId,
+              request,
+            ),
         ),
       },
       "/api/workspaces/:workspaceId/work-items/accept": {

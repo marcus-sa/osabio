@@ -1,4 +1,4 @@
-import { RecordId, Surreal } from "surrealdb";
+import { type RecordId, type Surreal } from "surrealdb";
 import type { ObservationSummary } from "../../shared/contracts";
 import {
   listConversationEntities,
@@ -36,6 +36,7 @@ export async function buildChatContext(input: {
   conversationRecord: RecordId<"conversation", string>;
   workspaceRecord: RecordId<"workspace", string>;
   loaders?: ChatContextLoaders;
+  inheritedEntityIds?: RecordId[];
 }): Promise<ChatContext> {
   const loaders = input.loaders ?? {
     listConversationEntities,
@@ -51,6 +52,9 @@ export async function buildChatContext(input: {
       conversationRecord: input.conversationRecord,
       workspaceRecord: input.workspaceRecord,
       limit: 60,
+      ...(input.inheritedEntityIds && input.inheritedEntityIds.length > 0
+        ? { inheritedEntityIds: input.inheritedEntityIds }
+        : {}),
     }),
     loaders.listWorkspaceProjectSummaries({
       surreal: input.surreal,

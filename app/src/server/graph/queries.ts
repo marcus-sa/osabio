@@ -317,6 +317,7 @@ export async function listConversationEntities(input: {
   conversationRecord: RecordId<"conversation", string>;
   workspaceRecord: RecordId<"workspace", string>;
   limit: number;
+  inheritedEntityIds?: RecordId[];
 }): Promise<ConversationEntity[]> {
   const [rows] = await input.surreal
     .query<[Array<{ in: RecordId<"message", string>; out: GraphEntityRecord; confidence: number; extracted_at: string | Date }>]>(
@@ -374,6 +375,52 @@ export async function listConversationEntities(input: {
       sourceMessageId: toRecordIdString(row.in),
     });
     seen.add(entityKey);
+  }
+
+  // Merge inherited entities from parent conversation when branch has sparse context
+  if (input.inheritedEntityIds && input.inheritedEntityIds.length > 0 && items.length < 5) {
+    const [inheritedRows] = await input.surreal
+      .query<[Array<{ in: RecordId<"message", string>; out: GraphEntityRecord; confidence: number; extracted_at: string | Date }>]>(
+        [
+          "SELECT `in`, out, confidence, extracted_at",
+          "FROM extraction_relation",
+          "WHERE out IN $entityIds",
+          "ORDER BY extracted_at DESC",
+          "LIMIT $limit;",
+        ].join(" "),
+        { entityIds: input.inheritedEntityIds, limit: input.limit },
+      )
+      .collect<[Array<{ in: RecordId<"message", string>; out: GraphEntityRecord; confidence: number; extracted_at: string | Date }>]>();
+
+    for (const row of inheritedRows) {
+      const table = row.out.table.name as GraphEntityTable;
+      if (
+        table !== "workspace" &&
+        table !== "project" &&
+        table !== "person" &&
+        table !== "feature" &&
+        table !== "task" &&
+        table !== "decision" &&
+        table !== "question"
+      ) {
+        continue;
+      }
+
+      const entityKey = `${table}:${toRecordIdString(row.out)}`;
+      if (seen.has(entityKey)) continue;
+
+      const name = await readEntityName(input.surreal, row.out);
+      if (!name) continue;
+
+      items.push({
+        id: toRecordIdString(row.out),
+        kind: table,
+        name,
+        confidence: row.confidence,
+        sourceMessageId: toRecordIdString(row.in),
+      });
+      seen.add(entityKey);
+    }
   }
 
   return items;

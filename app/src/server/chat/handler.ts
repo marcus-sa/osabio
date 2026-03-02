@@ -20,6 +20,7 @@ export async function runOrchestrator(input: {
   currentMessageRecord: RecordId<"message", string>;
   latestUserText: string;
   workspaceOwnerRecord?: RecordId<"person", string>;
+  inheritedEntityIds?: RecordId[];
   messages: ConversationMessage[];
   onToken: (token: string) => Promise<void> | void;
 }): Promise<{ text: string }> {
@@ -27,6 +28,9 @@ export async function runOrchestrator(input: {
     surreal: input.surreal,
     conversationRecord: input.conversationRecord,
     workspaceRecord: input.workspaceRecord,
+    ...(input.inheritedEntityIds && input.inheritedEntityIds.length > 0
+      ? { inheritedEntityIds: input.inheritedEntityIds }
+      : {}),
   });
 
   const system = buildSystemPrompt(context);
