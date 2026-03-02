@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6c5e21772b57",
+  "session_id": "860c2fc2-8a7d-45ef-8937-3af45a5f6b71",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T10:51:12.890182Z",
+  "branch": "marcus-sa/conv-branching",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/smoke/branch-inheritance.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "722711263cc8",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T10:51:12.877315Z",
+    "agent_lines": 238,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 238,
+    "agent_percentage": 100
+  }
+}
