@@ -26,12 +26,14 @@ export type WorkspaceDecisionSummary = {
   id: string;
   name: string;
   status: string;
+  priority?: string;
   project?: string;
 };
 
 export type WorkspaceQuestionSummary = {
   id: string;
   name: string;
+  priority?: string;
   project?: string;
 };
 
@@ -84,10 +86,10 @@ export type ProjectStatus = {
     active: number;
     completed: number;
     blocked: number;
-    recent: Array<{ id: string; name: string; status: string }>;
+    recent: Array<{ id: string; name: string; status: string; priority?: string }>;
   };
-  decisions: Array<{ id: string; name: string; status: string }>;
-  questions: Array<{ id: string; name: string; status: string }>;
+  decisions: Array<{ id: string; name: string; status: string; priority?: string }>;
+  questions: Array<{ id: string; name: string; status: string; priority?: string }>;
   features: Array<{ id: string; name: string; status: string }>;
 };
 
@@ -476,9 +478,9 @@ export async function listWorkspaceRecentDecisions(input: {
   const projectById = new Map(projects.map((project) => [toRecordIdString(project.id), project.name]));
 
   const [rows] = await input.surreal
-    .query<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; created_at: string | Date }>]>(
+    .query<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; priority?: string; created_at: string | Date }>]>(
       [
-        "SELECT id, summary, status, created_at",
+        "SELECT id, summary, status, priority, created_at",
         "FROM decision",
         "WHERE id IN (SELECT VALUE `in` FROM belongs_to WHERE out IN $projects)",
         "OR source_message IN (",
@@ -495,7 +497,7 @@ export async function listWorkspaceRecentDecisions(input: {
         limit: input.limit,
       },
     )
-    .collect<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; created_at: string | Date }>]>();
+    .collect<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; priority?: string; created_at: string | Date }>]>();
 
   const values: WorkspaceDecisionSummary[] = [];
 
@@ -516,6 +518,7 @@ export async function listWorkspaceRecentDecisions(input: {
       id: toRecordIdString(row.id),
       name: row.summary,
       status: row.status,
+      ...(row.priority ? { priority: row.priority } : {}),
       ...(project ? { project } : {}),
     });
   }
@@ -533,9 +536,9 @@ export async function listWorkspaceOpenQuestions(input: {
   const projectById = new Map(projects.map((project) => [toRecordIdString(project.id), project.name]));
 
   const [rows] = await input.surreal
-    .query<[Array<{ id: RecordId<"question", string>; text: string; status: string; created_at: string | Date }>]>(
+    .query<[Array<{ id: RecordId<"question", string>; text: string; status: string; priority?: string; created_at: string | Date }>]>(
       [
-        "SELECT id, text, status, created_at",
+        "SELECT id, text, status, priority, created_at",
         "FROM question",
         "WHERE status = 'open'",
         "AND (",
@@ -555,7 +558,7 @@ export async function listWorkspaceOpenQuestions(input: {
         limit: input.limit,
       },
     )
-    .collect<[Array<{ id: RecordId<"question", string>; text: string; status: string; created_at: string | Date }>]>();
+    .collect<[Array<{ id: RecordId<"question", string>; text: string; status: string; priority?: string; created_at: string | Date }>]>();
 
   const values: WorkspaceQuestionSummary[] = [];
 
@@ -575,6 +578,7 @@ export async function listWorkspaceOpenQuestions(input: {
     values.push({
       id: toRecordIdString(row.id),
       name: row.text,
+      ...(row.priority ? { priority: row.priority } : {}),
       ...(project ? { project } : {}),
     });
   }
@@ -1056,9 +1060,9 @@ export async function getProjectStatus(input: {
     .collect<[Array<{ id: RecordId<"feature", string>; name: string; status: string }>]>();
 
   const [taskRows] = await input.surreal
-    .query<[Array<{ id: RecordId<"task", string>; title: string; status: string; created_at: string | Date }>]>(
+    .query<[Array<{ id: RecordId<"task", string>; title: string; status: string; priority?: string; created_at: string | Date }>]>(
       [
-        "SELECT id, title, status, created_at",
+        "SELECT id, title, status, priority, created_at",
         "FROM task",
         "WHERE id IN (SELECT VALUE `in` FROM belongs_to WHERE out = $project)",
         "OR id IN (",
@@ -1071,12 +1075,12 @@ export async function getProjectStatus(input: {
       ].join(" "),
       { project: projectRecord },
     )
-    .collect<[Array<{ id: RecordId<"task", string>; title: string; status: string; created_at: string | Date }>]>();
+    .collect<[Array<{ id: RecordId<"task", string>; title: string; status: string; priority?: string; created_at: string | Date }>]>();
 
   const [decisionRows] = await input.surreal
-    .query<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; created_at: string | Date }>]>(
+    .query<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; priority?: string; created_at: string | Date }>]>(
       [
-        "SELECT id, summary, status, created_at",
+        "SELECT id, summary, status, priority, created_at",
         "FROM decision",
         "WHERE id IN (SELECT VALUE `in` FROM belongs_to WHERE out = $project)",
         "ORDER BY created_at DESC",
@@ -1084,12 +1088,12 @@ export async function getProjectStatus(input: {
       ].join(" "),
       { project: projectRecord },
     )
-    .collect<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; created_at: string | Date }>]>();
+    .collect<[Array<{ id: RecordId<"decision", string>; summary: string; status: string; priority?: string; created_at: string | Date }>]>();
 
   const [questionRows] = await input.surreal
-    .query<[Array<{ id: RecordId<"question", string>; text: string; status: string; created_at: string | Date }>]>(
+    .query<[Array<{ id: RecordId<"question", string>; text: string; status: string; priority?: string; created_at: string | Date }>]>(
       [
-        "SELECT id, text, status, created_at",
+        "SELECT id, text, status, priority, created_at",
         "FROM question",
         "WHERE id IN (SELECT VALUE `in` FROM belongs_to WHERE out = $project)",
         "ORDER BY created_at DESC",
@@ -1097,7 +1101,7 @@ export async function getProjectStatus(input: {
       ].join(" "),
       { project: projectRecord },
     )
-    .collect<[Array<{ id: RecordId<"question", string>; text: string; status: string; created_at: string | Date }>]>();
+    .collect<[Array<{ id: RecordId<"question", string>; text: string; status: string; priority?: string; created_at: string | Date }>]>();
 
   let active = 0;
   let completed = 0;
@@ -1131,17 +1135,20 @@ export async function getProjectStatus(input: {
         id: toRecordIdString(task.id),
         name: task.title,
         status: task.status,
+        ...(task.priority ? { priority: task.priority } : {}),
       })),
     },
     decisions: decisionRows.map((decision) => ({
       id: toRecordIdString(decision.id),
       name: decision.summary,
       status: decision.status,
+      ...(decision.priority ? { priority: decision.priority } : {}),
     })),
     questions: questionRows.map((question) => ({
       id: toRecordIdString(question.id),
       name: question.text,
       status: question.status,
+      ...(question.priority ? { priority: question.priority } : {}),
     })),
     features: featureRows.map((feature) => ({
       id: toRecordIdString(feature.id),

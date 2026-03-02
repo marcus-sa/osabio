@@ -82,7 +82,8 @@ DEFINE FIELD owner ON task TYPE option<record<person>>;
 DEFINE FIELD owner_name ON task TYPE option<string>;
 DEFINE FIELD deadline ON task TYPE option<datetime>;
 DEFINE FIELD status ON task TYPE string;
-DEFINE FIELD priority ON task TYPE option<string>;
+DEFINE FIELD priority ON task TYPE option<string>
+  ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE FIELD created_at ON task TYPE datetime;
 DEFINE FIELD updated_at ON task TYPE option<datetime>;
 DEFINE FIELD source_message ON task TYPE option<record<message>>;
@@ -116,6 +117,8 @@ DEFINE FIELD extracted_at ON decision TYPE option<datetime>;
 DEFINE FIELD embedding ON decision TYPE option<array<float>>;
 DEFINE FIELD category ON decision TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
+DEFINE FIELD priority ON decision TYPE option<string>
+  ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
 DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
@@ -134,6 +137,8 @@ DEFINE FIELD extracted_at ON question TYPE option<datetime>;
 DEFINE FIELD embedding ON question TYPE option<array<float>>;
 DEFINE FIELD category ON question TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
+DEFINE FIELD priority ON question TYPE option<string>
+  ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX question_status ON question FIELDS status;
 DEFINE INDEX question_source_message ON question FIELDS source_message;
 DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
@@ -326,6 +331,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     title AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM task
   WHERE source_message != NONE
@@ -341,6 +347,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     summary AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM decision
   WHERE source_message != NONE
@@ -356,6 +363,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     text AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM question
   WHERE source_message != NONE
@@ -381,6 +389,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     title AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM task
   WHERE source_message != NONE
@@ -397,6 +406,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     summary AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM decision
   WHERE source_message != NONE
@@ -413,6 +423,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     text AS text,
     extraction_confidence AS confidence,
     source_message AS sourceMessage,
+    priority,
     created_at
   FROM question
   WHERE source_message != NONE

@@ -17,6 +17,7 @@ import { toolFilteringScorer } from "./scorers/tool-filtering";
 import { forbiddenKindsScorer } from "./scorers/forbidden-kinds";
 import { relationRecallScorer } from "./scorers/relation-recall";
 import { categoryAccuracyScorer } from "./scorers/category-accuracy";
+import { priorityAccuracyScorer } from "./scorers/priority-accuracy";
 import type { ExtractionEvalOutput, GoldenCase, GoldenCaseIntent } from "./types";
 import { normalizeForSubstring } from "./scorers/shared";
 import { extractStructuredGraph } from "../app/src/server/extraction/extract-graph";
@@ -62,39 +63,42 @@ const intentScoreWeights: Record<
     | "forbidden-kinds"
     | "factuality"
     | "relation-recall"
-    | "category-accuracy",
+    | "category-accuracy"
+    | "priority-accuracy",
     number
   >
 > = {
   strict_single: {
-    "entity-precision": 0.16,
-    "entity-recall": 0.16,
-    "no-extra-entities": 0.18,
-    "no-phantom-persons": 0.12,
+    "entity-precision": 0.14,
+    "entity-recall": 0.14,
+    "no-extra-entities": 0.16,
+    "no-phantom-persons": 0.11,
     "evidence-grounded": 0.08,
     "no-context-bleed": 0.05,
     "evidence-source-current-message": 0.05,
     "resolved-from-lineage": 0.04,
     "tool-filtering": 0.06,
-    "forbidden-kinds": 0.08,
+    "forbidden-kinds": 0.07,
     factuality: 0.02,
     "relation-recall": 0,
-    "category-accuracy": 0.1,
+    "category-accuracy": 0.08,
+    "priority-accuracy": 0.08,
   },
   multi_allowed: {
-    "entity-precision": 0.21,
-    "entity-recall": 0.21,
+    "entity-precision": 0.19,
+    "entity-recall": 0.19,
     "no-extra-entities": 0.05,
-    "no-phantom-persons": 0.11,
-    "evidence-grounded": 0.08,
+    "no-phantom-persons": 0.10,
+    "evidence-grounded": 0.07,
     "no-context-bleed": 0.04,
-    "evidence-source-current-message": 0.06,
+    "evidence-source-current-message": 0.05,
     "resolved-from-lineage": 0.04,
     "tool-filtering": 0.04,
-    "forbidden-kinds": 0.06,
+    "forbidden-kinds": 0.05,
     factuality: 0.02,
     "relation-recall": 0.03,
-    "category-accuracy": 0.1,
+    "category-accuracy": 0.08,
+    "priority-accuracy": 0.08,
   },
 };
 
@@ -148,6 +152,7 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     forbiddenKindsScorer,
     relationRecallScorer,
     categoryAccuracyScorer,
+    priorityAccuracyScorer,
     factualityScorer,
   ],
   columns: ({ input, output, scores }) => [
@@ -157,6 +162,7 @@ evalite<GoldenCase, ExtractionEvalOutput, GoldenCase>("Extraction Golden Cases",
     { label: "Prec", value: formatScoreCell(scoreByName(scores, "entity-precision")) },
     { label: "Rec", value: formatScoreCell(scoreByName(scores, "entity-recall")) },
     { label: "Cat", value: formatScoreCell(scoreByName(scores, "category-accuracy")) },
+    { label: "Pri", value: formatScoreCell(scoreByName(scores, "priority-accuracy")) },
     {
       label: "Avg",
       value: computeWeightedAverage(input.intent, scores).toFixed(2),
@@ -343,6 +349,7 @@ async function runCase(testCase: GoldenCase): Promise<ExtractionEvalOutput> {
       text: e.text,
       confidence: e.confidence,
       ...(e.category ? { category: e.category } : {}),
+      ...(e.priority ? { priority: e.priority } : {}),
     })),
     extractedTools,
     personCount,

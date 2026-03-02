@@ -20,7 +20,8 @@
       {
         "kind": "task",
         "text": "finalize auth middleware",
-        "expectedCategory": "engineering"
+        "expectedCategory": "engineering",
+        "expectedPriority": "high"
       }
     ],
     "forbiddenExtractedKinds": ["person"]
@@ -645,5 +646,119 @@
       }
     ],
     "forbiddenExtractedKinds": ["person", "feature"]
+  },
+  {
+    "id": "priority-task-critical",
+    "input": "The login endpoint is down — this is an emergency, fix it immediately!",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "login endpoint",
+        "expectedCategory": "engineering",
+        "expectedPriority": "critical"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-task-high",
+    "input": "We need to finish the API documentation this week, it's important for the launch.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "API documentation",
+        "expectedPriority": "high"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-task-medium-default",
+    "input": "Task: implement input validation on the signup form before the next deploy.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "input validation",
+        "expectedCategory": "engineering",
+        "expectedPriority": "medium"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-task-low",
+    "input": "Someday someone should write a script to export reports as CSV, nice to have when we get around to it.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "export reports",
+        "expectedPriority": "low"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-decision-critical",
+    "input": "We must decide on the database provider right now, this is a P0 blocker for everything else.",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "decision",
+        "text_contains": "database provider",
+        "expectedPriority": "critical"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-question-low",
+    "input": "When we get around to it, should we consider adding internationalization support?",
+    "intent": "strict_single",
+    "expectedEntities": [
+      {
+        "kind": "question",
+        "text_contains": "internationalization",
+        "expectedPriority": "low"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-mixed-urgency",
+    "input": "The payment gateway is broken and needs an urgent fix ASAP, and eventually we should look into adding Apple Pay support.",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      {
+        "kind": "task",
+        "text_contains": "payment gateway",
+        "expectedPriority": "critical"
+      },
+      {
+        "kind": "task",
+        "text_contains": "Apple Pay",
+        "expectedPriority": "low"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "priority-not-on-project",
+    "input": "Project Lighthouse is our top priority and needs to ship ASAP. The main feature is real-time notifications.",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      {
+        "kind": "project",
+        "text_contains": "Lighthouse"
+      },
+      {
+        "kind": "feature",
+        "text_contains": "real-time notifications"
+      }
+    ],
+    "forbiddenExtractedKinds": ["person"]
   }
 ]

@@ -1,4 +1,4 @@
-import type { EntityActionRequest } from "../../shared/contracts";
+import type { EntityActionRequest, EntityPriority } from "../../shared/contracts";
 
 async function executeAction(workspaceId: string, entityId: string, body: EntityActionRequest): Promise<void> {
   const response = await fetch(
@@ -26,4 +26,8 @@ export function overrideDecision(workspaceId: string, decisionId: string, newSum
 
 export function markTaskComplete(workspaceId: string, taskId: string): Promise<void> {
   return executeAction(workspaceId, taskId, { action: "complete" });
+}
+
+export function setEntityPriority(workspaceId: string, entityId: string, priority: EntityPriority): Promise<void> {
+  return executeAction(workspaceId, entityId, { action: "set_priority", priority });
 }

@@ -1,9 +1,13 @@
 import { z } from "zod";
-import { ENTITY_CATEGORIES } from "../../shared/contracts";
+import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 
 // Azure structured output requires all properties in `required` — no optional fields allowed.
 // Use "none" sentinel in the extraction schema, then strip it to undefined after parsing.
 const extractionCategorySchema = z.enum([...ENTITY_CATEGORIES, "none"]).transform(
+  (v) => (v === "none" ? undefined : v),
+);
+
+const extractionPrioritySchema = z.enum([...ENTITY_PRIORITIES, "none"]).transform(
   (v) => (v === "none" ? undefined : v),
 );
 
@@ -14,6 +18,7 @@ const extractionEntityBaseSchema = z.object({
   confidence: z.number().min(0).max(1),
   evidence: z.string().min(1),
   category: extractionCategorySchema,
+  priority: extractionPrioritySchema,
 }).strict();
 
 const extractionEntityWithAssigneeSchema = extractionEntityBaseSchema.extend({

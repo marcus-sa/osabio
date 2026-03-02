@@ -1,5 +1,5 @@
 import { RecordId } from "surrealdb";
-import type { EntityActionRequest } from "../../shared/contracts";
+import { ENTITY_PRIORITIES, type EntityActionRequest } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
 import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
@@ -30,8 +30,8 @@ async function handleEntityAction(
     return jsonError("invalid JSON body", 400);
   }
 
-  if (!body.action || !["confirm", "override", "complete"].includes(body.action)) {
-    return jsonError("action must be one of: confirm, override, complete", 400);
+  if (!body.action || !["confirm", "override", "complete", "set_priority"].includes(body.action)) {
+    return jsonError("action must be one of: confirm, override, complete, set_priority", 400);
   }
 
   const url = new URL(request.url);
@@ -95,6 +95,18 @@ async function handleEntityAction(
       });
       logInfo("entity.action.complete", "Task completed", { workspaceId, entityId });
       return jsonResponse({ status: "completed" }, 200);
+    }
+
+    if (body.action === "set_priority" && (table === "task" || table === "decision" || table === "question")) {
+      if (!body.priority || !(ENTITY_PRIORITIES as readonly string[]).includes(body.priority)) {
+        return jsonError("priority must be one of: low, medium, high, critical", 400);
+      }
+      await deps.surreal.update(entityRecord).merge({
+        priority: body.priority,
+        updated_at: now,
+      });
+      logInfo("entity.action.set_priority", "Priority updated", { workspaceId, entityId, priority: body.priority });
+      return jsonResponse({ status: "priority_updated", priority: body.priority }, 200);
     }
 
     return jsonError(`action '${body.action}' is not valid for entity type '${table}'`, 400);

@@ -109,6 +109,7 @@ export async function persistExtractionOutput(input: {
       });
 
       const extractedCategory = "category" in extracted ? extracted.category : undefined;
+      const extractedPriority = "priority" in extracted ? extracted.priority : undefined;
 
       persistedEntities.push({
         id: persisted.record.id as string,
@@ -118,6 +119,7 @@ export async function persistExtractionOutput(input: {
         sourceKind: input.sourceKind,
         sourceId: input.sourceRecord.id as string,
         ...(extractedCategory ? { category: extractedCategory } : {}),
+        ...(extractedPriority ? { priority: extractedPriority } : {}),
       });
 
       seeds.push({
