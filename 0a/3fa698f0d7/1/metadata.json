@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "0a3fa698f0d7",
+  "session_id": "da17ba95-666c-4181-ab52-ac0a8c592153",
   "strategy": "manual-commit",
+  "created_at": "2026-03-02T06:33:46.906989Z",
   "branch": "marcus-sa/conv-branching",
   "checkpoints_count": 1,
   "files_touched": [
@@ -18,27 +20,22 @@
     "app/src/shared/contracts.ts",
     "schema/surreal-schema.surql"
   ],
-  "sessions": [
-    {
-      "metadata": "/0a/3fa698f0d7/0/metadata.json",
-      "transcript": "/0a/3fa698f0d7/0/full.jsonl",
-      "context": "/0a/3fa698f0d7/0/context.md",
-      "content_hash": "/0a/3fa698f0d7/0/content_hash.txt",
-      "prompt": "/0a/3fa698f0d7/0/prompt.txt"
-    },
-    {
-      "metadata": "/0a/3fa698f0d7/1/metadata.json",
-      "transcript": "/0a/3fa698f0d7/1/full.jsonl",
-      "context": "/0a/3fa698f0d7/1/context.md",
-      "content_hash": "/0a/3fa698f0d7/1/content_hash.txt",
-      "prompt": "/0a/3fa698f0d7/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "412249550a3a",
   "token_usage": {
-    "input_tokens": 130,
-    "cache_creation_tokens": 158948,
-    "cache_read_tokens": 11299424,
-    "output_tokens": 33918,
-    "api_call_count": 96
+    "input_tokens": 96,
+    "cache_creation_tokens": 137480,
+    "cache_read_tokens": 11162619,
+    "output_tokens": 33135,
+    "api_call_count": 92
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T06:33:46.511764Z",
+    "agent_lines": 442,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 443,
+    "agent_percentage": 99.77426636568849
   }
 }
