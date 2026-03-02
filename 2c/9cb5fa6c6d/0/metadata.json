@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2c9cb5fa6c6d",
+  "session_id": "36fec4c2-dc04-463a-a5ba-e0bbf03de65b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T16:52:07.283787Z",
+  "branch": "marcus-sa/git-commit-evidence",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/graph/DescriptionSection.tsx",
+    "app/src/server/descriptions/generate.ts",
+    "app/src/server/descriptions/persist.ts",
+    "app/src/server/descriptions/triggers.ts",
+    "app/src/server/descriptions/types.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/extraction/persist-extraction.ts",
+    "app/src/server/extraction/prompt.ts",
+    "evals/data/golden-cases.json",
+    "evals/extraction.eval.ts",
+    "schema/surreal-schema.surql",
+    "tests/smoke/description-entries.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e061dc8af4d",
+  "token_usage": {
+    "input_tokens": 139,
+    "cache_creation_tokens": 91537,
+    "cache_read_tokens": 3995932,
+    "output_tokens": 24547,
+    "api_call_count": 49
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T16:52:07.0125Z",
+    "agent_lines": 110,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 110,
+    "agent_percentage": 100
+  }
+}
