@@ -124,6 +124,7 @@ export async function upsertGraphEntity(input: {
       candidateEmbedding,
       input.sourceMessageRecord,
       input.extracted.category,
+      input.extracted.priority,
     ),
   );
 
@@ -260,6 +261,7 @@ function buildEntityRecordContent(
   embedding?: number[],
   sourceMessageRecord?: RecordId<"message", string>,
   category?: string,
+  priority?: string,
 ): Record<string, unknown> {
   if (kind === "project") {
     return {
@@ -290,6 +292,7 @@ function buildEntityRecordContent(
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
+      ...(priority ? { priority } : {}),
       created_at: now,
       updated_at: now,
     };
@@ -304,6 +307,7 @@ function buildEntityRecordContent(
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
+      ...(priority ? { priority } : {}),
       created_at: now,
       updated_at: now,
     };
@@ -318,6 +322,7 @@ function buildEntityRecordContent(
     ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
     ...(embedding ? { embedding } : {}),
     ...(category ? { category } : {}),
+    ...(priority ? { priority } : {}),
     created_at: now,
     updated_at: now,
   };

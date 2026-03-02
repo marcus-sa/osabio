@@ -6,12 +6,14 @@ export type ExpectedEntity =
       text: string;
       text_contains?: never;
       expectedCategory?: string;
+      expectedPriority?: string;
     }
   | {
       kind: ExpectedEntityKind;
       text?: never;
       text_contains: string;
       expectedCategory?: string;
+      expectedPriority?: string;
     };
 
 export type GoldenCaseIntent = "strict_single" | "multi_allowed";
@@ -48,7 +50,7 @@ export type ExtractionEvalOutput = {
   input: string;
   userMessageId: string;
   contextMessageIds: string[];
-  extractedEntities: Array<{ kind: string; text: string; confidence: number; category?: string }>;
+  extractedEntities: Array<{ kind: string; text: string; confidence: number; category?: string; priority?: string }>;
   extractedTools: string[];
   personCount: number;
   ownerPersonCount: number;

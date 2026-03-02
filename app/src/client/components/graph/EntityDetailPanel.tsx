@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import type { EntityCategory, EntityDetailResponse, EntityKind } from "../../../shared/contracts";
-import { ENTITY_CATEGORIES } from "../../../shared/contracts";
+import type { EntityCategory, EntityDetailResponse, EntityKind, EntityPriority } from "../../../shared/contracts";
+import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../../shared/contracts";
 import { CategoryBadge } from "./CategoryBadge";
 import { EntityBadge } from "./EntityBadge";
 import { RelationshipList } from "./RelationshipList";
 import { ProvenanceSection } from "./ProvenanceSection";
 import { useViewState } from "../../stores/view-state";
-import { confirmDecision, overrideDecision, markTaskComplete } from "../../graph/actions";
+import { confirmDecision, overrideDecision, markTaskComplete, setEntityPriority } from "../../graph/actions";
 
 const CONFIRMABLE_STATUSES = new Set(["extracted", "proposed", "provisional", "inferred"]);
 
@@ -180,10 +180,35 @@ export function EntityDetailPanel({
               <dd>{detail.entity.data.owner_name as string}</dd>
             </>
           ) : undefined}
-          {detail.entity.data.priority ? (
+          {(kind === "task" || kind === "decision" || kind === "question") ? (
             <>
               <dt>Priority</dt>
-              <dd>{detail.entity.data.priority as string}</dd>
+              <dd>
+                <select
+                  value={(detail.entity.data.priority as string | undefined) ?? ""}
+                  disabled={actionPending}
+                  onChange={async (e) => {
+                    const value = e.target.value as EntityPriority;
+                    if (!value) return;
+                    setActionPending(true);
+                    try {
+                      await setEntityPriority(workspaceId, entityId, value);
+                      setDetail((prev) =>
+                        prev
+                          ? { ...prev, entity: { ...prev.entity, data: { ...prev.entity.data, priority: value } } }
+                          : prev,
+                      );
+                    } finally {
+                      setActionPending(false);
+                    }
+                  }}
+                >
+                  <option value="" disabled>—</option>
+                  {ENTITY_PRIORITIES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </dd>
             </>
           ) : undefined}
         </dl>

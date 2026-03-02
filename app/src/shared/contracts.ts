@@ -5,6 +5,9 @@ export type SourceKind = "message" | "document_chunk";
 export const ENTITY_CATEGORIES = ["engineering", "research", "marketing", "operations", "design", "sales"] as const;
 export type EntityCategory = (typeof ENTITY_CATEGORIES)[number];
 
+export const ENTITY_PRIORITIES = ["low", "medium", "high", "critical"] as const;
+export type EntityPriority = (typeof ENTITY_PRIORITIES)[number];
+
 export type CreateWorkspaceRequest = {
   name: string;
   ownerDisplayName: string;
@@ -56,6 +59,7 @@ export type ExtractedEntity = {
   sourceKind: SourceKind;
   sourceId: string;
   category?: EntityCategory;
+  priority?: EntityPriority;
 };
 
 export type ExtractedRelationship = {
@@ -269,7 +273,8 @@ export type BranchConversationResponse = {
 };
 
 export type EntityActionRequest = {
-  action: "confirm" | "override" | "complete";
+  action: "confirm" | "override" | "complete" | "set_priority";
   notes?: string;
   newSummary?: string;
+  priority?: EntityPriority;
 };
