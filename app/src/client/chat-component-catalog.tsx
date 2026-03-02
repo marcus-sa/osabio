@@ -8,6 +8,7 @@ import {
   type WorkItemSuggestionProps,
   type WorkItemSuggestionListProps,
 } from "../shared/chat-component-definitions";
+import { InlineRelationshipGraph } from "./components/chat/InlineRelationshipGraph";
 import { CategoryBadge } from "./components/graph/CategoryBadge";
 import { useViewState } from "./stores/view-state";
 import { useWorkspaceState } from "./stores/workspace-state";
@@ -249,5 +250,9 @@ export const chatComponentCatalog = componentCatalog({
   WorkItemSuggestionList: {
     ...chatComponentDefinitions.WorkItemSuggestionList,
     component: WorkItemSuggestionList as any,
+  },
+  InlineRelationshipGraph: {
+    ...chatComponentDefinitions.InlineRelationshipGraph,
+    component: InlineRelationshipGraph as any,
   },
 });

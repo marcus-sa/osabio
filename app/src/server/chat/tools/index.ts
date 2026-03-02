@@ -10,6 +10,7 @@ import { createInvokePmAgentTool } from "./invoke-pm-agent";
 import { createResolveObservationTool } from "./resolve-observation";
 import { createResolveDecisionTool } from "./resolve-decision";
 import { createSearchEntitiesTool } from "./search-entities";
+import { createShowRelationshipGraphTool } from "./show-relationship-graph";
 import type { OrchestratorToolDeps } from "./types";
 
 export function createOrchestratorTools(deps: OrchestratorToolDeps) {
@@ -26,6 +27,7 @@ export function createOrchestratorTools(deps: OrchestratorToolDeps) {
     acknowledge_observation: createAcknowledgeObservationTool(deps),
     resolve_observation: createResolveObservationTool(deps),
     invoke_pm_agent: createInvokePmAgentTool(deps),
+    show_relationship_graph: createShowRelationshipGraphTool(deps),
   };
 }
 

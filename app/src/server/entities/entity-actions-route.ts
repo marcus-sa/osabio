@@ -3,6 +3,7 @@ import { ENTITY_PRIORITIES, type EntityActionRequest } from "../../shared/contra
 import { HttpError } from "../http/errors";
 import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
+import { acknowledgeObservation, resolveObservation } from "../observation/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
@@ -12,6 +13,8 @@ import {
   type GraphEntityTable,
 } from "../graph/queries";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
+
+type EntityActionTable = GraphEntityTable | "observation";
 
 export function createEntityActionsHandler(
   deps: ServerDependencies,
@@ -31,8 +34,8 @@ async function handleEntityAction(
     return jsonError("invalid JSON body", 400);
   }
 
-  if (!body.action || !["confirm", "override", "complete", "set_priority"].includes(body.action)) {
-    return jsonError("action must be one of: confirm, override, complete, set_priority", 400);
+  if (!body.action || !["confirm", "override", "complete", "set_priority", "acknowledge", "resolve"].includes(body.action)) {
+    return jsonError("action must be one of: confirm, override, complete, set_priority, acknowledge, resolve", 400);
   }
 
   const url = new URL(request.url);
@@ -53,15 +56,44 @@ async function handleEntityAction(
   }
 
   try {
-    const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question"];
+    const entityTables: EntityActionTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation"];
     const entityRecord = parseRecordIdString(entityId, entityTables);
-    const scoped = await isEntityInWorkspace(deps.surreal, workspaceRecord, entityRecord);
-    if (!scoped) {
-      return jsonError("entity is outside the current workspace scope", 403);
-    }
 
     const table = entityRecord.table.name;
     const now = new Date();
+
+    // Observation actions bypass the standard workspace scope check
+    // because observations have their own workspace field (not graph edges).
+    if (table === "observation") {
+      if (body.action === "acknowledge") {
+        await acknowledgeObservation({
+          surreal: deps.surreal,
+          workspaceRecord,
+          observationRecord: entityRecord as RecordId<"observation", string>,
+          now,
+        });
+        logInfo("entity.action.acknowledge", "Observation acknowledged", { workspaceId, entityId });
+        return jsonResponse({ status: "acknowledged" }, 200);
+      }
+
+      if (body.action === "resolve") {
+        await resolveObservation({
+          surreal: deps.surreal,
+          workspaceRecord,
+          observationRecord: entityRecord as RecordId<"observation", string>,
+          now,
+        });
+        logInfo("entity.action.resolve", "Observation resolved", { workspaceId, entityId });
+        return jsonResponse({ status: "resolved" }, 200);
+      }
+
+      return jsonError(`action '${body.action}' is not valid for entity type 'observation'`, 400);
+    }
+
+    const scoped = await isEntityInWorkspace(deps.surreal, workspaceRecord, entityRecord as RecordId<GraphEntityTable, string>);
+    if (!scoped) {
+      return jsonError("entity is outside the current workspace scope", 403);
+    }
 
     if (body.action === "confirm" && table === "decision") {
       const [decisionRows] = await deps.surreal
