@@ -9,6 +9,7 @@ import { createEmbedding } from "../extraction/embedding-writeback";
 import { createObservation } from "../observation/queries";
 import { elapsedMs, logError, logInfo } from "../http/observability";
 import type { SourceRecord } from "../extraction/types";
+import { classifyDecisionLinks } from "./types";
 import type { CommitInput, ProcessCommitResult, ProcessWebhookInput, ProcessWebhookResult } from "./types";
 
 export async function processGitCommits(input: ProcessWebhookInput): Promise<ProcessWebhookResult> {
@@ -179,13 +180,12 @@ async function processCommit(input: {
   // Auto-link decisions based on confidence
   const autoLinkedDecisions: string[] = [];
   const observationsCreated: string[] = [];
+  const actions = classifyDecisionLinks(persisted.entities, input.autoLinkThreshold);
 
-  for (const entity of persisted.entities) {
-    if (entity.kind !== "decision") continue;
+  for (const action of actions) {
+    const decisionRecord = new RecordId("decision", action.entityId);
 
-    const decisionRecord = new RecordId("decision", entity.id);
-
-    if (entity.confidence >= input.autoLinkThreshold) {
+    if (action.action === "auto_link") {
       await input.surreal
         .relate(decisionRecord, new RecordId("implemented_by", randomUUID()), commitRecord, {
           commit_sha: input.commit.sha,
@@ -193,17 +193,17 @@ async function processCommit(input: {
         })
         .output("after");
 
-      autoLinkedDecisions.push(entity.id);
+      autoLinkedDecisions.push(action.entityId);
       logInfo("webhook.commit.autolinked", "Auto-linked decision to commit", {
-        decisionId: entity.id,
+        decisionId: action.entityId,
         sha: input.commit.sha,
-        confidence: entity.confidence,
+        confidence: action.confidence,
       });
     } else {
       const observation = await createObservation({
         surreal: input.surreal,
         workspaceRecord: input.workspaceRecord,
-        text: `Commit ${input.commit.sha.slice(0, 8)} may implement decision "${entity.text}" (confidence: ${(entity.confidence * 100).toFixed(0)}%). Please confirm.`,
+        text: `Commit ${input.commit.sha.slice(0, 8)} may implement decision "${action.text}" (confidence: ${(action.confidence * 100).toFixed(0)}%). Please confirm.`,
         severity: "info",
         sourceAgent: "git_webhook",
         now: input.now,
@@ -212,9 +212,9 @@ async function processCommit(input: {
 
       observationsCreated.push(observation.id as string);
       logInfo("webhook.commit.observation", "Created confirmation observation", {
-        decisionId: entity.id,
+        decisionId: action.entityId,
         sha: input.commit.sha,
-        confidence: entity.confidence,
+        confidence: action.confidence,
       });
     }
   }

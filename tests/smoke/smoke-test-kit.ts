@@ -85,7 +85,7 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
       return;
     }
 
-    if (setupSucceeded) {
+    if (setupSucceeded && !process.env.SMOKE_KEEP_DB) {
       try {
         await withTimeout(() => runtime.surreal.query(`REMOVE DATABASE ${database};`), 10_000, "remove test database");
       } catch {

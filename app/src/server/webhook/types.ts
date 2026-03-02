@@ -1,5 +1,5 @@
 import type { RecordId, Surreal } from "surrealdb";
-import type { ExtractedEntity, ExtractedRelationship } from "../../shared/contracts";
+import type { EntityKind, ExtractedEntity, ExtractedRelationship } from "../../shared/contracts";
 
 // --- GitHub Push Event (subset of fields we use) ---
 
@@ -83,3 +83,25 @@ export type ProcessWebhookResult = {
   autoLinkedDecisions: string[];
   observationsCreated: string[];
 };
+
+// --- Decision Linking Classification ---
+
+export type DecisionLinkAction =
+  | { action: "auto_link"; entityId: string; confidence: number }
+  | { action: "observe"; entityId: string; text: string; confidence: number };
+
+export function classifyDecisionLinks(
+  entities: Array<{ id: string; kind: EntityKind; text: string; confidence: number }>,
+  autoLinkThreshold: number,
+): DecisionLinkAction[] {
+  const actions: DecisionLinkAction[] = [];
+  for (const entity of entities) {
+    if (entity.kind !== "decision") continue;
+    if (entity.confidence >= autoLinkThreshold) {
+      actions.push({ action: "auto_link", entityId: entity.id, confidence: entity.confidence });
+    } else {
+      actions.push({ action: "observe", entityId: entity.id, text: entity.text, confidence: entity.confidence });
+    }
+  }
+  return actions;
+}
