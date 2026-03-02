@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8cdc900367d4",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/living-descriptions",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/smoke/description-entries.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8c/dc900367d4/0/metadata.json",
+      "transcript": "/8c/dc900367d4/0/full.jsonl",
+      "context": "/8c/dc900367d4/0/context.md",
+      "content_hash": "/8c/dc900367d4/0/content_hash.txt",
+      "prompt": "/8c/dc900367d4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7359,
+    "cache_creation_tokens": 399373,
+    "cache_read_tokens": 17260829,
+    "output_tokens": 56719,
+    "api_call_count": 174
+  }
+}

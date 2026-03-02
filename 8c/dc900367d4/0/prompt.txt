@@ -1,0 +1,313 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/cape-town directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+regarding gh issue Living descriptions: append-only auto-updated descriptions for Initiatives, Projects, Features and Tasks #53:
+> After a triggering event, queue a description update job. The job queries the current description (latest entry), the triggering entity, and relevant context from the graph, then prompts the LLM (Haiku) to generate a new description entry that incorporates the new information. The LLM sees: current description, what changed, and why — it produces a refined description and a one-line reasoning string.
+
+this doesn't make much sense? shouldn't we add a description entry, and then llm generates a new description based on the current description and the new description entry
+
+---
+
+Continue from where you left off.
+
+---
+
+update https://github.com/marcus-sa/brain/issues/53 to also include description for tasks.
+
+an entity might affect the description of a backlogged task
+
+---
+
+Continue from where you left off.
+
+---
+
+update https://github.com/marcus-sa/brain/issues/53 to also include description for tasks.
+
+e.g a decision for something else might affect the description of a backlogged task
+
+---
+
+plan implementation
+
+---
+
+plan implementation
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+but dont we still need the description field for the generated llm description?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+"description: option<string> — always mirrors latest description_entries[*].text (kept for simple reads)"
+
+no this is not how it it supposed to work? every time a new description entry is added, the description field is regenerated with all the entries
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+what is `record` here referrering to: DEFINE FIELD description_entries[*].triggered_by ON TABLE project TYPE array<record>; ?
+
+---
+
+tests?
+
+---
+
+Continue from where you left off.
+
+---
+
+we want smoke tests
+
+---
+
+Continue from where you left off.
+
+---
+
+what about the ui?
+
+---
+
+anything else we've missed from the gh issue ?
+
+---
+
+yes:
+- Feature created → parent project — when a feature is created/extracted and linked to a project, the project description should update
+- Feature completed → parent project — not hooked yet
+- Clickable triggered_by links in the timeline UI — issue shows → decision:jwt-auth as clickable
+
+create gh issue for Feature scope changed → related tasks (no scope-change detection mechanism exists) and Multiple related changes batching (optimization) and Commit linked to decision (depends on #48)
+
+---
+
+commit
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Setup**: Branch renamed to `marcus-sa/living-descriptions`. User asked about GitHub issue #53 "Living descriptions" - questioning the design where LLM generates description entries directly vs adding entries first then LLM synthesizes.
+
+2. **Issue Update**: User asked to update issue #53 to include tasks (not just projects/features), with rationale that decisions can affect backlogged task descriptions. Issue was updated via `gh issue edit 53`.
+
+3. **Plan Mode**: User asked to plan implementation. Extensive exploration of the codebase was done:
+   - Current schema has `description: option<string>` on project/feature but NOT on task
+   - No descriptions are ever populated by extraction, work-item-accept, or any action handler
+   - Extraction schema doesn't include description fields
+
+4. **User Feedback on Design**: 
+   - User clarified that `description` should NOT just mirror latest entry's text - it should be LLM-regenerated from ALL entries each time a new entry is added
+   - `description_entries` = append-only fact log (raw, no LLM)
+   - `description` = LLM-synthesized from all entries (regenerated on each new entry)
+   - User also clarified that initial seeds should NOT use LLM - raw text only, LLM only for subsequent updates
+
+5. **Implementation Phase** - Created all core modules:
+   - Schema changes to surreal-schema.surql
+   - TypeScript types, generation, persistence, triggers, queries modules
+   - Hooked into entity-actions-route, work-item-accept-route, persist-extraction.ts
+
+6. **TypeScript Errors**: Had `Table<string>` vs `string` casting issues in triggers.ts - fixed by using `.table.name` instead of `.table as string`.
+
+7. **User asked for smoke tests** instead of unit tests. Created comprehensive smoke test file.
+
+8. **User asked about UI**: Explored frontend, created DescriptionSection component with timeline view, added CSS styles.
+
+9. **Gap Analysis**: User asked what's missing from the issue. Identified remaining gaps and deferred items. Created follow-up issues #58, #59, #60.
+
+10. **Final Implementation**: Filled remaining gaps:
+    - Feature created → parent project trigger
+    - Feature completed → parent project trigger (new complete action for features)
+    - Clickable triggered_by links in timeline UI
+    - Added `extractionModel` param to `persistExtractionOutput` and all callers
+
+11. **User asked to commit** - that's where we are now, with the diff shown.
+
+Let me trace through all the files and changes carefully.
+
+Summary:
+1. Primary Request and Intent:
+   The user is implementing GitHub issue #53 "Living descriptions: append-only auto-updated descriptions for Initiatives, Projects, Features and Tasks" for the `brain` project (an AI-native business management platform using SurrealDB). The core design:
+   - `description_entries` = append-only fact log of raw text entries (no LLM needed to add entries)
+   - `description` = LLM-synthesized coherent summary regenerated from ALL entries whenever a new entry is appended
+   - Initial seeds (extraction, work-item-accept) use raw text only — no LLM call
+   - Subsequent entries trigger LLM synthesis only when there are 2+ entries
+   - Auto-update triggers fire on decision confirmed, task completed, feature created/completed
+   - UI shows description + collapsible timeline with clickable triggered_by entity links
+
+2. Key Technical Concepts:
+   - SurrealDB SCHEMAFULL tables with `description_entries` as `option<array<object>>` with nested field definitions
+   - `RecordId` objects for entity references (never string-based IDs)
+   - Fire-and-forget pattern (`void ... .catch(() => undefined)`) for non-blocking description updates
+   - `generateObject()` from `ai` package with Zod schema for structured LLM output
+   - Graph traversal via `belongs_to` and `has_feature` edges to find affected entities
+   - `ensureProjectFeatureEdge()` for project-feature linking
+   - SSE streaming for chat events
+   - Smoke test pattern: isolated SurrealDB namespace/database, dedicated app server process, schema application, cleanup
+
+3. Files and Code Sections:
+
+   - **`schema/surreal-schema.surql`** — Added `description_entries` fields to project, feature, and task tables. Added `description` field to task (project/feature already had it).
+     ```sql
+     DEFINE FIELD description ON task TYPE option<string>;
+     DEFINE FIELD description_entries ON task TYPE option<array<object>>;
+     DEFINE FIELD description_entries[*].text ON task TYPE string;
+     DEFINE FIELD description_entries[*].reasoning ON task TYPE string;
+     DEFINE FIELD description_entries[*].triggered_by ON task TYPE array<record>;
+     DEFINE FIELD description_entries[*].created_at ON task TYPE datetime;
+     ```
+     Same pattern applied to project and feature tables.
+
+   - **`app/src/server/descriptions/types.ts`** — New file with TypeScript types:
+     ```typescript
+     export type DescriptionEntry = {
+       text: string;
+       reasoning: string;
+       triggered_by: RecordId[];
+       created_at: Date;
+     };
+     export type DescriptionTarget = "project" | "feature" | "task";
+     export type DescriptionTriggerKind = "decision_confirmed" | "feature_created" | "feature_completed" | "task_completed" | "task_created" | "scope_changed";
+     export type DescriptionTrigger = {
+       kind: DescriptionTriggerKind;
+       entity: RecordId;
+       summary: string;
+     };
+     ```
+
+   - **`app/src/server/descriptions/generate.ts`** — New file. `synthesizeDescription()` calls `generateObject()` with Haiku to synthesize all entries into one coherent description paragraph. Uses Zod schema `{ description: string }`. Only called when 2+ entries exist.
+
+   - **`app/src/server/descriptions/persist.ts`** — New file. Two functions:
+     - `appendDescriptionEntry()` — queries existing entries, appends new entry, calls `synthesizeDescription()` if 2+ entries, updates both `description` and `description_entries` in one merge
+     - `seedDescriptionEntry()` — creates first entry, sets `description` to raw text directly (no LLM)
+
+   - **`app/src/server/descriptions/triggers.ts`** — New file. `fireDescriptionUpdates()` finds affected entities via graph traversal and appends description entries to each. Contains `findEntitiesRelatedToDecision()` (finds projects/features/tasks via `belongs_to`), `findEntitiesRelatedToTask()` (finds parent features/projects), `findEntitiesRelatedToFeature()` (finds parent projects via `has_feature`).
+
+   - **`app/src/server/descriptions/queries.ts`** — New file. `getDescriptionEntries()` fetches the full timeline array for UI.
+
+   - **`app/src/server/entities/entity-actions-route.ts`** — Modified. Added:
+     - `fireDescriptionUpdates` import
+     - Decision confirm: queries decision summary first, then fires `decision_confirmed` trigger after `confirmDecisionRecord()`
+     - Feature complete: NEW action block for `complete` on features — queries feature name, updates status to "done", fires `feature_completed` trigger
+     - Task complete: queries task title first, then fires `task_completed` trigger after status update
+
+   - **`app/src/server/entities/work-item-accept-route.ts`** — Modified. Added:
+     - `seedDescriptionEntry` and `fireDescriptionUpdates` imports
+     - After task creation: seeds description from `rationale` field
+     - After feature creation: seeds description from `rationale` field
+     - After `ensureProjectFeatureEdge()`: fires `feature_created` trigger on parent project
+
+   - **`app/src/server/extraction/persist-extraction.ts`** — Modified. Added:
+     - `extractionModel: any` to `persistExtractionOutput` input params
+     - `fireDescriptionUpdates` import
+     - After entity created (`persisted.created`): seeds description from extraction `evidence` for project/feature/task
+     - For newly created features: fires `feature_created` trigger
+
+   - **`app/src/server/chat/chat-processor.ts`** — Modified. Passes `extractionModel: input.deps.extractionModel` to `persistExtractionOutput`.
+
+   - **`app/src/server/extraction/document-ingestion.ts`** — Modified. Passes `extractionModel: input.extractionModel` to `persistExtractionOutput`.
+
+   - **`evals/extraction.eval.ts`** — Modified. Passes `extractionModel: runtime.extractionModel` to `persistExtractionOutput`.
+
+   - **`app/src/client/components/graph/DescriptionSection.tsx`** — New file. React component that renders:
+     - Synthesized `description` paragraph
+     - Collapsible "History (N entries)" toggle with timeline
+     - Timeline entries in reverse chronological order with date, text, reasoning
+     - Clickable `triggered_by` links (rendered as `→ table:id` buttons using `onEntityClick`)
+
+   - **`app/src/client/components/graph/EntityDetailPanel.tsx`** — Modified. Added `DescriptionSection` import and renders it between metadata and rationale sections, passing `onEntityClick`.
+
+   - **`app/src/client/styles.css`** — Modified. Added styles for `.entity-detail-description`, `.description-timeline-toggle`, `.description-timeline`, `.description-timeline-entry`, `.description-timeline-date`, `.description-timeline-text`, `.description-timeline-reasoning`, `.description-timeline-triggers`, `.description-timeline-trigger`.
+
+   - **`tests/smoke/description-entries.test.ts`** — New file. Three smoke tests:
+     1. Seeds `description_entries` on extracted entities
+     2. Seeds description from work-item-accept `rationale`
+     3. Appends description entry and regenerates description on decision confirm
+
+4. Errors and fixes:
+   - **TypeScript `Table<string>` casting error**: In `triggers.ts`, used `trigger.entity.table as string` which fails because `.table` returns `Table<string>`, not `string`. Fixed by using `.table.name` throughout (matching codebase convention seen in `entity-actions-route.ts:63`).
+   - **Pre-existing `maxSteps` error**: `pm/agent.ts:136` has a pre-existing TS error about `maxSteps` not existing on `CallSettings`. Ignored throughout as it's unrelated.
+   - **Pre-existing test failures**: 3 tests in `provenance-validation.test.ts` fail due to `logger` initialization issue. Unrelated to our changes.
+
+5. Problem Solving:
+   - User corrected the design twice: first that `description` should NOT just be latest entry text but LLM-synthesized from ALL entries; second that initial seeds should be raw text without LLM calls
+   - Identified that `task` table had no `description` field (unlike project/feature) — added it
+   - Identified that `persistExtractionOutput` didn't have access to `extractionModel` — threaded it through from callers
+   - Created follow-up GitHub issues for deferred work: #58 (feature scope changed → tasks), #59 (batch multiple changes), #60 (commit linked to decision)
+
+6. All user messages:
+   - "regarding gh issue Living descriptions... this doesn't make much sense? shouldn't we add a description entry, and then llm generates a new description based on the current description and the new description entry"
+   - "update https://github.com/marcus-sa/brain/issues/53 to also include description for tasks. an entity might affect the description of a backlogged task" (repeated twice)
+   - "plan implementation" (repeated twice)
+   - "For the initial description seed... Raw text entry for initial seed, LLM only for subsequent updates" (answer to question)
+   - "but dont we still need the description field for the generated llm description?"
+   - "no this is not how it is supposed to work? every time a new description entry is added, the description field is regenerated with all the entries"
+   - "what is `record` here referring to: DEFINE FIELD description_entries[*].triggered_by ON TABLE project TYPE array<record>; ?"
+   - "tests?"
+   - "we want smoke tests"
+   - "what about the ui?"
+   - "anything else we've missed from the gh issue?"
+   - "yes: Feature created → parent project, Feature completed → parent project, Clickable triggered_by links. create gh issue for [deferred items]"
+   - "commit"
+
+7. Pending Tasks:
+   - User's last request was "commit" — the commit has NOT been created yet. The diff was shown but the actual `git add` and `git commit` commands were not run.
+
+8. Current Work:
+   The user said "commit" and I ran `git status`, `git diff --stat`, `git log`, and `git diff HEAD` to prepare for the commit. The diff shows 9 files changed with 104 insertions and 1 deletion. This is the SECOND commit — the first commit `2bd8b8d` ("Implement living descriptions with append-only timeline for projects, features, and tasks") was already made earlier with the core infrastructure. This second batch of changes covers the three gaps: feature_created/completed triggers, clickable triggered_by links, and `extractionModel` threading.
+
+9. Optional Next Step:
+   Create the git commit for the current changes. The user explicitly said "commit". The changes are unstaged — need to `git add` the 9 modified files and create a commit with an appropriate message following the repository's commit style (imperative, concise). The previous commit was: `2bd8b8d Implement living descriptions with append-only timeline for projects, features, and tasks`.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-cape-town/8619b0bf-94e8-4702-834d-4209dd770466.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+refactor smoke test to work like brand inheritance test. no need to spawn a process to start a http server
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/cape-town/.context/attachments/pasted_text_2026-03-02_21-06-52.txt
+</system_instruction>
+
+---
+
+great, commit

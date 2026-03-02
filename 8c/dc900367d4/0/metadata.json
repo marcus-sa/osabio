@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8cdc900367d4",
+  "session_id": "8619b0bf-94e8-4702-834d-4209dd770466",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T14:07:55.703612Z",
+  "branch": "marcus-sa/living-descriptions",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/smoke/description-entries.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "38c74a19869d",
+  "token_usage": {
+    "input_tokens": 7359,
+    "cache_creation_tokens": 399373,
+    "cache_read_tokens": 17260829,
+    "output_tokens": 56719,
+    "api_call_count": 174
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T14:07:54.329143Z",
+    "agent_lines": 253,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 253,
+    "agent_percentage": 100
+  }
+}
