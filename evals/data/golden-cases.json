@@ -792,7 +792,7 @@
   },
   {
     "id": "shorthand-bullet-list",
-    "input": "- TODO: set up CI/CD for staging\n- DECISION: use GitHub Actions over CircleCI\n- Q: should we add canary deploys?",
+    "input": "- set up CI/CD for staging\n- going with GitHub Actions over CircleCI\n- should we add canary deploys?",
     "intent": "multi_allowed",
     "expectedEntities": [
       { "kind": "task", "text_contains": "CI/CD", "expectedCategory": "operations" },
