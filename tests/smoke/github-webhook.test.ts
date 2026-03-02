@@ -169,13 +169,19 @@ describe("github webhook smoke", () => {
     expect(Array.isArray(commit.embedding)).toBe(true);
     expect((commit.embedding ?? []).length).toBeGreaterThan(0);
 
-    // Verify extraction_relation edge from git_commit to extracted entity
-    const [edgeRows] = await surreal
-      .query<[Array<{ id: RecordId; out: RecordId }>]>(
-        "SELECT id, out FROM extraction_relation WHERE `in` = $commit;",
-        { commit: commit.id },
-      )
-      .collect<[Array<{ id: RecordId; out: RecordId }>]>();
+    // Poll for extraction_relation edges (extraction runs after commit creation)
+    const edgeRows = await pollForRecord(
+      async () => {
+        const [rows] = await surreal
+          .query<[Array<{ id: RecordId; out: RecordId }>]>(
+            "SELECT id, out FROM extraction_relation WHERE `in` = $commit;",
+            { commit: commit.id },
+          )
+          .collect<[Array<{ id: RecordId; out: RecordId }>]>();
+        return rows;
+      },
+      20_000,
+    );
 
     expect(edgeRows.length).toBeGreaterThan(0);
   }, 45_000);
