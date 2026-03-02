@@ -37,7 +37,7 @@ const ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "fe
 export function createShowRelationshipGraphTool(deps: ChatToolDeps) {
   return tool({
     description:
-      "Show an interactive relationship graph for entities, visualizing their neighborhood connections. Returns an InlineRelationshipGraph component block for the chat UI.",
+      "Show an interactive relationship graph for entities, visualizing their neighborhood connections. Use when users ask about how entities relate or when showing connections would help explain context. Returns an InlineRelationshipGraph component block.",
     inputSchema: z.object({
       entity_ids: z
         .array(z.string().min(1).describe("Entity record ID, e.g. decision:abc123"))

@@ -11,10 +11,14 @@ import type { ChatToolDeps } from "./types";
 export function createCreateObservationTool(deps: ChatToolDeps) {
   return tool({
     description:
-      "Create an observation in the workspace graph. Use this for warnings, conflicts, or notable facts that should be tracked.",
+      "Create an observation in the workspace graph. Use proactively when you notice cross-cutting concerns — risks, conflicts, gaps, or notable facts — even if the user didn't ask.",
     inputSchema: z.object({
       text: z.string().min(1).describe("Observation text"),
-      severity: z.enum(["info", "warning", "conflict"]).describe("Observation severity"),
+      severity: z
+        .enum(["info", "warning", "conflict"])
+        .describe(
+          "info: awareness-level signals. warning: risks to address soon. conflict: contradictions needing human resolution.",
+        ),
       category: z.enum(ENTITY_CATEGORIES).optional().describe("Optional observation category"),
       related_entity_id: z
         .string()

@@ -7,9 +7,10 @@ import type { ChatToolDeps } from "./types";
 
 export function createResolveObservationTool(deps: ChatToolDeps) {
   return tool({
-    description: "Resolve an observation when it has been addressed.",
+    description:
+      "Resolve an observation — the concern has been addressed. Transitions from open or acknowledged to resolved.",
     inputSchema: z.object({
-      observation_id: z.string().min(1).describe("Observation record ID"),
+      observation_id: z.string().min(1).describe("Observation record ID, e.g. observation:abc123"),
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
