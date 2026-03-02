@@ -1,9 +1,11 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "8665bdab8fcd",
+  "session_id": "8cf0a3bc-25c7-471c-a139-c21001c1d59d",
   "strategy": "manual-commit",
+  "created_at": "2026-03-02T18:24:01.728624Z",
   "branch": "marcus-sa/option-f-ui",
-  "checkpoints_count": 5,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/client/chat-component-catalog.tsx",
     "app/src/client/components/chat/InlineRelationshipGraph.tsx",
@@ -36,27 +38,22 @@
     "app/src/shared/chat-component-definitions.ts",
     "app/src/shared/contracts.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/86/65bdab8fcd/0/metadata.json",
-      "transcript": "/86/65bdab8fcd/0/full.jsonl",
-      "context": "/86/65bdab8fcd/0/context.md",
-      "content_hash": "/86/65bdab8fcd/0/content_hash.txt",
-      "prompt": "/86/65bdab8fcd/0/prompt.txt"
-    },
-    {
-      "metadata": "/86/65bdab8fcd/1/metadata.json",
-      "transcript": "/86/65bdab8fcd/1/full.jsonl",
-      "context": "/86/65bdab8fcd/1/context.md",
-      "content_hash": "/86/65bdab8fcd/1/content_hash.txt",
-      "prompt": "/86/65bdab8fcd/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "e5fb89ca6313",
   "token_usage": {
-    "input_tokens": 13076,
-    "cache_creation_tokens": 139343,
-    "cache_read_tokens": 2727523,
-    "output_tokens": 22552,
-    "api_call_count": 39
+    "input_tokens": 19,
+    "cache_creation_tokens": 49451,
+    "cache_read_tokens": 417442,
+    "output_tokens": 5148,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T18:24:01.493506Z",
+    "agent_lines": 3484,
+    "human_added": 350,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 3836,
+    "agent_percentage": 90.8237747653806
   }
 }
