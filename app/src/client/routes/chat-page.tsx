@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Chat,
   ChatSuggestions,
@@ -47,15 +47,22 @@ export function ChatPage() {
 
   const [isSeedPanelOpen, setIsSeedPanelOpen] = useState(false);
 
+  // Keep a ref to the latest chat handlers so the effect below doesn't
+  // depend on unstable function references (which would cause an infinite
+  // render loop: new fn refs → effect fires → setSidebarHandlers → zustand
+  // update → AppShell re-renders → ChatPage re-renders → new fn refs → …).
+  const chatRef = useRef(chat);
+  chatRef.current = chat;
+
   // Register sidebar handlers so the shell sidebar can interact with chat
   useEffect(() => {
     setSidebarHandlers({
       activeConversationId: chat.activeConversationId,
       isLoading: chat.isLoading,
-      onNewConversation: chat.onNewConversation,
-      onSelectConversation: chat.onSelectConversation,
+      onNewConversation: () => chatRef.current.onNewConversation(),
+      onSelectConversation: (id: string) => chatRef.current.onSelectConversation(id),
     });
-  }, [chat.activeConversationId, chat.isLoading, chat.onNewConversation, chat.onSelectConversation]);
+  }, [chat.activeConversationId, chat.isLoading]);
 
   // Cleanup sidebar handlers on unmount
   useEffect(() => {
