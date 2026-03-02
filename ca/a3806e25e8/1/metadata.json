@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "caa3806e25e8",
+  "session_id": "f3cd0a48-aacb-4615-b59d-ecc4fc6a1c46",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-02T19:51:48.840915Z",
+  "branch": "marcus-sa/option-f-ui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/layout/ViewTabs.tsx",
+    "app/src/client/components/layout/WorkspaceSidebar.tsx",
+    "app/src/client/router.tsx",
+    "app/src/client/routes/home-page.tsx",
+    "app/src/client/styles.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b58ef741c01a",
+  "token_usage": {
+    "input_tokens": 1610,
+    "cache_creation_tokens": 118077,
+    "cache_read_tokens": 1833601,
+    "output_tokens": 11266,
+    "api_call_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-02T19:51:48.20629Z",
+    "agent_lines": 513,
+    "human_added": 195,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 708,
+    "agent_percentage": 72.45762711864407
+  }
+}
