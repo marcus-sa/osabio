@@ -1,21 +1,20 @@
 import { useState } from "react";
 import type { EntityKind } from "../../../shared/contracts";
 
-type TriggeredByRef = {
+type SourceRef = {
   tb: string;
   id: string;
 };
 
 type DescriptionEntryData = {
   text: string;
-  reasoning: string;
-  triggered_by?: TriggeredByRef[];
+  source?: SourceRef;
   created_at: string;
 };
 
 const DESCRIBABLE_KINDS = new Set<EntityKind>(["project", "feature", "task"]);
 
-function formatEntityRef(ref: TriggeredByRef): string {
+function formatSourceRef(ref: SourceRef): string {
   return `${ref.tb}:${ref.id}`;
 }
 
@@ -66,20 +65,14 @@ export function DescriptionSection({
                     {new Date(entry.created_at).toLocaleDateString()}
                   </span>
                   <span className="description-timeline-text">{entry.text}</span>
-                  <span className="description-timeline-reasoning">{entry.reasoning}</span>
-                  {entry.triggered_by && entry.triggered_by.length > 0 ? (
-                    <span className="description-timeline-triggers">
-                      {entry.triggered_by.map((ref, refIndex) => (
-                        <button
-                          key={`trigger-${refIndex}`}
-                          type="button"
-                          className="description-timeline-trigger"
-                          onClick={() => onEntityClick(formatEntityRef(ref))}
-                        >
-                          &rarr; {formatEntityRef(ref)}
-                        </button>
-                      ))}
-                    </span>
+                  {entry.source ? (
+                    <button
+                      type="button"
+                      className="description-timeline-trigger"
+                      onClick={() => onEntityClick(formatSourceRef(entry.source!))}
+                    >
+                      &rarr; {formatSourceRef(entry.source)}
+                    </button>
                   ) : undefined}
                 </div>
               ))}

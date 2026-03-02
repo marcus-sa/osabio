@@ -11,7 +11,7 @@ export type PersistableExtractableEntityKind = Exclude<ExtractableEntityKind, "p
 export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation";
 type TbRecordId<Tb extends string> = RecordId<Tb, string> & { tb: Tb };
 export type GraphEntityRecord = TbRecordId<GraphEntityTable>;
-export type SourceRecord = TbRecordId<"message" | "document_chunk">;
+export type SourceRecord = TbRecordId<"message" | "document_chunk" | "git_commit">;
 
 export type MessageContextRow = {
   id: RecordId<"message", string>;

@@ -760,5 +760,45 @@
       }
     ],
     "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "commit-conventional-decision",
+    "input": "refactor(api): migrate REST endpoints from Express to Hono\n\nReplace Express router with Hono for all /api/v2 routes.\nAdd request validation middleware and update integration tests.",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      { "kind": "decision", "text_contains": "Hono", "expectedCategory": "engineering" },
+      { "kind": "task", "text_contains": "migrate", "expectedCategory": "engineering" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "commit-conventional-task",
+    "input": "feat(auth): swap bcrypt for argon2id in password hashing\n\nMigrate all password hashing to argon2id. Update user model\nand add migration script for existing hashes.",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      { "kind": "decision", "text_contains": "argon2id", "expectedCategory": "engineering" },
+      { "kind": "task", "text_contains": "password hashing", "expectedCategory": "engineering" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "commit-fix-simple",
+    "input": "fix(billing): correct rounding in invoice total calculation",
+    "intent": "strict_single",
+    "expectedEntities": [
+      { "kind": "task", "text_contains": "rounding", "expectedCategory": "engineering" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
+  },
+  {
+    "id": "shorthand-bullet-list",
+    "input": "- set up CI/CD for staging\n- going with GitHub Actions over CircleCI\n- should we add canary deploys?",
+    "intent": "multi_allowed",
+    "expectedEntities": [
+      { "kind": "task", "text_contains": "CI/CD", "expectedCategory": "operations" },
+      { "kind": "decision", "text_contains": "GitHub Actions", "expectedCategory": "engineering" },
+      { "kind": "question", "text_contains": "canary" }
+    ],
+    "forbiddenExtractedKinds": ["person"]
   }
 ]

@@ -17,19 +17,11 @@ export function createInvokePmAgentTool(deps: OrchestratorToolDeps) {
       const context = requireToolContext(options);
 
       return runPmAgent({
-        surreal: deps.surreal,
-        pmModel: deps.pmModel,
-        embeddingModel: deps.embeddingModel,
-        embeddingDimension: deps.embeddingDimension,
-        extractionModelId: deps.extractionModelId,
-        workspaceRecord: context.workspaceRecord,
-        conversationRecord: context.conversationRecord,
-        currentMessageRecord: context.currentMessageRecord,
-        latestUserText: context.latestUserText,
+        deps,
+        context,
         intent: input.intent,
-        context: input.context,
+        conversationContext: input.context,
         ...(input.project ? { project: input.project } : {}),
-        ...(context.workspaceOwnerRecord ? { workspaceOwnerRecord: context.workspaceOwnerRecord } : {}),
       });
     },
   });

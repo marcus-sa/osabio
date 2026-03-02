@@ -22,11 +22,12 @@ export async function upsertGraphEntity(input: {
   workspaceRecord: RecordId<"workspace", string>;
   workspaceProjects: ProjectScopeRow[];
   sourceRecord: SourceRecord;
-  sourceKind: "message" | "document_chunk";
+  sourceKind: "message" | "document_chunk" | "git_commit";
   promptText: string;
   extracted: ExtractionPromptEntity & { kind: PersistableExtractableEntityKind };
   sourceMessageRecord?: RecordId<"message", string>;
   sourceChunkRecord?: RecordId<"document_chunk", string>;
+  sourceCommitRecord?: RecordId<"git_commit", string>;
   resolvedFromMessageRecord?: RecordId<"message", string>;
   now: Date;
 }): Promise<{ record: GraphEntityRecord; text: string; kind: PersistableExtractableEntityKind; created: boolean }> {
@@ -123,6 +124,7 @@ export async function upsertGraphEntity(input: {
       input.now,
       candidateEmbedding,
       input.sourceMessageRecord,
+      input.sourceCommitRecord,
       input.extracted.category,
       input.extracted.priority,
     ),
@@ -171,6 +173,7 @@ export async function upsertGraphEntity(input: {
       confidence: bestSimilarity,
       ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
       ...(input.sourceChunkRecord ? { source_chunk: input.sourceChunkRecord } : {}),
+      ...(input.sourceCommitRecord ? { source_commit: input.sourceCommitRecord } : {}),
       extracted_at: input.now,
       created_at: input.now,
       from_text: input.extracted.text,
@@ -260,6 +263,7 @@ function buildEntityRecordContent(
   now: Date,
   embedding?: number[],
   sourceMessageRecord?: RecordId<"message", string>,
+  sourceCommitRecord?: RecordId<"git_commit", string>,
   category?: string,
   priority?: string,
 ): Record<string, unknown> {
@@ -290,6 +294,7 @@ function buildEntityRecordContent(
       extraction_confidence: confidence,
       extracted_at: now,
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
+      ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
@@ -305,6 +310,7 @@ function buildEntityRecordContent(
       extraction_confidence: confidence,
       extracted_at: now,
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
+      ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
@@ -320,6 +326,7 @@ function buildEntityRecordContent(
     extraction_confidence: confidence,
     extracted_at: now,
     ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
+    ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
     ...(embedding ? { embedding } : {}),
     ...(category ? { category } : {}),
     ...(priority ? { priority } : {}),
@@ -386,7 +393,8 @@ export async function loadWorkspaceKindCandidates(
           "  SELECT VALUE id",
           "  FROM message",
           "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-          ");",
+          ")",
+          "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
         ].join(" "),
         { workspace: workspaceRecord },
       )
@@ -409,7 +417,8 @@ export async function loadWorkspaceKindCandidates(
           "  SELECT VALUE id",
           "  FROM message",
           "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-          ");",
+          ")",
+          "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
         ].join(" "),
         { workspace: workspaceRecord },
       )
@@ -431,7 +440,8 @@ export async function loadWorkspaceKindCandidates(
         "  SELECT VALUE id",
         "  FROM message",
         "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-        ");",
+        ")",
+        "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
       ].join(" "),
       { workspace: workspaceRecord },
     )

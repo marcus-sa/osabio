@@ -80,6 +80,16 @@ async function createDecision(summary: string): Promise<RecordId> {
   return record;
 }
 
+async function createMessage(text: string): Promise<RecordId> {
+  const id = randomUUID();
+  const record = new RecordId("message", id);
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record,
+    content: { text, role: "user", created_at: new Date() },
+  });
+  return record;
+}
+
 async function linkBelongsTo(child: RecordId, parent: RecordId): Promise<void> {
   await surreal.query(
     "RELATE $child->belongs_to->$parent SET added_at = time::now();",
@@ -99,8 +109,7 @@ type EntityRow = {
   description?: string;
   description_entries?: Array<{
     text: string;
-    reasoning: string;
-    triggered_by: RecordId[];
+    source?: RecordId;
     created_at: string;
   }>;
 };
@@ -121,13 +130,13 @@ async function fetchEntity(record: RecordId, table: string): Promise<EntityRow> 
 describe("description entries", () => {
   it("seedDescriptionEntry sets description and creates a single entry", async () => {
     const taskRecord = await createTask("Implement login endpoint");
+    const messageRecord = await createMessage("We need a login endpoint");
 
     await seedDescriptionEntry({
       surreal,
       targetRecord: taskRecord,
       text: "JWT-based authentication endpoint",
-      reasoning: "Extracted from conversation",
-      triggeredBy: [],
+      source: messageRecord,
     });
 
     const task = await fetchEntity(taskRecord, "task");
@@ -137,26 +146,41 @@ describe("description entries", () => {
 
     const entry = task.description_entries![0]!;
     expect(entry.text).toBe("JWT-based authentication endpoint");
-    expect(entry.reasoning).toBe("Extracted from conversation");
-    expect(entry.triggered_by).toEqual([]);
+    expect((entry.source as RecordId).table.name).toBe("message");
+    expect((entry.source as RecordId).id).toBe(messageRecord.id);
+  });
+
+  it("seedDescriptionEntry works without source", async () => {
+    const taskRecord = await createTask("No source task");
+
+    await seedDescriptionEntry({
+      surreal,
+      targetRecord: taskRecord,
+      text: "A task without source",
+    });
+
+    const task = await fetchEntity(taskRecord, "task");
+
+    expect(task.description).toBe("A task without source");
+    expect(task.description_entries).toHaveLength(1);
+    expect(task.description_entries![0]!.source).toBeUndefined();
   });
 
   it("getDescriptionEntries returns seeded entries", async () => {
     const featureRecord = await createFeature("User authentication");
+    const messageRecord = await createMessage("Login and registration");
 
     await seedDescriptionEntry({
       surreal,
       targetRecord: featureRecord,
       text: "Login and registration flows",
-      reasoning: "Created from work item suggestion",
-      triggeredBy: [],
+      source: messageRecord,
     });
 
     const entries = await getDescriptionEntries(surreal, featureRecord);
 
     expect(entries).toHaveLength(1);
     expect(entries[0]!.text).toBe("Login and registration flows");
-    expect(entries[0]!.reasoning).toBe("Created from work item suggestion");
   });
 
   it("getDescriptionEntries returns empty array for entity with no entries", async () => {
@@ -188,7 +212,7 @@ describe("description entries", () => {
     const project = await fetchEntity(projectRecord, "project");
     expect(project.description_entries).toHaveLength(1);
     expect(project.description_entries![0]!.text).toBe("Decision confirmed: Use Stripe for payments");
-    expect(project.description_entries![0]!.reasoning).toBe("decision confirmed");
+    expect((project.description_entries![0]!.source as RecordId).table.name).toBe("decision");
     expect(project.description).toBe("Decision confirmed: Use Stripe for payments");
 
     const feature = await fetchEntity(featureRecord, "feature");
@@ -223,7 +247,7 @@ describe("description entries", () => {
     const task = await fetchEntity(taskRecord, "task");
     expect(task.description_entries).toHaveLength(1);
     expect(task.description_entries![0]!.text).toBe("Decision confirmed: Use OAuth2 with PKCE");
-    expect(task.description_entries![0]!.reasoning).toBe("decision confirmed");
+    expect((task.description_entries![0]!.source as RecordId).table.name).toBe("decision");
   });
 
   it("fireDescriptionUpdates propagates task_completed to parent feature and project", async () => {
@@ -273,11 +297,11 @@ describe("description entries", () => {
     const project = await fetchEntity(projectRecord, "project");
     expect(project.description_entries).toHaveLength(1);
     expect(project.description_entries![0]!.text).toBe("New feature added: Notifications");
-    expect(project.description_entries![0]!.reasoning).toBe("feature created");
+    expect((project.description_entries![0]!.source as RecordId).table.name).toBe("feature");
     expect(project.description).toBe("New feature added: Notifications");
   });
 
-  it("triggered_by contains the trigger entity reference", async () => {
+  it("source contains the trigger entity reference", async () => {
     const projectRecord = await createProject("Trigger ref project");
     const decisionRecord = await createDecision("Pick PostgreSQL");
 
@@ -295,10 +319,8 @@ describe("description entries", () => {
 
     const project = await fetchEntity(projectRecord, "project");
     const entry = project.description_entries![0]!;
-    expect(entry.triggered_by).toHaveLength(1);
-
-    const ref = entry.triggered_by[0]! as RecordId;
-    expect(ref.table.name).toBe("decision");
-    expect(ref.id).toBe(decisionRecord.id);
+    const source = entry.source as RecordId;
+    expect(source.table.name).toBe("decision");
+    expect(source.id).toBe(decisionRecord.id);
   });
 });

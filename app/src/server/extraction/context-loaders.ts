@@ -4,6 +4,7 @@ import type {
   ConversationProvenanceRow,
   ExtractionConversationContext,
   ExtractionGraphContextRow,
+  GraphEntityRecord,
   MessageContextRow,
 } from "./types";
 
@@ -154,6 +155,78 @@ export async function loadConversationGraphContext(
       });
       seen.add(entityId);
     }
+  }
+
+  return items;
+}
+
+export async function loadWorkspaceGraphContext(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  limit: number,
+): Promise<ExtractionGraphContextRow[]> {
+  const [rows] = await surreal
+    .query<[
+      Array<{
+        in: RecordId<"message" | "document_chunk" | "git_commit", string>;
+        out: GraphEntityRecord;
+        confidence: number;
+        extracted_at: Date | string;
+      }>,
+    ]>(
+      [
+        "SELECT `in`, out, confidence, extracted_at",
+        "FROM extraction_relation",
+        "WHERE `in` IN (",
+        "  SELECT VALUE id FROM message",
+        "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
+        ")",
+        "OR `in` IN (SELECT VALUE id FROM document_chunk WHERE workspace = $workspace)",
+        "OR `in` IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace)",
+        "ORDER BY extracted_at DESC",
+        "LIMIT $limit;",
+      ].join(" "),
+      { workspace: workspaceRecord, limit },
+    )
+    .collect<[
+      Array<{
+        in: RecordId<"message" | "document_chunk" | "git_commit", string>;
+        out: GraphEntityRecord;
+        confidence: number;
+        extracted_at: Date | string;
+      }>,
+    ]>();
+
+  const seen = new Set<string>();
+  const items: ExtractionGraphContextRow[] = [];
+
+  for (const row of rows) {
+    const entityId = row.out.id as string;
+    if (seen.has(entityId)) continue;
+
+    const entityTable = row.out.tb;
+    if (
+      entityTable !== "project" &&
+      entityTable !== "person" &&
+      entityTable !== "feature" &&
+      entityTable !== "task" &&
+      entityTable !== "decision" &&
+      entityTable !== "question"
+    ) {
+      continue;
+    }
+
+    const entityText = await readEntityText(surreal, row.out);
+    if (!entityText) continue;
+
+    items.push({
+      id: row.out,
+      kind: entityTable as ExtractableEntityKind,
+      text: entityText,
+      confidence: row.confidence,
+      sourceMessage: row.in as RecordId<"message", string>,
+    });
+    seen.add(entityId);
   }
 
   return items;

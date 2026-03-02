@@ -57,7 +57,7 @@ export type EntityNeighbor = {
 
 export type EntityProvenance = {
   sourceId: string;
-  sourceKind: "message" | "document_chunk";
+  sourceKind: "message" | "document_chunk" | "git_commit";
   confidence: number;
   extractedAt: string;
   evidence?: string;
@@ -972,7 +972,7 @@ export async function getEntityDetail(input: {
   const [provenanceRows] = await input.surreal
     .query<[
       Array<{
-        in: RecordId<"message" | "document_chunk", string>;
+        in: RecordId<"message" | "document_chunk" | "git_commit", string>;
         confidence: number;
         extracted_at: string | Date;
         evidence?: string;
@@ -992,6 +992,7 @@ export async function getEntityDetail(input: {
         "    WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
         "  )",
         "  OR `in` IN (SELECT VALUE id FROM document_chunk WHERE workspace = $workspace)",
+        "  OR `in` IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace)",
         ")",
         "ORDER BY extracted_at DESC",
         "LIMIT 40;",
@@ -1003,7 +1004,7 @@ export async function getEntityDetail(input: {
     )
     .collect<[
       Array<{
-        in: RecordId<"message" | "document_chunk", string>;
+        in: RecordId<"message" | "document_chunk" | "git_commit", string>;
         confidence: number;
         extracted_at: string | Date;
         evidence?: string;
@@ -1015,7 +1016,11 @@ export async function getEntityDetail(input: {
 
   const provenance = provenanceRows.map((row) => ({
     sourceId: toRecordIdString(row.in),
-    sourceKind: row.in.table.name === "document_chunk" ? "document_chunk" : "message",
+    sourceKind: row.in.table.name === "document_chunk"
+      ? "document_chunk"
+      : row.in.table.name === "git_commit"
+        ? "git_commit"
+        : "message",
     confidence: row.confidence,
     extractedAt: toIsoString(row.extracted_at),
     ...(row.evidence ? { evidence: row.evidence } : {}),

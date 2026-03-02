@@ -66,13 +66,11 @@ export async function seedDescriptionEntry(input: {
   surreal: Surreal;
   targetRecord: RecordId;
   text: string;
-  reasoning: string;
-  triggeredBy: RecordId[];
+  source?: RecordId;
 }): Promise<void> {
   const entry: DescriptionEntry = {
     text: input.text,
-    reasoning: input.reasoning,
-    triggered_by: input.triggeredBy,
+    ...(input.source ? { source: input.source } : {}),
     created_at: new Date(),
   };
 

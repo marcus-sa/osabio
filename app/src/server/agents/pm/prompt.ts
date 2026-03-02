@@ -99,8 +99,6 @@ export async function buildPmSystemPrompt(input: {
     "- Other agents will see your observations when they next query the graph.",
     "",
     "## Output",
-    "Return strict JSON only (no markdown).",
-    "Match this schema exactly: summary, suggestions, updated, discarded, observations_created.",
     "If no suggestions remain after dedup, return suggestions: [].",
   ].join("\n");
 }

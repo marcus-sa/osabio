@@ -102,8 +102,6 @@ async function handleAcceptWorkItem(
         surreal: deps.surreal,
         targetRecord: taskRecord,
         text: item.rationale,
-        reasoning: "Created from work item suggestion",
-        triggeredBy: [],
       }).catch(() => undefined);
 
       logInfo("work-item.accept.task.created", "Task created from work item suggestion", {
@@ -153,8 +151,6 @@ async function handleAcceptWorkItem(
       surreal: deps.surreal,
       targetRecord: featureRecord,
       text: item.rationale,
-      reasoning: "Created from work item suggestion",
-      triggeredBy: [],
     }).catch(() => undefined);
 
     logInfo("work-item.accept.feature.created", "Feature created from work item suggestion", {

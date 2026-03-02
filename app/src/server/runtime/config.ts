@@ -23,6 +23,7 @@ export type ServerConfig = {
   surrealNamespace: string;
   surrealDatabase: string;
   port: number;
+  githubWebhookSecret?: string;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -57,6 +58,7 @@ export function loadServerConfig(): ServerConfig {
   const surrealDatabase = requireEnv("SURREAL_DATABASE");
 
   const port = parsePositiveInteger(requireEnv("PORT"), "PORT");
+  const githubWebhookSecret = Bun.env.GITHUB_WEBHOOK_SECRET?.trim() || undefined;
 
   return {
     openRouterApiKey,
@@ -74,6 +76,7 @@ export function loadServerConfig(): ServerConfig {
     surrealNamespace,
     surrealDatabase,
     port,
+    ...(githubWebhookSecret ? { githubWebhookSecret } : {}),
   };
 }
 

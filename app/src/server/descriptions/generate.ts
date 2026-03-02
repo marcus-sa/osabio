@@ -13,7 +13,12 @@ export async function synthesizeDescription(input: {
   entries: DescriptionEntry[];
 }): Promise<string> {
   const entryLines = input.entries
-    .map((entry, i) => `${i + 1}. ${entry.text} (${entry.reasoning})`)
+    .map((entry, i) => {
+      const sourceLabel = entry.source
+        ? `from ${entry.source.table.name}`
+        : "";
+      return `${i + 1}. ${entry.text}${sourceLabel ? ` (${sourceLabel})` : ""}`;
+    })
     .join("\n");
 
   const result = await generateObject({

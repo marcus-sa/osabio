@@ -2,8 +2,7 @@ import type { RecordId } from "surrealdb";
 
 export type DescriptionEntry = {
   text: string;
-  reasoning: string;
-  triggered_by: RecordId[];
+  source?: RecordId;
   created_at: Date;
 };
 

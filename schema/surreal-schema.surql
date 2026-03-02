@@ -59,8 +59,7 @@ DEFINE FIELD status ON project TYPE string;
 DEFINE FIELD description ON project TYPE option<string>;
 DEFINE FIELD description_entries ON project TYPE option<array<object>>;
 DEFINE FIELD description_entries[*].text ON project TYPE string;
-DEFINE FIELD description_entries[*].reasoning ON project TYPE string;
-DEFINE FIELD description_entries[*].triggered_by ON project TYPE array<record>;
+DEFINE FIELD description_entries[*].source ON project TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON project TYPE datetime;
 DEFINE FIELD embedding ON project TYPE option<array<float>>;
 DEFINE FIELD created_at ON project TYPE datetime;
@@ -74,8 +73,7 @@ DEFINE FIELD status ON feature TYPE string;
 DEFINE FIELD description ON feature TYPE option<string>;
 DEFINE FIELD description_entries ON feature TYPE option<array<object>>;
 DEFINE FIELD description_entries[*].text ON feature TYPE string;
-DEFINE FIELD description_entries[*].reasoning ON feature TYPE string;
-DEFINE FIELD description_entries[*].triggered_by ON feature TYPE array<record>;
+DEFINE FIELD description_entries[*].source ON feature TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON feature TYPE datetime;
 DEFINE FIELD prd ON feature TYPE option<string>;
 DEFINE FIELD owner ON feature TYPE option<record<person>>;
@@ -91,8 +89,7 @@ DEFINE FIELD title ON task TYPE string;
 DEFINE FIELD description ON task TYPE option<string>;
 DEFINE FIELD description_entries ON task TYPE option<array<object>>;
 DEFINE FIELD description_entries[*].text ON task TYPE string;
-DEFINE FIELD description_entries[*].reasoning ON task TYPE string;
-DEFINE FIELD description_entries[*].triggered_by ON task TYPE array<record>;
+DEFINE FIELD description_entries[*].source ON task TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON task TYPE datetime;
 DEFINE FIELD owner ON task TYPE option<record<person>>;
 DEFINE FIELD owner_name ON task TYPE option<string>;
@@ -103,6 +100,7 @@ DEFINE FIELD priority ON task TYPE option<string>
 DEFINE FIELD created_at ON task TYPE datetime;
 DEFINE FIELD updated_at ON task TYPE option<datetime>;
 DEFINE FIELD source_message ON task TYPE option<record<message>>;
+DEFINE FIELD source_commit ON task TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON task TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON task TYPE option<datetime>;
 DEFINE FIELD embedding ON task TYPE option<array<float>>;
@@ -110,6 +108,7 @@ DEFINE FIELD category ON task TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
 DEFINE INDEX task_source_message ON task FIELDS source_message;
+DEFINE INDEX task_source_commit ON task FIELDS source_commit;
 DEFINE INDEX idx_task_embedding ON task FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE decision SCHEMAFULL;
@@ -128,6 +127,7 @@ DEFINE FIELD confirmation_notes ON decision TYPE option<string>;
 DEFINE FIELD created_at ON decision TYPE datetime;
 DEFINE FIELD updated_at ON decision TYPE option<datetime>;
 DEFINE FIELD source_message ON decision TYPE option<record<message>>;
+DEFINE FIELD source_commit ON decision TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON decision TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON decision TYPE option<datetime>;
 DEFINE FIELD embedding ON decision TYPE option<array<float>>;
@@ -137,6 +137,7 @@ DEFINE FIELD priority ON decision TYPE option<string>
   ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
+DEFINE INDEX decision_source_commit ON decision FIELDS source_commit;
 DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE question SCHEMAFULL;
@@ -148,6 +149,7 @@ DEFINE FIELD context ON question TYPE option<string>;
 DEFINE FIELD created_at ON question TYPE datetime;
 DEFINE FIELD updated_at ON question TYPE option<datetime>;
 DEFINE FIELD source_message ON question TYPE option<record<message>>;
+DEFINE FIELD source_commit ON question TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON question TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON question TYPE option<datetime>;
 DEFINE FIELD embedding ON question TYPE option<array<float>>;
@@ -157,6 +159,7 @@ DEFINE FIELD priority ON question TYPE option<string>
   ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX question_status ON question FIELDS status;
 DEFINE INDEX question_source_message ON question FIELDS source_message;
+DEFINE INDEX question_source_commit ON question FIELDS source_commit;
 DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE observation SCHEMAFULL;
@@ -230,8 +233,12 @@ DEFINE FIELD message ON git_commit TYPE option<string>;
 DEFINE FIELD authored_at ON git_commit TYPE option<datetime>;
 DEFINE FIELD author ON git_commit TYPE option<record<person>>;
 DEFINE FIELD url ON git_commit TYPE option<string>;
+DEFINE FIELD workspace ON git_commit TYPE record<workspace>;
+DEFINE FIELD embedding ON git_commit TYPE option<array<float>>;
 DEFINE FIELD created_at ON git_commit TYPE datetime;
 DEFINE INDEX git_commit_sha ON git_commit FIELDS sha UNIQUE;
+DEFINE INDEX git_commit_workspace ON git_commit FIELDS workspace;
+DEFINE INDEX idx_git_commit_embedding ON git_commit FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE pull_request SCHEMAFULL;
 DEFINE FIELD external_id ON pull_request TYPE option<string>;
@@ -265,7 +272,7 @@ DEFINE TABLE depends_on TYPE RELATION IN task | feature OUT task | feature SCHEM
 DEFINE FIELD type ON depends_on TYPE string ASSERT $value IN ["blocks", "needs", "soft"];
 DEFINE FIELD added_at ON depends_on TYPE option<datetime>;
 
-DEFINE TABLE extraction_relation TYPE RELATION IN message | document_chunk OUT workspace | project | person | feature | task | decision | question SCHEMAFULL;
+DEFINE TABLE extraction_relation TYPE RELATION IN message | document_chunk | git_commit OUT workspace | project | person | feature | task | decision | question SCHEMAFULL;
 DEFINE FIELD confidence ON extraction_relation TYPE float ASSERT $value >= 0 AND $value <= 1;
 DEFINE FIELD extracted_at ON extraction_relation TYPE datetime;
 DEFINE FIELD created_at ON extraction_relation TYPE datetime;
@@ -285,6 +292,7 @@ DEFINE FIELD kind ON entity_relation TYPE string ASSERT string::len(string::trim
 DEFINE FIELD confidence ON entity_relation TYPE float ASSERT $value >= 0 AND $value <= 1;
 DEFINE FIELD source_message ON entity_relation TYPE option<record<message>>;
 DEFINE FIELD source_chunk ON entity_relation TYPE option<record<document_chunk>>;
+DEFINE FIELD source_commit ON entity_relation TYPE option<record<git_commit>>;
 DEFINE FIELD extracted_at ON entity_relation TYPE datetime;
 DEFINE FIELD created_at ON entity_relation TYPE datetime;
 DEFINE FIELD from_text ON entity_relation TYPE option<string>;
@@ -293,6 +301,7 @@ DEFINE INDEX entity_relation_kind ON entity_relation FIELDS kind;
 DEFINE INDEX entity_relation_confidence ON entity_relation FIELDS confidence;
 DEFINE INDEX entity_relation_source_message ON entity_relation FIELDS source_message;
 DEFINE INDEX entity_relation_source_chunk ON entity_relation FIELDS source_chunk;
+DEFINE INDEX entity_relation_source_commit ON entity_relation FIELDS source_commit;
 DEFINE INDEX entity_relation_extracted_at ON entity_relation FIELDS extracted_at;
 
 DEFINE TABLE decided_in TYPE RELATION IN decision OUT conversation | meeting SCHEMAFULL;
@@ -340,6 +349,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
   LET $workspace_conversations = SELECT VALUE id FROM conversation WHERE workspace = $workspace;
   LET $workspace_messages = SELECT VALUE id FROM message WHERE conversation IN $workspace_conversations;
+  LET $workspace_commits = SELECT VALUE id FROM git_commit WHERE workspace = $workspace;
 
   LET $task_rows = SELECT
     id,
@@ -350,8 +360,10 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM task
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(title), $query)
   ORDER BY created_at DESC
@@ -366,8 +378,10 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM decision
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(summary), $query)
   ORDER BY created_at DESC
@@ -382,8 +396,10 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM question
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(text), $query)
   ORDER BY created_at DESC
@@ -397,6 +413,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
   LET $workspace_conversations = SELECT VALUE id FROM conversation WHERE workspace = $workspace;
   LET $workspace_messages = SELECT VALUE id FROM message WHERE conversation IN $workspace_conversations;
+  LET $workspace_commits = SELECT VALUE id FROM git_commit WHERE workspace = $workspace;
   LET $project_entity_ids = SELECT VALUE `in` FROM belongs_to WHERE out = $project;
 
   LET $task_rows = SELECT
@@ -408,8 +425,10 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM task
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(title), $query)
@@ -425,8 +444,10 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM decision
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(summary), $query)
@@ -442,8 +463,10 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM question
-  WHERE source_message != NONE
-    AND source_message IN $workspace_messages
+  WHERE (
+      (source_message != NONE AND source_message IN $workspace_messages)
+      OR (source_commit != NONE AND source_commit IN $workspace_commits)
+    )
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(text), $query)

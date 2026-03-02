@@ -27,8 +27,7 @@ export async function fireDescriptionUpdates(input: {
 
   const entry: DescriptionEntry = {
     text: input.trigger.summary,
-    reasoning: input.trigger.kind.replace(/_/g, " "),
-    triggered_by: [input.trigger.entity],
+    source: input.trigger.entity,
     created_at: new Date(),
   };
 

@@ -37,6 +37,7 @@ export async function persistExtractionOutput(input: {
   output: ExtractionPromptOutput;
   sourceMessageRecord?: RecordId<"message", string>;
   sourceChunkRecord?: RecordId<"document_chunk", string>;
+  sourceCommitRecord?: RecordId<"git_commit", string>;
   extractionHistoryMessageIds?: string[];
   now: Date;
 }): Promise<PersistExtractionResult> {
@@ -101,6 +102,7 @@ export async function persistExtractionOutput(input: {
         extracted: extracted as ExtractionPromptEntity & { kind: Exclude<EntityKind, "workspace" | "person" | "observation"> },
         sourceMessageRecord: input.sourceMessageRecord,
         sourceChunkRecord: input.sourceChunkRecord,
+        sourceCommitRecord: input.sourceCommitRecord,
         resolvedFromMessageRecord,
         now: input.now,
       });
@@ -149,8 +151,7 @@ export async function persistExtractionOutput(input: {
             surreal: input.surreal,
             targetRecord: persisted.record,
             text: extracted.evidence,
-            reasoning: "Extracted from conversation",
-            triggeredBy: input.sourceMessageRecord ? [input.sourceMessageRecord] : [],
+            source: input.sourceMessageRecord ?? input.sourceCommitRecord ?? input.sourceChunkRecord,
           }).catch(() => undefined);
         }
 
@@ -197,6 +198,7 @@ export async function persistExtractionOutput(input: {
         confidence: relationship.confidence,
         ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
         ...(input.sourceChunkRecord ? { source_chunk: input.sourceChunkRecord } : {}),
+        ...(input.sourceCommitRecord ? { source_commit: input.sourceCommitRecord } : {}),
         extracted_at: input.now,
         created_at: input.now,
         from_text: relationship.fromText,

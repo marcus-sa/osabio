@@ -1,6 +1,6 @@
 export type EntityKind = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation";
 
-export type SourceKind = "message" | "document_chunk";
+export type SourceKind = "message" | "document_chunk" | "git_commit";
 
 export const ENTITY_CATEGORIES = ["engineering", "research", "marketing", "operations", "design", "sales"] as const;
 export type EntityCategory = (typeof ENTITY_CATEGORIES)[number];
@@ -252,7 +252,7 @@ export type EntityDetailResponse = {
   }>;
   provenance: Array<{
     sourceId: string;
-    sourceKind: "message" | "document_chunk";
+    sourceKind: SourceKind;
     confidence: number;
     extractedAt: string;
     evidence?: string;
