@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "937c5fcdcbd9",
+  "session_id": "1b167886-0664-4967-9fd8-8e53cd4b0cf4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T05:59:46.114818Z",
+  "branch": "marcus-sa/extraction-to-pm-tool",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/smoke/extraction-quality.test.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/tools/create-question.ts",
+    "app/src/server/chat/tools/index.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "tests/smoke/onboarding.test.ts",
+    "app/src/server/agents/pm/create-work-item.ts",
+    "app/src/server/agents/pm/suggest-work-items.ts",
+    "app/src/server/agents/pm/tools.ts",
+    "tests/smoke/pipeline.test.ts",
+    "tests/unit/chat-context.test.ts",
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/entities/work-item-accept-route.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "68359d9fdfeb",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 42810,
+    "cache_read_tokens": 124233,
+    "output_tokens": 1015,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T05:59:46.081385Z",
+    "agent_lines": 750,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 750,
+    "agent_percentage": 100
+  }
+}

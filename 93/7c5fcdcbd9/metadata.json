@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "937c5fcdcbd9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/extraction-to-pm-tool",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/create-work-item.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/agents/pm/suggest-work-items.ts",
+    "app/src/server/agents/pm/tools.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/create-question.ts",
+    "app/src/server/chat/tools/index.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/graph/queries.ts",
+    "tests/smoke/extraction-quality.test.ts",
+    "tests/smoke/onboarding.test.ts",
+    "tests/smoke/pipeline.test.ts",
+    "tests/unit/chat-context.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/93/7c5fcdcbd9/0/metadata.json",
+      "transcript": "/93/7c5fcdcbd9/0/full.jsonl",
+      "context": "/93/7c5fcdcbd9/0/context.md",
+      "content_hash": "/93/7c5fcdcbd9/0/content_hash.txt",
+      "prompt": "/93/7c5fcdcbd9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 42810,
+    "cache_read_tokens": 124233,
+    "output_tokens": 1015,
+    "api_call_count": 4
+  }
+}
