@@ -16,15 +16,19 @@ export function createAnalyticsTools(analyticsSurreal: Surreal) {
           .describe("Query parameters as key-value pairs, referenced as $key in the query"),
       }),
       execute: async (input) => {
+        console.log("[analytics] query:", input.query);
+        if (input.parameters) console.log("[analytics] params:", JSON.stringify(input.parameters));
         try {
           const result = await analyticsSurreal.query(input.query, input.parameters ?? {});
           const rows = Array.isArray(result) ? result.flat() : [result];
+          console.log("[analytics] result: %d rows", rows.length, JSON.stringify(rows).slice(0, 500));
           return {
             success: true as const,
             result: rows,
             row_count: rows.length,
           };
         } catch (error) {
+          console.log("[analytics] error:", error instanceof Error ? error.message : String(error));
           return {
             success: false as const,
             error: error instanceof Error ? error.message : String(error),

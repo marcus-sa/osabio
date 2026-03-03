@@ -1,5 +1,6 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { evalite } from "evalite";
+import { Factuality } from "autoevals";
 import { Surreal } from "surrealdb";
 import { afterAll, beforeAll } from "vitest";
 import { runAnalyticsAgent, type AnalyticsAgentOutput } from "../app/src/server/agents/analytics/agent";
@@ -15,8 +16,11 @@ import { seedAnalyticsTestData, type AnalyticsSeedResult } from "./analytics-see
 type AnalyticsTestCase = {
   id: string;
   question: string;
-  expectedAnswerContains: string[];
+  /** Deterministic substring checks — use for values the model cannot paraphrase (numbers, proper nouns). */
+  expectedAnswerContains?: string[];
   expectedAnswerNotContains?: string[];
+  /** Ground truth for LLM factuality check — use when the model may paraphrase. */
+  expectedFacts?: string;
 };
 
 type AnalyticsEvalOutput = {
@@ -90,19 +94,19 @@ const cases: AnalyticsTestCase[] = [
   },
   {
     id: "open-observations",
-    question: "Are there any open observations?",
-    expectedAnswerContains: ["conflict", "acceptance criteria"],
+    question: "What are the open observations?",
+    expectedFacts: "There are 2 open observations: one about auth and billing timelines potentially conflicting (warning severity), and one about the dashboard feature lacking acceptance criteria (info severity).",
   },
   {
     id: "dependency-chains",
     question: "Which tasks have dependencies on other tasks?",
-    expectedAnswerContains: ["payment gateway", "invoice generator"],
+    expectedFacts: "2 tasks have actual dependencies: 'Build invoice generator' depends on 'Integrate payment gateway', and 'Integrate payment gateway' depends on 'Setup CI pipeline'. The remaining tasks matched the query but have empty dependency lists.",
   },
   {
     id: "empty-result",
     question: "Are there any cross-project conflicts between decisions?",
-    expectedAnswerContains: [],
-    expectedAnswerNotContains: ["found", "detected"],
+    expectedAnswerContains: ["no"],
+    expectedAnswerNotContains: ["there are conflicts", "there is a conflict", "conflicts exist"],
   },
 ];
 
@@ -119,12 +123,25 @@ evalite<AnalyticsTestCase, AnalyticsEvalOutput, AnalyticsTestCase>("Analytics Ag
       name: "answer-contains-expected",
       description: "Does the answer contain all expected substrings?",
       scorer: ({ output, expected }) => {
-        if (!expected || expected.expectedAnswerContains.length === 0) return 1;
+        if (!expected?.expectedAnswerContains || expected.expectedAnswerContains.length === 0) return 1;
         const lowerAnswer = output.answer.toLowerCase();
         const matches = expected.expectedAnswerContains.filter((s) =>
           lowerAnswer.includes(s.toLowerCase()),
         );
         return matches.length / expected.expectedAnswerContains.length;
+      },
+    },
+    {
+      name: "factuality",
+      description: "LLM judge: is the answer factually consistent with the expected ground truth?",
+      scorer: async ({ output, expected }) => {
+        if (!expected?.expectedFacts) return 1;
+        const result = await Factuality({
+          input: expected.question,
+          output: output.answer,
+          expected: expected.expectedFacts,
+        });
+        return result.score ?? 0;
       },
     },
     {
@@ -146,6 +163,7 @@ evalite<AnalyticsTestCase, AnalyticsEvalOutput, AnalyticsTestCase>("Analytics Ag
     { label: "Success", value: output.success ? "yes" : "no" },
     { label: "Executes", value: formatScore(scores, "query-executes") },
     { label: "Contains", value: formatScore(scores, "answer-contains-expected") },
+    { label: "Factual", value: formatScore(scores, "factuality") },
     { label: "NoHalluc", value: formatScore(scores, "no-hallucination") },
   ],
 });

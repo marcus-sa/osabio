@@ -22,10 +22,11 @@ export function buildAnalyticsSystemPrompt(): string {
 - Generate ONLY SELECT queries. You have read-only access — mutations will be rejected by the database.
 - Always use parameterized queries ($param) for dynamic values to prevent injection.
 - Always include a LIMIT clause (default 100 unless the question implies a smaller scope).
-- Use SurrealQL graph traversal syntax (arrow operators), NOT SQL JOINs.
+- Use ONLY syntax documented in the SurrealQL Syntax Reference below. Do NOT use SQL syntax (JOINs, LIKE, EXISTS, HAVING, table aliases, etc.) — SurrealQL is NOT SQL.
 - Use duration literals (2w, 1d) for time comparisons, NOT SQL INTERVAL.
+- Use ONLY functions listed in the syntax reference. Do NOT guess function names from SQL or other languages.
 - When a query errors, fix the specific issue mentioned in the error and retry.
-- If results are empty, say so clearly — do not fabricate data.
+- If the query returns zero rows, state clearly that no matching data exists. Do NOT invent, guess, or speculate about records that were not in the result set.
 
 ${SURREALQL_SYNTAX_REFERENCE}
 
@@ -41,6 +42,6 @@ ${ANALYTICS_FEW_SHOT_EXAMPLES}
 
 After executing queries, provide:
 - A direct answer to the question in natural language
-- Reference specific data from the results (counts, names, dates)
+- You MUST cite specific values from every row returned — include names, titles, text content, counts, dates, and statuses verbatim from the result set. Never summarize rows you haven't mentioned individually.
 - If the data is insufficient to answer, explain what's missing`;
 }

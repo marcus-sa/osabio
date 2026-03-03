@@ -70,17 +70,24 @@ WHERE array::len(->belongs_to->project) > 1
 LIMIT 50;
 \`\`\`
 
-### 9. Observation summary: open observations by severity
+### 9. Observation detail: list open observations with text
 \`\`\`sql
-SELECT severity, status, count() AS total
+SELECT id, text, severity, status, created_at
 FROM observation
 WHERE status = 'open'
-GROUP BY severity, status
-ORDER BY total DESC
-LIMIT 20;
+ORDER BY created_at DESC
+LIMIT 50;
 \`\`\`
 
-### 10. Dependency chains: tasks with dependencies
+### 10. Relation table traversal: query edges directly (no JOINs or aliases)
+SurrealQL has no JOIN or table aliases. Query relation tables directly and use \`in\`/\`out\` fields:
+\`\`\`sql
+SELECT *, in AS from_entity, out AS to_entity
+FROM conflicts_with
+LIMIT 50;
+\`\`\`
+
+### 11. Dependency chains: tasks with dependencies
 \`\`\`sql
 SELECT id, title, status,
   ->depends_on->task.{id, title, status} AS depends_on

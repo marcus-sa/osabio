@@ -198,4 +198,7 @@ RETURN { open: $open[0].total, blocked: $blocked[0].total };
 - \`LIMIT N OFFSET M\` — use \`LIMIT @number START @start\` instead
 - \`AS\` for table aliases — not supported
 - \`UNION\` / \`INTERSECT\` — use array functions or multiple queries
+- \`EXISTS()\` — not a function in SurrealQL. Use \`IS NOT NONE\` for field presence checks
+- \`LIKE\` — not supported. Use \`string::starts_with()\`, \`string::contains()\`, or \`~\` (regex) instead
+- \`string::startswith\` — wrong name. The correct function is \`string::starts_with\` (with underscore)
 `;

@@ -41,5 +41,8 @@ export async function runAnalyticsAgent(input: AnalyticsAgentInput): Promise<Ana
     throw new Error("analytics agent did not produce structured output");
   }
 
+  console.log("[analytics] answer:", result.output.answer);
+  console.log("[analytics] result_summary:", result.output.result_summary);
+
   return result.output;
 }
