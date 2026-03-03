@@ -27,7 +27,8 @@ import {
 
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
 const STALE_DAYS = 7;
-const RECENT_COMPLETED_DAYS = 7;
+const RECENT_COMPLETED_DAYS = 3;
+const AWARENESS_RECENCY_DAYS = 3;
 const FEED_ITEM_LIMIT = 20;
 
 export function createFeedRouteHandler(
@@ -198,8 +199,13 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       });
     }
 
-    // Awareness: stale tasks
+    // Awareness items are filtered to the last AWARENESS_RECENCY_DAYS
+    const awarenessCutoff = new Date(Date.now() - AWARENESS_RECENCY_DAYS * 24 * 60 * 60 * 1000);
+
+    // Awareness: stale tasks (only if they crossed the stale threshold recently)
     for (const row of staleTasks) {
+      const ts = row.updated_at ? new Date(row.updated_at) : new Date(row.created_at);
+      if (ts < awarenessCutoff) continue;
       const rawId = row.id.id as string;
       awareness.push({
         id: `task:${rawId}:stale`,
@@ -217,7 +223,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       });
     }
 
-    // Awareness: recently completed
+    // Awareness: recently completed (already filtered by RECENT_COMPLETED_DAYS query)
     for (const row of recentlyCompleted) {
       const rawId = row.id.id as string;
       awareness.push({
@@ -241,6 +247,8 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       seenEntityIds.add(item.entityId);
     }
     for (const row of recentExtractions) {
+      const extractedAt = new Date(row.extractedAt);
+      if (extractedAt < awarenessCutoff) continue;
       const entityId = `${row.entityKind}:${row.entityId}`;
       if (seenEntityIds.has(entityId)) continue;
       awareness.push({
