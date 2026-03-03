@@ -304,8 +304,8 @@ async function loadWorkspaceSeeds(
       continue;
     }
 
-    const sourceTable = edge.in.tb;
-    const entityTable = edge.out.tb;
+    const sourceTable = edge.in.table.name;
+    const entityTable = edge.out.table.name;
     const sourceKind = (sourceTable === "document_chunk" ? "document_chunk" : "message") as SourceKind;
     const sourceLabel = await readSourceLabel(deps, edge.in);
 
@@ -324,7 +324,7 @@ async function loadWorkspaceSeeds(
 }
 
 async function readSourceLabel(deps: ServerDependencies, sourceRecord: SourceRecord): Promise<string | undefined> {
-  const sourceTable = sourceRecord.tb;
+  const sourceTable = sourceRecord.table.name;
   if (sourceTable === "message") {
     const row = await deps.surreal.select<{ text: string }>(sourceRecord);
     if (!row) {

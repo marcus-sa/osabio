@@ -153,7 +153,7 @@ async function resolveEntityToProjects(
   surreal: Surreal,
   entityRecord: GraphEntityRecord,
 ): Promise<RecordId<"project", string>[]> {
-  const table = entityRecord.tb;
+  const table = entityRecord.table.name;
 
   if (table === "project") {
     return [entityRecord as unknown as RecordId<"project", string>];
@@ -180,9 +180,9 @@ async function resolveEntityToProjects(
     const projects: RecordId<"project", string>[] = [];
 
     for (const row of belongsToRows) {
-      if (row.out.tb === "project") {
+      if (row.out.table.name === "project") {
         projects.push(row.out as RecordId<"project", string>);
-      } else if (row.out.tb === "feature") {
+      } else if (row.out.table.name === "feature") {
         const [featureRows] = await surreal
           .query<[HasFeatureRow[]]>(
             "SELECT `in` FROM has_feature WHERE out = $feature;",
@@ -230,7 +230,7 @@ export async function refreshConversationTouchedBy(
   for (const row of extractionRows) {
     const projects = await resolveEntityToProjects(surreal, row.out);
     const extractedAt = row.extracted_at instanceof Date ? row.extracted_at : new Date(row.extracted_at as string);
-    const entityId = `${row.out.tb}:${row.out.id}`;
+    const entityId = `${row.out.table.name}:${row.out.id}`;
 
     for (const projectRecord of projects) {
       const projectId = projectRecord.id as string;
@@ -326,9 +326,9 @@ export async function maybeUpgradeConversationTitle(
 
   const uniqueEntities = new Map<string, { kind: string; text: string }>();
   for (const row of entityRows) {
-    const key = `${row.out.tb}:${row.out.id}`;
+    const key = `${row.out.table.name}:${row.out.id}`;
     if (!uniqueEntities.has(key)) {
-      uniqueEntities.set(key, { kind: row.out.tb, text: "" });
+      uniqueEntities.set(key, { kind: row.out.table.name, text: "" });
     }
   }
 
@@ -375,7 +375,7 @@ export async function maybeUpgradeConversationTitle(
   // Need actual texts from entities
   const entityTextRows: Array<{ kind: string; text: string }> = [];
   for (const row of entityRows) {
-    const kind = row.out.tb;
+    const kind = row.out.table.name;
     if (kind === "person" || kind === "workspace") continue;
 
     const textField = kind === "task" ? "title" : kind === "decision" ? "summary" : "text";

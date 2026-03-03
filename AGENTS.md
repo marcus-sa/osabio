@@ -180,13 +180,14 @@ When the PM agent suggests work items, the orchestrator renders them as `WorkIte
 
 - Use `RecordId` objects everywhere for Surreal identifiers (never `table:id` strings).
 - Server extraction types define typed record aliases:
-  - `GraphEntityRecord` and `SourceRecord` include a typed `tb` field for table discrimination.
-- Prefer typed `record.tb` access for table branching; do not use untyped casts like `(record as unknown as { tb: string }).tb`.
+  - `GraphEntityRecord` and `SourceRecord` are `RecordId<UnionOfTables, string>` aliases.
+- Use `record.table.name` for table branching (the SDK's public API; `.tb` is an undeclared internal field that may break on upgrade).
 
 ## SurrealDB SDK v2
 
 Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields
 
+- Do NOT use `.tb` on `RecordId` — it works at runtime but is not in the SDK type definition and may break on upgrade. Use `.table.name` instead (returns the same typed `Tb` string via the public API).
 - When using `http://` or `https://` URLs, the SDK uses HTTP transport only. It does NOT attempt WebSocket upgrade.
 - WebSocket is only used when the URL scheme is `ws://` or `wss://`.
 - To CREATE a record with a specific ID, use the SDK's `RecordId` class:
