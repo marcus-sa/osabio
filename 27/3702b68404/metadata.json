@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "273702b68404",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 14,
+  "files_touched": [
+    "app/src/server/agents/analytics/agent.ts",
+    "app/src/server/agents/analytics/few-shot-examples.ts",
+    "app/src/server/agents/analytics/prompt.ts",
+    "app/src/server/agents/analytics/syntax-reference.ts",
+    "app/src/server/agents/analytics/tools.ts",
+    "evals/analytics.eval.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/27/3702b68404/0/metadata.json",
+      "transcript": "/27/3702b68404/0/full.jsonl",
+      "context": "/27/3702b68404/0/context.md",
+      "content_hash": "/27/3702b68404/0/content_hash.txt",
+      "prompt": "/27/3702b68404/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 104,
+    "cache_creation_tokens": 266401,
+    "cache_read_tokens": 5514438,
+    "output_tokens": 19133,
+    "api_call_count": 81
+  }
+}
