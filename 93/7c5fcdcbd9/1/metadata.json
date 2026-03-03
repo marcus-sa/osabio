@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "937c5fcdcbd9",
+  "session_id": "77dd9d1c-c69c-43c9-a35d-97ec216af5d3",
   "strategy": "manual-commit",
+  "created_at": "2026-03-03T05:59:48.37973Z",
   "branch": "marcus-sa/extraction-to-pm-tool",
   "checkpoints_count": 3,
   "files_touched": [
@@ -23,27 +25,22 @@
     "tests/smoke/pipeline.test.ts",
     "tests/unit/chat-context.test.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/93/7c5fcdcbd9/0/metadata.json",
-      "transcript": "/93/7c5fcdcbd9/0/full.jsonl",
-      "context": "/93/7c5fcdcbd9/0/context.md",
-      "content_hash": "/93/7c5fcdcbd9/0/content_hash.txt",
-      "prompt": "/93/7c5fcdcbd9/0/prompt.txt"
-    },
-    {
-      "metadata": "/93/7c5fcdcbd9/1/metadata.json",
-      "transcript": "/93/7c5fcdcbd9/1/full.jsonl",
-      "context": "/93/7c5fcdcbd9/1/context.md",
-      "content_hash": "/93/7c5fcdcbd9/1/content_hash.txt",
-      "prompt": "/93/7c5fcdcbd9/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "5fff1c6fa7d7",
   "token_usage": {
-    "input_tokens": 4378,
-    "cache_creation_tokens": 249245,
-    "cache_read_tokens": 13037314,
-    "output_tokens": 44828,
-    "api_call_count": 134
+    "input_tokens": 4344,
+    "cache_creation_tokens": 206435,
+    "cache_read_tokens": 12913081,
+    "output_tokens": 43813,
+    "api_call_count": 130
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T05:59:47.795253Z",
+    "agent_lines": 750,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 750,
+    "agent_percentage": 100
   }
 }

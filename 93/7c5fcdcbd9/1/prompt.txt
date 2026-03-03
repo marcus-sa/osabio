@@ -1,0 +1,307 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/dubai-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/dubai-v1/.context/attachments/plan.md
+</system_instruction>
+
+
+
+implement
+
+---
+
+yes, and question tool shouldnt be triggered for when user ask a question about the business, such as "what is blocking X"? 
+
+a question should only be created for something that requires a choice / decision
+
+---
+
+Continue from where you left off.
+
+---
+
+how can we create smoke tests for this? we could use llm to assert the results?
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the entire conversation:
+
+1. **Initial Request**: User attached a plan file (`plan.md`) and said "implement" - requesting implementation of Issue #70: Move Extraction from Always-On to Agent-Controlled.
+
+2. **Plan Overview**: The plan has 6 phases:
+   - Phase 1: New graph query helpers (createQuestionRecord, createProjectRecord)
+   - Phase 2: New tools (create_question orchestrator tool, create_work_item PM tool, extend suggest/accept for project kind, extend ChatToolDeps)
+   - Phase 3: Register tools & wire dependencies
+   - Phase 4: Remove auto-extraction & replace onboarding
+   - Phase 5: Prompt updates
+   - Phase 6: Onboarding state transition (no changes needed)
+
+3. **Implementation**: I read many files to understand the codebase, then implemented all 5 phases:
+   - Created tasks #1-#5 for tracking
+   - Phase 1: Added createQuestionRecord and createProjectRecord to graph/queries.ts
+   - Phase 2: Created create-question.ts, create-work-item.ts, extended suggest-work-items.ts, work-item-accept-route.ts, types.ts
+   - Phase 3: Registered tools in index.ts and tools.ts, extended handler.ts, agent.ts, invoke-pm-agent.ts
+   - Phase 4: Rewrote chat-processor.ts removing auto-extraction and onboarding reply
+   - Phase 5: Updated context.ts and prompt.ts with classification rules and onboarding mode
+
+4. **Errors encountered**:
+   - TypeScript errors: `part.result` should be `part.output` for AI SDK tool results (in handler.ts and agent.ts)
+   - TypeScript errors: `toolResult.result` should be `toolResult.output` for step tool results
+   - Test failures: chat-context.test.ts failed because buildChatContext now calls loadOnboardingSummary which wasn't in the mock loaders
+   - Fixed by adding loadOnboardingSummary to ChatContextLoaders type and updating tests
+
+5. **User feedback #1**: "yes, and question tool shouldnt be triggered for when user ask a question about the business, such as 'what is blocking X'? a question should only be created for something that requires a choice / decision"
+   - Updated tool description in create-question.ts
+   - Updated orchestrator prompt classification rules in context.ts
+   - Updated onboarding instructions in context.ts
+
+6. **User feedback #2**: "how can we create smoke tests for this? we could use llm to assert the results?"
+   - I explored existing smoke tests (pipeline.test.ts, onboarding.test.ts, extraction-quality.test.ts, smoke-test-kit.ts)
+   - Created tasks #6-#8 for updating smoke tests
+   - Rewrote pipeline.test.ts with three new test cases
+   - Was about to update onboarding.test.ts when summarization was requested
+
+Let me now enumerate all the files modified/created and the key code patterns.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested implementation of GitHub Issue #70: "Move Extraction from Always-On to Agent-Controlled." The plan (`.context/attachments/plan.md`) describes removing the automatic extraction pipeline that runs on every user message and replacing it with agent-controlled entity creation. The PM agent creates tasks/features/projects directly via tools, the orchestrator creates decisions/questions directly, and auto-extraction is removed entirely (preserved only for attachment/document ingestion). The user also requested refinement of the question tool's trigger conditions and creation of smoke tests for the new behavior.
+
+2. Key Technical Concepts:
+   - **Vercel AI SDK**: `tool()`, `generateText()`, `streamText()`, `Output.object()`, `stepCountIs()`, `experimental_context`
+   - **Tool result access**: AI SDK uses `.output` (not `.result`) for tool results in both `fullStream` parts and `step.toolResults`
+   - **SurrealDB graph model**: RecordId, RELATE for edges, `has_project`/`belongs_to`/`has_feature`/`extraction_relation` edge tables
+   - **Entity collection pattern**: Orchestrator and PM agent collect `extracted_entities`/`extracted_relationships` from tool return values, bubble them up through invoke_pm_agent
+   - **ChatToolDeps injection**: Extended with `extractionModel` and `extractionStoreThreshold` for tools that need description triggers
+   - **Onboarding mode**: Orchestrator now handles onboarding (was `generateOnboardingAssistantReply`), with `isOnboarding`/`onboardingState` params controlling prompt behavior
+   - **Smoke test pattern**: `setupSmokeSuite()` creates isolated SurrealDB namespace/database, boots app server, provides `collectSseEvents()` and `fetchJson()` helpers
+
+3. Files and Code Sections:
+
+   - **`app/src/server/graph/queries.ts`** — Core graph query layer
+     - Added `createQuestionRecord` and `createProjectRecord` mirroring `createDecisionRecord` pattern
+     ```ts
+     export async function createQuestionRecord(input: {
+       surreal: Surreal; text: string; status: string; now: Date;
+       workspaceRecord: RecordId<"workspace", string>;
+       sourceMessageRecord?: RecordId<"message", string>;
+       category?: string; priority?: string; assignedToName?: string;
+       projectRecord?: RecordId<"project", string>;
+       featureRecord?: RecordId<"feature", string>;
+     }): Promise<RecordId<"question", string>> {
+       const questionRecord = new RecordId("question", randomUUID());
+       await input.surreal.create(questionRecord).content({
+         text: input.text, status: input.status,
+         created_at: input.now, updated_at: input.now,
+         workspace: input.workspaceRecord,
+         ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
+         ...(input.category ? { category: input.category } : {}),
+         ...(input.priority ? { priority: input.priority } : {}),
+         ...(input.assignedToName ? { assigned_to_name: input.assignedToName } : {}),
+       });
+       if (input.projectRecord) {
+         await input.surreal.relate(questionRecord, new RecordId("belongs_to", randomUUID()), input.projectRecord, { added_at: input.now }).output("after");
+       }
+       if (input.featureRecord) {
+         await input.surreal.relate(questionRecord, new RecordId("belongs_to", randomUUID()), input.featureRecord, { added_at: input.now }).output("after");
+       }
+       return questionRecord;
+     }
+
+     export async function createProjectRecord(input: {
+       surreal: Surreal; name: string; status: string; now: Date;
+       workspaceRecord: RecordId<"workspace", string>;
+       sourceMessageRecord?: RecordId<"message", string>;
+     }): Promise<RecordId<"project", string>> {
+       const projectRecord = new RecordId("project", randomUUID());
+       await input.surreal.create(projectRecord).content({
+         name: input.name, status: input.status,
+         created_at: input.now, updated_at: input.now,
+         workspace: input.workspaceRecord,
+         ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
+       });
+       await input.surreal.relate(input.workspaceRecord, new RecordId("has_project", randomUUID()), projectRecord, { added_at: input.now }).output("after");
+       return projectRecord;
+     }
+     ```
+
+   - **`app/src/server/chat/tools/create-question.ts`** — NEW: Orchestrator tool for creating question entities
+     - Only for open questions requiring a choice/decision, NOT informational queries
+     ```ts
+     export function createCreateQuestionTool(deps: ChatToolDeps) {
+       return tool({
+         description:
+           "Create a question entity for open questions that require a choice or pending decision — e.g. \"should we use X or Y?\", \"which approach for Z?\". Do NOT use for informational queries like \"what is blocking X?\" or \"how does Y work?\" — answer those directly or use other tools.",
+         inputSchema: z.object({
+           text: z.string().min(1).describe("The question text"),
+           category: z.enum(ENTITY_CATEGORIES).optional().describe("Question category"),
+           priority: z.string().optional().describe("Priority: critical, high, medium, low"),
+           context: z.object({
+             project: z.string().optional(),
+             feature: z.string().optional(),
+           }).optional(),
+           assigned_to: z.string().optional().describe("Person name to assign the question to"),
+         }),
+         execute: async (input, options) => {
+           const context = requireToolContext(options);
+           const now = new Date();
+           // resolves project/feature records, creates question via createQuestionRecord,
+           // creates extraction provenance edge, returns { question_id, status: "open" }
+         },
+       });
+     }
+     ```
+
+   - **`app/src/server/agents/pm/create-work-item.ts`** — NEW: PM agent tool for direct entity creation
+     - Creates task/feature/project with embedding, provenance, project linking, description seeding
+     - Reuses logic from `work-item-accept-route.ts` but invoked by PM agent via tool call
+     - Input: `{ kind: "task"|"feature"|"project", title, rationale, category?, priority?, project? }`
+     - Returns: `{ entity_id, kind, title }`
+     - For features, calls `fireDescriptionUpdates` (needs `extractionModel` from deps)
+     - Tool signature: `createCreateWorkItemTool(deps: ChatToolDeps & { extractionModel: any })`
+
+   - **`app/src/server/agents/pm/suggest-work-items.ts`** — Extended kind enum
+     - Changed `kind: "task" | "feature"` → `"task" | "feature" | "project"` in both `SuggestedWorkItem` type and Zod schema
+
+   - **`app/src/server/agents/pm/tools.ts`** — Registered `create_work_item`
+     ```ts
+     import { createCreateWorkItemTool } from "./create-work-item";
+     export function createPmTools(deps: ChatToolDeps) {
+       return {
+         search_entities: createSearchEntitiesTool(deps),
+         get_project_status: createGetProjectStatusTool(deps),
+         create_observation: createCreateObservationTool(deps),
+         suggest_work_items: createSuggestWorkItemsTool(deps),
+         create_work_item: createCreateWorkItemTool(deps),
+       };
+     }
+     ```
+
+   - **`app/src/server/agents/pm/agent.ts`** — Extended to collect entities from tool results
+     - New `PmAgentOutput` type adds `extracted_entities` and `extracted_relationships` to `PmAgentResult`
+     - Updated `workItemSuggestionSchema` kind to include `"project"`
+     - After `generateText`, iterates `result.steps[].toolResults[]` collecting `toolResult.output.extracted_entities/extracted_relationships`
+     - Updated `INTENT_INSTRUCTIONS.plan_work` to mention `create_work_item`
+     - Return type changed from `PmAgentResult` to `PmAgentOutput`
+
+   - **`app/src/server/agents/pm/prompt.ts`** — Updated PM system prompt
+     - Removed "## Your Tools" section (tool descriptions come from `tools` parameter)
+     - Removed "Do not create tasks or features directly" constraint
+     - Added: Entity Kind Classification, When to Create Directly vs Suggest, Category/Priority Classification, What NOT to Create
+     - Changed authority statement to include "projects"
+
+   - **`app/src/server/chat/tools/types.ts`** — Extended ChatToolDeps
+     ```ts
+     export type ChatToolDeps = {
+       surreal: Surreal;
+       embeddingModel: any;
+       embeddingDimension: number;
+       extractionModelId: string;
+       extractionModel: any;              // NEW
+       extractionStoreThreshold: number;  // NEW
+     };
+     ```
+
+   - **`app/src/server/chat/tools/index.ts`** — Registered `create_question` in orchestrator tools
+     ```ts
+     import { createCreateQuestionTool } from "./create-question";
+     // In createOrchestratorTools:
+     create_question: createCreateQuestionTool(deps),
+     ```
+
+   - **`app/src/server/chat/handler.ts`** — Major rewrite of `runOrchestrator`
+     - New input params: `extractionModel`, `extractionStoreThreshold`, `isOnboarding?`, `onboardingState?`
+     - New return type `OrchestratorResult`: `{ text, collectedEntities, collectedRelationships }`
+     - `buildSystemPrompt` now receives `{ isOnboarding, onboardingState }` options
+     - Tool deps now include `extractionModel` and `extractionStoreThreshold`
+     - In `fullStream` loop, collects entities from `tool-result` parts via `part.output` (not `.result`)
+     ```ts
+     if (part.type === "tool-result") {
+       const toolResult = part.output as Record<string, unknown> | undefined;
+       if (toolResult) {
+         if (Array.isArray(toolResult.extracted_entities)) {
+           collectedEntities.push(...(toolResult.extracted_entities as CollectedEntity[]));
+         }
+         if (Array.isArray(toolResult.extracted_relationships)) {
+           collectedRelationships.push(...(toolResult.extracted_relationships as CollectedRelationship[]));
+         }
+       }
+     }
+     ```
+
+   - **`app/src/server/chat/context.ts`** — Major updates to system prompt
+     - Added `onboardingSummary?: string` to `ChatContext`
+     - Added `loadOnboardingSummary` to `ChatContextLoaders` type
+     - `buildChatContext` now loads onboarding summary via injectable loader
+     - `buildSystemPrompt` signature changed to accept `(context: ChatContext, options?: SystemPromptOptions)`
+     - Added onboarding mode sections (active vs summary_pending)
+     - Added entity classification rules: When to Create Decisions, When to Create Questions (choice-requiring only), When NOT to Create Entities
+
+   - **`app/src/server/chat/chat-processor.ts`** — Major rewrite (core of the migration)
+     - **Removed**: `extractStructuredGraph` call, `persistExtractionOutput` call, `generateOnboardingAssistantReply`, `buildExtractionComponentBlock`, `onboarding_seed` SSE events, `seedItems` array, extraction context loaders for text messages
+     - **Kept**: Attachment ingestion via `ingestAttachment` (still automatic), branch chain/inheritance logic
+     - **Changed**: Always runs `runOrchestrator` (no more onboarding vs post-onboarding branch), passes `isOnboarding`/`onboardingState`/`extractionModel`/`extractionStoreThreshold`, collects entities from orchestrator result
+     - **Moved**: `refreshConversationTouchedBy` and `maybeUpgradeConversationTitle` to after response generation
+     - Removed unused imports: `buildExtractionComponentBlock`, `loadExtractionConversationContext`, `loadConversationGraphContext`, `extractStructuredGraph`, `persistExtractionOutput`, `generateOnboardingAssistantReply`, `loadWorkspaceProjects` (partially — still used for attachment ingestion)
+
+   - **`app/src/server/entities/work-item-accept-route.ts`** — Added "project" kind support
+     - Schema: `kind: z.enum(["task", "feature", "project"])`
+     - Added project creation branch using `createProjectRecord`, embedding, description seeding
+
+   - **`app/src/server/chat/tools/invoke-pm-agent.ts`** — No changes needed (PM output flows through automatically since `runPmAgent` returns `PmAgentOutput` with extracted fields)
+
+   - **`tests/unit/chat-context.test.ts`** — Updated test mocks
+     - Added `loadOnboardingSummary` mock to both test cases
+     - Updated expected `context` shape to include `onboardingSummary`
+
+   - **`tests/smoke/pipeline.test.ts`** — Rewritten for agent-controlled extraction
+     - New helper: `createOnboardedWorkspace` fast-forwards onboarding by directly updating workspace
+     - Test 1: "orchestrator creates decision from clear decision language" — sends decision text, verifies decision in DB + provenance edge
+     - Test 2: "no entities created for casual conversation" — sends greeting, verifies zero entities
+     - Test 3: "PM agent creates task from explicit request" — seeds a project, sends "add a task for X", verifies task in DB OR WorkItemSuggestionList in response
+     - Helper: `countWorkspaceEntities` queries task/decision/question/project tables
+
+4. Errors and Fixes:
+   - **AI SDK `result` vs `output` property**: TypeScript errors `Property 'result' does not exist on type` in handler.ts and agent.ts. The AI SDK's `TypedToolResult` and stream `tool-result` parts use `.output`, not `.result`. Fixed by changing `part.result` → `part.output` and `toolResult.result` → `toolResult.output`.
+   - **chat-context test failure**: `loadOnboardingSummary` was called directly in `buildChatContext` but tests used mock loaders that didn't include it, causing `surreal.query is not a function`. Fixed by adding `loadOnboardingSummary` to the `ChatContextLoaders` type and injecting it through the loaders pattern, then updating both test cases with mock implementations.
+   - **Pre-existing test failures**: `provenance-validation.test.ts` fails with `LOG_LEVEL is required` — confirmed pre-existing by stashing changes and re-running. Not related to this work.
+
+5. Problem Solving:
+   - Successfully migrated extraction from always-on to agent-controlled across 14 files
+   - Preserved attachment extraction as automatic (per plan requirements)
+   - Ensured `onboarding_turn_count` increment is preserved (happens in `chat-ingress.ts`, not `chat-processor.ts`)
+   - Made question entity creation specific to choice-requiring questions per user feedback
+   - Began updating smoke tests to match new behavioral expectations
+
+6. All User Messages:
+   - "implement" (with attached plan.md file)
+   - "yes, and question tool shouldnt be triggered for when user ask a question about the business, such as 'what is blocking X'? a question should only be created for something that requires a choice / decision"
+   - "how can we create smoke tests for this? we could use llm to assert the results?"
+
+7. Pending Tasks:
+   - Task #7: Update `onboarding.test.ts` for orchestrator-based onboarding (remove `onboarding_seed` assertion for text messages, adapt to orchestrator handling onboarding)
+   - Task #8: Create agent-extraction smoke test (was partially folded into pipeline.test.ts rewrite, but a dedicated new test file may still be warranted)
+   - The `extraction-quality.test.ts` smoke test may also need review — its assertions about extraction events may be affected
+
+8. Current Work:
+   I was in the process of updating smoke tests. I had just completed rewriting `tests/smoke/pipeline.test.ts` with three new test cases for agent-controlled extraction. The next file to update is `tests/smoke/onboarding.test.ts` which currently asserts on `onboarding_seed` events (removed) and expects the old `generateOnboardingAssistantReply` behavior.
+
+9. Optional Next Step:
+   Update `tests/smoke/onboarding.test.ts` to remove `onboarding_seed` assertions for text messages and adapt expectations to the orchestrator-based onboarding flow. The user's most recent request was: "how can we create smoke tests for this? we could use llm to assert the results?" — I was implementing smoke tests when the summary was requested. The onboarding test at line 100 (`expect(uploadEvents.some((event) => event.type === "onboarding_seed")).toBe(true)`) will fail since text extraction no longer emits onboarding_seed events (only attachment ingestion might, but the callback was changed to not emit them). After onboarding.test.ts, review `extraction-quality.test.ts` for any broken assertions.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-dubai-v1/77dd9d1c-c69c-43c9-a35d-97ec216af5d3.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
