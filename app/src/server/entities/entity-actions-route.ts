@@ -62,8 +62,7 @@ async function handleEntityAction(
     const table = entityRecord.table.name;
     const now = new Date();
 
-    // Observation actions bypass the standard workspace scope check
-    // because observations have their own workspace field (not graph edges).
+    // Observation actions have separate handlers from task/decision/question.
     if (table === "observation") {
       if (body.action === "acknowledge") {
         await acknowledgeObservation({

@@ -287,23 +287,7 @@ export async function isEntityInWorkspace(
   if (table === "task" || table === "decision" || table === "question") {
     const [rows] = await surreal
       .query<[Array<{ id: RecordId<"task" | "decision" | "question", string> }>]>(
-        [
-          "SELECT id",
-          `FROM ${table}`,
-          "WHERE id = $entity",
-          "AND (",
-          "  id IN (",
-          "    SELECT VALUE `in`",
-          "    FROM belongs_to",
-          "    WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-          "  )",
-          "  OR source_message IN (",
-          "    SELECT VALUE id",
-          "    FROM message",
-          "    WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-          "  )",
-          ");",
-        ].join(" "),
+        `SELECT id FROM ${table} WHERE id = $entity AND workspace = $workspace;`,
         { workspace: workspaceRecord, entity: entityRecord },
       )
       .collect<[Array<{ id: RecordId<"task" | "decision" | "question", string> }>]>();
@@ -482,18 +466,12 @@ export async function listWorkspaceRecentDecisions(input: {
       [
         "SELECT id, summary, status, priority, created_at",
         "FROM decision",
-        "WHERE id IN (SELECT VALUE `in` FROM belongs_to WHERE out IN $projects)",
-        "OR source_message IN (",
-        "  SELECT VALUE id",
-        "  FROM message",
-        "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-        ")",
+        "WHERE workspace = $workspace",
         "ORDER BY created_at DESC",
         "LIMIT $limit;",
       ].join(" "),
       {
         workspace: input.workspaceRecord,
-        projects: projectRecords,
         limit: input.limit,
       },
     )
@@ -540,21 +518,13 @@ export async function listWorkspaceOpenQuestions(input: {
       [
         "SELECT id, text, status, priority, created_at",
         "FROM question",
-        "WHERE status = 'open'",
-        "AND (",
-        "  id IN (SELECT VALUE `in` FROM belongs_to WHERE out IN $projects)",
-        "  OR source_message IN (",
-        "    SELECT VALUE id",
-        "    FROM message",
-        "    WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-        "  )",
-        ")",
+        "WHERE workspace = $workspace",
+        "AND status = 'open'",
         "ORDER BY created_at DESC",
         "LIMIT $limit;",
       ].join(" "),
       {
         workspace: input.workspaceRecord,
-        projects: projectRecords,
         limit: input.limit,
       },
     )
@@ -1279,6 +1249,7 @@ export async function createDecisionRecord(input: {
   summary: string;
   status: string;
   now: Date;
+  workspaceRecord: RecordId<"workspace", string>;
   sourceMessageRecord?: RecordId<"message", string>;
   rationale?: string;
   optionsConsidered?: string[];
@@ -1295,6 +1266,7 @@ export async function createDecisionRecord(input: {
     status: input.status,
     created_at: input.now,
     updated_at: input.now,
+    workspace: input.workspaceRecord,
     ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
     ...(input.rationale ? { rationale: input.rationale } : {}),
     ...(input.optionsConsidered && input.optionsConsidered.length > 0

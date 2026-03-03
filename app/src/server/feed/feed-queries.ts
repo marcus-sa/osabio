@@ -34,22 +34,8 @@ async function getWorkspaceProjectRows(
   return rows;
 }
 
-function buildWorkspaceScopeClause(table: "decision" | "question" | "task"): string {
-  return [
-    "(",
-    "  id IN (SELECT VALUE `in` FROM belongs_to WHERE out IN $projects)",
-    "  OR source_message IN (",
-    "    SELECT VALUE id",
-    "    FROM message",
-    "    WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-    "  )",
-    ...(table === "task"
-      ? [
-          "  OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace)",
-        ]
-      : []),
-    ")",
-  ].join(" ");
+function buildWorkspaceScopeClause(_table: "decision" | "question" | "task"): string {
+  return "workspace = $workspace";
 }
 
 // --- Blocking tier ---
@@ -161,14 +147,10 @@ export async function listWorkspaceConflicts(input: WorkspaceQueryInput): Promis
       [
         "SELECT id, `in`, out, description, severity, detected_at",
         "FROM conflicts_with",
-        "WHERE `in` IN (",
-        "  SELECT VALUE `in` FROM belongs_to",
-        "  WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-        ")",
-        "OR out IN (",
-        "  SELECT VALUE `in` FROM belongs_to",
-        "  WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-        ")",
+        "WHERE `in` IN (SELECT VALUE id FROM decision WHERE workspace = $workspace)",
+        "OR `in` IN (SELECT VALUE id FROM feature WHERE id IN (SELECT VALUE out FROM has_feature WHERE `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)))",
+        "OR out IN (SELECT VALUE id FROM decision WHERE workspace = $workspace)",
+        "OR out IN (SELECT VALUE id FROM feature WHERE id IN (SELECT VALUE out FROM has_feature WHERE `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)))",
         "ORDER BY detected_at DESC",
         "LIMIT $limit;",
       ].join(" "),

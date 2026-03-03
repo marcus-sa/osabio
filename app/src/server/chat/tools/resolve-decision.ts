@@ -121,6 +121,7 @@ export function createResolveDecisionTool(deps: ChatToolDeps) {
           summary: input.question,
           status: "inferred",
           now,
+          workspaceRecord: context.workspaceRecord,
           sourceMessageRecord: context.currentMessageRecord,
           rationale: `Inferred from existing graph context with ${sources.length} related entities.`,
           ...(input.options && input.options.length > 0 ? { optionsConsidered: input.options } : {}),

@@ -122,6 +122,7 @@ export async function upsertGraphEntity(input: {
       input.extracted.text,
       input.extracted.confidence,
       input.now,
+      input.workspaceRecord,
       candidateEmbedding,
       input.sourceMessageRecord,
       input.sourceCommitRecord,
@@ -261,6 +262,7 @@ function buildEntityRecordContent(
   text: string,
   confidence: number,
   now: Date,
+  workspaceRecord: RecordId<"workspace", string>,
   embedding?: number[],
   sourceMessageRecord?: RecordId<"message", string>,
   sourceCommitRecord?: RecordId<"git_commit", string>,
@@ -298,6 +300,7 @@ function buildEntityRecordContent(
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
+      workspace: workspaceRecord,
       created_at: now,
       updated_at: now,
     };
@@ -314,6 +317,7 @@ function buildEntityRecordContent(
       ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
+      workspace: workspaceRecord,
       created_at: now,
       updated_at: now,
     };
@@ -330,6 +334,7 @@ function buildEntityRecordContent(
     ...(embedding ? { embedding } : {}),
     ...(category ? { category } : {}),
     ...(priority ? { priority } : {}),
+    workspace: workspaceRecord,
     created_at: now,
     updated_at: now,
   };
@@ -381,80 +386,30 @@ export async function loadWorkspaceKindCandidates(
   if (kind === "task") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        [
-          "SELECT id, title AS text, embedding",
-          "FROM task",
-          "WHERE id IN (",
-          "  SELECT VALUE `in`",
-          "  FROM belongs_to",
-          "  WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-          ")",
-          "OR source_message IN (",
-          "  SELECT VALUE id",
-          "  FROM message",
-          "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-          ")",
-          "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
-        ].join(" "),
+        "SELECT id, title AS text, embedding FROM task WHERE workspace = $workspace;",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
-    return uniqueCandidateRows(rows);
+    return rows;
   }
 
   if (kind === "decision") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        [
-          "SELECT id, summary AS text, embedding",
-          "FROM decision",
-          "WHERE id IN (",
-          "  SELECT VALUE `in`",
-          "  FROM belongs_to",
-          "  WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-          ")",
-          "OR source_message IN (",
-          "  SELECT VALUE id",
-          "  FROM message",
-          "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-          ")",
-          "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
-        ].join(" "),
+        "SELECT id, summary AS text, embedding FROM decision WHERE workspace = $workspace;",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
-    return uniqueCandidateRows(rows);
+    return rows;
   }
 
   const [rows] = await surreal
     .query<[CandidateEntityRow[]]>(
-      [
-        "SELECT id, text AS text, embedding",
-        "FROM question",
-        "WHERE id IN (",
-        "  SELECT VALUE `in`",
-        "  FROM belongs_to",
-        "  WHERE out IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-        ")",
-        "OR source_message IN (",
-        "  SELECT VALUE id",
-        "  FROM message",
-        "  WHERE conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)",
-        ")",
-        "OR source_commit IN (SELECT VALUE id FROM git_commit WHERE workspace = $workspace);",
-      ].join(" "),
+      "SELECT id, text AS text, embedding FROM question WHERE workspace = $workspace;",
       { workspace: workspaceRecord },
     )
     .collect<[CandidateEntityRow[]]>();
-  return uniqueCandidateRows(rows);
-}
-
-function uniqueCandidateRows(rows: CandidateEntityRow[]): CandidateEntityRow[] {
-  const byId = new Map<string, CandidateEntityRow>();
-  for (const row of rows) {
-    byId.set(row.id.id as string, row);
-  }
-  return [...byId.values()];
+  return rows;
 }
 
 export async function appendWorkspaceTools(
