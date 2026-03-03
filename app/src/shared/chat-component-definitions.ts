@@ -41,6 +41,29 @@ export type ExtractionSummaryProps = z.infer<typeof extractionSummaryPropsSchema
 export type WorkItemSuggestionProps = z.infer<typeof workItemSuggestionPropsSchema>;
 export type WorkItemSuggestionListProps = z.infer<typeof workItemSuggestionListPropsSchema>;
 
+export const inlineRelationshipGraphNodeSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  kind: z.string().min(1),
+});
+
+export const inlineRelationshipGraphEdgeSchema = z.object({
+  id: z.string().min(1),
+  source: z.string().min(1),
+  target: z.string().min(1),
+  label: z.string().min(1),
+  type: z.string().min(1),
+});
+
+export const inlineRelationshipGraphPropsSchema = z.object({
+  title: z.string().min(1),
+  nodes: z.array(inlineRelationshipGraphNodeSchema).min(1),
+  edges: z.array(inlineRelationshipGraphEdgeSchema),
+  focusNodeIds: z.array(z.string().min(1)).optional(),
+});
+
+export type InlineRelationshipGraphProps = z.infer<typeof inlineRelationshipGraphPropsSchema>;
+
 export const chatComponentDefinitions = {
   EntityCard: {
     description: "Renders one extracted entity card with kind, name, status, and confidence.",
@@ -57,5 +80,9 @@ export const chatComponentDefinitions = {
   WorkItemSuggestionList: {
     description: "Renders a list of PM work-item suggestions with Accept All/Dismiss All controls.",
     props: workItemSuggestionListPropsSchema,
+  },
+  InlineRelationshipGraph: {
+    description: "Renders an interactive relationship graph showing entity nodes and their connections. Use to visualize how entities relate to each other.",
+    props: inlineRelationshipGraphPropsSchema,
   },
 } as const;

@@ -7,9 +7,10 @@ import type { ChatToolDeps } from "./types";
 
 export function createAcknowledgeObservationTool(deps: ChatToolDeps) {
   return tool({
-    description: "Mark an observation as acknowledged once it has been reviewed.",
+    description:
+      "Mark an observation as acknowledged — reviewed but still needs resolution. Transitions from open to acknowledged.",
     inputSchema: z.object({
-      observation_id: z.string().min(1).describe("Observation record ID"),
+      observation_id: z.string().min(1).describe("Observation record ID, e.g. observation:abc123"),
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);

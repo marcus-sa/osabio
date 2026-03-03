@@ -272,8 +272,43 @@ export type BranchConversationResponse = {
   branchPointMessageId: string;
 };
 
+export type GovernanceTier = "blocking" | "review" | "awareness";
+
+export type GovernanceFeedAction = {
+  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss";
+  label: string;
+};
+
+export type GovernanceFeedItem = {
+  id: string;               // composite: "decision:<uuid>:provisional"
+  tier: GovernanceTier;
+  entityId: string;          // "decision:<uuid>"
+  entityKind: EntityKind;
+  entityName: string;
+  reason: string;            // "Provisional decision awaiting confirmation"
+  status: string;
+  project?: string;
+  category?: EntityCategory;
+  priority?: EntityPriority;
+  severity?: ObservationSeverity;
+  createdAt: string;
+  actions: GovernanceFeedAction[];
+  conflictTarget?: {         // for conflict items
+    entityId: string;
+    entityKind: EntityKind;
+    entityName: string;
+  };
+};
+
+export type GovernanceFeedResponse = {
+  blocking: GovernanceFeedItem[];
+  review: GovernanceFeedItem[];
+  awareness: GovernanceFeedItem[];
+  updatedAt: string;
+};
+
 export type EntityActionRequest = {
-  action: "confirm" | "override" | "complete" | "set_priority";
+  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve";
   notes?: string;
   newSummary?: string;
   priority?: EntityPriority;

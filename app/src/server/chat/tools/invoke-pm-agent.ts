@@ -7,9 +7,13 @@ import type { OrchestratorToolDeps } from "./types";
 export function createInvokePmAgentTool(deps: OrchestratorToolDeps) {
   return tool({
     description:
-      "Invoke the PM subagent for planning work, checking project status, organizing initiatives, and tracking dependencies.",
+      "Invoke the PM subagent — the single authority on tasks, features, and project status.",
     inputSchema: z.object({
-      intent: z.enum(["plan_work", "check_status", "organize", "track_dependencies"]),
+      intent: z
+        .enum(["plan_work", "check_status", "organize", "track_dependencies"])
+        .describe(
+          "plan_work: user discusses goals, features, or work to be done. check_status: user asks about progress, blockers, or project status. organize: user wants to restructure or re-prioritize. track_dependencies: user asks about blocked items or dependency chains.",
+        ),
       context: z.string().min(1).describe("Conversation context for the PM agent"),
       project: z.string().optional().describe("Optional project scope"),
     }),

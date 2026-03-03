@@ -1,0 +1,20 @@
+diff --git a/dist/index-8tlsyFe-.js b/dist/index-8tlsyFe-.js
+index b80929538c56df60f368314748311db6dab3b68a..b99cb84b5b6a487673fe9a8888d1c0b171f53075 100644
+--- a/dist/index-8tlsyFe-.js
++++ b/dist/index-8tlsyFe-.js
+@@ -2548,13 +2548,13 @@ const SessionMessages = ({
+   useEffect(() => {
+     if (contentRef.current) {
+       requestAnimationFrame(
+-        () => contentRef.current.scrollTop = contentRef.current.scrollHeight
++        () => { if (contentRef.current) { contentRef.current.scrollTop = contentRef.current.scrollHeight; } }
+       );
+     }
+   }, [activeSession, isAnimating]);
+   const handleShowMore = () => {
+     showNext(limit);
+-    requestAnimationFrame(() => contentRef.current.scrollTop = 0);
++    requestAnimationFrame(() => { if (contentRef.current) { contentRef.current.scrollTop = 0; } });
+   };
+   const handleScrollToBottom = () => {
+     if (contentRef.current) {

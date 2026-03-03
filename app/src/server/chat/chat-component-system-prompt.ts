@@ -20,4 +20,8 @@ export const chatComponentSystemPrompt = componentCatalog({
     ...chatComponentDefinitions.WorkItemSuggestionList,
     component: noopComponent,
   },
+  InlineRelationshipGraph: {
+    ...chatComponentDefinitions.InlineRelationshipGraph,
+    component: noopComponent,
+  },
 }).systemPrompt();

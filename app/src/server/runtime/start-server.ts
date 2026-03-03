@@ -16,6 +16,7 @@ import { createEntityActionsHandler } from "../entities/entity-actions-route";
 import { createWorkItemAcceptHandler } from "../entities/work-item-accept-route";
 import { createBranchConversationHandler } from "../chat/branch-conversation";
 import { createGitHubWebhookHandler } from "../webhook/github-webhook-route";
+import { createFeedRouteHandler } from "../feed/feed-route";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -41,6 +42,7 @@ export async function startServer(): Promise<void> {
   const workItemAcceptHandler = createWorkItemAcceptHandler(deps);
   const branchConversationHandler = createBranchConversationHandler(deps);
   const githubWebhookHandler = createGitHubWebhookHandler(deps);
+  const feedHandler = createFeedRouteHandler(deps);
 
   const server = Bun.serve({
     port: config.port,
@@ -120,6 +122,13 @@ export async function startServer(): Promise<void> {
           "POST /api/workspaces/:workspaceId/work-items/accept",
           "POST",
           (request) => workItemAcceptHandler(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/feed": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/feed",
+          "GET",
+          (request) => feedHandler(request.params.workspaceId),
         ),
       },
       "/api/workspaces/:workspaceId/webhooks/github": {
