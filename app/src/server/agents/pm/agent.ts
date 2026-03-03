@@ -1,4 +1,4 @@
-import { generateText, Output, stepCountIs } from "ai";
+import { ToolLoopAgent, Output, stepCountIs } from "ai";
 import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type ExtractedEntity, type ExtractedRelationship } from "../../../shared/contracts";
 import type { ChatToolDeps, ChatToolExecutionContext } from "../../chat/tools/types";
@@ -69,9 +69,17 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
     workspaceRecord: input.context.workspaceRecord,
   });
 
-  const result = await generateText({
+  const agent = new ToolLoopAgent({
+    id: "pm-agent",
     model: input.deps.pmModel,
-    system,
+    instructions: system,
+    tools: createPmTools(input.deps),
+    output: Output.object({ schema: pmAgentResultSchema }),
+    experimental_context: input.context,
+    stopWhen: stepCountIs(6),
+  });
+
+  const result = await agent.generate({
     prompt: [
       "You are handling a PM request.",
       `Intent: ${input.intent}`,
@@ -80,10 +88,6 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
       "Context:",
       input.conversationContext,
     ].join("\n"),
-    tools: createPmTools(input.deps),
-    output: Output.object({ schema: pmAgentResultSchema }),
-    experimental_context: input.context,
-    stopWhen: stepCountIs(6),
   });
 
   if (!result.output) {

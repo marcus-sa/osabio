@@ -3,8 +3,8 @@ import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type EntityCategory } from "../../../shared/contracts";
 import { createEmbeddingVector } from "../../graph/embeddings";
 import { resolveWorkspaceProjectRecord, searchEntitiesByEmbedding } from "../../graph/queries";
-import { requireToolContext } from "../../chat/tools/helpers";
-import type { ChatToolDeps } from "../../chat/tools/types";
+import { requireToolContext } from "./helpers";
+import type { ChatToolDeps } from "./types";
 
 type SuggestedWorkItem = {
   kind: "task" | "feature" | "project";

@@ -12,10 +12,10 @@ import {
 import { seedDescriptionEntry } from "../../descriptions/persist";
 import { fireDescriptionUpdates } from "../../descriptions/triggers";
 import { ensureProjectFeatureEdge } from "../../workspace/workspace-scope";
-import { requireToolContext } from "../../chat/tools/helpers";
-import type { ChatToolDeps } from "../../chat/tools/types";
+import { requireToolContext } from "./helpers";
+import type { ChatToolDeps } from "./types";
 
-export function createCreateWorkItemTool(deps: ChatToolDeps & { extractionModel: any }) {
+export function createCreateWorkItemTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Create a task, feature, or project directly in the knowledge graph. Use when the user explicitly requests creation (\"add a task for X\") or during onboarding entity seeding. For uncertain/brainstormed items, prefer suggest_work_items instead.",

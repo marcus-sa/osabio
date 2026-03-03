@@ -132,9 +132,18 @@ User Message
 | `resolve_observation` | Close a resolved observation |
 | `invoke_pm_agent` | Delegate to PM subagent |
 
+### Shared Tool Layer
+
+Tools live in `chat/tools/` as composable building blocks. Any agent (chat agent, PM subagent, future subagents) can compose the tools it needs. Key shared tools for work item management:
+
+| Tool | File | Purpose |
+|------|------|---------|
+| `suggest_work_items` | `chat/tools/suggest-work-items.ts` | Batch triage/dedup (>0.97 exact duplicate, ≥0.8 merge, <0.8 new) |
+| `create_work_item` | `chat/tools/create-work-item.ts` | Direct entity creation in graph |
+
 ### Product Manager Subagent
 
-The PM agent (`agents/pm/`) is the single authority on tasks, features, and project status. It is invoked by the chat agent via `invoke_pm_agent` tool with an intent:
+The PM agent (`agents/pm/`) is the single authority on tasks, features, and project status. It uses the AI SDK's `ToolLoopAgent` class and composes shared tools from `chat/tools/`. It is invoked by the chat agent via `invoke_pm_agent` tool with an intent:
 
 | Intent | When to use |
 |--------|-------------|
@@ -144,10 +153,9 @@ The PM agent (`agents/pm/`) is the single authority on tasks, features, and proj
 | `track_dependencies` | User asks about blocked items or dependency chains |
 
 **Key files:**
-- `agents/pm/agent.ts` — `runPmAgent()`: generates text with PM tools, parses strict JSON output
+- `agents/pm/agent.ts` — `runPmAgent()`: creates `ToolLoopAgent` with PM tools, returns structured JSON output
 - `agents/pm/prompt.ts` — `buildPmSystemPrompt()`: loads workspace projects and observations
-- `agents/pm/tools.ts` — `createPmTools()`: search_entities, get_project_status, create_observation, suggest_work_items
-- `agents/pm/suggest-work-items.ts` — Embedding-based semantic dedup (>0.97 exact duplicate, ≥0.8 merge, <0.8 new)
+- `agents/pm/tools.ts` — `createPmTools()`: composes shared tools (search_entities, get_project_status, create_observation, suggest_work_items, create_work_item)
 
 **PM output schema:** `{ summary, suggestions: WorkItemSuggestion[], updated, discarded, observations_created }`
 
