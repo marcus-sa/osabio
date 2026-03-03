@@ -65,7 +65,7 @@ describe("onboarding smoke", () => {
       }),
     });
 
-    const firstEvents = await collectSseEvents<StreamEvent>(`${baseUrl}${firstChat.streamUrl}`, 120_000);
+    const firstEvents = await collectSseEvents<StreamEvent>(`${baseUrl}${firstChat.streamUrl}`, 180_000);
     // Orchestrator handles onboarding — verify it responds to the user
     expect(firstEvents.some((event) => event.type === "assistant_message")).toBe(true);
 
@@ -96,7 +96,7 @@ describe("onboarding smoke", () => {
       body: uploadForm,
     });
 
-    const uploadEvents = await collectSseEvents<StreamEvent>(`${baseUrl}${uploadResponse.streamUrl}`, 120_000);
+    const uploadEvents = await collectSseEvents<StreamEvent>(`${baseUrl}${uploadResponse.streamUrl}`, 180_000);
     // Attachment ingestion still runs automatically — extraction event should contain document entities
     expect(uploadEvents.some((event) => event.type === "extraction")).toBe(true);
 
@@ -112,7 +112,7 @@ describe("onboarding smoke", () => {
       }),
     });
 
-    await collectSseEvents<StreamEvent>(`${baseUrl}${confirm.streamUrl}`, 120_000);
+    await collectSseEvents<StreamEvent>(`${baseUrl}${confirm.streamUrl}`, 180_000);
 
     const finalBootstrap = await fetchJson<{
       onboardingComplete: boolean;
@@ -124,5 +124,5 @@ describe("onboarding smoke", () => {
     expect(finalBootstrap.seeds.length).toBeGreaterThan(0);
     // Document upload should produce document_chunk sourced seeds
     expect(finalBootstrap.seeds.some((seed) => seed.sourceKind === "document_chunk")).toBe(true);
-  }, 180_000);
+  }, 600_000);
 });

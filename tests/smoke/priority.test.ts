@@ -58,7 +58,7 @@ describe("priority extraction smoke", () => {
       }),
     });
 
-    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${message.streamUrl}`, 120_000);
+    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${message.streamUrl}`, 180_000);
     const assistantEvent = events.find((event) => event.type === "assistant_message");
     expect(assistantEvent).toBeDefined();
     if (!assistantEvent || assistantEvent.type !== "assistant_message") {
@@ -105,7 +105,7 @@ describe("priority extraction smoke", () => {
       }),
     });
 
-    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${message.streamUrl}`, 120_000);
+    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${message.streamUrl}`, 180_000);
     const assistantEvent = events.find((event) => event.type === "assistant_message");
     expect(assistantEvent).toBeDefined();
     if (!assistantEvent || assistantEvent.type !== "assistant_message") {

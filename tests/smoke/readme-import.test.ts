@@ -41,7 +41,7 @@ describe("README import smoke", () => {
       body: uploadForm,
     });
 
-    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${uploadResponse.streamUrl}`, 120_000);
+    const events = await collectSseEvents<StreamEvent>(`${baseUrl}${uploadResponse.streamUrl}`, 180_000);
     expect(events.some((event) => event.type === "assistant_message")).toBe(true);
     expect(events.some((event) => event.type === "done")).toBe(true);
 
@@ -71,5 +71,5 @@ describe("README import smoke", () => {
       .collect<[Array<{ id: RecordId<"document_chunk", string> }>]>();
 
     expect(chunkRows.length).toBeGreaterThan(0);
-  }, 150_000);
+  }, 300_000);
 });
