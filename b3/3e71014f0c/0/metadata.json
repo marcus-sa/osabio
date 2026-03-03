@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b33e71014f0c",
+  "session_id": "982ec66f-03da-422e-a4f5-61d0f12fba7d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T13:39:12.243486Z",
+  "branch": "marcus-sa/fix-ui-regressions",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/chat/InlineRelationshipGraph.tsx",
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/layout/WorkspaceSidebar.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1e653c3f3f8c",
+  "token_usage": {
+    "input_tokens": 20931,
+    "cache_creation_tokens": 136544,
+    "cache_read_tokens": 997395,
+    "output_tokens": 5723,
+    "api_call_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T13:39:12.036051Z",
+    "agent_lines": 14,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 14,
+    "agent_percentage": 100
+  }
+}

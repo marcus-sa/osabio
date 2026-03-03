@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b33e71014f0c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/fix-ui-regressions",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/chat/InlineRelationshipGraph.tsx",
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/layout/WorkspaceSidebar.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b3/3e71014f0c/0/metadata.json",
+      "transcript": "/b3/3e71014f0c/0/full.jsonl",
+      "context": "/b3/3e71014f0c/0/context.md",
+      "content_hash": "/b3/3e71014f0c/0/content_hash.txt",
+      "prompt": "/b3/3e71014f0c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20931,
+    "cache_creation_tokens": 136544,
+    "cache_read_tokens": 997395,
+    "output_tokens": 5723,
+    "api_call_count": 17
+  }
+}
