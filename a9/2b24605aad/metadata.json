@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a92b24605aad",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/declutter-chat-ui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/client/hooks/use-chat-session.ts",
+    "app/src/client/hooks/use-workspace.ts",
+    "app/src/client/routes/chat-page.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/2b24605aad/0/metadata.json",
+      "transcript": "/a9/2b24605aad/0/full.jsonl",
+      "context": "/a9/2b24605aad/0/context.md",
+      "content_hash": "/a9/2b24605aad/0/content_hash.txt",
+      "prompt": "/a9/2b24605aad/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 43211,
+    "cache_read_tokens": 674154,
+    "output_tokens": 4106,
+    "api_call_count": 14
+  }
+}

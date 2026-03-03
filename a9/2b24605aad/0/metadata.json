@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a92b24605aad",
+  "session_id": "548ca6c9-8bdc-417f-bd2d-26a5763cf9e2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T08:28:35.032804Z",
+  "branch": "marcus-sa/declutter-chat-ui",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/client/hooks/use-chat-session.ts",
+    "app/src/client/hooks/use-workspace.ts",
+    "app/src/client/routes/chat-page.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c70150b5a55c",
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 43211,
+    "cache_read_tokens": 674154,
+    "output_tokens": 4106,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T08:28:34.870166Z",
+    "agent_lines": 7,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 8,
+    "agent_percentage": 87.5
+  }
+}
