@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "28c1d41695f8",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/chat-entity-reference",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/chat/DiscussEntityCard.tsx",
+    "app/src/client/components/feed/GovernanceFeed.tsx",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/components/search/SearchResultCard.tsx",
+    "app/src/client/hooks/use-chat-session.ts",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/stores/view-state.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/28/c1d41695f8/0/metadata.json",
+      "transcript": "/28/c1d41695f8/0/full.jsonl",
+      "context": "/28/c1d41695f8/0/context.md",
+      "content_hash": "/28/c1d41695f8/0/content_hash.txt",
+      "prompt": "/28/c1d41695f8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 113303,
+    "cache_read_tokens": 1599465,
+    "output_tokens": 10424,
+    "api_call_count": 27
+  }
+}
