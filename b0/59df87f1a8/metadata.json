@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b059df87f1a8",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/option-f-ui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/chat/context.ts",
+    "app/src/server/onboarding/onboarding-reply.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b0/59df87f1a8/0/metadata.json",
+      "transcript": "/b0/59df87f1a8/0/full.jsonl",
+      "context": "/b0/59df87f1a8/0/context.md",
+      "content_hash": "/b0/59df87f1a8/0/content_hash.txt",
+      "prompt": "/b0/59df87f1a8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 33354,
+    "cache_read_tokens": 295100,
+    "output_tokens": 2849,
+    "api_call_count": 7
+  }
+}

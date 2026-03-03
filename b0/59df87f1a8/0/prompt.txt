@@ -1,0 +1,62 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/colombo-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+i find it redundant that the chat tells me what it captured, when ui components get's rendered under neath of what was captured
+
+---
+
+I want to build an agent native business operating system. i'm tired of trying to run multiple projects through claude web — everything ends up in one massive chat because starting a new one means losing all context. chat gets huge, gets compacted, and half your decisions evaporate.
+
+You know how it is in a company — decisions get made in Slack threads, meetings, docs, and random conversations — and then six months later nobody remembers why we chose one thing over another, or that one project depends on another project finishing first?
+
+This tool captures all of that automatically. Every decision, task, and dependency gets extracted into a knowledge graph as people talk. So instead of digging through Slack history, you can just ask "what did we decide about the payment flow?" — and it tells you, with the reasoning, who decided it, and what depends on it.
+
+And because the company's entire knowledge base gets updated automatically based on the work that's actually being done, you avoid the classic misunderstandings. For example, if engineering has implemented a feature one way, but sales and product assume it works differently — they can just search for it and get the actual answer right away, instead of finding out when the customer is sitting with the problem.
+
+The tool also has a chat UI that works just like ChatGPT. The difference is that instead of having to explain everything from scratch in every conversation, it already has all the context it needs — because it's been continuously following every decision, task, and dependency across the company.
+
+That same context can be injected directly into tools like Claude Code, so your AI coding assistant actually knows what it's building and why.
+
+And every git commit feeds back into the knowledge graph, so it always reflects what was actually built — not just what was planned.
+
+On top of that, it has a UI where you can see everything visually — all decisions, tasks, dependencies, projects, features, and how they're connected.
+
+It's basically the company's shared brain that actually stays up to date — because it builds itself from the conversations people are already having.
+
+---
+Thanks — I captured the project Agent native business operating system; features: Automatic extraction of decisions, tasks, and dependencies into a knowledge graph; Integration of git commits into the knowledge graph to reflect actual builds; Visual UI displaying decisions, tasks, dependencies, projects, features, and their connections; Context injection into AI coding assistant tools like Claude Code; tools: Claude Code, git, Claude Web; and person: Marcus. Who else should I add as a user or owner for this workspace?
+
+Captured from your latest message
+
+PROJECT
+CAPTURED
+Agent native business operating system
+Confidence 0.95
+FEATURE
+CAPTURED
+Automatic extraction of decisions, tasks, and dependencies into a knowledge graph
+Confidence 0.90
+FEATURE
+CAPTURED
+Integration of git commits into the knowledge graph to reflect actual builds
+Confidence 0.90
+FEATURE
+CAPTURED
+Visual UI displaying decisions, tasks, dependencies, projects, features, and their connections
+Confidence 0.90
+FEATURE
+CAPTURED
+Context injection into AI coding assistant tools like Claude Code
+Confidence 0.85
+
+---
+
+commit
