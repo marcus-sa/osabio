@@ -1,6 +1,10 @@
-import schemaFileContent from "../../../../../schema/surreal-schema.surql" with { type: "text" };
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { SURREALQL_SYNTAX_REFERENCE } from "./syntax-reference";
 import { ANALYTICS_FEW_SHOT_EXAMPLES } from "./few-shot-examples";
+
+const schemaPath = resolve(import.meta.dirname, "../../../../../schema/surreal-schema.surql");
+const schemaFileContent = readFileSync(schemaPath, "utf-8");
 
 export function buildAnalyticsSystemPrompt(): string {
   return `You are an analytics agent for a knowledge graph stored in SurrealDB. Your job is to answer analytical questions by generating and executing SurrealQL queries.
