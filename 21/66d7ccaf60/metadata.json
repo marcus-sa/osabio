@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2166d7ccaf60",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/svelte-ui-scaffold",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/chat/tools/create-provisional-decision.ts",
+    "app/src/server/chat/tools/resolve-decision.ts",
+    "app/src/server/entities/entity-actions-route.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/extraction/entity-upsert.ts",
+    "app/src/server/feed/feed-queries.ts",
+    "app/src/server/graph/queries.ts",
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/21/66d7ccaf60/0/metadata.json",
+      "transcript": "/21/66d7ccaf60/0/full.jsonl",
+      "context": "/21/66d7ccaf60/0/context.md",
+      "content_hash": "/21/66d7ccaf60/0/content_hash.txt",
+      "prompt": "/21/66d7ccaf60/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 95,
+    "cache_creation_tokens": 127944,
+    "cache_read_tokens": 9246612,
+    "output_tokens": 31504,
+    "api_call_count": 87
+  }
+}
