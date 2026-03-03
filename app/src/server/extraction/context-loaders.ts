@@ -85,7 +85,7 @@ export async function loadConversationGraphContext(
       continue;
     }
 
-    const entityTable = row.out.tb;
+    const entityTable = row.out.table.name;
     if (
       entityTable !== "project" &&
       entityTable !== "person" &&
@@ -131,7 +131,7 @@ export async function loadConversationGraphContext(
       const entityId = row.out.id as string;
       if (seen.has(entityId)) continue;
 
-      const entityTable = row.out.tb;
+      const entityTable = row.out.table.name;
       if (
         entityTable !== "project" &&
         entityTable !== "person" &&
@@ -204,7 +204,7 @@ export async function loadWorkspaceGraphContext(
     const entityId = row.out.id as string;
     if (seen.has(entityId)) continue;
 
-    const entityTable = row.out.tb;
+    const entityTable = row.out.table.name;
     if (
       entityTable !== "project" &&
       entityTable !== "person" &&

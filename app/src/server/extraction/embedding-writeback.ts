@@ -39,7 +39,7 @@ export async function persistEmbeddings(input: {
         surreal: input.surreal,
         record: entity.record as RecordId<string, string>,
         embedding: entityEmbedding,
-        label: `${entity.record.tb}:${entity.record.id as string}`,
+        label: `${entity.record.table.name}:${entity.record.id as string}`,
       });
       embeddedEntityCount += 1;
     }

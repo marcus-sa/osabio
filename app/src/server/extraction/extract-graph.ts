@@ -100,7 +100,7 @@ function formatExtractionGraphContext(rows: ExtractionGraphContextRow[]): string
 
   return rows
     .map((row) => {
-      const table = row.id.tb;
+      const table = row.id.table.name;
       return `[entity:${table}:${row.id.id as string}] ${row.kind}: ${row.text} (confidence ${row.confidence.toFixed(2)}, source message ${row.sourceMessage.id as string})`;
     })
     .join("\n");

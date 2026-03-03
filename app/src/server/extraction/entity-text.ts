@@ -2,7 +2,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { GraphEntityRecord } from "./types";
 
 export async function readEntityText(surreal: Surreal, record: GraphEntityRecord): Promise<string | undefined> {
-  const table = record.tb;
+  const table = record.table.name;
 
   if (table === "workspace") {
     const row = await surreal.select<{ name: string }>(record as RecordId<"workspace", string>);
