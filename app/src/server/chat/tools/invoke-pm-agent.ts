@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { runPmAgent } from "../../agents/pm/agent";
+import { logError } from "../../http/observability";
 import { requireToolContext } from "./helpers";
 import type { ChatAgentToolDeps } from "./types";
 
@@ -20,13 +21,22 @@ export function createInvokePmAgentTool(deps: ChatAgentToolDeps) {
     execute: async (input, options) => {
       const context = requireToolContext(options);
 
-      return runPmAgent({
-        deps,
-        context,
-        intent: input.intent,
-        conversationContext: input.context,
-        ...(input.project ? { project: input.project } : {}),
-      });
+      try {
+        return await runPmAgent({
+          deps,
+          context,
+          intent: input.intent,
+          conversationContext: input.context,
+          ...(input.project ? { project: input.project } : {}),
+        });
+      } catch (error) {
+        logError("tool.invoke_pm_agent.failed", "PM agent invocation failed", error, {
+          intent: input.intent,
+          workspace: context.workspaceRecord.toString(),
+          conversation: context.conversationRecord.toString(),
+        });
+        throw error;
+      }
     },
   });
 }

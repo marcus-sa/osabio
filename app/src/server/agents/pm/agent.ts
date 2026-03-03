@@ -5,21 +5,29 @@ import type { ChatToolDeps, ChatToolExecutionContext } from "../../chat/tools/ty
 import { buildPmSystemPrompt } from "./prompt";
 import { createPmTools } from "./tools";
 
-const workItemSuggestionSchema = z.object({
-  kind: z.enum(["task", "feature", "project"]),
-  title: z.string().min(1),
-  rationale: z.string().min(1),
-  category: z.enum(ENTITY_CATEGORIES).optional(),
-  project: z.string().optional(),
-  priority: z.enum(ENTITY_PRIORITIES).optional(),
-  possible_duplicate: z
-    .object({
-      id: z.string().min(1),
-      name: z.string().min(1),
-      similarity: z.number().min(0).max(1),
-    })
-    .optional(),
-});
+const workItemSuggestionSchema = z
+  .object({
+    kind: z.enum(["task", "feature", "project"]),
+    title: z.string().min(1),
+    rationale: z.string().min(1),
+    category: z.enum(["none", ...ENTITY_CATEGORIES]),
+    project: z.enum(["none"]).or(z.string().min(1)),
+    priority: z.enum(["none", ...ENTITY_PRIORITIES]),
+    possible_duplicate: z.enum(["none"]).or(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        similarity: z.number().min(0).max(1),
+      }),
+    ),
+  })
+  .transform((v) => ({
+    ...v,
+    category: v.category === "none" ? undefined : v.category,
+    project: v.project === "none" ? undefined : v.project,
+    priority: v.priority === "none" ? undefined : v.priority,
+    possible_duplicate: v.possible_duplicate === "none" ? undefined : v.possible_duplicate,
+  }));
 
 const pmAgentResultSchema = z.object({
   summary: z.string().min(1),
