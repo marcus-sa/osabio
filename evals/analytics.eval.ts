@@ -42,24 +42,29 @@ let analyticsAgentModel: any;
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 
 beforeAll(async () => {
-  runtime = await setupEvalRuntime("analytics");
-  seedResult = await seedAnalyticsTestData(runtime.surreal);
+  try {
+    runtime = await setupEvalRuntime("analytics");
+    seedResult = await seedAnalyticsTestData(runtime.surreal);
 
-  // Create read-only analytics connection in the eval namespace
-  analyticsSurreal = new Surreal();
-  await analyticsSurreal.connect(surrealUrl);
-  await analyticsSurreal.signin({
-    namespace: runtime.namespace,
-    database: runtime.database,
-    username: "analytics",
-    password: "brain-analytics-readonly",
-  });
-  await analyticsSurreal.use({ namespace: runtime.namespace, database: runtime.database });
+    // Create read-only analytics connection in the eval namespace
+    analyticsSurreal = new Surreal();
+    await analyticsSurreal.connect(surrealUrl);
+    await analyticsSurreal.signin({
+      namespace: runtime.namespace,
+      database: runtime.database,
+      username: "analytics",
+      password: "brain-analytics-readonly",
+    });
+    await analyticsSurreal.use({ namespace: runtime.namespace, database: runtime.database });
 
-  const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
-  analyticsAgentModel = openrouter(analyticsModelId, {
-    plugins: [{ id: "response-healing" }],
-  });
+    const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
+    analyticsAgentModel = openrouter(analyticsModelId, {
+      plugins: [{ id: "response-healing" }],
+    });
+  } catch (error) {
+    console.error("beforeAll setup failed:", error);
+    throw error;
+  }
 }, 120_000);
 
 afterAll(async () => {

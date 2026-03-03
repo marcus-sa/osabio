@@ -52,6 +52,7 @@ export async function seedAnalyticsTestData(surreal: Surreal): Promise<Analytics
     await surreal.create(record).content({
       name,
       status: "active",
+      workspace: workspaceRecord,
       created_at: oneMonthAgo,
       updated_at: now,
     });
@@ -104,6 +105,7 @@ export async function seedAnalyticsTestData(surreal: Surreal): Promise<Analytics
     await surreal.create(taskRecord).content({
       title: taskTitles[i],
       status: taskStatuses[i],
+      workspace: workspaceRecord,
       created_at: oneMonthAgo,
       updated_at: now,
     });
@@ -117,10 +119,10 @@ export async function seedAnalyticsTestData(surreal: Surreal): Promise<Analytics
 
   // Dependency chain: task[8] depends on task[5], task[9] depends on task[8]
   await surreal
-    .relate(tasks[8], new RecordId("depends_on", nextId()), tasks[5], { added_at: now })
+    .relate(tasks[8], new RecordId("depends_on", nextId()), tasks[5], { type: "blocks", added_at: now })
     .output("after");
   await surreal
-    .relate(tasks[9], new RecordId("depends_on", nextId()), tasks[8], { added_at: now })
+    .relate(tasks[9], new RecordId("depends_on", nextId()), tasks[8], { type: "blocks", added_at: now })
     .output("after");
 
   // Decisions (5 total: 3 stale provisional, 2 confirmed)
@@ -139,6 +141,7 @@ export async function seedAnalyticsTestData(surreal: Surreal): Promise<Analytics
     await surreal.create(decisionRecord).content({
       summary: decisionSummaries[i],
       status: decisionStatuses[i],
+      workspace: workspaceRecord,
       created_at: decisionDates[i],
       updated_at: decisionDates[i],
     });

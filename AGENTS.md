@@ -66,6 +66,10 @@
 - Prefer explicit hard failures over silent degradation, synthetic defaults, or "best effort" recovery.
 - Only introduce fallback behavior when explicitly requested, and document the reason in code comments.
 
+## Schema Awareness
+
+- Always read `schema/surreal-schema.surql` before writing queries, seed data, or any code that creates/updates SurrealDB records. The schema defines required fields, types, and relations — guessing leads to silent `SCHEMAFULL` rejections.
+
 ## Testing Setup
 
 - Install deps: `bun install`
@@ -89,6 +93,12 @@
   - `AUTOEVAL_MODEL` for `autoevals` factuality scorer model override.
   - `EVAL_RESULTS_DIR` for evalite sqlite output.
   - `EVAL_CACHE_DIR` for extraction eval cache.
+
+### Evalite Silent Failure Mode
+
+- Evalite (v0.19+) silently swallows errors thrown in `beforeAll` hooks. When `beforeAll` fails, all evals show `Score: -`, `Duration: 0ms`, and no error output.
+- If evals show this pattern, the cause is almost always a thrown error during setup — typically a missing env var in `setupEvalRuntime` (which calls `requireEnv` for all model IDs).
+- To diagnose: check that all required env vars are set, or temporarily wrap `beforeAll` contents in try/catch with `console.error` to surface the real error.
 
 ## Server Architecture Overview
 
