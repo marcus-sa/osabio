@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1d807fe7bd3f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/agents/analytics/agent.ts",
+    "app/src/server/agents/analytics/few-shot-examples.ts",
+    "app/src/server/agents/analytics/prompt.ts",
+    "app/src/server/agents/analytics/syntax-reference.ts",
+    "app/src/server/agents/analytics/tools.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/index.ts",
+    "app/src/server/chat/tools/invoke-analytics-agent.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/runtime/config.ts",
+    "app/src/server/runtime/dependencies.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/runtime/types.ts",
+    "app/surql.d.ts",
+    "evals/analytics-seed-data.ts",
+    "evals/analytics.eval.ts",
+    "package.json",
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1d/807fe7bd3f/0/metadata.json",
+      "transcript": "/1d/807fe7bd3f/0/full.jsonl",
+      "context": "/1d/807fe7bd3f/0/context.md",
+      "content_hash": "/1d/807fe7bd3f/0/content_hash.txt",
+      "prompt": "/1d/807fe7bd3f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 162351,
+    "cache_read_tokens": 8576120,
+    "output_tokens": 31902,
+    "api_call_count": 104
+  }
+}

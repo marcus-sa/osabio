@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1d807fe7bd3f",
+  "session_id": "73aed78a-aa20-4ae1-897a-cbc055f24110",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T11:20:20.352557Z",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/agents/analytics/agent.ts",
+    "app/src/server/agents/analytics/few-shot-examples.ts",
+    "app/src/server/agents/analytics/prompt.ts",
+    "app/src/server/agents/analytics/syntax-reference.ts",
+    "app/src/server/agents/analytics/tools.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/index.ts",
+    "app/src/server/chat/tools/invoke-analytics-agent.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/runtime/config.ts",
+    "app/src/server/runtime/dependencies.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/runtime/types.ts",
+    "app/surql.d.ts",
+    "evals/analytics-seed-data.ts",
+    "evals/analytics.eval.ts",
+    "package.json",
+    "schema/surreal-schema.surql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d3075252088e",
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 162351,
+    "cache_read_tokens": 8576120,
+    "output_tokens": 31902,
+    "api_call_count": 104
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T11:20:19.444243Z",
+    "agent_lines": 745,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 745,
+    "agent_percentage": 100
+  }
+}
