@@ -67,7 +67,7 @@ export function SearchOverlay({ onClose }: SearchOverlayProps) {
           ) : (
             <div className="search-results">
               {filteredResults.map((result) => (
-                <SearchResultCard key={result.id} result={result} />
+                <SearchResultCard key={result.id} result={result} onClose={onClose} />
               ))}
             </div>
           )}

@@ -8,6 +8,7 @@ DEFINE FIELD messages ON conversation TYPE option<array<record<message>>>;
 DEFINE FIELD title ON conversation TYPE option<string>;
 DEFINE FIELD title_source ON conversation TYPE option<string> ASSERT $value = NONE OR $value IN ["message", "entity"];
 DEFINE FIELD embedding ON conversation TYPE option<array<float>>;
+DEFINE FIELD discusses ON conversation TYPE option<record<project | person | feature | task | decision | question | observation>>;
 DEFINE INDEX conversation_createdAt ON conversation FIELDS createdAt;
 DEFINE INDEX conversation_workspace ON conversation FIELDS workspace;
 

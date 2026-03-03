@@ -1701,6 +1701,7 @@ body {
 .search-result-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 0.4rem;
 }
 
 .search-result-graph-btn {
@@ -1731,4 +1732,36 @@ body {
 
 .search-empty p {
   margin: 0;
+}
+
+/* Discuss entity card (shown above chat when discussing a specific entity) */
+
+.discuss-entity-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0.75rem 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 0.84rem;
+}
+
+.discuss-entity-name {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discuss-entity-status {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.discuss-entity-loading {
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
 }

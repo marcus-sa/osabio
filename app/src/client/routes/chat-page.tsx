@@ -10,6 +10,7 @@ import {
 } from "reachat";
 import { chatComponentCatalog } from "../chat-component-catalog";
 import { darkChatTheme } from "../chat-theme";
+import { DiscussEntityCard } from "../components/chat/DiscussEntityCard";
 import { useWorkspaceState } from "../stores/workspace-state";
 import { useChatSession } from "../hooks/use-chat-session";
 
@@ -38,6 +39,7 @@ const COMMAND_ITEMS: SlashCommandItem[] = [
 ];
 
 export function ChatPage() {
+  const workspaceId = useWorkspaceState((s) => s.workspaceId);
   const onboardingState = useWorkspaceState((s) => s.onboardingState);
   const setSidebarHandlers = useWorkspaceState((s) => s.setSidebarHandlers);
 
@@ -78,6 +80,14 @@ export function ChatPage() {
             </button>
           </div>
         </div>
+      ) : undefined}
+
+      {(chat.discussEntityId || chat.conversationDiscussEntity) && workspaceId ? (
+        <DiscussEntityCard
+          entityId={chat.discussEntityId}
+          conversationRef={chat.conversationDiscussEntity}
+          workspaceId={workspaceId}
+        />
       ) : undefined}
 
       <div className="chat-main">

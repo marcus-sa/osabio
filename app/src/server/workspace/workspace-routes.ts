@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
 import type {
   CreateWorkspaceResponse,
+  DiscussEntitySummary,
   OnboardingSeedItem,
   WorkspaceBootstrapMessage,
   WorkspaceBootstrapResponse,
@@ -10,6 +11,7 @@ import type {
   EntityKind,
 } from "../../shared/contracts";
 import { createEmbeddingVector } from "../graph/embeddings";
+import { readEntityName } from "../graph/queries";
 import { readEntityText } from "../extraction/entity-text";
 import type { GraphEntityRecord, SourceRecord } from "../extraction/types";
 import { HttpError } from "../http/errors";
@@ -402,6 +404,7 @@ async function handleWorkspaceConversation(
     const conversation = await deps.surreal.select<{
       id: RecordId<"conversation", string>;
       workspace: RecordId<"workspace", string>;
+      discusses?: RecordId;
     }>(conversationRecord);
 
     if (!conversation) {
@@ -423,9 +426,25 @@ async function handleWorkspaceConversation(
       ...(row.inherited ? { inherited: true } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
+    let discussEntity: DiscussEntitySummary | undefined;
+    if (conversation.discusses) {
+      const entityRecord = conversation.discusses as GraphEntityRecord;
+      const name = await readEntityName(deps.surreal, entityRecord);
+      if (name) {
+        const entityRow = await deps.surreal.select<Record<string, unknown>>(entityRecord);
+        discussEntity = {
+          id: `${entityRecord.table.name}:${entityRecord.id as string}`,
+          kind: entityRecord.table.name as EntityKind,
+          name,
+          ...(entityRow && typeof entityRow.status === "string" ? { status: entityRow.status } : {}),
+        };
+      }
+    }
+
     const payload: WorkspaceConversationResponse = {
       conversationId,
       messages,
+      ...(discussEntity ? { discussEntity } : {}),
     };
 
     logInfo("workspace.conversation.completed", "Workspace conversation request completed", {

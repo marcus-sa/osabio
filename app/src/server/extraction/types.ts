@@ -79,6 +79,7 @@ export type ConversationRow = {
   source?: string;
   title?: string;
   title_source?: "message" | "entity";
+  discusses?: RecordId;
 };
 
 export type IncomingAttachment = {

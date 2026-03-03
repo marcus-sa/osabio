@@ -18,6 +18,7 @@ export type ParsedIncomingMessage = {
   text: string;
   onboardingAction?: OnboardingAction;
   attachment?: IncomingAttachment;
+  discussEntityId?: string;
 };
 
 const onboardingActions = new Set(["finalize_onboarding", "continue_onboarding"]);
@@ -61,6 +62,7 @@ export async function parseIncomingMessageRequest(
     const conversationIdValue = formData.get("conversationId");
     const textValue = formData.get("text");
     const onboardingActionValue = formData.get("onboardingAction");
+    const discussEntityIdValue = formData.get("discussEntityId");
 
     if (typeof clientMessageIdValue !== "string" || clientMessageIdValue.trim().length === 0) {
       return { ok: false, error: "clientMessageId is required" };
@@ -100,6 +102,11 @@ export async function parseIncomingMessageRequest(
       return { ok: false, error: "onboardingAction must be finalize_onboarding or continue_onboarding" };
     }
 
+    const discussEntityId =
+      typeof discussEntityIdValue === "string" && discussEntityIdValue.trim().length > 0
+        ? discussEntityIdValue.trim()
+        : undefined;
+
     return {
       ok: true,
       data: {
@@ -109,6 +116,7 @@ export async function parseIncomingMessageRequest(
         text,
         ...(onboardingAction ? { onboardingAction: onboardingAction as OnboardingAction } : {}),
         ...(attachment ? { attachment } : {}),
+        ...(discussEntityId ? { discussEntityId } : {}),
       },
     };
   }
@@ -146,6 +154,8 @@ export async function parseIncomingMessageRequest(
     return { ok: false, error: "onboardingAction must be finalize_onboarding or continue_onboarding" };
   }
 
+  const discussEntityId = (body as Record<string, unknown>).discussEntityId;
+
   return {
     ok: true,
     data: {
@@ -154,6 +164,9 @@ export async function parseIncomingMessageRequest(
       ...(payload.conversationId ? { conversationId: payload.conversationId.trim() } : {}),
       text: payload.text.trim(),
       ...(payload.onboardingAction ? { onboardingAction: payload.onboardingAction } : {}),
+      ...(typeof discussEntityId === "string" && discussEntityId.trim().length > 0
+        ? { discussEntityId: discussEntityId.trim() }
+        : {}),
     },
   };
 }

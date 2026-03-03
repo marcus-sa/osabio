@@ -3,13 +3,20 @@ import type { SearchEntityResponse } from "../../../shared/contracts";
 import { EntityBadge } from "../graph/EntityBadge";
 import { useViewState } from "../../stores/view-state";
 
-export function SearchResultCard({ result }: { result: SearchEntityResponse }) {
+export function SearchResultCard({ result, onClose }: { result: SearchEntityResponse; onClose?: () => void }) {
   const navigateToGraph = useViewState((s) => s.navigateToGraph);
+  const navigateToDiscussEntity = useViewState((s) => s.navigateToDiscussEntity);
   const navigate = useNavigate();
 
   function handleViewInGraph() {
     navigateToGraph(result.id);
     void navigate({ to: "/graph" });
+  }
+
+  function handleDiscuss() {
+    navigateToDiscussEntity(result.id);
+    onClose?.();
+    void navigate({ to: "/chat" });
   }
 
   return (
@@ -28,6 +35,13 @@ export function SearchResultCard({ result }: { result: SearchEntityResponse }) {
           onClick={handleViewInGraph}
         >
           View in graph
+        </button>
+        <button
+          type="button"
+          className="search-result-graph-btn"
+          onClick={handleDiscuss}
+        >
+          Discuss
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import type {
   GovernanceFeedResponse,
 } from "../../../shared/contracts";
 import { useWorkspaceState } from "../../stores/workspace-state";
+import { useViewState } from "../../stores/view-state";
 import { FeedSection } from "./FeedSection";
 
 async function executeEntityAction(
@@ -38,13 +39,15 @@ export function GovernanceFeed({
   onRefresh: () => void;
 }) {
   const workspaceId = useWorkspaceState((s) => s.workspaceId);
+  const navigateToDiscussEntity = useViewState((s) => s.navigateToDiscussEntity);
   const navigate = useNavigate();
 
   async function handleAction(item: GovernanceFeedItem, action: GovernanceFeedAction) {
     if (!workspaceId) return;
 
     if (action.action === "discuss") {
-      void navigate({ to: "/chat", search: { discuss: item.entityId } });
+      navigateToDiscussEntity(item.entityId);
+      void navigate({ to: "/chat" });
       return;
     }
 

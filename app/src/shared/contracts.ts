@@ -26,6 +26,7 @@ export type ChatMessageRequest = {
   conversationId?: string;
   text: string;
   onboardingAction?: OnboardingAction;
+  discussEntityId?: string;
 };
 
 export type ChatMessageResponse = {
@@ -121,9 +122,17 @@ export type WorkspaceConversationSidebarResponse = {
   unlinked: ConversationSidebarItem[];
 };
 
+export type DiscussEntitySummary = {
+  id: string;
+  kind: EntityKind;
+  name: string;
+  status?: string;
+};
+
 export type WorkspaceConversationResponse = {
   conversationId: string;
   messages: WorkspaceBootstrapMessage[];
+  discussEntity?: DiscussEntitySummary;
 };
 
 export type WorkspaceBootstrapResponse = {

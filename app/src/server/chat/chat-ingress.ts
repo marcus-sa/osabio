@@ -7,6 +7,7 @@ import { parseIncomingMessageRequest } from "../http/parsing";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import type { ConversationRow, WorkspaceRow } from "../extraction/types";
+import { parseRecordIdString } from "../graph/queries";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { deriveMessageTitle } from "../workspace/conversation-sidebar";
 import { processChatMessage } from "./chat-processor";
@@ -67,6 +68,11 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
       throw new HttpError(404, `workspace not found: ${workspaceId}`);
     }
 
+    const discussEntityTables = ["project", "person", "feature", "task", "decision", "question", "observation"] as const;
+    const discussesRecord = parsed.data.discussEntityId
+      ? parseRecordIdString(parsed.data.discussEntityId, [...discussEntityTables])
+      : undefined;
+
     const now = new Date();
     const conversationRecord = new RecordId("conversation", conversationId);
     const existingConversation = await deps.surreal.select<ConversationRow>(conversationRecord);
@@ -93,6 +99,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
           title: deriveMessageTitle(messageText),
           title_source: "message",
           ...(workspace.onboarding_complete ? {} : { source: "onboarding" }),
+          ...(discussesRecord ? { discusses: discussesRecord } : {}),
         });
       }
 

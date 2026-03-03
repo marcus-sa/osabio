@@ -168,6 +168,7 @@ export async function processChatMessage(input: {
       onboardingState: onboardingAfter,
       ...(workspaceOwnerRecord ? { workspaceOwnerRecord } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
+      ...(conversation.discusses ? { discussesRecord: conversation.discusses } : {}),
       messages: assistantContextRows.map((row) => ({
         role: row.role,
         text: row.text,

@@ -8,6 +8,7 @@ import type {
 import type {
   BranchConversationResponse,
   ChatMessageResponse,
+  DiscussEntitySummary,
   OnboardingAction,
   SearchEntityResponse,
   StreamEvent as ChatStreamEvent,
@@ -27,6 +28,8 @@ type UseChatSessionReturn = {
   pendingFile?: File;
   branchingFromId?: string;
   inheritedMessageIds: Set<string>;
+  discussEntityId?: string;
+  conversationDiscussEntity?: DiscussEntitySummary;
   chatInputRef: React.RefObject<ChatInputRef | null>;
   onSendMessage: (message: string, options?: { onboardingAction?: OnboardingAction }) => Promise<void>;
   onStopMessage: () => void;
@@ -64,8 +67,12 @@ export function useChatSession(): UseChatSessionReturn {
   const [branchingFromId, setBranchingFromId] = useState<string | undefined>();
   const [inheritedMessageIds, setInheritedMessageIds] = useState<Set<string>>(new Set());
   const [pendingFile, setPendingFile] = useState<File | undefined>();
+  const [conversationDiscussEntity, setConversationDiscussEntity] = useState<DiscussEntitySummary | undefined>();
   const streamRef = useRef<EventSource | undefined>(undefined);
   const chatInputRef = useRef<ChatInputRef | null>(null);
+
+  const discussEntityId = useViewState((s) => s.discussEntityId);
+  const clearDiscussEntity = useViewState((s) => s.clearDiscussEntity);
 
   // Track the last applied bootstrap payload to avoid re-applying
   const appliedBootstrapRef = useRef<BootstrapPayload | undefined>(undefined);
@@ -218,6 +225,7 @@ export function useChatSession(): UseChatSessionReturn {
 
       setActiveConversationId(conversationId);
       setBackendConversationId(conversationId);
+      setConversationDiscussEntity(payload.discussEntity);
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Failed to load conversation";
       setErrorMessage(messageText);
@@ -238,6 +246,8 @@ export function useChatSession(): UseChatSessionReturn {
     ]);
     setSuggestions([]);
     setErrorMessage(undefined);
+    setConversationDiscussEntity(undefined);
+    clearDiscussEntity();
   }
 
   function onSelectConversation(conversationId: string) {
@@ -381,6 +391,8 @@ export function useChatSession(): UseChatSessionReturn {
 
     let response: Response;
     try {
+      const includeDiscussEntity = !backendConversationId && discussEntityId;
+
       if (currentAttachment) {
         const formData = new FormData();
         formData.set("clientMessageId", clientMessageId);
@@ -391,6 +403,9 @@ export function useChatSession(): UseChatSessionReturn {
         }
         if (options?.onboardingAction) {
           formData.set("onboardingAction", options.onboardingAction);
+        }
+        if (includeDiscussEntity) {
+          formData.set("discussEntityId", discussEntityId);
         }
         formData.set("file", currentAttachment);
 
@@ -410,6 +425,7 @@ export function useChatSession(): UseChatSessionReturn {
             text,
             ...(backendConversationId ? { conversationId: backendConversationId } : {}),
             ...(options?.onboardingAction ? { onboardingAction: options.onboardingAction } : {}),
+            ...(includeDiscussEntity ? { discussEntityId } : {}),
           }),
         });
       }
@@ -434,6 +450,9 @@ export function useChatSession(): UseChatSessionReturn {
     setBackendConversationId(payload.conversationId);
     if (isNewConversation) {
       setActiveConversationId(payload.conversationId);
+      if (discussEntityId) {
+        clearDiscussEntity();
+      }
     }
 
     if (streamRef.current) {
@@ -594,6 +613,8 @@ export function useChatSession(): UseChatSessionReturn {
     pendingFile,
     branchingFromId,
     inheritedMessageIds,
+    discussEntityId,
+    conversationDiscussEntity,
     chatInputRef,
     onSendMessage,
     onStopMessage,

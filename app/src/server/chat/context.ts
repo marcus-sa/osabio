@@ -5,6 +5,7 @@ import {
   listWorkspaceOpenQuestions,
   listWorkspaceProjectSummaries,
   listWorkspaceRecentDecisions,
+  readEntityName,
   type ConversationEntity,
   type WorkspaceDecisionSummary,
   type WorkspaceProjectSummary,
@@ -13,6 +14,13 @@ import {
 import { listWorkspaceOpenObservations } from "../observation/queries";
 import { loadOnboardingSummary } from "../onboarding/onboarding-state";
 import { chatComponentSystemPrompt } from "./chat-component-system-prompt";
+import type { GraphEntityRecord } from "../extraction/types";
+
+export type DiscussedEntityContext = {
+  kind: string;
+  name: string;
+  status?: string;
+};
 
 export type ChatContext = {
   conversationEntities: ConversationEntity[];
@@ -23,6 +31,7 @@ export type ChatContext = {
     openObservations: ObservationSummary[];
   };
   onboardingSummary?: string;
+  discussedEntity?: DiscussedEntityContext;
 };
 
 type ChatContextLoaders = {
@@ -40,6 +49,7 @@ export async function buildChatContext(input: {
   workspaceRecord: RecordId<"workspace", string>;
   loaders?: ChatContextLoaders;
   inheritedEntityIds?: RecordId[];
+  discussesRecord?: RecordId;
 }): Promise<ChatContext> {
   const loaders = input.loaders ?? {
     listConversationEntities,
@@ -83,6 +93,20 @@ export async function buildChatContext(input: {
     loaders.loadOnboardingSummary(input.surreal, input.workspaceRecord),
   ]);
 
+  let discussedEntity: DiscussedEntityContext | undefined;
+  if (input.discussesRecord) {
+    const entityRecord = input.discussesRecord as GraphEntityRecord;
+    const name = await readEntityName(input.surreal, entityRecord);
+    if (name) {
+      const row = await input.surreal.select<Record<string, unknown>>(entityRecord);
+      discussedEntity = {
+        kind: entityRecord.table.name,
+        name,
+        ...(row && typeof row.status === "string" ? { status: row.status } : {}),
+      };
+    }
+  }
+
   return {
     conversationEntities,
     workspaceSummary: {
@@ -92,6 +116,7 @@ export async function buildChatContext(input: {
       openObservations,
     },
     onboardingSummary,
+    discussedEntity,
   };
 }
 
@@ -228,6 +253,19 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "- User is brainstorming/exploring — wait for convergence",
     "",
   );
+
+  if (context.discussedEntity) {
+    const entity = context.discussedEntity;
+    sections.push(
+      "## Discussed Entity",
+      "The user opened this conversation to discuss a specific entity.",
+      `- Kind: ${entity.kind}`,
+      `- Name: ${entity.name}`,
+      ...(entity.status ? [`- Status: ${entity.status}`] : []),
+      "Acknowledge this entity in your first response and help the user with their question about it.",
+      "",
+    );
+  }
 
   sections.push(
     "## This Conversation",

@@ -33,6 +33,7 @@ export async function runChatAgent(input: {
   latestUserText: string;
   workspaceOwnerRecord?: RecordId<"person", string>;
   inheritedEntityIds?: RecordId[];
+  discussesRecord?: RecordId;
   messages: ConversationMessage[];
   isOnboarding?: boolean;
   onboardingState?: OnboardingState;
@@ -45,6 +46,7 @@ export async function runChatAgent(input: {
     ...(input.inheritedEntityIds && input.inheritedEntityIds.length > 0
       ? { inheritedEntityIds: input.inheritedEntityIds }
       : {}),
+    ...(input.discussesRecord ? { discussesRecord: input.discussesRecord } : {}),
   });
 
   const system = buildSystemPrompt(context, {

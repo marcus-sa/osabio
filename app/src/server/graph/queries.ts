@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question";
+export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
