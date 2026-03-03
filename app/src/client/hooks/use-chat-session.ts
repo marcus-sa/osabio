@@ -187,7 +187,7 @@ export function useChatSession(): UseChatSessionReturn {
 
         conversations.push({
           id: `assistant-${message.id}`,
-          question: "System kickoff",
+          question: "",
           response: message.text,
           createdAt: new Date(message.createdAt),
         });

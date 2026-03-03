@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import {
   Chat,
   ChatSuggestions,
@@ -6,7 +6,6 @@ import {
   SessionMessage,
   SessionMessagePanel,
   SessionMessages,
-  SessionMessagesHeader,
   type SlashCommandItem,
 } from "reachat";
 import { chatComponentCatalog } from "../chat-component-catalog";
@@ -39,14 +38,10 @@ const COMMAND_ITEMS: SlashCommandItem[] = [
 ];
 
 export function ChatPage() {
-  const workspaceName = useWorkspaceState((s) => s.workspaceName);
   const onboardingState = useWorkspaceState((s) => s.onboardingState);
-  const seedItems = useWorkspaceState((s) => s.seedItems);
   const setSidebarHandlers = useWorkspaceState((s) => s.setSidebarHandlers);
 
   const chat = useChatSession();
-
-  const [isSeedPanelOpen, setIsSeedPanelOpen] = useState(false);
 
   // Keep a ref to the latest chat handlers so the effect below doesn't
   // depend on unstable function references (which would cause an infinite
@@ -74,24 +69,18 @@ export function ChatPage() {
 
   return (
     <section className="reachat-page">
-      <div className="workspace-toolbar">
-        <div>
-          <strong>{workspaceName}</strong>
-        </div>
-        <button type="button" className="seed-toggle" onClick={() => setIsSeedPanelOpen((current) => !current)}>
-          {isSeedPanelOpen ? "Hide live graph seed" : "Show live graph seed"} ({seedItems.length})
-        </button>
-        {chat.pendingFile ? (
+      {chat.pendingFile ? (
+        <div className="workspace-toolbar">
           <div className="pending-file">
             Attached: {chat.pendingFile.name}
             <button type="button" onClick={() => chat.onUploadFile(undefined as unknown as File)}>
               Clear
             </button>
           </div>
-        ) : undefined}
-      </div>
+        </div>
+      ) : undefined}
 
-      <div className={`chat-main${isSeedPanelOpen ? " chat-main--with-seeds" : ""}`}>
+      <div className="chat-main">
         <Chat
           viewType="chat"
           theme={darkChatTheme}
@@ -104,11 +93,6 @@ export function ChatPage() {
           onFileUpload={chat.onUploadFile}
         >
           <SessionMessagePanel>
-            <SessionMessagesHeader>
-              <div className="reachat-header">
-                Workspace Chat + Extraction
-              </div>
-            </SessionMessagesHeader>
             <SessionMessages>
               {(conversations) =>
                 conversations.map((conversation, index) => {
@@ -193,28 +177,6 @@ export function ChatPage() {
           </SessionMessagePanel>
         </Chat>
 
-        {isSeedPanelOpen ? (
-          <aside className="seed-panel">
-            <h3>Live Graph Seed</h3>
-            <p>Entities extracted during onboarding and document ingestion.</p>
-            <ul>
-              {seedItems.map((seed) => (
-                <li key={`${seed.id}:${seed.sourceKind}:${seed.sourceId}`}>
-                  <button
-                    type="button"
-                  >
-                    <span className="seed-kind">{seed.kind}</span>
-                    <span className="seed-text">{seed.text}</span>
-                    <span className="seed-meta">
-                      {seed.confidence.toFixed(2)} · {seed.sourceKind}
-                    </span>
-                    {seed.sourceLabel ? <span className="seed-label">{seed.sourceLabel}</span> : undefined}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        ) : undefined}
       </div>
 
       {chat.errorMessage ? <p className="error-message">{chat.errorMessage}</p> : undefined}
