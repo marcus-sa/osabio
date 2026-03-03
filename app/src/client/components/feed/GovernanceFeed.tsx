@@ -46,7 +46,12 @@ export function GovernanceFeed({
     if (!workspaceId) return;
 
     if (action.action === "discuss") {
-      navigateToDiscussEntity(item.entityId);
+      navigateToDiscussEntity({
+        id: item.entityId,
+        kind: item.entityKind,
+        name: item.entityName,
+        ...(item.status ? { status: item.status } : {}),
+      });
       void navigate({ to: "/chat" });
       return;
     }

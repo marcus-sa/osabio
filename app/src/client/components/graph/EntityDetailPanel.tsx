@@ -233,7 +233,12 @@ export function EntityDetailPanel({
         <button
           type="button"
           onClick={() => {
-            navigateToDiscussEntity(entityId);
+            navigateToDiscussEntity({
+              id: entityId,
+              kind,
+              name: detail.entity.name,
+              ...(status ? { status } : {}),
+            });
             void navigate({ to: "/chat" });
           }}
         >

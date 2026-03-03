@@ -28,7 +28,7 @@ type UseChatSessionReturn = {
   pendingFile?: File;
   branchingFromId?: string;
   inheritedMessageIds: Set<string>;
-  discussEntityId?: string;
+  discussEntity?: DiscussEntitySummary;
   conversationDiscussEntity?: DiscussEntitySummary;
   chatInputRef: React.RefObject<ChatInputRef | null>;
   onSendMessage: (message: string, options?: { onboardingAction?: OnboardingAction }) => Promise<void>;
@@ -71,7 +71,7 @@ export function useChatSession(): UseChatSessionReturn {
   const streamRef = useRef<EventSource | undefined>(undefined);
   const chatInputRef = useRef<ChatInputRef | null>(null);
 
-  const discussEntityId = useViewState((s) => s.discussEntityId);
+  const discussEntity = useViewState((s) => s.discussEntity);
   const clearDiscussEntity = useViewState((s) => s.clearDiscussEntity);
 
   // Track the last applied bootstrap payload to avoid re-applying
@@ -391,7 +391,7 @@ export function useChatSession(): UseChatSessionReturn {
 
     let response: Response;
     try {
-      const includeDiscussEntity = !backendConversationId && discussEntityId;
+      const includeDiscussEntity = !backendConversationId && discussEntity;
 
       if (currentAttachment) {
         const formData = new FormData();
@@ -405,7 +405,7 @@ export function useChatSession(): UseChatSessionReturn {
           formData.set("onboardingAction", options.onboardingAction);
         }
         if (includeDiscussEntity) {
-          formData.set("discussEntityId", discussEntityId);
+          formData.set("discussEntityId", discussEntity.id);
         }
         formData.set("file", currentAttachment);
 
@@ -425,7 +425,7 @@ export function useChatSession(): UseChatSessionReturn {
             text,
             ...(backendConversationId ? { conversationId: backendConversationId } : {}),
             ...(options?.onboardingAction ? { onboardingAction: options.onboardingAction } : {}),
-            ...(includeDiscussEntity ? { discussEntityId } : {}),
+            ...(includeDiscussEntity ? { discussEntityId: discussEntity.id } : {}),
           }),
         });
       }
@@ -450,7 +450,7 @@ export function useChatSession(): UseChatSessionReturn {
     setBackendConversationId(payload.conversationId);
     if (isNewConversation) {
       setActiveConversationId(payload.conversationId);
-      if (discussEntityId) {
+      if (discussEntity) {
         clearDiscussEntity();
       }
     }
@@ -613,7 +613,7 @@ export function useChatSession(): UseChatSessionReturn {
     pendingFile,
     branchingFromId,
     inheritedMessageIds,
-    discussEntityId,
+    discussEntity,
     conversationDiscussEntity,
     chatInputRef,
     onSendMessage,

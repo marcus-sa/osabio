@@ -14,7 +14,7 @@ export function SearchResultCard({ result, onClose }: { result: SearchEntityResp
   }
 
   function handleDiscuss() {
-    navigateToDiscussEntity(result.id);
+    navigateToDiscussEntity({ id: result.id, kind: result.kind, name: result.text });
     onClose?.();
     void navigate({ to: "/chat" });
   }
