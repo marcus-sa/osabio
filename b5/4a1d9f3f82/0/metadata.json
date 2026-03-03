@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b54a1d9f3f82",
+  "session_id": "3b4420c1-e3af-48e0-b8d5-50c3374d20be",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-03T14:41:56.818428Z",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "app/src/client/components/chat/EntityLink.tsx",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/styles.css",
+    "app/src/server/agents/analytics/agent.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/handler.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "27c1e78bf1bd",
+  "token_usage": {
+    "input_tokens": 3717,
+    "cache_creation_tokens": 584950,
+    "cache_read_tokens": 20037556,
+    "output_tokens": 63203,
+    "api_call_count": 222
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-03T14:41:56.018721Z",
+    "agent_lines": 152,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 152,
+    "agent_percentage": 100
+  }
+}
