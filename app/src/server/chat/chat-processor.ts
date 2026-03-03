@@ -155,6 +155,8 @@ export async function processChatMessage(input: {
       surreal: input.deps.surreal,
       model: input.deps.chatAgentModel,
       pmAgentModel: input.deps.pmAgentModel,
+      analyticsAgentModel: input.deps.analyticsAgentModel,
+      analyticsSurreal: input.deps.analyticsSurreal,
       embeddingModel: input.deps.embeddingModel,
       embeddingDimension: input.deps.config.embeddingDimension,
       extractionModelId: input.deps.config.extractionModelId,

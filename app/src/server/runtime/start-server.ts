@@ -26,9 +26,11 @@ export async function startServer(): Promise<void> {
   const deps: ServerDependencies = {
     config,
     surreal: runtime.surreal,
+    analyticsSurreal: runtime.analyticsSurreal,
     chatAgentModel: runtime.chatAgentModel,
     extractionModel: runtime.extractionModel,
     pmAgentModel: runtime.pmAgentModel,
+    analyticsAgentModel: runtime.analyticsAgentModel,
     embeddingModel: runtime.embeddingModel,
     sse: createSseRegistry(),
   };

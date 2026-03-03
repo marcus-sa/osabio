@@ -10,6 +10,7 @@
     "test": "bun test tests/unit/",
     "test:smoke": "bun test --env-file=.env tests/smoke/",
     "eval": "evalite run evals/",
+    "eval:analytics": "evalite run evals/analytics.eval.ts",
     "eval:watch": "evalite watch evals/",
     "smoke:phase1": "bun test --env-file=.env tests/smoke/phase1.test.ts",
     "smoke:logging": "bun test --env-file=.env tests/smoke/logging.test.ts",

@@ -7,6 +7,7 @@ import { createCreateQuestionTool } from "./create-question";
 import { createGetConversationHistoryTool } from "./get-conversation-history";
 import { createGetEntityDetailTool } from "./get-entity-detail";
 import { createGetProjectStatusTool } from "./get-project-status";
+import { createInvokeAnalyticsAgentTool } from "./invoke-analytics-agent";
 import { createInvokePmAgentTool } from "./invoke-pm-agent";
 import { createResolveObservationTool } from "./resolve-observation";
 import { createResolveDecisionTool } from "./resolve-decision";
@@ -29,6 +30,7 @@ export function createChatAgentTools(deps: ChatAgentToolDeps) {
     acknowledge_observation: createAcknowledgeObservationTool(deps),
     resolve_observation: createResolveObservationTool(deps),
     invoke_pm_agent: createInvokePmAgentTool(deps),
+    invoke_analytics_agent: createInvokeAnalyticsAgentTool(deps),
     show_relationship_graph: createShowRelationshipGraphTool(deps),
   };
 }

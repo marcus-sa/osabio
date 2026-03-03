@@ -476,3 +476,6 @@ DEFINE FUNCTION fn::entity_neighbors($entity: record) {
     <-entity_relation<-(workspace, project, person, feature, task, decision, question) AS incoming
   FROM $entity;
 };
+
+-- Analytics agent: read-only database user
+DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

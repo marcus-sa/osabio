@@ -1,7 +1,7 @@
 import { RecordId, Surreal } from "surrealdb";
 
 export type ChatToolExecutionContext = {
-  actor: "chat_agent" | "mcp" | "pm_agent";
+  actor: "chat_agent" | "mcp" | "pm_agent" | "analytics_agent";
   workspaceRecord: RecordId<"workspace", string>;
   conversationRecord: RecordId<"conversation", string>;
   currentMessageRecord: RecordId<"message", string>;
@@ -20,4 +20,6 @@ export type ChatToolDeps = {
 
 export type ChatAgentToolDeps = ChatToolDeps & {
   pmAgentModel: any;
+  analyticsAgentModel: any;
+  analyticsSurreal: Surreal;
 };

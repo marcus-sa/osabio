@@ -22,6 +22,8 @@ export async function runChatAgent(input: {
   surreal: Surreal;
   model: any;
   pmAgentModel: any;
+  analyticsAgentModel: any;
+  analyticsSurreal: Surreal;
   embeddingModel: any;
   embeddingDimension: number;
   extractionModelId: string;
@@ -65,6 +67,8 @@ export async function runChatAgent(input: {
     tools: createChatAgentTools({
       surreal: input.surreal,
       pmAgentModel: input.pmAgentModel,
+      analyticsAgentModel: input.analyticsAgentModel,
+      analyticsSurreal: input.analyticsSurreal,
       embeddingModel: input.embeddingModel,
       embeddingDimension: input.embeddingDimension,
       extractionModelId: input.extractionModelId,

@@ -12,6 +12,7 @@ export type ServerConfig = {
   chatAgentModelId: string;
   extractionModelId: string;
   pmAgentModelId: string;
+  analyticsAgentModelId: string;
   embeddingModelId: string;
   embeddingDimension: number;
   extractionStoreThreshold: number;
@@ -48,6 +49,7 @@ export function loadServerConfig(): ServerConfig {
   const pmAgentModelId = Bun.env.PM_AGENT_MODEL && Bun.env.PM_AGENT_MODEL.trim().length > 0
     ? Bun.env.PM_AGENT_MODEL.trim()
     : extractionModelId;
+  const analyticsAgentModelId = requireEnv("ANALYTICS_MODEL");
   const embeddingModelId = requireEnv("OPENROUTER_EMBEDDING_MODEL");
   const embeddingDimension = parsePositiveInteger(requireEnv("EMBEDDING_DIMENSION"), "EMBEDDING_DIMENSION");
 
@@ -65,6 +67,7 @@ export function loadServerConfig(): ServerConfig {
     chatAgentModelId,
     extractionModelId,
     pmAgentModelId,
+    analyticsAgentModelId,
     embeddingModelId,
     embeddingDimension,
     extractionStoreThreshold,
