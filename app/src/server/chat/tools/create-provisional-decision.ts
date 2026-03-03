@@ -49,6 +49,7 @@ export function createCreateProvisionalDecisionTool(deps: ChatToolDeps) {
         summary: input.name,
         status: "provisional",
         now,
+        workspaceRecord: context.workspaceRecord,
         sourceMessageRecord: context.currentMessageRecord,
         rationale: input.rationale,
         ...(input.options_considered && input.options_considered.length > 0

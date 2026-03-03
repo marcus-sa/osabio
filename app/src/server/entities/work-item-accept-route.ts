@@ -74,6 +74,7 @@ async function handleAcceptWorkItem(
       await deps.surreal.create(taskRecord).content({
         title: item.title,
         status: "open",
+        workspace: workspaceRecord,
         ...(item.category ? { category: item.category } : {}),
         ...(item.priority ? { priority: item.priority } : {}),
         ...(embedding ? { embedding } : {}),

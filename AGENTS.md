@@ -27,6 +27,12 @@
 - To represent absence, add a `"none"` sentinel to the enum and strip it to `undefined` via `.transform()` after parsing. The transform is applied during Zod validation but does not affect the JSON schema sent to the provider.
 - Existing pattern: `assignee_name` and `resolvedFromMessageId` use union variants (each variant has the field as required) instead of optional fields.
 
+## Schema & Data Migration
+
+- This project does NOT maintain backwards compatibility with existing data. Schema changes are breaking.
+- Do NOT write data migration or backfill scripts. Old data is discarded on schema changes.
+- New fields should be required (not optional) from the start — no need for `option<...>` to accommodate pre-existing records.
+
 ## Failure Handling
 
 - Do NOT add fallback logic that masks invalid state, malformed payloads, or contract violations.

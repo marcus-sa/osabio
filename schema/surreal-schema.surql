@@ -109,7 +109,9 @@ DEFINE FIELD category ON task TYPE option<string>
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
 DEFINE INDEX task_source_message ON task FIELDS source_message;
 DEFINE INDEX task_source_commit ON task FIELDS source_commit;
+DEFINE FIELD workspace ON task TYPE record<workspace>;
 DEFINE INDEX idx_task_embedding ON task FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+DEFINE INDEX task_workspace ON task FIELDS workspace;
 
 DEFINE TABLE decision SCHEMAFULL;
 DEFINE FIELD summary ON decision TYPE string;
@@ -138,7 +140,9 @@ DEFINE FIELD priority ON decision TYPE option<string>
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
 DEFINE INDEX decision_source_commit ON decision FIELDS source_commit;
+DEFINE FIELD workspace ON decision TYPE record<workspace>;
 DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+DEFINE INDEX decision_workspace ON decision FIELDS workspace;
 
 DEFINE TABLE question SCHEMAFULL;
 DEFINE FIELD text ON question TYPE string;
@@ -160,7 +164,9 @@ DEFINE FIELD priority ON question TYPE option<string>
 DEFINE INDEX question_status ON question FIELDS status;
 DEFINE INDEX question_source_message ON question FIELDS source_message;
 DEFINE INDEX question_source_commit ON question FIELDS source_commit;
+DEFINE FIELD workspace ON question TYPE record<workspace>;
 DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+DEFINE INDEX question_workspace ON question FIELDS workspace;
 
 DEFINE TABLE observation SCHEMAFULL;
 DEFINE FIELD text ON observation TYPE string;
@@ -347,9 +353,6 @@ DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace: record<workspace>) {
   LET $query = string::lowercase(string::trim($q));
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
-  LET $workspace_conversations = SELECT VALUE id FROM conversation WHERE workspace = $workspace;
-  LET $workspace_messages = SELECT VALUE id FROM message WHERE conversation IN $workspace_conversations;
-  LET $workspace_commits = SELECT VALUE id FROM git_commit WHERE workspace = $workspace;
 
   LET $task_rows = SELECT
     id,
@@ -360,10 +363,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM task
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(title), $query)
   ORDER BY created_at DESC
@@ -378,10 +378,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM decision
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(summary), $query)
   ORDER BY created_at DESC
@@ -396,10 +393,7 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
     priority,
     created_at
   FROM question
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND string::contains(string::lowercase(text), $query)
   ORDER BY created_at DESC
@@ -411,9 +405,6 @@ DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace:
 DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: record<workspace>, $project: record<project>) {
   LET $query = string::lowercase(string::trim($q));
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
-  LET $workspace_conversations = SELECT VALUE id FROM conversation WHERE workspace = $workspace;
-  LET $workspace_messages = SELECT VALUE id FROM message WHERE conversation IN $workspace_conversations;
-  LET $workspace_commits = SELECT VALUE id FROM git_commit WHERE workspace = $workspace;
   LET $project_entity_ids = SELECT VALUE `in` FROM belongs_to WHERE out = $project;
 
   LET $task_rows = SELECT
@@ -425,10 +416,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM task
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(title), $query)
@@ -444,10 +432,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM decision
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(summary), $query)
@@ -463,10 +448,7 @@ DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: r
     priority,
     created_at
   FROM question
-  WHERE (
-      (source_message != NONE AND source_message IN $workspace_messages)
-      OR (source_commit != NONE AND source_commit IN $workspace_commits)
-    )
+  WHERE workspace = $workspace
     AND extraction_confidence != NONE
     AND id IN $project_entity_ids
     AND string::contains(string::lowercase(text), $query)
