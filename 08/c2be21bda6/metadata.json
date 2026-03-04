@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "08c2be21bda6",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/chat/ChatSuggestionPills.tsx",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/styles.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/08/c2be21bda6/0/metadata.json",
+      "transcript": "/08/c2be21bda6/0/full.jsonl",
+      "context": "/08/c2be21bda6/0/context.md",
+      "content_hash": "/08/c2be21bda6/0/content_hash.txt",
+      "prompt": "/08/c2be21bda6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 38977,
+    "cache_read_tokens": 804724,
+    "output_tokens": 7214,
+    "api_call_count": 17
+  }
+}
