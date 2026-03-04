@@ -133,7 +133,7 @@ export function ChatPage() {
               }
               return undefined;
             })}
-            {message.role === "assistant" && onboardingState === "complete" ? (
+            {message.role === "assistant" ? (
               <button
                 type="button"
                 className="branch-message-btn"
