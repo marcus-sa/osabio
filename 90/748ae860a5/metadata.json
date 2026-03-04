@@ -3,7 +3,7 @@
   "checkpoint_id": "90748ae860a5",
   "strategy": "manual-commit",
   "branch": "marcus-sa/coding-agent-integration",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/server/mcp/context-builder.ts",
     "app/src/server/mcp/mcp-route.ts",
@@ -25,13 +25,20 @@
       "context": "/90/748ae860a5/1/context.md",
       "content_hash": "/90/748ae860a5/1/content_hash.txt",
       "prompt": "/90/748ae860a5/1/prompt.txt"
+    },
+    {
+      "metadata": "/90/748ae860a5/2/metadata.json",
+      "transcript": "/90/748ae860a5/2/full.jsonl",
+      "context": "/90/748ae860a5/2/context.md",
+      "content_hash": "/90/748ae860a5/2/content_hash.txt",
+      "prompt": "/90/748ae860a5/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 1055,
+    "cache_creation_tokens": 514302,
+    "cache_read_tokens": 14486417,
+    "output_tokens": 46820,
+    "api_call_count": 143
   }
 }
