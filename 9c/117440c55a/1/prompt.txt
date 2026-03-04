@@ -1,0 +1,526 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/montevideo-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+i am trying to dogfeed the product and use it to build the product, but it becomes confused:
+
+Brain
+Search...
+let's start mapping out the graph itself. I want there to be entities: Initiative -> Project -> Feature -> Task, and then questions, suggestions and decisions
+
+Thinking
+I can help you map out the graph structure and visualize the entity relationships. Let me first check what's currently in the workspace, then show you the relationship graph. Perfect! Now I have the data and can present it to the user. Let me render the relationship graph component and summarize what we have. Perfect! Here's the current graph structure visualized:
+
+Current Graph Entities & Relationships
+
+Current State
+Work Hierarchy:
+
+1 Project: "Agent-Native Business Operating System"
+0 Features: (none yet)
+0 Tasks: (none yet)
+Cross-cutting Entities:
+
+7 Decisions: All linked to the project
+5 confirmed (Observation lifecycle, IAM authority, Feed governance, Graph architecture, Target market)
+2 provisional (Haiku extraction, Evidence on edges)
+1 Question: Open question about observations workflow
+5 Observations: Info-level signals across engineering, operations, and marketing
+About Your Hierarchy
+You mentioned "Initiative → Project → Feature → Task". Currently we have:
+
+Project (top-level entity)
+Feature (hasn't been used yet)
+Task (hasn't been used yet)
+The current model doesn't have an explicit "Initiative" entity type, but that simply means:
+
+Project can function as your Initiative
+Feature → sub-capabilities
+Task → actionable work
+We can start creating the hierarchy. Would you like to:
+
+Create your first Feature under the current Project?
+Or map out Features and Tasks for the existing Decisions?
+Or do you want to introduce the Initiative level as a new entity type?
+What's the first piece of the hierarchy you want to build?
+
+---
+
+i think we need to add a comment to the prompt that says something like: "whatever the user is discussing about what they want, has nothing to do with how brain works" or similar - that way, if someone tries to build brain using brain, then it treats it like any other business
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+can we add evals for the chat agent?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Continue from where you left off.
+
+---
+
+"Test by sending a message like “I want Initiative -> Project -> Feature -> Task hierarchy” and confirming the agent creates entities rather than asking clarifying questions about Brain’s data model"
+
+indeed, and it is only when someone ask explicitly ask how brain works that it should explain the data model
+
+---
+
+commit
+
+---
+
+add user story to USER_STORIES.md
+
+---
+
+commit
+
+---
+
+beforeAll setup failed: ResponseError: Cannot perform subtraction with 'NONE' and 'NONE'
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain/montevideo-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at setupEvalRuntime (/Users/marcus/conductor/workspaces/brain/montevideo-v1/evals/eval-test-kit.ts:47:3)
+    at /Users/marcus/conductor/workspaces/brain/montevideo-v1/evals/chat-agent.eval.ts:32:15 {
+  code: 0
+}
+
+ - evals/chat-agent.eval.ts  (8 evals)
+
+      Score  -
+ Eval Files  1
+      Evals  8
+   Duration  0ms
+marcus@Marcuss-MacBook-Pro montevideo-v1 % 
+
+are we correctly applying schema migrations as well?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/montevideo-v1/.context/attachments/pasted_text_2026-03-04_14-48-07.txt
+</system_instruction>
+
+---
+
+using gemini 3.1 pro preview:
+
+ 92% evals/chat-agent.eval.ts  (8 evals)
+
+      Score  92%
+ Eval Files  1
+      Evals  8
+   Duration  44892ms
+
+╔═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═══════╗
+║ Model   │ Case    │ Tools   │ Invoked │ Correct │ NoClari │ NoForbi │ Score ║
+║         │         │         │         │         │ fy      │ d       │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ decisio │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gemini- │ n-      │ provisi │         │         │         │         │       ║
+║ 3.1-    │ explici │ onal_   │         │         │         │         │       ║
+║ pro-    │ t       │ decisio │         │         │         │         │       ║
+║ preview │         │ n,      │         │         │         │         │       ║
+║         │         │ confirm │         │         │         │         │       ║
+║         │         │ _decisi │         │         │         │         │       ║
+║         │         │ on      │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ plan-   │ invoke_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gemini- │ work    │ pm_     │         │         │         │         │       ║
+║ 3.1-    │         │ agent   │         │         │         │         │       ║
+║ pro-    │         │         │         │         │         │         │       ║
+║ preview │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ project │ get_    │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gemini- │ -status │ project │         │         │         │         │       ║
+║ 3.1-    │         │ _status │         │         │         │         │       ║
+║ pro-    │         │         │         │         │         │         │       ║
+║ preview │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ hierarc │ (none)  │ 0.00    │ 0.00    │ 1.00    │ 1.00    │ 67%   ║
+║ gemini- │ hy-     │         │         │         │         │         │       ║
+║ 3.1-    │ action  │         │         │         │         │         │       ║
+║ pro-    │         │         │         │         │         │         │       ║
+║ preview │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ greetin │ (none)  │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gemini- │ g-no-   │         │         │         │         │         │       ║
+║ 3.1-    │ action  │         │         │         │         │         │       ║
+║ pro-    │         │         │         │         │         │         │       ║
+║ preview │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ questio │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gemini- │ n-      │ questio │         │         │         │         │       ║
+║ 3.1-    │ creatio │ n       │         │         │         │         │       ║
+║ pro-    │ n       │         │         │         │         │         │       ║
+║ preview │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ workspa │ list_   │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gemini- │ ce-     │ workspa │         │         │         │         │       ║
+║ 3.1-    │ status  │ ce_     │         │         │         │         │       ║
+║ pro-    │         │ entitie │         │         │         │         │       ║
+║ preview │         │ s       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ google/ │ multi-  │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gemini- │ decisio │ provisi │         │         │         │         │       ║
+║ 3.1-    │ n       │ onal_   │         │         │         │         │       ║
+║ pro-    │         │ decisio │         │         │         │         │       ║
+║ preview │         │ n,      │         │         │         │         │       ║
+║         │         │ confirm │         │         │         │         │       ║
+║         │         │ _decisi │         │         │         │         │       ║
+║         │         │ on      │         │         │         │         │       ║
+╚═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═══════╝
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. User showed a screenshot of Brain's chat agent getting confused when dogfooding - the agent dumped current state and asked clarifying questions instead of acting when the user said "I want there to be entities: Initiative -> Project -> Feature -> Task"
+
+2. I identified the root cause: line 261 in context.ts saying "You do NOT need to ask the user whether to 'create entity types' or 'set up the hierarchy' — the data model already exists" was causing the agent to deflect schema-level discussions.
+
+3. User said: "i think we need to add a comment to the prompt that says something like: 'whatever the user is discussing about what they want, has nothing to do with how brain works'" - they wanted a domain separation directive.
+
+4. User then asked: "can we add evals for the chat agent?" - this became the main task.
+
+5. I entered plan mode, explored the codebase with 3 agents (eval infrastructure, chat agent architecture, test patterns), designed the plan with a Plan agent, and wrote it up.
+
+6. User pointed out that the verification section referenced the system prompt fix, confirming: "it is only when someone ask explicitly ask how brain works that it should explain the data model"
+
+7. I updated the plan to include both the domain separation fix AND evals. Plan was approved.
+
+8. Implementation:
+   - Step 0: Added Domain Separation section to context.ts, trimmed deflection line
+   - Step 1: Added toolCalls tracking to ChatAgentResult in handler.ts
+   - Step 2: Added types to evals/types.ts
+   - Step 3: Created chat-agent-seed-data.ts
+   - Step 4: Created 4 scorer files
+   - Step 5: Created chat-agent.eval.ts
+   - Step 6: Added eval:chat script to package.json
+   - Step 7: Fixed eval-test-kit.ts config type (missing pmAgentModelId, analyticsAgentModelId)
+   - Fixed chat-context.test.ts for pre-existing failures
+
+9. Errors:
+   - TS2339: `part.args` doesn't exist on tool-call type - fixed to `(part as any).input`
+   - Pre-existing test failures in chat-context.test.ts - updated assertions to match current system prompt
+   - "Cannot perform subtraction with 'NONE' and 'NONE'" during eval setup - fixed by splitting schema into individual statements and adding isNoneSubtractionError tolerance
+
+10. User ran evals with Kimi K2 (88% overall, hierarchy-action at 50%) and Gemini 3.1 Pro Preview (92% overall, hierarchy-action at 67%). The hierarchy-action case consistently fails - the exact regression the evals were designed to catch.
+
+11. User committed along the way and asked for user story addition.
+
+12. Three commits made:
+    - "Add chat agent behavioral evals and domain separation directive"
+    - "Add user story for domain separation in chat agent (US-8)"
+    - "Fix eval-test-kit: apply migrations and handle SurrealDB NONE errors"
+
+Summary:
+1. Primary Request and Intent:
+   The user is dogfooding Brain (an AI-native business operating system) to build Brain itself. The chat agent gets confused when the user describes domain concepts that overlap with Brain's own architecture (e.g., "I want entities: Initiative -> Project -> Feature -> Task"). Instead of acting, the agent dumps current state and asks clarifying questions about Brain's data model. The user wanted:
+   - A domain separation directive in the system prompt so the agent treats all user input as business content, never explaining Brain internals unless explicitly asked
+   - Behavioral evals for the chat agent to catch this class of regression
+   - A user story (US-8) documenting this requirement
+   - All changes committed
+
+2. Key Technical Concepts:
+   - **Evalite v0.19.0** - eval framework used by the project, with `beforeAll`/`afterAll` lifecycle, inline scorers, and column-based output
+   - **Vercel AI SDK** `streamText()` - chat agent uses streaming with `fullStream` iterator; tool-call parts have `toolName` and `input` (not `args`)
+   - **SurrealDB SCHEMAFULL** with isolated eval namespaces/databases via `setupEvalRuntime()`
+   - **Chat agent thin orchestrator pattern** - dispatches to tools and PM subagent via `invoke_pm_agent`
+   - **Domain separation** - system prompt directive preventing the agent from confusing user business concepts with Brain's own architecture
+   - **splitSurqlStatements()** - custom parser to split .surql files into individual statements, handling BEGIN TRANSACTION blocks and DEFINE FUNCTION blocks as units
+
+3. Files and Code Sections:
+
+   - **`app/src/server/chat/context.ts`** - Chat agent system prompt builder. Added Domain Separation section and trimmed the deflection line.
+     ```typescript
+     "## Domain Separation",
+     "The user's business — whatever they are building, planning, or discussing — is NOT Brain itself.",
+     "Even if the user's domain uses similar concepts (entities, graphs, tasks, features), treat their input as business content to capture in the graph.",
+     "Never explain Brain's data model or architecture unless the user explicitly asks how Brain works.",
+     ```
+     Line 260 changed from: `"You do NOT need to ask the user whether to \"create entity types\" or \"set up the hierarchy\" — the data model already exists. When the user describes work, use your tools to create the actual entities.",`
+     To: `"When the user describes work, use your tools to create the actual entities.",`
+
+   - **`app/src/server/chat/handler.ts`** - Chat agent runner. Added `toolCalls` tracking to `ChatAgentResult` for eval observability.
+     ```typescript
+     export type ChatAgentResult = {
+       text: string;
+       collectedEntities: CollectedEntity[];
+       collectedRelationships: CollectedRelationship[];
+       toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
+     };
+     ```
+     In the stream loop:
+     ```typescript
+     if (part.type === "tool-call") {
+       logInfo("chat.agent.tool_call", "Chat agent invoked tool", part);
+       toolCalls.push({ name: part.toolName, args: (part as any).input as Record<string, unknown> });
+     }
+     ```
+
+   - **`evals/types.ts`** - Added `ChatAgentTestCase` and `ChatAgentEvalOutput` types.
+     ```typescript
+     export type ChatAgentTestCase = {
+       id: string;
+       userMessage: string;
+       conversationHistory?: Array<{ role: "user" | "assistant"; text: string }>;
+       expectsToolUse: boolean;
+       expectedTools?: string[];
+       forbiddenTools?: string[];
+       forbiddenResponsePatterns?: string[];
+       expectedResponseContains?: string[];
+       expectedFacts?: string;
+     };
+     export type ChatAgentEvalOutput = {
+       caseId: string;
+       userMessage: string;
+       responseText: string;
+       toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
+       toolNames: string[];
+       success: boolean;
+       error?: string;
+     };
+     ```
+
+   - **`evals/chat-agent-seed-data.ts`** (new) - Seeds isolated workspace with 2 projects (Alpha, Beta), 3 features, 5 tasks, 2 decisions, 1 question, 1 conversation. Returns `ChatAgentSeedResult`.
+
+   - **`evals/scorers/tool-invoked.ts`** (new) - Binary scorer: agent used tools when `expectsToolUse=true`, abstained when false.
+   - **`evals/scorers/correct-tool-selection.ts`** (new) - Ratio of expectedTools found in actual tool calls.
+   - **`evals/scorers/no-clarification-when-clear.ts`** (new) - Checks response doesn't contain hedging patterns like "would you like me to", "shall i", etc. when action was expected.
+   - **`evals/scorers/no-forbidden-tools.ts`** (new) - Checks none of forbiddenTools were called.
+
+   - **`evals/chat-agent.eval.ts`** (new) - Main eval file with 8 test cases: plan-work, decision-explicit, project-status, hierarchy-action (the dogfooding regression), question-creation, greeting-no-action, workspace-status, multi-decision. Calls `runChatAgent()` directly.
+
+   - **`evals/eval-test-kit.ts`** - Fixed missing `pmAgentModelId`/`analyticsAgentModelId` in ServerConfig. Added migration application. Added `splitSurqlStatements()` to split schema into individual statements. Added `isNoneSubtractionError()` tolerance for SurrealDB NONE subtraction errors during setup.
+
+   - **`package.json`** - Added `"eval:chat": "evalite run evals/chat-agent.eval.ts"` script.
+
+   - **`tests/unit/chat-context.test.ts`** - Updated pre-existing broken assertions to match current system prompt (removed checks for `component`, `EntityCard`, `ExtractionSummary`, `Active Observations`; added checks for `## Tool Results`, `## Domain Separation`).
+
+   - **`USER_STORIES.md`** - Added US-8 for domain separation behavior.
+
+4. Errors and fixes:
+   - **TS2339: `part.args` doesn't exist on tool-call stream type**: The AI SDK uses `input` not `args` for tool-call parts. Fixed with `(part as any).input as Record<string, unknown>`.
+   - **Pre-existing chat-context.test.ts failures**: Tests checked for `EntityCard`, `ExtractionSummary`, `component` which were already removed from the system prompt before this session. Updated assertions to match current prompt.
+   - **"Cannot perform subtraction with 'NONE' and 'NONE'" in eval setup**: SurrealDB throws this during namespace/database operations when leftover computed fields exist from prior failed runs. Fixed by: (1) wrapping all setup queries with `isNoneSubtractionError` tolerance, (2) splitting schema into individual statements via `splitSurqlStatements()` so each statement is applied independently with error tolerance, (3) adding migration file application for production parity.
+
+5. Problem Solving:
+   - Identified root cause of dogfooding confusion: system prompt line "the data model already exists" actively deflects schema discussions
+   - Designed eval suite following existing analytics eval pattern (Evalite + real LLM calls + isolated SurrealDB)
+   - The hierarchy-action eval case successfully catches the regression: Kimi K2 scores 50% (no tools called), Gemini 3.1 Pro scores 67% (no tools called but no hedging). Both models fail to invoke_pm_agent for this case, confirming the behavioral gap.
+
+6. All user messages:
+   - Initial message showing Brain chat agent screenshot getting confused when user said "let's start mapping out the graph itself. I want there to be entities: Initiative -> Project -> Feature -> Task"
+   - "i think we need to add a comment to the prompt that says something like: 'whatever the user is discussing about what they want, has nothing to do with how brain works' or similar - that way, if someone tries to build brain using brain, then it treats it like any other business"
+   - "can we add evals for the chat agent?"
+   - Quote from plan: "Test by sending a message like 'I want Initiative -> Project -> Feature -> Task hierarchy'..." followed by "indeed, and it is only when someone ask explicitly ask how brain works that it should explain the data model"
+   - "commit" (first commit request)
+   - "add user story to USER_STORIES.md"
+   - "commit" (second commit)
+   - Pasted eval error: "beforeAll setup failed: ResponseError: Cannot perform subtraction with 'NONE' and 'NONE'" followed by "are we correctly applying schema migrations as well?"
+   - "commit" (third commit)
+   - Pasted Gemini 3.1 Pro eval results (92% overall)
+
+7. Pending Tasks:
+   - No explicitly pending tasks. All requested work (domain separation fix, evals, user story, commits, eval-test-kit fix) has been completed and committed.
+
+8. Current Work:
+   The user shared Gemini 3.1 Pro Preview eval results showing 92% overall score. The hierarchy-action case still fails at 67% (no tools invoked, Invoked=0.00, Correct=0.00) across both models tested. Three commits have been made:
+   - `0031063` - Add chat agent behavioral evals and domain separation directive
+   - `081ecbf` - Add user story for domain separation in chat agent (US-8)
+   - `f65a235` - Fix eval-test-kit: apply migrations and handle SurrealDB NONE errors
+
+   The user's last message was sharing the Gemini eval results without an explicit next request.
+
+9. Optional Next Step:
+   No explicit next step requested. The user shared eval results showing hierarchy-action still fails across models. A natural follow-up would be iterating on the system prompt to improve the hierarchy-action case score, but the user hasn't asked for this yet.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-montevideo-v1/7ada1d1a-292b-4e55-aa5d-4376df61cd13.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+i dont think the model is the problem but rather we need to refine the prompt
+
+---
+
+╔═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═══════╗
+║ Model   │ Case    │ Tools   │ Invoked │ Correct │ NoClari │ NoForbi │ Score ║
+║         │         │         │         │         │ fy      │ d       │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ decisio │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ n-      │ provisi │         │         │         │         │       ║
+║ 1-mini  │ explici │ onal_   │         │         │         │         │       ║
+║         │ t       │ decisio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ project │ get_    │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ -status │ project │         │         │         │         │       ║
+║ 1-mini  │         │ _status │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ hierarc │ invoke_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ hy-     │ pm_     │         │         │         │         │       ║
+║ 1-mini  │ action  │ agent   │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ questio │ list_   │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ n-      │ workspa │         │         │         │         │       ║
+║ 1-mini  │ creatio │ ce_     │         │         │         │         │       ║
+║         │ n       │ entitie │         │         │         │         │       ║
+║         │         │ s,      │         │         │         │         │       ║
+║         │         │ create_ │         │         │         │         │       ║
+║         │         │ questio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ greetin │ (none)  │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ g-no-   │         │         │         │         │         │       ║
+║ 1-mini  │ action  │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ plan-   │ invoke_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ work    │ pm_     │         │         │         │         │       ║
+║ 1-mini  │         │ agent   │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ workspa │ list_   │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ ce-     │ workspa │         │         │         │         │       ║
+║ 1-mini  │ status  │ ce_     │         │         │         │         │       ║
+║         │         │ entitie │         │         │         │         │       ║
+║         │         │ s       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ multi-  │ create_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ decisio │ provisi │         │         │         │         │       ║
+║ 1-mini  │ n       │ onal_   │         │         │         │         │       ║
+║         │         │ decisio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╚═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═══════╝
+
+
+
+╔═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═══════╗
+║ Model   │ Case    │ Tools   │ Invoked │ Correct │ NoClari │ NoForbi │ Score ║
+║         │         │         │         │         │ fy      │ d       │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ decisio │ create_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ tai/    │ n-      │ provisi │         │         │         │         │       ║
+║ kimi-   │ explici │ onal_   │         │         │         │         │       ║
+║ k2.     │ t       │ decisio │         │         │         │         │       ║
+║ 5:nitro │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ plan-   │ invoke_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ tai/    │ work    │ pm_     │         │         │         │         │       ║
+║ kimi-   │         │ agent   │         │         │         │         │       ║
+║ k2.     │         │         │         │         │         │         │       ║
+║ 5:nitro │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼���────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ project │ get_    │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ tai/    │ -status │ project │         │         │         │         │       ║
+║ kimi-   │         │ _status │         │         │         │         │       ║
+║ k2.     │         │         │         │         │         │         │       ║
+║ 5:nitro │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ hierarc │ invoke_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ tai/    │ hy-     │ pm_     │         │         │         │         │       ║
+║ kimi-   │ action  │ agent   │         │         │         │         │       ║
+║ k2.     │         │         │         │         │         │         │       ║
+║ 5:nitro │         │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ questio │ search_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ tai/    │ n-      │ entitie │         │         │         │         │       ║
+║ kimi-   │ creatio │ s,      │         │         │         │         │       ║
+║ k2.     │ n       │ create_ │         │         │         │         │       ║
+║ 5:nitro │         │ questio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ greetin │ list_   │ 0.00    │ 1.00    │ 1.00    │ 1.00    │ 83%   ║
+║ tai/    │ g-no-   │ workspa │         │         │         │         │       ║
+║ kimi-   │ action  │ ce_     │         │         │         │         │       ║
+║ k2.     │         │ entitie │         │         │         │         │       ║
+║ 5:nitro │         │ s       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ workspa │ list_   │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ tai/    │ ce-     │ workspa │         │         │         │         │       ║
+║ kimi-   │ status  │ ce_     │         │         │         │         │       ║
+║ k2.     │         │ entitie │         │         │         │         │       ║
+║ 5:nitro │         │ s       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ moonsho │ multi-  │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ tai/    │ decisio │ provisi │         │         │         │         │       ║
+║ kimi-   │ n       │ onal_   │         │         │         │         │       ║
+║ k2.     │         │ decisio │         │         │         │         │       ║
+║ 5:nitro │         │ n       │         │         │         │         │       ║
+╚═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═══════╝
+
+
+
+
+╔═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═════════╤═══════╗
+║ Model   │ Case    │ Tools   │ Invoked │ Correct │ NoClari │ NoForbi │ Score ║
+║         │         │         │         │         │ fy      │ d       │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ decisio │ create_ │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ n-      │ provisi │         │         │         │         │       ║
+║ 1-mini  │ explici │ onal_   │         │         │         │         │       ║
+║         │ t       │ decisio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ project │ get_    │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ -status │ project │         │         │         │         │       ║
+║ 1-mini  │         │ _status │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ plan-   │ invoke_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ work    │ pm_     │         │         │         │         │       ║
+║ 1-mini  │         │ agent   │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ hierarc │ invoke_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ hy-     │ pm_     │         │         │         │         │       ║
+║ 1-mini  │ action  │ agent   │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ greetin │ (none)  │ 1.00    │ 1.00    │ 1.00    │ 1.00    │ 100%  ║
+║ gpt-4.  │ g-no-   │         │         │         │         │         │       ║
+║ 1-mini  │ action  │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼──��────╢
+║ openai/ │ questio │ create_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ n-      │ questio │         │         │         │         │       ║
+║ 1-mini  │ creatio │ n       │         │         │         │         │       ║
+║         │ n       │         │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ multi-  │ create_ │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ decisio │ provisi │         │         │         │         │       ║
+║ 1-mini  │ n       │ onal_   │         │         │         │         │       ║
+║         │         │ decisio │         │         │         │         │       ║
+║         │         │ n       │         │         │         │         │       ║
+╟─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼─────────┼───────╢
+║ openai/ │ workspa │ list_   │ 1.00    │ 1.00    │ 0.00    │ 1.00    │ 83%   ║
+║ gpt-4.  │ ce-     │ workspa │         │         │         │         │       ║
+║ 1-mini  │ status  │ ce_     │         │         │         │         │       ║
+║         │         │ entitie │         │         │         │         │       ║
+║         │         │ s       │         │         │         │         │       ║
+╚═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═════════╧═══════╝
+
+
+decent results even for a smaller modal with no reasoning
+
+---
+
+should we use factuality for scoring ?
+
+---
+
+commit changes
