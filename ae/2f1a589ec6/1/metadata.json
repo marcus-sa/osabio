@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "ae2f1a589ec6",
+  "session_id": "44678d28-020a-48d4-bb2a-c62df401efcb",
   "strategy": "manual-commit",
+  "created_at": "2026-03-04T06:30:07.910718Z",
   "branch": "marcus-sa/analytics-agent",
   "checkpoints_count": 2,
   "files_touched": [
@@ -9,27 +11,22 @@
     "app/src/server/entities/entity-search-route.ts",
     "schema/migrations/20260304_replace_entity_search_with_knn_vector.surql"
   ],
-  "sessions": [
-    {
-      "metadata": "/ae/2f1a589ec6/0/metadata.json",
-      "transcript": "/ae/2f1a589ec6/0/full.jsonl",
-      "context": "",
-      "content_hash": "/ae/2f1a589ec6/0/content_hash.txt",
-      "prompt": ""
-    },
-    {
-      "metadata": "/ae/2f1a589ec6/1/metadata.json",
-      "transcript": "/ae/2f1a589ec6/1/full.jsonl",
-      "context": "/ae/2f1a589ec6/1/context.md",
-      "content_hash": "/ae/2f1a589ec6/1/content_hash.txt",
-      "prompt": "/ae/2f1a589ec6/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "db6350f34869",
   "token_usage": {
     "input_tokens": 283,
     "cache_creation_tokens": 124268,
     "cache_read_tokens": 3954447,
     "output_tokens": 18907,
     "api_call_count": 62
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T06:30:07.367337Z",
+    "agent_lines": 95,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 95,
+    "agent_percentage": 100
   }
 }
