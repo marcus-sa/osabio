@@ -2,6 +2,7 @@ import { createAcknowledgeObservationTool } from "./acknowledge-observation";
 import { createCheckConstraintsTool } from "./check-constraints";
 import { createConfirmDecisionTool } from "./confirm-decision";
 import { createCreateObservationTool } from "./create-observation";
+import { createCreateSuggestionTool } from "./create-suggestion";
 import { createCreateProvisionalDecisionTool } from "./create-provisional-decision";
 import { createCreateQuestionTool } from "./create-question";
 import { createGetConversationHistoryTool } from "./get-conversation-history";
@@ -29,6 +30,7 @@ export function createChatAgentTools(deps: ChatAgentToolDeps) {
     create_question: createCreateQuestionTool(deps),
     confirm_decision: createConfirmDecisionTool(deps),
     create_observation: createCreateObservationTool(deps),
+    create_suggestion: createCreateSuggestionTool(deps),
     acknowledge_observation: createAcknowledgeObservationTool(deps),
     resolve_observation: createResolveObservationTool(deps),
     invoke_pm_agent: createInvokePmAgentTool(deps),

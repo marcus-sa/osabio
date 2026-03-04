@@ -37,6 +37,9 @@ FROM question WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC
 SELECT id, "observation" AS kind, text AS text, search::score(1) AS score
 FROM observation WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
+SELECT id, "suggestion" AS kind, text AS text, search::score(1) AS score
+FROM suggestion WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+
 SELECT id, "feature" AS kind, name AS text, search::score(1) AS score
 FROM feature WHERE name @1@ ${q} ORDER BY score DESC LIMIT $limit;
 
@@ -67,6 +70,9 @@ FROM question WHERE text @1@ ${q} AND workspace = $workspace AND id IN $project_
 
 SELECT id, "observation" AS kind, text AS text, search::score(1) AS score
 FROM observation WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+
+SELECT id, "suggestion" AS kind, text AS text, search::score(1) AS score
+FROM suggestion WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "feature" AS kind, name AS text, search::score(1) AS score
 FROM feature WHERE name @1@ ${q} AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;

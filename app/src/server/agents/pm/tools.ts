@@ -1,4 +1,5 @@
 import { createCreateObservationTool } from "../../chat/tools/create-observation";
+import { createCreateSuggestionTool } from "../../chat/tools/create-suggestion";
 import { createGetProjectStatusTool } from "../../chat/tools/get-project-status";
 import { createSearchEntitiesTool } from "../../chat/tools/search-entities";
 import type { ChatToolDeps } from "../../chat/tools/types";
@@ -10,6 +11,7 @@ export function createPmTools(deps: ChatToolDeps) {
     search_entities: createSearchEntitiesTool(deps),
     get_project_status: createGetProjectStatusTool(deps),
     create_observation: createCreateObservationTool(deps),
+    create_suggestion: createCreateSuggestionTool(deps),
     suggest_work_items: createSuggestWorkItemsTool(deps),
     create_work_item: createCreateWorkItemTool(deps),
   };

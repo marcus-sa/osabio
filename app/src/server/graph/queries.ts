@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation";
+export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
@@ -285,13 +285,13 @@ export async function isEntityInWorkspace(
     return rows.length > 0;
   }
 
-  if (table === "task" || table === "decision" || table === "question") {
+  if (table === "task" || table === "decision" || table === "question" || table === "suggestion") {
     const [rows] = await surreal
-      .query<[Array<{ id: RecordId<"task" | "decision" | "question", string> }>]>(
+      .query<[Array<{ id: RecordId<"task" | "decision" | "question" | "suggestion", string> }>]>(
         `SELECT id FROM ${table} WHERE id = $entity AND workspace = $workspace;`,
         { workspace: workspaceRecord, entity: entityRecord },
       )
-      .collect<[Array<{ id: RecordId<"task" | "decision" | "question", string> }>]>();
+      .collect<[Array<{ id: RecordId<"task" | "decision" | "question" | "suggestion", string> }>]>();
 
     return rows.length > 0;
   }
