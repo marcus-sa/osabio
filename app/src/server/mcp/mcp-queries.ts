@@ -596,8 +596,9 @@ export async function logCommit(input: {
   filesChanged: Array<{ path: string; change_type: string; lines_added: number; lines_removed: number }>;
   author: string;
   taskUpdates?: Array<{ task_id: string; new_status: string }>;
+  relatedTaskIds?: string[];
   decisionsDetected?: Array<{ name: string; rationale: string }>;
-}): Promise<{ commit_id: string; tasks_updated: number; decisions_created: number }> {
+}): Promise<{ commit_id: string; tasks_updated: number; tasks_linked: number; decisions_created: number }> {
   const now = new Date();
   const commitRecord = new RecordId("git_commit", randomUUID());
 
@@ -620,6 +621,29 @@ export async function logCommit(input: {
       });
       tasksUpdated++;
     }
+  }
+
+  // Link related tasks to this commit
+  const linkedTaskIds = new Set<string>();
+  // Include tasks from task_updates
+  if (input.taskUpdates?.length) {
+    for (const update of input.taskUpdates) {
+      linkedTaskIds.add(update.task_id);
+    }
+  }
+  // Include explicitly declared related tasks
+  if (input.relatedTaskIds?.length) {
+    for (const taskId of input.relatedTaskIds) {
+      linkedTaskIds.add(taskId);
+    }
+  }
+  for (const taskId of linkedTaskIds) {
+    await input.surreal
+      .relate(new RecordId("task", taskId), new RecordId("implemented_by", randomUUID()), commitRecord, {
+        commit_sha: input.sha,
+        linked_at: now,
+      })
+      .output("after");
   }
 
   // Create provisional decisions if flagged
@@ -660,6 +684,7 @@ export async function logCommit(input: {
   return {
     commit_id: toId(commitRecord),
     tasks_updated: tasksUpdated,
+    tasks_linked: linkedTaskIds.size,
     decisions_created: decisionsCreated,
   };
 }

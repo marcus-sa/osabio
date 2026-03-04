@@ -342,7 +342,7 @@ DEFINE FIELD description ON conflicts_with TYPE option<string>;
 DEFINE FIELD severity ON conflicts_with TYPE option<string>;
 DEFINE FIELD detected_at ON conflicts_with TYPE option<datetime>;
 
-DEFINE TABLE implemented_by TYPE RELATION IN decision OUT git_commit | pull_request SCHEMAFULL;
+DEFINE TABLE implemented_by TYPE RELATION IN decision | task OUT git_commit | pull_request SCHEMAFULL;
 DEFINE FIELD commit_sha ON implemented_by TYPE option<string>;
 DEFINE FIELD pr_url ON implemented_by TYPE option<string>;
 DEFINE FIELD linked_at ON implemented_by TYPE option<datetime>;

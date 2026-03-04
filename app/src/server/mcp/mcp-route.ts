@@ -784,6 +784,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       files_changed: Array<{ path: string; change_type: string; lines_added: number; lines_removed: number }>;
       author: string;
       task_updates?: Array<{ task_id: string; new_status: string }>;
+      related_task_ids?: string[];
       decisions_detected?: Array<{ name: string; rationale: string }>;
     }>(request);
     if (body instanceof Response) return body;
@@ -801,6 +802,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       filesChanged: body.files_changed ?? [],
       author: body.author ?? "unknown",
       taskUpdates: body.task_updates,
+      relatedTaskIds: body.related_task_ids,
       decisionsDetected: body.decisions_detected,
     });
 
