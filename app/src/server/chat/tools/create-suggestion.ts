@@ -71,8 +71,12 @@ export function createCreateSuggestionTool(deps: ChatToolDeps) {
 
       return {
         suggestion_id: `suggestion:${suggestionRecord.id as string}`,
+        text: input.text,
         category: input.category,
+        rationale: input.rationale,
+        confidence: input.confidence,
         status: "pending",
+        ...(input.target_entity_id ? { target: input.target_entity_id } : {}),
       };
     },
   });

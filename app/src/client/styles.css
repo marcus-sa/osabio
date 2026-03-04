@@ -928,6 +928,59 @@ body {
   border-color: var(--border);
 }
 
+.entity-convert-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 0.8rem;
+}
+
+.entity-convert-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.entity-convert-form select,
+.entity-convert-form input {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 0.8rem;
+}
+
+.entity-convert-form-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.2rem;
+}
+
+.entity-convert-form-actions button {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entity-convert-form-actions button:hover {
+  background: var(--hover);
+}
+
+.entity-convert-form-actions button:disabled {
+  cursor: not-allowed;
+  color: var(--muted-foreground);
+}
+
 /* Description section */
 
 .entity-detail-description {
@@ -1973,6 +2026,48 @@ body {
 
 .chat-tool-status--running {
   color: var(--ring);
+}
+
+.suggestion-tool-card {
+  border: 1px solid;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.suggestion-tool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suggestion-tool-card-category {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.suggestion-tool-card-confidence {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+.suggestion-tool-card-text {
+  font-weight: 500;
+}
+
+.suggestion-tool-card-rationale {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.suggestion-tool-card-target {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-style: italic;
 }
 
 .chat-input-container {

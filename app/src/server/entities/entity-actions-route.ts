@@ -4,7 +4,7 @@ import { HttpError } from "../http/errors";
 import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import { acknowledgeObservation, resolveObservation } from "../observation/queries";
-import { acceptSuggestion, dismissSuggestion, deferSuggestion } from "../suggestion/queries";
+import { acceptSuggestion, convertSuggestion, dismissSuggestion, deferSuggestion } from "../suggestion/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
@@ -35,8 +35,8 @@ async function handleEntityAction(
     return jsonError("invalid JSON body", 400);
   }
 
-  if (!body.action || !["confirm", "override", "complete", "set_priority", "acknowledge", "resolve", "dismiss", "accept", "defer"].includes(body.action)) {
-    return jsonError("action must be one of: confirm, override, complete, set_priority, acknowledge, resolve, dismiss, accept, defer", 400);
+  if (!body.action || !["confirm", "override", "complete", "set_priority", "acknowledge", "resolve", "dismiss", "accept", "defer", "convert"].includes(body.action)) {
+    return jsonError("action must be one of: confirm, override, complete, set_priority, acknowledge, resolve, dismiss, accept, defer, convert", 400);
   }
 
   const url = new URL(request.url);
@@ -123,6 +123,24 @@ async function handleEntityAction(
         });
         logInfo("entity.action.defer", "Suggestion deferred", { workspaceId, entityId });
         return jsonResponse({ status: "deferred" }, 200);
+      }
+
+      if (body.action === "convert") {
+        if (!body.convertTo || !["task", "feature", "decision", "project"].includes(body.convertTo)) {
+          return jsonError("convertTo must be one of: task, feature, decision, project", 400);
+        }
+        const result = await convertSuggestion({
+          surreal: deps.surreal,
+          workspaceRecord,
+          suggestionRecord: entityRecord as RecordId<"suggestion", string>,
+          targetKind: body.convertTo as "task" | "feature" | "decision" | "project",
+          title: body.convertTitle,
+          embeddingModel: deps.embeddingModel,
+          embeddingDimension: deps.config.embeddingDimension,
+          now,
+        });
+        logInfo("entity.action.convert", "Suggestion converted", { workspaceId, suggestionId: entityId, convertedEntityId: result.entityId, table: result.table });
+        return jsonResponse({ status: "converted", entityId: result.entityId, table: result.table }, 201);
       }
 
       return jsonError(`action '${body.action}' is not valid for entity type 'suggestion'`, 400);

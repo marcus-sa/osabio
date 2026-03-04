@@ -43,3 +43,16 @@ export function deferSuggestion(workspaceId: string, suggestionId: string): Prom
 export function setEntityPriority(workspaceId: string, entityId: string, priority: EntityPriority): Promise<void> {
   return executeAction(workspaceId, entityId, { action: "set_priority", priority });
 }
+
+export function convertSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+  convertTo: "task" | "feature" | "decision" | "project",
+  convertTitle?: string,
+): Promise<void> {
+  return executeAction(workspaceId, suggestionId, {
+    action: "convert",
+    convertTo,
+    ...(convertTitle ? { convertTitle } : {}),
+  });
+}

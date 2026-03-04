@@ -346,8 +346,10 @@ export type GovernanceFeedResponse = {
 };
 
 export type EntityActionRequest = {
-  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer";
+  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer" | "convert";
   notes?: string;
   newSummary?: string;
   priority?: EntityPriority;
+  convertTo?: "task" | "feature" | "decision" | "project";
+  convertTitle?: string;
 };

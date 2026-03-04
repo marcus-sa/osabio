@@ -8,9 +8,18 @@ import { EntityBadge } from "./EntityBadge";
 import { RelationshipList } from "./RelationshipList";
 import { ProvenanceSection } from "./ProvenanceSection";
 import { useViewState } from "../../stores/view-state";
-import { acceptSuggestion, confirmDecision, deferSuggestion, dismissSuggestion, markTaskComplete, overrideDecision, setEntityPriority } from "../../graph/actions";
+import { acceptSuggestion, confirmDecision, convertSuggestion, deferSuggestion, dismissSuggestion, markTaskComplete, overrideDecision, setEntityPriority } from "../../graph/actions";
 
 const CONFIRMABLE_STATUSES = new Set(["extracted", "proposed", "provisional", "inferred"]);
+
+const CATEGORY_TO_ENTITY_TYPE: Record<string, "task" | "feature" | "decision" | "project"> = {
+  optimization: "task",
+  risk: "decision",
+  opportunity: "feature",
+  conflict: "decision",
+  missing: "task",
+  pivot: "project",
+};
 
 export function EntityDetailPanel({
   entityId,
@@ -27,6 +36,9 @@ export function EntityDetailPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [actionPending, setActionPending] = useState(false);
+  const [showConvertForm, setShowConvertForm] = useState(false);
+  const [convertKind, setConvertKind] = useState<"task" | "feature" | "decision" | "project">("task");
+  const [convertTitle, setConvertTitle] = useState("");
   const navigateToDiscussEntity = useViewState((s) => s.navigateToDiscussEntity);
   const navigate = useNavigate();
 
@@ -271,6 +283,12 @@ export function EntityDetailPanel({
                 setDetail((prev) => prev ? { ...prev, entity: { ...prev.entity, data: { ...prev.entity.data, status: "accepted" } } } : prev);
               } finally { setActionPending(false); }
             }}>Accept</button>
+            <button type="button" disabled={actionPending} onClick={() => {
+              const category = (detail.entity.data.category as string) ?? "";
+              setConvertKind(CATEGORY_TO_ENTITY_TYPE[category] ?? "task");
+              setConvertTitle(detail.entity.name);
+              setShowConvertForm(true);
+            }}>Convert</button>
             <button type="button" disabled={actionPending} onClick={async () => {
               setActionPending(true);
               try {
@@ -286,6 +304,34 @@ export function EntityDetailPanel({
               } finally { setActionPending(false); }
             }}>Dismiss</button>
           </>
+        ) : undefined}
+        {showConvertForm ? (
+          <div className="entity-convert-form">
+            <label>
+              Convert to:
+              <select value={convertKind} onChange={(e) => setConvertKind(e.target.value as typeof convertKind)}>
+                <option value="task">Task</option>
+                <option value="feature">Feature</option>
+                <option value="decision">Decision</option>
+                <option value="project">Project</option>
+              </select>
+            </label>
+            <label>
+              Title:
+              <input type="text" value={convertTitle} onChange={(e) => setConvertTitle(e.target.value)} />
+            </label>
+            <div className="entity-convert-form-actions">
+              <button type="button" disabled={actionPending || !convertTitle.trim()} onClick={async () => {
+                setActionPending(true);
+                try {
+                  await convertSuggestion(workspaceId, entityId, convertKind, convertTitle.trim() || undefined);
+                  setDetail((prev) => prev ? { ...prev, entity: { ...prev.entity, data: { ...prev.entity.data, status: "converted" } } } : prev);
+                  setShowConvertForm(false);
+                } finally { setActionPending(false); }
+              }}>Confirm</button>
+              <button type="button" onClick={() => setShowConvertForm(false)}>Cancel</button>
+            </div>
+          </div>
         ) : undefined}
       </div>
     </aside>
