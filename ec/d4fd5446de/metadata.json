@@ -25,6 +25,13 @@
       "context": "/ec/d4fd5446de/1/context.md",
       "content_hash": "/ec/d4fd5446de/1/content_hash.txt",
       "prompt": "/ec/d4fd5446de/1/prompt.txt"
+    },
+    {
+      "metadata": "/ec/d4fd5446de/2/metadata.json",
+      "transcript": "/ec/d4fd5446de/2/full.jsonl",
+      "context": "",
+      "content_hash": "/ec/d4fd5446de/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
