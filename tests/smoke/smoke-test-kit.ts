@@ -1,5 +1,5 @@
 import { afterAll, beforeAll } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
 
@@ -57,6 +57,16 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
 
     const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
     await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
+
+    // Apply migrations for production parity
+    const migrationsDir = join(process.cwd(), "schema", "migrations");
+    const migrationFiles = readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".surql"))
+      .sort();
+    for (const file of migrationFiles) {
+      const migrationSql = readFileSync(join(migrationsDir, file), "utf8");
+      await withTimeout(() => surreal.query(migrationSql), 20_000, `apply migration ${file}`);
+    }
 
     serverProcess = Bun.spawn(["bun", "run", "app/server.ts"], {
       cwd: process.cwd(),
