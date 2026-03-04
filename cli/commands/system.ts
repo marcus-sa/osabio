@@ -180,6 +180,18 @@ export async function runCheckUpdates(): Promise<void> {
       console.log("--- End ---\n");
     }
 
+    // New suggestions
+    const newSuggestions = result.changes.filter(
+      (c) => c.entity_type === "suggestion" && c.change_type === "pending",
+    );
+    if (newSuggestions.length > 0) {
+      console.log("\n--- New Suggestions ---");
+      for (const s of newSuggestions) {
+        console.log(`[suggestion] ${s.entity_name}`);
+      }
+      console.log("--- End ---\n");
+    }
+
     // Update last check time
     setDirCacheEntry(cwd, { ...cached, last_session: new Date().toISOString() });
   } catch {
@@ -431,6 +443,16 @@ function formatContextPacket(packet: unknown): string {
     lines.push("## Observations");
     for (const o of observations) {
       lines.push(`  - [${o.severity}] ${o.text}`);
+    }
+    lines.push("");
+  }
+
+  // Pending suggestions
+  const suggestions = p.pending_suggestions as Array<{ text: string; category: string; confidence: number; rationale: string }> | undefined;
+  if (suggestions?.length) {
+    lines.push("## Pending Suggestions");
+    for (const s of suggestions) {
+      lines.push(`  - [${s.category}] (${s.confidence.toFixed(2)}) ${s.text} — ${s.rationale}`);
     }
     lines.push("");
   }

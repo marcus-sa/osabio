@@ -94,6 +94,20 @@ export async function runMcpServer(): Promise<void> {
     },
   );
 
+  server.tool(
+    "list_pending_suggestions",
+    "List pending and deferred suggestions from the brain. Use to see what proactive proposals agents have made for your review.",
+    {
+      status: z.string().optional().describe("Filter by status: pending (default), accepted, dismissed, deferred, converted"),
+      category: z.string().optional().describe("Filter by category: optimization, risk, opportunity, conflict, missing, pivot"),
+      limit: z.number().optional().describe("Max results to return (default 20)"),
+    },
+    async (input) => {
+      const result = await client.listSuggestions(input);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
   // =========================================================================
   // Tier 2 — Reasoning Tools
   // =========================================================================
@@ -241,6 +255,68 @@ export async function runMcpServer(): Promise<void> {
     },
     async (input) => {
       const result = await client.logObservation(input);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
+    "create_suggestion",
+    "Create a suggestion for the human to review. Use when you notice an optimization, risk, opportunity, conflict, missing element, or potential pivot that the user should consider. Suggestions surface in the feed for human review.",
+    {
+      text: z.string().describe("The suggestion itself — what you propose the user should consider or do"),
+      category: z
+        .enum(["optimization", "risk", "opportunity", "conflict", "missing", "pivot"])
+        .describe(
+          "optimization: improve existing approach. risk: potential problem. opportunity: beneficial possibility. conflict: contradictory elements. missing: gap in plan. pivot: direction change worth considering.",
+        ),
+      rationale: z.string().describe("Why you are making this suggestion — reasoning and evidence"),
+      confidence: z.number().describe("Confidence in this suggestion (0-1)"),
+      target_entity_id: z.string().optional().describe("Entity this is about (format: table:id, e.g. project:uuid)"),
+      evidence_entity_ids: z.array(z.string()).optional().describe("Supporting entity IDs (format: table:id)"),
+      session_id: z.string().optional().describe("Current agent session ID"),
+    },
+    async (input) => {
+      const result = await client.createSuggestion(input);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
+    "accept_suggestion",
+    "Accept a pending suggestion, marking it as approved for action.",
+    {
+      suggestion_id: z.string().describe("Suggestion ID (raw UUID, no table prefix)"),
+    },
+    async (input) => {
+      const result = await client.suggestionAction({ suggestion_id: input.suggestion_id, action: "accept" });
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
+    "dismiss_suggestion",
+    "Dismiss a suggestion that is not relevant or actionable.",
+    {
+      suggestion_id: z.string().describe("Suggestion ID (raw UUID, no table prefix)"),
+    },
+    async (input) => {
+      const result = await client.suggestionAction({ suggestion_id: input.suggestion_id, action: "dismiss" });
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
+    "convert_suggestion",
+    "Convert an accepted or pending suggestion into a task, feature, decision, or project entity in the knowledge graph.",
+    {
+      suggestion_id: z.string().describe("Suggestion ID (raw UUID, no table prefix)"),
+      convert_to: z
+        .enum(["task", "feature", "decision", "project"])
+        .describe("Entity type to convert the suggestion into"),
+      title: z.string().optional().describe("Override title for the created entity (defaults to suggestion text)"),
+    },
+    async (input) => {
+      const result = await client.convertSuggestion(input);
       return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
     },
   );

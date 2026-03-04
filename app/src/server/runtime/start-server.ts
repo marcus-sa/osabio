@@ -231,6 +231,27 @@ export async function startServer(): Promise<void> {
           mcpHandlers.handleLogObservation(request.params.workspaceId, request),
         ),
       },
+      // MCP — Suggestions
+      "/api/mcp/:workspaceId/suggestions": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions", "POST", (request) =>
+          mcpHandlers.handleListSuggestions(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/suggestions/create": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/create", "POST", (request) =>
+          mcpHandlers.handleCreateSuggestion(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/suggestions/action": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/action", "POST", (request) =>
+          mcpHandlers.handleSuggestionAction(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/suggestions/convert": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/convert", "POST", (request) =>
+          mcpHandlers.handleConvertSuggestion(request.params.workspaceId, request),
+        ),
+      },
       // MCP — Lifecycle
       "/api/mcp/:workspaceId/sessions/start": {
         POST: withRequestLogging("POST /api/mcp/:workspaceId/sessions/start", "POST", (request) =>

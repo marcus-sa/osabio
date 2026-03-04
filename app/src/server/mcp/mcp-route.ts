@@ -19,7 +19,14 @@ import {
   logCommit,
 } from "./mcp-queries";
 import { createObservation } from "../observation/queries";
-import { OBSERVATION_TYPES, type ObservationType, type ObservationSeverity } from "../../shared/contracts";
+import {
+  createSuggestion,
+  acceptSuggestion,
+  dismissSuggestion,
+  deferSuggestion,
+  convertSuggestion,
+} from "../suggestion/queries";
+import { OBSERVATION_TYPES, SUGGESTION_CATEGORIES, type ObservationType, type ObservationSeverity, type SuggestionCategory } from "../../shared/contracts";
 import {
   createDecisionRecord,
   createQuestionRecord,
@@ -59,7 +66,7 @@ async function parseJsonBody<T>(request: Request): Promise<T | Response> {
   }
 }
 
-const ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation"];
+const ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation", "suggestion"];
 
 function normalizeTokens(value: string): Set<string> {
   return new Set(
@@ -1056,6 +1063,278 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
   }
 
   // =========================================================================
+  // Suggestions
+  // =========================================================================
+
+  /** POST /api/mcp/:workspaceId/suggestions — List suggestions filtered by status/category */
+  async function handleListSuggestions(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{
+      status?: string;
+      category?: string;
+      limit?: number;
+    }>(request);
+    if (body instanceof Response) return body;
+
+    const limit = body.limit ?? 20;
+
+    // Use listWorkspacePendingSuggestions for pending/deferred, or run custom query
+    const statusFilter = body.status ?? "pending";
+    const validStatuses = ["pending", "accepted", "dismissed", "deferred", "converted"];
+    if (!validStatuses.includes(statusFilter)) {
+      return jsonError(`invalid status: must be one of ${validStatuses.join(", ")}`, 400);
+    }
+
+    if (body.category && !SUGGESTION_CATEGORIES.includes(body.category as SuggestionCategory)) {
+      return jsonError(`invalid category: must be one of ${SUGGESTION_CATEGORIES.join(", ")}`, 400);
+    }
+
+    const categoryClause = body.category ? `AND category = $category` : "";
+    const [rows] = await surreal
+      .query<[Array<{
+        id: RecordId<"suggestion", string>;
+        text: string;
+        category: string;
+        rationale: string;
+        suggested_by: string;
+        confidence: number;
+        status: string;
+        created_at: string | Date;
+      }>]>(
+        `SELECT id, text, category, rationale, suggested_by, confidence, status, created_at
+         FROM suggestion
+         WHERE workspace = $workspace AND status = $status ${categoryClause}
+         ORDER BY confidence DESC, created_at DESC
+         LIMIT $limit;`,
+        {
+          workspace: auth.workspaceRecord,
+          status: statusFilter,
+          ...(body.category ? { category: body.category } : {}),
+          limit,
+        },
+      )
+      .collect<[Array<{
+        id: RecordId<"suggestion", string>;
+        text: string;
+        category: string;
+        rationale: string;
+        suggested_by: string;
+        confidence: number;
+        status: string;
+        created_at: string | Date;
+      }>]>();
+
+    const suggestions = rows.map((r) => ({
+      id: r.id.id as string,
+      text: r.text,
+      category: r.category,
+      rationale: r.rationale,
+      suggested_by: r.suggested_by,
+      confidence: r.confidence,
+      status: r.status,
+      created_at: r.created_at instanceof Date ? r.created_at.toISOString() : new Date(r.created_at as string).toISOString(),
+    }));
+
+    return jsonResponse({ suggestions }, 200);
+  }
+
+  /** POST /api/mcp/:workspaceId/suggestions/create — Create a suggestion */
+  async function handleCreateSuggestion(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{
+      text: string;
+      category: string;
+      rationale: string;
+      confidence: number;
+      target_entity_id?: string;
+      evidence_entity_ids?: string[];
+      session_id?: string;
+    }>(request);
+    if (body instanceof Response) return body;
+    if (!body.text) return jsonError("text is required", 400);
+    if (!body.category) return jsonError("category is required", 400);
+    if (!body.rationale) return jsonError("rationale is required", 400);
+    if (body.confidence === undefined || body.confidence === null) return jsonError("confidence is required", 400);
+
+    if (!SUGGESTION_CATEGORIES.includes(body.category as SuggestionCategory)) {
+      return jsonError(`invalid category: must be one of ${SUGGESTION_CATEGORIES.join(", ")}`, 400);
+    }
+    if (body.confidence < 0 || body.confidence > 1) {
+      return jsonError("confidence must be between 0 and 1", 400);
+    }
+
+    const targetTables = ["project", "feature", "task", "question", "decision"] as const;
+    let targetRecord: RecordId<(typeof targetTables)[number], string> | undefined;
+    if (body.target_entity_id) {
+      try {
+        targetRecord = parseRecordIdString(body.target_entity_id, [...targetTables]);
+      } catch {
+        return jsonError(`invalid target_entity_id: ${body.target_entity_id}`, 400);
+      }
+      const scopedTargetError = await requireScopedRecord(targetRecord, auth.workspaceRecord, "target");
+      if (scopedTargetError) return scopedTargetError;
+    }
+
+    const evidenceTables = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation"] as const;
+    let evidenceRecords: RecordId<string, string>[] | undefined;
+    if (body.evidence_entity_ids) {
+      try {
+        evidenceRecords = body.evidence_entity_ids.map((id) =>
+          parseRecordIdString(id, [...evidenceTables]),
+        );
+      } catch (error) {
+        return jsonError(`invalid evidence_entity_id: ${error instanceof Error ? error.message : error}`, 400);
+      }
+    }
+
+    let sourceSessionRecord: RecordId<"agent_session", string> | undefined;
+    if (body.session_id) {
+      try {
+        const sessionId = requireRawId(body.session_id, "session_id");
+        sourceSessionRecord = new RecordId("agent_session", sessionId);
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "invalid session_id", 400);
+      }
+      const scopedSessionError = await requireScopedRecord(sourceSessionRecord, auth.workspaceRecord, "session");
+      if (scopedSessionError) return scopedSessionError;
+    }
+
+    const embedding = await createEmbeddingVector(
+      deps.embeddingModel,
+      body.text,
+      config.embeddingDimension,
+    );
+
+    const now = new Date();
+    const suggestionRecord = await createSuggestion({
+      surreal,
+      workspaceRecord: auth.workspaceRecord,
+      text: body.text,
+      category: body.category as SuggestionCategory,
+      rationale: body.rationale,
+      suggestedBy: "code-agent",
+      confidence: body.confidence,
+      now,
+      ...(sourceSessionRecord ? { sourceSessionRecord } : {}),
+      ...(targetRecord ? { targetRecord } : {}),
+      ...(evidenceRecords ? { evidenceRecords } : {}),
+      ...(embedding ? { embedding } : {}),
+    });
+
+    logInfo("mcp", "suggestion_created", { id: suggestionRecord.id as string });
+
+    return jsonResponse({
+      suggestion_id: suggestionRecord.id as string,
+      text: body.text,
+      category: body.category,
+      status: "pending",
+    }, 200);
+  }
+
+  /** POST /api/mcp/:workspaceId/suggestions/action — Accept/dismiss/defer a suggestion */
+  async function handleSuggestionAction(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{
+      suggestion_id: string;
+      action: string;
+    }>(request);
+    if (body instanceof Response) return body;
+    if (!body.suggestion_id) return jsonError("suggestion_id is required", 400);
+    if (!body.action) return jsonError("action is required", 400);
+
+    const validActions = ["accept", "dismiss", "defer"];
+    if (!validActions.includes(body.action)) {
+      return jsonError(`invalid action: must be one of ${validActions.join(", ")}`, 400);
+    }
+
+    let suggestionId: string;
+    try {
+      suggestionId = requireRawId(body.suggestion_id, "suggestion_id");
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "invalid suggestion_id", 400);
+    }
+    const suggestionRecord = new RecordId("suggestion", suggestionId);
+    const now = new Date();
+
+    try {
+      if (body.action === "accept") {
+        await acceptSuggestion({ surreal, workspaceRecord: auth.workspaceRecord, suggestionRecord, now });
+      } else if (body.action === "dismiss") {
+        await dismissSuggestion({ surreal, workspaceRecord: auth.workspaceRecord, suggestionRecord, now });
+      } else {
+        await deferSuggestion({ surreal, workspaceRecord: auth.workspaceRecord, suggestionRecord, now });
+      }
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "suggestion action failed", 400);
+    }
+
+    logInfo("mcp", `suggestion_${body.action}`, { id: suggestionId });
+
+    return jsonResponse({
+      suggestion_id: suggestionId,
+      action: body.action,
+      status: body.action === "accept" ? "accepted" : body.action === "dismiss" ? "dismissed" : "deferred",
+    }, 200);
+  }
+
+  /** POST /api/mcp/:workspaceId/suggestions/convert — Convert suggestion to entity */
+  async function handleConvertSuggestion(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{
+      suggestion_id: string;
+      convert_to: string;
+      title?: string;
+    }>(request);
+    if (body instanceof Response) return body;
+    if (!body.suggestion_id) return jsonError("suggestion_id is required", 400);
+    if (!body.convert_to) return jsonError("convert_to is required", 400);
+
+    const validTargets = ["task", "feature", "decision", "project"];
+    if (!validTargets.includes(body.convert_to)) {
+      return jsonError(`invalid convert_to: must be one of ${validTargets.join(", ")}`, 400);
+    }
+
+    let suggestionId: string;
+    try {
+      suggestionId = requireRawId(body.suggestion_id, "suggestion_id");
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "invalid suggestion_id", 400);
+    }
+    const suggestionRecord = new RecordId("suggestion", suggestionId);
+
+    try {
+      const result = await convertSuggestion({
+        surreal,
+        workspaceRecord: auth.workspaceRecord,
+        suggestionRecord,
+        targetKind: body.convert_to as "task" | "feature" | "decision" | "project",
+        title: body.title,
+        embeddingModel: deps.embeddingModel,
+        embeddingDimension: config.embeddingDimension,
+        now: new Date(),
+      });
+
+      logInfo("mcp", "suggestion_converted", { id: suggestionId, to: result.table });
+
+      return jsonResponse({
+        suggestion_id: suggestionId,
+        converted_to: result.entityId,
+        table: result.table,
+      }, 200);
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "conversion failed", 400);
+    }
+  }
+
+  // =========================================================================
   // Return all handlers
   // =========================================================================
 
@@ -1080,6 +1359,11 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     handleCreateSubtask,
     handleLogNote,
     handleLogObservation,
+    // Suggestions
+    handleListSuggestions,
+    handleCreateSuggestion,
+    handleSuggestionAction,
+    handleConvertSuggestion,
     // Lifecycle
     handleSessionStart,
     handleSessionEnd,
