@@ -2,10 +2,10 @@
 -- Replaces vector-based KNN search (which requires embedding API calls per query)
 -- with fast, deterministic full-text search using SurrealDB analyzers.
 --
--- NOTE: search::score() and @N@ do not work inside DEFINE FUNCTION (SurrealDB v2.6).
+-- NOTE: search::score() and @N@ do not work inside DEFINE FUNCTION (SurrealDB v3.0).
 -- Search queries run from the app layer instead. See: https://github.com/surrealdb/surrealdb/issues/7013
 
--- DEFINE ANALYZER cannot run inside a transaction in SurrealDB v2.6
+-- DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0
 DEFINE ANALYZER OVERWRITE entity_search
   TOKENIZERS blank, class, camel, punct
   FILTERS snowball(english), lowercase;

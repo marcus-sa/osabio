@@ -39,7 +39,7 @@
 - Apply migrations with `bun migrate` — the migration runner (`schema/migrate.ts`) tracks applied migrations in a `_migration` table and only runs pending ones.
 - Do NOT apply migrations manually via `surreal import` or raw HTTP calls — always use `bun migrate`.
 - Wrap migration scripts in `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` so they succeed or fail atomically.
-- `DEFINE ANALYZER` cannot run inside a transaction in SurrealDB v2.6. Place it before the `BEGIN TRANSACTION;` block.
+- `DEFINE ANALYZER` cannot run inside a transaction in SurrealDB v3.0. Place it before the `BEGIN TRANSACTION;` block.
 - Prefer `DEFINE ... OVERWRITE` or `ALTER TABLE` / `ALTER FIELD` for schema evolution; reserve `IF NOT EXISTS` for bootstrap-only creation.
 - When removing fields, update schema and stored rows in the same migration (`REMOVE FIELD ...; UPDATE ... UNSET ...;`).
 - Verify applied schema with `INFO FOR TABLE <table>;` in the target namespace/database.
@@ -234,9 +234,9 @@ When the PM agent suggests work items, the chat agent renders them as `WorkItemS
   - `GraphEntityRecord` and `SourceRecord` are `RecordId<UnionOfTables, string>` aliases.
 - Use `record.table.name` for table branching (the SDK's public API; `.tb` is an undeclared internal field that may break on upgrade).
 
-## SurrealDB KNN + WHERE Bug (v2.6)
+## SurrealDB KNN + WHERE Bug (v3.0)
 
-- SurrealDB v2.6 query planner silently returns empty results when a WHERE clause combines a KNN operator (`<|K, COSINE|>`, which uses the HNSW index) with a condition covered by a regular B-tree index (e.g. `workspace = $ws` when a `workspace` index exists).
+- SurrealDB v3.0 query planner silently returns empty results when a WHERE clause combines a KNN operator (`<|K, COSINE|>`, which uses the HNSW index) with a condition covered by a regular B-tree index (e.g. `workspace = $ws` when a `workspace` index exists).
 - Tables WITHOUT a B-tree index on the filtered field work fine with KNN + WHERE in the same clause.
 - Workaround: split into two steps — KNN in a `LET` subquery (HNSW index only), then filter by workspace in a second query (B-tree index only):
   ```sql
@@ -279,9 +279,7 @@ DEFINE INDEX idx_task_fulltext ON task FIELDS title FULLTEXT ANALYZER entity_sea
   ```
 - `search::score(N)` returns the BM25 relevance score for predicate N.
 - `search::highlight('<b>', '</b>', N)` returns text with matching tokens wrapped in tags.
-- SurrealDB v2.6 syntax: `FULLTEXT ANALYZER` (not `SEARCH ANALYZER` which is v3.0+).
-
-### Known limitations (SurrealDB v2.6)
+### Known limitations (SurrealDB v3.0)
 
 - `search::score()` and `@N@` do NOT work inside `DEFINE FUNCTION` — the predicate reference is lost across the function boundary. Search queries must run from the app layer. See: https://github.com/surrealdb/surrealdb/issues/7013
 - `@N@` does NOT work with SDK bound parameters (`$query`). The search term must be embedded as a string literal in the query. Escape single quotes before interpolation.
