@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c1941c29a9ae",
+  "session_id": "02c5f45d-8253-4d3b-b2bf-1d4d98ab51c2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T07:36:11.836284Z",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "evals/scorers/no-forbidden-tools.ts",
+    "evals/types.ts",
+    "package.json",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/handler.ts",
+    "evals/chat-agent-seed-data.ts",
+    "evals/scorers/tool-invoked.ts",
+    "tests/unit/chat-context.test.ts",
+    "evals/chat-agent.eval.ts",
+    "evals/eval-test-kit.ts",
+    "evals/scorers/correct-tool-selection.ts",
+    "evals/scorers/no-clarification-when-clear.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2a71bed65fbf",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T07:36:11.80762Z",
+    "agent_lines": 497,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 497,
+    "agent_percentage": 100
+  }
+}
