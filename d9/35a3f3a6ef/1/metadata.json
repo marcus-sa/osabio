@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "d935a3f3a6ef",
+  "session_id": "b47b9afc-1f96-485f-a173-019b6da28152",
   "strategy": "manual-commit",
+  "created_at": "2026-03-04T12:37:30.308985Z",
   "branch": "marcus-sa/coding-agent-integration",
   "checkpoints_count": 2,
   "files_touched": [
@@ -17,27 +19,22 @@
     "plugin/CLAUDE.md",
     "schema/migrations/20260304_observation_coding_agent_fields.surql"
   ],
-  "sessions": [
-    {
-      "metadata": "/d9/35a3f3a6ef/0/metadata.json",
-      "transcript": "/d9/35a3f3a6ef/0/full.jsonl",
-      "context": "/d9/35a3f3a6ef/0/context.md",
-      "content_hash": "/d9/35a3f3a6ef/0/content_hash.txt",
-      "prompt": "/d9/35a3f3a6ef/0/prompt.txt"
-    },
-    {
-      "metadata": "/d9/35a3f3a6ef/1/metadata.json",
-      "transcript": "/d9/35a3f3a6ef/1/full.jsonl",
-      "context": "/d9/35a3f3a6ef/1/context.md",
-      "content_hash": "/d9/35a3f3a6ef/1/content_hash.txt",
-      "prompt": "/d9/35a3f3a6ef/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "fbe555b5b9f4",
   "token_usage": {
     "input_tokens": 3712,
     "cache_creation_tokens": 106057,
     "cache_read_tokens": 6660483,
     "output_tokens": 25319,
     "api_call_count": 68
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T12:37:28.777379Z",
+    "agent_lines": 173,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 173,
+    "agent_percentage": 100
   }
 }
