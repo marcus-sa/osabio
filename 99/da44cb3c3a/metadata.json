@@ -3,7 +3,7 @@
   "checkpoint_id": "99da44cb3c3a",
   "strategy": "manual-commit",
   "branch": "marcus-sa/cli-setup-command",
-  "checkpoints_count": 3,
+  "checkpoints_count": 8,
   "files_touched": [
     ".gitignore",
     "AGENTS.md",
@@ -19,13 +19,20 @@
       "context": "/99/da44cb3c3a/0/context.md",
       "content_hash": "/99/da44cb3c3a/0/content_hash.txt",
       "prompt": "/99/da44cb3c3a/0/prompt.txt"
+    },
+    {
+      "metadata": "/99/da44cb3c3a/1/metadata.json",
+      "transcript": "/99/da44cb3c3a/1/full.jsonl",
+      "context": "/99/da44cb3c3a/1/context.md",
+      "content_hash": "/99/da44cb3c3a/1/content_hash.txt",
+      "prompt": "/99/da44cb3c3a/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 28808,
-    "cache_read_tokens": 455102,
-    "output_tokens": 1650,
-    "api_call_count": 11
+    "input_tokens": 51,
+    "cache_creation_tokens": 61945,
+    "cache_read_tokens": 2349706,
+    "output_tokens": 4113,
+    "api_call_count": 31
   }
 }
