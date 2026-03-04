@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "99e9ebd5def9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/add-suggestion-entity",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/chat/SuggestionToolCard.tsx",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/graph/actions.ts",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/styles.css",
+    "app/src/server/chat/tools/create-suggestion.ts",
+    "app/src/server/entities/entity-actions-route.ts",
+    "app/src/server/suggestion/queries.ts",
+    "app/src/shared/contracts.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/99/e9ebd5def9/0/metadata.json",
+      "transcript": "/99/e9ebd5def9/0/full.jsonl",
+      "context": "/99/e9ebd5def9/0/context.md",
+      "content_hash": "/99/e9ebd5def9/0/content_hash.txt",
+      "prompt": "/99/e9ebd5def9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 721,
+    "cache_creation_tokens": 411233,
+    "cache_read_tokens": 28605041,
+    "output_tokens": 77030,
+    "api_call_count": 246
+  }
+}
