@@ -295,14 +295,16 @@ Workspace (e.g., "Marcus's Brain")
   ├── Person (workspace-scoped, works across projects)
   ├── Conversation (workspace-scoped, can touch multiple projects)
   ├── Meeting (workspace-scoped, subtype of Conversation)
-  └── Project (e.g., "Schack Systems", "Consulting", "whack.gg")
+  ├── Initiative (optional strategic goal, e.g., "Expand into EU", "Reduce churn by 30%")
+  │    └── Project (serves the initiative)
+  └── Project (standalone, no initiative parent)
        └── Feature (e.g., "Extraction Pipeline", "Graph View")
             └── Task / Decision / Question
 ```
 
 **Scoping rules:**
 
-- **Workspace-level:** Person, Conversation, Meeting. These are never scoped to a single project. A person works across projects. A conversation can produce entities in multiple projects. This is what enables cross-project intelligence.
+- **Workspace-level:** Person, Conversation, Meeting, Initiative. These are never scoped to a single project. A person works across projects. A conversation can produce entities in multiple projects. An Initiative groups projects under a strategic goal.
 - **Project-level:** Feature, Task, Decision, Question. These belong to a specific project (or feature within a project). The extraction pipeline determines project assignment — users never pick a project before chatting.
 - **Write-time enforcement:** `workspaceId` is required on every API write (hard multi-tenant boundary). `projectId` is never required on conversations or people. Project assignment on extracted entities is resolved by the extraction pipeline with confidence scores. Low-confidence assignments are surfaced for user confirmation.
 - **Search/context APIs:** Default to workspace-wide. Optional `projectId` filter as a query parameter, not a write constraint. MCP server can scope context to a specific project when a coding agent requests it.
@@ -319,16 +321,19 @@ For Phase 1 dogfooding: one Workspace, one Project ("AI-Native Business Manageme
 | **Person** | Workspace | A team member or stakeholder. Workspace-scoped because people work across projects. Linked to entities in any project via OWNS, DECIDED_BY, ASSIGNED_TO edges. **Person nodes are authoritative identity records — they are only created through explicit actions (workspace creation, IAM integration, manual invite), never inferred from chat extraction.** When the extraction pipeline detects a name in conversation that doesn't match an existing Person node, it stores the reference as an unresolved string attribute (e.g., `decided_by: "Sarah"`) and optionally surfaces a suggestion: "You mentioned Sarah — want to add her to the workspace?" which triggers the IAM flow. | name, role, contact info, identities[] |
 | **Conversation** | Workspace | A chat session or message thread. Workspace-scoped because a single conversation can produce entities across multiple projects. Never requires a projectId. | messages[], embedding, source, timestamp |
 | **Meeting** | Workspace | A meeting with transcript (subtype of Conversation). Same scoping rules as Conversation. | title, attendees[], transcript_ref, calendar_event_ref, source_provider, recorded_at |
-| **Project** | Workspace | A bounded initiative or workstream within a workspace | name, status, description_entries[], created_at |
+| **Initiative** | Workspace | A strategic goal or objective the business is working towards. Groups related Projects under a shared purpose. Examples: "Expand into EU market", "Reduce churn by 30%", "Launch self-serve billing". Optional — not every Project needs an Initiative parent. Enables strategic rollup: "what's the status of the EU expansion?" aggregates across all child Projects. The Initiative's description_entries auto-update as child Projects, Decisions, and Features progress. Introduced as an entity type in Phase 1, but active use expected from Phase 3+ when cross-project intelligence makes rollups valuable. | name, status, description_entries[], target_metric, deadline |
+| **Project** | Workspace/Initiative | A bounded initiative or workstream. Can optionally belong to an Initiative (the strategic goal it serves). Multiple Projects can serve the same Initiative. Projects without an Initiative parent are standalone. | name, status, description_entries[], created_at |
 | **Feature** | Project | A distinct capability or component within a project. Maps to a PRD. Natural grouping layer between Project and Task. | name, status, description_entries[], prd (progressive), owner |
-| **Task** | Project/Feature | An actionable commitment with an owner | title, description, owner, deadline, status, priority, category |
+| **Task** | Project/Feature | An actionable commitment with an owner | title, description_entries[], owner, deadline, status, priority, category |
 | **Decision** | Project/Feature | A ratified choice with context | summary, rationale, decided_by, decided_at, status (extracted / proposed / confirmed / superseded) |
 | **Question** | Project/Feature | An unanswered question or open item | text, assigned_to, status, context |
 | **Learning** | Workspace | A behavioral modification for an agent. Human-created learnings are active immediately. Agent-suggested learnings require human approval before activation. Active learnings are injected into the target agent's system prompt during context build. Analogous to CTX's "persistent memory" or Claude Code plugin "instincts," but stored as graph entities with provenance and approval flow. Introduced in Phase 4. | text, target_agent, suggested_by, status (active / pending_approval / dismissed), source_conversation |
+| **Suggestion** | Workspace/Project | A proactive observation or recommendation from an agent. Unlike Tasks (work to do), Suggestions are "here's something you should consider" — they may become Tasks, Decisions, Features, or Projects upon acceptance. Agents generate Suggestions by observing graph patterns: stale decisions, missing coverage, cross-project conflicts, priority drift, single points of failure. Suggestions surface in the feed for human review. Accepted Suggestions convert to other entity types with full provenance. This is the building block for an autonomous OS — agents don't just respond to input, they actively observe and propose improvements. Introduced in Phase 3. | text, category (optimization / risk / opportunity / conflict / missing / pivot), rationale, suggested_by, confidence, status (pending / accepted / dismissed / deferred / converted), converted_to, converted_kind, evidence[], scope (task / feature / project / workspace), target, description_entries[] |
+| **AgentSession** | Project | A logged coding agent session. Every Claude Code / Cursor / Aider session that connects via the MCP plugin produces a AgentSession entity on session end. Contains a structured summary of what happened: decisions made, questions asked, tasks progressed, files changed. Linked to all entities the agent interacted with via PRODUCED (→ Decision), ASKED (→ Question), and PROGRESSED (→ Task) edges. Makes implementation activity a first-class queryable part of the graph. Introduced in Phase 3. | agent, repo, started_at, ended_at, summary, decisions_made[], questions_asked[], tasks_progressed[], files_changed[] |
 
-#### Living Descriptions (Projects and Features)
+#### Living Descriptions (Projects, Features, and Tasks)
 
-Project and Feature descriptions are **append-only timelines** that auto-update as the graph evolves. Each entry captures what changed, why, and what triggered the change. Task descriptions are simple editable strings — tasks are short-lived enough that they don't need a changelog.
+Project, Feature, and Task descriptions are **append-only timelines** that auto-update as the graph evolves. Each entry captures what changed, why, and what triggered the change.
 
 **Description entry model:**
 
@@ -355,19 +360,24 @@ DEFINE FIELD description_entries.*.reasoning ON TABLE project TYPE string;
 DEFINE FIELD description_entries.*.triggered_by ON TABLE project TYPE array<record>;
 DEFINE FIELD description_entries.*.created_at ON TABLE project TYPE datetime DEFAULT time::now();
 DEFINE FIELD description_entries.*.model ON TABLE project TYPE string;
--- Same for feature table
+-- Same schema for feature and task tables
 ```
 
 **Auto-update triggers (handled in backend after entity changes):**
 
-| Trigger | Description entry generated | Example |
-|---------|---------------------------|---------|
-| Decision confirmed in project | Incorporate the decision into project description | "Uses JWT with refresh tokens for session management." Reasoning: "Decision confirmed: Use JWT with refresh tokens" |
-| Feature created in project | Add the feature's scope to project description | "Includes user authentication with login, registration, and password reset." Reasoning: "Feature added: User Authentication" |
-| Feature marked complete | Update project description with implementation details | "Auth middleware deployed with rate limiting." Reasoning: "Feature completed: User Authentication" |
-| Task completed | Refine feature description with implementation specifics | "Rate limiting set to 100 req/min per user using token bucket." Reasoning: "Task completed: Configure rate limiting" |
-| Commit linked to decision | Add implementation context | "JWT implementation uses RS256 signing." Reasoning: "Commit abc123 linked to Decision: JWT auth" |
-| Multiple related changes | Batch into single entry | Combines several task completions into one coherent description update |
+| Trigger | Applies to | Description entry generated | Example |
+|---------|-----------|---------------------------|---------|
+| Decision confirmed in project | Project | Incorporate the decision into project description | "Uses JWT with refresh tokens for session management." |
+| Feature created in project | Project | Add the feature's scope to project description | "Includes user authentication with login, registration, and password reset." |
+| Feature marked complete | Project | Update project description with implementation details | "Auth middleware deployed with rate limiting." |
+| Task completed | Feature, Project | Refine description with implementation specifics | "Rate limiting set to 100 req/min per user using token bucket." |
+| Commit linked to decision | Project, Feature | Add implementation context | "JWT implementation uses RS256 signing." |
+| Decision affects task scope | Task | Update task description with new constraints or approach | "Approach changed: use token bucket instead of sliding window per Decision: Rate limiting strategy." |
+| Dependency task completed | Task | Refine task with information from completed dependency | "Auth middleware is ready — implement refresh token rotation against the new JWT endpoint at /api/auth/refresh." |
+| Constraint discovered | Task | Add constraint to task description | "Must handle concurrent refresh requests — Decision: Use mutex on token rotation." |
+| Project progress changes | Initiative | Rollup child project status into initiative description | "EU expansion 40% complete — GDPR compliance shipped, payment integration in progress, localization not started." |
+| Project added to initiative | Initiative | Update initiative scope | "Now includes localization project alongside GDPR compliance and payment integration." |
+| Multiple related changes | All | Batch into single entry | Combines several task completions into one coherent description update |
 
 **Generation:** After a triggering event, queue a description update job. The job queries the current description (latest entry), the triggering entity, and relevant context from the graph, then prompts the LLM (Haiku) to generate a new description entry that incorporates the new information. The LLM sees: current description, what changed, and why — it produces a refined description and a one-line reasoning string.
 
@@ -404,6 +414,8 @@ req/min. Supports login, registration, and password reset."
 | Edge | Connects | Properties |
 |------|----------|------------|
 | **HAS_PROJECT** | Workspace → Project | added_at |
+| **HAS_INITIATIVE** | Workspace → Initiative | added_at |
+| **SERVES** | Project → Initiative | added_at (a project serves a strategic initiative — multiple projects can serve the same initiative, and a project can serve multiple initiatives) |
 | **HAS_FEATURE** | Project → Feature | added_at |
 | **HAS_TASK** | Feature → Task | added_at |
 | **OWNS** | Person → Task / Project / Feature | assigned_at |
@@ -417,6 +429,13 @@ req/min. Supports login, registration, and password reset."
 | **MEMBER_OF** | Person → Workspace | role (owner, member), joined_at |
 | **BRANCHED_FROM** | Conversation → Conversation | branched_at, context_entities[] |
 | **TOUCHED_BY** | Project → Conversation | first_mention_at, entity_count (derived from extraction — computed when entities extracted from a conversation are linked to a project) |
+| **SUGGESTS_FOR** | Suggestion → any entity | The target entity the suggestion is about (optional — workspace-scoped suggestions may not target a specific entity) |
+| **EVIDENCED_BY** | Suggestion → any entity[] | Graph entities that support / triggered this suggestion |
+| **CONVERTED_TO** | Suggestion → Task / Decision / Feature / Project | When a suggestion is accepted and converted to another entity type |
+| **PRODUCED** | AgentSession → Decision | Decision created during this agent session |
+| **ASKED** | AgentSession → Question | Question raised during this agent session |
+| **PROGRESSED** | AgentSession → Task | Task whose status changed during this agent session |
+| **ANSWERED_BY** | Question → Decision | When a question's answer becomes a confirmed decision |
 
 ### 3.2 Extraction Pipeline
 
@@ -631,7 +650,7 @@ create_provisional_decision({
 - The server queries SurrealDB, traverses the graph for relevant nodes, and returns a token-budgeted context packet (similar to ctx's `--budget` flag)
 - As the agent makes commits, those flow back through the GitHub integration and update the graph — closing the loop
 
-**Why this matters:** Coding agents today start near-zero every session. They re-discover architecture decisions, repeat past mistakes, and lack awareness of business context. By feeding them the knowledge graph, every coding session inherits the full decision history and project state. The agent knows *why* things were built a certain way, not just *how*. With decision delegation, agents also stop stalling on unresolved questions — they make provisional decisions, log them, and the human reviews them in the feed alongside all other pending items.
+**Why this matters:** Coding agents today start near-zero every session. They re-discover architecture decisions, repeat past mistakes, and lack awareness of business context. By feeding them the knowledge graph, every agent session inherits the full decision history and project state. The agent knows *why* things were built a certain way, not just *how*. With decision delegation, agents also stop stalling on unresolved questions — they make provisional decisions, log them, and the human reviews them in the feed alongside all other pending items.
 
 **Context packet includes:**
 - Active decisions and their rationale (including provisional ones from other agents)
@@ -894,11 +913,57 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
 2. **IAM foundation:** Implement the Person identity resolution layer. Link GitHub usernames to Person nodes via OAuth. Build the identities array model so that a single Person can be resolved across providers. This is prerequisite infrastructure for Slack and all future integrations.
 3. **Drift detection:** Compare decisions made in chat with actual code implementations. Flag divergences: "team decided approach A but code implements approach B."
 4. **Cross-project reasoning engine:** When a new decision or change is added to any project, traverse the graph for related entities across all projects. Classify results into hard conflicts, soft tensions, and opportunities.
-5. **Action feed view (json-render):** The third core view: a daily-driver feed showing what changed, what needs attention, stale commitments, cross-project conflicts, and decisions awaiting input. Built using json-render: define a catalog of feed components (`ConflictCard`, `StaleCommitment`, `DecisionReview`, `QuestionPrompt`, `DependencyAlert`) with typed props via Zod schemas. The reasoning LLM queries the graph, then generates JSON that maps to these components — each feed item is dynamically composed from graph context but guardrailed to the catalog. Feed items stream and render progressively.
+5. **Action feed view (json-render):** The third core view: a daily-driver feed showing what changed, what needs attention, stale commitments, cross-project conflicts, and decisions awaiting input. Built using json-render: define a catalog of feed components (`ConflictCard`, `StaleCommitment`, `DecisionReview`, `QuestionPrompt`, `DependencyAlert`, `SuggestionCard`) with typed props via Zod schemas. The reasoning LLM queries the graph, then generates JSON that maps to these components — each feed item is dynamically composed from graph context but guardrailed to the catalog. Feed items stream and render progressively.
 6. **PRD questioning flow (Tiptap AI Toolkit):** AI asks structured questions to flesh out a Feature. Unanswered questions become tracked Question nodes linked to that Feature and assigned to relevant people. The PRD is rendered as a Tiptap document — a live projection of the Feature's subgraph with custom nodes for decisions, dependencies, constraints, and questions. As the graph updates (new decisions from chat, resolved dependencies from commits), the reasoning LLM edits the PRD via Tiptap AI Toolkit, showing tracked changes the user can accept or reject. User edits to the document are extracted back into the graph (bidirectional sync). Features can be created by branching from chat or explicitly via commands.
 7. **MCP server v1 + Claude Code plugin:** Expose Tier 1 read tools (`get_project_context`, `get_active_decisions`) plus Tier 2 reasoning tools (`resolve_decision`, `check_constraints`) that coding agents can call. Token-budgeted context packets from the graph. `resolve_decision` queries existing decisions and constraints to answer agent questions; `check_constraints` validates proposed actions against the graph before the agent proceeds. Ship as a Claude Code marketplace plugin (not shell scripts) — hooks + skills bundled, two-command install, automatic updates. `SessionStart` hook injects graph context, `Stop` hook (prompt-based, Haiku) catches unlogged decisions, `PostToolUse` on Write|Edit logs implementation activity back to graph. Test with Claude Code during dogfooding — use it while building the platform itself.
+8. **Background suggestion engine:** Implement the Suggestion entity type and the observer agents that generate them. Suggestions are proactive: agents analyze the graph without being asked and surface observations for human review.
 
-*Deliverable: Three connected views (chat, graph, feed). GitHub activity enriches the graph. Cross-project conflicts are automatically surfaced. MCP server provides coding agents with live project context. IAM resolves identities across GitHub and the platform.*
+   **Trigger patterns (when to generate suggestions):**
+   - **On graph change:** After any entity creation/update, run a lightweight analysis (Haiku) checking for local issues: does this new decision conflict with anything? Does this task have an unresolved dependency? Is this feature missing an owner?
+   - **Periodic sweep (daily/configurable):** A scheduled analysis agent scans the full workspace graph for systemic patterns:
+     - Provisional decisions older than 2 weeks → Suggestion(category: "risk", "Stale provisional decision: [X]. Confirm or revisit.")
+     - Features with no tasks → Suggestion(category: "missing", "Feature [X] has no implementation tasks.")
+     - Tasks blocked for >1 week → Suggestion(category: "risk", "Task [X] has been blocked for [N] days. Consider unblocking or reassigning.")
+     - Projects with no activity in 2+ weeks → Suggestion(category: "risk", "Project [X] appears stalled.")
+     - Cross-project entity overlap (two projects touching the same domain concept) → Suggestion(category: "opportunity", "Projects [A] and [B] both involve [domain]. Consider shared infrastructure.")
+     - Decision patterns contradicting stated priorities → Suggestion(category: "pivot", "80% of recent decisions are about [X] but stated priority is [Y].")
+     - Dependency chains longer than 3 hops with no owner → Suggestion(category: "risk", "Long dependency chain: [A] → [B] → [C] → [D] with no single owner.")
+     - Single points of failure (multiple features depending on one undecided/unimplemented entity) → Suggestion(category: "risk", "[N] features depend on [X] which has no fallback.")
+   
+   **Generation flow:**
+   ```
+   Trigger fires (graph change or periodic sweep)
+     → Observer agent queries relevant graph subgraph
+     → LLM (Haiku) analyzes patterns, generates candidate suggestions
+     → Dedup against existing pending suggestions (semantic similarity)
+     → New Suggestion entities created with status: "pending"
+     → Suggestions appear in feed as SuggestionCard components
+   ```
+   
+   **Feed integration:** SuggestionCard component shows: category icon, suggestion text, rationale (expandable), evidence entities (clickable links), confidence score, and action buttons: Accept (opens conversion flow — pick target type: task/decision/feature/project, pre-filled from suggestion), Dismiss (with optional reason), Defer (moves to "deferred" status, resurfaces after configurable interval).
+   
+   **Conversion flow:** When a Suggestion is accepted:
+   1. User picks target type (task, decision, feature, project) — pre-selected based on suggestion category
+   2. New entity created with fields pre-filled from suggestion text and rationale
+   3. Suggestion status → "converted", `converted_to` → new entity ID, `converted_kind` → entity type
+   4. CONVERTED_TO edge created for provenance
+   5. New entity inherits EVIDENCED_BY edges as RELATES_TO edges
+   
+   **Category → default conversion mapping:**
+   - optimization → Task (category: engineering)
+   - risk → Decision (status: proposed) or Task (category: engineering)
+   - opportunity → Feature or Project
+   - conflict → Decision (to resolve the conflict)
+   - missing → Task (category: research) or Feature
+   - pivot → Decision (to confirm or reject the reorientation)
+   
+   **Agent-specific suggestion patterns:**
+   - Architect agent: gaps in business model, competitive positioning, target user clarity
+   - Management agent: stale decisions, blocked tasks, priority drift, missing owners
+   - Code agent (via MCP): technical debt, duplication across repos, missing tests, security patterns
+   - Research agent: market changes, competitor moves, adjacent opportunities
+
+*Deliverable: Three connected views (chat, graph, feed). GitHub activity enriches the graph. Cross-project conflicts are automatically surfaced. MCP server provides coding agents with live project context. IAM resolves identities across GitHub and the platform. Background suggestion engine proactively surfaces risks, opportunities, and improvements from graph analysis — agents observe and propose without being asked.*
 
 ---
 
@@ -908,7 +973,7 @@ The MVP is structured as four two-week phases, designed for dogfooding from day 
 
 1. **Slack bot:** Deploy bot that can be added to workspaces. DM conversations with full graph access. Channel monitoring with high-confidence extraction. Slash commands for explicit actions (`/brain decide`, `/brain task`, `/brain status`). Identity resolution linking Slack users to Person nodes via IAM.
 2. **Project branching UX:** Refine the flow from chat → project creation. Natural escalation: select a conversation chunk, AI suggests creating a project. Smooth transition without mode-switching.
-3. **MCP server v2 (plugin update):** Add Tier 3 write tools: `create_provisional_decision` for agents to make provisional decisions when the graph has no existing answer. Provisional decisions surface in the feed as `DecisionReview` cards for human confirmation. Expand Tier 1 read tools with `get_task_dependencies`, `get_architecture_constraints`, `get_recent_changes`. Add context scoping by repo/directory. Governance enforcement: agents can create `provisional` and `inferred` decisions but never `confirmed` — only humans confirm. Plugin update ships automatically to existing Claude Code users. Publish equivalent MCP server config for Cursor and other MCP-compatible agents.
+3. **MCP server v2 (plugin update):** Add Tier 3 write tools: `create_provisional_decision` for agents to make provisional decisions when the graph has no existing answer, `ask_question` for agents to raise questions that surface in the feed for human (or agent) answers — answered questions auto-create confirmed Decision entities linked via ANSWERED_BY edge, and `update_task_status` for agents to report progress. Add AgentSession logging: every agent session produces a AgentSession entity in the graph on session end, linked to all decisions, questions, and tasks the agent touched (via PRODUCED, ASKED, PROGRESSED edges). Provisional decisions surface in the feed as `DecisionReview` cards, questions surface as `QuestionCard` with answer input. Expand Tier 1 read tools with `get_task_dependencies`, `get_architecture_constraints`, `get_recent_changes`. Governance enforcement: agents can create `provisional` and `inferred` decisions but never `confirmed` — only humans confirm. The question → answer → decision flow means coding agents don't need to guess: they ask, the human answers, and the answer becomes a confirmed decision in the graph. Plugin update ships automatically to existing Claude Code users. Publish equivalent MCP server config for Cursor and other MCP-compatible agents.
 4. **Notification system:** Configurable alerts for hard conflicts (immediate), soft tensions (daily digest), and opportunities (weekly summary). Delivered via email, in-app feed, and Slack bot.
 5. **Onboarding flow:** First-run experience that guides users through a first conversation, shows the extraction working, and demonstrates the graph building in real time. Include GitHub OAuth and optional Slack bot installation.
 6. **Performance and reliability:** Load testing on SurrealDB with realistic graph sizes. Optimize extraction pipeline latency. Error handling and retry logic.
@@ -1122,7 +1187,7 @@ MVP success is measured by dogfooding utility and early access engagement, not v
 - **Retention:** >60% weekly active usage after 2 weeks
 - **Cross-project value:** at least 3 users report the system surfacing a conflict or dependency they would have missed
 - **Trust metric:** users act on feed suggestions without manual verification >50% of the time
-- **MCP adoption:** at least 5 coding sessions using graph context via MCP during dogfooding, with measurable reduction in context re-explanation
+- **MCP adoption:** at least 5 agent sessions using graph context via MCP during dogfooding, with measurable reduction in context re-explanation
 - **Slack engagement:** at least 3 early access users connect the Slack bot; >50% of their graph interactions happen via Slack rather than the web UI
 - **Identity coverage:** >90% of Person nodes have at least 2 linked provider identities
 
