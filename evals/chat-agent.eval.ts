@@ -53,6 +53,7 @@ const WRITE_TOOLS = [
   "confirm_decision",
   "create_question",
   "create_observation",
+  "create_suggestion",
   "invoke_pm_agent",
 ];
 
