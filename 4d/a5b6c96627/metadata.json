@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4da5b6c96627",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/add-suggestion-entity",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/context-builder.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/mcp/types.ts",
+    "app/src/server/runtime/start-server.ts",
+    "cli/commands/system.ts",
+    "cli/http-client.ts",
+    "cli/mcp-server.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4d/a5b6c96627/0/metadata.json",
+      "transcript": "/4d/a5b6c96627/0/full.jsonl",
+      "context": "/4d/a5b6c96627/0/context.md",
+      "content_hash": "/4d/a5b6c96627/0/content_hash.txt",
+      "prompt": "/4d/a5b6c96627/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7508,
+    "cache_creation_tokens": 120759,
+    "cache_read_tokens": 3765596,
+    "output_tokens": 18133,
+    "api_call_count": 39
+  }
+}
