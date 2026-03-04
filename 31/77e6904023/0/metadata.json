@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3177e6904023",
+  "session_id": "27ff5757-8d43-4f07-832e-2826a768c87e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T06:03:12.942248Z",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "package.json",
+    "schema/migrate.ts",
+    "schema/migrations/.gitkeep",
+    "tests/smoke/smoke-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "00b0dd038b35",
+  "token_usage": {
+    "input_tokens": 1052,
+    "cache_creation_tokens": 42063,
+    "cache_read_tokens": 811564,
+    "output_tokens": 6017,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T06:03:12.822798Z",
+    "agent_lines": 104,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 104,
+    "agent_percentage": 100
+  }
+}
