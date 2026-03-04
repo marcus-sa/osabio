@@ -231,6 +231,8 @@ export async function runEndSession(): Promise<void> {
     let tasksProgressed: Array<{ task_id: string; from_status: string; to_status: string }> | undefined;
     let filesChanged: Array<{ path: string; change_type: string }> | undefined;
     let observationsLogged: string[] | undefined;
+    let subtasksCreated: string[] | undefined;
+    let suggestionsCreated: string[] | undefined;
 
     if (stdinText) {
       const parsed = JSON.parse(stdinText) as Record<string, unknown>;
@@ -309,6 +311,20 @@ export async function runEndSession(): Promise<void> {
         }
         observationsLogged = parsed.observations_logged;
       }
+
+      if (parsed.subtasks_created !== undefined) {
+        if (!Array.isArray(parsed.subtasks_created) || !parsed.subtasks_created.every((v) => typeof v === "string")) {
+          throw new Error("subtasks_created must be an array of string ids");
+        }
+        subtasksCreated = parsed.subtasks_created;
+      }
+
+      if (parsed.suggestions_created !== undefined) {
+        if (!Array.isArray(parsed.suggestions_created) || !parsed.suggestions_created.every((v) => typeof v === "string")) {
+          throw new Error("suggestions_created must be an array of string ids");
+        }
+        suggestionsCreated = parsed.suggestions_created;
+      }
     }
 
     // Get session_id from cache, or create a session as fallback
@@ -329,6 +345,8 @@ export async function runEndSession(): Promise<void> {
       tasks_progressed: tasksProgressed,
       files_changed: filesChanged,
       observations_logged: observationsLogged,
+      subtasks_created: subtasksCreated,
+      suggestions_created: suggestionsCreated,
     });
 
     // Clear session_id from cache

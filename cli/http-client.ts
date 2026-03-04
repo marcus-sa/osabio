@@ -236,6 +236,8 @@ export class BrainHttpClient {
     tasks_progressed?: Array<{ task_id: string; from_status: string; to_status: string }>;
     files_changed?: Array<{ path: string; change_type: string }>;
     observations_logged?: string[];
+    subtasks_created?: string[];
+    suggestions_created?: string[];
   }): Promise<unknown> {
     const res = await fetch(this.url("/sessions/end"), {
       method: "POST",

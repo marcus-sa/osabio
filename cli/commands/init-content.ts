@@ -19,10 +19,17 @@ export const BRAIN_HOOKS: Record<string, Array<{ type: string; command?: string;
   Stop: [
     {
       type: "prompt",
-      prompt: `Review this conversation for architecture or design decisions that were made but NOT logged via the Brain MCP tools (create_provisional_decision, ask_question, log_observation). For each unlogged decision, call create_provisional_decision now. For each unresolved question, call ask_question now. For notable contradictions/duplication/missing/deprecated/pattern/anomaly findings, call log_observation now.
+      prompt: `Review this conversation for items that were discussed but NOT logged via the Brain MCP tools. Check each category:
+
+1. **Decisions**: Implementation choices made but not logged. Call create_provisional_decision for each.
+2. **Questions**: Unresolved questions raised but not logged. Call ask_question for each.
+3. **Observations**: Contradictions, duplication, missing items, deprecated patterns, or anomalies noticed. Call log_observation for each.
+4. **Task progress**: Tasks worked on whose status wasn't updated. Call update_task_status for each.
+5. **Subtasks identified**: Work items or follow-up tasks discussed but not created. Call create_subtask for each (requires a parent task).
+6. **Suggestions**: Optimizations, risks, opportunities, missing elements, or potential pivots noticed during work. Call create_suggestion for each with category (optimization|risk|opportunity|conflict|missing|pivot), rationale, and confidence (0-1).
 
 After logging everything, respond with valid JSON in this exact shape:
-{"decision":"approve","summary":"<one-line session summary>","decisions_made":["<decision-id>"],"questions_asked":["<question-id>"],"tasks_progressed":[{"task_id":"<task-id>","from_status":"<from>","to_status":"<to>"}],"files_changed":[{"path":"<path>","change_type":"created|modified|deleted"}],"observations_logged":["<observation-id>"]}
+{"decision":"approve","summary":"<one-line session summary>","decisions_made":["<decision-id>"],"questions_asked":["<question-id>"],"tasks_progressed":[{"task_id":"<task-id>","from_status":"<from>","to_status":"<to>"}],"files_changed":[{"path":"<path>","change_type":"created|modified|deleted"}],"observations_logged":["<observation-id>"],"subtasks_created":["<subtask-id>"],"suggestions_created":["<suggestion-id>"]}
 
 If you cannot log required items (for example MCP unavailable), respond with:
 {"decision":"block","reason":"Log these items first: ..."}`,
@@ -68,6 +75,7 @@ This project is connected to the Brain knowledge graph via MCP tools. The graph 
 - \`update_task_status\` — Track progress. Triggers automatic subtask rollup on parent tasks.
 - \`create_subtask\` — Break tasks into smaller pieces. Includes semantic dedup (returns existing if similar).
 - \`log_implementation_note\` — Append notes about what was implemented and how.
+- \`create_suggestion\` — Propose an optimization, risk, opportunity, conflict, missing element, or pivot for human review. Surfaces in the feed.
 
 ## Decision Governance
 
