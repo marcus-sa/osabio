@@ -58,3 +58,245 @@ observation and task have source_session fields
 ---
 
 commit
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: The user presented two CLI command stubs that needed implementation:
+   - `brain check-commit` — pre-commit hook that currently just prints a message, needs Haiku LLM analysis
+   - `brain system end-session` — SessionEnd hook that prints a message but doesn't read stdin or call server
+
+2. **Exploration Phase**: I launched an Explore agent to understand the codebase architecture, including SurrealDB schema, extraction pipeline patterns, runtime dependencies, and the MCP server design.
+
+3. **Planning Phase**: I read key files (http-client.ts, brain.ts, start-server.ts, system.ts, git-hooks.ts, mcp-route.ts, mcp-queries.ts, types.ts, config.ts, extract-graph.ts) and created a plan.
+
+4. **User Question about session_id**: The user asked "why do we need session start? isnt it enough to write it at session end?" - I explained the two-step design exists for active session tracking. I proposed three options.
+
+5. **User Decision**: User said "write session start and write session end - it'd be cool to see what is being actively worked on in the ui" - confirming they want separate start/end for active session visibility.
+
+6. **Implementation of check-commit and end-session** (committed as 7925b7a):
+   - Added `session_id` to `DirCacheEntry` in config.ts
+   - Modified `runLoadContext()` to call `sessionStart()` and cache session_id
+   - Implemented `runEndSession()` with stdin reading, JSON parsing, session_id from cache
+   - Added `checkCommit()` to HTTP client
+   - Added `handleCheckCommit` server endpoint with Haiku LLM analysis (generateObject with Zod schema)
+   - Registered route in start-server.ts
+   - Implemented CLI check-commit with diff truncation and stderr output
+   - Fixed type error: `listProjectDecisions` returns `{confirmed, provisional, contested}` not an array
+
+7. **Cross-agent awareness discussion**: User asked "given that we now have agent sessions, should agents then not be aware of other agents working on something?" - I proposed three things: active sessions in context, cross-session decisions in check-updates, conflict detection on decision creation.
+
+8. **Observations**: User said "we need to do the same for observations" - I explored the observation infrastructure (found it was already fully wired). User clarified they meant cross-agent awareness for observations too.
+
+9. **User feedback on source_session**: User noted "observation and task have source_session fields" - these were already added by another agent/the user.
+
+10. **Cross-agent awareness implementation** (committed as 62afd7a):
+    - Added `ActiveSessionContext` type to types.ts
+    - Added `active_sessions` to `ContextPacket`
+    - Added `loadActiveSessions()` function in context-builder.ts
+    - Added `excludeSessionId` parameter to `buildProjectContext()`
+    - Added observations to `loadRecentChanges()`
+    - Passed `session_id` through context chain (http-client, mcp-route, system.ts)
+    - Reordered `runLoadContext()` to create session first, then load context
+    - Extended `runCheckUpdates()` for cross-agent activity
+    - Added active sessions rendering in `formatContextPacket()` with `formatTimeAgo()`
+
+Key files modified across both commits:
+- `cli/config.ts`
+- `cli/commands/system.ts`
+- `cli/commands/git-hooks.ts`
+- `cli/http-client.ts`
+- `app/src/server/mcp/mcp-route.ts`
+- `app/src/server/mcp/context-builder.ts`
+- `app/src/server/mcp/types.ts`
+- `app/src/server/runtime/start-server.ts`
+
+Errors encountered:
+1. Type error with `listProjectDecisions` - it returns `{confirmed, provisional, contested}` object, not an array. Fixed by spreading all three arrays.
+
+User messages (non-tool):
+1. Initial plan with two stubs to implement
+2. "why do we need session start? isnt it enough to write it at session end?"
+3. "write session start and write session end - it'd be cool to see what is being actively worked on in the ui"
+4. "commit" (first commit request)
+5. "given that we now have agent sessions, should agents then not be aware of other agents working on something? one of the goals is cross project intelligence..."
+6. "we need to do the same for observations"
+7. "observation and task have source_session fields"
+8. "commit" (second commit request)
+9. Summary request
+
+Summary:
+1. Primary Request and Intent:
+   The user requested implementation of two CLI command stubs for a Brain knowledge graph integration with coding agents, then expanded scope to include cross-agent awareness:
+   
+   **Phase 1 - CLI Stubs (committed as 7925b7a):**
+   - `brain check-commit` — Pre-commit git hook at `cli/commands/git-hooks.ts:37` that was just printing "Checking commit…". Needed a Haiku LLM call via a new server endpoint `POST /api/mcp/:workspaceId/commits/check` to analyze staged diffs for task completions, unlogged decisions, and constraint violations.
+   - `brain system end-session` — SessionEnd hook at `cli/commands/system.ts:149` that was printing "Session ended" without reading stdin or calling the server. Needed to read Claude Code's Stop hook JSON from stdin and forward to `POST /api/mcp/:workspaceId/sessions/end`.
+   
+   **Phase 2 - Cross-Agent Awareness (committed as 62afd7a):**
+   User requested that agents be aware of other agents working on the same project. "one of the goals is cross project intelligence. if two agents are working on an area that overlap and they both decide on something differently then they collide." This required surfacing active sessions with their provisional decisions and observations in the context packet.
+
+2. Key Technical Concepts:
+   - Vercel AI SDK `generateObject()` with Zod schema for structured LLM output
+   - SurrealDB graph queries with `RecordId` objects, `RELATE` edges, `produced`/`observed_in` relations
+   - Claude Code hook lifecycle: SessionStart → UserPromptSubmit → SessionEnd with stdin piping
+   - Agent session tracking: `agent_session` table with `started_at`/`ended_at` for active session visibility
+   - `source_session` field on `task` and `observation` tables linking entities to their creating session
+   - Cross-agent coordination through the knowledge graph (no direct agent-to-agent messaging)
+   - Dir cache (`~/.brain/dir-cache.json`) for persisting `session_id` across CLI invocations
+   - Context packet (`ContextPacket` type) as the structured payload agents receive on SessionStart
+
+3. Files and Code Sections:
+
+   - **`cli/config.ts`**
+     - Added `session_id?: string` to `DirCacheEntry` type for persisting session IDs across CLI calls
+     ```typescript
+     export type DirCacheEntry = {
+       project_id: string;
+       project_name: string;
+       last_session?: string;
+       session_id?: string;
+     };
+     ```
+
+   - **`cli/commands/system.ts`**
+     - Core file for session lifecycle. Heavily modified across both commits.
+     - `runLoadContext()` reordered to create session FIRST, then load context with `session_id` for self-exclusion:
+     ```typescript
+     // Create session first so we can exclude self from active sessions
+     let sessionId: string | undefined;
+     try {
+       const session = await client.sessionStart({
+         agent: "claude-code",
+         directory: cwd,
+         project_id: cached.project_id,
+       });
+       sessionId = session.session_id;
+     } catch {}
+
+     const context = await client.getContext({
+       project_id: cached.project_id,
+       since: cached.last_session,
+       session_id: sessionId,
+     });
+     ```
+     - `runEndSession()` fully implemented: reads stdin via `Bun.stdin.stream()`, parses JSON, gets session_id from cache (or creates as fallback), calls `sessionEnd()`, clears session_id
+     - `runCheckUpdates()` extended with cross-agent activity detection for provisional decisions and warning/conflict observations
+     - `formatContextPacket()` extended with active sessions rendering including `formatTimeAgo()` helper
+     - New `ActiveSession` type alias used in formatting for agent/directory/task/decisions/observations display
+
+   - **`cli/commands/git-hooks.ts`**
+     - `runCheckCommit()` fully implemented: gets full diff (`git diff --cached` instead of `--stat`), truncates to 8000 chars, calls server, displays findings to stderr, never blocks commits
+     ```typescript
+     const result = await client.checkCommit({
+       project_id: cached.project_id,
+       diff: truncatedDiff,
+       commit_message: commitMessage,
+     });
+     for (const tc of result.task_completions) {
+       if (tc.confidence >= 0.6) {
+         process.stderr.write(`Brain: This commit may complete: ${tc.task_title}\n`);
+       }
+     }
+     ```
+
+   - **`cli/http-client.ts`**
+     - Added `checkCommit()` method calling `POST /commits/check`
+     - Added `session_id?: string` to `getContext()` body signature
+     - Already had `logObservation()` and `sessionEnd()` with `observations_logged` (added by user/other agent)
+
+   - **`app/src/server/mcp/mcp-route.ts`**
+     - Added `handleCheckCommit` handler with Haiku LLM analysis using `generateObject()`:
+     ```typescript
+     const commitCheckSchema = z.object({
+       task_completions: z.array(z.object({
+         task_title: z.string().describe("Title of the task this commit likely completes"),
+         confidence: z.number().describe("0-1 confidence score"),
+       })),
+       unlogged_decisions: z.array(z.object({
+         description: z.string().describe("What architectural/design decision was made"),
+       })),
+       constraint_violations: z.array(z.object({
+         constraint: z.string().describe("The constraint being violated"),
+         violation: z.string().describe("How the diff violates it"),
+         severity: z.enum(["warning", "error"]),
+       })),
+       summary: z.string().describe("One-line summary of the analysis"),
+     });
+     ```
+     - Loads active tasks, decisions, and constraints in parallel for LLM context
+     - Destructures `extractionModel` from deps for Haiku calls
+     - `handleGetContext()` updated to accept `session_id` and pass as `excludeSessionId`
+     - Added `handleCheckCommit` to returned handlers object
+
+   - **`app/src/server/mcp/context-builder.ts`**
+     - Added `excludeSessionId?: string` parameter to `buildProjectContext()`
+     - New `loadActiveSessions()` function (~80 lines):
+       - Queries active sessions (no `ended_at`) on same project, excluding self
+       - Loads provisional decisions via `produced` relation edges
+       - Loads open observations via `source_session` field
+       - Resolves task titles for task-scoped sessions
+       - Groups observations by session
+     - Added observations to `loadRecentChanges()` query (new `$recent_observations` LET block)
+     - Updated query result tuple type from `[null, null, null, null, RecentChangeRow[]]` to `[null, null, null, null, null, RecentChangeRow[]]` (6 elements)
+     - New row types: `ActiveAgentSessionRow`, `SessionDecisionRow`, `SessionObservationRow`
+
+   - **`app/src/server/mcp/types.ts`**
+     - Added `ActiveSessionContext` type:
+     ```typescript
+     export type ActiveSessionContext = {
+       id: string;
+       agent: string;
+       directory: string;
+       started_at: string;
+       task?: { id: string; title: string };
+       provisional_decisions: Array<{ id: string; summary: string }>;
+       observations: Array<{ id: string; text: string; severity: string }>;
+     };
+     ```
+     - Added `active_sessions: ActiveSessionContext[]` to `ContextPacket`
+     - Pre-existing changes by user: `source_session?: string` on `TaskContext` and `sibling_tasks`
+
+   - **`app/src/server/runtime/start-server.ts`**
+     - Registered `POST /api/mcp/:workspaceId/commits/check` route
+
+4. Errors and fixes:
+   - **Type error with `listProjectDecisions` return type**: The function returns `{ confirmed: DecisionRow[], provisional: DecisionRow[], contested: DecisionRow[] }` not a flat array. The check-commit handler was treating it as an array with `.length` and `.map()`. Fixed by spreading all three arrays: `const allDecisions = [...decisions.confirmed, ...decisions.provisional, ...decisions.contested]`
+   - **User design feedback on session lifecycle**: Initially planned to create+end session both at end-session time. User explicitly said "write session start and write session end - it'd be cool to see what is being actively worked on in the ui" — so I kept the two-step flow with session creation at SessionStart and caching the session_id.
+
+5. Problem Solving:
+   - **session_id lifecycle**: Solved by storing in dir-cache at SessionStart, reading at SessionEnd, with fallback creation if missing
+   - **Self-exclusion from active sessions**: Solved by passing `excludeSessionId` through the context chain and reordering SessionStart to create session before loading context
+   - **Cross-agent decision attribution**: The `produced` relation edges from `agent_session` to `decision` enable querying which decisions belong to which sessions
+   - **Cross-agent observation attribution**: The `source_session` field on observations enables direct session-scoped queries
+
+6. All user messages:
+   - "plan: brain check-commit — no LLM analysis (cli/commands/git-hooks.ts:37)..." (initial task description with two stubs)
+   - "why do we need session start? isnt it enough to write it at session end?"
+   - "i am asking: why do we have session start and session end?"
+   - "write session start and write session end - it'd be cool to see what is being actively worked on in the ui"
+   - "commit" (first commit)
+   - "given that we now have agent sessions, should agents then not be aware of other agents working on something? one of the goals is cross project intelligence. if two agents are working on an area that overlap and they both decide on something differently then they collide. or if one has already decided on one thing, then the agent knows"
+   - "we need to do the same for observations"
+   - "observation and task have source_session fields"
+   - "commit" (second commit)
+
+7. Pending Tasks:
+   - No explicitly pending tasks. Both commits are complete. All 6 task items are marked completed.
+
+8. Current Work:
+   The most recent work was committing the cross-agent awareness feature (commit 62afd7a). The user's last message was "commit" which was fulfilled. All requested work has been completed across two commits:
+   - `7925b7a` — Wire up check-commit LLM analysis and end-session stdin forwarding
+   - `62afd7a` — Add cross-agent awareness via active session tracking in context packet
+
+9. Optional Next Step:
+   No explicit next step requested. Both features are committed. The branch is `marcus-sa/coding-agent-integration`. If the user wants to continue, potential directions discussed but not requested include:
+   - Conflict detection when creating provisional decisions (semantic similarity check against other sessions' decisions)
+   - Pushing the branch or creating a PR
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-minnetonka-v1/ce539a48-bc17-4383-bd9d-9ad7151eb645.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
