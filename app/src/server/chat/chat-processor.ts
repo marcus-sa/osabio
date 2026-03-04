@@ -194,6 +194,13 @@ export async function processChatMessage(input: {
           token,
         });
       },
+      onReasoning: async (token) => {
+        input.deps.sse.emitEvent(input.messageId, {
+          type: "reasoning",
+          messageId: input.messageId,
+          token,
+        });
+      },
     });
 
     let assistantText = graphAwareResponse.text.trim();

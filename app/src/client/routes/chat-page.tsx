@@ -110,12 +110,19 @@ export function ChatPage() {
                   const isLastInherited = isInherited
                     && index < conversations.length - 1
                     && !chat.inheritedMessageIds.has(conversations[index + 1].id);
+                  const reasoning = chat.reasoningByMessageId.get(conversation.id);
                   return (
                     <div
                       key={conversation.id}
                       data-message-id={conversation.id}
                       className={isInherited ? "message-inherited" : undefined}
                     >
+                      {reasoning ? (
+                        <details className="thinking-block">
+                          <summary>Thinking</summary>
+                          <pre className="thinking-content">{reasoning}</pre>
+                        </details>
+                      ) : undefined}
                       <SessionMessage
                         conversation={conversation}
                         isLast={index === conversations.length - 1}

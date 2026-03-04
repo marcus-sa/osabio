@@ -1204,6 +1204,42 @@ body {
   opacity: 0.2 !important;
 }
 
+/* --- Thinking Block --- */
+
+.thinking-block {
+  margin: 0.25rem 0;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--muted);
+  font-size: 0.8rem;
+}
+
+.thinking-block > summary {
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  color: var(--muted-foreground);
+  font-style: italic;
+  user-select: none;
+}
+
+.thinking-block > summary:hover {
+  color: var(--foreground);
+}
+
+.thinking-content {
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--border);
+  max-height: 20rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted-foreground);
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
 /* --- Governance Feed --- */
 
 .home-page {

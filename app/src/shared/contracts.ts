@@ -196,8 +196,15 @@ export type ErrorEvent = {
   error: string;
 };
 
+export type ReasoningEvent = {
+  type: "reasoning";
+  messageId: string;
+  token: string;
+};
+
 export type StreamEvent =
   | TokenEvent
+  | ReasoningEvent
   | AssistantMessageEvent
   | ExtractionEvent
   | OnboardingSeedEvent

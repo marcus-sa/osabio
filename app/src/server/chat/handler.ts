@@ -42,6 +42,7 @@ export async function runChatAgent(input: {
   isOnboarding?: boolean;
   onboardingState?: OnboardingState;
   onToken: (token: string) => Promise<void> | void;
+  onReasoning?: (token: string) => Promise<void> | void;
 }): Promise<ChatAgentResult> {
   const context = await buildChatContext({
     surreal: input.surreal,
@@ -95,6 +96,11 @@ export async function runChatAgent(input: {
   const collectedRelationships: CollectedRelationship[] = [];
 
   for await (const part of result.fullStream) {
+    if (part.type === "reasoning-delta") {
+      await input.onReasoning?.(part.text);
+      continue;
+    }
+
     if (part.type === "text-delta") {
       text = `${text}${part.text}`;
       await input.onToken(part.text);

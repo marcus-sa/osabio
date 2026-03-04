@@ -39,6 +39,7 @@ type UseChatSessionReturn = {
   searchMentions: (query: string) => Promise<MentionItem[]>;
   onUploadFile: (file: File) => void;
   onChatInputClickCapture: (event: MouseEvent<HTMLDivElement>) => void;
+  reasoningByMessageId: Map<string, string>;
   setErrorMessage: (message: string | undefined) => void;
   refreshSidebar: (workspaceId: string) => Promise<void>;
 };
@@ -68,6 +69,7 @@ export function useChatSession(): UseChatSessionReturn {
   const [inheritedMessageIds, setInheritedMessageIds] = useState<Set<string>>(new Set());
   const [pendingFile, setPendingFile] = useState<File | undefined>();
   const [conversationDiscussEntity, setConversationDiscussEntity] = useState<DiscussEntitySummary | undefined>();
+  const [reasoningByMessageId, setReasoningByMessageId] = useState<Map<string, string>>(new Map());
   const streamRef = useRef<EventSource | undefined>(undefined);
   const chatInputRef = useRef<ChatInputRef | null>(null);
 
@@ -461,12 +463,19 @@ export function useChatSession(): UseChatSessionReturn {
     }
 
     let streamedText = "";
+    let streamedReasoning = "";
 
     const stream = new EventSource(payload.streamUrl);
     streamRef.current = stream;
 
     stream.onmessage = (messageEvent) => {
       const parsed = JSON.parse(messageEvent.data) as ChatStreamEvent;
+
+      if (parsed.type === "reasoning") {
+        streamedReasoning = `${streamedReasoning}${parsed.token}`;
+        setReasoningByMessageId((prev) => new Map(prev).set(clientMessageId, streamedReasoning));
+        return;
+      }
 
       if (parsed.type === "token") {
         streamedText = `${streamedText}${parsed.token}`;
@@ -615,6 +624,7 @@ export function useChatSession(): UseChatSessionReturn {
     inheritedMessageIds,
     discussEntity,
     conversationDiscussEntity,
+    reasoningByMessageId,
     chatInputRef,
     onSendMessage,
     onStopMessage,
