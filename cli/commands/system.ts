@@ -6,12 +6,12 @@ import { BrainHttpClient } from "../http-client";
  * Called by SessionStart hook. Outputs context as additionalContext text.
  */
 export async function runLoadContext(): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
 
   // Check dir cache for cached project
-  const cached = getDirCacheEntry(cwd);
+  const cached = await getDirCacheEntry(cwd);
 
   if (cached) {
     // Load context for cached project
@@ -37,7 +37,7 @@ export async function runLoadContext(): Promise<void> {
       // Output as text for Claude Code additionalContext
       console.log(formatContextPacket(context));
 
-      setDirCacheEntry(cwd, {
+      await setDirCacheEntry(cwd, {
         ...cached,
         session_id: sessionId,
         last_session: new Date().toISOString(),
@@ -107,7 +107,7 @@ export async function runLoadContext(): Promise<void> {
  * Cache a project for the current directory.
  */
 export async function runSetProject(projectId: string): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
 
@@ -123,7 +123,7 @@ export async function runSetProject(projectId: string): Promise<void> {
     process.exit(1);
   }
 
-  setDirCacheEntry(cwd, {
+  await setDirCacheEntry(cwd, {
     project_id: project.id,
     project_name: project.name,
     last_session: new Date().toISOString(),
@@ -137,11 +137,11 @@ export async function runSetProject(projectId: string): Promise<void> {
  * Called by UserPromptSubmit hook. Outputs alerts for critical changes.
  */
 export async function runCheckUpdates(): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
 
-  const cached = getDirCacheEntry(cwd);
+  const cached = await getDirCacheEntry(cwd);
   if (!cached?.last_session) return;
 
   try {
@@ -193,7 +193,7 @@ export async function runCheckUpdates(): Promise<void> {
     }
 
     // Update last check time
-    setDirCacheEntry(cwd, { ...cached, last_session: new Date().toISOString() });
+    await setDirCacheEntry(cwd, { ...cached, last_session: new Date().toISOString() });
   } catch {
     // Silent on error — don't block the user
   }
@@ -204,10 +204,10 @@ export async function runCheckUpdates(): Promise<void> {
  * Called by SessionEnd hook.
  */
 export async function runEndSession(): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
-  const cached = getDirCacheEntry(cwd);
+  const cached = await getDirCacheEntry(cwd);
 
   if (!cached) return; // No project mapped — nothing to end
 
@@ -332,7 +332,7 @@ export async function runEndSession(): Promise<void> {
     });
 
     // Clear session_id from cache
-    setDirCacheEntry(cwd, { ...cached, session_id: undefined });
+    await setDirCacheEntry(cwd, { ...cached, session_id: undefined });
   } catch (error) {
     console.error(`Brain: Failed to end session: ${error instanceof Error ? error.message : error}`);
   }

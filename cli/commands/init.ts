@@ -1,78 +1,201 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync, chmodSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, chmodSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { saveConfig } from "../config";
+import { findGitRoot, saveRepoConfig, loadGlobalConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
+import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_SKILLS } from "./init-content";
 
 const DEFAULT_SERVER_URL = "http://localhost:3000";
 
 export async function runInit(): Promise<void> {
   const serverUrl = process.env.BRAIN_SERVER_URL ?? DEFAULT_SERVER_URL;
-
-  console.log("Connecting to Brain server...\n");
-
-  // Fetch workspaces — for now, use the default workspace
-  // In future: prompt for workspace selection
   const workspaceId = process.env.BRAIN_WORKSPACE_ID;
+
+  const gitRoot = findGitRoot(process.cwd());
+  if (!gitRoot) {
+    console.error("Not inside a git repository. Run brain init from a project directory.");
+    process.exit(1);
+  }
+
   if (!workspaceId) {
     console.error("Set BRAIN_WORKSPACE_ID env var to your workspace ID.");
     console.error("Find it in the Brain web UI or the database.");
     process.exit(1);
   }
 
-  try {
-    // Generate API key
-    const initResult = await BrainHttpClient.initApiKey(serverUrl, workspaceId);
+  console.log("Brain Init\n──────────\n");
 
-    // Save config
-    saveConfig({
-      server_url: serverUrl,
-      workspace: workspaceId,
-      api_key: initResult.api_key,
-    });
+  // Step 1: Auth
+  await setupAuth(serverUrl, workspaceId, gitRoot);
 
-    // Install git hooks
-    installGitHooks();
+  // Step 2: .mcp.json
+  await setupMcpJson(gitRoot);
 
-    console.log(`Connected to workspace: ${initResult.workspace.name} (${workspaceId})\n`);
-    console.log("Configuration saved to ~/.brain/config.json");
-    console.log("Plugin hooks active:");
-    console.log("  SessionStart  -> infers project, loads context");
-    console.log("  UserPromptSubmit -> checks for updates");
-    console.log("  Stop          -> catches unlogged decisions + questions");
-    console.log("  SessionEnd    -> logs session to graph");
-    console.log("");
-    console.log("Git hooks installed:");
-    console.log("  pre-commit    -> checks if commit resolves tasks");
-    console.log("  post-commit   -> not installed (GitHub webhook is commit source of truth)");
-  } catch (error) {
-    console.error("Failed to connect:", error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
+  // Step 3: .claude/settings.json hooks
+  await setupClaudeHooks(gitRoot);
+
+  // Step 4: CLAUDE.md
+  await setupClaudeMd(gitRoot);
+
+  // Step 5: Skills
+  await setupSkills(gitRoot);
+
+  // Step 6: Git hooks
+  installGitHooks(gitRoot);
+
+  console.log(`\nDone. Restart Claude Code to activate.`);
 }
 
-function installGitHooks(): void {
-  // Find .git directory by walking up
-  let dir = process.cwd();
-  let gitDir: string | undefined;
+// ---------------------------------------------------------------------------
+// Step 1: Auth
+// ---------------------------------------------------------------------------
 
-  while (dir !== "/") {
-    const candidate = join(dir, ".git");
-    if (existsSync(candidate)) {
-      gitDir = candidate;
-      break;
-    }
-    dir = join(dir, "..");
-  }
-
-  if (!gitDir) {
-    console.log("\nNo .git directory found — skipping git hook installation.");
+async function setupAuth(serverUrl: string, workspaceId: string, gitRoot: string): Promise<void> {
+  const global = await loadGlobalConfig();
+  const existing = global?.repos[gitRoot];
+  if (existing && existing.workspace === workspaceId) {
+    console.log(`✓ Auth: already configured for ${gitRoot}`);
     return;
   }
 
-  const hooksDir = join(gitDir, "hooks");
-  if (!existsSync(hooksDir)) {
-    mkdirSync(hooksDir, { recursive: true });
+  const initResult = await BrainHttpClient.initApiKey(serverUrl, workspaceId);
+  await saveRepoConfig(serverUrl, gitRoot, {
+    workspace: workspaceId,
+    api_key: initResult.api_key,
+  });
+  console.log(`✓ Auth: API key saved for ${gitRoot} → workspace "${initResult.workspace.name}"`);
+}
+
+// ---------------------------------------------------------------------------
+// Step 2: .mcp.json
+// ---------------------------------------------------------------------------
+
+async function setupMcpJson(gitRoot: string): Promise<void> {
+  const mcpPath = join(gitRoot, ".mcp.json");
+  const file = Bun.file(mcpPath);
+  let mcp: { mcpServers: Record<string, unknown> } = { mcpServers: {} };
+
+  if (await file.exists()) {
+    try {
+      mcp = await file.json();
+      mcp.mcpServers ??= {};
+    } catch {
+      // Corrupted file — overwrite
+    }
   }
+
+  mcp.mcpServers.brain = { command: "brain", args: ["mcp"] };
+  await Bun.write(mcpPath, JSON.stringify(mcp, null, 2) + "\n");
+  console.log("✓ MCP: .mcp.json updated");
+}
+
+// ---------------------------------------------------------------------------
+// Step 3: .claude/settings.json hooks
+// ---------------------------------------------------------------------------
+
+type HookEntry = { type: string; command?: string; prompt?: string };
+type SettingsHookGroup = { matcher?: string; hooks: HookEntry[] };
+
+async function setupClaudeHooks(gitRoot: string): Promise<void> {
+  const claudeDir = join(gitRoot, ".claude");
+  if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
+
+  const settingsPath = join(claudeDir, "settings.json");
+  const file = Bun.file(settingsPath);
+  let settings: Record<string, unknown> = {};
+
+  if (await file.exists()) {
+    try {
+      settings = await file.json();
+    } catch {
+      // Corrupted — start fresh
+    }
+  }
+
+  const hooks = (settings.hooks ?? {}) as Record<string, SettingsHookGroup[]>;
+  let added = 0;
+
+  for (const [event, hookDefs] of Object.entries(BRAIN_HOOKS)) {
+    hooks[event] ??= [];
+
+    const hasBrain = hooks[event].some((group) =>
+      group.hooks?.some(
+        (h) => h.command?.startsWith("brain ") || h.prompt?.includes("Brain MCP"),
+      ),
+    );
+
+    if (!hasBrain) {
+      hooks[event].push({ hooks: hookDefs as HookEntry[] });
+      added++;
+    }
+  }
+
+  settings.hooks = hooks;
+  await Bun.write(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+  console.log(`✓ Hooks: .claude/settings.json updated (${added} hooks added)`);
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: CLAUDE.md
+// ---------------------------------------------------------------------------
+
+const MARKER_START = "<!-- brain-plugin-start -->";
+const MARKER_END = "<!-- brain-plugin-end -->";
+
+async function setupClaudeMd(gitRoot: string): Promise<void> {
+  const claudeMdPath = join(gitRoot, "CLAUDE.md");
+  const file = Bun.file(claudeMdPath);
+  let content = "";
+
+  if (await file.exists()) {
+    content = await file.text();
+  }
+
+  const brainBlock = `${MARKER_START}\n${BRAIN_CLAUDE_MD}\n${MARKER_END}`;
+
+  const startIdx = content.indexOf(MARKER_START);
+  const endIdx = content.indexOf(MARKER_END);
+
+  if (startIdx !== -1 && endIdx !== -1) {
+    content = content.slice(0, startIdx) + brainBlock + content.slice(endIdx + MARKER_END.length);
+  } else {
+    const separator = content.length > 0 && !content.endsWith("\n\n") ? "\n\n" : "";
+    content = content + separator + brainBlock + "\n";
+  }
+
+  await Bun.write(claudeMdPath, content);
+  console.log("✓ CLAUDE.md: Brain plugin instructions added");
+}
+
+// ---------------------------------------------------------------------------
+// Step 5: Skills
+// ---------------------------------------------------------------------------
+
+async function setupSkills(gitRoot: string): Promise<void> {
+  const commandsDir = join(gitRoot, ".claude", "commands");
+  if (!existsSync(commandsDir)) mkdirSync(commandsDir, { recursive: true });
+
+  let count = 0;
+  for (const [filename, content] of Object.entries(BRAIN_SKILLS)) {
+    await Bun.write(join(commandsDir, filename), content + "\n");
+    count++;
+  }
+
+  console.log(`✓ Skills: ${count} commands installed to .claude/commands/`);
+}
+
+// ---------------------------------------------------------------------------
+// Step 6: Git hooks
+// ---------------------------------------------------------------------------
+
+export function installGitHooks(gitRoot?: string): void {
+  const root = gitRoot ?? findGitRoot(process.cwd());
+  if (!root) {
+    console.log("  No .git directory found — skipping git hook installation.");
+    return;
+  }
+
+  const hooksDir = join(root, ".git", "hooks");
+  if (!existsSync(hooksDir)) mkdirSync(hooksDir, { recursive: true });
 
   const preCommitPath = join(hooksDir, "pre-commit");
   const postCommitPath = join(hooksDir, "post-commit");
@@ -81,22 +204,23 @@ function installGitHooks(): void {
 brain check-commit
 `;
 
-  // Only install if no existing hook
   if (!existsSync(preCommitPath)) {
-    writeFileSync(preCommitPath, preCommitScript);
+    Bun.writeSync(Bun.openSync(preCommitPath, "w"), preCommitScript);
     chmodSync(preCommitPath, 0o755);
+    console.log("✓ Git: pre-commit hook installed");
   } else {
-    console.log("  pre-commit hook already exists — skipping");
+    console.log("✓ Git: pre-commit hook already exists");
   }
+
+  // Remove legacy Brain post-commit hook
   if (existsSync(postCommitPath)) {
-    const postCommitContent = readFileSync(postCommitPath, "utf-8");
-    const isBrainManagedPostCommit = postCommitContent.includes("Brain post-commit hook")
-      && postCommitContent.includes("brain log-commit");
-    if (isBrainManagedPostCommit) {
+    const postCommitContent = Bun.file(postCommitPath).textSync();
+    const isBrainManaged =
+      postCommitContent.includes("Brain post-commit hook") &&
+      postCommitContent.includes("brain log-commit");
+    if (isBrainManaged) {
       unlinkSync(postCommitPath);
-      console.log("  removed legacy Brain post-commit hook (webhook is source of truth)");
-    } else {
-      console.log("  existing post-commit hook left unchanged");
+      console.log("  Removed legacy Brain post-commit hook");
     }
   }
 }

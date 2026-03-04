@@ -73,7 +73,7 @@ function printHelp(): void {
 brain — Connect coding agents to the Brain knowledge graph
 
 Usage:
-  brain init                     Set up workspace auth and git hooks
+  brain init                     Set up Brain integration (auth, MCP, hooks, skills, git hooks)
   brain system load-context      Load project context (SessionStart hook)
   brain system set-project <id>  Set project for current directory
   brain system check-updates     Check for graph updates (UserPromptSubmit hook)
@@ -85,6 +85,9 @@ Usage:
 Environment:
   BRAIN_SERVER_URL      Brain server URL (default: http://localhost:3000)
   BRAIN_WORKSPACE_ID    Workspace ID (required for init)
+
+Config:
+  ~/.brain/config.json  Per-repo workspace credentials
 `);
 }
 
