@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "20a0e3551c15",
+  "session_id": "2f5a0790-ee9f-4808-82d7-134cbf2fedfc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T04:40:57.616463Z",
+  "branch": "marcus-sa/analytics-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "USER_STORIES.md",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/components/graph/ProvenanceSection.tsx",
+    "app/src/client/hooks/use-chat-session.ts",
+    "app/src/client/router.tsx",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/stores/view-state.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/shared/contracts.ts",
+    "tests/unit/graph-view-state.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "970f42867c82",
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 111479,
+    "cache_read_tokens": 7041351,
+    "output_tokens": 23803,
+    "api_call_count": 78
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T04:40:57.017548Z",
+    "agent_lines": 163,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 163,
+    "agent_percentage": 100
+  }
+}
