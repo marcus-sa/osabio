@@ -1,0 +1,52 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/minnetonka-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+plan:
+brain check-commit — no LLM analysis (cli/commands/git-hooks.ts:37)
+
+Currently just prints “Checking commit…” and returns. The plan calls for a Haiku LLM call that analyzes the staged diff to detect task completions, unlogged decisions, and constraint violations.
+The HTTP route for this (POST /api/mcp/commits/check) was not implemented on the server side either — only POST /api/mcp/commits (log-commit) exists.
+brain system end-session — stub (cli/commands/system.ts:149)
+
+Prints “Session ended” but doesn’t actually read the Stop hook’s JSON summary from stdin and forward it to POST /api/mcp/sessions/end. The server endpoint exists, but the CLI doesn’t wire them together.
+
+---
+
+Continue from where you left off.
+
+---
+
+i am asking: why do we have session start and session end?
+
+---
+
+commit
+
+---
+
+given that we now have agent sessions, should agents then not be aware of other agents working on something ? one of the goals is cross project intelligence.
+if two agents are working on an area that overlap and they both decide on something differently then they collide. or if one has already decided on one thing, then the agent knows
+
+---
+
+we need to do the same for observations
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+observation and task have source_session fields
+
+---
+
+Continue from where you left off.
