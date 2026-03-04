@@ -1,5 +1,6 @@
 import { RecordId } from "surrealdb";
-import type { SearchEntityResponse } from "../../shared/contracts";
+import type { EntityKind, SearchEntityResponse } from "../../shared/contracts";
+import { createEmbeddingVector } from "../graph/embeddings";
 import { HttpError } from "../http/errors";
 import { elapsedMs, logDebug, logError, logInfo, logWarn } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
@@ -7,11 +8,10 @@ import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceProjectRecord, resolveWorkspaceRecord } from "../workspace/workspace-scope";
 
 type SearchEntityRow = {
-  id: RecordId<"task" | "decision" | "question" | "feature" | "project" | "person", string>;
-  kind: "task" | "decision" | "question" | "feature" | "project" | "person";
+  id: RecordId<string, string>;
+  kind: EntityKind;
   text: string;
-  confidence: number;
-  sourceMessage?: RecordId<"message", string>;
+  similarity: number;
 };
 
 export function createEntitySearchHandler(deps: ServerDependencies): (url: URL) => Promise<Response> {
@@ -27,7 +27,7 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
 
   const projectId = url.searchParams.get("projectId")?.trim();
 
-  const query = url.searchParams.get("q")?.trim().toLowerCase();
+  const query = url.searchParams.get("q")?.trim();
   if (!query) {
     return jsonError("q is required", 400);
   }
@@ -77,39 +77,33 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     return jsonError(errorText, 500);
   }
 
+  const vec = await createEmbeddingVector(deps.embeddingModel, query, deps.config.embeddingDimension);
+  if (!vec) {
+    return jsonError("failed to create query embedding", 500);
+  }
+
   const [rows] = projectRecord
     ? await deps.surreal
         .query<[SearchEntityRow[]]>(
-          "RETURN fn::entity_search_project($query, $limit, $workspace, $project);",
-          {
-            query,
-            limit,
-            workspace: workspaceRecord,
-            project: projectRecord,
-          },
+          "RETURN fn::entity_search_project($vec, $limit, $workspace, $project);",
+          { vec, limit, workspace: workspaceRecord, project: projectRecord },
         )
         .collect<[SearchEntityRow[]]>()
     : await deps.surreal
         .query<[SearchEntityRow[]]>(
-          "RETURN fn::entity_search_workspace($query, $limit, $workspace);",
-          {
-            query,
-            limit,
-            workspace: workspaceRecord,
-          },
+          "RETURN fn::entity_search_workspace($vec, $limit, $workspace);",
+          { vec, limit, workspace: workspaceRecord },
         )
         .collect<[SearchEntityRow[]]>();
 
-  const responseRows = rows
-    .map((row) => ({
-      id: row.id.id as string,
-      kind: row.kind,
-      text: row.text,
-      confidence: row.confidence,
-      sourceId: row.sourceMessage ? (row.sourceMessage.id as string) : "",
-      sourceKind: "message",
-    } satisfies SearchEntityResponse))
-    .slice(0, limit);
+  const responseRows = rows.map((row) => ({
+    id: row.id.id as string,
+    kind: row.kind,
+    text: row.text,
+    confidence: row.similarity,
+    sourceId: "",
+    sourceKind: "message",
+  } satisfies SearchEntityResponse));
 
   logInfo("entity.search.completed", "Entity search completed", {
     workspaceId,

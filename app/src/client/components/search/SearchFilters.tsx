@@ -6,6 +6,8 @@ const FILTER_OPTIONS: Array<{ label: string; value: EntityKind | "all" }> = [
   { label: "Task", value: "task" },
   { label: "Feature", value: "feature" },
   { label: "Question", value: "question" },
+  { label: "Observation", value: "observation" },
+  { label: "Message", value: "message" },
   { label: "Person", value: "person" },
   { label: "Project", value: "project" },
 ];

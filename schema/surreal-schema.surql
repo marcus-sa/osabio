@@ -354,150 +354,117 @@ DEFINE TABLE attended_by TYPE RELATION IN meeting OUT person SCHEMAFULL;
 DEFINE FIELD role ON attended_by TYPE option<string> ASSERT $value = NONE OR $value IN ["organizer", "attendee"];
 DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 
-DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace: record<workspace>) {
-  LET $query = string::lowercase(string::trim($q));
+DEFINE FUNCTION fn::entity_search_workspace($vec: array<float>, $limit: int, $workspace: record<workspace>) {
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
 
   LET $task_rows = SELECT
-    id,
-    "task" AS kind,
-    title AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "task" AS kind, title AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM task
-  WHERE workspace = $workspace
-    AND string::contains(string::lowercase(title), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $decision_rows = SELECT
-    id,
-    "decision" AS kind,
-    summary AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "decision" AS kind, summary AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM decision
-  WHERE workspace = $workspace
-    AND string::contains(string::lowercase(summary), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $question_rows = SELECT
-    id,
-    "question" AS kind,
-    text AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "question" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM question
-  WHERE workspace = $workspace
-    AND string::contains(string::lowercase(text), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
+
+  LET $observation_rows = SELECT
+    id, "observation" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
+  FROM observation
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $feature_rows = SELECT
-    id,
-    "feature" AS kind,
-    name AS text,
-    0.0 AS confidence,
-    NONE AS sourceMessage,
-    created_at
+    id, "feature" AS kind, name AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM feature
-  WHERE string::contains(string::lowercase(name), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $project_rows = SELECT
-    id,
-    "project" AS kind,
-    name AS text,
-    0.0 AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "project" AS kind, name AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM project
-  WHERE workspace = $workspace
-    AND string::contains(string::lowercase(name), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $person_rows = SELECT
-    id,
-    "person" AS kind,
-    name AS text,
-    0.0 AS confidence,
-    NONE AS sourceMessage,
-    created_at
+    id, "person" AS kind, name AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM person
-  WHERE string::contains(string::lowercase(name), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
-  RETURN array::flatten([$task_rows, $decision_rows, $question_rows, $feature_rows, $project_rows, $person_rows]);
+  LET $message_rows = SELECT
+    id, "message" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
+  FROM message
+  WHERE conversation.workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
+
+  LET $all = array::flatten([$task_rows, $decision_rows, $question_rows, $observation_rows, $feature_rows, $project_rows, $person_rows, $message_rows]);
+  RETURN SELECT * FROM $all ORDER BY similarity DESC LIMIT $safe_limit;
 };
 
-DEFINE FUNCTION fn::entity_search_project($q: string, $limit: int, $workspace: record<workspace>, $project: record<project>) {
-  LET $query = string::lowercase(string::trim($q));
+DEFINE FUNCTION fn::entity_search_project($vec: array<float>, $limit: int, $workspace: record<workspace>, $project: record<project>) {
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
   LET $project_entity_ids = SELECT VALUE `in` FROM belongs_to WHERE out = $project;
 
   LET $task_rows = SELECT
-    id,
-    "task" AS kind,
-    title AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "task" AS kind, title AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM task
-  WHERE workspace = $workspace
-    AND id IN $project_entity_ids
-    AND string::contains(string::lowercase(title), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND id IN $project_entity_ids AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $decision_rows = SELECT
-    id,
-    "decision" AS kind,
-    summary AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "decision" AS kind, summary AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM decision
-  WHERE workspace = $workspace
-    AND id IN $project_entity_ids
-    AND string::contains(string::lowercase(summary), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND id IN $project_entity_ids AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $question_rows = SELECT
-    id,
-    "question" AS kind,
-    text AS text,
-    extraction_confidence AS confidence,
-    source_message AS sourceMessage,
-    created_at
+    id, "question" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM question
-  WHERE workspace = $workspace
-    AND id IN $project_entity_ids
-    AND string::contains(string::lowercase(text), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE workspace = $workspace AND id IN $project_entity_ids AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
+
+  LET $observation_rows = SELECT
+    id, "observation" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
+  FROM observation
+  WHERE workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
   LET $feature_rows = SELECT
-    id,
-    "feature" AS kind,
-    name AS text,
-    0.0 AS confidence,
-    NONE AS sourceMessage,
-    created_at
+    id, "feature" AS kind, name AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
   FROM feature
-  WHERE id IN $project_entity_ids
-    AND string::contains(string::lowercase(name), $query)
-  ORDER BY created_at DESC
-  LIMIT $safe_limit;
+  WHERE id IN $project_entity_ids AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
 
-  RETURN array::flatten([$task_rows, $decision_rows, $question_rows, $feature_rows]);
+  LET $message_rows = SELECT
+    id, "message" AS kind, text AS text,
+    vector::similarity::cosine(embedding, $vec) AS similarity
+  FROM message
+  WHERE conversation.workspace = $workspace AND embedding <|20, COSINE|> $vec
+  ORDER BY similarity DESC LIMIT $safe_limit;
+
+  LET $all = array::flatten([$task_rows, $decision_rows, $question_rows, $observation_rows, $feature_rows, $message_rows]);
+  RETURN SELECT * FROM $all ORDER BY similarity DESC LIMIT $safe_limit;
 };
 
 DEFINE FUNCTION fn::conversation_recent($conversation: record<conversation>, $limit: int) {
