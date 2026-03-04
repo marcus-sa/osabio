@@ -17,6 +17,7 @@ export type ChatAgentResult = {
   text: string;
   collectedEntities: CollectedEntity[];
   collectedRelationships: CollectedRelationship[];
+  toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
 };
 
 export async function runChatAgent(input: {
@@ -94,6 +95,7 @@ export async function runChatAgent(input: {
   let text = "";
   const collectedEntities: CollectedEntity[] = [];
   const collectedRelationships: CollectedRelationship[] = [];
+  const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 
   for await (const part of result.fullStream) {
     if (part.type === "reasoning-delta") {
@@ -109,6 +111,7 @@ export async function runChatAgent(input: {
 
     if (part.type === "tool-call") {
       logInfo("chat.agent.tool_call", "Chat agent invoked tool", part);
+      toolCalls.push({ name: part.toolName, args: (part as any).input as Record<string, unknown> });
     }
 
     if (part.type === "tool-result") {
@@ -145,6 +148,7 @@ export async function runChatAgent(input: {
     text: text.trim(),
     collectedEntities,
     collectedRelationships,
+    toolCalls,
   };
 }
 

@@ -67,10 +67,15 @@ export async function setupEvalRuntime(suiteName: string): Promise<EvalRuntime> 
   const chatAgentModel = openrouter(chatAgentModelId, { plugins: [{ id: "response-healing" }] });
   const embeddingModel = openrouter.textEmbeddingModel(embeddingModelId);
 
+  const pmAgentModelId = process.env.PM_AGENT_MODEL?.trim() || extractionModelId;
+  const analyticsAgentModelId = process.env.ANALYTICS_MODEL?.trim() || "unknown";
+
   const config: ServerConfig = {
     openRouterApiKey,
     chatAgentModelId,
     extractionModelId,
+    pmAgentModelId,
+    analyticsAgentModelId,
     embeddingModelId,
     embeddingDimension,
     extractionStoreThreshold,

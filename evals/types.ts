@@ -85,3 +85,25 @@ export type SuggestionsEvalOutput = {
   assistantText: string;
   suggestions: string[];
 };
+
+export type ChatAgentTestCase = {
+  id: string;
+  userMessage: string;
+  conversationHistory?: Array<{ role: "user" | "assistant"; text: string }>;
+  expectsToolUse: boolean;
+  expectedTools?: string[];
+  forbiddenTools?: string[];
+  forbiddenResponsePatterns?: string[];
+  expectedResponseContains?: string[];
+  expectedFacts?: string;
+};
+
+export type ChatAgentEvalOutput = {
+  caseId: string;
+  userMessage: string;
+  responseText: string;
+  toolCalls: Array<{ name: string; args: Record<string, unknown> }>;
+  toolNames: string[];
+  success: boolean;
+  error?: string;
+};
