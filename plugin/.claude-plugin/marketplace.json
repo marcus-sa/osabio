@@ -1,8 +1,0 @@
-{
-  "name": "brain",
-  "version": "0.1.0",
-  "description": "Connect coding agents to the Brain knowledge graph. Every session starts with full context, implementation decisions flow back to the graph, and cross-agent coordination happens through shared state.",
-  "author": "Brain",
-  "homepage": "https://github.com/brain-platform/brain",
-  "tags": ["knowledge-graph", "context", "decisions", "coordination"]
-}

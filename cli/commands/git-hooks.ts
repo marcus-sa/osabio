@@ -8,10 +8,10 @@ import { BrainHttpClient } from "../http-client";
  * Reads staged diff and checks for task completion, unlogged decisions, constraint violations.
  */
 export async function runCheckCommit(): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
-  const cached = getDirCacheEntry(cwd);
+  const cached = await getDirCacheEntry(cwd);
 
   if (!cached) return; // No project mapped — skip silently
 

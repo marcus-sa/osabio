@@ -43,6 +43,7 @@
 - Wrap migration scripts in `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` so they succeed or fail atomically.
 - `DEFINE ANALYZER` cannot run inside a transaction in SurrealDB v3.0. Place it before the `BEGIN TRANSACTION;` block.
 - Prefer `DEFINE ... OVERWRITE` or `ALTER TABLE` / `ALTER FIELD` for schema evolution; reserve `IF NOT EXISTS` for bootstrap-only creation.
+- SurrealDB does NOT support `ALTER TABLE ... ADD FIELD`. To add fields to existing tables, use `DEFINE FIELD OVERWRITE <field> ON <table> TYPE <type>;`.
 - When removing fields, update schema and stored rows in the same migration (`REMOVE FIELD ...; UPDATE ... UNSET ...;`).
 - Verify applied schema with `INFO FOR TABLE <table>;` in the target namespace/database.
 

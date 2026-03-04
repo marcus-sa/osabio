@@ -5,12 +5,12 @@
 BEGIN TRANSACTION;
 
 -- Workspace: API key hash for MCP auth
-ALTER TABLE workspace ADD FIELD api_key_hash TYPE option<string>;
+DEFINE FIELD OVERWRITE api_key_hash ON workspace TYPE option<string>;
 
 -- Question: coding agent fields
-ALTER TABLE question ADD FIELD asked_by TYPE option<string>;
-ALTER TABLE question ADD FIELD options TYPE option<array<string>>;
-ALTER TABLE question ADD FIELD answer_summary TYPE option<string>;
-ALTER TABLE question ADD FIELD blocking_task TYPE option<record<task>>;
+DEFINE FIELD OVERWRITE asked_by ON question TYPE option<string>;
+DEFINE FIELD OVERWRITE options ON question TYPE option<array<string>>;
+DEFINE FIELD OVERWRITE answer_summary ON question TYPE option<string>;
+DEFINE FIELD OVERWRITE blocking_task ON question TYPE option<record<task>>;
 
 COMMIT TRANSACTION;

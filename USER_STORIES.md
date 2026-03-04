@@ -1,4 +1,97 @@
-# User Stories — Chat Deep-Linking (#86)
+# User Stories
+
+---
+
+## CLI Init Command (#88)
+
+### US-S1: One-command Brain integration for any repo
+
+**As a** developer adding Brain to a project,
+**I want** `brain init` to configure everything (auth, MCP, hooks, CLAUDE.md, skills, git hooks),
+**So that** I don't have to manually wire up each piece.
+
+#### Acceptance Criteria
+
+- [ ] Running `brain init` with `BRAIN_WORKSPACE_ID` set completes all 6 steps (auth, MCP, hooks, CLAUDE.md, skills, git hooks)
+- [ ] After init, starting a new Claude Code session shows Brain MCP tools available
+- [ ] After init, the SessionStart hook fires and loads project context
+- [ ] Output prints a status line for each step
+
+### US-S2: Per-repo credentials at `~/.brain/config.json`
+
+**As a** developer working across multiple repos with different Brain workspaces,
+**I want** each repo to have its own API key and workspace mapping,
+**So that** the correct credentials are used automatically based on which repo I'm in.
+
+#### Acceptance Criteria
+
+- [ ] `brain init` in repo A with workspace X writes `repos["/path/to/repo-a"]` to `~/.brain/config.json`
+- [ ] `brain init` in repo B with workspace Y adds `repos["/path/to/repo-b"]` without overwriting repo A's entry
+- [ ] Running `brain system load-context` in repo A uses repo A's credentials
+- [ ] Running `brain system load-context` in repo B uses repo B's credentials
+
+### US-S3: MCP server registration in `.mcp.json`
+
+**As a** developer running `brain init`,
+**I want** the Brain MCP server registered in `.mcp.json`,
+**So that** Claude Code discovers and starts it automatically.
+
+#### Acceptance Criteria
+
+- [ ] Creates `.mcp.json` with `mcpServers.brain` if file doesn't exist
+- [ ] Preserves existing MCP servers in the file
+- [ ] Entry uses `{ "command": "brain", "args": ["mcp"] }`
+
+### US-S4: Claude Code hooks merged non-destructively
+
+**As a** developer whose project already has hooks from other tools,
+**I want** `brain init` to add Brain hooks without removing existing ones,
+**So that** other tools continue to work.
+
+#### Acceptance Criteria
+
+- [ ] Brain hooks (SessionStart, UserPromptSubmit, Stop, SessionEnd) added to `.claude/settings.json`
+- [ ] Existing hooks from other tools preserved
+- [ ] Running `brain init` twice does not duplicate Brain hook entries
+
+### US-S5: CLAUDE.md plugin instructions are idempotent
+
+**As a** developer re-running `brain init` after an update,
+**I want** the Brain section in CLAUDE.md to be replaced (not duplicated),
+**So that** instructions stay current without manual cleanup.
+
+#### Acceptance Criteria
+
+- [ ] First run appends Brain instructions wrapped in `<!-- brain-plugin-start -->` / `<!-- brain-plugin-end -->` markers
+- [ ] Second run replaces content between markers
+- [ ] Existing CLAUDE.md content outside markers is untouched
+
+### US-S6: Skills installed to `.claude/commands/`
+
+**As a** developer using Brain with Claude Code,
+**I want** Brain skills available as slash commands,
+**So that** I can invoke `/brain-start-task` and `/brain-status` without manual setup.
+
+#### Acceptance Criteria
+
+- [ ] `brain init` creates `brain-start-task.md` and `brain-status.md` in `.claude/commands/`
+- [ ] Skills are usable as `/brain-start-task <task_id>` and `/brain-status` in Claude Code
+
+### US-S7: Git pre-commit hook installed
+
+**As a** developer committing code in a Brain-connected repo,
+**I want** a pre-commit hook that checks for task completions and constraint violations,
+**So that** commits are validated against the knowledge graph.
+
+#### Acceptance Criteria
+
+- [ ] Installs `.git/hooks/pre-commit` running `brain check-commit`
+- [ ] Does not overwrite existing pre-commit hooks from other tools
+- [ ] Removes legacy Brain post-commit hooks
+
+---
+
+## Chat Deep-Linking (#86)
 
 ## US-1: Persist active conversation in URL
 

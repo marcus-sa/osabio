@@ -5,7 +5,7 @@ import { requireConfig } from "./config";
 import { BrainHttpClient } from "./http-client";
 
 export async function runMcpServer(): Promise<void> {
-  const config = requireConfig();
+  const config = await requireConfig();
   const client = new BrainHttpClient(config);
 
   const server = new McpServer({

@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "setup": "bun install",
+    "setup": "bun install && cp $CONDUCTOR_ROOT_PATH/.env .env",
     "archive": "rm -rf node_modules"
   }
 }
