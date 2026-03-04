@@ -50,6 +50,9 @@ export function ChatPage() {
   useEffect(() => {
     if (routeConversationId && routeConversationId !== chat.activeConversationId) {
       chat.selectConversation(routeConversationId);
+    } else if (!routeConversationId && chat.activeConversationId) {
+      // Navigated from /chat/:id to /chat (e.g., discuss on new chat)
+      chat.resetChat();
     }
   }, [routeConversationId]);
 

@@ -32,6 +32,7 @@ export type UseChatSessionReturn = {
   sendMessage: (text: string, options?: { onboardingAction?: OnboardingAction }) => void;
   stopMessage: () => void;
   newConversation: () => void;
+  resetChat: () => void;
   selectConversation: (conversationId: string) => void;
   branchFromMessage: (messageId: string) => Promise<void>;
   setErrorMessage: (message: string | undefined) => void;
@@ -215,10 +216,19 @@ export function useChatSession(routeConversationId?: string): UseChatSessionRetu
     void navigate({ to: "/chat" });
   }
 
+  function resetChat() {
+    setActiveConversationId(undefined);
+    conversationIdRef.current = undefined;
+    chat.setMessages([]);
+    setErrorMessage(undefined);
+    setConversationDiscussEntity(undefined);
+  }
+
   function selectConversation(conversationId: string) {
     if (conversationId === activeConversationId || isLoading || !workspaceId) {
       return;
     }
+    clearDiscussEntity();
     void loadConversation(workspaceId, conversationId);
   }
 
@@ -269,6 +279,7 @@ export function useChatSession(routeConversationId?: string): UseChatSessionRetu
     sendMessage,
     stopMessage,
     newConversation,
+    resetChat,
     selectConversation,
     branchFromMessage,
     setErrorMessage,
