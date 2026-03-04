@@ -108,13 +108,15 @@ export async function saveRepoConfig(serverUrl: string, gitRoot: string, repo: R
 // Resolved config (what consumers use)
 // ---------------------------------------------------------------------------
 
-/** Resolve BrainConfig for the current repo from ~/.brain/config.json. */
+/** Resolve BrainConfig for the current repo from ~/.brain/config.json.
+ *  The server URL can be overridden via the BRAIN_SERVER_URL env var. */
 export async function loadConfig(): Promise<BrainConfig | undefined> {
   const gitRoot = findGitRoot(process.cwd());
   const global = await loadGlobalConfig();
   if (global && gitRoot && global.repos[gitRoot]) {
     const repo = global.repos[gitRoot];
-    return { server_url: global.server_url, workspace: repo.workspace, api_key: repo.api_key };
+    const serverUrl = process.env.BRAIN_SERVER_URL ?? global.server_url;
+    return { server_url: serverUrl, workspace: repo.workspace, api_key: repo.api_key };
   }
   return undefined;
 }

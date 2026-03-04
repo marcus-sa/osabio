@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "brain": "cli/brain.ts"
+  },
   "scripts": {
     "dev": "bun --watch --env-file=.env app/server.ts",
     "start": "bun run app/server.ts",
@@ -19,7 +22,7 @@
     "smoke:readme-import": "bun test --env-file=.env tests/smoke/readme-import.test.ts",
     "smoke:extraction-quality": "bun test --env-file=.env tests/smoke/extraction-quality.test.ts",
     "migrate": "bun run --env-file=.env schema/migrate.ts",
-    "build:cli": "bun build cli/brain.ts --compile --outfile dist/brain"
+    "build:cli": "bun build cli/brain.ts --compile --bytecode --minify --outfile brain"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.113",
