@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
-import type { Session } from "reachat";
+import type { UIMessage } from "ai";
 import type {
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
+  WorkspaceBootstrapMessage,
   WorkspaceBootstrapResponse,
 } from "../../shared/contracts";
 import { useWorkspaceState, type BootstrapPayload } from "../stores/workspace-state";
@@ -22,50 +23,17 @@ type UseWorkspaceReturn = {
   onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void;
 };
 
+function bootstrapMessagesToUIMessages(messages: WorkspaceBootstrapMessage[]): UIMessage[] {
+  return messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    parts: [{ type: "text" as const, text: m.text }],
+    createdAt: new Date(m.createdAt),
+  }));
+}
+
 function parseBootstrapMessages(payload: WorkspaceBootstrapResponse): BootstrapPayload {
-  const conversations: Session["conversations"] = [];
-  let latestSuggestions: string[] = [];
-  const inheritedIds = new Set<string>();
-
-  for (const message of payload.messages) {
-    if (message.role === "user") {
-      conversations.push({
-        id: message.id,
-        question: message.text,
-        createdAt: new Date(message.createdAt),
-      });
-      if (message.inherited) {
-        inheritedIds.add(message.id);
-      }
-      continue;
-    }
-
-    const last = conversations[conversations.length - 1];
-    if (last && !last.response) {
-      last.response = message.text;
-      last.updatedAt = new Date(message.createdAt);
-      latestSuggestions =
-        message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
-      if (message.inherited) {
-        inheritedIds.add(last.id);
-      }
-      continue;
-    }
-
-    conversations.push({
-      id: `assistant-${message.id}`,
-      question: "",
-      response: message.text,
-      createdAt: new Date(message.createdAt),
-    });
-    if (message.inherited) {
-      inheritedIds.add(`assistant-${message.id}`);
-    }
-    latestSuggestions =
-      message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
-  }
-
-  return { conversations, latestSuggestions, inheritedIds };
+  return { messages: bootstrapMessagesToUIMessages(payload.messages) };
 }
 
 export { parseBootstrapMessages, ACTIVE_WORKSPACE_STORAGE_KEY };

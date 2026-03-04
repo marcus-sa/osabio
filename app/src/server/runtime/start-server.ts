@@ -17,6 +17,7 @@ import { createWorkItemAcceptHandler } from "../entities/work-item-accept-route"
 import { createBranchConversationHandler } from "../chat/branch-conversation";
 import { createGitHubWebhookHandler } from "../webhook/github-webhook-route";
 import { createFeedRouteHandler } from "../feed/feed-route";
+import { createChatRouteHandler } from "../chat/chat-route";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -45,6 +46,7 @@ export async function startServer(): Promise<void> {
   const branchConversationHandler = createBranchConversationHandler(deps);
   const githubWebhookHandler = createGitHubWebhookHandler(deps);
   const feedHandler = createFeedRouteHandler(deps);
+  const chatRouteHandler = createChatRouteHandler(deps);
 
   const server = Bun.serve({
     port: config.port,
@@ -80,6 +82,9 @@ export async function startServer(): Promise<void> {
               request.params.conversationId,
             ),
         ),
+      },
+      "/api/chat": {
+        POST: withRequestLogging("POST /api/chat", "POST", (request) => chatRouteHandler(request)),
       },
       "/api/chat/messages": {
         POST: withRequestLogging("POST /api/chat/messages", "POST", (request) => chatHandlers.handlePostChatMessage(request)),

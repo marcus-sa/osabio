@@ -15,7 +15,6 @@ import {
 } from "../graph/queries";
 import { listWorkspaceOpenObservations } from "../observation/queries";
 import { loadOnboardingSummary } from "../onboarding/onboarding-state";
-import { chatComponentSystemPrompt } from "./chat-component-system-prompt";
 import type { GraphEntityRecord } from "../extraction/types";
 
 export type DiscussedEntityContext = {
@@ -354,13 +353,9 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "Use list_workspace_entities to retrieve full entity listings. Summary:",
     formatWorkspaceSummary(context),
     "",
-    "## UI Components",
-    chatComponentSystemPrompt,
-    "",
-    "### When to Render Components",
-    "- When invoke_pm_agent returns suggestions → render a WorkItemSuggestionList with all suggestion fields (kind, title, rationale, project, priority, category, and possibleDuplicate* fields if present).",
-    "- When show_relationship_graph returns data → render an InlineRelationshipGraph, passing the tool result props as-is.",
-    "- When mentioning entities in prose → use plain names (the system auto-converts to interactive links). Do NOT use EntityCard or ExtractionSummary for entity mentions.",
+    "## Tool Results",
+    "Tool results are rendered directly in the chat UI as typed components.",
+    "When mentioning entities in prose, use markdown links with #entity/ prefix (e.g. [Task Name](#entity/task:id)).",
     "",
   );
 

@@ -19,6 +19,7 @@
     "smoke:extraction-quality": "bun test --env-file=.env tests/smoke/extraction-quality.test.ts"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.113",
     "@openrouter/ai-sdk-provider": "^2.2.3",
     "@tanstack/react-router": "^1.131.24",
     "ai": "^6.0.101",
@@ -27,9 +28,9 @@
     "mdast-util-to-string": "^4.0.0",
     "micromark-extension-gfm": "^3.0.0",
     "pino": "^10.3.1",
-    "reachat": "^3.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "reagraph": "^4.30.8",
     "reaviz": "^16.1.2",
     "surrealdb": "2.0.0-alpha.18",

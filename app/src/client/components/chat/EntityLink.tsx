@@ -53,8 +53,7 @@ export function EntityLink(props: AnchorHTMLAttributes<HTMLAnchorElement> & { ch
 }
 
 /**
- * Markdown component override for reachat's `markdownComponents` prop.
- * Intercepts `<a>` elements and renders #entity/ links as EntityLink.
+ * Markdown component override that renders #entity/ links as EntityLink.
  */
 export const entityLinkMarkdownComponents = {
   a: EntityLink,

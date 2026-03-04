@@ -1,118 +1,137 @@
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  Session,
-  Suggestion,
-  MentionItem,
-  ChatInputRef,
-} from "reachat";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useChat, type UseChatHelpers } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import type {
   BranchConversationResponse,
-  ChatMessageResponse,
   DiscussEntitySummary,
   OnboardingAction,
-  SearchEntityResponse,
-  StreamEvent as ChatStreamEvent,
+  OnboardingState,
+  WorkspaceBootstrapMessage,
   WorkspaceConversationResponse,
 } from "../../shared/contracts";
 import { useWorkspaceState, type BootstrapPayload } from "../stores/workspace-state";
 import { useViewState } from "../stores/view-state";
 
-type UseChatSessionReturn = {
-  sessions: Session[];
-  activeSessionId: string;
-  activeSession: Session;
-  activeConversationId?: string;
+type ChatMessageMetadata = {
+  onboardingState?: OnboardingState;
+  conversationId?: string;
+};
+
+type ChatUIMessage = UIMessage<ChatMessageMetadata>;
+
+export type UseChatSessionReturn = {
+  messages: ChatUIMessage[];
+  status: UseChatHelpers<ChatUIMessage>["status"];
   isLoading: boolean;
   errorMessage?: string;
-  suggestions: Suggestion[];
-  pendingFile?: File;
+  activeConversationId?: string;
   branchingFromId?: string;
-  inheritedMessageIds: Set<string>;
   discussEntity?: DiscussEntitySummary;
   conversationDiscussEntity?: DiscussEntitySummary;
-  chatInputRef: React.RefObject<ChatInputRef | null>;
-  onSendMessage: (message: string, options?: { onboardingAction?: OnboardingAction }) => Promise<void>;
-  onStopMessage: () => void;
-  onNewConversation: () => void;
-  onSelectConversation: (conversationId: string) => void;
-  onBranchFromMessage: (messageId: string) => Promise<void>;
-  searchMentions: (query: string) => Promise<MentionItem[]>;
-  onUploadFile: (file: File) => void;
-  onChatInputClickCapture: (event: MouseEvent<HTMLDivElement>) => void;
-  reasoningByMessageId: Map<string, string>;
+  sendMessage: (text: string, options?: { onboardingAction?: OnboardingAction }) => void;
+  stopMessage: () => void;
+  newConversation: () => void;
+  selectConversation: (conversationId: string) => void;
+  branchFromMessage: (messageId: string) => Promise<void>;
   setErrorMessage: (message: string | undefined) => void;
   refreshSidebar: (workspaceId: string) => Promise<void>;
 };
 
+function bootstrapMessagesToUIMessages(messages: WorkspaceBootstrapMessage[]): ChatUIMessage[] {
+  return messages.map((m) => ({
+    id: m.id,
+    role: m.role,
+    parts: [{ type: "text" as const, text: m.text }],
+    createdAt: new Date(m.createdAt),
+  }));
+}
+
 export function useChatSession(): UseChatSessionReturn {
   const store = useWorkspaceState();
   const workspaceId = store.workspaceId;
-  const workspaceName = store.workspaceName;
   const bootstrapPayload = store.bootstrapPayload;
 
-  const [sessions, setSessions] = useState<Session[]>([
-    {
-      id: "main",
-      title: "Workspace Chat",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      conversations: [],
-    },
-  ]);
-  const [activeSessionId] = useState("main");
-  const [backendConversationId, setBackendConversationId] = useState<string | undefined>();
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [branchingFromId, setBranchingFromId] = useState<string | undefined>();
-  const [inheritedMessageIds, setInheritedMessageIds] = useState<Set<string>>(new Set());
-  const [pendingFile, setPendingFile] = useState<File | undefined>();
-  const [conversationDiscussEntity, setConversationDiscussEntity] = useState<DiscussEntitySummary | undefined>();
-  const [reasoningByMessageId, setReasoningByMessageId] = useState<Map<string, string>>(new Map());
-  const streamRef = useRef<EventSource | undefined>(undefined);
-  const chatInputRef = useRef<ChatInputRef | null>(null);
+  const [conversationDiscussEntity, setConversationDiscussEntity] = useState<
+    DiscussEntitySummary | undefined
+  >();
 
   const discussEntity = useViewState((s) => s.discussEntity);
   const clearDiscussEntity = useViewState((s) => s.clearDiscussEntity);
 
-  // Track the last applied bootstrap payload to avoid re-applying
-  const appliedBootstrapRef = useRef<BootstrapPayload | undefined>(undefined);
+  // Dynamic body refs — these are read by the transport body function
+  const conversationIdRef = useRef<string | undefined>(undefined);
+  const onboardingActionRef = useRef<OnboardingAction | undefined>(undefined);
+  const discussEntityIdRef = useRef<string | undefined>(undefined);
 
-  const activeSession = useMemo(
-    () => sessions.find((session) => session.id === activeSessionId),
-    [sessions, activeSessionId],
+  // Keep conversationId ref in sync
+  useEffect(() => {
+    conversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  // Keep discuss entity ref in sync
+  useEffect(() => {
+    discussEntityIdRef.current = discussEntity?.id;
+  }, [discussEntity]);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: () => ({
+          workspaceId,
+          ...(conversationIdRef.current ? { conversationId: conversationIdRef.current } : {}),
+          ...(onboardingActionRef.current
+            ? { onboardingAction: onboardingActionRef.current }
+            : {}),
+          ...(discussEntityIdRef.current
+            ? { discussEntityId: discussEntityIdRef.current }
+            : {}),
+        }),
+      }),
+    [workspaceId],
   );
 
-  if (!activeSession) {
-    throw new Error("active session missing");
-  }
+  const chat = useChat<ChatUIMessage>({
+    transport,
+    onFinish: ({ message }) => {
+      const metadata = message.metadata;
+      if (metadata?.conversationId && !conversationIdRef.current) {
+        setActiveConversationId(metadata.conversationId);
+        conversationIdRef.current = metadata.conversationId;
+        if (discussEntity) {
+          clearDiscussEntity();
+        }
+      }
+      if (metadata?.onboardingState) {
+        store.setOnboardingState(metadata.onboardingState);
+      }
+
+      // Refresh sidebar
+      if (workspaceId) {
+        void refreshSidebar(workspaceId);
+      }
+    },
+    onError: (error) => {
+      setErrorMessage(error.message);
+    },
+  });
+
+  const isLoading = chat.status === "streaming" || chat.status === "submitted";
 
   // Apply bootstrap payload when it arrives
+  const appliedBootstrapRef = useRef<BootstrapPayload | undefined>(undefined);
   useEffect(() => {
     if (!bootstrapPayload || bootstrapPayload === appliedBootstrapRef.current) {
       return;
     }
     appliedBootstrapRef.current = bootstrapPayload;
 
-    setSessions([
-      {
-        id: "main",
-        title: workspaceName ?? "Workspace Chat",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        conversations: bootstrapPayload.conversations,
-      },
-    ]);
-    setInheritedMessageIds(bootstrapPayload.inheritedIds);
-    setSuggestions(
-      bootstrapPayload.latestSuggestions.map((content, index) => ({
-        id: `bootstrap-suggestion-${index}-${content}`,
-        content,
-      })),
-    );
+    chat.setMessages(bootstrapPayload.messages as ChatUIMessage[]);
     setActiveConversationId(store.conversationId);
-    setBackendConversationId(store.conversationId);
+    conversationIdRef.current = store.conversationId;
   }, [bootstrapPayload]);
 
   // Highlight message support (graph -> chat navigation)
@@ -149,7 +168,7 @@ export function useChatSession(): UseChatSessionReturn {
         store.setSidebar(payload);
       }
     } catch {
-      // Sidebar refresh is non-critical; silently ignore
+      // Sidebar refresh is non-critical
     }
   }
 
@@ -165,68 +184,11 @@ export function useChatSession(): UseChatSessionReturn {
       }
 
       const payload = (await response.json()) as WorkspaceConversationResponse;
-      const conversations: Session["conversations"] = [];
-      let latestSuggestions: string[] = [];
-      const inheritedIds = new Set<string>();
-
-      for (const message of payload.messages) {
-        if (message.role === "user") {
-          conversations.push({
-            id: message.id,
-            question: message.text,
-            createdAt: new Date(message.createdAt),
-          });
-          if (message.inherited) {
-            inheritedIds.add(message.id);
-          }
-          continue;
-        }
-
-        const last = conversations[conversations.length - 1];
-        if (last && !last.response) {
-          last.response = message.text;
-          last.updatedAt = new Date(message.createdAt);
-          latestSuggestions =
-            message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
-          if (message.inherited) {
-            inheritedIds.add(last.id);
-          }
-          continue;
-        }
-
-        conversations.push({
-          id: `assistant-${message.id}`,
-          question: "",
-          response: message.text,
-          createdAt: new Date(message.createdAt),
-        });
-        if (message.inherited) {
-          inheritedIds.add(`assistant-${message.id}`);
-        }
-        latestSuggestions =
-          message.suggestions && message.suggestions.length > 0 ? message.suggestions : [];
-      }
-
-      setInheritedMessageIds(inheritedIds);
-      setSessions([
-        {
-          id: "main",
-          title: workspaceName ?? "Workspace Chat",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          conversations,
-        },
-      ]);
-
-      setSuggestions(
-        latestSuggestions.map((content, index) => ({
-          id: `conv-suggestion-${index}-${content}`,
-          content,
-        })),
-      );
+      const uiMessages = bootstrapMessagesToUIMessages(payload.messages) as ChatUIMessage[];
+      chat.setMessages(uiMessages);
 
       setActiveConversationId(conversationId);
-      setBackendConversationId(conversationId);
+      conversationIdRef.current = conversationId;
       setConversationDiscussEntity(payload.discussEntity);
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Failed to load conversation";
@@ -234,33 +196,45 @@ export function useChatSession(): UseChatSessionReturn {
     }
   }
 
-  function onNewConversation() {
+  const sendMessage = useCallback(
+    (text: string, options?: { onboardingAction?: OnboardingAction }) => {
+      if (isLoading || !workspaceId) return;
+
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      setErrorMessage(undefined);
+      onboardingActionRef.current = options?.onboardingAction;
+
+      chat.sendMessage({ text: trimmed });
+
+      // Clear after queueing
+      onboardingActionRef.current = undefined;
+    },
+    [isLoading, workspaceId, chat.sendMessage],
+  );
+
+  function stopMessage() {
+    chat.stop();
+  }
+
+  function newConversation() {
     setActiveConversationId(undefined);
-    setBackendConversationId(undefined);
-    setSessions([
-      {
-        id: "main",
-        title: workspaceName ?? "Workspace Chat",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        conversations: [],
-      },
-    ]);
-    setSuggestions([]);
+    conversationIdRef.current = undefined;
+    chat.setMessages([]);
     setErrorMessage(undefined);
     setConversationDiscussEntity(undefined);
     clearDiscussEntity();
   }
 
-  function onSelectConversation(conversationId: string) {
+  function selectConversation(conversationId: string) {
     if (conversationId === activeConversationId || isLoading || !workspaceId) {
       return;
     }
-
     void loadConversation(workspaceId, conversationId);
   }
 
-  async function onBranchFromMessage(messageId: string) {
+  async function branchFromMessage(messageId: string) {
     if (!workspaceId || !activeConversationId || isLoading) return;
 
     setBranchingFromId(messageId);
@@ -291,349 +265,20 @@ export function useChatSession(): UseChatSessionReturn {
     }
   }
 
-  async function searchMentions(query: string): Promise<MentionItem[]> {
-    if (!workspaceId) {
-      return [];
-    }
-
-    const response = await fetch(
-      `/api/entities/search?q=${encodeURIComponent(query)}&workspaceId=${encodeURIComponent(workspaceId)}&limit=8`,
-    );
-    if (!response.ok) {
-      throw new Error(`entity search failed: ${response.status}`);
-    }
-
-    const rows = (await response.json()) as SearchEntityResponse[];
-    return rows.map((row) => ({
-      id: row.id,
-      label: `${row.kind}: ${row.text.slice(0, 48)}`,
-      description: `confidence ${row.confidence.toFixed(2)}`,
-      value: `@${row.id}`,
-    }));
-  }
-
-  function onUploadFile(file: File) {
-    setPendingFile(file);
-  }
-
-  function onChatInputClickCapture(event: MouseEvent<HTMLDivElement>) {
-    if (!pendingFile || isLoading) {
-      return;
-    }
-
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    const sendButton = target.closest("button[title='Send']");
-    if (!sendButton) {
-      return;
-    }
-
-    const currentMessage = chatInputRef.current?.getValue().trim() ?? "";
-    if (currentMessage.length > 0) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    void onSendMessage("");
-  }
-
-  async function onSendMessage(
-    message: string,
-    options?: { onboardingAction?: OnboardingAction },
-  ) {
-    if (isLoading || !workspaceId) {
-      return;
-    }
-
-    const text = message.trim();
-    if (!text && !pendingFile) {
-      return;
-    }
-
-    setErrorMessage(undefined);
-    setIsLoading(true);
-    setSuggestions([]);
-
-    const clientMessageId = crypto.randomUUID();
-    const currentAttachment = pendingFile;
-
-    setSessions((existing) =>
-      existing.map((session) =>
-        session.id === activeSessionId
-          ? {
-              ...session,
-              updatedAt: new Date(),
-              conversations: [
-                ...session.conversations,
-                {
-                  id: clientMessageId,
-                  question: text.length > 0 ? text : `Uploaded ${currentAttachment?.name ?? "file"}`,
-                  createdAt: new Date(),
-                  ...(currentAttachment
-                    ? {
-                        files: [
-                          {
-                            name: currentAttachment.name,
-                            type: currentAttachment.type,
-                            size: currentAttachment.size,
-                          },
-                        ],
-                      }
-                    : {}),
-                },
-              ],
-            }
-          : session,
-      ),
-    );
-
-    let response: Response;
-    try {
-      const includeDiscussEntity = !backendConversationId && discussEntity;
-
-      if (currentAttachment) {
-        const formData = new FormData();
-        formData.set("clientMessageId", clientMessageId);
-        formData.set("workspaceId", workspaceId);
-        formData.set("text", text);
-        if (backendConversationId) {
-          formData.set("conversationId", backendConversationId);
-        }
-        if (options?.onboardingAction) {
-          formData.set("onboardingAction", options.onboardingAction);
-        }
-        if (includeDiscussEntity) {
-          formData.set("discussEntityId", discussEntity.id);
-        }
-        formData.set("file", currentAttachment);
-
-        response = await fetch("/api/chat/messages", {
-          method: "POST",
-          body: formData,
-        });
-      } else {
-        response = await fetch("/api/chat/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            clientMessageId,
-            workspaceId,
-            text,
-            ...(backendConversationId ? { conversationId: backendConversationId } : {}),
-            ...(options?.onboardingAction ? { onboardingAction: options.onboardingAction } : {}),
-            ...(includeDiscussEntity ? { discussEntityId: discussEntity.id } : {}),
-          }),
-        });
-      }
-    } catch (error) {
-      const messageText = error instanceof Error ? error.message : "Network error";
-      setErrorMessage(messageText);
-      setIsLoading(false);
-      return;
-    } finally {
-      setPendingFile(undefined);
-    }
-
-    if (!response.ok) {
-      const body = await response.text();
-      setErrorMessage(body);
-      setIsLoading(false);
-      return;
-    }
-
-    const payload = (await response.json()) as ChatMessageResponse;
-    const isNewConversation = !backendConversationId;
-    setBackendConversationId(payload.conversationId);
-    if (isNewConversation) {
-      setActiveConversationId(payload.conversationId);
-      if (discussEntity) {
-        clearDiscussEntity();
-      }
-    }
-
-    if (streamRef.current) {
-      streamRef.current.close();
-      streamRef.current = undefined;
-    }
-
-    let streamedText = "";
-    let streamedReasoning = "";
-
-    const stream = new EventSource(payload.streamUrl);
-    streamRef.current = stream;
-
-    stream.onmessage = (messageEvent) => {
-      const parsed = JSON.parse(messageEvent.data) as ChatStreamEvent;
-
-      if (parsed.type === "reasoning") {
-        streamedReasoning = `${streamedReasoning}${parsed.token}`;
-        setReasoningByMessageId((prev) => new Map(prev).set(clientMessageId, streamedReasoning));
-        return;
-      }
-
-      if (parsed.type === "token") {
-        streamedText = `${streamedText}${parsed.token}`;
-        setSessions((existing) =>
-          existing.map((session) =>
-            session.id === activeSessionId
-              ? {
-                  ...session,
-                  conversations: session.conversations.map((conversation) =>
-                    conversation.id === clientMessageId
-                      ? {
-                          ...conversation,
-                          response: streamedText,
-                          updatedAt: new Date(),
-                        }
-                      : conversation,
-                  ),
-                }
-              : session,
-          ),
-        );
-        return;
-      }
-
-      if (parsed.type === "extraction") {
-        store.mergeSeedItems(
-          parsed.entities.map((entity) => ({
-            id: entity.id,
-            kind: entity.kind,
-            text: entity.text,
-            confidence: entity.confidence,
-            sourceKind: entity.sourceKind,
-            sourceId: entity.sourceId,
-          })),
-        );
-        return;
-      }
-
-      if (parsed.type === "assistant_message") {
-        streamedText = parsed.text;
-        setSuggestions(
-          (parsed.suggestions ?? []).map((content, index) => ({
-            id: `suggestion-${parsed.messageId}-${index}-${content}`,
-            content,
-          })),
-        );
-        setSessions((existing) =>
-          existing.map((session) =>
-            session.id === activeSessionId
-              ? {
-                  ...session,
-                  conversations: session.conversations.map((conversation) =>
-                    conversation.id === clientMessageId
-                      ? {
-                          ...conversation,
-                          response: streamedText,
-                          updatedAt: new Date(),
-                        }
-                      : conversation,
-                  ),
-                }
-              : session,
-          ),
-        );
-        return;
-      }
-
-      if (parsed.type === "onboarding_seed") {
-        store.mergeSeedItems(parsed.seeds);
-        return;
-      }
-
-      if (parsed.type === "onboarding_state") {
-        store.setOnboardingState(parsed.onboardingState);
-        return;
-      }
-
-      if (parsed.type === "error") {
-        setErrorMessage(parsed.error);
-        setIsLoading(false);
-        stream.close();
-        streamRef.current = undefined;
-        return;
-      }
-
-      if (parsed.type === "done") {
-        setSessions((existing) =>
-          existing.map((session) =>
-            session.id === activeSessionId
-              ? {
-                  ...session,
-                  updatedAt: new Date(),
-                  conversations: session.conversations.map((conversation) =>
-                    conversation.id === clientMessageId
-                      ? {
-                          ...conversation,
-                          response: streamedText,
-                          updatedAt: new Date(),
-                        }
-                      : conversation,
-                  ),
-                }
-              : session,
-          ),
-        );
-
-        setIsLoading(false);
-        stream.close();
-        streamRef.current = undefined;
-
-        // Refresh sidebar after stream completes
-        if (workspaceId) {
-          void refreshSidebar(workspaceId);
-        }
-      }
-    };
-
-    stream.onerror = () => {
-      setErrorMessage("SSE stream disconnected");
-      setIsLoading(false);
-      stream.close();
-      streamRef.current = undefined;
-    };
-  }
-
-  function onStopMessage() {
-    if (!streamRef.current) {
-      return;
-    }
-
-    streamRef.current.close();
-    streamRef.current = undefined;
-    setIsLoading(false);
-  }
-
   return {
-    sessions,
-    activeSessionId,
-    activeSession,
-    activeConversationId,
+    messages: chat.messages,
+    status: chat.status,
     isLoading,
     errorMessage,
-    suggestions,
-    pendingFile,
+    activeConversationId,
     branchingFromId,
-    inheritedMessageIds,
     discussEntity,
     conversationDiscussEntity,
-    reasoningByMessageId,
-    chatInputRef,
-    onSendMessage,
-    onStopMessage,
-    onNewConversation,
-    onSelectConversation,
-    onBranchFromMessage,
-    searchMentions,
-    onUploadFile,
-    onChatInputClickCapture,
+    sendMessage,
+    stopMessage,
+    newConversation,
+    selectConversation,
+    branchFromMessage,
     setErrorMessage,
     refreshSidebar,
   };

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Session } from "reachat";
+import type { UIMessage } from "ai";
 import type {
   OnboardingSeedItem,
   OnboardingState,
@@ -14,9 +14,7 @@ export type SidebarHandlers = {
 };
 
 export type BootstrapPayload = {
-  conversations: Session["conversations"];
-  latestSuggestions: string[];
-  inheritedIds: Set<string>;
+  messages: UIMessage[];
 };
 
 type WorkspaceStateStore = {

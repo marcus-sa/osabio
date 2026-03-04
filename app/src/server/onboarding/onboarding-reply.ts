@@ -2,7 +2,6 @@ import { generateObject } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import type { EntityKind, OnboardingState } from "../../shared/contracts";
-import { chatComponentSystemPrompt } from "../chat/chat-component-system-prompt";
 import { loadOnboardingSummary } from "./onboarding-state";
 
 type MessageContextRow = {
@@ -65,9 +64,6 @@ export async function generateOnboardingAssistantReply(input: {
     suggestionQualityRules,
     "",
     "Respond concisely with clear next actions.",
-    "",
-    "## UI Components",
-    chatComponentSystemPrompt,
   ].join("\n");
 
   if (input.onboardingState === "active") {
@@ -86,9 +82,6 @@ export async function generateOnboardingAssistantReply(input: {
       "Do not use generic onboarding-checklist suggestions.",
       "Current extracted context:",
       summary,
-      "",
-      "## UI Components",
-      chatComponentSystemPrompt,
     ].join("\n");
   }
 
@@ -107,9 +100,6 @@ export async function generateOnboardingAssistantReply(input: {
       "Do not use generic onboarding-checklist suggestions.",
       "Current extracted context:",
       summary,
-      "",
-      "## UI Components",
-      chatComponentSystemPrompt,
     ].join("\n");
   }
 
