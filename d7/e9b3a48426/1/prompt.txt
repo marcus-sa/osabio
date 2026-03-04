@@ -1,0 +1,354 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/denver-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+how can we add an enable / install / setup command to the cli that automatically sets up the claude plugin, mcp, etc
+
+---
+
+claude reads mcp servers at .mcp.json
+
+---
+
+yes, and shouldnt we install the git hooks?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+"✓ Auth: API key configured for workspace "My Project""
+
+is there a way we can setup auth like the following:
+
+$HOME/.config/brain.json
+
+and then there's an api key for each repo ?
+
+that way the correct api key is used for each repo
+
+---
+
+Continue from where you left off.
+
+---
+
+"✓ Auth: API key configured for workspace "My Project""
+
+is there a way we can setup auth like the following:
+
+$HOME/.config/brain.json
+
+and then there's an api key and workspace defined for each repo ?
+
+that way the correct api key is used for each repo
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+add verification to USER_STORIES.md
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+shouldnt brain we just enhance existing init command ?
+
+---
+
+repos["/path/to/repo-a"]
+
+what about git worktrees?
+
+---
+
+"        // Worktree: .git is a file like `gitdir: /main-repo/.git/worktrees/foo`
+" are u sure? research
+
+---
+
+remove legacy backwards compatibility
+
+---
+
+hmm, let's have config in $HOME/.brain/config.json instead
+
+---
+
+use bun fs instead of node fs
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **Initial request**: User asked "how can we add an enable / install / setup command to the cli that automatically sets up the claude plugin, mcp, etc"
+
+2. **Exploration phase**: I explored the codebase thoroughly using agents, discovering:
+   - CLI structure at `cli/brain.ts` with commands like `init`, `system`, `mcp`, etc.
+   - Existing `brain init` only does API key gen + git hooks
+   - Plugin files at `plugin/hooks/hooks.json`, `plugin/CLAUDE.md`, `plugin/skills/`
+   - MCP server implementation at `cli/mcp-server.ts`
+   - Config at `~/.brain/config.json` with single workspace
+
+3. **Design discussion**: I proposed a `brain setup` command design with 6 steps. User corrected that MCP servers should be in `.mcp.json` (not settings.json).
+
+4. **Auth model change**: User asked for per-repo credentials at `$HOME/.config/brain.json` instead of single global config. I designed a new config shape with `repos` map.
+
+5. **Plan approval flow**: I wrote a plan file. User gave feedback:
+   - "shouldnt brain we just enhance existing init command?" - So I changed from `brain setup` to enhancing `brain init`
+   - "add verification to USER_STORIES.md" - Added user stories US-S1 through US-S7
+
+6. **Implementation**: After plan approval, I implemented:
+   - `cli/config.ts` - new per-repo config model with `findGitRoot()`, worktree support
+   - `cli/commands/init-content.ts` - embedded plugin content
+   - `cli/commands/init.ts` - enhanced with all 6 setup steps
+   - `cli/brain.ts` - updated help text
+   - `USER_STORIES.md` - added user stories
+
+7. **Worktree support**: User asked "are u sure?" about worktree format. I researched and confirmed the implementation was correct. Research confirmed `.git` file format is `gitdir: <path>` pointing to `<main-repo>/.git/worktrees/<name>`.
+
+8. **User feedback iterations**:
+   - "remove legacy backwards compatibility" - Removed `~/.brain/config.json` fallback code
+   - "hmm, let's have config in $HOME/.brain/config.json instead" - Changed from `~/.config/brain.json` back to `~/.brain/config.json`
+   - "use bun fs instead of node fs" - Started converting to Bun APIs
+
+9. **Current work**: Converting to Bun fs APIs. I completed:
+   - `cli/config.ts` - fully converted to async with `Bun.file()`, `Bun.write()`, etc.
+   - `cli/commands/init.ts` - fully converted to use Bun APIs
+   - `cli/commands/system.ts` - partially updated (added `await` to some calls)
+   - Still need to finish updating remaining `requireConfig()` and `getDirCacheEntry()` calls in `system.ts`, `git-hooks.ts`, and `mcp-server.ts`
+
+Let me note the exact state of the async migration:
+- In `system.ts`: Lines 140, 144, 195, 198 still need `await` added
+- In `git-hooks.ts`: Lines 11, 14 need `await` added
+- In `mcp-server.ts`: Line 8 needs `await` added
+
+Summary:
+1. Primary Request and Intent:
+   The user wants to enhance the existing `brain init` CLI command to be a one-command setup that automatically configures everything needed for Brain integration with Claude Code in any git repository. This includes: auth (per-repo API keys), MCP server registration (`.mcp.json`), Claude Code hooks (`.claude/settings.json`), CLAUDE.md plugin instructions, skills (`.claude/commands/`), and git pre-commit hooks. The user also wants per-repo credentials stored at `~/.brain/config.json` so different repos can connect to different Brain workspaces. Finally, the user wants the code to use Bun's native file APIs instead of `node:fs`.
+
+2. Key Technical Concepts:
+   - **Brain CLI**: A Bun-compiled CLI (`cli/brain.ts`) that connects coding agents to a Brain knowledge graph via MCP tools
+   - **MCP (Model Context Protocol)**: Claude Code reads MCP servers from `.mcp.json` at project root
+   - **Claude Code hooks**: Configured in `.claude/settings.json` with format `{ hooks: { EventName: [{ hooks: [{ type, command/prompt }] }] } }`
+   - **Plugin hooks format** vs **settings.json format**: Plugin uses flat `{ type, command }`, settings wraps in `{ matcher?, hooks: [...] }`
+   - **Per-repo config**: `~/.brain/config.json` stores `{ server_url, repos: { "/path/to/repo": { workspace, api_key } } }`
+   - **Git worktree support**: `.git` can be a file (worktree) pointing to `gitdir: /main-repo/.git/worktrees/<name>` — resolve to main repo root so worktrees share credentials
+   - **Bun file APIs**: `Bun.file(path).text()`, `Bun.file(path).json()`, `Bun.file(path).exists()`, `Bun.write(path, content)` — all async
+   - **Embedded content**: Plugin files embedded as constants in `init-content.ts` since compiled binary can't read `plugin/` at runtime
+   - **Idempotency**: CLAUDE.md uses `<!-- brain-plugin-start -->` / `<!-- brain-plugin-end -->` markers; hooks dedupe by checking for `"brain"` in commands
+
+3. Files and Code Sections:
+
+   - **`cli/config.ts`** — Core config module, rewritten with per-repo credentials and Bun APIs
+     - Changed from single `BrainConfig` at `~/.brain/config.json` to `BrainGlobalConfig` with `repos` map
+     - All read/write functions converted to async using `Bun.file()` and `Bun.write()`
+     - Added `findGitRoot()` with worktree resolution
+     - Removed legacy backwards compatibility
+     ```typescript
+     import { existsSync, mkdirSync, statSync } from "node:fs";
+     import { join, dirname, resolve } from "node:path";
+     import { homedir } from "node:os";
+
+     const BRAIN_DIR = join(homedir(), ".brain");
+     const CONFIG_PATH = join(BRAIN_DIR, "config.json");
+     const DIR_CACHE_PATH = join(BRAIN_DIR, "dir-cache.json");
+
+     export type BrainConfig = {
+       server_url: string;
+       workspace: string;
+       api_key: string;
+     };
+
+     export type RepoConfig = {
+       workspace: string;
+       api_key: string;
+     };
+
+     export type BrainGlobalConfig = {
+       server_url: string;
+       repos: Record<string, RepoConfig>;
+     };
+
+     export type DirCacheEntry = {
+       project_id: string;
+       project_name: string;
+       last_session?: string;
+       session_id?: string;
+     };
+
+     export function findGitRoot(from: string): string | undefined {
+       let dir = from;
+       while (dir !== "/") {
+         const gitPath = join(dir, ".git");
+         if (existsSync(gitPath)) {
+           if (statSync(gitPath).isFile()) {
+             return resolveWorktreeMainRoot(gitPath) ?? dir;
+           }
+           return dir;
+         }
+         dir = dirname(dir);
+       }
+       return undefined;
+     }
+
+     function resolveWorktreeMainRoot(gitFile: string): string | undefined {
+       try {
+         const content = Bun.file(gitFile).textSync().trim();
+         const match = content.match(/^gitdir:\s*(.+)$/);
+         if (!match) return undefined;
+         const gitdir = resolve(dirname(gitFile), match[1]);
+         const dotGit = gitdir.replace(/\/worktrees\/[^/]+$/, "");
+         return dirname(dotGit);
+       } catch {
+         return undefined;
+       }
+     }
+
+     // All config functions are now async:
+     export async function loadGlobalConfig(): Promise<BrainGlobalConfig | undefined> { ... }
+     export async function saveGlobalConfig(config: BrainGlobalConfig): Promise<void> { ... }
+     export async function saveRepoConfig(serverUrl: string, gitRoot: string, repo: RepoConfig): Promise<void> { ... }
+     export async function loadConfig(): Promise<BrainConfig | undefined> { ... }
+     export async function requireConfig(): Promise<BrainConfig> { ... }
+     export async function loadDirCache(): Promise<Record<string, DirCacheEntry>> { ... }
+     export async function saveDirCache(cache: Record<string, DirCacheEntry>): Promise<void> { ... }
+     export async function getDirCacheEntry(directory: string): Promise<DirCacheEntry | undefined> { ... }
+     export async function setDirCacheEntry(directory: string, entry: DirCacheEntry): Promise<void> { ... }
+     ```
+
+   - **`cli/commands/init-content.ts`** — NEW file with embedded plugin content
+     - Contains `BRAIN_HOOKS`, `BRAIN_CLAUDE_MD`, `BRAIN_SKILLS` as string constants
+     - Copied verbatim from `plugin/hooks/hooks.json`, `plugin/CLAUDE.md`, `plugin/skills/`
+
+   - **`cli/commands/init.ts`** — Enhanced from 2 steps to 6 steps, uses Bun APIs
+     - Step 1: Auth (per-repo config with `saveRepoConfig`)
+     - Step 2: `.mcp.json` (merge brain MCP server entry)
+     - Step 3: `.claude/settings.json` hooks (merge with dedupe)
+     - Step 4: `CLAUDE.md` (idempotent with markers)
+     - Step 5: `.claude/commands/` (install skills)
+     - Step 6: Git hooks (pre-commit)
+     - Exports `installGitHooks()` for reuse
+     - All file I/O uses `Bun.file()` and `Bun.write()`
+
+   - **`cli/brain.ts`** — Updated help text
+     ```
+     brain init                     Set up Brain integration (auth, MCP, hooks, skills, git hooks)
+     Config:
+       ~/.brain/config.json  Per-repo workspace credentials
+     ```
+
+   - **`USER_STORIES.md`** — Added US-S1 through US-S7 acceptance criteria for the CLI init command
+
+   - **`cli/commands/system.ts`** — Partially updated to await async config functions
+     - Lines 9, 14 updated with `await`
+     - `setDirCacheEntry` calls updated with `await`
+     - Lines 110, 140, 144, 195, 198 STILL NEED `await` added
+
+   - **`cli/commands/git-hooks.ts`** — NOT YET updated for async config
+     - Lines 11, 14 need `await` added to `requireConfig()` and `getDirCacheEntry()`
+
+   - **`cli/mcp-server.ts`** — NOT YET updated for async config
+     - Line 8 needs `await` added to `requireConfig()`
+
+4. Errors and fixes:
+   - **Plan mode restriction**: Tried to edit `USER_STORIES.md` while in plan mode — tool rejected the edit. Had to add content to plan file first, then edit after exiting plan mode.
+   - **File not read error**: Tried to edit `cli/brain.ts` without reading it first — got "File has not been read yet" error. Fixed by reading the file first.
+   - **User corrections on design**:
+     - User said MCP servers go in `.mcp.json`, not `.claude/settings.json` — corrected the design
+     - User said to enhance `brain init` instead of creating new `brain setup` command — renamed everything
+     - User said to remove legacy backwards compatibility — removed `~/.brain/config.json` fallback
+     - User said to use `~/.brain/config.json` instead of `~/.config/brain.json` — changed config path
+     - User said to use Bun fs instead of node fs — started async conversion
+
+5. Problem Solving:
+   - **Worktree credential sharing**: Solved by making `findGitRoot()` resolve worktree `.git` files back to main repo root, so all worktrees share one config key
+   - **Embedded content for compiled binary**: Since `bun build --compile` produces a standalone binary that can't read `plugin/` files, embedded all content as string constants in `init-content.ts`
+   - **Hook format conversion**: Plugin hooks use flat `{ type, command }` format; `.claude/settings.json` uses wrapped `{ hooks: [{ type, command }] }` format. Init converts between them.
+   - **Non-destructive hook merging**: Dedupes by checking if any hook command starts with `"brain "` or prompt includes `"Brain MCP"` before appending
+
+6. All user messages:
+   - "how can we add an enable / install / setup command to the cli that automatically sets up the claude plugin, mcp, etc"
+   - "claude reads mcp servers at .mcp.json"
+   - "yes, and shouldnt we install the git hooks?"
+   - "is there a way we can setup auth like the following: $HOME/.config/brain.json and then there's an api key and workspace defined for each repo? that way the correct api key is used for each repo"
+   - "add verification to USER_STORIES.md"
+   - "shouldnt brain we just enhance existing init command?"
+   - [Rejected ExitPlanMode — user wanted more changes to plan]
+   - [Approved plan after final iteration]
+   - "what about git worktrees?" (regarding config keyed by repo path)
+   - "are u sure? research" (questioning the worktree .git file format comment)
+   - "remove legacy backwards compatibility"
+   - "hmm, let's have config in $HOME/.brain/config.json instead"
+   - "use bun fs instead of node fs"
+
+7. Pending Tasks:
+   - **Finish async migration in `cli/commands/system.ts`**: Lines 110, 140, 144, 195, 198 still need `await` added to `requireConfig()` and `getDirCacheEntry()` calls
+   - **Update `cli/commands/git-hooks.ts`**: Add `await` to `requireConfig()` (line 11) and `getDirCacheEntry()` (line 14)
+   - **Update `cli/mcp-server.ts`**: Add `await` to `requireConfig()` (line 8)
+   - **Typecheck and build verification**: Run `npx tsc --noEmit` and `bun build cli/brain.ts --compile --outfile dist/brain` after all changes
+   - **Stale JSDoc comment**: `cli/config.ts` line 115 still says "from ~/.config/brain.json" but should say "from ~/.brain/config.json"
+
+8. Current Work:
+   Converting all CLI files from `node:fs` to Bun's native file APIs (`Bun.file()`, `Bun.write()`). This made all config functions async, requiring `await` to be added at every call site. I completed `config.ts` and `init.ts` fully, and partially updated `system.ts` (first two function calls only). Three more files still need their `requireConfig()` and `getDirCacheEntry()` calls awaited.
+
+   Last grep showed remaining unawaited calls:
+   ```
+   cli/commands/system.ts:110:  const config = requireConfig();
+   cli/commands/system.ts:140:  const config = requireConfig();
+   cli/commands/system.ts:144:  const cached = getDirCacheEntry(cwd);
+   cli/commands/system.ts:195:  const config = requireConfig();
+   cli/commands/system.ts:198:  const cached = getDirCacheEntry(cwd);
+   ```
+   Plus `git-hooks.ts` lines 11, 14 and `mcp-server.ts` line 8.
+
+9. Optional Next Step:
+   Continue adding `await` to the remaining unawaited async config function calls in `system.ts` (lines 110, 140, 144, 195, 198), `git-hooks.ts` (lines 11, 14), and `mcp-server.ts` (line 8), then run typecheck and build to verify everything compiles. This directly continues the user's request to "use bun fs instead of node fs".
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-denver-v1/ff7b3553-d568-43bf-a876-9f5fe61247e8.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+since cli writes files, we no longer need plugin dir ?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/denver-v1/.context/attachments/PR instructions.md
+</system_instruction>
+
+
+
+Create a PR
+
+---
+
+shouldnt we add suggestions to brain hooks stop prompt
