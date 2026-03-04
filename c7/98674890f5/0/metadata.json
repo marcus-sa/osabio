@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c798674890f5",
+  "session_id": "4a952824-e6d8-4208-81c0-5577e051575f",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T12:10:25.722994Z",
+  "branch": "marcus-sa/coding-agent-integration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".ralph/fix_plan.md",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e8b9f7d2e8b8",
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 31269,
+    "cache_read_tokens": 100992,
+    "output_tokens": 1978,
+    "api_call_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T12:10:25.652225Z",
+    "agent_lines": 87,
+    "human_added": 736,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 823,
+    "agent_percentage": 10.571081409477522
+  }
+}

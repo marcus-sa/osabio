@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c798674890f5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-integration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".ralph/fix_plan.md",
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c7/98674890f5/0/metadata.json",
+      "transcript": "/c7/98674890f5/0/full.jsonl",
+      "context": "/c7/98674890f5/0/context.md",
+      "content_hash": "/c7/98674890f5/0/content_hash.txt",
+      "prompt": "/c7/98674890f5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 31269,
+    "cache_read_tokens": 100992,
+    "output_tokens": 1978,
+    "api_call_count": 3
+  }
+}
