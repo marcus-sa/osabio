@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b859290f63fe",
+  "session_id": "4a59a479-10b8-413f-b8e7-733600719628",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-04T10:33:56.484712Z",
+  "branch": "marcus-sa/coding-agent-integration",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".ralph/fix_plan.md",
+    "app/src/server/mcp/context-builder.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/mcp/types.ts",
+    "app/src/server/runtime/start-server.ts",
+    "schema/migrations/20260304_agent_session_and_subtask.surql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "84bde48f9861",
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 105759,
+    "cache_read_tokens": 4546261,
+    "output_tokens": 16007,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-04T10:33:56.302242Z",
+    "agent_lines": 679,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 679,
+    "agent_percentage": 100
+  }
+}

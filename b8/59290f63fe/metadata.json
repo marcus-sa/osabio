@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b859290f63fe",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-integration",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".ralph/fix_plan.md",
+    "app/src/server/mcp/context-builder.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/mcp/types.ts",
+    "app/src/server/runtime/start-server.ts",
+    "schema/migrations/20260304_agent_session_and_subtask.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b8/59290f63fe/0/metadata.json",
+      "transcript": "/b8/59290f63fe/0/full.jsonl",
+      "context": "/b8/59290f63fe/0/context.md",
+      "content_hash": "/b8/59290f63fe/0/content_hash.txt",
+      "prompt": "/b8/59290f63fe/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 105759,
+    "cache_read_tokens": 4546261,
+    "output_tokens": 16007,
+    "api_call_count": 54
+  }
+}
