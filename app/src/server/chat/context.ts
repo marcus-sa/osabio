@@ -6,7 +6,9 @@ import {
   listWorkspaceProjectSummaries,
   listWorkspaceRecentDecisions,
   readEntityName,
+  searchEntitiesByEmbedding,
   type ConversationEntity,
+  type RankedEntity,
   type WorkspaceDecisionSummary,
   type WorkspaceProjectSummary,
   type WorkspaceQuestionSummary,
@@ -24,6 +26,7 @@ export type DiscussedEntityContext = {
 
 export type ChatContext = {
   conversationEntities: ConversationEntity[];
+  relevantEntities?: RankedEntity[];
   workspaceSummary: {
     projects: WorkspaceProjectSummary[];
     recentDecisions: WorkspaceDecisionSummary[];
@@ -50,6 +53,7 @@ export async function buildChatContext(input: {
   loaders?: ChatContextLoaders;
   inheritedEntityIds?: RecordId[];
   discussesRecord?: RecordId;
+  userMessageEmbedding?: number[];
 }): Promise<ChatContext> {
   const loaders = input.loaders ?? {
     listConversationEntities,
@@ -93,6 +97,25 @@ export async function buildChatContext(input: {
     loaders.loadOnboardingSummary(input.surreal, input.workspaceRecord),
   ]);
 
+  // Cross-conversation entity enrichment: find workspace entities relevant to the user's message
+  let relevantEntities: RankedEntity[] | undefined;
+  if (input.userMessageEmbedding) {
+    const queryEmbedding = input.userMessageEmbedding;
+    const conversationEntityIds = new Set(
+      conversationEntities.map((e) => e.id),
+    );
+    const ranked = await searchEntitiesByEmbedding({
+      surreal: input.surreal,
+      workspaceRecord: input.workspaceRecord,
+      queryEmbedding,
+      limit: 15,
+    });
+    const filtered = ranked.filter((e) => !conversationEntityIds.has(e.id));
+    if (filtered.length > 0) {
+      relevantEntities = filtered.slice(0, 10);
+    }
+  }
+
   let discussedEntity: DiscussedEntityContext | undefined;
   if (input.discussesRecord) {
     const entityRecord = input.discussesRecord as GraphEntityRecord;
@@ -109,6 +132,7 @@ export async function buildChatContext(input: {
 
   return {
     conversationEntities,
+    relevantEntities,
     workspaceSummary: {
       projects,
       recentDecisions,
@@ -131,6 +155,12 @@ function formatConversationEntities(entities: ConversationEntity[]): string {
     .join("\n");
 }
 
+
+function formatRelevantEntities(entities: RankedEntity[]): string {
+  return entities
+    .map((e) => `- ${e.kind}: ${e.name} (relevance ${e.score.toFixed(2)})`)
+    .join("\n");
+}
 
 function formatWorkspaceSummary(context: ChatContext): string {
   const { projects, recentDecisions, openQuestions, openObservations } = context.workspaceSummary;
@@ -308,6 +338,18 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "Entities in this conversation:",
     formatConversationEntities(context.conversationEntities),
     "",
+  );
+
+  if (context.relevantEntities && context.relevantEntities.length > 0) {
+    sections.push(
+      "## Related Context",
+      "Workspace entities relevant to this message (from other conversations):",
+      formatRelevantEntities(context.relevantEntities),
+      "",
+    );
+  }
+
+  sections.push(
     "## Workspace Overview",
     "Use list_workspace_entities to retrieve full entity listings. Summary:",
     formatWorkspaceSummary(context),

@@ -3,7 +3,7 @@ import type { ExtractedEntity, ExtractedRelationship, OnboardingAction } from ".
 import { loadAssistantConversationContext } from "../extraction/context-loaders";
 import { loadBranchChain, loadMessagesWithInheritance } from "./branch-chain";
 import { ingestAttachment } from "../extraction/document-ingestion";
-import { persistEmbeddings } from "../extraction/embedding-writeback";
+import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { appendExtractedTools } from "../extraction/persist-extraction";
 import type { ConversationRow, GraphEntityRecord, IncomingAttachment, WorkspaceRow } from "../extraction/types";
 import { elapsedMs, logError, logInfo, userFacingError } from "../http/observability";
@@ -80,6 +80,17 @@ export async function processChatMessage(input: {
       }
     } else {
       assistantContextRows = await loadAssistantConversationContext(input.deps.surreal, input.conversationId);
+    }
+
+    // Embed user message early: used for context enrichment and persisted to the message record
+    const userMessageEmbedding = await createEmbedding(input.deps.embeddingModel, input.deps.config.embeddingDimension, input.userText);
+    if (userMessageEmbedding) {
+      void input.deps.surreal
+        .query("UPDATE $record MERGE { embedding: $embedding };", {
+          record: input.userMessageRecord,
+          embedding: userMessageEmbedding,
+        })
+        .catch(() => undefined);
     }
 
     const workspaceProjects = await loadWorkspaceProjects(input.deps.surreal, input.workspaceRecord);
@@ -169,6 +180,7 @@ export async function processChatMessage(input: {
       isOnboarding: onboardingAfter !== "complete",
       onboardingState: onboardingAfter,
       ...(workspaceOwnerRecord ? { workspaceOwnerRecord } : {}),
+      ...(userMessageEmbedding ? { userMessageEmbedding } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
       ...(conversation.discusses ? { discussesRecord: conversation.discusses } : {}),
       messages: assistantContextRows.map((row) => ({
