@@ -38,7 +38,7 @@ async function handleEntityDetail(
   }
 
   try {
-    const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question"];
+    const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "suggestion"];
     const entityRecord = parseRecordIdString(entityId, entityTables);
     const detail = await getEntityDetail({
       surreal: deps.surreal,

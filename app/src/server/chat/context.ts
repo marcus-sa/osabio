@@ -1,5 +1,5 @@
 import { type RecordId, type Surreal } from "surrealdb";
-import type { ObservationSummary, OnboardingState } from "../../shared/contracts";
+import type { ObservationSummary, OnboardingState, SuggestionSummary } from "../../shared/contracts";
 import {
   listConversationEntities,
   listWorkspaceOpenQuestions,
@@ -14,6 +14,7 @@ import {
   type WorkspaceQuestionSummary,
 } from "../graph/queries";
 import { listWorkspaceOpenObservations } from "../observation/queries";
+import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import { loadOnboardingSummary } from "../onboarding/onboarding-state";
 import type { GraphEntityRecord } from "../extraction/types";
 
@@ -31,6 +32,7 @@ export type ChatContext = {
     recentDecisions: WorkspaceDecisionSummary[];
     openQuestions: WorkspaceQuestionSummary[];
     openObservations: ObservationSummary[];
+    pendingSuggestions: SuggestionSummary[];
   };
   onboardingSummary?: string;
   discussedEntity?: DiscussedEntityContext;
@@ -42,6 +44,7 @@ type ChatContextLoaders = {
   listWorkspaceRecentDecisions: typeof listWorkspaceRecentDecisions;
   listWorkspaceOpenQuestions: typeof listWorkspaceOpenQuestions;
   listWorkspaceOpenObservations: typeof listWorkspaceOpenObservations;
+  listWorkspacePendingSuggestions: typeof listWorkspacePendingSuggestions;
   loadOnboardingSummary: typeof loadOnboardingSummary;
 };
 
@@ -60,10 +63,11 @@ export async function buildChatContext(input: {
     listWorkspaceRecentDecisions,
     listWorkspaceOpenQuestions,
     listWorkspaceOpenObservations,
+    listWorkspacePendingSuggestions,
     loadOnboardingSummary,
   };
 
-  const [conversationEntities, projects, recentDecisions, openQuestions, openObservations, onboardingSummary] = await Promise.all([
+  const [conversationEntities, projects, recentDecisions, openQuestions, openObservations, pendingSuggestions, onboardingSummary] = await Promise.all([
     loaders.listConversationEntities({
       surreal: input.surreal,
       conversationRecord: input.conversationRecord,
@@ -89,6 +93,11 @@ export async function buildChatContext(input: {
       limit: 12,
     }),
     loaders.listWorkspaceOpenObservations({
+      surreal: input.surreal,
+      workspaceRecord: input.workspaceRecord,
+      limit: 10,
+    }),
+    loaders.listWorkspacePendingSuggestions({
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
       limit: 10,
@@ -137,6 +146,7 @@ export async function buildChatContext(input: {
       recentDecisions,
       openQuestions,
       openObservations,
+      pendingSuggestions,
     },
     onboardingSummary,
     discussedEntity,
@@ -162,7 +172,7 @@ function formatRelevantEntities(entities: RankedEntity[]): string {
 }
 
 function formatWorkspaceSummary(context: ChatContext): string {
-  const { projects, recentDecisions, openQuestions, openObservations } = context.workspaceSummary;
+  const { projects, recentDecisions, openQuestions, openObservations, pendingSuggestions } = context.workspaceSummary;
 
   const lines: string[] = [];
 
@@ -198,6 +208,18 @@ function formatWorkspaceSummary(context: ChatContext): string {
     }
     const breakdown = [...severityCounts.entries()].map(([s, c]) => `${c} ${s}`).join(", ");
     lines.push(`- Observations: ${openObservations.length} (${breakdown})`);
+  }
+
+  // Suggestions: count by category
+  if (pendingSuggestions.length === 0) {
+    lines.push("- Suggestions: none");
+  } else {
+    const categoryCounts = new Map<string, number>();
+    for (const s of pendingSuggestions) {
+      categoryCounts.set(s.category, (categoryCounts.get(s.category) ?? 0) + 1);
+    }
+    const breakdown = [...categoryCounts.entries()].map(([c, n]) => `${n} ${c}`).join(", ");
+    lines.push(`- Suggestions: ${pendingSuggestions.length} (${breakdown})`);
   }
 
   return lines.join("\n");
@@ -247,6 +269,7 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "- **Decision**: a choice that was made. Status lifecycle: extracted → proposed → provisional → confirmed → superseded. Can conflict with other decisions (`conflicts_with` edge).",
     "- **Question**: an open question requiring a choice. Not for informational queries — only for pending decisions.",
     "- **Observation**: a lightweight signal (info/warning/conflict) written by agents. Lifecycle: open → acknowledged → resolved. Used for cross-project intelligence (\"this billing decision conflicts with your auth rate limiting\").",
+    "- **Suggestion**: a proactive agent-to-human proposal. Categories: optimization, risk, opportunity, conflict, missing, pivot. Lifecycle: pending → accepted/dismissed/deferred → converted. Built on accumulated observations via `suggestion_evidence` edges. Use `create_suggestion` for actionable proposals with rationale.",
     "",
     "**Other entities:** Person (with ownership edges), Meeting, Document, Git Commit, Pull Request.",
     "",
@@ -259,6 +282,8 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "- `conflicts_with`: decision|feature ↔ decision|feature",
     "- `owns`: person → task|project|feature",
     "- `observes`: observation → project|feature|task|decision|question",
+    "- `suggests_for`: suggestion → project|feature|task|question|decision",
+    "- `suggestion_evidence`: suggestion → observation|decision|task|feature|project|question|person|workspace",
     "- `superseded_by`: decision → decision",
     "",
     "## How Data Enters the Graph",
@@ -319,6 +344,15 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
     "Only for open questions that require a choice or pending decision: \"should we use X or Y?\", \"which approach for Z?\".",
     "Do NOT create question entities for informational queries (\"what is blocking X?\", \"how does Y work?\", \"what's the status?\") — answer those directly.",
     "One question per topic; if question includes options (X or Y), create one question entity.",
+    "",
+    "## When to Create Suggestions",
+    "Suggestions are proactive agent-to-human proposals. Use `create_suggestion` when you or a subagent notice:",
+    "- An optimization opportunity (\"task X could be merged with Y\")",
+    "- A risk or missing element (\"no task covers deployment rollback\")",
+    "- A conflict between entities (\"decision A contradicts decision B\")",
+    "- A pivot or strategic opportunity based on accumulated signals",
+    "Observations are agent-to-agent signals (\"I noticed X\"). Suggestions are agent-to-human proposals (\"You should do Y, because of observations A, B, C\").",
+    "Link `evidence_entity_ids` to the observations and entities that support the rationale.",
     "",
     "## When NOT to Create Entities",
     "- Casual conversation, greetings, clarifications, status queries",

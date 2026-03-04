@@ -20,6 +20,7 @@ export type ContextPacket = {
   open_questions: QuestionContext[];
   recent_changes: RecentChangeContext[];
   observations: ObservationContext[];
+  pending_suggestions: SuggestionContext[];
   active_sessions: ActiveSessionContext[];
 };
 
@@ -73,6 +74,17 @@ export type ObservationContext = {
   status: string;
   category?: string;
   observation_type?: string;
+};
+
+export type SuggestionContext = {
+  id: string;
+  text: string;
+  category: string;
+  rationale: string;
+  confidence: number;
+  status: string;
+  suggested_by: string;
+  created_at: string;
 };
 
 export type ActiveSessionContext = {

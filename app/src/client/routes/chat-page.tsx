@@ -4,6 +4,7 @@ import Markdown from "react-markdown";
 import { ChatSuggestionPills } from "../components/chat/ChatSuggestionPills";
 import { DiscussEntityCard } from "../components/chat/DiscussEntityCard";
 import { EntityLink } from "../components/chat/EntityLink";
+import { SuggestionToolCard } from "../components/chat/SuggestionToolCard";
 import type { DiscussEntitySummary } from "../../shared/contracts";
 import { useWorkspaceState } from "../stores/workspace-state";
 import { useChatSession } from "../hooks/use-chat-session";
@@ -122,10 +123,17 @@ export function ChatPage() {
                 );
               }
               if (isToolPart(part)) {
-                const toolPart = part as { type: string; state: string };
+                const toolPart = part as { type: string; state: string; output?: unknown };
+                const toolName = toolPart.type.replace(/^tool-/, "");
+
+                if (toolName === "create_suggestion" && toolPart.state === "output-available" && toolPart.output) {
+                  const output = toolPart.output as { text: string; category: string; confidence: number; rationale: string; target?: string };
+                  return <SuggestionToolCard key={i} output={output} />;
+                }
+
                 return (
                   <div key={i} className="chat-tool-invocation">
-                    <span className="chat-tool-name">{toolPart.type.replace(/^tool-/, "")}</span>
+                    <span className="chat-tool-name">{toolName}</span>
                     {toolPart.state === "output-available" ? (
                       <span className="chat-tool-status">Done</span>
                     ) : (

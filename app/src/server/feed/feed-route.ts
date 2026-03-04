@@ -12,6 +12,7 @@ import { HttpError } from "../http/errors";
 import { elapsedMs, logError, logInfo, logWarn } from "../http/observability";
 import { jsonError, jsonResponse, toIsoString } from "../http/response";
 import { listWorkspaceOpenObservations } from "../observation/queries";
+import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
@@ -66,6 +67,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       lowConfidenceDecisions,
       blockedTasks,
       observations,
+      suggestions,
       staleTasks,
       recentlyCompleted,
       recentExtractions,
@@ -76,6 +78,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       listLowConfidenceDecisions({ ...queryInput, confidenceThreshold: LOW_CONFIDENCE_THRESHOLD }),
       listBlockedTasks(queryInput),
       listWorkspaceOpenObservations({ surreal: deps.surreal, workspaceRecord, limit: FEED_ITEM_LIMIT }),
+      listWorkspacePendingSuggestions({ surreal: deps.surreal, workspaceRecord, limit: FEED_ITEM_LIMIT }),
       listStaleTasks({ ...queryInput, staleDays: STALE_DAYS }),
       listRecentlyCompletedItems({ ...queryInput, recentDays: RECENT_COMPLETED_DAYS }),
       listRecentExtractions({ ...queryInput, cutoff: new Date(Date.now() - AWARENESS_RECENCY_DAYS * 24 * 60 * 60 * 1000) }),
@@ -196,6 +199,21 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
         severity: obs.severity,
         createdAt: obs.createdAt,
         actions: observationActions(obs.status),
+      });
+    }
+
+    // Review: pending suggestions from agents
+    for (const sug of suggestions) {
+      review.push({
+        id: `suggestion:${sug.id}:${sug.category}`,
+        tier: "review",
+        entityId: `suggestion:${sug.id}`,
+        entityKind: "suggestion",
+        entityName: sug.text,
+        reason: `${capitalize(sug.category)} suggestion from ${sug.suggestedBy} (confidence ${Math.round(sug.confidence * 100)}%)`,
+        status: sug.status,
+        createdAt: sug.createdAt,
+        actions: suggestionActions(),
       });
     }
 
@@ -325,6 +343,15 @@ function observationActions(status: string): GovernanceFeedAction[] {
 function blockedTaskActions(): GovernanceFeedAction[] {
   return [
     { action: "complete", label: "Complete" },
+    { action: "discuss", label: "Discuss" },
+  ];
+}
+
+function suggestionActions(): GovernanceFeedAction[] {
+  return [
+    { action: "accept", label: "Accept" },
+    { action: "defer", label: "Defer" },
+    { action: "dismiss", label: "Dismiss" },
     { action: "discuss", label: "Discuss" },
   ];
 }

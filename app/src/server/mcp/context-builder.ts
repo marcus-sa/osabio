@@ -5,6 +5,7 @@ import type {
   TaskContext,
   QuestionContext,
   ObservationContext,
+  SuggestionContext,
   ActiveSessionContext,
   TaskScopeContext,
   RecentChangeContext,
@@ -53,6 +54,17 @@ type ObservationRow = {
   status: string;
   category?: string;
   observation_type?: string;
+};
+
+type SuggestionRow = {
+  id: RecordId<"suggestion", string>;
+  text: string;
+  category: string;
+  rationale: string;
+  confidence: number;
+  status: string;
+  suggested_by: string;
+  created_at: Date | string;
 };
 
 type AgentSessionRow = {
@@ -140,16 +152,21 @@ export async function buildProjectContext(input: {
     FROM observation
     WHERE workspace = $workspace AND status IN ["open", "acknowledged"]
     ORDER BY created_at DESC LIMIT 20;
+
+    SELECT id, text, category, rationale, confidence, status, suggested_by, created_at
+    FROM suggestion
+    WHERE workspace = $workspace AND status IN ["pending", "deferred"]
+    ORDER BY confidence DESC, created_at DESC LIMIT 15;
   `;
 
   const results = await surreal
-    .query<[null, DecisionRow[], TaskRow[], QuestionRow[], ObservationRow[]]>(projectEntitiesQuery, {
+    .query<[null, DecisionRow[], TaskRow[], QuestionRow[], ObservationRow[], SuggestionRow[]]>(projectEntitiesQuery, {
       project: projectRecord,
       workspace: workspaceRecord,
     })
-    .collect<[null, DecisionRow[], TaskRow[], QuestionRow[], ObservationRow[]]>();
+    .collect<[null, DecisionRow[], TaskRow[], QuestionRow[], ObservationRow[], SuggestionRow[]]>();
 
-  const [, decisionRows, taskRows, questionRows, observationRows] = results;
+  const [, decisionRows, taskRows, questionRows, observationRows, suggestionRows] = results;
 
   // Categorize decisions by status
   const confirmed: DecisionContext[] = [];
@@ -209,6 +226,18 @@ export async function buildProjectContext(input: {
     ...(o.observation_type ? { observation_type: o.observation_type } : {}),
   }));
 
+  // Map suggestions
+  const pendingSuggestions: SuggestionContext[] = suggestionRows.map((s) => ({
+    id: toRawId(s.id),
+    text: s.text,
+    category: s.category,
+    rationale: s.rationale,
+    confidence: s.confidence,
+    status: s.status,
+    suggested_by: s.suggested_by,
+    created_at: toIso(s.created_at),
+  }));
+
   // Load active sessions on the same project (exclude self)
   const activeSessions = await loadActiveSessions(
     surreal,
@@ -242,6 +271,7 @@ export async function buildProjectContext(input: {
     open_questions: openQuestions,
     recent_changes: recentChanges,
     observations,
+    pending_suggestions: pendingSuggestions,
     active_sessions: activeSessions,
   };
 }
@@ -481,18 +511,23 @@ async function loadRecentChanges(
     WHERE workspace = $workspace AND updated_at > $since
     ORDER BY updated_at DESC LIMIT 20;
 
-    RETURN array::flatten([$recent_decisions, $recent_tasks, $recent_questions, $recent_observations]);
+    LET $recent_suggestions = SELECT "suggestion" AS entity_type, text AS entity_name, status AS change_type, updated_at AS changed_at
+    FROM suggestion
+    WHERE workspace = $workspace AND updated_at > $since
+    ORDER BY updated_at DESC LIMIT 20;
+
+    RETURN array::flatten([$recent_decisions, $recent_tasks, $recent_questions, $recent_observations, $recent_suggestions]);
   `;
 
   const results = await surreal
-    .query<[null, null, null, null, null, RecentChangeRow[]]>(query, {
+    .query<[null, null, null, null, null, null, RecentChangeRow[]]>(query, {
       project: projectRecord,
       workspace: workspaceRecord,
       since: sinceDate,
     })
-    .collect<[null, null, null, null, null, RecentChangeRow[]]>();
+    .collect<[null, null, null, null, null, null, RecentChangeRow[]]>();
 
-  const rows = results[5] ?? [];
+  const rows = results[6] ?? [];
 
   return rows.map((r) => ({
     entity_type: r.entity_type,

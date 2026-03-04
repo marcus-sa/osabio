@@ -18,7 +18,7 @@ export function createSearchEntitiesTool(deps: ChatToolDeps) {
       "Semantic search across the knowledge graph. Use for finding entities by topic or meaning (e.g. \"authentication decisions\", \"payment tasks\"). For listing entities by kind or status, use list_workspace_entities instead.",
     inputSchema: z.object({
       query: z.string().min(1).describe("Natural language search query"),
-      kinds: z.array(z.enum(["project", "feature", "task", "decision", "question"]))
+      kinds: z.array(z.enum(["project", "feature", "task", "decision", "question", "suggestion"]))
         .optional()
         .describe("Optional filter by entity kinds"),
       project: z.string().optional().describe("Optional project name or project record id"),

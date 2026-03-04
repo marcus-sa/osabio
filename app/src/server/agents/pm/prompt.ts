@@ -1,6 +1,8 @@
 import { RecordId, Surreal } from "surrealdb";
+import type { SuggestionSummary } from "../../../shared/contracts";
 import { listWorkspaceProjectSummaries } from "../../graph/queries";
 import { listWorkspaceOpenObservations } from "../../observation/queries";
+import { listWorkspacePendingSuggestions } from "../../suggestion/queries";
 
 function formatProjects(rows: Awaited<ReturnType<typeof listWorkspaceProjectSummaries>>): string {
   if (rows.length === 0) {
@@ -10,6 +12,17 @@ function formatProjects(rows: Awaited<ReturnType<typeof listWorkspaceProjectSumm
   return rows
     .slice(0, 20)
     .map((row) => `- ${row.name} [id: ${row.id}] active tasks: ${row.activeTaskCount}`)
+    .join("\n");
+}
+
+function formatSuggestions(rows: SuggestionSummary[]): string {
+  if (rows.length === 0) {
+    return "- none";
+  }
+
+  return rows
+    .slice(0, 20)
+    .map((row) => `- [${row.category}] ${row.text} (${row.status}, confidence ${row.confidence.toFixed(2)}, by ${row.suggestedBy})`)
     .join("\n");
 }
 
@@ -31,13 +44,18 @@ export async function buildPmSystemPrompt(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
 }): Promise<string> {
-  const [projects, observations] = await Promise.all([
+  const [projects, observations, suggestions] = await Promise.all([
     listWorkspaceProjectSummaries({
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
       limit: 20,
     }),
     listWorkspaceOpenObservations({
+      surreal: input.surreal,
+      workspaceRecord: input.workspaceRecord,
+      limit: 20,
+    }),
+    listWorkspacePendingSuggestions({
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
       limit: 20,
@@ -83,6 +101,9 @@ export async function buildPmSystemPrompt(input: {
     "## Active Observations",
     formatObservations(observations),
     "",
+    "## Pending Suggestions",
+    formatSuggestions(suggestions),
+    "",
     "## Core Responsibilities",
     "- Task dedup and merge awareness across all agent suggestions.",
     "- Feature and dependency risk tracking (surface blockers via observations).",
@@ -109,6 +130,13 @@ export async function buildPmSystemPrompt(input: {
     "- Create observations for: cross-agent risks, conflicts, stale blockers, missing execution paths, at-risk features.",
     "- Set severity to conflict for contradictions, warning for risks, info for awareness.",
     "- Other agents will see your observations when they next query the graph.",
+    "",
+    "## Suggestion Rules",
+    "- Use create_suggestion for actionable proposals to the user: optimizations, risks, opportunities, conflicts, missing elements, pivots.",
+    "- Observations are agent-to-agent signals (\"I noticed X\"). Suggestions are agent-to-human proposals (\"You should do Y\").",
+    "- Link target_entity_id to the entity the suggestion is about.",
+    "- Include evidence_entity_ids for observations and other entities that support the rationale.",
+    "- Set confidence based on how much evidence supports the suggestion.",
     "",
     "## Output",
     "If no suggestions remain after dedup, return suggestions: [].",

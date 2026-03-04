@@ -13,6 +13,7 @@ function nodeColor(kind: string): string {
     case "decision": return "#eab308";
     case "question": return "#a855f7";
     case "observation": return "#ef4444";
+    case "suggestion": return "#06b6d4";
     case "person": return "#f97316";
     case "workspace": return "#3b82f6";
     default: return "#9fbfe4";

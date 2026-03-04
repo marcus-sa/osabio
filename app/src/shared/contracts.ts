@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "message";
+export type EntityKind = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 
@@ -53,6 +53,23 @@ export type ObservationSummary = {
   category?: EntityCategory;
   observationType?: ObservationType;
   sourceAgent: string;
+  createdAt: string;
+};
+
+export const SUGGESTION_CATEGORIES = ["optimization", "risk", "opportunity", "conflict", "missing", "pivot"] as const;
+export type SuggestionCategory = (typeof SUGGESTION_CATEGORIES)[number];
+
+export const SUGGESTION_STATUSES = ["pending", "accepted", "dismissed", "deferred", "converted"] as const;
+export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
+
+export type SuggestionSummary = {
+  id: string;
+  text: string;
+  category: SuggestionCategory;
+  rationale: string;
+  suggestedBy: string;
+  confidence: number;
+  status: SuggestionStatus;
   createdAt: string;
 };
 
@@ -296,7 +313,7 @@ export type BranchConversationResponse = {
 export type GovernanceTier = "blocking" | "review" | "awareness";
 
 export type GovernanceFeedAction = {
-  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss";
+  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss" | "accept" | "defer";
   label: string;
 };
 
@@ -329,8 +346,10 @@ export type GovernanceFeedResponse = {
 };
 
 export type EntityActionRequest = {
-  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss";
+  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer" | "convert";
   notes?: string;
   newSummary?: string;
   priority?: EntityPriority;
+  convertTo?: "task" | "feature" | "decision" | "project";
+  convertTitle?: string;
 };

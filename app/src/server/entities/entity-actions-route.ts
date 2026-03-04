@@ -4,6 +4,7 @@ import { HttpError } from "../http/errors";
 import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import { acknowledgeObservation, resolveObservation } from "../observation/queries";
+import { acceptSuggestion, convertSuggestion, dismissSuggestion, deferSuggestion } from "../suggestion/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
@@ -34,8 +35,8 @@ async function handleEntityAction(
     return jsonError("invalid JSON body", 400);
   }
 
-  if (!body.action || !["confirm", "override", "complete", "set_priority", "acknowledge", "resolve", "dismiss"].includes(body.action)) {
-    return jsonError("action must be one of: confirm, override, complete, set_priority, acknowledge, resolve, dismiss", 400);
+  if (!body.action || !["confirm", "override", "complete", "set_priority", "acknowledge", "resolve", "dismiss", "accept", "defer", "convert"].includes(body.action)) {
+    return jsonError("action must be one of: confirm, override, complete, set_priority, acknowledge, resolve, dismiss, accept, defer, convert", 400);
   }
 
   const url = new URL(request.url);
@@ -56,7 +57,7 @@ async function handleEntityAction(
   }
 
   try {
-    const entityTables: EntityActionTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation"];
+    const entityTables: EntityActionTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation", "suggestion"];
     const entityRecord = parseRecordIdString(entityId, entityTables);
 
     const table = entityRecord.table.name;
@@ -87,6 +88,62 @@ async function handleEntityAction(
       }
 
       return jsonError(`action '${body.action}' is not valid for entity type 'observation'`, 400);
+    }
+
+    // Suggestion actions handle their own workspace validation internally.
+    if (table === "suggestion") {
+      if (body.action === "accept") {
+        await acceptSuggestion({
+          surreal: deps.surreal,
+          workspaceRecord,
+          suggestionRecord: entityRecord as RecordId<"suggestion", string>,
+          now,
+        });
+        logInfo("entity.action.accept", "Suggestion accepted", { workspaceId, entityId });
+        return jsonResponse({ status: "accepted" }, 200);
+      }
+
+      if (body.action === "dismiss") {
+        await dismissSuggestion({
+          surreal: deps.surreal,
+          workspaceRecord,
+          suggestionRecord: entityRecord as RecordId<"suggestion", string>,
+          now,
+        });
+        logInfo("entity.action.dismiss", "Suggestion dismissed", { workspaceId, entityId });
+        return jsonResponse({ status: "dismissed" }, 200);
+      }
+
+      if (body.action === "defer") {
+        await deferSuggestion({
+          surreal: deps.surreal,
+          workspaceRecord,
+          suggestionRecord: entityRecord as RecordId<"suggestion", string>,
+          now,
+        });
+        logInfo("entity.action.defer", "Suggestion deferred", { workspaceId, entityId });
+        return jsonResponse({ status: "deferred" }, 200);
+      }
+
+      if (body.action === "convert") {
+        if (!body.convertTo || !["task", "feature", "decision", "project"].includes(body.convertTo)) {
+          return jsonError("convertTo must be one of: task, feature, decision, project", 400);
+        }
+        const result = await convertSuggestion({
+          surreal: deps.surreal,
+          workspaceRecord,
+          suggestionRecord: entityRecord as RecordId<"suggestion", string>,
+          targetKind: body.convertTo as "task" | "feature" | "decision" | "project",
+          title: body.convertTitle,
+          embeddingModel: deps.embeddingModel,
+          embeddingDimension: deps.config.embeddingDimension,
+          now,
+        });
+        logInfo("entity.action.convert", "Suggestion converted", { workspaceId, suggestionId: entityId, convertedEntityId: result.entityId, table: result.table });
+        return jsonResponse({ status: "converted", entityId: result.entityId, table: result.table }, 201);
+      }
+
+      return jsonError(`action '${body.action}' is not valid for entity type 'suggestion'`, 400);
     }
 
     const scoped = await isEntityInWorkspace(deps.surreal, workspaceRecord, entityRecord as RecordId<GraphEntityTable, string>);

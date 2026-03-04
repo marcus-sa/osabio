@@ -8,7 +8,7 @@ DEFINE FIELD messages ON conversation TYPE option<array<record<message>>>;
 DEFINE FIELD title ON conversation TYPE option<string>;
 DEFINE FIELD title_source ON conversation TYPE option<string> ASSERT $value = NONE OR $value IN ["message", "entity"];
 DEFINE FIELD embedding ON conversation TYPE option<array<float>>;
-DEFINE FIELD discusses ON conversation TYPE option<record<project | person | feature | task | decision | question | observation>>;
+DEFINE FIELD discusses ON conversation TYPE option<record<project | person | feature | task | decision | question | observation | suggestion>>;
 DEFINE INDEX conversation_createdAt ON conversation FIELDS createdAt;
 DEFINE INDEX conversation_workspace ON conversation FIELDS workspace;
 
@@ -224,6 +224,31 @@ DEFINE INDEX observation_severity ON observation FIELDS severity;
 DEFINE INDEX observation_created_at ON observation FIELDS created_at;
 DEFINE INDEX idx_observation_embedding ON observation FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
+DEFINE TABLE suggestion SCHEMAFULL;
+DEFINE FIELD text ON suggestion TYPE string;
+DEFINE FIELD category ON suggestion TYPE string
+  ASSERT $value IN ["optimization", "risk", "opportunity", "conflict", "missing", "pivot"];
+DEFINE FIELD rationale ON suggestion TYPE string;
+DEFINE FIELD suggested_by ON suggestion TYPE string;
+DEFINE FIELD confidence ON suggestion TYPE float ASSERT $value >= 0 AND $value <= 1;
+DEFINE FIELD status ON suggestion TYPE string
+  ASSERT $value IN ["pending", "accepted", "dismissed", "deferred", "converted"];
+DEFINE FIELD workspace ON suggestion TYPE record<workspace>;
+DEFINE FIELD source_message ON suggestion TYPE option<record<message>>;
+DEFINE FIELD source_session ON suggestion TYPE option<record<agent_session>>;
+DEFINE FIELD accepted_at ON suggestion TYPE option<datetime>;
+DEFINE FIELD dismissed_at ON suggestion TYPE option<datetime>;
+DEFINE FIELD deferred_at ON suggestion TYPE option<datetime>;
+DEFINE FIELD converted_at ON suggestion TYPE option<datetime>;
+DEFINE FIELD converted_to ON suggestion TYPE option<record<task | feature | decision | project>>;
+DEFINE FIELD embedding ON suggestion TYPE option<array<float>>;
+DEFINE FIELD created_at ON suggestion TYPE datetime;
+DEFINE FIELD updated_at ON suggestion TYPE option<datetime>;
+DEFINE INDEX suggestion_workspace_status ON suggestion FIELDS workspace, status;
+DEFINE INDEX suggestion_category ON suggestion FIELDS category;
+DEFINE INDEX suggestion_created_at ON suggestion FIELDS created_at;
+DEFINE INDEX idx_suggestion_embedding ON suggestion FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+
 DEFINE TABLE person SCHEMAFULL;
 DEFINE FIELD name ON person TYPE string;
 DEFINE FIELD role ON person TYPE option<string>;
@@ -363,6 +388,15 @@ DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
 DEFINE FIELD added_at ON observed_in TYPE datetime;
+
+DEFINE TABLE suggests_for TYPE RELATION IN suggestion OUT project | feature | task | question | decision SCHEMAFULL;
+DEFINE FIELD added_at ON suggests_for TYPE option<datetime>;
+
+DEFINE TABLE suggestion_evidence TYPE RELATION IN suggestion OUT workspace | project | person | feature | task | decision | question | observation SCHEMAFULL;
+DEFINE FIELD added_at ON suggestion_evidence TYPE option<datetime>;
+
+DEFINE TABLE converted_from TYPE RELATION IN task | feature | decision | project OUT suggestion SCHEMAFULL;
+DEFINE FIELD converted_at ON converted_from TYPE datetime;
 
 DEFINE TABLE touched_by TYPE RELATION IN project OUT conversation SCHEMAFULL;
 DEFINE FIELD first_mention_at ON touched_by TYPE datetime;

@@ -28,6 +28,31 @@ export function markTaskComplete(workspaceId: string, taskId: string): Promise<v
   return executeAction(workspaceId, taskId, { action: "complete" });
 }
 
+export function acceptSuggestion(workspaceId: string, suggestionId: string): Promise<void> {
+  return executeAction(workspaceId, suggestionId, { action: "accept" });
+}
+
+export function dismissSuggestion(workspaceId: string, suggestionId: string): Promise<void> {
+  return executeAction(workspaceId, suggestionId, { action: "dismiss" });
+}
+
+export function deferSuggestion(workspaceId: string, suggestionId: string): Promise<void> {
+  return executeAction(workspaceId, suggestionId, { action: "defer" });
+}
+
 export function setEntityPriority(workspaceId: string, entityId: string, priority: EntityPriority): Promise<void> {
   return executeAction(workspaceId, entityId, { action: "set_priority", priority });
+}
+
+export function convertSuggestion(
+  workspaceId: string,
+  suggestionId: string,
+  convertTo: "task" | "feature" | "decision" | "project",
+  convertTitle?: string,
+): Promise<void> {
+  return executeAction(workspaceId, suggestionId, {
+    action: "convert",
+    convertTo,
+    ...(convertTitle ? { convertTitle } : {}),
+  });
 }

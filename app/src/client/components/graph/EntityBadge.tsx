@@ -8,6 +8,7 @@ const KIND_LABELS: Record<string, string> = {
   decision: "Decision",
   question: "Question",
   observation: "Observation",
+  suggestion: "Suggestion",
   person: "Person",
   workspace: "Workspace",
 };

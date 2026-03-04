@@ -170,6 +170,54 @@ export class BrainHttpClient {
     return res.json();
   }
 
+  async listSuggestions(body: { status?: string; category?: string; limit?: number }): Promise<unknown> {
+    const res = await fetch(this.url("/suggestions"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to list suggestions: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async createSuggestion(body: {
+    text: string;
+    category: string;
+    rationale: string;
+    confidence: number;
+    target_entity_id?: string;
+    evidence_entity_ids?: string[];
+    session_id?: string;
+  }): Promise<unknown> {
+    const res = await fetch(this.url("/suggestions/create"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to create suggestion: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async suggestionAction(body: { suggestion_id: string; action: string }): Promise<unknown> {
+    const res = await fetch(this.url("/suggestions/action"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to perform suggestion action: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async convertSuggestion(body: { suggestion_id: string; convert_to: string; title?: string }): Promise<unknown> {
+    const res = await fetch(this.url("/suggestions/convert"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to convert suggestion: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
   async sessionStart(body: { agent: string; project_id: string; task_id?: string }): Promise<{ session_id: string }> {
     const res = await fetch(this.url("/sessions/start"), {
       method: "POST",

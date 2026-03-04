@@ -8,6 +8,7 @@ export function entityColor(kind: EntityKind): string {
     case "decision": return "var(--entity-decision)";
     case "question": return "var(--entity-question)";
     case "observation": return "var(--entity-decision)";
+    case "suggestion": return "var(--entity-question)";
     case "person": return "var(--entity-person)";
     case "workspace": return "var(--entity-project)";
     case "message": return "var(--entity-task)";
@@ -22,6 +23,7 @@ export function entityMutedColor(kind: EntityKind): string {
     case "decision": return "var(--entity-decision-muted)";
     case "question": return "var(--entity-question-muted)";
     case "observation": return "var(--entity-decision-muted)";
+    case "suggestion": return "var(--entity-question-muted)";
     case "person": return "var(--entity-person-muted)";
     case "workspace": return "var(--entity-project-muted)";
     case "message": return "var(--entity-task-muted)";
