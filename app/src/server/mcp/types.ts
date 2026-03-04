@@ -20,6 +20,7 @@ export type ContextPacket = {
   open_questions: QuestionContext[];
   recent_changes: RecentChangeContext[];
   observations: ObservationContext[];
+  active_sessions: ActiveSessionContext[];
 };
 
 export type TaskScopeContext = {
@@ -72,4 +73,14 @@ export type ObservationContext = {
   status: string;
   category?: string;
   observation_type?: string;
+};
+
+export type ActiveSessionContext = {
+  id: string;
+  agent: string;
+  directory: string;
+  started_at: string;
+  task?: { id: string; title: string };
+  provisional_decisions: Array<{ id: string; summary: string }>;
+  observations: Array<{ id: string; text: string; severity: string }>;
 };

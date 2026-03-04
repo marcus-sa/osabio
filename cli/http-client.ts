@@ -28,7 +28,7 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async getContext(body: { project_id: string; task_id?: string; since?: string }): Promise<unknown> {
+  async getContext(body: { project_id: string; task_id?: string; since?: string; session_id?: string }): Promise<unknown> {
     const res = await fetch(this.url("/context"), {
       method: "POST",
       headers: this.headers(),

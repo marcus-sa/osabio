@@ -16,25 +16,33 @@ export async function runLoadContext(): Promise<void> {
   if (cached) {
     // Load context for cached project
     try {
-      const context = await client.getContext({
-        project_id: cached.project_id,
-        since: cached.last_session,
-      });
-
-      // Output as text for Claude Code additionalContext
-      console.log(formatContextPacket(context));
-
-      // Start agent session for active session tracking
+      // Create session first so we can exclude self from active sessions
+      let sessionId: string | undefined;
       try {
         const session = await client.sessionStart({
           agent: "claude-code",
           directory: cwd,
           project_id: cached.project_id,
         });
-        setDirCacheEntry(cwd, { ...cached, session_id: session.session_id, last_session: new Date().toISOString() });
+        sessionId = session.session_id;
       } catch {
-        setDirCacheEntry(cwd, { ...cached, last_session: new Date().toISOString() });
+        // Session creation failure must not break context loading
       }
+
+      const context = await client.getContext({
+        project_id: cached.project_id,
+        since: cached.last_session,
+        session_id: sessionId,
+      });
+
+      // Output as text for Claude Code additionalContext
+      console.log(formatContextPacket(context));
+
+      setDirCacheEntry(cwd, {
+        ...cached,
+        session_id: sessionId,
+        last_session: new Date().toISOString(),
+      });
     } catch (error) {
       console.error(`Failed to load context: ${error instanceof Error ? error.message : error}`);
     }
@@ -60,9 +68,7 @@ export async function runLoadContext(): Promise<void> {
         last_session: new Date().toISOString(),
       };
 
-      const context = await client.getContext({ project_id: project.id });
-      console.log(formatContextPacket(context));
-
+      // Create session first so we can exclude self from active sessions
       try {
         const session = await client.sessionStart({
           agent: "claude-code",
@@ -73,6 +79,12 @@ export async function runLoadContext(): Promise<void> {
       } catch {
         // Session creation failure must not break context loading
       }
+
+      const context = await client.getContext({
+        project_id: project.id,
+        session_id: entry.session_id,
+      });
+      console.log(formatContextPacket(context));
 
       setDirCacheEntry(cwd, entry);
       return;
@@ -153,6 +165,21 @@ export async function runCheckUpdates(): Promise<void> {
         console.log(`[${c.entity_type}] ${c.entity_name} — ${c.change_type} at ${c.changed_at}`);
       }
       console.log("--- End Update ---\n");
+    }
+
+    // Cross-agent activity: provisional decisions and observations from other agents
+    const crossAgent = result.changes.filter(
+      (c) =>
+        c.change_type === "provisional" ||
+        (c.entity_type === "observation" && (c.change_type === "warning" || c.change_type === "conflict")),
+    );
+
+    if (crossAgent.length > 0) {
+      console.log("\n--- Cross-Agent Activity ---");
+      for (const c of crossAgent) {
+        console.log(`[${c.entity_type}] ${c.entity_name} — ${c.change_type}`);
+      }
+      console.log("--- End ---\n");
     }
 
     // Update last check time
@@ -344,5 +371,49 @@ function formatContextPacket(packet: unknown): string {
     lines.push("");
   }
 
+  // Active agent sessions (cross-agent awareness)
+  type ActiveSession = {
+    agent: string;
+    directory: string;
+    started_at: string;
+    task?: { id: string; title: string };
+    provisional_decisions: Array<{ summary: string }>;
+    observations: Array<{ text: string; severity: string }>;
+  };
+  const activeSessions = p.active_sessions as ActiveSession[] | undefined;
+  if (activeSessions?.length) {
+    lines.push("## Active Agent Sessions");
+    for (const s of activeSessions) {
+      const ago = formatTimeAgo(s.started_at);
+      lines.push(`  - ${s.agent} in ${s.directory} (started ${ago})`);
+      if (s.task) {
+        lines.push(`    Working on: ${s.task.title}`);
+      }
+      if (s.provisional_decisions.length > 0) {
+        lines.push("    Provisional decisions:");
+        for (const d of s.provisional_decisions) {
+          lines.push(`      - ${d.summary}`);
+        }
+      }
+      if (s.observations.length > 0) {
+        lines.push("    Observations:");
+        for (const o of s.observations) {
+          lines.push(`      - [${o.severity}] ${o.text}`);
+        }
+      }
+    }
+    lines.push("");
+  }
+
   return lines.join("\n");
+}
+
+function formatTimeAgo(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }

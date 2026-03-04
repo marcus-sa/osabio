@@ -5,6 +5,7 @@ import type {
   TaskContext,
   QuestionContext,
   ObservationContext,
+  ActiveSessionContext,
   TaskScopeContext,
   RecentChangeContext,
 } from "./types";
@@ -78,6 +79,26 @@ type DependencyRow = {
   status: string;
 };
 
+type ActiveAgentSessionRow = {
+  id: RecordId<"agent_session", string>;
+  agent: string;
+  directory: string;
+  started_at: Date | string;
+  task_id?: RecordId<"task", string>;
+};
+
+type SessionDecisionRow = {
+  id: RecordId<"decision", string>;
+  summary: string;
+};
+
+type SessionObservationRow = {
+  id: RecordId<"observation", string>;
+  text: string;
+  severity: string;
+  source_session: RecordId<"agent_session", string>;
+};
+
 function toId(record: RecordId<string, string>): string {
   return `${record.table.name}:${record.id as string}`;
 }
@@ -95,6 +116,7 @@ export async function buildProjectContext(input: {
   projectRecord: RecordId<"project", string>;
   taskId?: string;
   since?: string;
+  excludeSessionId?: string;
 }): Promise<ContextPacket> {
   const { surreal, workspaceRecord, workspaceName, projectRecord, taskId } = input;
 
@@ -196,6 +218,13 @@ export async function buildProjectContext(input: {
     ...(o.observation_type ? { observation_type: o.observation_type } : {}),
   }));
 
+  // Load active sessions on the same project (exclude self)
+  const activeSessions = await loadActiveSessions(
+    surreal,
+    projectRecord,
+    input.excludeSessionId,
+  );
+
   // Build recent changes if `since` provided
   const recentChanges: RecentChangeContext[] = input.since
     ? await loadRecentChanges(surreal, workspaceRecord, projectRecord, input.since)
@@ -221,6 +250,7 @@ export async function buildProjectContext(input: {
     open_questions: openQuestions,
     recent_changes: recentChanges,
     observations,
+    active_sessions: activeSessions,
   };
 }
 
@@ -329,6 +359,90 @@ async function buildTaskScope(
   };
 }
 
+/** Load active agent sessions on the same project, with their provisional decisions and observations */
+async function loadActiveSessions(
+  surreal: Surreal,
+  projectRecord: RecordId<"project", string>,
+  excludeSessionId?: string,
+): Promise<ActiveSessionContext[]> {
+  const excludeRecord = excludeSessionId
+    ? new RecordId("agent_session", excludeSessionId)
+    : new RecordId("agent_session", "__none__");
+
+  const [sessionRows] = await surreal
+    .query<[ActiveAgentSessionRow[]]>(
+      `SELECT id, agent, directory, started_at, task_id
+       FROM agent_session
+       WHERE project = $project AND ended_at = NONE AND id != $exclude
+       ORDER BY started_at DESC LIMIT 10;`,
+      { project: projectRecord, exclude: excludeRecord },
+    )
+    .collect<[ActiveAgentSessionRow[]]>();
+
+  if (sessionRows.length === 0) return [];
+
+  const sessionIds = sessionRows.map((s) => s.id);
+
+  // Load provisional decisions and observations for all active sessions in parallel
+  const [decisionRows, observationRows] = await surreal
+    .query<[SessionDecisionRow[], SessionObservationRow[]]>(
+      `SELECT id, summary FROM decision
+       WHERE id IN (SELECT VALUE out FROM produced WHERE \`in\` IN $sessions)
+         AND status = "provisional";
+
+       SELECT id, text, severity, source_session FROM observation
+       WHERE source_session IN $sessions
+         AND status IN ["open", "acknowledged"];`,
+      { sessions: sessionIds },
+    )
+    .collect<[SessionDecisionRow[], SessionObservationRow[]]>();
+
+  // Load task titles for task-scoped sessions
+  const taskIds = sessionRows
+    .filter((s) => s.task_id)
+    .map((s) => s.task_id!);
+
+  let taskTitles: Map<string, string> = new Map();
+  if (taskIds.length > 0) {
+    const [taskRows] = await surreal
+      .query<[Array<{ id: RecordId<"task", string>; title: string }>]>(
+        `SELECT id, title FROM task WHERE id IN $tasks;`,
+        { tasks: taskIds },
+      )
+      .collect<[Array<{ id: RecordId<"task", string>; title: string }>]>();
+    taskTitles = new Map(taskRows.map((t) => [toId(t.id), t.title]));
+  }
+
+  // Index observations by session
+  const obsBySession = new Map<string, Array<{ id: string; text: string; severity: string }>>();
+  for (const o of observationRows) {
+    const sessionKey = toId(o.source_session);
+    const arr = obsBySession.get(sessionKey) ?? [];
+    arr.push({ id: toId(o.id), text: o.text, severity: o.severity });
+    obsBySession.set(sessionKey, arr);
+  }
+
+  // All provisional decisions are produced via the `produced` relation, not scoped to a specific session
+  // in the query. Since the query already filters by active session ids, we include all results.
+  const allDecisions = decisionRows.map((d) => ({ id: toId(d.id), summary: d.summary }));
+
+  return sessionRows.map((s) => {
+    const sessionKey = toId(s.id);
+    const taskId = s.task_id ? toId(s.task_id) : undefined;
+    return {
+      id: sessionKey,
+      agent: s.agent,
+      directory: s.directory,
+      started_at: toIso(s.started_at),
+      ...(taskId && taskTitles.has(taskId)
+        ? { task: { id: taskId, title: taskTitles.get(taskId)! } }
+        : {}),
+      provisional_decisions: allDecisions,
+      observations: obsBySession.get(sessionKey) ?? [],
+    };
+  });
+}
+
 /** Load entities changed since a timestamp for the recent_changes field */
 async function loadRecentChanges(
   surreal: Surreal,
@@ -356,18 +470,23 @@ async function loadRecentChanges(
     WHERE workspace = $workspace AND id IN $project_entity_ids AND updated_at > $since
     ORDER BY updated_at DESC LIMIT 20;
 
-    RETURN array::flatten([$recent_decisions, $recent_tasks, $recent_questions]);
+    LET $recent_observations = SELECT "observation" AS entity_type, text AS entity_name, severity AS change_type, updated_at AS changed_at
+    FROM observation
+    WHERE workspace = $workspace AND updated_at > $since
+    ORDER BY updated_at DESC LIMIT 20;
+
+    RETURN array::flatten([$recent_decisions, $recent_tasks, $recent_questions, $recent_observations]);
   `;
 
   const results = await surreal
-    .query<[null, null, null, null, RecentChangeRow[]]>(query, {
+    .query<[null, null, null, null, null, RecentChangeRow[]]>(query, {
       project: projectRecord,
       workspace: workspaceRecord,
       since: sinceDate,
     })
-    .collect<[null, null, null, null, RecentChangeRow[]]>();
+    .collect<[null, null, null, null, null, RecentChangeRow[]]>();
 
-  const rows = results[4] ?? [];
+  const rows = results[5] ?? [];
 
   return rows.map((r) => ({
     entity_type: r.entity_type,

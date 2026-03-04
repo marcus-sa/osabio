@@ -143,7 +143,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
 
-    const body = await parseJsonBody<{ project_id: string; task_id?: string; since?: string }>(request);
+    const body = await parseJsonBody<{ project_id: string; task_id?: string; since?: string; session_id?: string }>(request);
     if (body instanceof Response) return body;
     if (!body.project_id) return jsonError("project_id is required", 400);
 
@@ -159,6 +159,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         projectRecord,
         taskId: body.task_id,
         since: body.since,
+        excludeSessionId: body.session_id,
       });
 
       logInfo("mcp.context.built", "MCP context packet assembled", {
