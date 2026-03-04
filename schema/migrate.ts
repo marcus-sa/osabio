@@ -1,8 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
 
 const MIGRATIONS_DIR = join(import.meta.dir, "migrations");
+const migrationGlob = new Bun.Glob("*.surql");
 
 const BOOTSTRAP_SQL = `
 DEFINE TABLE IF NOT EXISTS _migration SCHEMAFULL;
@@ -34,9 +34,7 @@ async function main() {
   await surreal.query(BOOTSTRAP_SQL);
 
   // Read migration files sorted alphabetically
-  const files = readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".surql"))
-    .sort();
+  const files = Array.from(migrationGlob.scanSync(MIGRATIONS_DIR)).sort();
 
   if (files.length === 0) {
     console.log("No migration files found.");
@@ -61,7 +59,7 @@ async function main() {
   console.log(`${pending.length} pending migration(s):\n`);
 
   for (const file of pending) {
-    const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf8");
+    const sql = await Bun.file(join(MIGRATIONS_DIR, file)).text();
 
     try {
       await surreal.query(sql);
