@@ -78,7 +78,6 @@ export type ObservationContext = {
 export type ActiveSessionContext = {
   id: string;
   agent: string;
-  directory: string;
   started_at: string;
   task?: { id: string; title: string };
   provisional_decisions: Array<{ id: string; summary: string }>;

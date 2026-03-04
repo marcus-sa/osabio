@@ -181,7 +181,6 @@ DEFINE INDEX question_workspace ON question FIELDS workspace;
 
 DEFINE TABLE agent_session SCHEMAFULL;
 DEFINE FIELD agent ON agent_session TYPE string;
-DEFINE FIELD directory ON agent_session TYPE string;
 DEFINE FIELD started_at ON agent_session TYPE datetime;
 DEFINE FIELD ended_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD workspace ON agent_session TYPE record<workspace>;

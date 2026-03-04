@@ -83,7 +83,6 @@ type DependencyRow = {
 type ActiveAgentSessionRow = {
   id: RecordId<"agent_session", string>;
   agent: string;
-  directory: string;
   started_at: Date | string;
   task_id?: RecordId<"task", string>;
 };
@@ -368,7 +367,7 @@ async function loadActiveSessions(
 
   const [sessionRows] = await surreal
     .query<[ActiveAgentSessionRow[]]>(
-      `SELECT id, agent, directory, started_at, task_id
+      `SELECT id, agent, started_at, task_id
        FROM agent_session
        WHERE workspace = $workspace AND project = $project AND ended_at = NONE AND id != $exclude
        ORDER BY started_at DESC LIMIT 10;`,
@@ -440,7 +439,6 @@ async function loadActiveSessions(
     return {
       id: sessionKey,
       agent: s.agent,
-      directory: s.directory,
       started_at: toIso(s.started_at),
       ...(taskId && taskTitles.has(taskId)
         ? { task: { id: taskId, title: taskTitles.get(taskId)! } }

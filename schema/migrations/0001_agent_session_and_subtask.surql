@@ -7,7 +7,6 @@ BEGIN TRANSACTION;
 -- Agent session entity: logs each coding agent session as a graph node
 DEFINE TABLE OVERWRITE agent_session SCHEMAFULL;
 DEFINE FIELD agent ON agent_session TYPE string;
-DEFINE FIELD directory ON agent_session TYPE string;
 DEFINE FIELD started_at ON agent_session TYPE datetime;
 DEFINE FIELD ended_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD workspace ON agent_session TYPE record<workspace>;

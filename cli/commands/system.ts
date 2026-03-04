@@ -21,7 +21,6 @@ export async function runLoadContext(): Promise<void> {
       try {
         const session = await client.sessionStart({
           agent: "claude-code",
-          directory: cwd,
           project_id: cached.project_id,
         });
         sessionId = session.session_id;
@@ -72,7 +71,6 @@ export async function runLoadContext(): Promise<void> {
       try {
         const session = await client.sessionStart({
           agent: "claude-code",
-          directory: cwd,
           project_id: project.id,
         });
         entry.session_id = session.session_id;
@@ -306,7 +304,6 @@ export async function runEndSession(): Promise<void> {
     if (!sessionId) {
       const session = await client.sessionStart({
         agent: "claude-code",
-        directory: cwd,
         project_id: cached.project_id,
       });
       sessionId = session.session_id;
@@ -441,7 +438,6 @@ function formatContextPacket(packet: unknown): string {
   // Active agent sessions (cross-agent awareness)
   type ActiveSession = {
     agent: string;
-    directory: string;
     started_at: string;
     task?: { id: string; title: string };
     provisional_decisions: Array<{ summary: string }>;
@@ -452,7 +448,7 @@ function formatContextPacket(packet: unknown): string {
     lines.push("## Active Agent Sessions");
     for (const s of activeSessions) {
       const ago = formatTimeAgo(s.started_at);
-      lines.push(`  - ${s.agent} in ${s.directory} (started ${ago})`);
+      lines.push(`  - ${s.agent} (started ${ago})`);
       if (s.task) {
         lines.push(`    Working on: ${s.task.title}`);
       }

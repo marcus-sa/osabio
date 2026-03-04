@@ -822,13 +822,11 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
     const body = await parseJsonBody<{
       agent: string;
-      directory: string;
       project_id: string;
       task_id?: string;
     }>(request);
     if (body instanceof Response) return body;
     if (!body.agent) return jsonError("agent is required", 400);
-    if (!body.directory) return jsonError("directory is required", 400);
     if (!body.project_id) return jsonError("project_id is required", 400);
     let projectId: string;
     let taskId: string | undefined;
@@ -848,7 +846,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const result = await createAgentSession({
       surreal,
       agent: body.agent,
-      directory: body.directory,
       workspaceRecord: auth.workspaceRecord,
       projectRecord,
       ...(taskId ? { taskId } : {}),

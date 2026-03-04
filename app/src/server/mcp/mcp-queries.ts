@@ -487,7 +487,6 @@ export async function logImplementationNote(input: {
 export async function createAgentSession(input: {
   surreal: Surreal;
   agent: string;
-  directory: string;
   workspaceRecord: RecordId<"workspace", string>;
   projectRecord: RecordId<"project", string>;
   taskId?: string;
@@ -497,7 +496,6 @@ export async function createAgentSession(input: {
 
   await input.surreal.create(sessionRecord).content({
     agent: input.agent,
-    directory: input.directory,
     started_at: now,
     workspace: input.workspaceRecord,
     project: input.projectRecord,

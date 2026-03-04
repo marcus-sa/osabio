@@ -170,7 +170,7 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async sessionStart(body: { agent: string; directory: string; project_id: string; task_id?: string }): Promise<{ session_id: string }> {
+  async sessionStart(body: { agent: string; project_id: string; task_id?: string }): Promise<{ session_id: string }> {
     const res = await fetch(this.url("/sessions/start"), {
       method: "POST",
       headers: this.headers(),
