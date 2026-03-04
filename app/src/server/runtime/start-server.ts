@@ -18,6 +18,7 @@ import { createBranchConversationHandler } from "../chat/branch-conversation";
 import { createGitHubWebhookHandler } from "../webhook/github-webhook-route";
 import { createFeedRouteHandler } from "../feed/feed-route";
 import { createChatRouteHandler } from "../chat/chat-route";
+import { createMcpRouteHandlers } from "../mcp/mcp-route";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -47,6 +48,7 @@ export async function startServer(): Promise<void> {
   const githubWebhookHandler = createGitHubWebhookHandler(deps);
   const feedHandler = createFeedRouteHandler(deps);
   const chatRouteHandler = createChatRouteHandler(deps);
+  const mcpHandlers = createMcpRouteHandlers(deps);
 
   const server = Bun.serve({
     port: config.port,
@@ -143,6 +145,20 @@ export async function startServer(): Promise<void> {
           "POST /api/workspaces/:workspaceId/webhooks/github",
           "POST",
           (request) => githubWebhookHandler(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/context": {
+        POST: withRequestLogging(
+          "POST /api/mcp/:workspaceId/context",
+          "POST",
+          (request) => mcpHandlers.handleGetContext(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/projects": {
+        GET: withRequestLogging(
+          "GET /api/mcp/:workspaceId/projects",
+          "GET",
+          (request) => mcpHandlers.handleListProjects(request.params.workspaceId),
         ),
       },
       "/": appHtml,
