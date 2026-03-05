@@ -82,6 +82,11 @@ export async function requireAuthorizedContext(
 ): Promise<AuthorizedContext> {
   const context = requireToolContext(options);
 
+  // Contract: MCP contexts must never claim human presence
+  if (context.humanPresent && context.actor === "mcp") {
+    throw new Error("Contract violation: humanPresent must not be true for MCP contexts");
+  }
+
   // Human-present web sessions bypass authority (human IS the authority)
   if (context.humanPresent) {
     return { context, permission: "auto" };

@@ -1,15 +1,8 @@
 import type { AuthorityAction } from "../iam/authority";
 import { jsonError } from "../http/response";
+import { BRAIN_SCOPES } from "../../shared/scopes";
 
-export const BRAIN_SCOPES = {
-  "graph:read": "Read workspace graph data",
-  "graph:reason": "Use reasoning tools (resolve decisions, check constraints)",
-  "decision:write": "Create and confirm decisions",
-  "task:write": "Create tasks, update status",
-  "observation:write": "Log observations",
-  "question:write": "Ask questions",
-  "session:write": "Start and end agent sessions",
-} as const;
+export { BRAIN_SCOPES };
 
 export type BrainScope = keyof typeof BRAIN_SCOPES;
 

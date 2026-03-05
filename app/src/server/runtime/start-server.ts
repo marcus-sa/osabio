@@ -20,6 +20,7 @@ import { createFeedRouteHandler } from "../feed/feed-route";
 import { createChatRouteHandler } from "../chat/chat-route";
 import { createMcpRouteHandlers } from "../mcp/mcp-route";
 import { BRAIN_SCOPES } from "../auth/scopes";
+import { createClientInfoHandler } from "../auth/client-info-route";
 
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
@@ -297,6 +298,13 @@ export async function startServer(): Promise<void> {
           scopes_supported: Object.keys(BRAIN_SCOPES),
           bearer_methods_supported: ["header"],
         }, 200),
+      },
+      "/api/auth/oauth-client/:clientId": {
+        GET: withRequestLogging(
+          "GET /api/auth/oauth-client/:clientId",
+          "GET",
+          createClientInfoHandler(deps.surreal),
+        ),
       },
       "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,

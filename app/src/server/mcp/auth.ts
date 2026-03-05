@@ -97,5 +97,6 @@ export async function authenticateMcpRequest(
     agentType: rawAgentType as AgentType,
     personRecord: new RecordId("person", personId),
     scopes,
+    humanPresent: false as const,
   };
 }

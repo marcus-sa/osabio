@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet, createRootRoute, createRoute, createRouter, useNavigate } from "@tanstack/react-router";
+import { AuthGuard } from "./components/layout/AuthGuard";
 import { WorkspaceGuard } from "./components/layout/WorkspaceGuard";
 import { WorkspaceSidebar } from "./components/layout/WorkspaceSidebar";
 import { SearchOverlay } from "./components/search/SearchOverlay";
@@ -8,6 +9,8 @@ import { useWorkspaceState } from "./stores/workspace-state";
 import { ChatPage } from "./routes/chat-page";
 import { GraphPage } from "./routes/graph-page";
 import { HomePage } from "./routes/home-page";
+import { SignInPage } from "./routes/sign-in-page";
+import { ConsentPage } from "./routes/consent-page";
 
 function AppShell() {
   const workspace = useWorkspace();
@@ -33,58 +36,81 @@ function AppShell() {
   }
 
   return (
-    <WorkspaceGuard
-      isReady={workspace.isReady}
-      isBootstrapping={workspace.isBootstrapping}
-      isCreatingWorkspace={workspace.isCreatingWorkspace}
-      canCreateWorkspace={workspace.canCreateWorkspace}
-      createWorkspaceName={workspace.createWorkspaceName}
-      createOwnerName={workspace.createOwnerName}
-      errorMessage={workspace.errorMessage}
-      setCreateWorkspaceName={workspace.setCreateWorkspaceName}
-      setCreateOwnerName={workspace.setCreateOwnerName}
-      onCreateWorkspace={workspace.onCreateWorkspace}
-    >
-      <div className="app-shell">
-        <WorkspaceSidebar
-          sidebar={sidebar}
-          activeConversationId={sidebarHandlers?.activeConversationId}
-          isLoading={sidebarHandlers?.isLoading ?? false}
-          onNewConversation={handleNewConversation}
-          onSelectConversation={handleSelectConversation}
-        />
-        <div className="app-main">
-          <div className="content-header">
-            <span className="content-header-title">{workspaceName}</span>
-            {onboardingState === "active" ? (
-              <span className="onboarding-badge">Setting up</span>
-            ) : onboardingState === "summary_pending" ? (
-              <span className="onboarding-badge">Review setup</span>
-            ) : undefined}
-            <button
-              type="button"
-              className="search-trigger"
-              onClick={() => setSearchOpen(true)}
-            >
-              Search...
-            </button>
-          </div>
-          <div className="app-content">
-            <Outlet />
+    <AuthGuard>
+      <WorkspaceGuard
+        isReady={workspace.isReady}
+        isBootstrapping={workspace.isBootstrapping}
+        isCreatingWorkspace={workspace.isCreatingWorkspace}
+        canCreateWorkspace={workspace.canCreateWorkspace}
+        createWorkspaceName={workspace.createWorkspaceName}
+        createOwnerName={workspace.createOwnerName}
+        errorMessage={workspace.errorMessage}
+        setCreateWorkspaceName={workspace.setCreateWorkspaceName}
+        setCreateOwnerName={workspace.setCreateOwnerName}
+        onCreateWorkspace={workspace.onCreateWorkspace}
+      >
+        <div className="app-shell">
+          <WorkspaceSidebar
+            sidebar={sidebar}
+            activeConversationId={sidebarHandlers?.activeConversationId}
+            isLoading={sidebarHandlers?.isLoading ?? false}
+            onNewConversation={handleNewConversation}
+            onSelectConversation={handleSelectConversation}
+          />
+          <div className="app-main">
+            <div className="content-header">
+              <span className="content-header-title">{workspaceName}</span>
+              {onboardingState === "active" ? (
+                <span className="onboarding-badge">Setting up</span>
+              ) : onboardingState === "summary_pending" ? (
+                <span className="onboarding-badge">Review setup</span>
+              ) : undefined}
+              <button
+                type="button"
+                className="search-trigger"
+                onClick={() => setSearchOpen(true)}
+              >
+                Search...
+              </button>
+            </div>
+            <div className="app-content">
+              <Outlet />
+            </div>
           </div>
         </div>
-      </div>
-      {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : undefined}
-    </WorkspaceGuard>
+        {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : undefined}
+      </WorkspaceGuard>
+    </AuthGuard>
   );
 }
 
+// Root route: bare outlet for public/authenticated split
 const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+});
+
+// Public routes (no auth required)
+const signInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sign-in",
+  component: SignInPage,
+});
+
+const consentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/consent",
+  component: ConsentPage,
+});
+
+// Authenticated layout (AuthGuard + AppShell)
+const authLayout = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "authenticated",
   component: AppShell,
 });
 
 const homeRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authLayout,
   path: "/",
   component: HomePage,
 });
@@ -96,26 +122,30 @@ const validateChatSearch = (search: Record<string, unknown>): ChatSearch => ({
 });
 
 const chatRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authLayout,
   path: "/chat",
   component: ChatPage,
   validateSearch: validateChatSearch,
 });
 
 const chatConversationRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authLayout,
   path: "/chat/$conversationId",
   component: ChatPage,
   validateSearch: validateChatSearch,
 });
 
 const graphRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authLayout,
   path: "/graph",
   component: GraphPage,
 });
 
-const routeTree = rootRoute.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute]);
+const routeTree = rootRoute.addChildren([
+  signInRoute,
+  consentRoute,
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute]),
+]);
 
 export const router = createRouter({ routeTree });
 

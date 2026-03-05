@@ -14,6 +14,8 @@ export type McpAuthResult = {
   agentType: AgentType;
   personRecord: RecordId<"person", string>;
   scopes: Set<string>;
+  /** Always false for MCP contexts — autonomous agents never bypass authority checks. */
+  humanPresent: false;
 };
 
 /** Context packet returned by get_project_context */

@@ -15,7 +15,7 @@ export function ChatPage() {
   const setSidebarHandlers = useWorkspaceState((s) => s.setSidebarHandlers);
 
   // Read conversationId from /chat/$conversationId route (undefined on /chat)
-  const matchWithId = useMatch({ from: "/chat/$conversationId", shouldThrow: false });
+  const matchWithId = useMatch({ from: "/authenticated/chat/$conversationId", shouldThrow: false });
   const routeConversationId = matchWithId?.params.conversationId;
 
   // Read message search param (works on both /chat and /chat/:id)
