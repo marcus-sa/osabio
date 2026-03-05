@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b78a0bbea00c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/better-auth-surrealdb",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/token-validation.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b7/8a0bbea00c/0/metadata.json",
+      "transcript": "/b7/8a0bbea00c/0/full.jsonl",
+      "context": "/b7/8a0bbea00c/0/context.md",
+      "content_hash": "/b7/8a0bbea00c/0/content_hash.txt",
+      "prompt": "/b7/8a0bbea00c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 49415,
+    "cache_read_tokens": 971262,
+    "output_tokens": 1281,
+    "api_call_count": 11
+  }
+}
