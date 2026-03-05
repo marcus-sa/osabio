@@ -3,7 +3,7 @@
   "checkpoint_id": "a370c72d99c1",
   "strategy": "manual-commit",
   "branch": "marcus-sa/plugin-architecture-discussion",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "tests/smoke/intent-context.test.ts"
   ],
@@ -14,13 +14,20 @@
       "context": "",
       "content_hash": "/a3/70c72d99c1/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/a3/70c72d99c1/1/metadata.json",
+      "transcript": "/a3/70c72d99c1/1/full.jsonl",
+      "context": "/a3/70c72d99c1/1/context.md",
+      "content_hash": "/a3/70c72d99c1/1/content_hash.txt",
+      "prompt": "/a3/70c72d99c1/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 191,
+    "cache_creation_tokens": 298275,
+    "cache_read_tokens": 11389922,
+    "output_tokens": 60292,
+    "api_call_count": 107
   }
 }

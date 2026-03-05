@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a370c72d99c1",
+  "session_id": "85b94721-2106-4564-a946-a32c30fe651d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-05T18:40:33.352324Z",
+  "branch": "marcus-sa/plugin-architecture-discussion",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/smoke/intent-context.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3f8133e1fe7e",
+  "token_usage": {
+    "input_tokens": 191,
+    "cache_creation_tokens": 298275,
+    "cache_read_tokens": 11389922,
+    "output_tokens": 60292,
+    "api_call_count": 107
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-05T18:40:31.94305Z",
+    "agent_lines": 71,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 71,
+    "agent_percentage": 100
+  }
+}
