@@ -2121,17 +2121,6 @@ body {
   color: var(--destructive);
 }
 
-/* ── Auth Guard ── */
-
-.auth-guard-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: var(--background);
-  color: var(--muted-foreground);
-}
-
 /* ── Sign-In Page ── */
 
 .sign-in-page {

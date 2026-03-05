@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Outlet, createRootRoute, createRoute, createRouter, useNavigate } from "@tanstack/react-router";
-import { AuthGuard } from "./components/layout/AuthGuard";
+import { Outlet, createRootRoute, createRoute, createRouter, redirect, useNavigate } from "@tanstack/react-router";
+import { authClient } from "./lib/auth-client";
 import { WorkspaceGuard } from "./components/layout/WorkspaceGuard";
 import { WorkspaceSidebar } from "./components/layout/WorkspaceSidebar";
 import { SearchOverlay } from "./components/search/SearchOverlay";
@@ -36,51 +36,49 @@ function AppShell() {
   }
 
   return (
-    <AuthGuard>
-      <WorkspaceGuard
-        isReady={workspace.isReady}
-        isBootstrapping={workspace.isBootstrapping}
-        isCreatingWorkspace={workspace.isCreatingWorkspace}
-        canCreateWorkspace={workspace.canCreateWorkspace}
-        createWorkspaceName={workspace.createWorkspaceName}
-        createOwnerName={workspace.createOwnerName}
-        errorMessage={workspace.errorMessage}
-        setCreateWorkspaceName={workspace.setCreateWorkspaceName}
-        setCreateOwnerName={workspace.setCreateOwnerName}
-        onCreateWorkspace={workspace.onCreateWorkspace}
-      >
-        <div className="app-shell">
-          <WorkspaceSidebar
-            sidebar={sidebar}
-            activeConversationId={sidebarHandlers?.activeConversationId}
-            isLoading={sidebarHandlers?.isLoading ?? false}
-            onNewConversation={handleNewConversation}
-            onSelectConversation={handleSelectConversation}
-          />
-          <div className="app-main">
-            <div className="content-header">
-              <span className="content-header-title">{workspaceName}</span>
-              {onboardingState === "active" ? (
-                <span className="onboarding-badge">Setting up</span>
-              ) : onboardingState === "summary_pending" ? (
-                <span className="onboarding-badge">Review setup</span>
-              ) : undefined}
-              <button
-                type="button"
-                className="search-trigger"
-                onClick={() => setSearchOpen(true)}
-              >
-                Search...
-              </button>
-            </div>
-            <div className="app-content">
-              <Outlet />
-            </div>
+    <WorkspaceGuard
+      isReady={workspace.isReady}
+      isBootstrapping={workspace.isBootstrapping}
+      isCreatingWorkspace={workspace.isCreatingWorkspace}
+      canCreateWorkspace={workspace.canCreateWorkspace}
+      createWorkspaceName={workspace.createWorkspaceName}
+      createOwnerName={workspace.createOwnerName}
+      errorMessage={workspace.errorMessage}
+      setCreateWorkspaceName={workspace.setCreateWorkspaceName}
+      setCreateOwnerName={workspace.setCreateOwnerName}
+      onCreateWorkspace={workspace.onCreateWorkspace}
+    >
+      <div className="app-shell">
+        <WorkspaceSidebar
+          sidebar={sidebar}
+          activeConversationId={sidebarHandlers?.activeConversationId}
+          isLoading={sidebarHandlers?.isLoading ?? false}
+          onNewConversation={handleNewConversation}
+          onSelectConversation={handleSelectConversation}
+        />
+        <div className="app-main">
+          <div className="content-header">
+            <span className="content-header-title">{workspaceName}</span>
+            {onboardingState === "active" ? (
+              <span className="onboarding-badge">Setting up</span>
+            ) : onboardingState === "summary_pending" ? (
+              <span className="onboarding-badge">Review setup</span>
+            ) : undefined}
+            <button
+              type="button"
+              className="search-trigger"
+              onClick={() => setSearchOpen(true)}
+            >
+              Search...
+            </button>
+          </div>
+          <div className="app-content">
+            <Outlet />
           </div>
         </div>
-        {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : undefined}
-      </WorkspaceGuard>
-    </AuthGuard>
+      </div>
+      {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : undefined}
+    </WorkspaceGuard>
   );
 }
 
@@ -102,11 +100,20 @@ const consentRoute = createRoute({
   component: ConsentPage,
 });
 
-// Authenticated layout (AuthGuard + AppShell)
+// Authenticated layout — checks session before rendering
 const authLayout = createRoute({
   getParentRoute: () => rootRoute,
   id: "authenticated",
   component: AppShell,
+  beforeLoad: async ({ location }) => {
+    const { data } = await authClient.getSession();
+    if (!data) {
+      throw redirect({
+        to: "/sign-in",
+        search: { redirectTo: location.href },
+      });
+    }
+  },
 });
 
 const homeRoute = createRoute({
