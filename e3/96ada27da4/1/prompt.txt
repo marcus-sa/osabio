@@ -1,0 +1,107 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/budapest-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+create tests (or evals, w/e makes sense) for intent context
+
+---
+
+integration tests...
+
+---
+
+integration tests...
+
+---
+
+tests/smoke/intent-context.test.ts:
+2963 |          const { query, transaction, session, json } = this.#options;
+2964 |          const chunks = this.#connection.query(query, session, transaction);
+2965 |          const responses = [];
+2966 |          const queryIndexes = queries.length > 0 ? new Map(queries.map((idx, i) => [idx, i])) : void 0;
+2967 |          for await (const chunk of chunks) {
+2968 |                  if (chunk.error) throw new ResponseError(chunk.error);
+                                 ^
+ResponseError: The query was not executed due to a failed transaction
+ code: 0,
+
+      at collect (/Users/marcus/conductor/workspaces/brain/budapest-v2/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+✗ (unnamed) [858.07ms]
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [892.00ms]
+
+---
+
+eh nope. still happens
+
+---
+
+"Found it. SurrealDB v3.0 error: ORDER BY updated_at DESC but updated_at is not in the SELECT projection. This is a bug in the context builder queries, not in my test. Let me find and fix the offending query."
+
+add this learning to AGENTS.md
+
+---
+
+run the smoke test again
+
+---
+
+Commit and push all changes
+
+---
+
+why are we testing ? 
+
+it("rejects request without auth header", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const ws = await createWorkspaceWithApiKey(baseUrl, surreal);
+
+    const response = await fetch(`${baseUrl}/api/mcp/${ws.workspaceId}/context`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intent: "anything" }),
+    });
+
+    expect(response.status).toBe(401);
+  }, 30_000);
+
+  it("rejects request with invalid api key", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const ws = await createWorkspaceWithApiKey(baseUrl, surreal);
+
+    const response = await fetch(`${baseUrl}/api/mcp/${ws.workspaceId}/context`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer brain_invalid_key_000000000000000000000000000000",
+      },
+      body: JSON.stringify({ intent: "anything" }),
+    });
+
+    expect(response.status).toBe(401);
+  }, 30_000);
+
+---
+
+many of the unit tests also seem very redundant / irrelevant now that we have integration tests
+
+---
+
+lmao, these integration tests are inherntly useless.
+
+not one of them tests how a coding agent would actually post the intent, and what the response would be
+
+e.g "i am working on billing ... xxx"
+
+---
+
+Commit and push all changes
