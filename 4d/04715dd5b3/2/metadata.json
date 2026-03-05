@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4d04715dd5b3",
+  "session_id": "ef826148-75dd-4ed3-9237-a12e48b10319",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-05T17:48:47.880981Z",
+  "branch": "marcus-sa/better-auth-surrealdb",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/chat/tools/resolve-observation.ts",
+    "app/src/server/extraction/persist-extraction.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/create-question.ts",
+    "app/src/server/extraction/person.ts",
+    "app/src/server/iam/authority.ts",
+    "app/src/server/iam/identity.ts",
+    "app/src/server/chat/chat-ingress.ts",
+    "app/src/server/chat/tools/acknowledge-observation.ts",
+    "app/src/server/chat/tools/create-observation.ts",
+    "app/src/server/chat/tools/create-provisional-decision.ts",
+    "app/src/server/chat/tools/resolve-decision.ts",
+    "app/src/server/chat/tools/suggest-work-items.ts",
+    "app/src/server/mcp/auth.ts",
+    "schema/migrations/0011_authority_scope.surql",
+    "app/src/server/chat/tools/confirm-decision.ts",
+    "app/src/server/chat/tools/create-suggestion.ts",
+    "app/src/server/chat/tools/types.ts",
+    "schema/surreal-schema.surql",
+    "tests/smoke/authority.test.ts",
+    "app/src/server/chat/tools/create-work-item.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9a1bbd071173",
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 38578,
+    "cache_read_tokens": 237980,
+    "output_tokens": 1228,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-05T17:48:47.848928Z",
+    "agent_lines": 674,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 674,
+    "agent_percentage": 100
+  }
+}
