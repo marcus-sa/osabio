@@ -1,0 +1,141 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/budapest-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+maybe is it better to have the brain claude plugin work similarly to claude-context-mode?
+
+how to delete this from pulumi state: cloudflare:index:DnsRecord (openapi-docs):
+      error: failed to make http request: DELETE
+  "https://api.cloudflare.com/client/v4/zones/8fd39b7efa2535b246468c3f29b39629/dns_records/f7310893f4ec4f3aae2e6e02a1dde3b2": 404 Not Found
+   {"result":null,"success":false,"errors":[{"code":81044,"message":"Record does not exist."}],"messages":[]}
+
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+  ⎿  UserPromptSubmit hook error
+
+⏺ Run this to remove it from state without calling the Cloudflare API:
+
+  pulumi state delete 'urn:pulumi:...' --force
+
+  First, find the exact URN:
+
+⏺ plugin:context-mode:context-mode - execute (MCP)(language: "shell", code: "cd /Users/marcus/Git/telgea/v1/main/infra/platform && pulumi stack
+                                                  export 2>/dev/null | grep -B2 -A2 'openapi-docs' | head -20", intent: "find URN for
+                                                  openapi-docs DNS record")
+
+---
+
+yes, sure
+
+---
+
+Continue from where you left off.
+
+---
+
+why do we need caching?
+
+---
+
+no, why arent we keeping the existing architecture where it writes to dir CLAUDE.md?
+
+---
+
+Continue from where you left off.
+
+---
+
+no, why arent we keeping the existing architecture where it writes maps to dir CLAUDE.md?
+
+---
+
+"Task tool additionalContext — but subagents already read the repo and directory CLAUDE.md files"
+
+but is this better?
+
+---
+
+sure
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+""
+echo '{"tool_name":"Task","tool_input":{"prompt":"Fix the auth bug in /repo/services/auth"}}' | brain system pretooluse
+# → JSON with additionalContext containing workspace projects
+"""
+why would we only load workspace projects here???
+
+i mean come on, think for fuck sake
+
+---
+
+"subagents don’t have graph context. Giving them project names is useless." - is this only for subagents?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+"Walk upward from process.cwd() looking for CLAUDE.md files with <!-- brain-map-start --> markers"
+
+why the fuck would it do this? doesn't claude already load these???
+
+---
+
+ok, so maybe it does need to traverse up directory to find and load the CLAUDE.md file. should we use our own file format instead?
+
+what's the point of putting this in CLAUDE.md files then? we could just have .brain/config.json in the repo with all the mappings
+
+or is there even a need to have mappings in version control? 
+
+shouldn't our system be intelligent enough to map current dir / file to project / feature ?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+"BM25 search — search intent text across entity types (task titles, project names, decision summaries, etc.) using existing buildWorkspaceSearchSQL" is vector embedding search better?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+"SessionStart (brain system load-context):
+
+Currently: calls getWorkspaceContext(), formats shallow overview
+Change: calls new /context endpoint with { intent: "starting session", cwd: process.cwd() }
+Gets full project context automatically when scope can be inferred"
+
+is there any gain in"calls new /context endpoint with { intent: "starting session", cwd: process.cwd() }" ?

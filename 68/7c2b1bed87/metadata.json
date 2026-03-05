@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "687c2b1bed87",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/plugin-architecture-discussion",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/intent-context.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/runtime/start-server.ts",
+    "cli/brain.ts",
+    "cli/commands/init-content.ts",
+    "cli/commands/system.ts",
+    "cli/http-client.ts",
+    "cli/mcp-server.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/7c2b1bed87/0/metadata.json",
+      "transcript": "/68/7c2b1bed87/0/full.jsonl",
+      "context": "/68/7c2b1bed87/0/context.md",
+      "content_hash": "/68/7c2b1bed87/0/content_hash.txt",
+      "prompt": "/68/7c2b1bed87/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3378,
+    "cache_creation_tokens": 365723,
+    "cache_read_tokens": 11284418,
+    "output_tokens": 56829,
+    "api_call_count": 112
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "687c2b1bed87",
+  "session_id": "2409fcfc-e323-4c68-aaf4-5721a1e2568e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-05T17:48:08.624688Z",
+  "branch": "marcus-sa/plugin-architecture-discussion",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/intent-context.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/runtime/start-server.ts",
+    "cli/brain.ts",
+    "cli/commands/init-content.ts",
+    "cli/commands/system.ts",
+    "cli/http-client.ts",
+    "cli/mcp-server.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7a7638a0ae42",
+  "token_usage": {
+    "input_tokens": 3378,
+    "cache_creation_tokens": 365723,
+    "cache_read_tokens": 11284418,
+    "output_tokens": 56829,
+    "api_call_count": 112
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-05T17:48:08.118045Z",
+    "agent_lines": 588,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 588,
+    "agent_percentage": 100
+  }
+}
