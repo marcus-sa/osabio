@@ -159,9 +159,19 @@ export async function startServer(): Promise<void> {
         ),
       },
       // MCP — Tier 1 Read
-      "/api/mcp/:workspaceId/context": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/context", "POST", (request) =>
-          mcpHandlers.handleGetContext(request.params.workspaceId, request),
+      "/api/mcp/:workspaceId/workspace-context": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/workspace-context", "POST", (request) =>
+          mcpHandlers.handleWorkspaceContext(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/project-context": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/project-context", "POST", (request) =>
+          mcpHandlers.handleProjectContext(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/task-context": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/task-context", "POST", (request) =>
+          mcpHandlers.handleTaskContext(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/decisions": {

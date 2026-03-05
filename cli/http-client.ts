@@ -28,17 +28,37 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async getContext(body: { project_id: string; task_id?: string; since?: string; session_id?: string }): Promise<unknown> {
-    const res = await fetch(this.url("/context"), {
+  async getWorkspaceContext(body?: { session_id?: string }): Promise<unknown> {
+    const res = await fetch(this.url("/workspace-context"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!res.ok) throw new Error(`Failed to get workspace context: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async getProjectContext(body: { project_id: string; task_id?: string; since?: string; session_id?: string }): Promise<unknown> {
+    const res = await fetch(this.url("/project-context"), {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`Failed to get context: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`Failed to get project context: ${res.status} ${await res.text()}`);
     return res.json();
   }
 
-  async getDecisions(body: { project_id: string; area?: string }): Promise<unknown> {
+  async getTaskContext(body: { task_id: string; session_id?: string }): Promise<unknown> {
+    const res = await fetch(this.url("/task-context"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to get task context: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async getDecisions(body: { project_id?: string; area?: string }): Promise<unknown> {
     const res = await fetch(this.url("/decisions"), {
       method: "POST",
       headers: this.headers(),
@@ -58,7 +78,7 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async getConstraints(body: { project_id: string; area?: string }): Promise<unknown> {
+  async getConstraints(body: { project_id?: string; area?: string }): Promise<unknown> {
     const res = await fetch(this.url("/constraints"), {
       method: "POST",
       headers: this.headers(),
@@ -218,7 +238,7 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async sessionStart(body: { agent: string; project_id: string; task_id?: string }): Promise<{ session_id: string }> {
+  async sessionStart(body: { agent: string; project_id?: string; task_id?: string }): Promise<{ session_id: string }> {
     const res = await fetch(this.url("/sessions/start"), {
       method: "POST",
       headers: this.headers(),
@@ -249,7 +269,7 @@ export class BrainHttpClient {
   }
 
   async checkCommit(body: {
-    project_id: string;
+    project_id?: string;
     diff: string;
     commit_message: string;
   }): Promise<{

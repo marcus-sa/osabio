@@ -95,3 +95,32 @@ export type ActiveSessionContext = {
   provisional_decisions: Array<{ id: string; summary: string }>;
   observations: Array<{ id: string; text: string; severity: string }>;
 };
+
+/** Lightweight orientation packet — no params needed */
+export type WorkspaceOverview = {
+  workspace: { id: string; name: string };
+  projects: Array<{
+    id: string;
+    name: string;
+    status: string;
+    description?: string;
+    counts: { tasks: number; decisions: number; features: number; questions: number };
+  }>;
+  hot_items: HotItems;
+  active_sessions: ActiveSessionContext[];
+};
+
+/** Task-focused context — task_id required, project resolved from graph */
+export type TaskContextPacket = {
+  workspace: { id: string; name: string };
+  project: { id: string; name: string; status: string };
+  task_scope: TaskScopeContext;
+  hot_items: HotItems;
+  active_sessions: ActiveSessionContext[];
+};
+
+export type HotItems = {
+  contested_decisions: Array<{ id: string; summary: string }>;
+  open_observations: Array<{ id: string; text: string; severity: string; category?: string }>;
+  pending_suggestions: Array<{ id: string; text: string; category: string; confidence: number }>;
+};

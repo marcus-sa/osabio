@@ -1,162 +1,121 @@
-import { requireConfig, getDirCacheEntry, setDirCacheEntry, type DirCacheEntry } from "../config";
+import { requireConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
+
+type WorkspaceOverviewResponse = {
+  workspace: { id: string; name: string };
+  projects: Array<{
+    id: string;
+    name: string;
+    status: string;
+    description?: string;
+    counts: { tasks: number; decisions: number; features: number; questions: number };
+  }>;
+  hot_items: {
+    contested_decisions: Array<{ id: string; summary: string }>;
+    open_observations: Array<{ id: string; text: string; severity: string }>;
+    pending_suggestions: Array<{ id: string; text: string; category: string; confidence: number }>;
+  };
+  active_sessions: Array<{
+    id: string;
+    agent: string;
+    started_at: string;
+    task?: { id: string; title: string };
+  }>;
+};
 
 /**
  * brain system load-context
- * Called by SessionStart hook. Outputs context as additionalContext text.
+ * Called by SessionStart hook. Loads workspace overview for agent orientation.
  */
 export async function runLoadContext(): Promise<void> {
   const config = await requireConfig();
   const client = new BrainHttpClient(config);
-  const cwd = process.cwd();
 
-  // Check dir cache for cached project
-  const cached = await getDirCacheEntry(cwd);
-
-  if (cached) {
-    // Load context for cached project
-    try {
-      // Create session first so we can exclude self from active sessions
-      let sessionId: string | undefined;
-      try {
-        const session = await client.sessionStart({
-          agent: "claude-code",
-          project_id: cached.project_id,
-        });
-        sessionId = session.session_id;
-      } catch {
-        // Session creation failure must not break context loading
-      }
-
-      const context = await client.getContext({
-        project_id: cached.project_id,
-        since: cached.last_session,
-        session_id: sessionId,
-      });
-
-      // Output as text for Claude Code additionalContext
-      console.log(formatContextPacket(context));
-
-      await setDirCacheEntry(cwd, {
-        ...cached,
-        session_id: sessionId,
-        last_session: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error(`Failed to load context: ${error instanceof Error ? error.message : error}`);
-    }
-    return;
-  }
-
-  // No cached project — list projects for agent inference
   try {
-    const projectsResult = await client.getProjects();
-    const projects = projectsResult.projects;
-
-    if (projects.length === 0) {
-      console.log("No projects found in workspace. Create one in the Brain web UI first.");
-      return;
-    }
-
-    if (projects.length === 1) {
-      // Single project — auto-select
-      const project = projects[0];
-      const entry: DirCacheEntry = {
-        project_id: project.id,
-        project_name: project.name,
-        last_session: new Date().toISOString(),
-      };
-
-      // Create session first so we can exclude self from active sessions
-      try {
-        const session = await client.sessionStart({
-          agent: "claude-code",
-          project_id: project.id,
-        });
-        entry.session_id = session.session_id;
-      } catch {
-        // Session creation failure must not break context loading
-      }
-
-      const context = await client.getContext({
-        project_id: project.id,
-        session_id: entry.session_id,
-      });
-      console.log(formatContextPacket(context));
-
-      setDirCacheEntry(cwd, entry);
-      return;
-    }
-
-    // Multiple projects — output list for agent to select
-    console.log(`You're working in: ${cwd}`);
-    console.log(`Workspace: ${projectsResult.workspace.name}`);
-    console.log(`\nProjects in this workspace:`);
-    for (const p of projects) {
-      console.log(`  - ${p.name} (id: ${p.id})`);
-    }
-    console.log(`\nTo set your project for this directory, run:`);
-    console.log(`  brain system set-project <project-id>`);
+    const overview = (await client.getWorkspaceContext()) as WorkspaceOverviewResponse;
+    console.log(formatWorkspaceOverview(overview));
   } catch (error) {
-    console.error(`Failed to load projects: ${error instanceof Error ? error.message : error}`);
+    console.error(`Failed to load workspace: ${error instanceof Error ? error.message : error}`);
   }
 }
 
-/**
- * brain system set-project <project-id>
- * Cache a project for the current directory.
- */
-export async function runSetProject(projectId: string): Promise<void> {
-  const config = await requireConfig();
-  const client = new BrainHttpClient(config);
-  const cwd = process.cwd();
+function formatWorkspaceOverview(overview: WorkspaceOverviewResponse): string {
+  const lines: string[] = [];
 
-  const projectsResult = await client.getProjects();
-  const project = projectsResult.projects.find((p) => p.id === projectId);
+  lines.push(`# Brain Workspace: ${overview.workspace.name}\n`);
 
-  if (!project) {
-    console.error(`Project not found: ${projectId}`);
-    console.error("Available projects:");
-    for (const p of projectsResult.projects) {
-      console.error(`  - ${p.name} (id: ${p.id})`);
-    }
-    process.exit(1);
+  if (overview.projects.length === 0) {
+    lines.push("No projects found. Create one in the Brain web UI.");
+    return lines.join("\n");
   }
 
-  await setDirCacheEntry(cwd, {
-    project_id: project.id,
-    project_name: project.name,
-    last_session: new Date().toISOString(),
-  });
+  lines.push("## Projects");
+  for (const p of overview.projects) {
+    const c = p.counts;
+    const counts = `${c.tasks}T ${c.decisions}D ${c.features}F ${c.questions}Q`;
+    lines.push(`  - ${p.name} (id: ${p.id}) [${counts}]`);
+  }
+  lines.push("");
 
-  console.log(`Project set: ${project.name} (${project.id}) for ${cwd}`);
+  const { contested_decisions, open_observations, pending_suggestions } = overview.hot_items;
+
+  if (contested_decisions.length > 0) {
+    lines.push("## Contested Decisions");
+    for (const d of contested_decisions) {
+      lines.push(`  - ${d.summary} (id: ${d.id})`);
+    }
+    lines.push("");
+  }
+
+  if (open_observations.length > 0) {
+    lines.push("## Open Observations");
+    for (const o of open_observations) {
+      lines.push(`  - [${o.severity}] ${o.text}`);
+    }
+    lines.push("");
+  }
+
+  if (pending_suggestions.length > 0) {
+    lines.push("## Pending Suggestions");
+    for (const s of pending_suggestions) {
+      lines.push(`  - [${s.category}] ${s.text}`);
+    }
+    lines.push("");
+  }
+
+  if (overview.active_sessions.length > 0) {
+    lines.push("## Active Agent Sessions");
+    for (const s of overview.active_sessions) {
+      const taskInfo = s.task ? ` on "${s.task.title}"` : "";
+      lines.push(`  - ${s.agent}${taskInfo}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("Use `get_workspace_context`, `get_project_context`, or `get_task_context` MCP tools for more detail.");
+
+  return lines.join("\n");
 }
 
 /**
  * brain system check-updates
- * Called by UserPromptSubmit hook. Outputs alerts for critical changes.
+ * Called by UserPromptSubmit hook. Workspace-level change alerts.
  */
 export async function runCheckUpdates(): Promise<void> {
   const config = await requireConfig();
   const client = new BrainHttpClient(config);
-  const cwd = process.cwd();
-
-  const cached = await getDirCacheEntry(cwd);
-  if (!cached?.last_session) return;
 
   try {
-    const result = (await client.getChanges({
-      project_id: cached.project_id,
-      since: cached.last_session,
-    })) as { changes: Array<{ entity_type: string; entity_name: string; change_type: string; changed_at: string }> };
+    const since = new Date(Date.now() - 5 * 60_000).toISOString();
+    const result = (await client.getChanges({ since })) as {
+      changes: Array<{ entity_type: string; entity_name: string; change_type: string; changed_at: string }>;
+    };
 
     if (!result.changes || result.changes.length === 0) return;
 
-    // Check for critical changes
     const critical = result.changes.filter(
       (c) => c.change_type === "contested" || c.change_type === "superseded",
     );
-
     if (critical.length > 0) {
       console.log("\n--- Context Update ---");
       for (const c of critical) {
@@ -165,13 +124,11 @@ export async function runCheckUpdates(): Promise<void> {
       console.log("--- End Update ---\n");
     }
 
-    // Cross-agent activity: provisional decisions and observations from other agents
     const crossAgent = result.changes.filter(
       (c) =>
         c.change_type === "provisional" ||
         (c.entity_type === "observation" && (c.change_type === "warning" || c.change_type === "conflict")),
     );
-
     if (crossAgent.length > 0) {
       console.log("\n--- Cross-Agent Activity ---");
       for (const c of crossAgent) {
@@ -180,7 +137,6 @@ export async function runCheckUpdates(): Promise<void> {
       console.log("--- End ---\n");
     }
 
-    // New suggestions
     const newSuggestions = result.changes.filter(
       (c) => c.entity_type === "suggestion" && c.change_type === "pending",
     );
@@ -191,9 +147,6 @@ export async function runCheckUpdates(): Promise<void> {
       }
       console.log("--- End ---\n");
     }
-
-    // Update last check time
-    await setDirCacheEntry(cwd, { ...cached, last_session: new Date().toISOString() });
   } catch {
     // Silent on error — don't block the user
   }
@@ -201,15 +154,12 @@ export async function runCheckUpdates(): Promise<void> {
 
 /**
  * brain system end-session
- * Called by SessionEnd hook.
+ * Called by SessionEnd hook. Reads the Stop hook JSON from stdin which includes
+ * project_id (set by the agent) and session summary.
  */
 export async function runEndSession(): Promise<void> {
   const config = await requireConfig();
   const client = new BrainHttpClient(config);
-  const cwd = process.cwd();
-  const cached = await getDirCacheEntry(cwd);
-
-  if (!cached) return; // No project mapped — nothing to end
 
   try {
     // Read stdin (Claude Code pipes Stop hook JSON)
@@ -224,121 +174,72 @@ export async function runEndSession(): Promise<void> {
       // stdin not available or empty
     }
 
-    // Parse the summary payload
-    let summary = "Session ended without summary";
-    let decisionsMade: string[] | undefined;
-    let questionsAsked: string[] | undefined;
+    if (!stdinText) return;
+
+    const parsed = JSON.parse(stdinText) as Record<string, unknown>;
+
+    if (parsed.decision === "block") {
+      const reason = typeof parsed.reason === "string" ? parsed.reason : "Stop hook returned block decision";
+      throw new Error(`Session end blocked: ${reason}`);
+    }
+    if (parsed.decision !== "approve") {
+      throw new Error("Stop hook payload must include decision=\"approve\" or decision=\"block\"");
+    }
+    if (typeof parsed.summary !== "string" || parsed.summary.trim().length === 0) {
+      throw new Error("Stop hook payload must include a non-empty string summary");
+    }
+
+    // project_id comes from the agent via the Stop hook payload (optional)
+    const projectId = typeof parsed.project_id === "string" ? parsed.project_id : undefined;
+    const summary = parsed.summary.trim();
+
+    const parseStringArray = (key: string): string[] | undefined => {
+      const val = parsed[key];
+      if (val === undefined) return undefined;
+      if (!Array.isArray(val) || !val.every((v) => typeof v === "string")) {
+        throw new Error(`${key} must be an array of strings`);
+      }
+      return val;
+    };
+
+    const decisionsMade = parseStringArray("decisions_made");
+    const questionsAsked = parseStringArray("questions_asked");
+    const observationsLogged = parseStringArray("observations_logged");
+    const subtasksCreated = parseStringArray("subtasks_created");
+    const suggestionsCreated = parseStringArray("suggestions_created");
+
     let tasksProgressed: Array<{ task_id: string; from_status: string; to_status: string }> | undefined;
-    let filesChanged: Array<{ path: string; change_type: string }> | undefined;
-    let observationsLogged: string[] | undefined;
-    let subtasksCreated: string[] | undefined;
-    let suggestionsCreated: string[] | undefined;
-
-    if (stdinText) {
-      const parsed = JSON.parse(stdinText) as Record<string, unknown>;
-      if (parsed.decision === "block") {
-        const reason = typeof parsed.reason === "string" ? parsed.reason : "Stop hook returned block decision";
-        throw new Error(`Session end blocked: ${reason}`);
-      }
-      if (parsed.decision !== "approve") {
-        throw new Error("Stop hook payload must include decision=\"approve\" or decision=\"block\"");
-      }
-      if (typeof parsed.summary !== "string" || parsed.summary.trim().length === 0) {
-        throw new Error("Stop hook payload must include a non-empty string summary");
-      }
-      summary = parsed.summary.trim();
-
-      if (parsed.decisions_made !== undefined) {
-        if (!Array.isArray(parsed.decisions_made) || !parsed.decisions_made.every((v) => typeof v === "string")) {
-          throw new Error("decisions_made must be an array of string ids");
+    if (parsed.tasks_progressed !== undefined) {
+      if (!Array.isArray(parsed.tasks_progressed)) throw new Error("tasks_progressed must be an array");
+      tasksProgressed = parsed.tasks_progressed.map((entry) => {
+        const row = entry as Record<string, unknown>;
+        if (typeof row.task_id !== "string" || typeof row.from_status !== "string" || typeof row.to_status !== "string") {
+          throw new Error("tasks_progressed entries must include string task_id, from_status, and to_status");
         }
-        decisionsMade = parsed.decisions_made;
-      }
-
-      if (parsed.questions_asked !== undefined) {
-        if (!Array.isArray(parsed.questions_asked) || !parsed.questions_asked.every((v) => typeof v === "string")) {
-          throw new Error("questions_asked must be an array of string ids");
-        }
-        questionsAsked = parsed.questions_asked;
-      }
-
-      if (parsed.tasks_progressed !== undefined) {
-        if (!Array.isArray(parsed.tasks_progressed)) {
-          throw new Error("tasks_progressed must be an array");
-        }
-        tasksProgressed = parsed.tasks_progressed.map((entry) => {
-          if (!entry || typeof entry !== "object") {
-            throw new Error("tasks_progressed entries must be objects");
-          }
-          const row = entry as Record<string, unknown>;
-          if (
-            typeof row.task_id !== "string" ||
-            typeof row.from_status !== "string" ||
-            typeof row.to_status !== "string"
-          ) {
-            throw new Error("tasks_progressed entries must include string task_id, from_status, and to_status");
-          }
-          return {
-            task_id: row.task_id,
-            from_status: row.from_status,
-            to_status: row.to_status,
-          };
-        });
-      }
-
-      if (parsed.files_changed !== undefined) {
-        if (!Array.isArray(parsed.files_changed)) {
-          throw new Error("files_changed must be an array");
-        }
-        filesChanged = parsed.files_changed.map((entry) => {
-          if (!entry || typeof entry !== "object") {
-            throw new Error("files_changed entries must be objects");
-          }
-          const row = entry as Record<string, unknown>;
-          if (typeof row.path !== "string" || typeof row.change_type !== "string") {
-            throw new Error("files_changed entries must include string path and change_type");
-          }
-          if (!["created", "modified", "deleted"].includes(row.change_type)) {
-            throw new Error("files_changed.change_type must be one of: created, modified, deleted");
-          }
-          return { path: row.path, change_type: row.change_type };
-        });
-      }
-
-      if (parsed.observations_logged !== undefined) {
-        if (!Array.isArray(parsed.observations_logged) || !parsed.observations_logged.every((v) => typeof v === "string")) {
-          throw new Error("observations_logged must be an array of string ids");
-        }
-        observationsLogged = parsed.observations_logged;
-      }
-
-      if (parsed.subtasks_created !== undefined) {
-        if (!Array.isArray(parsed.subtasks_created) || !parsed.subtasks_created.every((v) => typeof v === "string")) {
-          throw new Error("subtasks_created must be an array of string ids");
-        }
-        subtasksCreated = parsed.subtasks_created;
-      }
-
-      if (parsed.suggestions_created !== undefined) {
-        if (!Array.isArray(parsed.suggestions_created) || !parsed.suggestions_created.every((v) => typeof v === "string")) {
-          throw new Error("suggestions_created must be an array of string ids");
-        }
-        suggestionsCreated = parsed.suggestions_created;
-      }
-    }
-
-    // Get session_id from cache, or create a session as fallback
-    let sessionId = cached.session_id;
-    if (!sessionId) {
-      const session = await client.sessionStart({
-        agent: "claude-code",
-        project_id: cached.project_id,
+        return { task_id: row.task_id, from_status: row.from_status, to_status: row.to_status };
       });
-      sessionId = session.session_id;
     }
+
+    let filesChanged: Array<{ path: string; change_type: string }> | undefined;
+    if (parsed.files_changed !== undefined) {
+      if (!Array.isArray(parsed.files_changed)) throw new Error("files_changed must be an array");
+      filesChanged = parsed.files_changed.map((entry) => {
+        const row = entry as Record<string, unknown>;
+        if (typeof row.path !== "string" || typeof row.change_type !== "string") {
+          throw new Error("files_changed entries must include string path and change_type");
+        }
+        return { path: row.path, change_type: row.change_type };
+      });
+    }
+
+    // Create session and immediately end it with summary
+    const session = await client.sessionStart({
+      agent: "claude-code",
+      ...(projectId ? { project_id: projectId } : {}),
+    });
 
     await client.sessionEnd({
-      session_id: sessionId,
+      session_id: session.session_id,
       summary,
       decisions_made: decisionsMade,
       questions_asked: questionsAsked,
@@ -348,175 +249,7 @@ export async function runEndSession(): Promise<void> {
       subtasks_created: subtasksCreated,
       suggestions_created: suggestionsCreated,
     });
-
-    // Clear session_id from cache
-    await setDirCacheEntry(cwd, { ...cached, session_id: undefined });
   } catch (error) {
     console.error(`Brain: Failed to end session: ${error instanceof Error ? error.message : error}`);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Format helpers
-// ---------------------------------------------------------------------------
-
-function formatContextPacket(packet: unknown): string {
-  const p = packet as Record<string, unknown>;
-  const lines: string[] = [];
-
-  lines.push("# Brain Knowledge Graph Context\n");
-
-  // Workspace & project
-  const ws = p.workspace as { id: string; name: string } | undefined;
-  const proj = p.project as { id: string; name: string; status: string; description?: string } | undefined;
-  if (ws) lines.push(`Workspace: ${ws.name}`);
-  if (proj) {
-    lines.push(`Project: ${proj.name} (${proj.status})`);
-    if (proj.description) lines.push(`Description: ${proj.description}`);
-  }
-  lines.push("");
-
-  // Task scope
-  const taskScope = p.task_scope as Record<string, unknown> | undefined;
-  if (taskScope) {
-    const task = taskScope.task as { id: string; title: string; status: string; description?: string };
-    lines.push(`## Current Task: ${task.title} [${task.status}]`);
-    if (task.description) lines.push(task.description);
-
-    const subtasks = taskScope.subtasks as Array<{ id: string; title: string; status: string }>;
-    if (subtasks?.length) {
-      lines.push("\nSubtasks:");
-      for (const s of subtasks) lines.push(`  - [${s.status}] ${s.title}`);
-    }
-
-    const siblings = taskScope.sibling_tasks as Array<{ id: string; title: string; status: string }>;
-    if (siblings?.length) {
-      lines.push("\nSibling tasks:");
-      for (const s of siblings) lines.push(`  - [${s.status}] ${s.title}`);
-    }
-    lines.push("");
-  }
-
-  // Decisions
-  const decisions = p.decisions as { confirmed: unknown[]; provisional: unknown[]; contested: unknown[] } | undefined;
-  if (decisions) {
-    if (decisions.contested.length > 0) {
-      lines.push("## CONTESTED DECISIONS (conflicts — do not proceed without human input)");
-      for (const d of decisions.contested as Array<{ summary: string; rationale?: string }>) {
-        lines.push(`  - ${d.summary}${d.rationale ? ` — ${d.rationale}` : ""}`);
-      }
-      lines.push("");
-    }
-
-    if (decisions.confirmed.length > 0) {
-      lines.push("## Confirmed Decisions (follow these)");
-      for (const d of decisions.confirmed as Array<{ summary: string }>) {
-        lines.push(`  - ${d.summary}`);
-      }
-      lines.push("");
-    }
-
-    if (decisions.provisional.length > 0) {
-      lines.push("## Provisional Decisions (follow but flag for review)");
-      for (const d of decisions.provisional as Array<{ summary: string }>) {
-        lines.push(`  - ${d.summary}`);
-      }
-      lines.push("");
-    }
-  }
-
-  // Active tasks
-  const tasks = p.active_tasks as Array<{ title: string; status: string; priority?: string }> | undefined;
-  if (tasks?.length) {
-    lines.push("## Active Tasks");
-    for (const t of tasks) {
-      lines.push(`  - [${t.status}]${t.priority ? ` (${t.priority})` : ""} ${t.title}`);
-    }
-    lines.push("");
-  }
-
-  // Open questions
-  const questions = p.open_questions as Array<{ text: string; status: string }> | undefined;
-  if (questions?.length) {
-    lines.push("## Open Questions");
-    for (const q of questions) {
-      lines.push(`  - [${q.status}] ${q.text}`);
-    }
-    lines.push("");
-  }
-
-  // Recent changes
-  const changes = p.recent_changes as Array<{ entity_type: string; entity_name: string; change_type: string; changed_at: string }> | undefined;
-  if (changes?.length) {
-    lines.push("## Recent Changes");
-    for (const c of changes) {
-      lines.push(`  - [${c.entity_type}] ${c.entity_name} — ${c.change_type}`);
-    }
-    lines.push("");
-  }
-
-  // Observations
-  const observations = p.observations as Array<{ text: string; severity: string }> | undefined;
-  if (observations?.length) {
-    lines.push("## Observations");
-    for (const o of observations) {
-      lines.push(`  - [${o.severity}] ${o.text}`);
-    }
-    lines.push("");
-  }
-
-  // Pending suggestions
-  const suggestions = p.pending_suggestions as Array<{ text: string; category: string; confidence: number; rationale: string }> | undefined;
-  if (suggestions?.length) {
-    lines.push("## Pending Suggestions");
-    for (const s of suggestions) {
-      lines.push(`  - [${s.category}] (${s.confidence.toFixed(2)}) ${s.text} — ${s.rationale}`);
-    }
-    lines.push("");
-  }
-
-  // Active agent sessions (cross-agent awareness)
-  type ActiveSession = {
-    agent: string;
-    started_at: string;
-    task?: { id: string; title: string };
-    provisional_decisions: Array<{ summary: string }>;
-    observations: Array<{ text: string; severity: string }>;
-  };
-  const activeSessions = p.active_sessions as ActiveSession[] | undefined;
-  if (activeSessions?.length) {
-    lines.push("## Active Agent Sessions");
-    for (const s of activeSessions) {
-      const ago = formatTimeAgo(s.started_at);
-      lines.push(`  - ${s.agent} (started ${ago})`);
-      if (s.task) {
-        lines.push(`    Working on: ${s.task.title}`);
-      }
-      if (s.provisional_decisions.length > 0) {
-        lines.push("    Provisional decisions:");
-        for (const d of s.provisional_decisions) {
-          lines.push(`      - ${d.summary}`);
-        }
-      }
-      if (s.observations.length > 0) {
-        lines.push("    Observations:");
-        for (const o of s.observations) {
-          lines.push(`      - [${o.severity}] ${o.text}`);
-        }
-      }
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
-function formatTimeAgo(isoString: string): string {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }

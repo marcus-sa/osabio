@@ -60,17 +60,20 @@ function toIso(value: Date | string | undefined): string {
 // Project-scoped queries
 // ---------------------------------------------------------------------------
 
-/** List active decisions for a project, optionally filtered by area/category */
+/** List active decisions, optionally scoped to a project and/or area */
 export async function listProjectDecisions(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
-  projectRecord: RecordId<"project", string>;
+  projectRecord?: RecordId<"project", string>;
   area?: string;
 }): Promise<{
   confirmed: Array<{ id: string; summary: string; status: string; rationale?: string; decided_at?: string; category?: string }>;
   provisional: Array<{ id: string; summary: string; status: string; rationale?: string; decided_at?: string; category?: string }>;
   contested: Array<{ id: string; summary: string; status: string; rationale?: string; decided_at?: string; category?: string }>;
 }> {
+  const projectFilter = input.projectRecord
+    ? `AND id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project)`
+    : "";
   const areaFilter = input.area
     ? `AND category = $area`
     : "";
@@ -80,12 +83,12 @@ export async function listProjectDecisions(input: {
       `SELECT id, summary, status, rationale, decided_at, category, priority, created_at
        FROM decision
        WHERE workspace = $workspace
-         AND id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project)
+         ${projectFilter}
          ${areaFilter}
        ORDER BY created_at DESC LIMIT 50;`,
       {
         workspace: input.workspaceRecord,
-        project: input.projectRecord,
+        ...(input.projectRecord ? { project: input.projectRecord } : {}),
         ...(input.area ? { area: input.area } : {}),
       },
     )
@@ -168,11 +171,11 @@ export async function getTaskDependencyTree(input: {
   };
 }
 
-/** List architecture constraints for a project */
+/** List architecture constraints, optionally scoped to a project */
 export async function listProjectConstraints(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
-  projectRecord: RecordId<"project", string>;
+  projectRecord?: RecordId<"project", string>;
   area?: string;
 }): Promise<Array<{ text: string; source: string; severity: "hard" | "soft" }>> {
   // Constraints come from two sources:
@@ -180,14 +183,15 @@ export async function listProjectConstraints(input: {
   // 2. Observations with severity "conflict" or "warning"
 
   const areaFilter = input.area ? `AND category = $area` : "";
+  const projectFilter = input.projectRecord
+    ? `AND id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project)`
+    : "";
 
   const query = `
-    LET $project_entity_ids = SELECT VALUE \`in\` FROM belongs_to WHERE out = $project;
-
     SELECT summary AS text, "decision" AS source_type, status, id
     FROM decision
     WHERE workspace = $workspace
-      AND id IN $project_entity_ids
+      ${projectFilter}
       AND status IN ["confirmed", "contested"]
       ${areaFilter}
     ORDER BY created_at DESC LIMIT 30;
@@ -201,17 +205,17 @@ export async function listProjectConstraints(input: {
   `;
 
   const results = await input.surreal
-    .query<[null, Array<{ text: string; source_type: string; status: string; id: RecordId }>, Array<{ text: string; source_type: string; severity: string; id: RecordId }>]>(
+    .query<[Array<{ text: string; source_type: string; status: string; id: RecordId }>, Array<{ text: string; source_type: string; severity: string; id: RecordId }>]>(
       query,
       {
         workspace: input.workspaceRecord,
-        project: input.projectRecord,
+        ...(input.projectRecord ? { project: input.projectRecord } : {}),
         ...(input.area ? { area: input.area } : {}),
       },
     )
-    .collect<[null, Array<{ text: string; source_type: string; status: string; id: RecordId }>, Array<{ text: string; source_type: string; severity: string; id: RecordId }>]>();
+    .collect<[Array<{ text: string; source_type: string; status: string; id: RecordId }>, Array<{ text: string; source_type: string; severity: string; id: RecordId }>]>();
 
-  const [, decisionRows, observationRows] = results;
+  const [decisionRows, observationRows] = results;
 
   const constraints: Array<{ text: string; source: string; severity: "hard" | "soft" }> = [];
 
@@ -488,7 +492,7 @@ export async function createAgentSession(input: {
   surreal: Surreal;
   agent: string;
   workspaceRecord: RecordId<"workspace", string>;
-  projectRecord: RecordId<"project", string>;
+  projectRecord?: RecordId<"project", string>;
   taskId?: string;
 }): Promise<{ session_id: string }> {
   const now = new Date();
@@ -498,8 +502,8 @@ export async function createAgentSession(input: {
     agent: input.agent,
     started_at: now,
     workspace: input.workspaceRecord,
-    project: input.projectRecord,
     created_at: now,
+    ...(input.projectRecord ? { project: input.projectRecord } : {}),
     ...(input.taskId ? { task_id: new RecordId("task", requireRawId(input.taskId, "task_id")) } : {}),
   });
 
@@ -614,7 +618,7 @@ export async function endAgentSession(input: {
 export async function logCommit(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
-  projectRecord: RecordId<"project", string>;
+  projectRecord?: RecordId<"project", string>;
   sha: string;
   message: string;
   author: string;
@@ -701,12 +705,14 @@ export async function logCommit(input: {
         updated_at: now,
       });
 
-      // Link decision to project
-      await input.surreal
-        .relate(decisionRecord, new RecordId("belongs_to", randomUUID()), input.projectRecord, {
-          added_at: now,
-        })
-        .output("after");
+      // Link decision to project (if known)
+      if (input.projectRecord) {
+        await input.surreal
+          .relate(decisionRecord, new RecordId("belongs_to", randomUUID()), input.projectRecord, {
+            added_at: now,
+          })
+          .output("after");
+      }
 
       // Create implemented_by edge
       await input.surreal

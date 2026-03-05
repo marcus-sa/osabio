@@ -184,7 +184,7 @@ DEFINE FIELD agent ON agent_session TYPE string;
 DEFINE FIELD started_at ON agent_session TYPE datetime;
 DEFINE FIELD ended_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD workspace ON agent_session TYPE record<workspace>;
-DEFINE FIELD project ON agent_session TYPE record<project>;
+DEFINE FIELD project ON agent_session TYPE option<record<project>>;
 DEFINE FIELD task_id ON agent_session TYPE option<record<task>>;
 DEFINE FIELD summary ON agent_session TYPE option<string>;
 DEFINE FIELD decisions_made ON agent_session TYPE option<array<record<decision>>>;

@@ -2,7 +2,7 @@
  * Embedded plugin content for `brain init`.
  *
  * The compiled binary can't read plugin/ files at runtime,
- * so we embed hooks, CLAUDE.md, and skills as constants.
+ * so we embed hooks, CLAUDE.md, and commands as constants.
  */
 
 // ---------------------------------------------------------------------------
@@ -48,17 +48,62 @@ export const BRAIN_CLAUDE_MD = `# Brain Knowledge Graph Integration
 
 This project is connected to the Brain knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
 
-## How Context Works
+## Project Context
 
-- **SessionStart** automatically loads your project context (decisions, tasks, constraints, recent changes)
-- **UserPromptSubmit** checks for graph updates and alerts you to critical changes (e.g., a decision you depend on was superseded)
+At session start you receive a list of workspace projects with their IDs. Most MCP tools require a \`project_id\` — infer it from context:
+
+- **Task-scoped work**: If you're given a task ID, call \`get_entity_detail\` — the task's graph relationships reveal its project.
+- **Directory-scoped work**: Match the directory you're working in to a project. In a monorepo, each service/package directory typically maps to a project. In a monolith, a module or subpackage may map to a project or feature.
+- **Single project**: If the workspace has only one project, use it.
+- **Ambiguous**: If you can't determine the project, ask the user.
+
+## Hooks
+
+- **SessionStart** loads workspace info (available projects and IDs)
+- **UserPromptSubmit** checks for workspace-level graph updates
 - **Stop** catches unlogged decisions before the session ends
-- **SessionEnd** logs a session summary to the graph
+- **SessionEnd** logs session summary to the graph
+
+## Data Model
+
+The knowledge graph has these entity types. Use this to pick the right MCP tools and understand tool results.
+
+**Work hierarchy:** Project → Feature → Task
+- **Project**: a named initiative with status, description. Linked to workspace via \`has_project\` edge.
+- **Feature**: a capability or deliverable within a project. Linked via \`has_feature\` edge.
+- **Task**: an actionable work item. Can belong to a feature (\`has_task\`) or directly to a project (\`belongs_to\`). Has status (open/todo/ready/in_progress/blocked/done/completed), priority, category, optional owner and deadline.
+
+**Cross-cutting entities** (attach to any level via \`belongs_to\`):
+- **Decision**: a choice that was made. Status lifecycle: extracted → proposed → provisional → confirmed → superseded. Can conflict with other decisions (\`conflicts_with\` edge).
+- **Question**: an open question requiring a choice. Only for pending decisions, not informational queries.
+- **Observation**: a lightweight signal (info/warning/conflict). Lifecycle: open → acknowledged → resolved. Used for cross-project intelligence.
+- **Suggestion**: a proactive agent-to-human proposal. Categories: optimization, risk, opportunity, conflict, missing, pivot. Lifecycle: pending → accepted/dismissed/deferred → converted.
+
+**Other entities:** Person (with ownership edges), Meeting, Document, Git Commit, Pull Request.
+
+**Key relationships (graph edges):**
+- \`has_project\`: workspace → project
+- \`has_feature\`: project → feature
+- \`has_task\`: feature → task
+- \`belongs_to\`: task|decision|question → feature|project
+- \`depends_on\`: task|feature → task|feature (blocks/needs/soft)
+- \`conflicts_with\`: decision|feature ↔ decision|feature
+- \`owns\`: person → task|project|feature
+- \`observes\`: observation → project|feature|task|decision|question
+- \`suggests_for\`: suggestion → project|feature|task|question|decision
+- \`suggestion_evidence\`: suggestion → observation|decision|task|feature|project|question|person|workspace
+- \`superseded_by\`: decision → decision
+
+**Entity ID format:** MCP tools use \`table:id\` for polymorphic references (e.g. \`task:abc123\`, \`decision:def456\`).
 
 ## MCP Tools Available
 
+### Context (progressive detail)
+- \`get_workspace_context\` — Workspace overview: projects with entity counts, hot items, active sessions. Already loaded at session start.
+- \`get_project_context\` — Full project context: decisions, tasks, questions, observations, suggestions. Requires project_id.
+- \`get_task_context\` — Task-focused: subgraph (subtasks, deps, siblings) + project hot items. Requires task_id, resolves project automatically.
+
 ### Read (use freely)
-- \`get_project_context\` — Refresh full project context (decisions, tasks, constraints, questions)
 - \`get_active_decisions\` — Decisions grouped by status (confirmed/provisional/contested)
 - \`get_task_dependencies\` — Dependency tree for a task (depends on, depended by, subtasks)
 - \`get_architecture_constraints\` — Hard and soft constraints from decisions and observations
@@ -90,13 +135,13 @@ This project is connected to the Brain knowledge graph via MCP tools. The graph 
 3. **Log as you go.** Don't batch decisions for the end. Log each significant choice when you make it.
 4. **Decompose tasks.** Use \`create_subtask\` to break work into pieces, then update status as each completes.
 5. **Check constraints.** Before adding a dependency or changing an approach, call \`check_constraints\`.
-6. **Write descriptive commit messages and include task IDs.** The pre-commit hook analyzes your diff and commit message against the knowledge graph to detect task completions, unlogged decisions, and constraint violations. Include the raw task ID(s) in the commit message to make webhook processing and follow-up linking/review unambiguous. Use a clear token like \`task:<raw-task-id>\` (or multiple, e.g. \`tasks: <id1>, <id2>\`). Vague messages like "wip" or "fix stuff" degrade analysis. Describe *what* changed and *why* — e.g., "task:4f5c2... switch rate limiting from fixed window to token bucket for bursty traffic" not "update rate limiter."`;
+6. **Write descriptive commit messages and include task IDs.** Include the raw task ID(s) in the commit message to make webhook processing and follow-up linking/review unambiguous. Use a clear token like \`task:<raw-task-id>\` (or multiple, e.g. \`tasks: <id1>, <id2>\`). Describe *what* changed and *why*.`;
 
 // ---------------------------------------------------------------------------
-// Skills (from plugin/skills/)
+// Commands (slash commands installed to .claude/commands/)
 // ---------------------------------------------------------------------------
 
-export const BRAIN_SKILLS: Record<string, string> = {
+export const BRAIN_COMMANDS: Record<string, string> = {
   "brain-start-task.md": `---
 name: brain-start-task
 description: Start working on a specific task from the Brain knowledge graph

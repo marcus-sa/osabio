@@ -4,7 +4,6 @@ import { homedir } from "node:os";
 
 const BRAIN_DIR = join(homedir(), ".brain");
 const CONFIG_PATH = join(BRAIN_DIR, "config.json");
-const DIR_CACHE_PATH = join(BRAIN_DIR, "dir-cache.json");
 
 /** Resolved config for a single repo — shape consumed by BrainHttpClient and all commands. */
 export type BrainConfig = {
@@ -23,13 +22,6 @@ export type RepoConfig = {
 export type BrainGlobalConfig = {
   server_url: string;
   repos: Record<string, RepoConfig>;
-};
-
-export type DirCacheEntry = {
-  project_id: string;
-  project_name: string;
-  last_session?: string;
-  session_id?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -130,32 +122,3 @@ export async function requireConfig(): Promise<BrainConfig> {
   return config;
 }
 
-// ---------------------------------------------------------------------------
-// Dir cache (runtime state for project mapping + sessions)
-// ---------------------------------------------------------------------------
-
-export async function loadDirCache(): Promise<Record<string, DirCacheEntry>> {
-  const file = Bun.file(DIR_CACHE_PATH);
-  if (!(await file.exists())) return {};
-  try {
-    return await file.json() as Record<string, DirCacheEntry>;
-  } catch {
-    return {};
-  }
-}
-
-export async function saveDirCache(cache: Record<string, DirCacheEntry>): Promise<void> {
-  ensureBrainDir();
-  await Bun.write(DIR_CACHE_PATH, JSON.stringify(cache, null, 2) + "\n");
-}
-
-export async function getDirCacheEntry(directory: string): Promise<DirCacheEntry | undefined> {
-  const cache = await loadDirCache();
-  return cache[directory];
-}
-
-export async function setDirCacheEntry(directory: string, entry: DirCacheEntry): Promise<void> {
-  const cache = await loadDirCache();
-  cache[directory] = entry;
-  await saveDirCache(cache);
-}

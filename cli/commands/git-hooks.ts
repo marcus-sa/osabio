@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { requireConfig, getDirCacheEntry } from "../config";
+import { requireConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
 
 /**
@@ -11,9 +11,6 @@ export async function runCheckCommit(): Promise<void> {
   const config = await requireConfig();
   const client = new BrainHttpClient(config);
   const cwd = process.cwd();
-  const cached = await getDirCacheEntry(cwd);
-
-  if (!cached) return; // No project mapped — skip silently
 
   let diff: string;
   let commitMessage: string;
@@ -35,7 +32,6 @@ export async function runCheckCommit(): Promise<void> {
     const truncatedDiff = diff.length > 8000 ? diff.slice(0, 8000) : diff;
 
     const result = await client.checkCommit({
-      project_id: cached.project_id,
       diff: truncatedDiff,
       commit_message: commitMessage,
     });

@@ -3,7 +3,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
-import { buildProjectContext } from "./context-builder";
+import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
 import { authenticateMcpRequest, type McpAuthResult } from "./auth";
 import { generateApiKey, hashApiKey } from "./api-key";
 import {
@@ -166,14 +166,38 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
   // Tier 1 — Read
   // =========================================================================
 
-  /** POST /api/mcp/:workspaceId/context — Get project context (broad or task-scoped) */
-  async function handleGetContext(workspaceId: string, request: Request): Promise<Response> {
+  /** POST /api/mcp/:workspaceId/workspace-context — Lightweight orientation (no required params) */
+  async function handleWorkspaceContext(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{ session_id?: string }>(request);
+    if (body instanceof Response) return body;
+
+    try {
+      const overview = await buildWorkspaceOverview({
+        surreal,
+        workspaceRecord: auth.workspaceRecord,
+        workspaceName: auth.workspaceName,
+        ...(body.session_id ? { excludeSessionId: requireRawId(body.session_id, "session_id") } : {}),
+      });
+      logInfo("mcp.workspace-context.built", "Workspace overview assembled", { workspaceId, projectCount: overview.projects.length });
+      return jsonResponse(overview, 200);
+    } catch (error) {
+      logError("mcp.workspace-context.failed", "Failed to build workspace overview", error);
+      return jsonError("failed to build workspace overview", 500);
+    }
+  }
+
+  /** POST /api/mcp/:workspaceId/project-context — Full project context (project_id required) */
+  async function handleProjectContext(workspaceId: string, request: Request): Promise<Response> {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
 
     const body = await parseJsonBody<{ project_id: string; task_id?: string; since?: string; session_id?: string }>(request);
     if (body instanceof Response) return body;
     if (!body.project_id) return jsonError("project_id is required", 400);
+
     let projectId: string;
     let taskId: string | undefined;
     let sessionId: string | undefined;
@@ -192,8 +216,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       const scopedTaskError = await requireScopedRecord(new RecordId("task", taskId), auth.workspaceRecord, "task");
       if (scopedTaskError) return scopedTaskError;
     }
-    const project = await surreal.select<ProjectRow>(projectRecord);
-    if (!project) return jsonError("project not found", 404);
 
     try {
       const contextPacket = await buildProjectContext({
@@ -206,7 +228,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         ...(sessionId ? { excludeSessionId: sessionId } : {}),
       });
 
-      logInfo("mcp.context.built", "MCP context packet assembled", {
+      logInfo("mcp.project-context.built", "Project context assembled", {
         workspaceId,
         projectId,
         taskId,
@@ -219,28 +241,70 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
       return jsonResponse(contextPacket, 200);
     } catch (error) {
-      logError("mcp.context.failed", "Failed to build MCP context", error);
-      return jsonError("failed to build context", 500);
+      logError("mcp.project-context.failed", "Failed to build project context", error);
+      return jsonError("failed to build project context", 500);
     }
   }
 
-  /** POST /api/mcp/:workspaceId/decisions — Active decisions by project/area */
+  /** POST /api/mcp/:workspaceId/task-context — Task-focused context (task_id required, project resolved) */
+  async function handleTaskContext(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<{ task_id: string; session_id?: string }>(request);
+    if (body instanceof Response) return body;
+    if (!body.task_id) return jsonError("task_id is required", 400);
+
+    let taskId: string;
+    let sessionId: string | undefined;
+    try {
+      taskId = requireRawId(body.task_id, "task_id");
+      sessionId = body.session_id ? requireRawId(body.session_id, "session_id") : undefined;
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "invalid id format", 400);
+    }
+
+    const scopedTaskError = await requireScopedRecord(new RecordId("task", taskId), auth.workspaceRecord, "task");
+    if (scopedTaskError) return scopedTaskError;
+
+    try {
+      const taskContext = await buildTaskContext({
+        surreal,
+        workspaceRecord: auth.workspaceRecord,
+        workspaceName: auth.workspaceName,
+        taskId,
+        ...(sessionId ? { excludeSessionId: sessionId } : {}),
+      });
+
+      logInfo("mcp.task-context.built", "Task context assembled", { workspaceId, taskId });
+      return jsonResponse(taskContext, 200);
+    } catch (error) {
+      logError("mcp.task-context.failed", "Failed to build task context", error);
+      return jsonError("failed to build task context", 500);
+    }
+  }
+
+  /** POST /api/mcp/:workspaceId/decisions — Active decisions, optionally scoped to project/area */
   async function handleGetDecisions(workspaceId: string, request: Request): Promise<Response> {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
 
-    const body = await parseJsonBody<{ project_id: string; area?: string }>(request);
+    const body = await parseJsonBody<{ project_id?: string; area?: string }>(request);
     if (body instanceof Response) return body;
-    if (!body.project_id) return jsonError("project_id is required", 400);
-    let projectId: string;
-    try {
-      projectId = requireRawId(body.project_id, "project_id");
-    } catch (error) {
-      return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+
+    let projectRecord: RecordId<"project", string> | undefined;
+    if (body.project_id) {
+      let projectId: string;
+      try {
+        projectId = requireRawId(body.project_id, "project_id");
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+      }
+      projectRecord = new RecordId("project", projectId);
+      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
+      if (scopedProjectError) return scopedProjectError;
     }
-    const projectRecord = new RecordId("project", projectId);
-    const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-    if (scopedProjectError) return scopedProjectError;
+
     const decisions = await listProjectDecisions({
       surreal,
       workspaceRecord: auth.workspaceRecord,
@@ -274,23 +338,27 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     return jsonResponse(tree, 200);
   }
 
-  /** POST /api/mcp/:workspaceId/constraints — Architecture constraints */
+  /** POST /api/mcp/:workspaceId/constraints — Architecture constraints, optionally scoped to project */
   async function handleGetConstraints(workspaceId: string, request: Request): Promise<Response> {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
 
-    const body = await parseJsonBody<{ project_id: string; area?: string }>(request);
+    const body = await parseJsonBody<{ project_id?: string; area?: string }>(request);
     if (body instanceof Response) return body;
-    if (!body.project_id) return jsonError("project_id is required", 400);
-    let projectId: string;
-    try {
-      projectId = requireRawId(body.project_id, "project_id");
-    } catch (error) {
-      return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+
+    let projectRecord: RecordId<"project", string> | undefined;
+    if (body.project_id) {
+      let projectId: string;
+      try {
+        projectId = requireRawId(body.project_id, "project_id");
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+      }
+      projectRecord = new RecordId("project", projectId);
+      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
+      if (scopedProjectError) return scopedProjectError;
     }
-    const projectRecord = new RecordId("project", projectId);
-    const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-    if (scopedProjectError) return scopedProjectError;
+
     const constraints = await listProjectConstraints({
       surreal,
       workspaceRecord: auth.workspaceRecord,
@@ -829,23 +897,27 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
     const body = await parseJsonBody<{
       agent: string;
-      project_id: string;
+      project_id?: string;
       task_id?: string;
     }>(request);
     if (body instanceof Response) return body;
     if (!body.agent) return jsonError("agent is required", 400);
-    if (!body.project_id) return jsonError("project_id is required", 400);
-    let projectId: string;
+
+    let projectRecord: RecordId<"project", string> | undefined;
     let taskId: string | undefined;
     try {
-      projectId = requireRawId(body.project_id, "project_id");
+      if (body.project_id) {
+        const projectId = requireRawId(body.project_id, "project_id");
+        projectRecord = new RecordId("project", projectId);
+      }
       taskId = body.task_id ? requireRawId(body.task_id, "task_id") : undefined;
     } catch (error) {
       return jsonError(error instanceof Error ? error.message : "invalid id", 400);
     }
-    const projectRecord = new RecordId("project", projectId);
-    const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-    if (scopedProjectError) return scopedProjectError;
+    if (projectRecord) {
+      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
+      if (scopedProjectError) return scopedProjectError;
+    }
     if (taskId) {
       const scopedTaskError = await requireScopedRecord(new RecordId("task", taskId), auth.workspaceRecord, "task");
       if (scopedTaskError) return scopedTaskError;
@@ -909,7 +981,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (auth instanceof Response) return auth;
 
     const body = await parseJsonBody<{
-      project_id: string;
+      project_id?: string;
       sha: string;
       message: string;
       author: string;
@@ -920,18 +992,22 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (body instanceof Response) return body;
     if (!body.sha) return jsonError("sha is required", 400);
     if (!body.message) return jsonError("message is required", 400);
-    if (!body.project_id) return jsonError("project_id is required", 400);
-    let projectId: string;
+
+    let projectRecord: RecordId<"project", string> | undefined;
     try {
-      projectId = requireRawId(body.project_id, "project_id");
+      if (body.project_id) {
+        const projectId = requireRawId(body.project_id, "project_id");
+        projectRecord = new RecordId("project", projectId);
+      }
       for (const update of body.task_updates ?? []) requireRawId(update.task_id, "task_updates[].task_id");
       for (const taskId of body.related_task_ids ?? []) requireRawId(taskId, "related_task_ids[]");
     } catch (error) {
-      return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+      return jsonError(error instanceof Error ? error.message : "invalid id", 400);
     }
-    const projectRecord = new RecordId("project", projectId);
-    const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-    if (scopedProjectError) return scopedProjectError;
+    if (projectRecord) {
+      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
+      if (scopedProjectError) return scopedProjectError;
+    }
     for (const update of body.task_updates ?? []) {
       const scopedTaskError = await requireScopedRecord(new RecordId("task", update.task_id), auth.workspaceRecord, "task");
       if (scopedTaskError) return scopedTaskError;
@@ -981,24 +1057,27 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (auth instanceof Response) return auth;
 
     const body = await parseJsonBody<{
-      project_id: string;
+      project_id?: string;
       diff: string;
       commit_message: string;
     }>(request);
     if (body instanceof Response) return body;
-    if (!body.project_id) return jsonError("project_id is required", 400);
     if (!body.diff) return jsonError("diff is required", 400);
-    let projectId: string;
-    try {
-      projectId = requireRawId(body.project_id, "project_id");
-    } catch (error) {
-      return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
-    }
-    const projectRecord = new RecordId("project", projectId);
-    const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-    if (scopedProjectError) return scopedProjectError;
 
-    // Load project context for analysis
+    let projectRecord: RecordId<"project", string> | undefined;
+    if (body.project_id) {
+      let projectId: string;
+      try {
+        projectId = requireRawId(body.project_id, "project_id");
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+      }
+      projectRecord = new RecordId("project", projectId);
+      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
+      if (scopedProjectError) return scopedProjectError;
+    }
+
+    // Load workspace (or project) context for analysis
     const [decisions, constraints, activeTasks] = await Promise.all([
       listProjectDecisions({
         surreal,
@@ -1343,7 +1422,9 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     handleAuthInit,
     handleListProjects,
     // Tier 1 — Read
-    handleGetContext,
+    handleWorkspaceContext,
+    handleProjectContext,
+    handleTaskContext,
     handleGetDecisions,
     handleGetTaskDependencies,
     handleGetConstraints,

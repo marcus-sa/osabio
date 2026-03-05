@@ -9,8 +9,15 @@ import type {
   ActiveSessionContext,
   TaskScopeContext,
   RecentChangeContext,
+  WorkspaceOverview,
+  TaskContextPacket,
+  HotItems,
 } from "./types";
 import { toRawId } from "./id-format";
+
+// ---------------------------------------------------------------------------
+// Row types (private)
+// ---------------------------------------------------------------------------
 
 type ProjectRow = {
   id: RecordId<"project", string>;
@@ -106,12 +113,131 @@ type SessionObservationRow = {
   source_session: RecordId<"agent_session", string>;
 };
 
+type EntityCountRow = {
+  project_id: RecordId<"project", string>;
+  entity_type: string;
+  count: number;
+};
+
+type FeatureCountRow = {
+  project_id: RecordId<"project", string>;
+  count: number;
+};
+
+type ContestedDecisionRow = {
+  id: RecordId<"decision", string>;
+  summary: string;
+};
+
+type HotObservationRow = {
+  id: RecordId<"observation", string>;
+  text: string;
+  severity: string;
+  category?: string;
+};
+
+type HotSuggestionRow = {
+  id: RecordId<"suggestion", string>;
+  text: string;
+  category: string;
+  confidence: number;
+};
+
+type RecentChangeRow = {
+  entity_type: string;
+  entity_name: string;
+  change_type: string;
+  changed_at: Date | string;
+};
+
 function toIso(value: Date | string | undefined): string {
   if (!value) return "";
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-/** Build a broad project context packet (all decisions, tasks, questions for a project) */
+// ===========================================================================
+// 1. Workspace Overview (lightweight orientation, no params)
+// ===========================================================================
+
+/** Build a lightweight workspace overview for agent orientation */
+export async function buildWorkspaceOverview(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  workspaceName: string;
+  excludeSessionId?: string;
+}): Promise<WorkspaceOverview> {
+  const { surreal, workspaceRecord, workspaceName } = input;
+
+  const overviewQuery = `
+    SELECT id, name, status, description
+    FROM project
+    WHERE id IN (SELECT VALUE out FROM has_project WHERE \`in\` = $workspace);
+
+    SELECT out AS project_id, record::tb(\`in\`) AS entity_type, count() AS count
+    FROM belongs_to
+    WHERE out IN (SELECT VALUE out FROM has_project WHERE \`in\` = $workspace)
+    GROUP BY project_id, entity_type;
+
+    SELECT \`in\` AS project_id, count() AS count
+    FROM has_feature
+    WHERE \`in\` IN (SELECT VALUE out FROM has_project WHERE \`in\` = $workspace)
+    GROUP BY project_id;
+  `;
+
+  const [projectRows, entityCounts, featureCounts] = await surreal
+    .query<[ProjectRow[], EntityCountRow[], FeatureCountRow[]]>(overviewQuery, {
+      workspace: workspaceRecord,
+    })
+    .collect<[ProjectRow[], EntityCountRow[], FeatureCountRow[]]>();
+
+  const countsByProject = buildProjectCountMaps(entityCounts, featureCounts);
+  const hotItems = await loadHotItems(surreal, workspaceRecord);
+  const activeSessions = await loadActiveSessions(surreal, workspaceRecord, undefined, input.excludeSessionId);
+
+  return {
+    workspace: { id: workspaceRecord.id as string, name: workspaceName },
+    projects: projectRows.map((p) => ({
+      id: toRawId(p.id),
+      name: p.name,
+      status: p.status,
+      ...(p.description ? { description: p.description } : {}),
+      counts: countsByProject.get(toRawId(p.id)) ?? { tasks: 0, decisions: 0, features: 0, questions: 0 },
+    })),
+    hot_items: hotItems,
+    active_sessions: activeSessions,
+  };
+}
+
+function buildProjectCountMaps(
+  entityCounts: EntityCountRow[],
+  featureCounts: FeatureCountRow[],
+): Map<string, { tasks: number; decisions: number; features: number; questions: number }> {
+  const map = new Map<string, { tasks: number; decisions: number; features: number; questions: number }>();
+
+  for (const row of entityCounts) {
+    const pid = toRawId(row.project_id);
+    const entry = map.get(pid) ?? { tasks: 0, decisions: 0, features: 0, questions: 0 };
+    if (row.entity_type === "task") entry.tasks = row.count;
+    else if (row.entity_type === "decision") entry.decisions = row.count;
+    else if (row.entity_type === "question") entry.questions = row.count;
+    map.set(pid, entry);
+  }
+
+  for (const row of featureCounts) {
+    const pid = toRawId(row.project_id);
+    const entry = map.get(pid) ?? { tasks: 0, decisions: 0, features: 0, questions: 0 };
+    entry.features = row.count;
+    map.set(pid, entry);
+  }
+
+  return map;
+}
+
+// ===========================================================================
+// 2. Project Context (full project context, project_id required)
+// ===========================================================================
+
+/** Build a full project context packet (decisions, tasks, questions, observations, suggestions) */
 export async function buildProjectContext(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
@@ -123,13 +249,11 @@ export async function buildProjectContext(input: {
 }): Promise<ContextPacket> {
   const { surreal, workspaceRecord, workspaceName, projectRecord, taskId } = input;
 
-  // Load project details
   const project = await surreal.select<ProjectRow>(projectRecord);
   if (!project) {
     throw new Error(`project not found: ${projectRecord.id}`);
   }
 
-  // Load project-scoped entities in parallel
   const projectEntitiesQuery = `
     LET $project_entity_ids = SELECT VALUE \`in\` FROM belongs_to WHERE out = $project;
 
@@ -193,7 +317,6 @@ export async function buildProjectContext(input: {
     }
   }
 
-  // Map tasks
   const activeTasks: TaskContext[] = taskRows
     .filter((t) => t.status !== "done" && t.status !== "completed")
     .map((t) => ({
@@ -205,7 +328,6 @@ export async function buildProjectContext(input: {
       ...(t.source_session ? { source_session: toRawId(t.source_session) } : {}),
     }));
 
-  // Map questions
   const openQuestions: QuestionContext[] = questionRows
     .filter((q) => q.status !== "answered" && q.status !== "resolved")
     .map((q) => ({
@@ -216,7 +338,6 @@ export async function buildProjectContext(input: {
       ...(q.priority ? { priority: q.priority } : {}),
     }));
 
-  // Map observations
   const observations: ObservationContext[] = observationRows.map((o) => ({
     id: toRawId(o.id),
     text: o.text,
@@ -226,7 +347,6 @@ export async function buildProjectContext(input: {
     ...(o.observation_type ? { observation_type: o.observation_type } : {}),
   }));
 
-  // Map suggestions
   const pendingSuggestions: SuggestionContext[] = suggestionRows.map((s) => ({
     id: toRawId(s.id),
     text: s.text,
@@ -238,23 +358,15 @@ export async function buildProjectContext(input: {
     created_at: toIso(s.created_at),
   }));
 
-  // Load active sessions on the same project (exclude self)
-  const activeSessions = await loadActiveSessions(
-    surreal,
-    workspaceRecord,
-    projectRecord,
-    input.excludeSessionId,
-  );
+  const activeSessions = await loadActiveSessions(surreal, workspaceRecord, projectRecord, input.excludeSessionId);
 
-  // Build recent changes if `since` provided
   const recentChanges: RecentChangeContext[] = input.since
     ? await loadRecentChanges(surreal, workspaceRecord, projectRecord, input.since)
     : [];
 
-  // Build task scope if taskId provided
   let taskScope: TaskScopeContext | undefined;
   if (taskId) {
-    taskScope = await buildTaskScope(surreal, workspaceRecord, projectRecord, taskId);
+    taskScope = await buildTaskScope(surreal, workspaceRecord, taskId);
   }
 
   return {
@@ -276,11 +388,128 @@ export async function buildProjectContext(input: {
   };
 }
 
+// ===========================================================================
+// 3. Task Context (task-focused, task_id required, project resolved from graph)
+// ===========================================================================
+
+/** Build task-focused context: task subgraph + project hot items */
+export async function buildTaskContext(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  workspaceName: string;
+  taskId: string;
+  excludeSessionId?: string;
+}): Promise<TaskContextPacket> {
+  const { surreal, workspaceRecord, workspaceName, taskId } = input;
+
+  const taskRecord = new RecordId("task", taskId);
+  const task = await surreal.select<TaskRow & { workspace: RecordId<"workspace", string> }>(taskRecord);
+  if (!task) {
+    throw new Error(`task not found: ${taskId}`);
+  }
+  if ((task.workspace.id as string) !== (workspaceRecord.id as string)) {
+    throw new Error(`task not in workspace: ${taskId}`);
+  }
+
+  // Resolve project from belongs_to edge
+  const [projectEdges] = await surreal
+    .query<[Array<{ out: RecordId<"project", string> }>]>(
+      `SELECT out FROM belongs_to WHERE \`in\` = $task AND record::tb(out) = "project" LIMIT 1;`,
+      { task: taskRecord },
+    )
+    .collect<[Array<{ out: RecordId<"project", string> }>]>();
+
+  let projectInfo: { id: string; name: string; status: string };
+  let projectRecord: RecordId<"project", string> | undefined;
+
+  if (projectEdges.length > 0) {
+    projectRecord = projectEdges[0].out;
+    const project = await surreal.select<ProjectRow>(projectRecord);
+    if (project) {
+      projectInfo = { id: toRawId(project.id), name: project.name, status: project.status };
+    } else {
+      projectInfo = { id: toRawId(projectRecord), name: "unknown", status: "unknown" };
+    }
+  } else {
+    projectInfo = { id: "unassigned", name: "unassigned", status: "unknown" };
+  }
+
+  const taskScope = await buildTaskScope(surreal, workspaceRecord, taskId);
+  const hotItems = await loadHotItems(surreal, workspaceRecord, projectRecord);
+  const activeSessions = await loadActiveSessions(surreal, workspaceRecord, projectRecord, input.excludeSessionId);
+
+  return {
+    workspace: { id: workspaceRecord.id as string, name: workspaceName },
+    project: projectInfo,
+    task_scope: taskScope,
+    hot_items: hotItems,
+    active_sessions: activeSessions,
+  };
+}
+
+// ===========================================================================
+// Shared helpers
+// ===========================================================================
+
+/** Load hot items: contested decisions, open observations, pending suggestions */
+async function loadHotItems(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  projectRecord?: RecordId<"project", string>,
+): Promise<HotItems> {
+  // When project-scoped, filter decisions via belongs_to
+  const decisionFilter = projectRecord
+    ? `AND id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project)`
+    : "";
+
+  const hotQuery = `
+    SELECT id, summary
+    FROM decision
+    WHERE workspace = $workspace AND status = "contested" ${decisionFilter}
+    ORDER BY updated_at DESC LIMIT 10;
+
+    SELECT id, text, severity, category
+    FROM observation
+    WHERE workspace = $workspace AND status IN ["open", "acknowledged"] AND severity IN ["warning", "conflict"]
+    ORDER BY created_at DESC LIMIT 10;
+
+    SELECT id, text, category, confidence
+    FROM suggestion
+    WHERE workspace = $workspace AND status = "pending"
+    ORDER BY confidence DESC, created_at DESC LIMIT 5;
+  `;
+
+  const [contestedDecisions, hotObservations, hotSuggestions] = await surreal
+    .query<[ContestedDecisionRow[], HotObservationRow[], HotSuggestionRow[]]>(hotQuery, {
+      workspace: workspaceRecord,
+      ...(projectRecord ? { project: projectRecord } : {}),
+    })
+    .collect<[ContestedDecisionRow[], HotObservationRow[], HotSuggestionRow[]]>();
+
+  return {
+    contested_decisions: contestedDecisions.map((d) => ({
+      id: toRawId(d.id),
+      summary: d.summary,
+    })),
+    open_observations: hotObservations.map((o) => ({
+      id: toRawId(o.id),
+      text: o.text,
+      severity: o.severity,
+      ...(o.category ? { category: o.category } : {}),
+    })),
+    pending_suggestions: hotSuggestions.map((s) => ({
+      id: toRawId(s.id),
+      text: s.text,
+      category: s.category,
+      confidence: s.confidence,
+    })),
+  };
+}
+
 /** Build task-scoped context: subtasks, parent feature, siblings, dependencies, related sessions */
 async function buildTaskScope(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  _projectRecord: RecordId<"project", string>,
   taskId: string,
 ): Promise<TaskScopeContext> {
   const taskRecord = new RecordId("task", taskId);
@@ -292,26 +521,21 @@ async function buildTaskScope(
     throw new Error(`task not in workspace: ${taskId}`);
   }
 
-  // Load subtasks, parent feature, dependencies, and related sessions in parallel
   const taskScopeQuery = `
-    -- Subtasks of this task
     SELECT id, title, status
     FROM task
     WHERE id IN (SELECT VALUE \`in\` FROM subtask_of WHERE out = $task)
     ORDER BY created_at ASC;
 
-    -- Parent feature (via has_task edge)
     SELECT id, name, description
     FROM feature
     WHERE id IN (SELECT VALUE \`in\` FROM has_task WHERE out = $task)
     LIMIT 1;
 
-    -- Dependencies (tasks this task depends on)
     SELECT id, title, status
     FROM task
     WHERE id IN (SELECT VALUE out FROM depends_on WHERE \`in\` = $task);
 
-    -- Recent agent sessions that touched this task
     SELECT id, agent, ended_at, summary
     FROM agent_session
     WHERE task_id = $task AND ended_at != NONE
@@ -334,7 +558,6 @@ async function buildTaskScope(
       }
     : undefined;
 
-  // Load sibling tasks (other tasks under same feature)
   let siblingTasks: { id: string; title: string; status: string; source_session?: string }[] = [];
   if (parentFeature && featureRows.length > 0) {
     const [siblingRows] = await surreal
@@ -384,24 +607,25 @@ async function buildTaskScope(
   };
 }
 
-/** Load active agent sessions on the same project, with their provisional decisions and observations */
+/** Load active agent sessions, optionally scoped to a project */
 async function loadActiveSessions(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  projectRecord: RecordId<"project", string>,
+  projectRecord?: RecordId<"project", string>,
   excludeSessionId?: string,
 ): Promise<ActiveSessionContext[]> {
   const excludeRecord = excludeSessionId
     ? new RecordId("agent_session", excludeSessionId)
     : new RecordId("agent_session", "__none__");
 
+  const projectFilter = projectRecord ? "AND project = $project" : "";
   const [sessionRows] = await surreal
     .query<[ActiveAgentSessionRow[]]>(
       `SELECT id, agent, started_at, task_id
        FROM agent_session
-       WHERE workspace = $workspace AND project = $project AND ended_at = NONE AND id != $exclude
+       WHERE workspace = $workspace ${projectFilter} AND ended_at = NONE AND id != $exclude
        ORDER BY started_at DESC LIMIT 10;`,
-      { workspace: workspaceRecord, project: projectRecord, exclude: excludeRecord },
+      { workspace: workspaceRecord, ...(projectRecord ? { project: projectRecord } : {}), exclude: excludeRecord },
     )
     .collect<[ActiveAgentSessionRow[]]>();
 
@@ -409,7 +633,6 @@ async function loadActiveSessions(
 
   const sessionIds = sessionRows.map((s) => s.id);
 
-  // Load open observations for all active sessions in one query
   const [observationRows] = await surreal
     .query<[SessionObservationRow[]]>(
       `SELECT id, text, severity, source_session FROM observation
@@ -419,7 +642,6 @@ async function loadActiveSessions(
     )
     .collect<[SessionObservationRow[]]>();
 
-  // Load task titles for task-scoped sessions
   const taskIds = sessionRows
     .filter((s) => s.task_id)
     .map((s) => s.task_id!);
@@ -435,7 +657,6 @@ async function loadActiveSessions(
     taskTitles = new Map(taskRows.map((t) => [toRawId(t.id), t.title]));
   }
 
-  // Index observations by session
   const obsBySession = new Map<string, Array<{ id: string; text: string; severity: string }>>();
   for (const o of observationRows) {
     const sessionKey = toRawId(o.source_session);
@@ -444,7 +665,6 @@ async function loadActiveSessions(
     obsBySession.set(sessionKey, arr);
   }
 
-  // Index provisional decisions by session (avoid cross-session misattribution)
   const decisionsBySession = new Map<string, Array<{ id: string; summary: string }>>();
   for (const session of sessionRows) {
     const sessionKey = toRawId(session.id);
@@ -479,7 +699,7 @@ async function loadActiveSessions(
   });
 }
 
-/** Load entities changed since a timestamp for the recent_changes field */
+/** Load entities changed since a timestamp (project-scoped) */
 async function loadRecentChanges(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
@@ -536,10 +756,3 @@ async function loadRecentChanges(
     changed_at: toIso(r.changed_at),
   }));
 }
-
-type RecentChangeRow = {
-  entity_type: string;
-  entity_name: string;
-  change_type: string;
-  changed_at: Date | string;
-};

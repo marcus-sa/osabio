@@ -18,24 +18,46 @@ export async function runMcpServer(): Promise<void> {
   // =========================================================================
 
   server.tool(
+    "get_workspace_context",
+    "Lightweight workspace overview: projects with entity counts, hot items (contested decisions, open observations), and active sessions. Already loaded at session start — use to refresh.",
+    {},
+    async () => {
+      const result = await client.getWorkspaceContext();
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
     "get_project_context",
-    "Get token-budgeted context packet for a project. Returns decisions, tasks, constraints, open questions, and recent changes. Use at session start or to refresh context mid-session.",
+    "Full project context: decisions, tasks, questions, observations, suggestions, recent changes. Use when you know which project you're working on.",
     {
       project_id: z.string().describe("Project ID"),
-      task_id: z.string().optional().describe("Task ID for task-scoped context (focused on one task's subgraph)"),
-      since: z.string().optional().describe("ISO timestamp to get changes since (e.g. last session end)"),
+      task_id: z.string().optional().describe("Task ID for additional task-scoped context within the project"),
+      since: z.string().optional().describe("ISO timestamp to include recent changes since"),
     },
     async (input) => {
-      const result = await client.getContext(input);
+      const result = await client.getProjectContext(input);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  server.tool(
+    "get_task_context",
+    "Task-focused context: task subgraph (subtasks, dependencies, parent feature, siblings, related sessions) plus project hot items. Project is resolved automatically from the task's graph relationships.",
+    {
+      task_id: z.string().describe("Task ID"),
+    },
+    async (input) => {
+      const result = await client.getTaskContext(input);
       return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
     },
   );
 
   server.tool(
     "get_active_decisions",
-    "Get active decisions for a project, grouped by status (confirmed, provisional, contested). Optionally filter by area/category.",
+    "Get active decisions grouped by status (confirmed, provisional, contested). Optionally scope to a project and/or area.",
     {
-      project_id: z.string().describe("Project ID"),
+      project_id: z.string().optional().describe("Project ID to scope decisions (omit for workspace-wide)"),
       area: z.string().optional().describe("Category filter: engineering, research, marketing, operations, design, sales"),
     },
     async (input) => {
@@ -58,9 +80,9 @@ export async function runMcpServer(): Promise<void> {
 
   server.tool(
     "get_architecture_constraints",
-    "Get constraints that apply to a project: confirmed decisions (hard constraints) and open observations (warnings/conflicts).",
+    "Get constraints: confirmed decisions (hard constraints) and open observations (warnings/conflicts). Optionally scope to a project.",
     {
-      project_id: z.string().describe("Project ID"),
+      project_id: z.string().optional().describe("Project ID to scope constraints (omit for workspace-wide)"),
       area: z.string().optional().describe("Category filter"),
     },
     async (input) => {

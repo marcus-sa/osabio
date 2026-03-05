@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { runInit } from "./commands/init";
-import { runLoadContext, runSetProject, runCheckUpdates, runEndSession } from "./commands/system";
+import { runLoadContext, runCheckUpdates, runEndSession } from "./commands/system";
 import { runCheckCommit, runLogCommit } from "./commands/git-hooks";
 
 const args = process.argv.slice(2);
@@ -19,13 +19,6 @@ async function main(): Promise<void> {
         case "load-context":
           await runLoadContext();
           break;
-        case "set-project":
-          if (!args[2]) {
-            console.error("Usage: brain system set-project <project-id>");
-            process.exit(1);
-          }
-          await runSetProject(args[2]);
-          break;
         case "check-updates":
           await runCheckUpdates();
           break;
@@ -34,7 +27,7 @@ async function main(): Promise<void> {
           break;
         default:
           console.error(`Unknown system subcommand: ${subcommand}`);
-          console.error("Available: load-context, set-project, check-updates, end-session");
+          console.error("Available: load-context, check-updates, end-session");
           process.exit(1);
       }
       break;
@@ -73,9 +66,8 @@ function printHelp(): void {
 brain — Connect coding agents to the Brain knowledge graph
 
 Usage:
-  brain init                     Set up Brain integration (auth, MCP, hooks, skills, git hooks)
-  brain system load-context      Load project context (SessionStart hook)
-  brain system set-project <id>  Set project for current directory
+  brain init                     Set up Brain integration (auth, MCP, hooks, commands, git hooks)
+  brain system load-context      Load workspace info (SessionStart hook)
   brain system check-updates     Check for graph updates (UserPromptSubmit hook)
   brain system end-session       End agent session (SessionEnd hook)
   brain check-commit             Pre-commit hook: check for task completion
