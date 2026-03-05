@@ -66,7 +66,7 @@ function printHelp(): void {
 brain — Connect coding agents to the Brain knowledge graph
 
 Usage:
-  brain init                     Set up Brain integration (auth, MCP, hooks, skills, git hooks)
+  brain init                     Set up Brain integration (auth, MCP, hooks, commands, git hooks)
   brain system load-context      Load workspace info (SessionStart hook)
   brain system check-updates     Check for graph updates (UserPromptSubmit hook)
   brain system end-session       End agent session (SessionEnd hook)

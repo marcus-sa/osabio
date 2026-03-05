@@ -2,7 +2,7 @@
  * Embedded plugin content for `brain init`.
  *
  * The compiled binary can't read plugin/ files at runtime,
- * so we embed hooks, CLAUDE.md, and skills as constants.
+ * so we embed hooks, CLAUDE.md, and commands as constants.
  */
 
 // ---------------------------------------------------------------------------
@@ -138,10 +138,10 @@ The knowledge graph has these entity types. Use this to pick the right MCP tools
 6. **Write descriptive commit messages and include task IDs.** Include the raw task ID(s) in the commit message to make webhook processing and follow-up linking/review unambiguous. Use a clear token like \`task:<raw-task-id>\` (or multiple, e.g. \`tasks: <id1>, <id2>\`). Describe *what* changed and *why*.`;
 
 // ---------------------------------------------------------------------------
-// Skills (from plugin/skills/)
+// Commands (slash commands installed to .claude/commands/)
 // ---------------------------------------------------------------------------
 
-export const BRAIN_SKILLS: Record<string, string> = {
+export const BRAIN_COMMANDS: Record<string, string> = {
   "brain-start-task.md": `---
 name: brain-start-task
 description: Start working on a specific task from the Brain knowledge graph

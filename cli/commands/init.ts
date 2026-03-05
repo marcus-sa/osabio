@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, chmodSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { findGitRoot, saveRepoConfig, loadGlobalConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
-import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_SKILLS } from "./init-content";
+import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS } from "./init-content";
 
 const DEFAULT_SERVER_URL = "http://localhost:3000";
 
@@ -36,8 +36,8 @@ export async function runInit(): Promise<void> {
   // Step 4: CLAUDE.md
   await setupClaudeMd(gitRoot);
 
-  // Step 5: Skills
-  await setupSkills(gitRoot);
+  // Step 5: Commands
+  await setupCommands(gitRoot);
 
   // Step 6: Git hooks
   installGitHooks(gitRoot);
@@ -167,10 +167,6 @@ async function setupClaudeMd(gitRoot: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Step 5: Skills
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Step 6: Git hooks
 // ---------------------------------------------------------------------------
 
@@ -212,16 +208,16 @@ brain check-commit
   }
 }
 
-async function setupSkills(gitRoot: string): Promise<void> {
+async function setupCommands(gitRoot: string): Promise<void> {
   const commandsDir = join(gitRoot, ".claude", "commands");
   if (!existsSync(commandsDir)) mkdirSync(commandsDir, { recursive: true });
 
   let count = 0;
-  for (const [filename, content] of Object.entries(BRAIN_SKILLS)) {
+  for (const [filename, content] of Object.entries(BRAIN_COMMANDS)) {
     await Bun.write(join(commandsDir, filename), content + "\n");
     count++;
   }
 
-  console.log(`✓ Skills: ${count} commands installed to .claude/commands/`);
+  console.log(`✓ Commands: ${count} slash commands installed to .claude/commands/`);
 }
 
