@@ -187,3 +187,80 @@
 - [ ] Describing a hierarchy (e.g. "I want entities: Initiative -> Project -> Feature -> Task") triggers the PM agent to plan work items — the agent does not explain Brain's data model
 - [ ] Using terms like "entities", "graph", "features", or "tasks" in a business context creates entities in the graph rather than prompting clarification about Brain internals
 - [ ] The agent only explains Brain's architecture when explicitly asked (e.g. "How does Brain work?" or "What entity types does Brain support?")
+
+---
+
+## Directory-to-Entity Mapping (#97)
+
+### US-M1: Map a directory to a brain project
+
+**As a** developer working in a monorepo,
+**I want** to map a directory to a brain project,
+**So that** any coding agent working in that directory automatically loads the project's decisions, tasks, and constraints.
+
+#### Acceptance Criteria
+
+- [ ] `brain map ./services/auth project:abc123` creates/updates CLAUDE.md in the target directory with brain-map markers
+- [ ] Entity is validated against the server (rejects invalid or out-of-scope IDs)
+- [ ] Template includes "On first access" instruction to call `get_project_context`
+- [ ] Re-running the same command updates idempotently (content between markers replaced, not duplicated)
+
+### US-M2: Map a directory to a brain feature with parent project
+
+**As a** developer organizing code by features,
+**I want** to map a subdirectory to a brain feature with its parent project embedded,
+**So that** agents get both feature scope and project context without extra lookups.
+
+#### Acceptance Criteria
+
+- [ ] `brain map ./services/auth/oauth feature:def456 --project abc123` writes CLAUDE.md with both feature and project IDs
+- [ ] Template instructs agents to call `get_project_context` with the embedded project ID on first access
+- [ ] Decisions/questions are scoped with `context: { project, feature }`
+
+### US-M3: Map a directory to a brain feature without parent project
+
+**As a** developer mapping a feature directory when the parent project isn't known,
+**I want** the mapping to work without `--project`,
+**So that** agents can resolve the parent project at runtime via MCP tools.
+
+#### Acceptance Criteria
+
+- [ ] `brain map ./services/auth/oauth feature:def456` succeeds without `--project`
+- [ ] Template instructs agents to call `get_entity_detail` first to resolve the parent project, then `get_project_context`
+
+### US-M4: Unmap a directory
+
+**As a** developer who no longer needs a directory mapping,
+**I want** to remove the brain mapping without affecting other CLAUDE.md content,
+**So that** the directory returns to its default (unmapped) state.
+
+#### Acceptance Criteria
+
+- [ ] `brain unmap ./services/auth` removes the brain-map marker block from CLAUDE.md
+- [ ] Other content in CLAUDE.md outside the markers is preserved
+- [ ] If CLAUDE.md is empty after removing the block, the file is deleted
+
+### US-M5: Agents auto-map directories during work
+
+**As a** coding agent working in a Brain-connected repo,
+**I want** instructions in CLAUDE.md to tell me to persist directory mappings when I confidently identify a match,
+**So that** future agents entering the same directory don't have to rediscover the entity scope.
+
+#### Acceptance Criteria
+
+- [ ] `brain init` CLAUDE.md includes "Directory Mapping" section with auto-mapping instructions
+- [ ] Agent checks for `<!-- brain-map-start -->` marker before mapping (avoids overwriting)
+- [ ] Agent only maps when the match is confident, not speculative
+- [ ] Agent runs `brain map <dir> <type>:<id>` via shell to persist the mapping
+
+### US-M6: Hierarchical context composition via CLAUDE.md loading
+
+**As a** coding agent working in a feature subdirectory,
+**I want** to inherit the parent project's context via Claude Code's ancestor CLAUDE.md loading,
+**So that** I get both project-level decisions/constraints and feature-level scope automatically.
+
+#### Acceptance Criteria
+
+- [ ] Agent in `auth/` loads both project CLAUDE.md (ancestor) and feature CLAUDE.md (current dir)
+- [ ] Project context provides decisions and constraints; feature context provides entity scope
+- [ ] Different markers (`brain-map-start/end`) don't conflict with init markers (`brain-plugin-start/end`)

@@ -40,6 +40,18 @@ async function main(): Promise<void> {
       await runLogCommit();
       break;
 
+    case "map": {
+      const { runMap } = await import("./commands/map");
+      await runMap();
+      break;
+    }
+
+    case "unmap": {
+      const { runUnmap } = await import("./commands/map");
+      await runUnmap();
+      break;
+    }
+
     case "mcp":
       // MCP stdio server — import dynamically to avoid loading deps unless needed
       const { runMcpServer } = await import("./mcp-server");
@@ -72,6 +84,8 @@ Usage:
   brain system end-session       End agent session (SessionEnd hook)
   brain check-commit             Pre-commit hook: check for task completion
   brain log-commit               Deprecated no-op (GitHub webhook ingests commits)
+  brain map <dir> <type:id>      Map directory to a brain entity (project, feature)
+  brain unmap <dir>              Remove brain mapping from a directory
   brain mcp                      Start MCP stdio server
 
 Environment:

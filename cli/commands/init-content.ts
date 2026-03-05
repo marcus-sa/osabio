@@ -57,6 +57,24 @@ At session start you receive a list of workspace projects with their IDs. Most M
 - **Single project**: If the workspace has only one project, use it.
 - **Ambiguous**: If you can't determine the project, ask the user.
 
+## Directory Mapping
+
+Directories can be mapped to brain entities (project, feature) via \`CLAUDE.md\` files. When a directory has a brain mapping, any agent working in it automatically knows which entity to scope its work to.
+
+**Auto-mapping**: When you determine which project or feature a directory corresponds to (from workspace context, task scope, or user input), check if the directory already has a brain mapping by looking for \`<!-- brain-map-start -->\` in its \`CLAUDE.md\`. If not, persist the mapping by running:
+
+\`\`\`
+brain map <directory> <type>:<id>
+\`\`\`
+
+Examples:
+- \`brain map ./services/auth project:abc123\`
+- \`brain map ./services/auth/oauth feature:def456 --project abc123\`
+
+This creates a \`CLAUDE.md\` in the target directory with context-loading instructions. Future agents entering that directory will automatically load the right graph context.
+
+**When to map**: Map a directory when you confidently identify it as the primary location for a brain entity. Do not map speculatively — only when the project/feature clearly corresponds to the directory scope.
+
 ## Hooks
 
 - **SessionStart** loads workspace info (available projects and IDs)
