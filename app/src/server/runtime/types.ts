@@ -7,7 +7,7 @@ export type ServerDependencies = {
   config: ServerConfig;
   surreal: Surreal;
   analyticsSurreal: Surreal;
-  auth?: Auth;
+  auth: Auth;
   chatAgentModel: any;
   extractionModel: any;
   pmAgentModel: any;

@@ -284,10 +284,7 @@ export async function startServer(): Promise<void> {
           mcpHandlers.handleCheckCommit(request.params.workspaceId, request),
         ),
       },
-      "/api/auth/*": async (request) => {
-        if (!deps.auth) return new Response("Auth not configured", { status: 501 });
-        return deps.auth.handler(request);
-      },
+      "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,
       "/*": appHtml,
     },

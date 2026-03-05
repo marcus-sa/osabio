@@ -91,6 +91,12 @@ beforeAll(async () => {
     emailAndPassword: {
       enabled: true,
     },
+    socialProviders: {
+      github: {
+        clientId: "test-github-client-id",
+        clientSecret: "test-github-client-secret",
+      },
+    },
   });
 
   const ctx = await auth.$context;
@@ -403,6 +409,111 @@ describe("better-auth SurrealDB v2 adapter", () => {
 
       await testHelpers.deleteUser(u1.id);
       await testHelpers.deleteUser(u2.id);
+    });
+  });
+
+  describe("OAuth flow", () => {
+    test("sign-in/social returns GitHub redirect URL", async () => {
+      const res = await auth.api.signInSocial({
+        body: {
+          provider: "github",
+          callbackURL: "http://localhost:3000/callback",
+        },
+      });
+
+      expect(res.url).toBeTruthy();
+      expect(res.url).toContain("github.com");
+      expect(res.url).toContain("client_id=test-github-client-id");
+      expect(res.redirect).toBe(true);
+    });
+
+    test("OAuth account record stores provider fields with correct FK", async () => {
+      // Simulate what happens after GitHub OAuth callback:
+      // 1. Create a person (user)
+      // 2. Link a GitHub account via the adapter directly
+      const user = testHelpers.createUser({
+        email: "oauth-user@example.com",
+        name: "OAuth User",
+      });
+      const saved = await testHelpers.saveUser(user);
+
+      const ctx = await auth.$context;
+      const account = await ctx.adapter.create({
+        model: "account",
+        data: {
+          userId: saved.id,
+          accountId: "github-12345",
+          providerId: "github",
+          accessToken: "gho_test_token_abc",
+          refreshToken: "ghr_test_refresh_xyz",
+          scope: "read:user,user:email",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      expect(account).toBeTruthy();
+      expect(account.providerId).toBe("github");
+      expect(account.accountId).toBe("github-12345");
+      expect(account.userId).toBe(saved.id);
+
+      // Verify in SurrealDB: person_id is a RecordId, provider fields are stored
+      const [rows] = await surreal.query<
+        [Array<{
+          person_id: RecordId;
+          provider_id: string;
+          account_id: string;
+          access_token: string;
+          scope: string;
+        }>]
+      >(
+        `SELECT person_id, provider_id, account_id, access_token, scope FROM account WHERE id = $id;`,
+        { id: new RecordId("account", account.id) },
+      );
+      expect(rows).toHaveLength(1);
+      expect(rows[0].person_id).toBeInstanceOf(RecordId);
+      expect((rows[0].person_id as RecordId).table.name).toBe("person");
+      expect((rows[0].person_id as RecordId).id).toBe(saved.id);
+      expect(rows[0].provider_id).toBe("github");
+      expect(rows[0].account_id).toBe("github-12345");
+      expect(rows[0].access_token).toBe("gho_test_token_abc");
+      expect(rows[0].scope).toBe("read:user,user:email");
+
+      await testHelpers.deleteUser(saved.id);
+    });
+
+    test("listUserAccounts returns linked OAuth accounts", async () => {
+      const user = testHelpers.createUser({
+        email: "linked-user@example.com",
+        name: "Linked User",
+      });
+      const saved = await testHelpers.saveUser(user);
+
+      // Create a GitHub account link
+      const ctx = await auth.$context;
+      await ctx.adapter.create({
+        model: "account",
+        data: {
+          userId: saved.id,
+          accountId: "github-67890",
+          providerId: "github",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // Query accounts through adapter's findMany
+      const accounts = await ctx.adapter.findMany({
+        model: "account",
+        where: [{ field: "userId", value: saved.id }],
+      });
+
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const ghAccount = accounts.find((a: any) => a.providerId === "github");
+      expect(ghAccount).toBeTruthy();
+      expect(ghAccount!.accountId).toBe("github-67890");
+
+      await testHelpers.deleteUser(saved.id);
     });
   });
 

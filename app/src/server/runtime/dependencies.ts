@@ -6,7 +6,7 @@ import { createAuth, type Auth } from "../auth/config";
 export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   surreal: Surreal;
   analyticsSurreal: Surreal;
-  auth?: Auth;
+  auth: Auth;
   chatAgentModel: any;
   extractionModel: any;
   pmAgentModel: any;
@@ -46,15 +46,12 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   });
   const embeddingModel = openrouter.textEmbeddingModel(config.embeddingModelId);
 
-  let auth: Auth | undefined;
-  if (config.betterAuthSecret && config.betterAuthUrl && config.githubClientId && config.githubClientSecret) {
-    auth = createAuth(surreal, {
-      betterAuthSecret: config.betterAuthSecret,
-      betterAuthUrl: config.betterAuthUrl,
-      githubClientId: config.githubClientId,
-      githubClientSecret: config.githubClientSecret,
-    });
-  }
+  const auth = createAuth(surreal, {
+    betterAuthSecret: config.betterAuthSecret,
+    betterAuthUrl: config.betterAuthUrl,
+    githubClientId: config.githubClientId,
+    githubClientSecret: config.githubClientSecret,
+  });
 
   return {
     surreal,
