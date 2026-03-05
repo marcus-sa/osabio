@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "d3fa43bae96c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-schema-in-claude-md",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cli/commands/git-hooks.ts",
+    "cli/commands/init.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d3/fa43bae96c/0/metadata.json",
+      "transcript": "/d3/fa43bae96c/0/full.jsonl",
+      "context": "/d3/fa43bae96c/0/context.md",
+      "content_hash": "/d3/fa43bae96c/0/content_hash.txt",
+      "prompt": "/d3/fa43bae96c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 336,
+    "cache_creation_tokens": 842183,
+    "cache_read_tokens": 24161290,
+    "output_tokens": 97663,
+    "api_call_count": 255
+  }
+}
