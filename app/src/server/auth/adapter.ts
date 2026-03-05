@@ -67,7 +67,7 @@ export function surrealdbAdapter(surreal: Surreal) {
         return out;
       }
 
-      /** Prepare content for CREATE/UPDATE — convert FK strings to RecordId, strip `id`. */
+      /** Prepare content for CREATE/UPDATE — convert FK strings to RecordId, strip `id`, omit nulls. */
       function transformInputRecord(
         data: Record<string, unknown>,
         model: string,
@@ -76,6 +76,7 @@ export function surrealdbAdapter(surreal: Surreal) {
         const content: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(data)) {
           if (stripId && key === "id") continue;
+          if (value === null || value === undefined) continue; // SurrealDB option<T> uses NONE (omit)
           content[key] = toRecordId(model, key, value);
         }
         return content;

@@ -9,40 +9,40 @@ DEFINE INDEX OVERWRITE person_email ON person FIELDS contact_email UNIQUE;
 
 -- Session
 DEFINE TABLE OVERWRITE session SCHEMAFULL;
-DEFINE FIELD person_id ON session TYPE record<person>;
-DEFINE FIELD token ON session TYPE string;
-DEFINE FIELD expires_at ON session TYPE datetime;
-DEFINE FIELD ip_address ON session TYPE option<string>;
-DEFINE FIELD user_agent ON session TYPE option<string>;
-DEFINE FIELD created_at ON session TYPE datetime;
-DEFINE FIELD updated_at ON session TYPE datetime;
-DEFINE INDEX session_token ON session FIELDS token UNIQUE;
-DEFINE INDEX session_person_id ON session FIELDS person_id;
+DEFINE FIELD OVERWRITE person_id ON session TYPE record<person>;
+DEFINE FIELD OVERWRITE token ON session TYPE string;
+DEFINE FIELD OVERWRITE expires_at ON session TYPE datetime;
+DEFINE FIELD OVERWRITE ip_address ON session TYPE option<string>;
+DEFINE FIELD OVERWRITE user_agent ON session TYPE option<string>;
+DEFINE FIELD OVERWRITE created_at ON session TYPE datetime;
+DEFINE FIELD OVERWRITE updated_at ON session TYPE datetime;
+DEFINE INDEX OVERWRITE session_token ON session FIELDS token UNIQUE;
+DEFINE INDEX OVERWRITE session_person_id ON session FIELDS person_id;
 
 -- Account (OAuth provider links)
 DEFINE TABLE OVERWRITE account SCHEMAFULL;
-DEFINE FIELD person_id ON account TYPE record<person>;
-DEFINE FIELD account_id ON account TYPE string;
-DEFINE FIELD provider_id ON account TYPE string;
-DEFINE FIELD access_token ON account TYPE option<string>;
-DEFINE FIELD refresh_token ON account TYPE option<string>;
-DEFINE FIELD access_token_expires_at ON account TYPE option<datetime>;
-DEFINE FIELD refresh_token_expires_at ON account TYPE option<datetime>;
-DEFINE FIELD scope ON account TYPE option<string>;
-DEFINE FIELD id_token ON account TYPE option<string>;
-DEFINE FIELD password ON account TYPE option<string>;
-DEFINE FIELD created_at ON account TYPE datetime;
-DEFINE FIELD updated_at ON account TYPE datetime;
-DEFINE INDEX account_person_id ON account FIELDS person_id;
-DEFINE INDEX account_provider ON account FIELDS provider_id, account_id;
+DEFINE FIELD OVERWRITE person_id ON account TYPE record<person>;
+DEFINE FIELD OVERWRITE account_id ON account TYPE string;
+DEFINE FIELD OVERWRITE provider_id ON account TYPE string;
+DEFINE FIELD OVERWRITE access_token ON account TYPE option<string>;
+DEFINE FIELD OVERWRITE refresh_token ON account TYPE option<string>;
+DEFINE FIELD OVERWRITE access_token_expires_at ON account TYPE option<datetime>;
+DEFINE FIELD OVERWRITE refresh_token_expires_at ON account TYPE option<datetime>;
+DEFINE FIELD OVERWRITE scope ON account TYPE option<string>;
+DEFINE FIELD OVERWRITE id_token ON account TYPE option<string>;
+DEFINE FIELD OVERWRITE password ON account TYPE option<string>;
+DEFINE FIELD OVERWRITE created_at ON account TYPE datetime;
+DEFINE FIELD OVERWRITE updated_at ON account TYPE datetime;
+DEFINE INDEX OVERWRITE account_person_id ON account FIELDS person_id;
+DEFINE INDEX OVERWRITE account_provider ON account FIELDS provider_id, account_id;
 
 -- Verification
 DEFINE TABLE OVERWRITE verification SCHEMAFULL;
-DEFINE FIELD identifier ON verification TYPE string;
-DEFINE FIELD value ON verification TYPE string;
-DEFINE FIELD expires_at ON verification TYPE datetime;
-DEFINE FIELD created_at ON verification TYPE datetime;
-DEFINE FIELD updated_at ON verification TYPE datetime;
-DEFINE INDEX verification_identifier ON verification FIELDS identifier;
+DEFINE FIELD OVERWRITE identifier ON verification TYPE string;
+DEFINE FIELD OVERWRITE value ON verification TYPE string;
+DEFINE FIELD OVERWRITE expires_at ON verification TYPE datetime;
+DEFINE FIELD OVERWRITE created_at ON verification TYPE datetime;
+DEFINE FIELD OVERWRITE updated_at ON verification TYPE datetime;
+DEFINE INDEX OVERWRITE verification_identifier ON verification FIELDS identifier;
 
 COMMIT TRANSACTION;
