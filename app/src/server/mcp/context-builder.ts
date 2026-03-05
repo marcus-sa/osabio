@@ -257,22 +257,22 @@ export async function buildProjectContext(input: {
   const projectEntitiesQuery = `
     LET $project_entity_ids = SELECT VALUE \`in\` FROM belongs_to WHERE out = $project;
 
-    SELECT id, summary, status, rationale, decided_at, category, priority
+    SELECT id, summary, status, rationale, decided_at, category, priority, created_at
     FROM decision
     WHERE workspace = $workspace AND id IN $project_entity_ids
     ORDER BY created_at DESC LIMIT 50;
 
-    SELECT id, title, status, priority, category, description, source_session
+    SELECT id, title, status, priority, category, description, source_session, created_at
     FROM task
     WHERE workspace = $workspace AND id IN $project_entity_ids
     ORDER BY created_at DESC LIMIT 50;
 
-    SELECT id, text, status, context, priority
+    SELECT id, text, status, context, priority, created_at
     FROM question
     WHERE workspace = $workspace AND id IN $project_entity_ids
     ORDER BY created_at DESC LIMIT 30;
 
-    SELECT id, text, severity, status, category, observation_type
+    SELECT id, text, severity, status, category, observation_type, created_at
     FROM observation
     WHERE workspace = $workspace AND status IN ["open", "acknowledged"]
     ORDER BY created_at DESC LIMIT 20;
@@ -522,7 +522,7 @@ async function buildTaskScope(
   }
 
   const taskScopeQuery = `
-    SELECT id, title, status
+    SELECT id, title, status, created_at
     FROM task
     WHERE id IN (SELECT VALUE \`in\` FROM subtask_of WHERE out = $task)
     ORDER BY created_at ASC;
@@ -562,7 +562,7 @@ async function buildTaskScope(
   if (parentFeature && featureRows.length > 0) {
     const [siblingRows] = await surreal
       .query<[TaskRow[]]>(
-        `SELECT id, title, status, source_session FROM task
+        `SELECT id, title, status, source_session, created_at FROM task
          WHERE id IN (SELECT VALUE out FROM has_task WHERE \`in\` = $feature)
            AND id != $task
          ORDER BY created_at ASC LIMIT 20;`,

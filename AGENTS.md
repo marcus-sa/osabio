@@ -332,8 +332,7 @@ Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields
 - For optional record fields (e.g. `option<record<match>>`), omit the field instead of setting `null` - SurrealDB defaults to `NONE`.
 - Query results return `RecordId` objects for record references - cast directly, no string conversion needed.
 - Clause order: `SELECT ... FROM ... WHERE ... LIMIT ... FETCH ...` - `LIMIT` must come before `FETCH`.
-- ORDER BY fields must be in the SELECT clause - you cannot order by fields not selected.
-- Always include every `ORDER BY` field in the `SELECT` projection. Example: if ordering decisions/questions by `created_at DESC`, select `summary, created_at` or `text, created_at` (not just `summary` / `text`).
+- **ORDER BY fields MUST be in the SELECT projection.** SurrealDB v3.0 raises a hard parse error (`Missing order idiom ... in statement selection`) when an ORDER BY field is not selected. This fails at query time, not at schema time, so it often hides until the query is actually executed. Always include every `ORDER BY` field in the `SELECT` projection. Example: `SELECT id, summary, created_at FROM decision ORDER BY created_at DESC` (not `SELECT id, summary ... ORDER BY created_at`).
 - Known issue: Surreal can throw `Expected a single result output when using the ONLY keyword` when a statement uses `ONLY` and returns no record output.
 - Workaround: force a return clause. In SDK calls that map to `ONLY` (for example `relate(...)`), use `.output("after")` so the statement returns a record.
 - Type query results directly. Access `RecordId.id` directly - do NOT create wrapper functions like `extractRecordId()`, `toString()`, etc:

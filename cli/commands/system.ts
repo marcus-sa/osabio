@@ -1,5 +1,9 @@
-import { requireConfig } from "../config";
+import { loadConfig, requireConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
+
+// ---------------------------------------------------------------------------
+// Shared response types
+// ---------------------------------------------------------------------------
 
 type WorkspaceOverviewResponse = {
   workspace: { id: string; name: string };
@@ -10,22 +14,70 @@ type WorkspaceOverviewResponse = {
     description?: string;
     counts: { tasks: number; decisions: number; features: number; questions: number };
   }>;
-  hot_items: {
-    contested_decisions: Array<{ id: string; summary: string }>;
-    open_observations: Array<{ id: string; text: string; severity: string }>;
-    pending_suggestions: Array<{ id: string; text: string; category: string; confidence: number }>;
-  };
-  active_sessions: Array<{
-    id: string;
-    agent: string;
-    started_at: string;
-    task?: { id: string; title: string };
-  }>;
+  hot_items: HotItems;
+  active_sessions: ActiveSession[];
 };
+
+type ContextPacketResponse = {
+  workspace: { id: string; name: string };
+  project: { id: string; name: string; status: string; description?: string };
+  decisions: {
+    confirmed: DecisionCtx[];
+    provisional: DecisionCtx[];
+    contested: DecisionCtx[];
+  };
+  active_tasks: TaskCtx[];
+  open_questions: QuestionCtx[];
+  observations: ObservationCtx[];
+  pending_suggestions: SuggestionCtx[];
+  active_sessions: ActiveSession[];
+};
+
+type TaskContextResponse = {
+  workspace: { id: string; name: string };
+  project: { id: string; name: string; status: string };
+  task_scope: {
+    task: { id: string; title: string; description?: string; status: string; category?: string };
+    subtasks: { id: string; title: string; status: string }[];
+    parent_feature?: { id: string; name: string; description?: string };
+    sibling_tasks: { id: string; title: string; status: string }[];
+    dependencies: { id: string; title: string; status: string }[];
+  };
+  hot_items: HotItems;
+  active_sessions: ActiveSession[];
+};
+
+type IntentContextResponse = {
+  level: "task" | "project" | "workspace";
+  data: TaskContextResponse | ContextPacketResponse | WorkspaceOverviewResponse;
+};
+
+type DecisionCtx = { id: string; summary: string; status: string; rationale?: string };
+type TaskCtx = { id: string; title: string; status: string; priority?: string; category?: string };
+type QuestionCtx = { id: string; text: string; status: string };
+type ObservationCtx = { id: string; text: string; severity: string; status: string; category?: string };
+type SuggestionCtx = { id: string; text: string; category: string; rationale: string; confidence: number };
+type HotItems = {
+  contested_decisions: Array<{ id: string; summary: string }>;
+  open_observations: Array<{ id: string; text: string; severity: string }>;
+  pending_suggestions: Array<{ id: string; text: string; category: string; confidence: number }>;
+};
+type ActiveSession = {
+  id: string;
+  agent: string;
+  started_at: string;
+  task?: { id: string; title: string };
+};
+
+// ---------------------------------------------------------------------------
+// brain system load-context (SessionStart hook)
+// ---------------------------------------------------------------------------
 
 /**
  * brain system load-context
- * Called by SessionStart hook. Loads workspace overview for agent orientation.
+ * Called by SessionStart hook.
+ * Single-project workspaces get full project context automatically.
+ * Multi-project workspaces get the workspace overview.
  */
 export async function runLoadContext(): Promise<void> {
   const config = await requireConfig();
@@ -33,15 +85,208 @@ export async function runLoadContext(): Promise<void> {
 
   try {
     const overview = (await client.getWorkspaceContext()) as WorkspaceOverviewResponse;
+
+    // Single-project shortcut: load full project context
+    if (overview.projects.length === 1) {
+      const project = overview.projects[0];
+      try {
+        const projectContext = (await client.getProjectContext({ project_id: project.id })) as ContextPacketResponse;
+        console.log(formatProjectContext(projectContext));
+        return;
+      } catch {
+        // Fall back to workspace overview
+      }
+    }
+
     console.log(formatWorkspaceOverview(overview));
   } catch (error) {
     console.error(`Failed to load workspace: ${error instanceof Error ? error.message : error}`);
   }
 }
 
+// ---------------------------------------------------------------------------
+// brain system pretooluse (PreToolUse hook)
+// ---------------------------------------------------------------------------
+
+type HookInput = {
+  tool_name: string;
+  tool_input: Record<string, unknown>;
+};
+
+type HookResponse = {
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse";
+    additionalContext: string;
+  };
+};
+
+/**
+ * brain system pretooluse
+ * Called by PreToolUse hook. Only acts on Task tool — loads intent-based
+ * context and returns as additionalContext (accumulated across hooks).
+ */
+export async function runPreToolUse(): Promise<void> {
+  let input: HookInput;
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of Bun.stdin.stream()) {
+      chunks.push(Buffer.from(chunk));
+    }
+    input = JSON.parse(Buffer.concat(chunks).toString("utf-8").trim());
+  } catch {
+    return; // Can't parse stdin — passthrough
+  }
+
+  if (input.tool_name !== "Task") return; // Only intercept Task tool
+
+  const config = await loadConfig();
+  if (!config) return; // Not configured — passthrough
+
+  const client = new BrainHttpClient(config);
+  const prompt = typeof input.tool_input.prompt === "string" ? input.tool_input.prompt : "";
+  if (!prompt) return;
+
+  try {
+    // Extract intent from first 500 chars + detect paths
+    const intentText = prompt.slice(0, 500);
+    const paths = extractAbsolutePaths(prompt);
+
+    const result = (await client.getContext({
+      intent: intentText,
+      ...(paths.length > 0 ? { paths } : {}),
+    })) as IntentContextResponse;
+
+    const formatted = formatIntentResult(result);
+    if (!formatted) return;
+
+    const response: HookResponse = {
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        additionalContext: formatted,
+      },
+    };
+
+    console.log(JSON.stringify(response));
+  } catch {
+    // Silent on error — don't block the agent
+  }
+}
+
+/** Extract absolute paths from text */
+function extractAbsolutePaths(text: string): string[] {
+  const matches = text.match(/\/[\w./-]+/g);
+  if (!matches) return [];
+  // Filter to paths that look like real directories (at least 2 segments)
+  return [...new Set(matches.filter((p) => p.split("/").filter(Boolean).length >= 2))];
+}
+
+// ---------------------------------------------------------------------------
+// Formatters
+// ---------------------------------------------------------------------------
+
+function formatIntentResult(result: IntentContextResponse): string | undefined {
+  if (result.level === "project") {
+    return formatProjectContext(result.data as ContextPacketResponse);
+  }
+  if (result.level === "task") {
+    return formatTaskContext(result.data as TaskContextResponse);
+  }
+  if (result.level === "workspace") {
+    return formatWorkspaceOverview(result.data as WorkspaceOverviewResponse);
+  }
+  return undefined;
+}
+
+function formatProjectContext(ctx: ContextPacketResponse): string {
+  const lines: string[] = [];
+  lines.push(`# Brain: ${ctx.project.name} (project: ${ctx.project.id})\n`);
+
+  const { confirmed, provisional, contested } = ctx.decisions;
+  if (contested.length > 0) {
+    lines.push("## Contested Decisions (need resolution)");
+    for (const d of contested) {
+      lines.push(`  - [${d.id}] ${d.summary}`);
+      if (d.rationale) lines.push(`    Rationale: ${d.rationale}`);
+    }
+    lines.push("");
+  }
+  if (confirmed.length > 0) {
+    lines.push("## Confirmed Decisions");
+    for (const d of confirmed) lines.push(`  - [${d.id}] ${d.summary}`);
+    lines.push("");
+  }
+  if (provisional.length > 0) {
+    lines.push("## Provisional Decisions (pending review)");
+    for (const d of provisional) lines.push(`  - [${d.id}] ${d.summary}`);
+    lines.push("");
+  }
+
+  if (ctx.active_tasks.length > 0) {
+    lines.push("## Active Tasks");
+    for (const t of ctx.active_tasks) {
+      const meta = [t.status, t.priority, t.category].filter(Boolean).join(", ");
+      lines.push(`  - [${t.id}] ${t.title} (${meta})`);
+    }
+    lines.push("");
+  }
+
+  if (ctx.open_questions.length > 0) {
+    lines.push("## Open Questions");
+    for (const q of ctx.open_questions) lines.push(`  - [${q.id}] ${q.text}`);
+    lines.push("");
+  }
+
+  if (ctx.observations.length > 0) {
+    lines.push("## Observations");
+    for (const o of ctx.observations) lines.push(`  - [${o.severity}] ${o.text}`);
+    lines.push("");
+  }
+
+  if (ctx.pending_suggestions.length > 0) {
+    lines.push("## Pending Suggestions");
+    for (const s of ctx.pending_suggestions) lines.push(`  - [${s.category}] ${s.text}`);
+    lines.push("");
+  }
+
+  formatActiveSessions(lines, ctx.active_sessions);
+  lines.push('Use `get_context` MCP tool with a description of your work for more detail.');
+  return lines.join("\n");
+}
+
+function formatTaskContext(ctx: TaskContextResponse): string {
+  const lines: string[] = [];
+  const { task } = ctx.task_scope;
+  lines.push(`# Brain: Task "${task.title}" (task: ${task.id})`);
+  lines.push(`Project: ${ctx.project.name} (project: ${ctx.project.id})`);
+  lines.push(`Status: ${task.status}${task.category ? ` | Category: ${task.category}` : ""}`);
+  if (task.description) lines.push(`\n${task.description}`);
+  lines.push("");
+
+  if (ctx.task_scope.subtasks.length > 0) {
+    lines.push("## Subtasks");
+    for (const s of ctx.task_scope.subtasks) lines.push(`  - [${s.status}] ${s.title} (${s.id})`);
+    lines.push("");
+  }
+
+  if (ctx.task_scope.dependencies.length > 0) {
+    lines.push("## Dependencies");
+    for (const d of ctx.task_scope.dependencies) lines.push(`  - [${d.status}] ${d.title} (${d.id})`);
+    lines.push("");
+  }
+
+  if (ctx.task_scope.sibling_tasks.length > 0) {
+    lines.push("## Sibling Tasks");
+    for (const s of ctx.task_scope.sibling_tasks) lines.push(`  - [${s.status}] ${s.title}`);
+    lines.push("");
+  }
+
+  formatHotItems(lines, ctx.hot_items);
+  formatActiveSessions(lines, ctx.active_sessions);
+  return lines.join("\n");
+}
+
 function formatWorkspaceOverview(overview: WorkspaceOverviewResponse): string {
   const lines: string[] = [];
-
   lines.push(`# Brain Workspace: ${overview.workspace.name}\n`);
 
   if (overview.projects.length === 0) {
@@ -57,44 +302,39 @@ function formatWorkspaceOverview(overview: WorkspaceOverviewResponse): string {
   }
   lines.push("");
 
-  const { contested_decisions, open_observations, pending_suggestions } = overview.hot_items;
+  formatHotItems(lines, overview.hot_items);
+  formatActiveSessions(lines, overview.active_sessions);
+  lines.push('Use `get_context` MCP tool with a description of your work to load relevant project context.');
+  return lines.join("\n");
+}
 
-  if (contested_decisions.length > 0) {
+function formatHotItems(lines: string[], hot: HotItems): void {
+  if (hot.contested_decisions.length > 0) {
     lines.push("## Contested Decisions");
-    for (const d of contested_decisions) {
-      lines.push(`  - ${d.summary} (id: ${d.id})`);
-    }
+    for (const d of hot.contested_decisions) lines.push(`  - ${d.summary} (${d.id})`);
     lines.push("");
   }
-
-  if (open_observations.length > 0) {
+  if (hot.open_observations.length > 0) {
     lines.push("## Open Observations");
-    for (const o of open_observations) {
-      lines.push(`  - [${o.severity}] ${o.text}`);
-    }
+    for (const o of hot.open_observations) lines.push(`  - [${o.severity}] ${o.text}`);
     lines.push("");
   }
-
-  if (pending_suggestions.length > 0) {
+  if (hot.pending_suggestions.length > 0) {
     lines.push("## Pending Suggestions");
-    for (const s of pending_suggestions) {
-      lines.push(`  - [${s.category}] ${s.text}`);
-    }
+    for (const s of hot.pending_suggestions) lines.push(`  - [${s.category}] ${s.text}`);
     lines.push("");
   }
+}
 
-  if (overview.active_sessions.length > 0) {
+function formatActiveSessions(lines: string[], sessions: ActiveSession[]): void {
+  if (sessions.length > 0) {
     lines.push("## Active Agent Sessions");
-    for (const s of overview.active_sessions) {
+    for (const s of sessions) {
       const taskInfo = s.task ? ` on "${s.task.title}"` : "";
       lines.push(`  - ${s.agent}${taskInfo}`);
     }
     lines.push("");
   }
-
-  lines.push("Use `get_workspace_context`, `get_project_context`, or `get_task_context` MCP tools for more detail.");
-
-  return lines.join("\n");
 }
 
 /**
