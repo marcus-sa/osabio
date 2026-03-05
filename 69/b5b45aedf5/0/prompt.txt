@@ -1,0 +1,417 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/riga directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+plan setting up http://better-auth.com with surrealdb using https://github.com/Necmttn/surrealdb-better-auth
+.  i assume we'll have to manually create the schemas for plugins?
+
+---
+
+Continue from where you left off.
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/riga/.context/attachments/pasted_text_2026-03-05_21-15-51.txt
+</system_instruction>
+
+
+
+more context:
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+keep one user / person entity. we can just map fields: https://better-auth.com/docs/reference/options
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+app/src/server/runtime/config.ts — add optional env vars:
+
+BETTER_AUTH_SECRET — signing key (min 32 chars)
+BETTER_AUTH_URL — base URL (e.g. http://localhost:3000)
+GITHUB_CLIENT_ID — GitHub OAuth app client ID
+GITHUB_CLIENT_SECRET — GitHub OAuth app secret
+
+can we can use the same for the github webhook ?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/riga/.context/attachments/PR instructions.md
+</system_instruction>
+
+
+
+Create a PR
+
+---
+
+write integration tests for better auth to ensure that adapter works
+
+https://better-auth.com/docs/plugins/test-utils
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User asked to plan setting up better-auth with SurrealDB using the Necmttn/surrealdb-better-auth adapter, noting they'd probably need to manually create schemas for plugins.
+
+2. **Branch Rename**: System instruction required renaming the branch. Renamed to `marcus-sa/better-auth-surrealdb`.
+
+3. **Research Phase**: Launched Explore agents to research:
+   - The Necmttn adapter (pins SurrealDB SDK v1.3.2 - incompatible with project's v2.0.0-alpha.18)
+   - The Oskar Gmerek adapter (also pins SDK v1)
+   - Better-auth's core schema (user, session, account, verification tables)
+   - Better-auth's Bun integration
+   - `createAdapterFactory` API
+
+4. **User Questions & Answers**:
+   - Custom adapter from scratch (recommended) ✓
+   - GitHub OAuth only ✓
+   - Core tables only ✓
+
+5. **Plan Phase**: Created initial plan with separate `user` + `person` tables linked via `auth_identity` relation.
+
+6. **User Feedback - Critical Change**: User said "keep one user / person entity. we can just map fields" and linked to better-auth docs. This was a major pivot - instead of separate tables, map better-auth's `user` model onto the existing `person` table.
+
+7. **Research on Field Mapping**: Discovered better-auth supports `modelName` to rename tables and `fields` to rename columns. The adapter receives mapped column names in all CRUD operations. Also confirmed `findOne` must return `null` (not `undefined`).
+
+8. **Plan Update**: Rewrote plan with single person entity, field mappings for all 4 models.
+
+9. **User Question about GitHub secrets**: User asked if GitHub OAuth credentials could be reused for webhook. Answer: No, they're different secrets for different purposes.
+
+10. **Implementation**:
+    - Installed `better-auth@1.5.3`
+    - Created migration `0010_better_auth_tables.surql`
+    - Updated `schema/surreal-schema.surql`
+    - Created `app/src/server/auth/adapter.ts` - custom SurrealDB v2 adapter
+    - Created `app/src/server/auth/config.ts` - betterAuth() config with field mappings
+    - Modified runtime files (config.ts, dependencies.ts, types.ts, start-server.ts)
+
+11. **TypeScript Errors Fixed**:
+    - `supportsJoin` not a valid config property → removed it
+    - Generic type `T` not assignable to `Record<string, unknown>` → cast `updateData as Record<string, unknown>`
+
+12. **PR Created**: Committed, pushed, created PR #98.
+
+13. **Integration Tests**: User asked to write integration tests using better-auth's test utils plugin.
+    - Fetched docs from https://better-auth.com/docs/plugins/test-utils
+    - Created `tests/smoke/better-auth-adapter.test.ts` with comprehensive tests
+    - Tests failed with "The query was not executed due to a failed transaction"
+    - Root cause: Migration 0010 used `DEFINE FIELD` without `OVERWRITE`, conflicting with already-applied schema
+    - Fixed by adding `OVERWRITE` to all `DEFINE FIELD` and `DEFINE INDEX` statements
+    - Still failing because OTHER older migrations (0001, 0006) also fail with transactions when run after the full schema
+    - Was investigating this when summary was requested
+
+Key files and their current states need to be documented precisely. The test is still failing due to the migration application order issue in the test setup.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested planning and implementing better-auth with SurrealDB using the Necmttn/surrealdb-better-auth adapter. Key requirements evolved:
+   - Set up better-auth for web UI authentication with GitHub OAuth only
+   - Core tables only (no plugins initially)
+   - **Critical user feedback**: Use a single `person` entity instead of separate `user` + `person` tables, mapping better-auth fields to existing person table columns via better-auth's field mapping options
+   - Write integration tests for the adapter using better-auth's test utils plugin
+   - Create a PR with all changes
+
+2. Key Technical Concepts:
+   - **better-auth** v1.5.3: Framework-agnostic auth library with `createAdapterFactory` for custom DB adapters
+   - **SurrealDB SDK v2** (v2.0.0-alpha.18): Project uses SDK v2, but both community adapters (Necmttn, Oskar) pin SDK v1.3.2 — incompatible
+   - **Custom adapter via `createAdapterFactory`**: Import from `"better-auth/adapters"`, implements `CustomAdapter` interface (create, findOne, findMany, update, updateMany, delete, deleteMany, count)
+   - **Field mapping**: better-auth's `user.modelName` renames the table, `user.fields` renames columns. The factory transforms data before passing to adapter — adapter receives DB column names (`contact_email`, `person_id`)
+   - **FK detection**: Schema metadata includes `references` on fields. Adapter builds FK map at construction time from `schema` + `getModelName`/`getFieldName` helpers
+   - **RecordId round-trip**: Adapter converts string FK values → `RecordId` for writes, `RecordId` → `.id` string for reads
+   - **`findOne` returns `null`**: Boundary exception to project's no-null rule, required by better-auth contract
+   - **`DEFINE ... OVERWRITE`**: Required for idempotent SurrealDB migrations when schema already contains definitions
+   - **better-auth testUtils plugin**: Provides `createUser`, `saveUser`, `deleteUser`, `login`, `getAuthHeaders` helpers for testing
+   - **Bun.serve wildcard routing**: `/api/auth/*` captures all better-auth endpoints
+
+3. Files and Code Sections:
+
+   - **`app/src/server/auth/adapter.ts`** (NEW - core adapter, ~268 lines)
+     - Custom SurrealDB v2 adapter using `createAdapterFactory`
+     - Builds FK map from schema metadata at construction time
+     - Handles RecordId conversion, parameterized WHERE clauses, all 8 CRUD methods
+     ```typescript
+     import { createAdapterFactory, type CleanedWhere } from "better-auth/adapters";
+     import { RecordId, type Surreal } from "surrealdb";
+
+     export function surrealdbAdapter(surreal: Surreal) {
+       return createAdapterFactory({
+         config: {
+           adapterId: "surrealdb-v2",
+           adapterName: "SurrealDB v2",
+           usePlural: false,
+           supportsJSON: true,
+           supportsDates: true,
+           supportsBooleans: true,
+           supportsNumericIds: false,
+         },
+         adapter: ({ schema, getModelName, getFieldName }) => {
+           // Build FK map: { dbTableName → { dbColumnName → referencedDbTableName } }
+           const fkMap = new Map<string, Map<string, string>>();
+           for (const [defaultModel, modelDef] of Object.entries(schema)) {
+             const dbTable = getModelName(defaultModel);
+             const tableFks = new Map<string, string>();
+             for (const [defaultField, fieldAttr] of Object.entries(modelDef.fields)) {
+               if (fieldAttr.references?.field === "id") {
+                 const dbColumn = getFieldName({ model: defaultModel, field: defaultField });
+                 const refDbTable = getModelName(fieldAttr.references.model);
+                 tableFks.set(dbColumn, refDbTable);
+               }
+             }
+             if (tableFks.size > 0) {
+               fkMap.set(dbTable, tableFks);
+             }
+           }
+           // ... toRecordId, fromRecord, transformOutputRecord, transformInputRecord, buildWhere helpers
+           // ... 8 CRUD methods: create, findOne, findMany, update, updateMany, delete, deleteMany, count
+         },
+       });
+     }
+     ```
+     Key patterns: `CREATE $record CONTENT $content RETURN AFTER;`, `SELECT * FROM ${model} WHERE ${clause} LIMIT 1;`, `UPDATE ${model} MERGE $content WHERE ${clause} RETURN AFTER;`, `DELETE FROM ${model} WHERE ${clause} RETURN BEFORE;` (for deleteMany count), `SELECT count() FROM ${model} WHERE ${clause} GROUP ALL;`
+
+   - **`app/src/server/auth/config.ts`** (NEW - betterAuth() config)
+     - Maps user→person, all snake_case field mappings, GitHub OAuth
+     ```typescript
+     import { betterAuth } from "better-auth";
+     import type { Surreal } from "surrealdb";
+     import { surrealdbAdapter } from "./adapter";
+
+     export type AuthConfig = {
+       betterAuthSecret: string;
+       betterAuthUrl: string;
+       githubClientId: string;
+       githubClientSecret: string;
+     };
+
+     export function createAuth(surreal: Surreal, config: AuthConfig) {
+       return betterAuth({
+         secret: config.betterAuthSecret,
+         baseURL: config.betterAuthUrl,
+         basePath: "/api/auth",
+         database: surrealdbAdapter(surreal),
+         user: {
+           modelName: "person",
+           fields: {
+             email: "contact_email",
+             emailVerified: "email_verified",
+             createdAt: "created_at",
+             updatedAt: "updated_at",
+           },
+         },
+         session: {
+           fields: {
+             userId: "person_id",
+             expiresAt: "expires_at",
+             ipAddress: "ip_address",
+             userAgent: "user_agent",
+             createdAt: "created_at",
+             updatedAt: "updated_at",
+           },
+         },
+         account: {
+           fields: {
+             userId: "person_id",
+             accountId: "account_id",
+             providerId: "provider_id",
+             accessToken: "access_token",
+             refreshToken: "refresh_token",
+             accessTokenExpiresAt: "access_token_expires_at",
+             refreshTokenExpiresAt: "refresh_token_expires_at",
+             idToken: "id_token",
+             createdAt: "created_at",
+             updatedAt: "updated_at",
+           },
+         },
+         verification: {
+           fields: {
+             expiresAt: "expires_at",
+             createdAt: "created_at",
+             updatedAt: "updated_at",
+           },
+         },
+         socialProviders: {
+           github: {
+             clientId: config.githubClientId,
+             clientSecret: config.githubClientSecret,
+           },
+         },
+       });
+     }
+
+     export type Auth = ReturnType<typeof createAuth>;
+     ```
+
+   - **`schema/migrations/0010_better_auth_tables.surql`** (NEW - migration)
+     - Evolves person table + creates session/account/verification tables
+     - Updated to use `OVERWRITE` on all DEFINE FIELD/INDEX statements for idempotency
+     ```sql
+     BEGIN TRANSACTION;
+
+     -- Evolve person table for better-auth
+     DEFINE FIELD OVERWRITE contact_email ON person TYPE string;
+     DEFINE FIELD OVERWRITE email_verified ON person TYPE bool DEFAULT false;
+     DEFINE FIELD OVERWRITE image ON person TYPE option<string>;
+     DEFINE FIELD OVERWRITE updated_at ON person TYPE datetime;
+     DEFINE INDEX OVERWRITE person_email ON person FIELDS contact_email UNIQUE;
+
+     -- Session
+     DEFINE TABLE OVERWRITE session SCHEMAFULL;
+     DEFINE FIELD OVERWRITE person_id ON session TYPE record<person>;
+     DEFINE FIELD OVERWRITE token ON session TYPE string;
+     DEFINE FIELD OVERWRITE expires_at ON session TYPE datetime;
+     DEFINE FIELD OVERWRITE ip_address ON session TYPE option<string>;
+     DEFINE FIELD OVERWRITE user_agent ON session TYPE option<string>;
+     DEFINE FIELD OVERWRITE created_at ON session TYPE datetime;
+     DEFINE FIELD OVERWRITE updated_at ON session TYPE datetime;
+     DEFINE INDEX OVERWRITE session_token ON session FIELDS token UNIQUE;
+     DEFINE INDEX OVERWRITE session_person_id ON session FIELDS person_id;
+
+     -- Account (OAuth provider links)
+     DEFINE TABLE OVERWRITE account SCHEMAFULL;
+     DEFINE FIELD OVERWRITE person_id ON account TYPE record<person>;
+     DEFINE FIELD OVERWRITE account_id ON account TYPE string;
+     DEFINE FIELD OVERWRITE provider_id ON account TYPE string;
+     DEFINE FIELD OVERWRITE access_token ON account TYPE option<string>;
+     DEFINE FIELD OVERWRITE refresh_token ON account TYPE option<string>;
+     DEFINE FIELD OVERWRITE access_token_expires_at ON account TYPE option<datetime>;
+     DEFINE FIELD OVERWRITE refresh_token_expires_at ON account TYPE option<datetime>;
+     DEFINE FIELD OVERWRITE scope ON account TYPE option<string>;
+     DEFINE FIELD OVERWRITE id_token ON account TYPE option<string>;
+     DEFINE FIELD OVERWRITE password ON account TYPE option<string>;
+     DEFINE FIELD OVERWRITE created_at ON account TYPE datetime;
+     DEFINE FIELD OVERWRITE updated_at ON account TYPE datetime;
+     DEFINE INDEX OVERWRITE account_person_id ON account FIELDS person_id;
+     DEFINE INDEX OVERWRITE account_provider ON account FIELDS provider_id, account_id;
+
+     -- Verification
+     DEFINE TABLE OVERWRITE verification SCHEMAFULL;
+     DEFINE FIELD OVERWRITE identifier ON verification TYPE string;
+     DEFINE FIELD OVERWRITE value ON verification TYPE string;
+     DEFINE FIELD OVERWRITE expires_at ON verification TYPE datetime;
+     DEFINE FIELD OVERWRITE created_at ON verification TYPE datetime;
+     DEFINE FIELD OVERWRITE updated_at ON verification TYPE datetime;
+     DEFINE INDEX OVERWRITE verification_identifier ON verification FIELDS identifier;
+
+     COMMIT TRANSACTION;
+     ```
+
+   - **`schema/surreal-schema.surql`** (MODIFIED)
+     - Updated person table: `contact_email` now `TYPE string` (was `option<string>`), added `email_verified`, `image`, `updated_at` now `TYPE datetime` (was `option<datetime>`), added `person_email` UNIQUE index
+     - Appended session, account, verification table definitions before the analytics user definition
+
+   - **`app/src/server/runtime/config.ts`** (MODIFIED)
+     - Added 4 optional properties to `ServerConfig`: `betterAuthSecret?`, `betterAuthUrl?`, `githubClientId?`, `githubClientSecret?`
+     - Added env var parsing with `?.trim() || undefined` pattern
+
+   - **`app/src/server/runtime/dependencies.ts`** (MODIFIED)
+     - Added `import { createAuth, type Auth } from "../auth/config"`
+     - Added `auth?: Auth` to return type
+     - Conditionally creates auth instance when all 4 env vars are present
+
+   - **`app/src/server/runtime/types.ts`** (MODIFIED)
+     - Added `import type { Auth } from "../auth/config"`
+     - Added `auth?: Auth` to `ServerDependencies`
+
+   - **`app/src/server/runtime/start-server.ts`** (MODIFIED)
+     - Added `auth: runtime.auth` to deps object
+     - Added wildcard route before catch-all:
+     ```typescript
+     "/api/auth/*": async (request) => {
+       if (!deps.auth) return new Response("Auth not configured", { status: 501 });
+       return deps.auth.handler(request);
+     },
+     ```
+
+   - **`tests/smoke/better-auth-adapter.test.ts`** (NEW - integration tests, currently failing)
+     - Creates isolated SurrealDB namespace/database
+     - Applies full schema + all migrations
+     - Creates betterAuth instance with testUtils plugin + emailAndPassword enabled
+     - Tests: user CRUD, session management, email/password sign-up flow, findMany/count, RecordId round-trip
+     - Uses `testHelpers.createUser()`, `testHelpers.saveUser()`, `testHelpers.login()`, `testHelpers.getAuthHeaders()`, `auth.api.signUpEmail()`, `auth.api.signInEmail()`, `auth.api.getSession()`
+     - Also tests directly against SurrealDB to verify RecordId storage and field mapping
+
+   - **`tests/smoke/smoke-test-kit.ts`** (READ - reference for test setup pattern)
+     - Shows existing pattern: create namespace/db, apply schema, apply all migrations, boot server
+
+   - **Factory source code analysis** (`node_modules/@better-auth/core/dist/db/adapter/factory.mjs`):
+     - Factory calls `getModelName(unsafeModel)` to get DB table name before passing to adapter
+     - Factory calls `transformInput()` to map field names before passing to adapter
+     - Factory calls `transformWhereClause()` to map where field names before passing to adapter
+     - Factory calls `transformOutput()` AFTER getting result from adapter to map back
+     - For `id` and FK fields (`references.field === "id"`), factory calls `String(newValue)` on output
+     - Adapter receives DB column names and DB table names in all methods
+
+4. Errors and Fixes:
+   - **TypeScript error: `supportsJoin` not in `AdapterFactoryConfig`**:
+     - Fix: Removed `supportsJoin: false` from adapter config (it's not a valid option)
+   - **TypeScript error: Generic `T` not assignable to `Record<string, unknown>`**:
+     - Fix: Cast `updateData as Record<string, unknown>` in `update` and `updateMany` methods
+   - **Migration 0010 transaction failure**: `DEFINE FIELD` without `OVERWRITE` fails when schema already defines the fields
+     - Fix: Added `OVERWRITE` keyword to all `DEFINE FIELD` and `DEFINE INDEX` statements in migration 0010
+   - **Test still failing**: Other older migrations (0001, 0006) also fail with transaction errors when applied after full schema. This is a pre-existing issue in the test setup pattern (schema + migrations overlap) that needs resolution.
+
+5. Problem Solving:
+   - **SDK incompatibility**: Both community SurrealDB adapters pin SDK v1 — solved by writing custom adapter using `createAdapterFactory`
+   - **Single entity design**: User pushed back on separate user/person tables — solved with better-auth field mapping (`modelName: "person"`, field remapping)
+   - **Factory data flow**: Deeply investigated the factory source code to understand that adapter receives mapped column names, not better-auth default names
+   - **Idempotent migrations**: Discovered `DEFINE FIELD` fails if field exists (no implicit OVERWRITE) — fixed with explicit `OVERWRITE`
+   - **Ongoing**: Test setup applies schema + all migrations, but older migrations (0001, 0006) also have transaction failures due to non-idempotent defines. Need to either: skip migration errors in test setup, or only apply schema (not migrations) since schema already includes everything.
+
+6. All User Messages:
+   - "plan setting up http://better-auth.com with surrealdb using https://github.com/Necmttn/surrealdb-better-auth. i assume we'll have to manually create the schemas for plugins?"
+   - "Continue from where you left off."
+   - (Attached IAM plan document as context - detailed identity resolution, authority model, OAuth 2.1 for agents)
+   - Answered questions: Custom adapter from scratch, GitHub OAuth only, Core only plugins
+   - "keep one user / person entity. we can just map fields: https://better-auth.com/docs/reference/options" — **Critical feedback changing architecture**
+   - "can we can use the same for the github webhook?" (about GITHUB_CLIENT_SECRET vs GITHUB_WEBHOOK_SECRET)
+   - "Create a PR" (with attached PR instructions)
+   - "write integration tests for better auth to ensure that adapter works https://better-auth.com/docs/plugins/test-utils"
+
+7. Pending Tasks:
+   - Fix failing integration tests (`tests/smoke/better-auth-adapter.test.ts`) — the test setup transaction error from older migrations needs to be resolved
+   - Commit the test file and migration fix, push, update PR
+
+8. Current Work:
+   Writing integration tests for the better-auth SurrealDB v2 adapter. The test file `tests/smoke/better-auth-adapter.test.ts` was created with comprehensive tests covering user CRUD, session management, email/password sign-up, findMany/count, and RecordId round-trip verification. However, tests fail during `beforeAll` setup because applying ALL migrations after the full schema causes transaction failures in older migrations (0001, 0006) that use non-idempotent `DEFINE` statements inside transactions. Migration 0010 was fixed with `OVERWRITE` but the pre-existing migrations still fail. The last debugging step confirmed:
+   - Migration 0001 (`agent_session_and_subtask`): FAILED - transaction error
+   - Migration 0006 (`task_implemented_by`): FAILED - transaction error
+   - Migration 0010 (our new one): Now passes individually but fails when 0001/0006 fail first
+
+9. Optional Next Step:
+   Fix the test setup to handle the migration application issue. The most straightforward approach is to skip migration errors in the test's `beforeAll` (wrap each migration in try/catch like the debug script did), since the full schema already contains all definitions and migrations are only needed for incremental updates to existing databases. This directly continues the user's request: "write integration tests for better auth to ensure that adapter works".
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-riga/4367354f-995e-4a6a-b3c3-a73060bd4c71.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
