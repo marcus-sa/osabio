@@ -71,3 +71,11 @@ create user stories in USER_STORIES.md
 ---
 
 amend commit and push
+
+---
+
+task mapping doesnt make sense
+
+---
+
+amend commit ad push

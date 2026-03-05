@@ -5,7 +5,10 @@
   "branch": "marcus-sa/graph-dir-mapping",
   "checkpoints_count": 1,
   "files_touched": [
-    "USER_STORIES.md"
+    "USER_STORIES.md",
+    "cli/brain.ts",
+    "cli/commands/init-content.ts",
+    "cli/commands/map.ts"
   ],
   "sessions": [
     {
@@ -17,10 +20,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 42,
-    "cache_creation_tokens": 102316,
-    "cache_read_tokens": 1048052,
-    "output_tokens": 3897,
-    "api_call_count": 10
+    "input_tokens": 22,
+    "cache_creation_tokens": 93852,
+    "cache_read_tokens": 1855142,
+    "output_tokens": 3331,
+    "api_call_count": 20
   }
 }

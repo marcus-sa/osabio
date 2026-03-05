@@ -60,3 +60,11 @@ create user stories in USER_STORIES.md
 
 amend commit and push
 
+### Prompt 12
+
+task mapping doesnt make sense
+
+### Prompt 13
+
+amend commit ad push
+
