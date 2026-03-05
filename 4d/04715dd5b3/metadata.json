@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4d04715dd5b3",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/better-auth-surrealdb",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/chat/chat-ingress.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/acknowledge-observation.ts",
+    "app/src/server/chat/tools/confirm-decision.ts",
+    "app/src/server/chat/tools/create-observation.ts",
+    "app/src/server/chat/tools/create-provisional-decision.ts",
+    "app/src/server/chat/tools/create-question.ts",
+    "app/src/server/chat/tools/create-suggestion.ts",
+    "app/src/server/chat/tools/create-work-item.ts",
+    "app/src/server/chat/tools/resolve-decision.ts",
+    "app/src/server/chat/tools/resolve-observation.ts",
+    "app/src/server/chat/tools/suggest-work-items.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/extraction/persist-extraction.ts",
+    "app/src/server/extraction/person.ts",
+    "app/src/server/iam/authority.ts",
+    "app/src/server/iam/identity.ts",
+    "app/src/server/mcp/auth.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "schema/migrations/0011_authority_scope.surql",
+    "schema/surreal-schema.surql",
+    "tests/smoke/authority.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4d/04715dd5b3/0/metadata.json",
+      "transcript": "/4d/04715dd5b3/0/full.jsonl",
+      "context": "/4d/04715dd5b3/0/context.md",
+      "content_hash": "/4d/04715dd5b3/0/content_hash.txt",
+      "prompt": "/4d/04715dd5b3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 15,
+    "cache_creation_tokens": 43240,
+    "cache_read_tokens": 422321,
+    "output_tokens": 4864,
+    "api_call_count": 10
+  }
+}
