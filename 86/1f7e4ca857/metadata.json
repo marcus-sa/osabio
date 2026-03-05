@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "861f7e4ca857",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/graph-dir-mapping",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "cli/brain.ts",
+    "cli/commands/init-content.ts",
+    "cli/commands/map.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/86/1f7e4ca857/0/metadata.json",
+      "transcript": "/86/1f7e4ca857/0/full.jsonl",
+      "context": "/86/1f7e4ca857/0/context.md",
+      "content_hash": "/86/1f7e4ca857/0/content_hash.txt",
+      "prompt": "/86/1f7e4ca857/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 197,
+    "cache_creation_tokens": 317418,
+    "cache_read_tokens": 2781896,
+    "output_tokens": 20594,
+    "api_call_count": 39
+  }
+}

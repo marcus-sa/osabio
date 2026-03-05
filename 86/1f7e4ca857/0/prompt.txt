@@ -1,0 +1,65 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/amman-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools (one time only):
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+hmm, cant we use this to precisely map brain graph to dirs, without the graph itself being aware of it? that way it stays entirely in the code.
+https://github.com/shanraisshan/claude-code-best-practice/blob/main/best-practice/claude-memory.md
+
+---
+
+Continue from where you left off.
+
+---
+
+if a dir is a project, then we reference the project id
+if a dir is a feature, then we reference the feature id
+
+---
+
+yes
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Continue from where you left off.
+
+---
+
+"The idea: map directories to brain graph entities by writing per-directory CLAUDE.md files. When a coding agent enters a directory, it automatically knows which entity it’s working in. The graph never stores paths — directories point at graph entities. The mapping lives entirely in the filesystem."
+
+should we then also instruct it to load the project / feature context?
+
+---
+
+but shouldnt claude automatically do the initial mapping?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/amman-v1/.context/attachments/PR instructions.md
+</system_instruction>
+
+
+
+Create a PR
