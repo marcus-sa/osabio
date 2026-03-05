@@ -28,6 +28,16 @@ export class BrainHttpClient {
     return res.json();
   }
 
+  async getContext(body: { intent: string; cwd?: string; paths?: string[] }): Promise<unknown> {
+    const res = await fetch(this.url("/context"), {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to resolve context: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
   async getWorkspaceContext(body?: { session_id?: string }): Promise<unknown> {
     const res = await fetch(this.url("/workspace-context"), {
       method: "POST",

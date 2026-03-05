@@ -4,6 +4,7 @@ import { z } from "zod";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
+import { resolveIntentContext, type IntentContextInput } from "./intent-context";
 import { authenticateMcpRequest, type McpAuthResult } from "./auth";
 import { generateApiKey, hashApiKey } from "./api-key";
 import {
@@ -186,6 +187,37 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     } catch (error) {
       logError("mcp.workspace-context.failed", "Failed to build workspace overview", error);
       return jsonError("failed to build workspace overview", 500);
+    }
+  }
+
+  /** POST /api/mcp/:workspaceId/context — Intent-based context resolution */
+  async function handleIntentContext(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+
+    const body = await parseJsonBody<IntentContextInput>(request);
+    if (body instanceof Response) return body;
+
+    if (!body.intent || typeof body.intent !== "string") {
+      return jsonError("intent is required", 400);
+    }
+
+    try {
+      const result = await resolveIntentContext({
+        surreal,
+        embeddingModel: deps.embeddingModel,
+        embeddingDimension: config.embeddingDimension,
+        workspaceRecord: auth.workspaceRecord,
+        workspaceName: auth.workspaceName,
+        intent: body.intent,
+        cwd: body.cwd,
+        paths: body.paths,
+      });
+      logInfo("mcp.intent-context.resolved", "Intent context resolved", { workspaceId, level: result.level });
+      return jsonResponse(result, 200);
+    } catch (error) {
+      logError("mcp.intent-context.failed", "Failed to resolve intent context", error);
+      return jsonError("failed to resolve intent context", 500);
     }
   }
 
@@ -1422,6 +1454,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     handleAuthInit,
     handleListProjects,
     // Tier 1 — Read
+    handleIntentContext,
     handleWorkspaceContext,
     handleProjectContext,
     handleTaskContext,

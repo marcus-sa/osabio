@@ -10,6 +10,9 @@
 // ---------------------------------------------------------------------------
 
 export const BRAIN_HOOKS: Record<string, Array<{ type: string; command?: string; prompt?: string }>> = {
+  PreToolUse: [
+    { type: "command", command: "brain system pretooluse" },
+  ],
   SessionStart: [
     { type: "command", command: "brain system load-context" },
   ],
@@ -48,112 +51,50 @@ export const BRAIN_CLAUDE_MD = `# Brain Knowledge Graph Integration
 
 This project is connected to the Brain knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
 
-## Project Context
+## Getting Context
 
-At session start you receive a list of workspace projects with their IDs. Most MCP tools require a \`project_id\` — infer it from context:
+Use \`get_context\` with a description of what you're working on. The server automatically finds the right project, tasks, decisions, and constraints — no need to pass project IDs manually.
 
-- **Task-scoped work**: If you're given a task ID, call \`get_entity_detail\` — the task's graph relationships reveal its project.
-- **Directory-scoped work**: Match the directory you're working in to a project. In a monorepo, each service/package directory typically maps to a project. In a monolith, a module or subpackage may map to a project or feature.
-- **Single project**: If the workspace has only one project, use it.
-- **Ambiguous**: If you can't determine the project, ask the user.
+Example: \`get_context({ intent: "implementing OAuth flow for the auth service" })\`
 
-## Directory Mapping
-
-Directories can be mapped to brain entities (project, feature) via \`CLAUDE.md\` files. When a directory has a brain mapping, any agent working in it automatically knows which entity to scope its work to.
-
-**Auto-mapping**: When you determine which project or feature a directory corresponds to (from workspace context, task scope, or user input), check if the directory already has a brain mapping by looking for \`<!-- brain-map-start -->\` in its \`CLAUDE.md\`. If not, persist the mapping by running:
-
-\`\`\`
-brain map <directory> <type>:<id>
-\`\`\`
-
-Examples:
-- \`brain map ./services/auth project:abc123\`
-- \`brain map ./services/auth/oauth feature:def456 --project abc123\`
-
-This creates a \`CLAUDE.md\` in the target directory with context-loading instructions. Future agents entering that directory will automatically load the right graph context.
-
-**When to map**: Map a directory when you confidently identify it as the primary location for a brain entity. Do not map speculatively — only when the project/feature clearly corresponds to the directory scope.
+You can include task IDs (\`task:abc123\`), project names, file paths, or just a plain description.
 
 ## Hooks
 
-- **SessionStart** loads workspace info (available projects and IDs)
+- **SessionStart** loads workspace/project context automatically
+- **PreToolUse** injects brain context when dispatching subagents
 - **UserPromptSubmit** checks for workspace-level graph updates
 - **Stop** catches unlogged decisions before the session ends
 - **SessionEnd** logs session summary to the graph
 
 ## Data Model
 
-The knowledge graph has these entity types. Use this to pick the right MCP tools and understand tool results.
-
 **Work hierarchy:** Project → Feature → Task
-- **Project**: a named initiative with status, description. Linked to workspace via \`has_project\` edge.
-- **Feature**: a capability or deliverable within a project. Linked via \`has_feature\` edge.
-- **Task**: an actionable work item. Can belong to a feature (\`has_task\`) or directly to a project (\`belongs_to\`). Has status (open/todo/ready/in_progress/blocked/done/completed), priority, category, optional owner and deadline.
+- **Project**: a named initiative with status, description.
+- **Feature**: a capability or deliverable within a project.
+- **Task**: an actionable work item. Status: open/todo/ready/in_progress/blocked/done/completed.
 
-**Cross-cutting entities** (attach to any level via \`belongs_to\`):
-- **Decision**: a choice that was made. Status lifecycle: extracted → proposed → provisional → confirmed → superseded. Can conflict with other decisions (\`conflicts_with\` edge).
+**Cross-cutting entities** (attach to any level):
+- **Decision**: a choice that was made. Lifecycle: extracted → proposed → provisional → confirmed → superseded.
 - **Question**: an open question requiring a choice. Only for pending decisions, not informational queries.
-- **Observation**: a lightweight signal (info/warning/conflict). Lifecycle: open → acknowledged → resolved. Used for cross-project intelligence.
-- **Suggestion**: a proactive agent-to-human proposal. Categories: optimization, risk, opportunity, conflict, missing, pivot. Lifecycle: pending → accepted/dismissed/deferred → converted.
-
-**Other entities:** Person (with ownership edges), Meeting, Document, Git Commit, Pull Request.
-
-**Key relationships (graph edges):**
-- \`has_project\`: workspace → project
-- \`has_feature\`: project → feature
-- \`has_task\`: feature → task
-- \`belongs_to\`: task|decision|question → feature|project
-- \`depends_on\`: task|feature → task|feature (blocks/needs/soft)
-- \`conflicts_with\`: decision|feature ↔ decision|feature
-- \`owns\`: person → task|project|feature
-- \`observes\`: observation → project|feature|task|decision|question
-- \`suggests_for\`: suggestion → project|feature|task|question|decision
-- \`suggestion_evidence\`: suggestion → observation|decision|task|feature|project|question|person|workspace
-- \`superseded_by\`: decision → decision
+- **Observation**: a lightweight signal (info/warning/conflict). Lifecycle: open → acknowledged → resolved.
+- **Suggestion**: a proactive agent-to-human proposal. Categories: optimization, risk, opportunity, conflict, missing, pivot.
 
 **Entity ID format:** MCP tools use \`table:id\` for polymorphic references (e.g. \`task:abc123\`, \`decision:def456\`).
-
-## MCP Tools Available
-
-### Context (progressive detail)
-- \`get_workspace_context\` — Workspace overview: projects with entity counts, hot items, active sessions. Already loaded at session start.
-- \`get_project_context\` — Full project context: decisions, tasks, questions, observations, suggestions. Requires project_id.
-- \`get_task_context\` — Task-focused: subgraph (subtasks, deps, siblings) + project hot items. Requires task_id, resolves project automatically.
-
-### Read (use freely)
-- \`get_active_decisions\` — Decisions grouped by status (confirmed/provisional/contested)
-- \`get_task_dependencies\` — Dependency tree for a task (depends on, depended by, subtasks)
-- \`get_architecture_constraints\` — Hard and soft constraints from decisions and observations
-- \`get_recent_changes\` — What changed since your last session
-- \`get_entity_detail\` — Full detail for any entity (entity ID format: \`table:id\`)
-
-### Reason (use when making choices)
-- \`resolve_decision\` — Check if the graph already answers your question. **Always try this before creating a new decision.**
-- \`check_constraints\` — Verify a proposed action doesn't conflict with existing decisions. **Use before adding dependencies or changing approaches.**
-
-### Write (use to keep the graph current)
-- \`create_provisional_decision\` — Record an implementation choice you made. Status is "provisional" — only humans confirm.
-- \`ask_question\` — When genuinely uncertain, ask rather than guess. Creates a question for human review.
-- \`update_task_status\` — Track progress. Triggers automatic subtask rollup on parent tasks.
-- \`create_subtask\` — Break tasks into smaller pieces. Includes semantic dedup (returns existing if similar).
-- \`log_implementation_note\` — Append notes about what was implemented and how.
-- \`create_suggestion\` — Propose an optimization, risk, opportunity, conflict, missing element, or pivot for human review. Surfaces in the feed.
 
 ## Decision Governance
 
 - **Your decisions are always \`provisional\` or \`inferred\`** — only humans confirm.
 - This means you can move fast without blocking, while humans retain authority.
-- Provisional decisions surface in the feed as DecisionReview cards for human approval.
 
 ## Best Practices
 
 1. **Check before deciding.** Call \`resolve_decision\` first — the answer may already exist from another agent or human.
-2. **Ask, don't guess.** If you're uncertain, \`ask_question\` is better than \`create_provisional_decision\`. A question says "I need input." A decision says "I picked this, review it."
+2. **Ask, don't guess.** If uncertain, \`ask_question\` is better than \`create_provisional_decision\`.
 3. **Log as you go.** Don't batch decisions for the end. Log each significant choice when you make it.
 4. **Decompose tasks.** Use \`create_subtask\` to break work into pieces, then update status as each completes.
 5. **Check constraints.** Before adding a dependency or changing an approach, call \`check_constraints\`.
-6. **Write descriptive commit messages and include task IDs.** Include the raw task ID(s) in the commit message to make webhook processing and follow-up linking/review unambiguous. Use a clear token like \`task:<raw-task-id>\` (or multiple, e.g. \`tasks: <id1>, <id2>\`). Describe *what* changed and *why*.`;
+6. **Include task IDs in commit messages.** Use \`task:<raw-task-id>\` (or \`tasks: <id1>, <id2>\`). Describe *what* changed and *why*.`;
 
 // ---------------------------------------------------------------------------
 // Commands (slash commands installed to .claude/commands/)

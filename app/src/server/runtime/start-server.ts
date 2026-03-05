@@ -158,6 +158,12 @@ export async function startServer(): Promise<void> {
           mcpHandlers.handleListProjects(request.params.workspaceId),
         ),
       },
+      // MCP — Intent-based context
+      "/api/mcp/:workspaceId/context": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/context", "POST", (request) =>
+          mcpHandlers.handleIntentContext(request.params.workspaceId, request),
+        ),
+      },
       // MCP — Tier 1 Read
       "/api/mcp/:workspaceId/workspace-context": {
         POST: withRequestLogging("POST /api/mcp/:workspaceId/workspace-context", "POST", (request) =>

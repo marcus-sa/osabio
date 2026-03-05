@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { runInit } from "./commands/init";
-import { runLoadContext, runCheckUpdates, runEndSession } from "./commands/system";
+import { runLoadContext, runCheckUpdates, runEndSession, runPreToolUse } from "./commands/system";
 import { runCheckCommit, runLogCommit } from "./commands/git-hooks";
 
 const args = process.argv.slice(2);
@@ -25,9 +25,12 @@ async function main(): Promise<void> {
         case "end-session":
           await runEndSession();
           break;
+        case "pretooluse":
+          await runPreToolUse();
+          break;
         default:
           console.error(`Unknown system subcommand: ${subcommand}`);
-          console.error("Available: load-context, check-updates, end-session");
+          console.error("Available: load-context, check-updates, end-session, pretooluse");
           process.exit(1);
       }
       break;
@@ -82,6 +85,7 @@ Usage:
   brain system load-context      Load workspace info (SessionStart hook)
   brain system check-updates     Check for graph updates (UserPromptSubmit hook)
   brain system end-session       End agent session (SessionEnd hook)
+  brain system pretooluse        Inject brain context into subagent dispatch (PreToolUse hook)
   brain check-commit             Pre-commit hook: check for task completion
   brain log-commit               Deprecated no-op (GitHub webhook ingests commits)
   brain map <dir> <type:id>      Map directory to a brain entity (project, feature)

@@ -14,7 +14,23 @@ export async function runMcpServer(): Promise<void> {
   });
 
   // =========================================================================
-  // Tier 1 — Read Tools
+  // Primary — Intent-based context
+  // =========================================================================
+
+  server.tool(
+    "get_context",
+    "Load relevant knowledge graph context for your current work. Describe what you're doing and the server finds the right project, tasks, decisions, and constraints. Preferred over get_workspace_context / get_project_context / get_task_context.",
+    {
+      intent: z.string().describe("What you're working on. Can include task IDs (task:abc), project names, file paths, or a plain description of your goal."),
+    },
+    async (input) => {
+      const result = await client.getContext({ intent: input.intent });
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, undefined, 2) }] };
+    },
+  );
+
+  // =========================================================================
+  // Tier 1 — Read Tools (legacy, still functional)
   // =========================================================================
 
   server.tool(
