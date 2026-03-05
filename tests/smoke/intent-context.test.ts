@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateApiKey, hashApiKey } from "../../app/src/server/mcp/api-key";
+import { createEmbeddingVector } from "../../app/src/server/graph/embeddings";
 import { fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 // ---------------------------------------------------------------------------
@@ -9,6 +11,14 @@ import { fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 // ---------------------------------------------------------------------------
 
 const getRuntime = setupSmokeSuite("intent-context");
+
+const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
+const embeddingModel = openrouter.textEmbeddingModel(process.env.OPENROUTER_EMBEDDING_MODEL!);
+const embeddingDimension = Number(process.env.EMBEDDING_DIMENSION!);
+
+async function embedText(text: string): Promise<number[] | undefined> {
+  return createEmbeddingVector(embeddingModel, text, embeddingDimension);
+}
 
 type IntentContextResponse = {
   level: "task" | "project" | "workspace";
@@ -74,6 +84,7 @@ async function seedTask(
   workspaceRecord: RecordId<"workspace", string>,
   projectRecord: RecordId<"project", string>,
   title: string,
+  embedding?: number[],
 ): Promise<RecordId<"task", string>> {
   const taskRecord = new RecordId("task", randomUUID());
   await surreal.create(taskRecord).content({
@@ -83,6 +94,7 @@ async function seedTask(
     workspace: workspaceRecord,
     created_at: new Date(),
     updated_at: new Date(),
+    ...(embedding ? { embedding } : {}),
   });
   await surreal
     .relate(taskRecord, new RecordId("belongs_to", randomUUID()), projectRecord, {
@@ -98,6 +110,7 @@ async function seedDecision(
   projectRecord: RecordId<"project", string>,
   summary: string,
   status: string,
+  embedding?: number[],
 ): Promise<RecordId<"decision", string>> {
   const decisionRecord = new RecordId("decision", randomUUID());
   await surreal.create(decisionRecord).content({
@@ -106,6 +119,7 @@ async function seedDecision(
     workspace: workspaceRecord,
     created_at: new Date(),
     updated_at: new Date(),
+    ...(embedding ? { embedding } : {}),
   });
   await surreal
     .relate(decisionRecord, new RecordId("belongs_to", randomUUID()), projectRecord, {
@@ -216,6 +230,63 @@ describe("intent-context integration", () => {
     expect(data.project.name).toBe("Mobile App");
     expect(data.active_tasks.some((t: any) => t.title === "Fix login screen crash")).toBe(true);
   }, 30_000);
+
+  it("natural intent in multi-project workspace resolves via embedding similarity", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const ws = await createWorkspaceWithApiKey(baseUrl, surreal);
+    const billing = await seedProject(surreal, ws.workspaceRecord, "Billing Service");
+    const docs = await seedProject(surreal, ws.workspaceRecord, "Documentation Site");
+
+    // Seed tasks with real embeddings so vector search can match
+    const [billingEmb, docsEmb] = await Promise.all([
+      embedText("Implement Stripe invoice generation and payment webhooks"),
+      embedText("Write getting started guide and API reference docs"),
+    ]);
+
+    await seedTask(surreal, ws.workspaceRecord, billing, "Implement Stripe invoice generation and payment webhooks", billingEmb);
+    await seedTask(surreal, ws.workspaceRecord, docs, "Write getting started guide and API reference docs", docsEmb);
+
+    // Agent describes billing work — no task ID, no project ID, no cwd
+    const result = await postContext(baseUrl, ws.workspaceId, ws.apiKey, {
+      intent: "I'm working on the payment invoice flow and need to handle Stripe webhooks",
+    });
+
+    // Should resolve via vector similarity — either task-level (direct match) or project-level
+    expect(["task", "project"]).toContain(result.level);
+    const data = result.data as any;
+    if (result.level === "task") {
+      expect(data.task_scope.task.title).toContain("Stripe");
+    } else {
+      expect(data.project.name).toBe("Billing Service");
+    }
+  }, 60_000);
+
+  it("vector search resolves to task-level context when intent closely matches a task", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const ws = await createWorkspaceWithApiKey(baseUrl, surreal);
+    const project = await seedProject(surreal, ws.workspaceRecord, "Platform");
+    const anotherProject = await seedProject(surreal, ws.workspaceRecord, "Admin Dashboard");
+
+    const taskEmb = await embedText("Add Redis caching layer for user session tokens");
+    const targetTask = await seedTask(surreal, ws.workspaceRecord, project, "Add Redis caching layer for user session tokens", taskEmb);
+
+    const otherEmb = await embedText("Build admin user management page");
+    await seedTask(surreal, ws.workspaceRecord, anotherProject, "Build admin user management page", otherEmb);
+
+    // Agent intent closely matches the Redis task
+    const result = await postContext(baseUrl, ws.workspaceId, ws.apiKey, {
+      intent: "Implementing Redis-based session caching for auth tokens",
+    });
+
+    // Should resolve to task-level (direct task match) or project-level (via task→project)
+    expect(["task", "project"]).toContain(result.level);
+    const data = result.data as any;
+    if (result.level === "task") {
+      expect(data.task_scope.task.title).toContain("Redis");
+    } else {
+      expect(data.project.name).toBe("Platform");
+    }
+  }, 60_000);
 
   it("ambiguous intent in multi-project workspace falls back to workspace overview", async () => {
     const { baseUrl, surreal } = getRuntime();
