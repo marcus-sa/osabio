@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0f3041250cc1",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/better-auth-surrealdb",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/layout/AuthGuard.tsx",
+    "app/src/client/lib/auth-client.ts",
+    "app/src/client/router.tsx",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/routes/consent-page.tsx",
+    "app/src/client/routes/sign-in-page.tsx",
+    "app/src/client/styles.css",
+    "app/src/server/auth/client-info-route.ts",
+    "app/src/server/auth/scopes.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/iam/authority.ts",
+    "app/src/server/mcp/auth.ts",
+    "app/src/server/mcp/types.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/shared/scopes.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0f/3041250cc1/0/metadata.json",
+      "transcript": "/0f/3041250cc1/0/full.jsonl",
+      "context": "/0f/3041250cc1/0/context.md",
+      "content_hash": "/0f/3041250cc1/0/content_hash.txt",
+      "prompt": "/0f/3041250cc1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 117,
+    "cache_creation_tokens": 265855,
+    "cache_read_tokens": 7126994,
+    "output_tokens": 32086,
+    "api_call_count": 74
+  }
+}
