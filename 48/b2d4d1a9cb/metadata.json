@@ -3,7 +3,7 @@
   "checkpoint_id": "48b2d4d1a9cb",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/server/chat/chat-processor.ts",
     "app/src/server/chat/context.ts",
@@ -25,13 +25,20 @@
       "context": "/48/b2d4d1a9cb/1/context.md",
       "content_hash": "/48/b2d4d1a9cb/1/content_hash.txt",
       "prompt": "/48/b2d4d1a9cb/1/prompt.txt"
+    },
+    {
+      "metadata": "/48/b2d4d1a9cb/2/metadata.json",
+      "transcript": "/48/b2d4d1a9cb/2/full.jsonl",
+      "context": "/48/b2d4d1a9cb/2/context.md",
+      "content_hash": "/48/b2d4d1a9cb/2/content_hash.txt",
+      "prompt": "/48/b2d4d1a9cb/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 77,
-    "cache_creation_tokens": 87015,
-    "cache_read_tokens": 2967835,
-    "output_tokens": 14728,
-    "api_call_count": 43
+    "input_tokens": 118,
+    "cache_creation_tokens": 179402,
+    "cache_read_tokens": 5038400,
+    "output_tokens": 27288,
+    "api_call_count": 64
   }
 }
