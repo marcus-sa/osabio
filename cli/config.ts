@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 
-const BRAIN_DIR = join(homedir(), ".brain");
-const CONFIG_PATH = join(BRAIN_DIR, "config.json");
+function getBrainDir() { return process.env.BRAIN_CONFIG_DIR ?? join(homedir(), ".brain"); }
+function getConfigPath() { return join(getBrainDir(), "config.json"); }
 
 /** Resolved config for a single repo — shape consumed by BrainHttpClient and all commands. */
 export type BrainConfig = {
@@ -76,11 +76,12 @@ function resolveWorktreeMainRoot(gitFile: string): string | undefined {
 // ---------------------------------------------------------------------------
 
 function ensureBrainDir(): void {
-  if (!existsSync(BRAIN_DIR)) mkdirSync(BRAIN_DIR, { recursive: true });
+  const dir = getBrainDir();
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 export async function loadGlobalConfig(): Promise<BrainGlobalConfig | undefined> {
-  const file = Bun.file(CONFIG_PATH);
+  const file = Bun.file(getConfigPath());
   if (!(await file.exists())) return undefined;
   try {
     return await file.json() as BrainGlobalConfig;
@@ -91,7 +92,7 @@ export async function loadGlobalConfig(): Promise<BrainGlobalConfig | undefined>
 
 export async function saveGlobalConfig(config: BrainGlobalConfig): Promise<void> {
   ensureBrainDir();
-  await Bun.write(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+  await Bun.write(getConfigPath(), JSON.stringify(config, null, 2) + "\n");
 }
 
 /** Upsert a repo entry in the global config. Creates the file if needed. */

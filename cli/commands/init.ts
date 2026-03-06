@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, chmodSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
 import { findGitRoot, saveRepoConfig, loadGlobalConfig } from "../config";
@@ -62,7 +62,12 @@ function generatePkce(): { verifier: string; challenge: string } {
   return { verifier, challenge };
 }
 
-async function setupAuth(serverUrl: string, workspaceId: string, gitRoot: string): Promise<void> {
+export async function setupAuth(
+  serverUrl: string,
+  workspaceId: string,
+  gitRoot: string,
+  options?: { openUrl?: (url: string) => void },
+): Promise<void> {
   const global = await loadGlobalConfig();
   const existing = global?.repos[gitRoot];
   if (existing && existing.workspace === workspaceId && existing.access_token) {
@@ -175,8 +180,11 @@ async function setupAuth(serverUrl: string, workspaceId: string, gitRoot: string
   console.log("Opening browser for authentication...");
   console.log(`If the browser doesn't open, visit: ${authUrl.toString()}\n`);
 
-  const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-  Bun.spawn([openCmd, authUrl.toString()], { stdout: "ignore", stderr: "ignore" });
+  const openUrl = options?.openUrl ?? ((url: string) => {
+    const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+    Bun.spawn([openCmd, url], { stdout: "ignore", stderr: "ignore" });
+  });
+  openUrl(authUrl.toString());
 
   // 6. Wait for callback
   let code: string;
@@ -230,7 +238,7 @@ async function setupAuth(serverUrl: string, workspaceId: string, gitRoot: string
 // Step 2: .mcp.json
 // ---------------------------------------------------------------------------
 
-async function setupMcpJson(gitRoot: string): Promise<void> {
+export async function setupMcpJson(gitRoot: string): Promise<void> {
   const mcpPath = join(gitRoot, ".mcp.json");
   const file = Bun.file(mcpPath);
   let mcp: { mcpServers: Record<string, unknown> } = { mcpServers: {} };
@@ -256,7 +264,7 @@ async function setupMcpJson(gitRoot: string): Promise<void> {
 type HookEntry = { type: string; command?: string; prompt?: string };
 type SettingsHookGroup = { matcher?: string; hooks: HookEntry[] };
 
-async function setupClaudeHooks(gitRoot: string): Promise<void> {
+export async function setupClaudeHooks(gitRoot: string): Promise<void> {
   const claudeDir = join(gitRoot, ".claude");
   if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
 
@@ -299,10 +307,10 @@ async function setupClaudeHooks(gitRoot: string): Promise<void> {
 // Step 4: CLAUDE.md
 // ---------------------------------------------------------------------------
 
-const MARKER_START = "<!-- brain-plugin-start -->";
-const MARKER_END = "<!-- brain-plugin-end -->";
+export const MARKER_START = "<!-- brain-plugin-start -->";
+export const MARKER_END = "<!-- brain-plugin-end -->";
 
-async function setupClaudeMd(gitRoot: string): Promise<void> {
+export async function setupClaudeMd(gitRoot: string): Promise<void> {
   const claudeMdPath = join(gitRoot, "CLAUDE.md");
   const file = Bun.file(claudeMdPath);
   let content = "";
@@ -349,8 +357,7 @@ brain check-commit
 `;
 
   if (!existsSync(preCommitPath)) {
-    Bun.writeSync(Bun.openSync(preCommitPath, "w"), preCommitScript);
-    chmodSync(preCommitPath, 0o755);
+    writeFileSync(preCommitPath, preCommitScript, { mode: 0o755 });
     console.log("✓ Git: pre-commit hook installed");
   } else {
     console.log("✓ Git: pre-commit hook already exists");
@@ -358,7 +365,7 @@ brain check-commit
 
   // Remove legacy Brain post-commit hook
   if (existsSync(postCommitPath)) {
-    const postCommitContent = Bun.file(postCommitPath).textSync();
+    const postCommitContent = readFileSync(postCommitPath, "utf-8");
     const isBrainManaged =
       postCommitContent.includes("Brain post-commit hook") &&
       postCommitContent.includes("brain log-commit");
@@ -369,7 +376,7 @@ brain check-commit
   }
 }
 
-async function setupCommands(gitRoot: string): Promise<void> {
+export async function setupCommands(gitRoot: string): Promise<void> {
   const commandsDir = join(gitRoot, ".claude", "commands");
   if (!existsSync(commandsDir)) mkdirSync(commandsDir, { recursive: true });
 
