@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cb819ef5fe5e",
+  "session_id": "928e5285-d4bf-48f8-93f1-1211acbd2ba7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-06T10:59:40.802667Z",
+  "branch": "marcus-sa/subagent-ui-collapsible",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/AGENTS.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "64b5e5761336",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-06T10:59:40.80069Z",
+    "agent_lines": 0,
+    "human_added": 35,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 0
+  }
+}
