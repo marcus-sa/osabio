@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "771c6c5bf3e5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/subagent-ui-collapsible",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/hooks/use-chat-session.ts",
+    "app/src/client/routes/chat-page.tsx",
+    "app/src/client/styles.css",
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/chat/branch-chain.ts",
+    "app/src/server/chat/chat-route.ts",
+    "app/src/server/workspace/workspace-routes.ts",
+    "app/src/shared/contracts.ts",
+    "schema/migrations/0013_message_subagent_traces.surql",
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/77/1c6c5bf3e5/0/metadata.json",
+      "transcript": "/77/1c6c5bf3e5/0/full.jsonl",
+      "context": "/77/1c6c5bf3e5/0/context.md",
+      "content_hash": "/77/1c6c5bf3e5/0/content_hash.txt",
+      "prompt": "/77/1c6c5bf3e5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2833,
+    "cache_creation_tokens": 233218,
+    "cache_read_tokens": 7656274,
+    "output_tokens": 29315,
+    "api_call_count": 74
+  }
+}
