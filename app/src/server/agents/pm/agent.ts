@@ -68,7 +68,7 @@ const INTENT_INSTRUCTIONS: Record<PmAgentInput["intent"], string> = {
   check_status: "Primary action: call get_project_status when a project scope is available.",
   plan_work: "Primary action: create tasks/features/projects with create_work_item for each clearly described item. You MUST call create_work_item before generating output. Only use suggest_work_items when items are vague or you need to check for duplicates against many existing entities.",
   track_dependencies: "Primary action: identify blockers/dependencies and create observations for high-risk paths.",
-  organize: "Primary action: organize work into clear, deduplicated next steps.",
+  organize: "Primary action: organize work into clear, deduplicated next steps. When moving items between projects, use search_entities to find existing items, then move_items_to_project to reassign them. Do NOT recreate items that already exist.",
 };
 
 export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
