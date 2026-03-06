@@ -6,13 +6,9 @@ type WorkspaceGuardProps = {
   isCreatingWorkspace: boolean;
   canCreateWorkspace: boolean;
   createWorkspaceName: string;
-  createOwnerName: string;
-  createOwnerEmail: string;
   createWorkspaceDescription: string;
   errorMessage?: string;
   setCreateWorkspaceName: (name: string) => void;
-  setCreateOwnerName: (name: string) => void;
-  setCreateOwnerEmail: (email: string) => void;
   setCreateWorkspaceDescription: (description: string) => void;
   onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void;
   children: ReactNode;
@@ -24,13 +20,9 @@ export function WorkspaceGuard({
   isCreatingWorkspace,
   canCreateWorkspace,
   createWorkspaceName,
-  createOwnerName,
-  createOwnerEmail,
   createWorkspaceDescription,
   errorMessage,
   setCreateWorkspaceName,
-  setCreateOwnerName,
-  setCreateOwnerEmail,
   setCreateWorkspaceDescription,
   onCreateWorkspace,
   children,
@@ -47,7 +39,7 @@ export function WorkspaceGuard({
     return (
       <section className="workspace-setup">
         <h2>Create Workspace</h2>
-        <p>Start with workspace name and owner identity. Onboarding continues in chat.</p>
+        <p>Name your workspace to get started. Onboarding continues in chat.</p>
         <form onSubmit={onCreateWorkspace} className="workspace-form">
           <label>
             Workspace name
@@ -55,25 +47,6 @@ export function WorkspaceGuard({
               value={createWorkspaceName}
               onChange={(event) => setCreateWorkspaceName(event.target.value)}
               placeholder="Acme Labs"
-              required
-            />
-          </label>
-          <label>
-            Owner display name
-            <input
-              value={createOwnerName}
-              onChange={(event) => setCreateOwnerName(event.target.value)}
-              placeholder="Marcus"
-              required
-            />
-          </label>
-          <label>
-            Email
-            <input
-              type="email"
-              value={createOwnerEmail}
-              onChange={(event) => setCreateOwnerEmail(event.target.value)}
-              placeholder="marcus@example.com"
               required
             />
           </label>

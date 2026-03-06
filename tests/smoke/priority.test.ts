@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { type TestUser, collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -23,13 +23,13 @@ const getRuntime = setupSmokeSuite("priority");
 async function createOnboardedWorkspace(
   baseUrl: string,
   surreal: import("surrealdb").Surreal,
+  user: TestUser,
 ): Promise<{ workspaceId: string; conversationId: string }> {
   const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...user.headers },
     body: JSON.stringify({
       name: `Priority Smoke ${Date.now()}`,
-      ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
     }),
   });
 
@@ -45,11 +45,12 @@ async function createOnboardedWorkspace(
 describe("priority extraction smoke", () => {
   it("chat agent handles urgent task message and responds meaningfully", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const workspace = await createOnboardedWorkspace(baseUrl, surreal);
+    const user = await createTestUser(baseUrl, "priority-urgent");
+    const workspace = await createOnboardedWorkspace(baseUrl, surreal, user);
 
     const message = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,
@@ -92,11 +93,12 @@ describe("priority extraction smoke", () => {
 
   it("chat agent handles low-priority deferred language", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const workspace = await createOnboardedWorkspace(baseUrl, surreal);
+    const user = await createTestUser(baseUrl, "priority-low");
+    const workspace = await createOnboardedWorkspace(baseUrl, surreal, user);
 
     const message = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,

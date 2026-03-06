@@ -114,6 +114,33 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
   };
 }
 
+export type TestUser = {
+  headers: Record<string, string>;
+};
+
+export async function createTestUser(baseUrl: string, suffix: string): Promise<TestUser> {
+  const email = `smoke-${Date.now()}-${suffix}@test.local`;
+  const response = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Smoke Tester", email, password: "smoke-test-password-123" }),
+    redirect: "manual",
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Failed to create test user (${response.status}): ${body}`);
+  }
+
+  const setCookie = response.headers.getSetCookie();
+  if (!setCookie || setCookie.length === 0) {
+    throw new Error("Sign-up did not return session cookies");
+  }
+
+  const cookieHeader = setCookie.map((c) => c.split(";")[0]).join("; ");
+  return { headers: { Cookie: cookieHeader } };
+}
+
 export async function collectSseEvents<T extends { type: string }>(streamUrl: string, timeoutMs: number): Promise<T[]> {
   const response = await fetch(streamUrl, { headers: { Accept: "text/event-stream" } });
   if (!response.ok || !response.body) {

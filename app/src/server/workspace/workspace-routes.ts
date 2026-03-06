@@ -10,7 +10,6 @@ import type {
   SourceKind,
   EntityKind,
 } from "../../shared/contracts";
-import { createEmbeddingVector } from "../graph/embeddings";
 import { readEntityName } from "../graph/queries";
 import { readEntityText } from "../extraction/entity-text";
 import type { GraphEntityRecord, SourceRecord } from "../extraction/types";
@@ -61,6 +60,11 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
   const startedAt = performance.now();
   logInfo("workspace.create.started", "Workspace creation started");
 
+  const session = await deps.auth.api.getSession({ headers: request.headers });
+  if (!session?.user?.id) {
+    return jsonError("authentication required", 401);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -78,13 +82,13 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
   const now = new Date();
   const workspaceId = randomUUID();
   const conversationId = randomUUID();
-  const ownerId = randomUUID();
 
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const conversationRecord = new RecordId("conversation", conversationId);
-  const ownerRecord = new RecordId("person", ownerId);
+  const ownerRecord = new RecordId("person", session.user.id);
   const starterMessageRecord = new RecordId("message", randomUUID());
   const hasDescription = parsed.data.description !== undefined;
+  const ownerName = session.user.name ?? "there";
 
   const starterSuggestions = hasDescription
     ? [
@@ -100,13 +104,13 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
 
   const starterMessage = hasDescription
     ? [
-        `Hey ${parsed.data.ownerDisplayName}!`,
+        `Hey ${ownerName}!`,
         `Got it — I'll help you organize ${parsed.data.name}.`,
         "What are the main projects or product areas you want to track?",
         "You can also drop in a document (plan, spec, PRD) and I'll extract everything from it.",
       ].join(" ")
     : [
-        `Hey ${parsed.data.ownerDisplayName}!`,
+        `Hey ${ownerName}!`,
         "I'm ready to help you build out your workspace.",
         "Tell me about what you're working on - what's the main project or business you want to track here?",
         "If you have an existing document (like a plan or spec), you can drop it in and I'll extract everything from it.",
@@ -122,19 +126,6 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
       onboarding_turn_count: 0,
       onboarding_summary_pending: false,
       onboarding_started_at: now,
-      created_at: now,
-      updated_at: now,
-    });
-
-    const ownerEmbedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      parsed.data.ownerDisplayName,
-      deps.config.embeddingDimension,
-    );
-    await transaction.create(ownerRecord).content({
-      name: parsed.data.ownerDisplayName,
-      contact_email: parsed.data.ownerEmail,
-      ...(ownerEmbedding ? { embedding: ownerEmbedding } : {}),
       created_at: now,
       updated_at: now,
     });

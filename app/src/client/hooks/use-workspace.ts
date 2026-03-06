@@ -16,13 +16,9 @@ type UseWorkspaceReturn = {
   isCreatingWorkspace: boolean;
   errorMessage?: string;
   createWorkspaceName: string;
-  createOwnerName: string;
-  createOwnerEmail: string;
   createWorkspaceDescription: string;
   canCreateWorkspace: boolean;
   setCreateWorkspaceName: (name: string) => void;
-  setCreateOwnerName: (name: string) => void;
-  setCreateOwnerEmail: (email: string) => void;
   setCreateWorkspaceDescription: (description: string) => void;
   onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -45,14 +41,11 @@ export { parseBootstrapMessages, ACTIVE_WORKSPACE_STORAGE_KEY };
 export function useWorkspace(): UseWorkspaceReturn {
   const store = useWorkspaceState();
   const [createWorkspaceName, setCreateWorkspaceName] = useState("");
-  const [createOwnerName, setCreateOwnerName] = useState("");
-  const [createOwnerEmail, setCreateOwnerEmail] = useState("");
   const [createWorkspaceDescription, setCreateWorkspaceDescription] = useState("");
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
-  const canCreateWorkspace =
-    createWorkspaceName.trim().length > 0 && createOwnerName.trim().length > 0 && createOwnerEmail.trim().length > 0;
+  const canCreateWorkspace = createWorkspaceName.trim().length > 0;
 
   useEffect(() => {
     const existingWorkspaceId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
@@ -112,14 +105,12 @@ export function useWorkspace(): UseWorkspaceReturn {
     event.preventDefault();
 
     const name = createWorkspaceName.trim();
-    const ownerDisplayName = createOwnerName.trim();
-    const ownerEmail = createOwnerEmail.trim();
     if (isCreatingWorkspace) {
       return;
     }
 
-    if (!name || !ownerDisplayName || !ownerEmail) {
-      setErrorMessage("Workspace name, owner display name, and email are required");
+    if (!name) {
+      setErrorMessage("Workspace name is required");
       return;
     }
 
@@ -129,8 +120,6 @@ export function useWorkspace(): UseWorkspaceReturn {
     const description = createWorkspaceDescription.trim();
     const requestBody: CreateWorkspaceRequest = {
       name,
-      ownerDisplayName,
-      ownerEmail,
       ...(description.length > 0 ? { description } : {}),
     };
 
@@ -157,8 +146,6 @@ export function useWorkspace(): UseWorkspaceReturn {
       window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, payload.workspaceId);
       await bootstrapWorkspace(payload.workspaceId);
       setCreateWorkspaceName("");
-      setCreateOwnerName("");
-      setCreateOwnerEmail("");
       setCreateWorkspaceDescription("");
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Workspace creation failed";
@@ -174,13 +161,9 @@ export function useWorkspace(): UseWorkspaceReturn {
     isCreatingWorkspace,
     errorMessage,
     createWorkspaceName,
-    createOwnerName,
-    createOwnerEmail,
     createWorkspaceDescription,
     canCreateWorkspace,
     setCreateWorkspaceName,
-    setCreateOwnerName,
-    setCreateOwnerEmail,
     setCreateWorkspaceDescription,
     onCreateWorkspace,
   };

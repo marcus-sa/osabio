@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type AssistantMessageEvent = {
   type: "assistant_message";
@@ -28,13 +28,13 @@ const getRuntime = setupSmokeSuite("extraction_quality");
 describe("extraction quality smoke", () => {
   it("filters placeholders and avoids unresolved person node creation", async () => {
     const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUser(baseUrl, "extraction");
 
     const create = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: `Extraction Quality Smoke ${Date.now()}`,
-        ownerDisplayName: "Marcus Stone", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 
@@ -47,6 +47,7 @@ describe("extraction quality smoke", () => {
       workspaceId: create.workspaceId,
       conversationId: create.conversationId,
       text: "I'll describe my project",
+      headers: user.headers,
     });
 
     const placeholderExtraction = placeholderEvents.find((event) => event.type === "extraction");
@@ -68,6 +69,7 @@ describe("extraction quality smoke", () => {
       workspaceId: create.workspaceId,
       conversationId: create.conversationId,
       text: "Person: Sarah. Decision: Use TypeScript for backend implementation.",
+      headers: user.headers,
     });
     expect(unknownPersonEvents.some((event) => event.type === "assistant_message")).toBe(true);
 
@@ -80,6 +82,7 @@ describe("extraction quality smoke", () => {
       workspaceId: create.workspaceId,
       conversationId: create.conversationId,
       text: "Marcus decided to use SurrealDB for graph persistence.",
+      headers: user.headers,
     });
 
     const assistantEvent = knownPersonEvents.find((event) => event.type === "assistant_message");
@@ -134,11 +137,12 @@ async function sendChatAndCollectEvents(
     workspaceId: string;
     conversationId: string;
     text: string;
+    headers?: Record<string, string>;
   },
 ): Promise<StreamEvent[]> {
   const message = await fetchJson<{ streamUrl: string }>(`${baseUrl}/api/chat/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...input.headers },
     body: JSON.stringify({
       clientMessageId: randomUUID(),
       workspaceId: input.workspaceId,

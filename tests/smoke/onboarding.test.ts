@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -24,6 +24,7 @@ const getRuntime = setupSmokeSuite("onboarding");
 describe("onboarding smoke", () => {
   it("bootstraps onboarding and completes full onboarding flow", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "onboarding");
 
     const create = await fetchJson<{
       workspaceId: string;
@@ -32,10 +33,9 @@ describe("onboarding smoke", () => {
       onboardingComplete: boolean;
     }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: `Smoke Workspace ${Date.now()}`,
-        ownerDisplayName: "Smoke Owner", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 
@@ -56,7 +56,7 @@ describe("onboarding smoke", () => {
 
     const firstChat = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: create.workspaceId,
@@ -93,6 +93,7 @@ describe("onboarding smoke", () => {
 
     const uploadResponse = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
+      headers: { ...user.headers },
       body: uploadForm,
     });
 
@@ -102,7 +103,7 @@ describe("onboarding smoke", () => {
 
     const confirm = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: create.workspaceId,

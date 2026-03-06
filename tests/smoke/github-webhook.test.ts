@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
-import { fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 const getRuntime = setupSmokeSuite("github-webhook");
 
@@ -46,11 +46,12 @@ async function pollForRecord<T>(
 describe("github webhook smoke", () => {
   it("rejects request without x-github-event header", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-1");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const res = await fetch(`${baseUrl}/api/workspaces/${workspace.workspaceId}/webhooks/github`, {
@@ -64,11 +65,12 @@ describe("github webhook smoke", () => {
 
   it("returns 200 for non-push events", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-2");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-2@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const res = await fetch(`${baseUrl}/api/workspaces/${workspace.workspaceId}/webhooks/github`, {
@@ -88,11 +90,12 @@ describe("github webhook smoke", () => {
 
   it("accepts pushes on non-default branches", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-3");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-3@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const event = makePushEvent({ ref: "refs/heads/feature-branch", defaultBranch: "main" });
@@ -113,11 +116,12 @@ describe("github webhook smoke", () => {
 
   it("returns 200 for non-branch refs", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-4");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-4@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const event = makePushEvent({ ref: "refs/tags/v1.2.3", defaultBranch: "main" });
@@ -138,11 +142,12 @@ describe("github webhook smoke", () => {
 
   it("accepts push to default branch and creates git_commit with extraction", async () => {
     const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-5");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-5@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const sha = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
@@ -214,11 +219,12 @@ describe("github webhook smoke", () => {
 
   it("links commit to explicit task ids from commit message", async () => {
     const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUser(baseUrl, "webhook-6");
 
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-6@smoke.test` }),
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}` }),
     });
 
     const workspaceRecord = new RecordId("workspace", workspace.workspaceId);

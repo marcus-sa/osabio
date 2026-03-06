@@ -4,7 +4,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateApiKey, hashApiKey } from "../../app/src/server/mcp/api-key";
 import { createEmbeddingVector } from "../../app/src/server/graph/embeddings";
-import { fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -36,12 +36,12 @@ async function createWorkspaceWithApiKey(
   surreal: Surreal,
   name?: string,
 ): Promise<AuthedWorkspace> {
+  const user = await createTestUser(baseUrl, "intent");
   const { workspaceId } = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...user.headers },
     body: JSON.stringify({
       name: name ?? `Intent Smoke ${Date.now()}`,
-      ownerDisplayName: "Test", ownerEmail: `${Date.now()}-1@smoke.test`,
     }),
   });
 

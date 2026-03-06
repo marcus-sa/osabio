@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type StreamEvent =
   | { type: "assistant_message"; messageId: string; text: string }
@@ -14,16 +14,16 @@ const getRuntime = setupSmokeSuite("readme_import");
 describe("README import smoke", () => {
   it("ingests README.md and persists document chunks", async () => {
     const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUser(baseUrl, "readme");
 
     const readmeText = await Bun.file(new URL("../../README.md", import.meta.url)).text();
     expect(readmeText.trim().length).toBeGreaterThan(0);
 
     const create = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: `README Smoke ${Date.now()}`,
-        ownerDisplayName: "README Smoke Owner", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 
@@ -38,6 +38,7 @@ describe("README import smoke", () => {
 
     const uploadResponse = await fetchJson<{ streamUrl: string }>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
+      headers: { ...user.headers },
       body: uploadForm,
     });
 

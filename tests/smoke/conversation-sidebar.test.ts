@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -49,10 +49,11 @@ async function sendMessageAndWait(
   workspaceId: string,
   conversationId: string | undefined,
   text: string,
+  headers?: Record<string, string>,
 ): Promise<ChatMessageResponse> {
   const chatResponse = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify({
       clientMessageId: randomUUID(),
       workspaceId,
@@ -68,16 +69,16 @@ async function sendMessageAndWait(
 describe("conversation sidebar smoke", () => {
   it("returns sidebar in bootstrap and via dedicated endpoint", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "sidebar-1");
 
     // Create workspace
     const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(
       `${baseUrl}/api/workspaces`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...user.headers },
         body: JSON.stringify({
           name: `Sidebar Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
         }),
       },
     );
@@ -88,6 +89,7 @@ describe("conversation sidebar smoke", () => {
       workspace.workspaceId,
       workspace.conversationId,
       "Task: implement the authentication module for the Brain platform. Decision: use JWT tokens for session management. Feature: user authentication with OAuth2 support.",
+      user.headers,
     );
 
     // Check sidebar endpoint
@@ -114,16 +116,16 @@ describe("conversation sidebar smoke", () => {
 
   it("creates a new conversation when conversationId is omitted", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "sidebar-2");
 
     // Create workspace
     const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(
       `${baseUrl}/api/workspaces`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...user.headers },
         body: JSON.stringify({
           name: `NewConv Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-2@smoke.test`,
         }),
       },
     );
@@ -134,6 +136,7 @@ describe("conversation sidebar smoke", () => {
       workspace.workspaceId,
       undefined,
       "New conversation about the deployment pipeline",
+      user.headers,
     );
 
     expect(chatResponse.conversationId).toBeDefined();
@@ -150,15 +153,15 @@ describe("conversation sidebar smoke", () => {
 
   it("conversation endpoint returns messages for existing conversation", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "sidebar-3");
 
     const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(
       `${baseUrl}/api/workspaces`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...user.headers },
         body: JSON.stringify({
           name: `ConvLoad Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-3@smoke.test`,
         }),
       },
     );
@@ -169,6 +172,7 @@ describe("conversation sidebar smoke", () => {
       workspace.workspaceId,
       workspace.conversationId,
       "Testing conversation loading",
+      user.headers,
     );
 
     // Load the conversation via dedicated endpoint

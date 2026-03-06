@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -32,18 +32,19 @@ describe("phase1 smoke", () => {
     const health = await fetchJson<{ status: string }>(`${baseUrl}/healthz`);
     expect(health.status).toBe("ok");
 
+    const user = await createTestUser(baseUrl, "phase1");
+
     const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: `Phase1 Smoke ${Date.now()}`,
-        ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 
     const chatResponse = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,

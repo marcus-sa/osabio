@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, type TestUser, setupSmokeSuite } from "./smoke-test-kit";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -27,13 +27,13 @@ const getRuntime = setupSmokeSuite("pipeline");
 async function createOnboardedWorkspace(
   baseUrl: string,
   surreal: Surreal,
+  user: TestUser,
 ): Promise<{ workspaceId: string; conversationId: string }> {
   const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(`${baseUrl}/api/workspaces`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...user.headers },
     body: JSON.stringify({
       name: `Pipeline Smoke ${Date.now()}`,
-      ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
     }),
   });
 
@@ -51,11 +51,12 @@ async function createOnboardedWorkspace(
 describe("agent-controlled extraction smoke", () => {
   it("chat agent handles decision language", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const workspace = await createOnboardedWorkspace(baseUrl, surreal);
+    const user = await createTestUser(baseUrl, "pipeline-1");
+    const workspace = await createOnboardedWorkspace(baseUrl, surreal, user);
 
     const message = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,
@@ -107,11 +108,12 @@ describe("agent-controlled extraction smoke", () => {
 
   it("no entities created for casual conversation", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const workspace = await createOnboardedWorkspace(baseUrl, surreal);
+    const user = await createTestUser(baseUrl, "pipeline-2");
+    const workspace = await createOnboardedWorkspace(baseUrl, surreal, user);
 
     const message = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,
@@ -132,7 +134,8 @@ describe("agent-controlled extraction smoke", () => {
 
   it("PM agent creates task from explicit request", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const workspace = await createOnboardedWorkspace(baseUrl, surreal);
+    const user = await createTestUser(baseUrl, "pipeline-3");
+    const workspace = await createOnboardedWorkspace(baseUrl, surreal, user);
 
     // Seed a project so the PM agent has something to scope tasks under
     const projectRecord = new RecordId("project", randomUUID());
@@ -152,7 +155,7 @@ describe("agent-controlled extraction smoke", () => {
 
     const message = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: workspace.workspaceId,

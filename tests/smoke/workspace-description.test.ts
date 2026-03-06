@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
-import { collectSseEvents, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
+import { collectSseEvents, createTestUser, fetchJson, setupSmokeSuite } from "./smoke-test-kit";
 
 type CreateWorkspaceResponse = {
   workspaceId: string;
@@ -40,37 +40,16 @@ type StreamEvent =
 
 const getRuntime = setupSmokeSuite("workspace_description");
 
-function testEmail(label: string): string {
-  return `${label}-${Date.now()}@smoke.test`;
-}
-
-async function signUp(baseUrl: string, email: string, name: string): Promise<Record<string, string>> {
-  const res = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: "smoke-test-password-123!", name }),
-  });
-  if (!res.ok) throw new Error(`Sign up failed: ${res.status} ${await res.text()}`);
-  const data = (await res.json()) as { token: string };
-  const cookies = res.headers.getSetCookie();
-  const sessionCookie = cookies.find((c) => c.startsWith("better-auth.session_token="));
-  const sessionToken = sessionCookie
-    ? decodeURIComponent(sessionCookie.split("=")[1].split(";")[0])
-    : data.token;
-  return { Cookie: `better-auth.session_token=${sessionToken}` };
-}
-
 describe("workspace description in onboarding", () => {
   it("creates workspace with description and adapts starter message", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "desc");
 
     const create = await fetchJson<CreateWorkspaceResponse>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: "DabDash",
-        ownerDisplayName: "Marcus",
-        ownerEmail: testEmail("desc"),
         description: "Cannabis delivery storefront platform",
       }),
     });
@@ -104,18 +83,13 @@ describe("workspace description in onboarding", () => {
 
   it("creates workspace without description and does not create a project entity", async () => {
     const { baseUrl, surreal } = getRuntime();
-
-    // Sign up first to get session cookies for chat endpoint
-    const authEmail = testEmail("nodesc-auth");
-    const authHeaders = await signUp(baseUrl, authEmail, "Tester");
+    const user = await createTestUser(baseUrl, "nodesc");
 
     const create = await fetchJson<CreateWorkspaceResponse>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: "TestCorp",
-        ownerDisplayName: "Tester",
-        ownerEmail: testEmail("nodesc"),
       }),
     });
 
@@ -141,7 +115,7 @@ describe("workspace description in onboarding", () => {
     // Send a message describing the business (not a specific project)
     const chatResponse = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: create.workspaceId,
@@ -166,19 +140,14 @@ describe("workspace description in onboarding", () => {
 
   it("workspace with description streams a chat response successfully", async () => {
     const { baseUrl } = getRuntime();
-
-    // Sign up first to get session cookies for chat endpoint
-    const authEmail = testEmail("flow-auth");
-    const authHeaders = await signUp(baseUrl, authEmail, "Marcus");
+    const user = await createTestUser(baseUrl, "flow");
 
     // Create workspace with description
     const create = await fetchJson<CreateWorkspaceResponse>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: "DabDash",
-        ownerDisplayName: "Marcus",
-        ownerEmail: testEmail("flow"),
         description: "Cannabis delivery storefront platform",
       }),
     });
@@ -186,7 +155,7 @@ describe("workspace description in onboarding", () => {
     // Send first chat message describing a project
     const firstChat = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         clientMessageId: randomUUID(),
         workspaceId: create.workspaceId,
@@ -207,14 +176,13 @@ describe("workspace description in onboarding", () => {
 
   it("trims whitespace-only description to undefined", async () => {
     const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "empty");
 
     const create = await fetchJson<CreateWorkspaceResponse>(`${baseUrl}/api/workspaces`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: "EmptyDesc",
-        ownerDisplayName: "Tester",
-        ownerEmail: testEmail("empty"),
         description: "   ",
       }),
     });
