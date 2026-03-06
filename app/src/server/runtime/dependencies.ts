@@ -11,6 +11,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   extractionModel: any;
   pmAgentModel: any;
   analyticsAgentModel: any;
+  architectModel: any;
   embeddingModel: any;
 }> {
   const surreal = new Surreal();
@@ -44,6 +45,10 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   const analyticsAgentModel = openrouter(config.analyticsAgentModelId, {
     plugins: [{ id: "response-healing" }],
   });
+  const architectModel = openrouter(config.architectModelId, {
+    plugins: [{ id: "response-healing" }],
+    ...(config.openRouterReasoning ? { extraBody: { reasoning: config.openRouterReasoning } } : {}),
+  });
   const embeddingModel = openrouter.textEmbeddingModel(config.embeddingModelId);
 
   const auth = createAuth(surreal, {
@@ -61,6 +66,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     extractionModel,
     pmAgentModel,
     analyticsAgentModel,
+    architectModel,
     embeddingModel,
   };
 }

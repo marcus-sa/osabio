@@ -26,6 +26,7 @@ export async function runChatAgent(input: {
   pmAgentModel: any;
   analyticsAgentModel: any;
   analyticsSurreal: Surreal;
+  architectModel: any;
   embeddingModel: any;
   embeddingDimension: number;
   extractionModelId: string;
@@ -78,11 +79,13 @@ export async function runChatAgent(input: {
       pmAgentModel: input.pmAgentModel,
       analyticsAgentModel: input.analyticsAgentModel,
       analyticsSurreal: input.analyticsSurreal,
+      architectModel: input.architectModel,
       embeddingModel: input.embeddingModel,
       embeddingDimension: input.embeddingDimension,
       extractionModelId: input.extractionModelId,
       extractionModel: input.extractionModel,
       extractionStoreThreshold: input.extractionStoreThreshold,
+      onSubagentToken: input.onToken,
     }),
     experimental_context: {
       actor: "chat_agent",

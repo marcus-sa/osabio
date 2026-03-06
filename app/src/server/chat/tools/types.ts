@@ -28,4 +28,6 @@ export type ChatAgentToolDeps = ChatToolDeps & {
   pmAgentModel: any;
   analyticsAgentModel: any;
   analyticsSurreal: Surreal;
+  architectModel: any;
+  onSubagentToken?: (token: string) => Promise<void> | void;
 };

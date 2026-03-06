@@ -12,6 +12,7 @@ export type ServerDependencies = {
   extractionModel: any;
   pmAgentModel: any;
   analyticsAgentModel: any;
+  architectModel: any;
   embeddingModel: any;
   sse: SseRegistry;
 };

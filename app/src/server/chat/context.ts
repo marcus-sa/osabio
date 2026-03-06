@@ -349,6 +349,20 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
   }
 
   sections.push(
+    "## Subagent: Architect",
+    "Use invoke_architect_agent when the user is:",
+    "- Exploring a new idea, product, or project concept",
+    "- Brainstorming without clear structure yet",
+    "- Asking \"help me think through X\" or \"flesh out this idea\"",
+    "- Describing something vague that needs probing questions",
+    "- In a workspace with no projects yet (post-onboarding)",
+    "",
+    "Intents:",
+    "- design: user has an idea to flesh out (target user, differentiation, tech stack)",
+    "- brainstorm: user is exploring possibilities without commitment",
+    "- challenge: user has a plan that should be stress-tested",
+    "- synthesize: enough discussed, time to summarize decisions and gaps",
+    "",
     "## When to Create Decisions",
     "Commitment/selection language: \"let's go with\", \"we decided\", \"we'll use\", \"going with\", \"settled on\".",
     "Decision vs feature: choice language (X instead of Y) = decision; description language (we need X) = feature.",
