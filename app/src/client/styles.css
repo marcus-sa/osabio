@@ -2028,6 +2028,81 @@ body {
   color: var(--ring);
 }
 
+.subagent-trace-block {
+  margin: 0.3rem 0;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+  font-size: 0.78rem;
+}
+
+.subagent-trace-summary {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  user-select: none;
+}
+
+.subagent-trace-summary:hover {
+  color: var(--foreground);
+}
+
+.subagent-trace-steps {
+  padding: 0.4rem 0.6rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.subagent-trace-text {
+  color: var(--muted-foreground);
+  font-style: italic;
+  padding: 0.2rem 0;
+  white-space: pre-wrap;
+}
+
+.subagent-trace-step {
+  border: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.subagent-trace-step-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.subagent-trace-step-summary:hover {
+  color: var(--foreground);
+}
+
+.subagent-trace-tool {
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.subagent-trace-duration {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+}
+
+.subagent-trace-args,
+.subagent-trace-result {
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--border);
+  max-height: 15rem;
+  overflow-y: auto;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
 .suggestion-tool-card {
   border: 1px solid;
   padding: 0.5rem 0.75rem;

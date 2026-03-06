@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { RecordId } from "surrealdb";
-import type { OnboardingAction } from "../../shared/contracts";
+import type { OnboardingAction, SubagentTrace } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
 import { elapsedMs, logError, logInfo, logWarn } from "../http/observability";
 import { jsonError } from "../http/response";
@@ -231,6 +231,17 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
           ? rawText.trim()
           : "I could not generate a response for that request.";
 
+        // Extract subagent traces from tool parts
+        const subagentTraces: SubagentTrace[] = [];
+        for (const part of responseMessage.parts) {
+          if (part.type === "tool-invoke_pm_agent" && "state" in part && part.state === "output-available" && "output" in part) {
+            const output = part.output as Record<string, unknown> | undefined;
+            if (output?.trace) {
+              subagentTraces.push(output.trace as SubagentTrace);
+            }
+          }
+        }
+
         // Persist assistant message
         const assistantMessageRecord = new RecordId("message", messageId);
         await deps.surreal.create(assistantMessageRecord).content({
@@ -238,6 +249,7 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
           role: "assistant",
           text: assistantText,
           createdAt: now,
+          ...(subagentTraces.length > 0 ? { subagent_traces: subagentTraces } : {}),
         });
 
         await deps.surreal.update(conversationRecord).merge({ updatedAt: now });

@@ -40,12 +40,26 @@ export type UseChatSessionReturn = {
 };
 
 function bootstrapMessagesToUIMessages(messages: WorkspaceBootstrapMessage[]): ChatUIMessage[] {
-  return messages.map((m) => ({
-    id: m.id,
-    role: m.role,
-    parts: [{ type: "text" as const, text: m.text }],
-    createdAt: new Date(m.createdAt),
-  }));
+  return messages.map((m) => {
+    const parts: ChatUIMessage["parts"] = [{ type: "text" as const, text: m.text }];
+    if (m.subagentTraces?.length) {
+      for (const trace of m.subagentTraces) {
+        parts.push({
+          type: "tool-invoke_pm_agent",
+          toolCallId: `trace-${m.id}-${trace.agentId}`,
+          state: "output-available",
+          input: { intent: trace.intent },
+          output: { trace },
+        } as any);
+      }
+    }
+    return {
+      id: m.id,
+      role: m.role,
+      parts,
+      createdAt: new Date(m.createdAt),
+    };
+  });
 }
 
 export function useChatSession(routeConversationId?: string): UseChatSessionReturn {

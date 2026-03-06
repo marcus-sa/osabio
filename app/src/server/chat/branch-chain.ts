@@ -1,4 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
+import type { SubagentTrace } from "../../shared/contracts";
 
 export type BranchLink = {
   conversationId: string;
@@ -14,6 +15,7 @@ export type InheritableMessage = {
   createdAt: Date | string;
   suggestions?: string[];
   inherited: boolean;
+  subagent_traces?: SubagentTrace[];
 };
 
 type MessageRow = {
@@ -22,6 +24,7 @@ type MessageRow = {
   text: string;
   createdAt: Date | string;
   suggestions?: string[];
+  subagent_traces?: SubagentTrace[];
 };
 
 /**
@@ -124,6 +127,7 @@ function toInheritable(row: MessageRow, inherited: boolean): InheritableMessage 
     text: row.text,
     createdAt: row.createdAt,
     ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
+    ...(row.subagent_traces && row.subagent_traces.length > 0 ? { subagent_traces: row.subagent_traces } : {}),
     inherited,
   };
 }
@@ -136,7 +140,7 @@ async function queryConversationMessages(
   const conversationRecord = new RecordId("conversation", conversationId);
   const [rows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT $limit;",
+      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT $limit;",
       { conversation: conversationRecord, limit },
     )
     .collect<[MessageRow[]]>();
@@ -157,7 +161,7 @@ async function queryMessagesUpToBranchPoint(
   // Find the assistant response following the branch point (if any)
   const [nextRows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation AND createdAt > $branchPointAt ORDER BY createdAt ASC LIMIT 1;",
+      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation AND createdAt > $branchPointAt ORDER BY createdAt ASC LIMIT 1;",
       { conversation: conversationRecord, branchPointAt: branchPointCreatedAt },
     )
     .collect<[MessageRow[]]>();
@@ -168,7 +172,7 @@ async function queryMessagesUpToBranchPoint(
 
   const [rows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation AND createdAt <= $cutoff ORDER BY createdAt ASC;",
+      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation AND createdAt <= $cutoff ORDER BY createdAt ASC;",
       { conversation: conversationRecord, cutoff: cutoffAt },
     )
     .collect<[MessageRow[]]>();
