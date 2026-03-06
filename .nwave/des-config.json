@@ -1,12 +1,6 @@
 {
-  "audit_log_enabled": true,
-  "audit_log_path": ".nwave/audit.log",
-  "validation_enabled": true,
-  "tool_monitoring_enabled": true,
-  "max_execution_time": 3600,
-  "subagent_timeout": 300,
   "update_check": {
-    "last_checked": "2026-03-05T14:09:47.300704+00:00",
+    "last_checked": "2026-03-06T05:04:01.277949+00:00",
     "skipped_versions": [],
     "frequency": "daily"
   }

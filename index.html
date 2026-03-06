@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brain — The coordination layer for AI agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0c;
+  --bg-card: #111114;
+  --border: #1e1e26;
+  --border-hover: #2a2a32;
+  --text: #e8e6e3;
+  --text-dim: #9a9a9a;
+  --text-muted: #5a5a64;
+  --accent: #c4f042;
+  --accent-glow: rgba(196,240,66,0.08);
+  --blue: #5b8dee;
+  --orange: #e8944a;
+  --rose: #d66a8a;
+  --purple: #a78bfa;
+  --teal: #6ee7b7;
+  --font: 'Instrument Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --radius: 12px;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+code { font-family: var(--mono); font-size: 0.85em; background: rgba(255,255,255,0.05); padding: 0.15em 0.4em; border-radius: 4px; }
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  backdrop-filter: blur(20px); background: rgba(10,10,12,0.75);
+  border-bottom: 1px solid var(--border);
+}
+.logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem; }
+.logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 6px; display: grid; place-items: center; }
+.logo-mark svg { width: 14px; height: 14px; }
+.nav-links { display: flex; align-items: center; gap: 1.75rem; }
+.nav-links a { font-size: 0.85rem; color: var(--text-dim); font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--text); }
+.btn { display: inline-block; padding: 0.6rem 1.4rem; font-weight: 600; font-size: 0.85rem; border-radius: 8px; transition: all 0.2s; cursor: pointer; border: none; font-family: var(--font); }
+.btn-accent,
+.btn-accent:link,
+.btn-accent:visited,
+.btn-accent:hover,
+.btn-accent:active,
+.btn-accent:focus {
+  background: var(--accent);
+  color: #0a0a0c;
+}
+.btn-accent:hover { background: #d4ff52; box-shadow: 0 0 20px rgba(196,240,66,0.25); }
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border-hover); background: var(--bg-card); }
+
+/* HERO */
+.hero {
+  min-height: 100vh; display: flex; flex-direction: column;
+  justify-content: center; align-items: center; text-align: center;
+  padding: 8rem 1.5rem 5rem; position: relative;
+}
+.hero::before {
+  content: ''; position: absolute; top: -30%; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(196,240,66,0.05) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero > * { position: relative; z-index: 2; }
+.hero-graph {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.34;
+  filter: saturate(90%);
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.9rem; margin-bottom: 2rem;
+  background: var(--accent-glow); border: 1px solid rgba(196,240,66,0.15);
+  border-radius: 100px; font-size: 0.7rem; font-weight: 600;
+  color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1.08; max-width: 850px; margin-bottom: 1.25rem;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { font-size: clamp(1rem, 1.4vw, 1.15rem); color: var(--text-dim); max-width: 580px; line-height: 1.65; margin-bottom: 2.25rem; }
+.hero-btns { display: flex; gap: 0.75rem; }
+
+/* SECTION UTILITIES */
+.section { padding: 5rem 1.5rem; max-width: 1060px; margin: 0 auto; }
+.section-wide { padding: 5rem 1.5rem; max-width: 1200px; margin: 0 auto; }
+.tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; margin-bottom: 0.75rem; }
+.tag-center { text-align: center; }
+.section h2, .section-wide h2 { font-size: clamp(1.6rem, 3.2vw, 2.3rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 0.75rem; }
+.section h2.center, .section-wide h2.center { text-align: center; }
+.subtitle { color: var(--text-dim); font-size: 1rem; max-width: 560px; margin: 0 auto 2.5rem; text-align: center; line-height: 1.6; }
+hr.sep { border: none; border-top: 1px solid var(--border); max-width: 1060px; margin: 0 auto; }
+
+/* DIAGRAM */
+.diagram-wrap { display: flex; justify-content: center; padding: 1rem 1.5rem 4rem; }
+.diagram {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  --diagram-tag-width: 85px;
+  --diagram-row-gap: 0.6rem;
+  padding: 2rem; max-width: 820px; width: 100%; position: relative; overflow: hidden;
+}
+.diagram::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:0.25; }
+.diagram-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 600; margin-bottom: 1.25rem; font-family: var(--font); }
+.d-row { display: flex; gap: var(--diagram-row-gap); margin-bottom: 0.6rem; flex-wrap: wrap; }
+.d-row:last-child { margin-bottom: 0; }
+.d-tag { width: var(--diagram-tag-width); flex-shrink: 0; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; }
+.d-boxes { display: flex; gap: 0.4rem; flex: 1; flex-wrap: wrap; }
+.d-box {
+  padding: 0.45rem 0.75rem; border-radius: 7px; font-size: 0.72rem; font-weight: 500;
+  font-family: var(--mono); border: 1px solid; flex: 1; min-width: 90px; text-align: center;
+}
+.d-box.h { background: rgba(91,141,238,0.07); border-color: rgba(91,141,238,0.18); color: var(--blue); }
+.d-box.a { background: rgba(196,240,66,0.05); border-color: rgba(196,240,66,0.13); color: var(--accent); }
+.d-box.g { background: rgba(232,148,74,0.07); border-color: rgba(232,148,74,0.18); color: var(--orange); }
+.d-box.i { background: rgba(214,106,138,0.07); border-color: rgba(214,106,138,0.18); color: var(--rose); }
+.d-arrow {
+  width: calc(100% - (var(--diagram-tag-width) + var(--diagram-row-gap)));
+  margin-left: calc(var(--diagram-tag-width) + var(--diagram-row-gap));
+  display: flex; justify-content: center;
+  color: var(--text-muted); font-size: 0; padding: 0.25rem 0 0.65rem; margin-bottom: 0.3rem;
+}
+.d-arrow::before {
+  content: "▲\A│\A│\A▼";
+  white-space: pre;
+  text-align: center;
+  font-size: 0.58rem;
+  line-height: 0.82;
+  color: var(--text-muted);
+}
+
+/* PROBLEM */
+.problem-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin: 1.25rem 0; }
+.problem-list li {
+  padding: 0.8rem 1.1rem; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; font-size: 0.9rem; color: var(--text-dim);
+  display: flex; align-items: flex-start; gap: 0.6rem;
+}
+.problem-list .arrow { color: var(--rose); flex-shrink: 0; }
+
+/* AGENT CARDS */
+.agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.agent-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.75rem; position: relative; overflow: hidden; transition: border-color 0.25s, transform 0.25s;
+}
+.agent-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.agent-card::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; opacity: 0.5;
+}
+.agent-card:nth-child(1)::after { background: var(--accent); }
+.agent-card:nth-child(2)::after { background: var(--blue); }
+.agent-card:nth-child(3)::after { background: var(--orange); }
+.agent-card:nth-child(4)::after { background: var(--rose); }
+.agent-card:nth-child(5)::after { background: var(--purple); }
+.agent-card:nth-child(6)::after { background: var(--teal); }
+.agent-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.2rem; }
+.agent-role { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; margin-bottom: 0.6rem; }
+.agent-card p { color: var(--text-dim); font-size: 0.85rem; line-height: 1.55; }
+
+/* FLOW STEPS */
+.flow { display: flex; flex-direction: column; }
+.step { display: flex; gap: 1.5rem; padding-bottom: 2.5rem; position: relative; }
+.step:last-child { padding-bottom: 0; }
+.step-line { position: absolute; top: 2.25rem; bottom: 0; left: 15px; width: 2px; background: var(--border); }
+.step:last-child .step-line { display: none; }
+.step-dot {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 0.72rem; font-weight: 700;
+  position: relative; z-index: 1;
+}
+.step:nth-child(1) .step-dot { background: rgba(196,240,66,0.12); color: var(--accent); border: 1px solid rgba(196,240,66,0.25); }
+.step:nth-child(2) .step-dot { background: rgba(91,141,238,0.12); color: var(--blue); border: 1px solid rgba(91,141,238,0.25); }
+.step:nth-child(3) .step-dot { background: rgba(232,148,74,0.12); color: var(--orange); border: 1px solid rgba(232,148,74,0.25); }
+.step:nth-child(4) .step-dot { background: rgba(214,106,138,0.12); color: var(--rose); border: 1px solid rgba(214,106,138,0.25); }
+.step h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.3rem; }
+.step p { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
+
+/* CODE BLOCK */
+.codeblock {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; max-width: 640px; margin: 0 auto;
+}
+.codeblock-bar { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); }
+.codeblock-bar .dots { display: flex; gap: 0.3rem; }
+.codeblock-bar .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--border-hover); }
+.codeblock-bar .title { font-size: 0.7rem; color: var(--text-muted); }
+.codeblock pre {
+  padding: 1.25rem; font-family: var(--mono); font-size: 0.78rem;
+  line-height: 1.8; color: var(--text-dim); overflow-x: auto; white-space: pre;
+}
+.codeblock .cm { color: var(--text-muted); }
+.codeblock .g { color: var(--accent); }
+.codeblock .b { color: var(--blue); }
+.codeblock .o { color: var(--text-muted); font-style: italic; }
+
+/* CONCEPT GRID */
+.concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.concept {
+  padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); transition: border-color 0.2s;
+}
+.concept:hover { border-color: var(--border-hover); }
+.concept h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
+.concept p { color: var(--text-dim); font-size: 0.83rem; line-height: 1.55; }
+
+/* OSS SECTION */
+.oss-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 2.5rem; align-items: start; }
+.oss-grid > div:first-child h2 { margin-bottom: 0.75rem; }
+.oss-grid > div:first-child > p { color: var(--text-dim); font-size: 1rem; line-height: 1.65; margin-bottom: 1.5rem; }
+.oss-points { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1.75rem; }
+.oss-pt { display: flex; gap: 0.65rem; }
+.oss-pt .ic { color: var(--accent); flex-shrink: 0; line-height: 1.5; }
+.oss-pt strong { display: block; font-size: 0.9rem; margin-bottom: 0.1rem; }
+.oss-pt span { color: var(--text-dim); font-size: 0.83rem; line-height: 1.5; }
+.oss-btns { display: flex; align-items: center; gap: 1rem; }
+.oss-license { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+/* DEPLOY */
+.deploy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.deploy-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.75rem; text-align: center; transition: border-color 0.2s, transform 0.2s;
+}
+.deploy-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.deploy-card .icon { font-size: 1.4rem; margin-bottom: 0.6rem; }
+.deploy-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+.deploy-card p { color: var(--text-dim); font-size: 0.83rem; line-height: 1.5; margin-bottom: 0.75rem; }
+.deploy-cmd {
+  display: inline-block; padding: 0.3rem 0.75rem;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+}
+.detail-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.detail-item { padding: 1.25rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
+.detail-item strong { display: block; font-size: 0.85rem; margin-bottom: 0.25rem; }
+.detail-item span { color: var(--text-dim); font-size: 0.8rem; line-height: 1.5; }
+
+/* CTA */
+.cta {
+  padding: 7rem 1.5rem; text-align: center; position: relative;
+}
+.cta::before {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 400px;
+  background: radial-gradient(circle, rgba(196,240,66,0.04) 0%, transparent 65%);
+  pointer-events: none;
+}
+.cta h2 { font-size: clamp(1.8rem, 3.5vw, 2.75rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.75rem; }
+.cta p { color: var(--text-dim); font-size: 1.05rem; max-width: 460px; margin: 0 auto 2rem; line-height: 1.6; }
+
+/* FOOTER */
+footer {
+  padding: 2.5rem 1.5rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  max-width: 1060px; margin: 0 auto;
+}
+footer .left { font-size: 0.78rem; color: var(--text-muted); }
+footer .left a { color: var(--text-dim); }
+footer .right { display: flex; gap: 1.25rem; }
+footer .right a { font-size: 0.78rem; color: var(--text-muted); transition: color 0.2s; }
+footer .right a:hover { color: var(--text-dim); }
+
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.visible { opacity: 1; transform: translateY(0); }
+/* Fallback: if JS fails, show everything */
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  .hero-graph { display: none; }
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  nav { padding: 0.85rem 1.25rem; }
+  .nav-links { display: none; }
+  .hero-btns { flex-direction: column; align-items: center; }
+  .hero-graph { display: none; }
+  .d-row { flex-direction: column; }
+  .d-tag { width: auto; margin-bottom: 0.25rem; }
+  .d-arrow { width: 100%; margin-left: 0; }
+  .agent-grid { grid-template-columns: 1fr; }
+  .step { gap: 1rem; }
+  .oss-grid { grid-template-columns: 1fr; }
+  .deploy-grid { grid-template-columns: 1fr; }
+  .detail-row { grid-template-columns: 1fr; }
+  footer { flex-direction: column; gap: 0.75rem; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0a0c" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/>
+        <line x1="12" y1="3" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21"/>
+        <line x1="3" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/>
+      </svg>
+    </div>
+    Brain
+  </div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#agents">Agents</a>
+    <a href="#how">How it works</a>
+    <a href="#oss">Open Source</a>
+    <a href="https://www.linkedin.com/pulse/why-message-buses-arent-enough-building-multi-agent-knowledge-schack-0itnc/" target="_blank">Article</a>
+    <a href="#cta" class="btn btn-accent">Request Access</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <canvas class="hero-graph" aria-hidden="true"></canvas>
+  <div class="badge"><span class="badge-dot"></span> Open Source &middot; Self-Hosted</div>
+  <h1>The coordination layer<br>for <em>AI agents</em></h1>
+  <p>Your agents don't talk to each other. You're the one copy-pasting context between them. Brain is the knowledge graph that replaces you as the integration layer.</p>
+  <div class="hero-btns">
+    <a href="#cta" class="btn btn-accent">Request Early Access</a>
+    <a href="#how" class="btn btn-ghost">See how it works</a>
+  </div>
+</section>
+
+<!-- DIAGRAM -->
+<div class="diagram-wrap reveal">
+  <div class="diagram">
+    <div class="diagram-label">Architecture</div>
+    <div class="d-row"><div class="d-tag">Human</div><div class="d-boxes"><div class="d-box h">Web Chat</div><div class="d-box h">Feed</div><div class="d-box h">Graph View</div><div class="d-box h">Terminal</div></div></div>
+    <div class="d-arrow">↕</div>
+    <div class="d-row"><div class="d-tag">Agents</div><div class="d-boxes"><div class="d-box a">Architect</div><div class="d-box a">Strategist</div><div class="d-box a">Management</div><div class="d-box a">Coding · MCP</div><div class="d-box a">Observer</div></div></div>
+    <div class="d-arrow">↕</div>
+    <div class="d-row"><div class="d-tag">Graph</div><div class="d-boxes"><div class="d-box g">Projects</div><div class="d-box g">Decisions</div><div class="d-box g">Tasks</div><div class="d-box g">Observations</div><div class="d-box g">Features</div><div class="d-box g">Questions</div><div class="d-box g">Suggestions</div><div class="d-box g">Conversations</div><div class="d-box g">Commits</div></div></div>
+    <div class="d-arrow">↕</div>
+    <div class="d-row"><div class="d-tag">Integrations</div><div class="d-boxes"><div class="d-box i">GitHub</div><div class="d-box i">Slack</div><div class="d-box i">Git Hooks</div><div class="d-box i">OAuth 2.1</div></div></div>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- PROBLEM -->
+<section class="section reveal" id="problem">
+  <div class="tag">The problem</div>
+  <h2>You are the integration layer<br>between your AI agents</h2>
+  <p style="color:var(--text-dim);font-size:1rem;margin-bottom:1rem;">You already use AI agents. Your coding agent writes your code. Your chat assistant helps you think through architecture. Your editor agent autocompletes. But none of them share context.</p>
+  <ul class="problem-list">
+    <li><span class="arrow">→</span> Copy error logs from CI into your coding agent</li>
+    <li><span class="arrow">→</span> Relay architecture decisions from a chat into your codebase</li>
+    <li><span class="arrow">→</span> Manually track what was decided, what's blocked, what changed</li>
+    <li><span class="arrow">→</span> Re-explain project state every time you start a new session</li>
+    <li><span class="arrow">→</span> Context-switch between tools, losing continuity at every step</li>
+  </ul>
+  <p style="color:var(--text-dim);font-size:1rem;">Every agent you add makes it worse. Brain fixes this — not by replacing your agents, but by giving them shared memory.</p>
+</section>
+
+<hr class="sep">
+
+<!-- AGENTS -->
+<section class="section-wide reveal" id="agents">
+  <div class="tag tag-center">Specialized agents</div>
+  <h2 class="center">A coordinated workforce, not a chatbot</h2>
+  <p class="subtitle">Each agent has a role, a domain, and authority scopes. They coordinate through the knowledge graph — not through you.</p>
+  <div class="agent-grid">
+    <div class="agent-card">
+      <h3>Architect</h3>
+      <div class="agent-role">CTO / CPO</div>
+      <p>Technical decisions, system design, architecture constraints. Checks implementations against what was decided. Resolves conflicts between competing approaches.</p>
+    </div>
+    <div class="agent-card">
+      <h3>Strategist</h3>
+      <div class="agent-role">CEO / CSO</div>
+      <p>Market positioning, pricing, GTM, competitive response. Challenges product decisions against business viability. Catches positioning drift before it compounds.</p>
+    </div>
+    <div class="agent-card">
+      <h3>Management</h3>
+      <div class="agent-role">COO</div>
+      <p>Task tracking, priority management, execution velocity. Flags blocked work, stale decisions, and resource conflicts. Keeps the machine running.</p>
+    </div>
+    <div class="agent-card">
+      <h3>Coding Agents</h3>
+      <div class="agent-role">Via MCP · Cursor, Aider, Codex, and others</div>
+      <p>Your existing tools connected to the graph. Context injected on session start. Decisions, observations, and questions flow back automatically.</p>
+    </div>
+    <div class="agent-card">
+      <h3>Design Partner</h3>
+      <div class="agent-role">Early-stage co-designer</div>
+      <p>Brainstorms product ideas, asks probing questions, identifies gaps. Shapes vague ideas into structured projects, features, and decisions in the graph.</p>
+    </div>
+    <div class="agent-card">
+      <h3>Observer</h3>
+      <div class="agent-role">Background intelligence</div>
+      <p>Scans the graph for patterns nobody asked about. Stale decisions, cross-project conflicts, missing coverage, priority drift. Surfaces observations that compound into suggestions.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- HOW IT WORKS -->
+<section class="section reveal" id="how">
+  <div class="tag tag-center">How it works</div>
+  <h2 class="center">Agents coordinate through the graph</h2>
+  <p class="subtitle">No agent messages another agent. They write structured signals to the knowledge graph. The graph makes it visible to the right agent at the right time.</p>
+  <div class="flow">
+    <div class="step">
+      <div class="step-dot">1</div>
+      <div class="step-line"></div>
+      <div>
+        <h3>Coding agent notices a contradiction</h3>
+        <p>While implementing rate limiting, a coding agent detects that <code>src/billing/api.ts</code> uses REST — but the graph has a confirmed decision to standardize on tRPC. It logs an observation.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-dot">2</div>
+      <div class="step-line"></div>
+      <div>
+        <h3>Architect agent sees it on next context load</h3>
+        <p>The Architect checks the observation against constraints. Confirms the contradiction is real. Generates a suggestion: "Migrate billing API to tRPC, or revisit the standardization decision."</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-dot">3</div>
+      <div class="step-line"></div>
+      <div>
+        <h3>Suggestion surfaces in your feed</h3>
+        <p>You see the suggestion with full provenance — the observation, the contradicted decision, the Architect's reasoning. You accept it. A migration task is created with one click.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-dot">4</div>
+      <div class="step-line"></div>
+      <div>
+        <h3>Next coding session picks up the task</h3>
+        <p>The migration task appears in the coding agent's context. It decomposes into subtasks, works through them, and status rolls up automatically. No human copied anything between tabs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- CODE -->
+<section class="section reveal" style="max-width:700px;">
+  <div class="tag tag-center">Connect in 60 seconds</div>
+  <h2 class="center">Your coding agent, with context</h2>
+  <p class="subtitle">One-time setup. Context injection is automatic on every session after that.</p>
+  <div class="codeblock">
+    <div class="codeblock-bar"><div class="dots"><span></span><span></span><span></span></div><div class="title">terminal</div></div>
+    <pre><span class="cm"># One-time workspace setup</span>
+<span class="g">$ brain init</span>
+<span class="o">  Opens browser → authenticate → approve scopes</span>
+<span class="o">  ✓ Connected to workspace</span>
+
+<span class="cm"># Start a task-scoped session</span>
+<span class="g">$ brain start</span> <span class="b">task:implement-rate-limiting</span>
+<span class="o">  Context: 3 decisions, 2 constraints, 1 open question</span>
+<span class="o">  Task status: todo → in_progress</span>
+
+<span class="cm"># Or just open your MCP-compatible coding agent</span>
+<span class="g">$ codex</span>
+<span class="o">  SessionStart → project context loaded</span>
+<span class="o">  4 decisions · 2 tasks · 1 recent observation</span></pre>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- CONCEPTS -->
+<section class="section-wide reveal">
+  <div class="tag tag-center">Key concepts</div>
+  <h2 class="center">Built different</h2>
+  <p class="subtitle">The primitives that make coordination possible.</p>
+  <div class="concept-grid">
+    <div class="concept">
+      <h3>⬡ Decisions</h3>
+      <p>Every decision is tracked — who made it, why, and what alternatives were considered. Agents propose. Humans confirm. Nothing falls through the cracks.</p>
+    </div>
+    <div class="concept">
+      <h3>◉ Observations</h3>
+      <p>"I noticed X." Agents surface contradictions, gaps, patterns, and risks as they work. Observations accumulate and compound into actionable suggestions.</p>
+    </div>
+    <div class="concept">
+      <h3>⊞ Projects, Features &amp; Tasks</h3>
+      <p>Work breaks down hierarchically. Agents decompose tasks at runtime. Status rolls up automatically. You see progress without tracking it.</p>
+    </div>
+    <div class="concept">
+      <h3>✦ Suggestions</h3>
+      <p>Agents tell you what you should be thinking about. Accept a suggestion and it becomes a task, decision, or feature — with full trace back to the evidence.</p>
+    </div>
+    <div class="concept">
+      <h3>? Questions</h3>
+      <p>When an agent doesn't know, it asks instead of guessing. You answer. The answer becomes a decision in the graph. No stalling, no silent assumptions.</p>
+    </div>
+    <div class="concept">
+      <h3>💬 Conversations</h3>
+      <p>Every chat produces structured knowledge. Conversations group by project automatically. Branch when topics diverge. Find anything by following the graph, not scrolling history.</p>
+    </div>
+    <div class="concept">
+      <h3>⟠ Commits</h3>
+      <p>Code is linked to the decisions and tasks it implements. Contradictions are caught before they land. Every change has a trail back to the intent behind it.</p>
+    </div>
+    <div class="concept">
+      <h3>△ Authority Scopes</h3>
+      <p>Control what each agent can do without asking. Start restrictive. Expand trust over time. You set the boundary — agents stay within it.</p>
+    </div>
+    <div class="concept">
+      <h3>◇ Living Descriptions</h3>
+      <p>Descriptions update themselves. Ship a feature — the project summary reflects it. Confirm a decision — related entities incorporate it. No one writes status updates.</p>
+    </div>
+    <div class="concept">
+      <h3>⟡ Cross-Project Intelligence</h3>
+      <p>Conflicts between projects surface automatically. Duplicate work gets flagged. A decision in one project that breaks another is caught before anyone notices manually.</p>
+    </div>
+    <div class="concept">
+      <h3>⊕ Agent Sessions</h3>
+      <p>Every session is remembered. The next agent knows what the last one did — what was decided, what questions came up, what got built. Context carries forward.</p>
+    </div>
+    <div class="concept">
+      <h3>⟐ Identity</h3>
+      <p>One person across all tools. Your Slack, GitHub, and terminal sessions all resolve to the same identity. Agents act on your behalf with scoped permissions.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- OPEN SOURCE -->
+<section class="section-wide reveal" id="oss">
+  <div class="oss-grid">
+    <div>
+      <div class="tag">Open source</div>
+      <h2>Your coordination layer,<br>your code</h2>
+      <p>The knowledge graph that coordinates your agents shouldn't be a black box you rent. It should be infrastructure you own, inspect, and extend.</p>
+      <div class="oss-points">
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Full source access</strong><span>Graph engine, MCP server, agent prompts, extraction pipeline. Every line.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>No vendor lock-in</strong><span>Your data lives in your SurrealDB instance. Export anytime. Migrate anytime.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Extend everything</strong><span>Custom agent types, observation categories, feed cards, MCP tools.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Community-driven</strong><span>Agent prompts, authority scope templates, and integrations contributed by users.</span></div></div>
+      </div>
+      <div class="oss-btns">
+        <a href="https://github.com" target="_blank" class="btn btn-ghost" style="display:inline-flex;align-items:center;gap:0.4rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <span class="oss-license">MIT License</span>
+      </div>
+    </div>
+    <div>
+      <div class="codeblock">
+        <div class="codeblock-bar"><div class="dots"><span></span><span></span><span></span></div><div class="title">stack</div></div>
+        <pre><span class="cm"># The full stack</span>
+<span class="b">Graph</span>        SurrealDB
+<span class="b">Backend</span>      Bun (Bun.serve) · TypeScript
+<span class="b">Frontend</span>     React · Tiptap · Reagraph
+<span class="b">Auth</span>         Better Auth · OAuth 2.1
+<span class="b">LLM</span>          Provider-agnostic (OpenRouter · Ollama · BYO keys)
+<span class="b">Agents</span>       MCP Server · Git Hooks
+<span class="b">Protocol</span>     MCP · OAuth 2.1 · OIDC
+
+<span class="cm"># Lines of duct tape replaced</span>
+<span class="g">∞</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- SELF-HOSTED -->
+<section class="section-wide reveal" id="selfhost">
+  <div class="tag tag-center">Self-hosted</div>
+  <h2 class="center">Your data never leaves your machine</h2>
+  <p class="subtitle">Your decisions, architecture, strategy, and competitive intelligence stay on your infrastructure.</p>
+  <div class="deploy-grid">
+    <div class="deploy-card">
+      <div class="icon">⬡</div>
+      <h3>Docker Compose</h3>
+      <p>SurrealDB + Bun + React. Running in 2 minutes on any machine.</p>
+      <div class="deploy-cmd">docker compose up</div>
+    </div>
+    <div class="deploy-card">
+      <div class="icon">◉</div>
+      <h3>Single Binary</h3>
+      <p>Embedded SurrealDB. No dependencies. Laptop, VPS, or Raspberry Pi.</p>
+      <div class="deploy-cmd">brain serve</div>
+    </div>
+    <div class="deploy-card">
+      <div class="icon">△</div>
+      <h3>Cloud (Coming)</h3>
+      <p>Managed hosting for teams. Same codebase. Your data, your region.</p>
+      <div class="deploy-cmd">Waitlist open</div>
+    </div>
+  </div>
+  <div class="detail-row">
+    <div class="detail-item">
+      <strong>Bring your own LLM keys</strong>
+      <span>Uses your provider keys (OpenRouter, Ollama, or direct). No data passes through Brain's servers.</span>
+    </div>
+    <div class="detail-item">
+      <strong>Works offline</strong>
+      <span>Graph, feed, and local tools work without internet. LLM features can run offline with local models, or use networked providers when configured.</span>
+    </div>
+    <div class="detail-item">
+      <strong>No telemetry</strong>
+      <span>No usage tracking. No analytics. No phone-home. Fully air-gappable.</span>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="tag tag-center">Early access</div>
+  <h2>Stop being the glue<br>between your agents</h2>
+  <p>Brain is in early development. If you're building with multiple AI agents and drowning in context management, we want to talk.</p>
+  <a href="mailto:marcus@schack.systems" class="btn btn-accent">Request Early Access</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="left">&copy; 2026 Brain &middot; Built by <a href="https://github.com/marcus-sa" target="_blank">Marcus Schack</a></div>
+  <div class="right">
+    <a href="https://www.linkedin.com/pulse/why-message-buses-arent-enough-building-multi-agent-knowledge-schack-0itnc/" target="_blank">Architecture Article</a>
+    <a href="https://github.com" target="_blank">GitHub</a>
+  </div>
+</footer>
+
+<script>
+(function() {
+  function initHeroGraph() {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mobile = window.matchMedia('(max-width: 768px)').matches;
+    if (reduceMotion || mobile) return;
+
+    var canvas = document.querySelector('.hero-graph');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    var width = 0;
+    var height = 0;
+    var dpr = 1;
+    var nodes = [];
+    var raf = 0;
+    var maxDist = 96;
+    var t = 0;
+
+    function sampleLobe(cx, cy, rx, ry) {
+      var x = cx;
+      var y = cy;
+      for (var i = 0; i < 32; i++) {
+        x = cx + (Math.random() * 2 - 1) * rx;
+        y = cy + (Math.random() * 2 - 1) * ry;
+        var nx = (x - cx) / rx;
+        var ny = (y - cy) / ry;
+        // Soft superellipse for a brain-like lobe silhouette.
+        if (Math.pow(Math.abs(nx), 2.35) + Math.pow(Math.abs(ny), 2.05) <= 1) break;
+      }
+      return { x: x, y: y };
+    }
+
+    function pushNode(x, y, zone) {
+      nodes.push({
+        ax: x,
+        ay: y,
+        x: x,
+        y: y,
+        phaseX: Math.random() * Math.PI * 2,
+        phaseY: Math.random() * Math.PI * 2,
+        speedX: 1 + Math.random() * 0.9,
+        speedY: 1 + Math.random() * 0.9,
+        ampX: 2.6 + Math.random() * 4.2,
+        ampY: 2.2 + Math.random() * 3.8,
+        zone: zone,
+        hue: Math.random() < 0.2 ? 'blue' : 'accent'
+      });
+    }
+
+    function sampleField() {
+      return {
+        x: Math.random() * width,
+        y: Math.random() * height
+      };
+    }
+
+    function makeNodes() {
+      nodes = [];
+      var cx = width * 0.5;
+      var cy = height * 0.52;
+      var lx = width * 0.3;
+      var rx = width * 0.7;
+      var lobeRx = width * 0.24;
+      var lobeRy = height * 0.4;
+      var perLobe = Math.max(38, Math.min(62, Math.floor((width * height) / 12500)));
+      var bridgeCount = Math.max(8, Math.min(14, Math.floor(perLobe * 0.16)));
+      var fieldCount = Math.max(30, Math.min(60, Math.floor((width * height) / 17000)));
+
+      for (var i = 0; i < perLobe; i++) {
+        var left = sampleLobe(lx, cy, lobeRx, lobeRy);
+        var right = sampleLobe(rx, cy, lobeRx, lobeRy);
+        pushNode(left.x, left.y, 'left');
+        pushNode(right.x, right.y, 'right');
+      }
+
+      for (var i = 0; i < bridgeCount; i++) {
+        var p = i / Math.max(1, bridgeCount - 1);
+        var bx = cx + (Math.random() - 0.5) * width * 0.28;
+        var by = cy - height * 0.14 + p * height * 0.28 + (Math.random() - 0.5) * height * 0.05;
+        pushNode(bx, by, 'bridge');
+      }
+
+      for (var i = 0; i < fieldCount; i++) {
+        var outer = sampleField();
+        pushNode(outer.x, outer.y, 'field');
+      }
+    }
+
+    function resize() {
+      var rect = canvas.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      maxDist = Math.max(70, Math.min(112, width * 0.1));
+      makeNodes();
+    }
+
+    function edgeFactor(a, b) {
+      if (a.zone === 'field' || b.zone === 'field') return 0.88;
+      if (a.zone === 'bridge' || b.zone === 'bridge') return 1.16;
+      if ((a.zone === 'left' && b.zone === 'right') || (a.zone === 'right' && b.zone === 'left')) return 0.72;
+      return 1;
+    }
+
+    function draw() {
+      if (document.hidden) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+
+      t += 0.024;
+      ctx.clearRect(0, 0, width, height);
+
+      var swayX = Math.sin(t * 0.21) * 7.5;
+      var swayY = Math.cos(t * 0.18) * 4.2;
+
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var zoneShiftX = n.zone === 'left' ? -swayX : n.zone === 'right' ? swayX : n.zone === 'field' ? swayX * 0.2 : 0;
+        var zoneShiftY = n.zone === 'bridge' ? swayY * 0.45 : n.zone === 'field' ? swayY * 0.2 : swayY;
+        n.x = n.ax + Math.sin(t * n.speedX + n.phaseX) * n.ampX + zoneShiftX;
+        n.y = n.ay + Math.cos(t * n.speedY + n.phaseY) * n.ampY + zoneShiftY;
+      }
+
+      for (var i = 0; i < nodes.length; i++) {
+        var a = nodes[i];
+        for (var j = i + 1; j < nodes.length; j++) {
+          var b = nodes[j];
+          var dx = a.x - b.x;
+          var dy = a.y - b.y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          var threshold = maxDist * edgeFactor(a, b);
+          if (dist > threshold) continue;
+          var strength = 1 - dist / threshold;
+          var alpha = strength * strength * 0.33;
+          var stroke = a.hue === 'blue' || b.hue === 'blue'
+            ? 'rgba(91,141,238,' + (alpha * 0.68) + ')'
+            : 'rgba(196,240,66,' + alpha + ')';
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        ctx.beginPath();
+        var radius = node.zone === 'bridge' ? 2 : node.zone === 'field' ? 1.45 : 1.7;
+        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = node.hue === 'blue'
+          ? 'rgba(91,141,238,0.58)'
+          : 'rgba(196,240,66,0.64)';
+        ctx.fill();
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    raf = requestAnimationFrame(draw);
+  }
+
+  var els = document.querySelectorAll('.reveal');
+  
+  function revealCheck() {
+    var wh = window.innerHeight || document.documentElement.clientHeight;
+    for (var i = 0; i < els.length; i++) {
+      var rect = els[i].getBoundingClientRect();
+      if (rect.top < wh - 40) {
+        els[i].classList.add('visible');
+      }
+    }
+  }
+  
+  // Try IntersectionObserver first
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, { threshold: 0.08 });
+    els.forEach(function(el) { obs.observe(el); });
+  }
+  
+  // Also run scroll-based check as fallback
+  window.addEventListener('scroll', revealCheck, { passive: true });
+  window.addEventListener('resize', revealCheck);
+  
+  // Run immediately and after a short delay (handles iframes, lazy loading)
+  revealCheck();
+  setTimeout(revealCheck, 100);
+  setTimeout(revealCheck, 500);
+  
+  // Nav scroll
+  window.addEventListener('scroll', function() {
+    var nav = document.querySelector('nav');
+    nav.style.background = window.scrollY > 50 ? 'rgba(10,10,12,0.92)' : 'rgba(10,10,12,0.75)';
+  });
+
+  initHeroGraph();
+})();
+</script>
+
+</body>
+</html>
