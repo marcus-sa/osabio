@@ -108,6 +108,22 @@ export type OnboardingSeedItem = {
   category?: EntityCategory;
 };
 
+export type SubagentTraceStep = {
+  type: "tool_call" | "text";
+  toolName?: string;
+  argsJson?: string;
+  resultJson?: string;
+  durationMs?: number;
+  text?: string;
+};
+
+export type SubagentTrace = {
+  agentId: string;
+  intent: string;
+  steps: SubagentTraceStep[];
+  totalDurationMs: number;
+};
+
 export type WorkspaceBootstrapMessage = {
   id: string;
   role: "user" | "assistant";
@@ -115,6 +131,7 @@ export type WorkspaceBootstrapMessage = {
   createdAt: string;
   suggestions?: string[];
   inherited?: boolean;
+  subagentTraces?: SubagentTrace[];
 };
 
 export type ConversationSidebarItem = {

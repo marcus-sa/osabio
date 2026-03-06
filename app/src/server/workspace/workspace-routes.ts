@@ -201,6 +201,7 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
       createdAt: toIsoString(row.createdAt),
       ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
       ...(row.inherited ? { inherited: true } : {}),
+      ...(row.subagent_traces && row.subagent_traces.length > 0 ? { subagentTraces: row.subagent_traces } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
     const seeds = await loadWorkspaceSeeds(deps, workspaceRecord, 40);
@@ -434,6 +435,7 @@ async function handleWorkspaceConversation(
       createdAt: toIsoString(row.createdAt),
       ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
       ...(row.inherited ? { inherited: true } : {}),
+      ...(row.subagent_traces && row.subagent_traces.length > 0 ? { subagentTraces: row.subagent_traces } : {}),
     } satisfies WorkspaceBootstrapMessage));
 
     let discussEntity: DiscussEntitySummary | undefined;

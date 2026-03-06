@@ -5,7 +5,7 @@ import { ChatSuggestionPills } from "../components/chat/ChatSuggestionPills";
 import { DiscussEntityCard } from "../components/chat/DiscussEntityCard";
 import { EntityLink } from "../components/chat/EntityLink";
 import { SuggestionToolCard } from "../components/chat/SuggestionToolCard";
-import type { DiscussEntitySummary } from "../../shared/contracts";
+import type { DiscussEntitySummary, SubagentTrace } from "../../shared/contracts";
 import { useWorkspaceState } from "../stores/workspace-state";
 import { useChatSession } from "../hooks/use-chat-session";
 import { useGovernanceFeed } from "../hooks/use-governance-feed";
@@ -129,6 +129,36 @@ export function ChatPage() {
                 if (toolName === "create_suggestion" && toolPart.state === "output-available" && toolPart.output) {
                   const output = toolPart.output as { text: string; category: string; confidence: number; rationale: string; target?: string };
                   return <SuggestionToolCard key={i} output={output} />;
+                }
+
+                if (toolName === "invoke_pm_agent" && toolPart.state === "output-available") {
+                  const trace = (toolPart.output as Record<string, unknown> | undefined)?.trace as SubagentTrace | undefined;
+                  if (trace) {
+                    return (
+                      <details key={i} className="subagent-trace-block">
+                        <summary className="subagent-trace-summary">
+                          PM Agent — {trace.intent.replace(/_/g, " ")} ({trace.steps.filter(s => s.type === "tool_call").length} tools, {(trace.totalDurationMs / 1000).toFixed(1)}s)
+                        </summary>
+                        <div className="subagent-trace-steps">
+                          {trace.steps.map((step, j) => {
+                            if (step.type === "text") {
+                              return <div key={j} className="subagent-trace-text">{step.text}</div>;
+                            }
+                            return (
+                              <details key={j} className="subagent-trace-step">
+                                <summary className="subagent-trace-step-summary">
+                                  <span className="subagent-trace-tool">{step.toolName}</span>
+                                  {step.durationMs ? <span className="subagent-trace-duration">{step.durationMs}ms</span> : undefined}
+                                </summary>
+                                <pre className="subagent-trace-args">{step.argsJson}</pre>
+                                <pre className="subagent-trace-result">{step.resultJson}</pre>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    );
+                  }
                 }
 
                 return (

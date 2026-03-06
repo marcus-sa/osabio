@@ -1,6 +1,6 @@
 import { ToolLoopAgent, Output, stepCountIs } from "ai";
 import { z } from "zod";
-import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type ExtractedEntity, type ExtractedRelationship } from "../../../shared/contracts";
+import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type ExtractedEntity, type ExtractedRelationship, type SubagentTrace, type SubagentTraceStep } from "../../../shared/contracts";
 import type { ChatToolDeps, ChatToolExecutionContext } from "../../chat/tools/types";
 import { buildPmSystemPrompt } from "./prompt";
 import { createPmTools } from "./tools";
@@ -54,6 +54,7 @@ export type PmAgentResult = z.infer<typeof pmAgentResultSchema>;
 export type PmAgentOutput = PmAgentResult & {
   extracted_entities: ExtractedEntity[];
   extracted_relationships: ExtractedRelationship[];
+  trace: SubagentTrace;
 };
 
 export type PmAgentInput = {
@@ -86,6 +87,8 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
     stopWhen: stepCountIs(6),
   });
 
+  const startedAt = performance.now();
+
   const result = await agent.generate({
     prompt: [
       "You are handling a PM request.",
@@ -97,15 +100,29 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
     ].join("\n"),
   });
 
+  const totalDurationMs = Math.round(performance.now() - startedAt);
+
   if (!result.output) {
     throw new Error("pm agent did not produce structured output");
   }
 
   const extracted_entities: ExtractedEntity[] = [];
   const extracted_relationships: ExtractedRelationship[] = [];
+  const traceSteps: SubagentTraceStep[] = [];
 
   for (const step of result.steps) {
+    if (step.text?.trim()) {
+      traceSteps.push({ type: "text", text: step.text.trim() });
+    }
+
     for (const toolResult of step.toolResults) {
+      traceSteps.push({
+        type: "tool_call",
+        toolName: toolResult.toolName,
+        argsJson: JSON.stringify(toolResult.input),
+        resultJson: JSON.stringify(toolResult.output),
+      });
+
       const res = toolResult.output as Record<string, unknown> | undefined;
       if (res) {
         if (Array.isArray(res.extracted_entities)) {
@@ -122,5 +139,11 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
     ...result.output,
     extracted_entities,
     extracted_relationships,
+    trace: {
+      agentId: "pm_agent",
+      intent: input.intent,
+      steps: traceSteps,
+      totalDurationMs,
+    },
   };
 }
