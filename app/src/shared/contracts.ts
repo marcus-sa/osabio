@@ -11,6 +11,7 @@ export type EntityPriority = (typeof ENTITY_PRIORITIES)[number];
 export type CreateWorkspaceRequest = {
   name: string;
   ownerDisplayName: string;
+  ownerEmail: string;
   description?: string;
 };
 

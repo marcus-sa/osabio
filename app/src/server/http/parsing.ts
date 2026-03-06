@@ -40,6 +40,10 @@ export function parseCreateWorkspaceRequest(body: unknown):
     return { ok: false, error: "ownerDisplayName is required" };
   }
 
+  if (!payload.ownerEmail || payload.ownerEmail.trim().length === 0) {
+    return { ok: false, error: "ownerEmail is required" };
+  }
+
   const description = typeof payload.description === "string" ? payload.description.trim() : undefined;
 
   return {
@@ -47,6 +51,7 @@ export function parseCreateWorkspaceRequest(body: unknown):
     data: {
       name: payload.name.trim(),
       ownerDisplayName: payload.ownerDisplayName.trim(),
+      ownerEmail: payload.ownerEmail.trim(),
       ...(description && description.length > 0 ? { description } : {}),
     },
   };

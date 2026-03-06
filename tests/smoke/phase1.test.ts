@@ -37,7 +37,7 @@ describe("phase1 smoke", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `Phase1 Smoke ${Date.now()}`,
-        ownerDisplayName: "Marcus",
+        ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 

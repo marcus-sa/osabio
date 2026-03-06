@@ -77,7 +77,7 @@ describe("conversation sidebar smoke", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `Sidebar Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus",
+          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
         }),
       },
     );
@@ -123,7 +123,7 @@ describe("conversation sidebar smoke", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `NewConv Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus",
+          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-2@smoke.test`,
         }),
       },
     );
@@ -158,7 +158,7 @@ describe("conversation sidebar smoke", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: `ConvLoad Smoke ${Date.now()}`,
-          ownerDisplayName: "Marcus",
+          ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-3@smoke.test`,
         }),
       },
     );

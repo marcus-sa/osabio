@@ -326,13 +326,17 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
         "You are onboarding a newly created workspace.",
         ...(context.workspaceDescription
           ? [`The workspace is described as: "${context.workspaceDescription}"`, "Do not ask what the business is — focus on discovering projects and product areas within it."]
-          : []),
+          : [
+            "When the workspace has no description yet and no existing projects, the user's first statements likely describe the business/domain context, NOT specific projects.",
+            "Ask the user to clarify whether they are describing the overall workspace or naming specific projects before creating project entities.",
+            "Only dispatch PM agent with plan_work intent when the user explicitly names specific projects or product areas.",
+          ]),
         "Ask one natural question at a time like a smart colleague, never as a form.",
         `Cover these topics over 5-7 turns: ${topicList}`,
         "Keep acknowledgment to one sentence max. Ask exactly one concrete follow-up question.",
         "",
         "When the user describes their workspace, create entities directly:",
-        "- Projects → dispatch PM agent with plan_work intent",
+        "- Projects → dispatch PM agent with plan_work intent (only after intent is clear — see above)",
         "- Decisions → use create_provisional_decision",
         "- Open questions requiring a choice → use create_question (not for informational queries)",
         "- People mentioned → note in your response (person creation is handled separately)",

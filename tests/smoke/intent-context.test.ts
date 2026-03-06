@@ -41,7 +41,7 @@ async function createWorkspaceWithApiKey(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: name ?? `Intent Smoke ${Date.now()}`,
-      ownerDisplayName: "Test",
+      ownerDisplayName: "Test", ownerEmail: `${Date.now()}-1@smoke.test`,
     }),
   });
 

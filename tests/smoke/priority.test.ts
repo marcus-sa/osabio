@@ -29,7 +29,7 @@ async function createOnboardedWorkspace(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name: `Priority Smoke ${Date.now()}`,
-      ownerDisplayName: "Marcus",
+      ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test`,
     }),
   });
 

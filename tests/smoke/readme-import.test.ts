@@ -23,7 +23,7 @@ describe("README import smoke", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `README Smoke ${Date.now()}`,
-        ownerDisplayName: "README Smoke Owner",
+        ownerDisplayName: "README Smoke Owner", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 

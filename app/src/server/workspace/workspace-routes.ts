@@ -133,6 +133,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
     );
     await transaction.create(ownerRecord).content({
       name: parsed.data.ownerDisplayName,
+      contact_email: parsed.data.ownerEmail,
       ...(ownerEmbedding ? { embedding: ownerEmbedding } : {}),
       created_at: now,
       updated_at: now,

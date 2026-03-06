@@ -34,7 +34,7 @@ describe("extraction quality smoke", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `Extraction Quality Smoke ${Date.now()}`,
-        ownerDisplayName: "Marcus Stone",
+        ownerDisplayName: "Marcus Stone", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 

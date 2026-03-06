@@ -50,7 +50,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-1@smoke.test` }),
     });
 
     const res = await fetch(`${baseUrl}/api/workspaces/${workspace.workspaceId}/webhooks/github`, {
@@ -68,7 +68,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-2@smoke.test` }),
     });
 
     const res = await fetch(`${baseUrl}/api/workspaces/${workspace.workspaceId}/webhooks/github`, {
@@ -92,7 +92,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-3@smoke.test` }),
     });
 
     const event = makePushEvent({ ref: "refs/heads/feature-branch", defaultBranch: "main" });
@@ -117,7 +117,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-4@smoke.test` }),
     });
 
     const event = makePushEvent({ ref: "refs/tags/v1.2.3", defaultBranch: "main" });
@@ -142,7 +142,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-5@smoke.test` }),
     });
 
     const sha = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
@@ -218,7 +218,7 @@ describe("github webhook smoke", () => {
     const workspace = await fetchJson<{ workspaceId: string }>(`${baseUrl}/api/workspaces`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus" }),
+      body: JSON.stringify({ name: `Webhook Smoke ${Date.now()}`, ownerDisplayName: "Marcus", ownerEmail: `${Date.now()}-6@smoke.test` }),
     });
 
     const workspaceRecord = new RecordId("workspace", workspace.workspaceId);

@@ -43,10 +43,12 @@ function AppShell() {
       canCreateWorkspace={workspace.canCreateWorkspace}
       createWorkspaceName={workspace.createWorkspaceName}
       createOwnerName={workspace.createOwnerName}
+      createOwnerEmail={workspace.createOwnerEmail}
       createWorkspaceDescription={workspace.createWorkspaceDescription}
       errorMessage={workspace.errorMessage}
       setCreateWorkspaceName={workspace.setCreateWorkspaceName}
       setCreateOwnerName={workspace.setCreateOwnerName}
+      setCreateOwnerEmail={workspace.setCreateOwnerEmail}
       setCreateWorkspaceDescription={workspace.setCreateWorkspaceDescription}
       onCreateWorkspace={workspace.onCreateWorkspace}
     >

@@ -35,7 +35,7 @@ describe("onboarding smoke", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `Smoke Workspace ${Date.now()}`,
-        ownerDisplayName: "Smoke Owner",
+        ownerDisplayName: "Smoke Owner", ownerEmail: `${Date.now()}-1@smoke.test`,
       }),
     });
 
