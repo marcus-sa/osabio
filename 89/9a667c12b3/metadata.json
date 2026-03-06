@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "899a667c12b3",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/onboarding-workspace-desc",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/layout/WorkspaceGuard.tsx",
+    "app/src/client/hooks/use-workspace.ts",
+    "app/src/client/router.tsx",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/extraction/types.ts",
+    "app/src/server/http/parsing.ts",
+    "app/src/server/onboarding/onboarding-reply.ts",
+    "app/src/server/onboarding/onboarding-state.ts",
+    "app/src/server/workspace/workspace-routes.ts",
+    "app/src/shared/contracts.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/89/9a667c12b3/0/metadata.json",
+      "transcript": "/89/9a667c12b3/0/full.jsonl",
+      "context": "",
+      "content_hash": "/89/9a667c12b3/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
