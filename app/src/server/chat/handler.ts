@@ -43,6 +43,7 @@ export async function runChatAgent(input: {
   messages: ConversationMessage[];
   isOnboarding?: boolean;
   onboardingState?: OnboardingState;
+  workspaceDescription?: string;
   onToken: (token: string) => Promise<void> | void;
   onReasoning?: (token: string) => Promise<void> | void;
 }): Promise<ChatAgentResult> {
@@ -50,6 +51,7 @@ export async function runChatAgent(input: {
     surreal: input.surreal,
     conversationRecord: input.conversationRecord,
     workspaceRecord: input.workspaceRecord,
+    ...(input.workspaceDescription ? { workspaceDescription: input.workspaceDescription } : {}),
     ...(input.userMessageEmbedding ? { userMessageEmbedding: input.userMessageEmbedding } : {}),
     ...(input.inheritedEntityIds && input.inheritedEntityIds.length > 0
       ? { inheritedEntityIds: input.inheritedEntityIds }

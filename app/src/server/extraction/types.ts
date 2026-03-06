@@ -65,6 +65,7 @@ export type TempEntityReference = {
 export type WorkspaceRow = {
   id: RecordId<"workspace", string>;
   name: string;
+  description?: string;
   status: string;
   onboarding_complete: boolean;
   onboarding_turn_count: number;

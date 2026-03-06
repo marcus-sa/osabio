@@ -4,6 +4,7 @@ import type { OnboardingAction, OnboardingState } from "../../shared/contracts";
 export type WorkspaceRow = {
   id: RecordId<"workspace", string>;
   name: string;
+  description?: string;
   status: string;
   onboarding_complete: boolean;
   onboarding_turn_count: number;
@@ -131,6 +132,8 @@ export async function loadOnboardingSummary(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
 ): Promise<string> {
+  const workspace = await surreal.select<{ name: string; description?: string }>(workspaceRecord);
+
   const [projectRows] = await surreal
     .query<[Array<{ name: string }>]>(
       "SELECT name FROM project WHERE id IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace) LIMIT 8;",
@@ -179,10 +182,15 @@ export async function loadOnboardingSummary(
     )
     .collect<[Array<{ text: string; created_at: Date | string }>]>() ;
 
-  return [
+  const lines: string[] = [];
+  if (workspace?.description) {
+    lines.push(`Workspace: ${workspace.name} — ${workspace.description}`);
+  }
+  lines.push(
     `Projects: ${projectRows.map((row) => row.name).join(", ") || "none"}`,
     `People: ${personRows.map((row) => row.name).join(", ") || "none"}`,
     `Decisions: ${decisionRows.map((row) => row.summary).join(" | ") || "none"}`,
     `Open questions: ${questionRows.map((row) => row.text).join(" | ") || "none"}`,
-  ].join("\n");
+  );
+  return lines.join("\n");
 }

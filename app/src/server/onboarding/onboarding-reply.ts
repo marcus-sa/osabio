@@ -24,6 +24,7 @@ export async function generateOnboardingAssistantReply(input: {
   contextRows: MessageContextRow[];
   latestUserText: string;
   workspaceRecord: RecordId<"workspace", string>;
+  workspaceDescription?: string;
   latestEntities: Array<{ kind: EntityKind; text: string; confidence: number }>;
   latestTools: string[];
 }): Promise<{ message: string; suggestions: string[] }> {
@@ -68,12 +69,18 @@ export async function generateOnboardingAssistantReply(input: {
 
   if (input.onboardingState === "active") {
     const summary = await loadOnboardingSummary(input.surreal, input.workspaceRecord);
+    const topicList = input.workspaceDescription
+      ? "projects and product areas, people involved, most important decision, tools used, biggest bottleneck."
+      : "business/venture, current projects, people involved, most important decision, tools used, biggest bottleneck.";
     systemPrompt = [
       suggestionQualityRules,
       "",
       "You are onboarding a newly created workspace.",
+      ...(input.workspaceDescription
+        ? [`The workspace is already described as: "${input.workspaceDescription}"`, "Do not ask what the business or workspace is about — focus on discovering projects and product areas within it."]
+        : []),
       "Ask one natural question at a time like a smart colleague, never as a form.",
-      "Cover these topics over 5-7 turns: business/venture, current projects, people involved, most important decision, tools used, biggest bottleneck.",
+      `Cover these topics over 5-7 turns: ${topicList}`,
       "Keep acknowledgment to one sentence max.",
       "Ask exactly one concrete follow-up question in every response.",
       "Confirm captured entities inline in plain language.",

@@ -40,11 +40,14 @@ export function parseCreateWorkspaceRequest(body: unknown):
     return { ok: false, error: "ownerDisplayName is required" };
   }
 
+  const description = typeof payload.description === "string" ? payload.description.trim() : undefined;
+
   return {
     ok: true,
     data: {
       name: payload.name.trim(),
       ownerDisplayName: payload.ownerDisplayName.trim(),
+      ...(description && description.length > 0 ? { description } : {}),
     },
   };
 }

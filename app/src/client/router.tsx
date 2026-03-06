@@ -43,9 +43,11 @@ function AppShell() {
       canCreateWorkspace={workspace.canCreateWorkspace}
       createWorkspaceName={workspace.createWorkspaceName}
       createOwnerName={workspace.createOwnerName}
+      createWorkspaceDescription={workspace.createWorkspaceDescription}
       errorMessage={workspace.errorMessage}
       setCreateWorkspaceName={workspace.setCreateWorkspaceName}
       setCreateOwnerName={workspace.setCreateOwnerName}
+      setCreateWorkspaceDescription={workspace.setCreateWorkspaceDescription}
       onCreateWorkspace={workspace.onCreateWorkspace}
     >
       <div className="app-shell">

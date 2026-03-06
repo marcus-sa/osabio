@@ -27,6 +27,7 @@ export type DiscussedEntityContext = {
 export type ChatContext = {
   conversationEntities: ConversationEntity[];
   relevantEntities?: RankedEntity[];
+  workspaceDescription?: string;
   workspaceSummary: {
     projects: WorkspaceProjectSummary[];
     recentDecisions: WorkspaceDecisionSummary[];
@@ -52,6 +53,7 @@ export async function buildChatContext(input: {
   surreal: Surreal;
   conversationRecord: RecordId<"conversation", string>;
   workspaceRecord: RecordId<"workspace", string>;
+  workspaceDescription?: string;
   loaders?: ChatContextLoaders;
   inheritedEntityIds?: RecordId[];
   discussesRecord?: RecordId;
@@ -141,6 +143,7 @@ export async function buildChatContext(input: {
   return {
     conversationEntities,
     relevantEntities,
+    ...(input.workspaceDescription ? { workspaceDescription: input.workspaceDescription } : {}),
     workspaceSummary: {
       projects,
       recentDecisions,
@@ -315,11 +318,17 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
         "",
       );
     } else {
+      const topicList = context.workspaceDescription
+        ? "projects and product areas, people, decisions, tools, bottlenecks."
+        : "business/venture, projects, people, decisions, tools, bottlenecks.";
       sections.push(
         "## Onboarding Mode",
         "You are onboarding a newly created workspace.",
+        ...(context.workspaceDescription
+          ? [`The workspace is described as: "${context.workspaceDescription}"`, "Do not ask what the business is — focus on discovering projects and product areas within it."]
+          : []),
         "Ask one natural question at a time like a smart colleague, never as a form.",
-        "Cover these topics over 5-7 turns: business/venture, projects, people, decisions, tools, bottlenecks.",
+        `Cover these topics over 5-7 turns: ${topicList}`,
         "Keep acknowledgment to one sentence max. Ask exactly one concrete follow-up question.",
         "",
         "When the user describes their workspace, create entities directly:",

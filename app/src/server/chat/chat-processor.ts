@@ -180,6 +180,7 @@ export async function processChatMessage(input: {
       latestUserText: input.userText,
       isOnboarding: onboardingAfter !== "complete",
       onboardingState: onboardingAfter,
+      ...(workspace.description ? { workspaceDescription: workspace.description } : {}),
       ...(workspaceOwnerRecord ? { workspaceOwnerRecord } : {}),
       personRecord: input.personRecord,
       ...(userMessageEmbedding ? { userMessageEmbedding } : {}),

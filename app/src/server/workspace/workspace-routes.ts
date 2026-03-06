@@ -27,6 +27,7 @@ import { loadMessagesWithInheritance } from "../chat/branch-chain";
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
   name: string;
+  description?: string;
   status: string;
   onboarding_complete: boolean;
   onboarding_turn_count: number;
@@ -83,23 +84,39 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request)
   const conversationRecord = new RecordId("conversation", conversationId);
   const ownerRecord = new RecordId("person", ownerId);
   const starterMessageRecord = new RecordId("message", randomUUID());
-  const starterSuggestions = [
-    "Describe your primary project and goal",
-    "Share the biggest current bottleneck",
-    "Upload a plan or spec to extract",
-  ];
+  const hasDescription = parsed.data.description !== undefined;
 
-  const starterMessage = [
-    `Hey ${parsed.data.ownerDisplayName}!`,
-    "I'm ready to help you build out your workspace.",
-    "Tell me about what you're working on - what's the main project or business you want to track here?",
-    "If you have an existing document (like a plan or spec), you can drop it in and I'll extract everything from it.",
-  ].join(" ");
+  const starterSuggestions = hasDescription
+    ? [
+        "Describe your first project",
+        "Share the biggest current bottleneck",
+        "Upload a plan or spec to extract",
+      ]
+    : [
+        "Describe your primary project and goal",
+        "Share the biggest current bottleneck",
+        "Upload a plan or spec to extract",
+      ];
+
+  const starterMessage = hasDescription
+    ? [
+        `Hey ${parsed.data.ownerDisplayName}!`,
+        `Got it — I'll help you organize ${parsed.data.name}.`,
+        "What are the main projects or product areas you want to track?",
+        "You can also drop in a document (plan, spec, PRD) and I'll extract everything from it.",
+      ].join(" ")
+    : [
+        `Hey ${parsed.data.ownerDisplayName}!`,
+        "I'm ready to help you build out your workspace.",
+        "Tell me about what you're working on - what's the main project or business you want to track here?",
+        "If you have an existing document (like a plan or spec), you can drop it in and I'll extract everything from it.",
+      ].join(" ");
 
   const transaction = await deps.surreal.beginTransaction();
   try {
     await transaction.create(workspaceRecord).content({
       name: parsed.data.name,
+      ...(parsed.data.description ? { description: parsed.data.description } : {}),
       status: "active",
       onboarding_complete: false,
       onboarding_turn_count: 0,
@@ -201,6 +218,7 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
     const payload: WorkspaceBootstrapResponse = {
       workspaceId: workspace.id.id as string,
       workspaceName: workspace.name,
+      ...(workspace.description ? { workspaceDescription: workspace.description } : {}),
       onboardingComplete: workspace.onboarding_complete,
       onboardingState,
       conversationId: conversationRecord.id as string,

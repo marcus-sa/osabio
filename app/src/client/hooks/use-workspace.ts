@@ -17,9 +17,11 @@ type UseWorkspaceReturn = {
   errorMessage?: string;
   createWorkspaceName: string;
   createOwnerName: string;
+  createWorkspaceDescription: string;
   canCreateWorkspace: boolean;
   setCreateWorkspaceName: (name: string) => void;
   setCreateOwnerName: (name: string) => void;
+  setCreateWorkspaceDescription: (description: string) => void;
   onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -42,6 +44,7 @@ export function useWorkspace(): UseWorkspaceReturn {
   const store = useWorkspaceState();
   const [createWorkspaceName, setCreateWorkspaceName] = useState("");
   const [createOwnerName, setCreateOwnerName] = useState("");
+  const [createWorkspaceDescription, setCreateWorkspaceDescription] = useState("");
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
@@ -119,9 +122,11 @@ export function useWorkspace(): UseWorkspaceReturn {
     setErrorMessage(undefined);
     setIsCreatingWorkspace(true);
 
+    const description = createWorkspaceDescription.trim();
     const requestBody: CreateWorkspaceRequest = {
       name,
       ownerDisplayName,
+      ...(description.length > 0 ? { description } : {}),
     };
 
     try {
@@ -148,6 +153,7 @@ export function useWorkspace(): UseWorkspaceReturn {
       await bootstrapWorkspace(payload.workspaceId);
       setCreateWorkspaceName("");
       setCreateOwnerName("");
+      setCreateWorkspaceDescription("");
     } catch (error) {
       const messageText = error instanceof Error ? error.message : "Workspace creation failed";
       setErrorMessage(messageText);
@@ -163,9 +169,11 @@ export function useWorkspace(): UseWorkspaceReturn {
     errorMessage,
     createWorkspaceName,
     createOwnerName,
+    createWorkspaceDescription,
     canCreateWorkspace,
     setCreateWorkspaceName,
     setCreateOwnerName,
+    setCreateWorkspaceDescription,
     onCreateWorkspace,
   };
 }

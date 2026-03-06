@@ -7,9 +7,11 @@ type WorkspaceGuardProps = {
   canCreateWorkspace: boolean;
   createWorkspaceName: string;
   createOwnerName: string;
+  createWorkspaceDescription: string;
   errorMessage?: string;
   setCreateWorkspaceName: (name: string) => void;
   setCreateOwnerName: (name: string) => void;
+  setCreateWorkspaceDescription: (description: string) => void;
   onCreateWorkspace: (event: FormEvent<HTMLFormElement>) => void;
   children: ReactNode;
 };
@@ -21,9 +23,11 @@ export function WorkspaceGuard({
   canCreateWorkspace,
   createWorkspaceName,
   createOwnerName,
+  createWorkspaceDescription,
   errorMessage,
   setCreateWorkspaceName,
   setCreateOwnerName,
+  setCreateWorkspaceDescription,
   onCreateWorkspace,
   children,
 }: WorkspaceGuardProps) {
@@ -57,6 +61,15 @@ export function WorkspaceGuard({
               onChange={(event) => setCreateOwnerName(event.target.value)}
               placeholder="Marcus"
               required
+            />
+          </label>
+          <label>
+            Description <span className="optional-label">(optional)</span>
+            <textarea
+              value={createWorkspaceDescription}
+              onChange={(event) => setCreateWorkspaceDescription(event.target.value)}
+              placeholder="What does this company or workspace do?"
+              rows={3}
             />
           </label>
           <button type="submit" disabled={!canCreateWorkspace || isCreatingWorkspace}>
