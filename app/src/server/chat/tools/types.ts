@@ -7,7 +7,7 @@ export type ChatToolExecutionContext = {
   agentType?: AgentType;
   /** True only for interactive web sessions where a human is actively present. Must NEVER be true for MCP/autonomous agent contexts. */
   humanPresent?: boolean;
-  personRecord?: RecordId<"person", string>;
+  personRecord: RecordId<"person", string>;
   workspaceRecord: RecordId<"workspace", string>;
   conversationRecord: RecordId<"conversation", string>;
   currentMessageRecord: RecordId<"message", string>;

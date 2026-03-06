@@ -152,16 +152,11 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
 
   deps.sse.registerMessage(messageId);
 
-  // Resolve authenticated person from session (non-blocking — unauthenticated chat still works)
-  let personRecord: RecordId<"person", string> | undefined;
-  try {
-    const session = await deps.auth.api.getSession({ headers: request.headers });
-    if (session?.user?.id) {
-      personRecord = new RecordId("person", session.user.id);
-    }
-  } catch {
-    // No valid session — proceed without person identity
+  const session = await deps.auth.api.getSession({ headers: request.headers });
+  if (!session?.user?.id) {
+    return jsonError("authentication required", 401);
   }
+  const personRecord = new RecordId("person", session.user.id);
 
   logInfo("chat.message.process.started", "Async chat processing started", {
     workspaceId,
@@ -178,7 +173,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     userText: messageText,
     attachment: parsed.data.attachment,
     ...(onboardingAction ? { onboardingAction } : {}),
-    ...(personRecord ? { personRecord } : {}),
+    personRecord,
   });
 
   const response: ChatMessageResponse = {

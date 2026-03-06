@@ -23,7 +23,7 @@ export async function processChatMessage(input: {
   userText: string;
   attachment?: IncomingAttachment;
   onboardingAction?: OnboardingAction;
-  personRecord?: RecordId<"person", string>;
+  personRecord: RecordId<"person", string>;
 }): Promise<void> {
   const startedAt = performance.now();
   logInfo("chat.message.process.execution.started", "Chat message processing execution started", {
@@ -181,7 +181,7 @@ export async function processChatMessage(input: {
       isOnboarding: onboardingAfter !== "complete",
       onboardingState: onboardingAfter,
       ...(workspaceOwnerRecord ? { workspaceOwnerRecord } : {}),
-      ...(input.personRecord ? { personRecord: input.personRecord } : {}),
+      personRecord: input.personRecord,
       ...(userMessageEmbedding ? { userMessageEmbedding } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
       ...(conversation.discusses ? { discussesRecord: conversation.discusses } : {}),
