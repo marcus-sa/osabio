@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "249b1f9e9fb5",
+  "session_id": "a2b06541-9b3d-4960-a743-5ca6b55a5e0f",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-06T06:20:25.047165Z",
+  "branch": "marcus-sa/auto-entity-enrichment",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/agents/architect/prompt.ts",
+    "app/src/server/agents/architect/tools.ts",
+    "tests/unit/architect-agent.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0772a9552970",
+  "checkpoint_transcript_start": 758,
+  "transcript_lines_at_start": 758,
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 79264,
+    "cache_read_tokens": 525194,
+    "output_tokens": 2141,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-06T06:20:23.798308Z",
+    "agent_lines": 14,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 14,
+    "agent_percentage": 100
+  }
+}
