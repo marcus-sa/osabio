@@ -34,6 +34,7 @@ export function createChatAgentTools(deps: ChatAgentToolDeps) {
     create_suggestion: createCreateSuggestionTool(deps),
     acknowledge_observation: createAcknowledgeObservationTool(deps),
     resolve_observation: createResolveObservationTool(deps),
+    create_work_item: createCreateWorkItemTool(deps),
     invoke_pm_agent: createInvokePmAgentTool(deps),
     invoke_analytics_agent: createInvokeAnalyticsAgentTool(deps),
     show_relationship_graph: createShowRelationshipGraphTool(deps),

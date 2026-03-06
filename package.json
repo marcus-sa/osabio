@@ -25,6 +25,7 @@
     "build:cli": "bun build cli/brain.ts --compile --bytecode --minify --outfile brain"
   },
   "dependencies": {
+    "@ai-sdk/devtools": "^0.0.15",
     "@ai-sdk/react": "^3.0.113",
     "@better-auth/oauth-provider": "^1.5.3",
     "@modelcontextprotocol/sdk": "^1.27.1",

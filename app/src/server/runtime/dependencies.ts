@@ -1,7 +1,11 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { wrapLanguageModel } from "ai";
+import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { Surreal } from "surrealdb";
 import type { ServerConfig } from "./config";
 import { createAuth, type Auth } from "../auth/config";
+
+const devtools = process.env.AI_DEVTOOLS === "1" ? devToolsMiddleware() : undefined;
 
 export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   surreal: Surreal;
@@ -29,21 +33,22 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   await analyticsSurreal.use({ namespace: config.surrealNamespace, database: config.surrealDatabase });
 
   const openrouter = createOpenRouter({ apiKey: config.openRouterApiKey });
-  const chatAgentModel = openrouter(config.chatAgentModelId, {
+  const wrap = (model: any) => devtools ? wrapLanguageModel({ model, middleware: devtools }) : model;
+  const chatAgentModel = wrap(openrouter(config.chatAgentModelId, {
     plugins: [{ id: "response-healing" }],
     ...(config.openRouterReasoning ? { extraBody: { reasoning: config.openRouterReasoning } } : {}),
-  });
-  const extractionModel = openrouter(config.extractionModelId, {
+  }));
+  const extractionModel = wrap(openrouter(config.extractionModelId, {
     plugins: [{ id: "response-healing" }],
     ...(config.openRouterReasoning ? { extraBody: { reasoning: config.openRouterReasoning } } : {}),
-  });
-  const pmAgentModel = openrouter(config.pmAgentModelId, {
+  }));
+  const pmAgentModel = wrap(openrouter(config.pmAgentModelId, {
     plugins: [{ id: "response-healing" }],
     ...(config.openRouterReasoning ? { extraBody: { reasoning: config.openRouterReasoning } } : {}),
-  });
-  const analyticsAgentModel = openrouter(config.analyticsAgentModelId, {
+  }));
+  const analyticsAgentModel = wrap(openrouter(config.analyticsAgentModelId, {
     plugins: [{ id: "response-healing" }],
-  });
+  }));
   const embeddingModel = openrouter.textEmbeddingModel(config.embeddingModelId);
 
   const auth = createAuth(surreal, {
