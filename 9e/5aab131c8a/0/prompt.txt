@@ -1,0 +1,5 @@
+update chat agent prompt and inform it that it can reply in markdown
+
+---
+
+commit
