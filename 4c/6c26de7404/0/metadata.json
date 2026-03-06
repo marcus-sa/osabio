@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4c6c26de7404",
+  "session_id": "449df0b2-b46f-4385-a720-96668b9fa042",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-06T02:33:38.995912Z",
+  "branch": "marcus-sa/opensource-readme",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4694cfd301a7",
+  "token_usage": {
+    "input_tokens": 154,
+    "cache_creation_tokens": 46030,
+    "cache_read_tokens": 89468,
+    "output_tokens": 743,
+    "api_call_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-06T02:33:38.932805Z",
+    "agent_lines": 231,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 231,
+    "agent_percentage": 100
+  }
+}

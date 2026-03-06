@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4c6c26de7404",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/opensource-readme",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/6c26de7404/0/metadata.json",
+      "transcript": "/4c/6c26de7404/0/full.jsonl",
+      "context": "/4c/6c26de7404/0/context.md",
+      "content_hash": "/4c/6c26de7404/0/content_hash.txt",
+      "prompt": "/4c/6c26de7404/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 154,
+    "cache_creation_tokens": 46030,
+    "cache_read_tokens": 89468,
+    "output_tokens": 743,
+    "api_call_count": 3
+  }
+}
