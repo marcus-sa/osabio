@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9b51b2e9618f",
+  "session_id": "a90ee0ae-8f0c-451b-9b90-9cfd4c0ebb87",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-06T10:45:38.258493Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/chat/tools/create-work-item.ts",
+    "app/src/server/chat/tools/invoke-pm-agent.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "14c28fcc0d7c",
+  "checkpoint_transcript_start": 585,
+  "transcript_lines_at_start": 585,
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 58059,
+    "cache_read_tokens": 1548713,
+    "output_tokens": 8091,
+    "api_call_count": 22
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-06T10:45:37.834653Z",
+    "agent_lines": 14,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 14,
+    "agent_percentage": 100
+  }
+}
