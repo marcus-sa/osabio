@@ -2,6 +2,7 @@ import { createCheckConstraintsTool } from "../../chat/tools/check-constraints";
 import { createCreateObservationTool } from "../../chat/tools/create-observation";
 import { createCreateProvisionalDecisionTool } from "../../chat/tools/create-provisional-decision";
 import { createCreateQuestionTool } from "../../chat/tools/create-question";
+import { createCreateSuggestionTool } from "../../chat/tools/create-suggestion";
 import { createCreateWorkItemTool } from "../../chat/tools/create-work-item";
 import { createGetEntityDetailTool } from "../../chat/tools/get-entity-detail";
 import { createGetProjectStatusTool } from "../../chat/tools/get-project-status";
@@ -21,6 +22,7 @@ export function createArchitectTools(deps: ChatToolDeps) {
     create_observation: createCreateObservationTool(deps),
     suggest_work_items: createSuggestWorkItemsTool(deps),
     create_work_item: createCreateWorkItemTool(deps),
+    create_suggestion: createCreateSuggestionTool(deps),
     update_question: createUpdateQuestionTool(deps),
   };
 }

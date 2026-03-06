@@ -27,6 +27,7 @@ describe("architect agent tools", () => {
     expect(toolNames).toContain("create_observation");
     expect(toolNames).toContain("suggest_work_items");
     expect(toolNames).toContain("create_work_item");
+    expect(toolNames).toContain("create_suggestion");
     expect(toolNames).toContain("update_question");
   });
 
@@ -43,13 +44,12 @@ describe("architect agent tools", () => {
     expect(toolNames).not.toContain("resolve_observation");
     expect(toolNames).not.toContain("resolve_decision");
     expect(toolNames).not.toContain("confirm_decision");
-    expect(toolNames).not.toContain("create_suggestion");
     expect(toolNames).not.toContain("show_relationship_graph");
   });
 
-  it("has exactly 10 tools", () => {
+  it("has exactly 11 tools", () => {
     const tools = createArchitectTools(mockDeps);
-    expect(Object.keys(tools)).toHaveLength(10);
+    expect(Object.keys(tools)).toHaveLength(11);
   });
 });
 
