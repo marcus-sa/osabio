@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "06059a060dd0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/workspace-auto-owner",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/layout/WorkspaceGuard.tsx",
+    "app/src/client/hooks/use-workspace.ts",
+    "app/src/client/router.tsx",
+    "app/src/server/http/parsing.ts",
+    "app/src/server/workspace/workspace-routes.ts",
+    "app/src/shared/contracts.ts",
+    "tests/smoke/conversation-sidebar.test.ts",
+    "tests/smoke/extraction-quality.test.ts",
+    "tests/smoke/github-webhook.test.ts",
+    "tests/smoke/intent-context.test.ts",
+    "tests/smoke/onboarding.test.ts",
+    "tests/smoke/phase1.test.ts",
+    "tests/smoke/pipeline.test.ts",
+    "tests/smoke/priority.test.ts",
+    "tests/smoke/readme-import.test.ts",
+    "tests/smoke/smoke-test-kit.ts",
+    "tests/smoke/workspace-description.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/06/059a060dd0/0/metadata.json",
+      "transcript": "/06/059a060dd0/0/full.jsonl",
+      "context": "/06/059a060dd0/0/context.md",
+      "content_hash": "/06/059a060dd0/0/content_hash.txt",
+      "prompt": "/06/059a060dd0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 120,
+    "cache_creation_tokens": 287318,
+    "cache_read_tokens": 4919362,
+    "output_tokens": 19431,
+    "api_call_count": 50
+  }
+}
