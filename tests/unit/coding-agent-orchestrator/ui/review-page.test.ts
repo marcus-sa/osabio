@@ -29,10 +29,7 @@ function makeLoadedInput(overrides?: Partial<ReviewPageInput>): ReviewPageInput 
   return {
     fetchStatus: "success",
     reviewData: {
-      agentSessionId: "s-1",
-      taskId: "t-1",
       taskTitle: "Add user profile page",
-      summary: "Implemented profile page with avatar upload",
       diff: {
         files: [
           { path: "src/profile.tsx", status: "added", additions: 47, deletions: 0 },
@@ -43,11 +40,9 @@ function makeLoadedInput(overrides?: Partial<ReviewPageInput>): ReviewPageInput 
         stats: { filesChanged: 3, insertions: 50, deletions: 13 },
       },
       session: {
+        orchestratorStatus: "idle",
         startedAt: "2026-03-07T12:00:00Z",
         lastEventAt: "2026-03-07T12:15:00Z",
-        decisionsCount: 2,
-        questionsCount: 1,
-        observationsCount: 3,
       },
     },
     acceptStatus: "idle",
@@ -96,7 +91,7 @@ describe("ReviewPage view model", () => {
 
       expect(vm.viewState).toBe("review");
       expect(vm.taskTitle).toBe("Add user profile page");
-      expect(vm.agentSummary).toBe("Implemented profile page with avatar upload");
+      expect(vm.agentSummary).toBeUndefined();
     });
 
     it("derives diff stats from review data", () => {
@@ -113,11 +108,9 @@ describe("ReviewPage view model", () => {
       const vm = deriveReviewViewModel(makeLoadedInput());
 
       expect(vm.sessionMeta).toEqual({
+        orchestratorStatus: "idle",
         startedAt: "2026-03-07T12:00:00Z",
         lastEventAt: "2026-03-07T12:15:00Z",
-        decisionsCount: 2,
-        questionsCount: 1,
-        observationsCount: 3,
       });
     });
 

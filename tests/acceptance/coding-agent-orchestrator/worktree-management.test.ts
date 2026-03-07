@@ -177,10 +177,7 @@ describe("Worktree Management: Diff review", () => {
 
     // Then the review shows how long the agent worked and what it did
     expect(review.session).toBeDefined();
-    expect(review.session.startedAt).toBeTruthy();
-    expect(typeof review.session.decisionsCount).toBe("number");
-    expect(typeof review.session.questionsCount).toBe("number");
-    expect(typeof review.session.observationsCount).toBe("number");
+    expect(review.session.orchestratorStatus).toBeTruthy();
 
     // And the task title is included for context
     expect(review.taskTitle).toBe("Implement caching layer");

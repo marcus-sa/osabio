@@ -640,7 +640,7 @@ export async function getOrchestratorReview(
     : { files: [], rawDiff: "", stats: { filesChanged: 0, insertions: 0, deletions: 0 } };
 
   // Get task title
-  const taskId = session.task_id ? (session.task_id.id as string) : "";
+  const taskId = session.task_id ? session.task_id.id : "";
   const taskTitle = taskId ? await input.getTaskTitle(taskId) : "";
 
   return {

@@ -34,11 +34,10 @@ export type ReviewViewModel = {
     deletions: number;
   };
   sessionMeta?: {
-    startedAt: string;
+    orchestratorStatus: string;
+    worktreeBranch?: string;
+    startedAt?: string;
     lastEventAt?: string;
-    decisionsCount: number;
-    questionsCount: number;
-    observationsCount: number;
   };
   acceptDisabled: boolean;
   rejectSubmitDisabled: boolean;
@@ -90,7 +89,7 @@ export function deriveReviewViewModel(input: ReviewPageInput): ReviewViewModel {
   return {
     viewState: "review",
     taskTitle: data?.taskTitle,
-    agentSummary: data?.summary,
+    agentSummary: undefined,
     rawDiff: data?.diff.rawDiff,
     diffStats: data ? {
       filesChanged: data.diff.stats.filesChanged,
@@ -98,11 +97,10 @@ export function deriveReviewViewModel(input: ReviewPageInput): ReviewViewModel {
       deletions: data.diff.stats.deletions,
     } : undefined,
     sessionMeta: data ? {
+      orchestratorStatus: data.session.orchestratorStatus,
+      worktreeBranch: data.session.worktreeBranch,
       startedAt: data.session.startedAt,
       lastEventAt: data.session.lastEventAt,
-      decisionsCount: data.session.decisionsCount,
-      questionsCount: data.session.questionsCount,
-      observationsCount: data.session.observationsCount,
     } : undefined,
     acceptDisabled: isMutating,
     rejectSubmitDisabled: isMutating || input.rejectFeedback.trim().length === 0,
@@ -155,13 +153,16 @@ function ReviewSuccess({ variant, taskTitle }: { variant: "accepted" | "rejected
 function SessionMetadata({ meta }: { meta: NonNullable<ReviewViewModel["sessionMeta"]> }) {
   return (
     <div className="review-session-meta">
-      <span className="review-meta-item">Started: {new Date(meta.startedAt).toLocaleString()}</span>
+      <span className="review-meta-item">Status: {meta.orchestratorStatus}</span>
+      {meta.worktreeBranch ? (
+        <span className="review-meta-item">Branch: {meta.worktreeBranch}</span>
+      ) : undefined}
+      {meta.startedAt ? (
+        <span className="review-meta-item">Started: {new Date(meta.startedAt).toLocaleString()}</span>
+      ) : undefined}
       {meta.lastEventAt ? (
         <span className="review-meta-item">Last activity: {new Date(meta.lastEventAt).toLocaleString()}</span>
       ) : undefined}
-      <span className="review-meta-item">{meta.decisionsCount} decisions</span>
-      <span className="review-meta-item">{meta.questionsCount} questions</span>
-      <span className="review-meta-item">{meta.observationsCount} observations</span>
     </div>
   );
 }
@@ -208,22 +209,12 @@ export function ReviewPage() {
 
   // Build activity entries from session data if available
   const activityEntries: ActivityEntry[] = [];
-  if (review.reviewData?.session) {
-    const session = review.reviewData.session;
-    if (session.decisionsCount > 0) {
-      activityEntries.push({
-        timestamp: session.startedAt,
-        type: "decision",
-        description: `${session.decisionsCount} decision(s) made during session`,
-      });
-    }
-    if (session.observationsCount > 0) {
-      activityEntries.push({
-        timestamp: session.startedAt,
-        type: "tool_call",
-        description: `${session.observationsCount} observation(s) recorded`,
-      });
-    }
+  if (review.reviewData?.session?.startedAt) {
+    activityEntries.push({
+      timestamp: review.reviewData.session.startedAt,
+      type: "tool_call",
+      description: `Session ${review.reviewData.session.orchestratorStatus}`,
+    });
   }
 
   return (

@@ -40,8 +40,6 @@ describe("useAgentReview state machine", () => {
   describe("fetch review data lifecycle", () => {
     it("transitions from idle to loading to loaded with review data", () => {
       const reviewData = {
-        agentSessionId: "s-1",
-        taskId: "t-1",
         taskTitle: "Fix login bug",
         diff: {
           files: [{ path: "src/auth.ts", status: "modified" as const, additions: 10, deletions: 2 }],
@@ -49,10 +47,8 @@ describe("useAgentReview state machine", () => {
           stats: { filesChanged: 1, insertions: 10, deletions: 2 },
         },
         session: {
+          orchestratorStatus: "idle",
           startedAt: "2026-03-07T12:00:00Z",
-          decisionsCount: 1,
-          questionsCount: 0,
-          observationsCount: 2,
         },
       };
 

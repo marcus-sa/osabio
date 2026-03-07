@@ -74,9 +74,7 @@ describe("Review Flow: Viewing agent work for review", () => {
 
     // And the review includes a trace of the agent's session activity
     expect(review.session).toBeDefined();
-    expect(review.session.startedAt).toBeTruthy();
-    expect(typeof review.session.decisionsCount).toBe("number");
-    expect(typeof review.session.observationsCount).toBe("number");
+    expect(review.session.orchestratorStatus).toBeTruthy();
 
     // And the review identifies the task that was worked on
     expect(review.taskTitle).toBe("Add password strength indicator");

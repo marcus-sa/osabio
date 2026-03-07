@@ -199,11 +199,14 @@ export function useAgentSession(
     eventSourceRef.current = eventSource;
 
     function handleEvent(eventType: string, rawData: string) {
+      // Reset stall timer on every received event, even if parsing fails.
+      // A received event proves the connection is alive.
+      resetStallTimer();
+
       try {
         const data = JSON.parse(rawData);
         const event: AgentEvent = { ...data, type: eventType };
         setState((prev) => reduceAgentSessionEvent(prev, event));
-        resetStallTimer();
 
         // Close on terminal status
         if (eventType === "agent_status" && isTerminalStatus(data.status)) {
@@ -211,7 +214,8 @@ export function useAgentSession(
           clearStallTimer();
         }
       } catch {
-        // Malformed event data -- ignore
+        // Malformed event data -- state not updated but stall timer is reset
+        console.warn(`Failed to parse ${eventType} event data`);
       }
     }
 

@@ -21,6 +21,7 @@ import {
   rejectSession,
   abortSession,
   sendPrompt,
+  OrchestratorError,
 } from "../../app/src/client/graph/orchestrator-api";
 
 type FetchCall = {
@@ -72,14 +73,20 @@ describe("assignAgent", () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it("throws on error response with status and message", async () => {
+  it("throws OrchestratorError with code, message, httpStatus on failure", async () => {
     fetchStub = async () =>
       new Response("Task not found", { status: 404 });
 
-    await expect(assignAgent("ws-1", "bad-task")).rejects.toThrow("404");
-    await expect(assignAgent("ws-1", "bad-task")).rejects.toThrow(
-      "Task not found",
-    );
+    try {
+      await assignAgent("ws-1", "bad-task");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_NOT_FOUND");
+      expect(oe.message).toBe("Task not found");
+      expect(oe.httpStatus).toBe(404);
+    }
   });
 });
 
@@ -101,15 +108,23 @@ describe("getSessionStatus", () => {
 
     expect(fetchCalls).toHaveLength(1);
     expect(fetchCalls[0].url).toBe("/api/orchestrator/ws-2/sessions/s-1");
-    expect(fetchCalls[0].init?.method).toBeUndefined(); // GET = no method needed
+    expect(fetchCalls[0].init).toBeUndefined(); // GET calls pass no RequestInit
     expect(result).toEqual(mockResponse);
   });
 
-  it("throws on error response", async () => {
+  it("throws OrchestratorError on error response", async () => {
     fetchStub = async () =>
       new Response("Session not found", { status: 404 });
 
-    await expect(getSessionStatus("ws-2", "bad")).rejects.toThrow("404");
+    try {
+      await getSessionStatus("ws-2", "bad");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_NOT_FOUND");
+      expect(oe.httpStatus).toBe(404);
+    }
   });
 });
 
@@ -120,11 +135,9 @@ describe("getSessionStatus", () => {
 describe("getSessionReview", () => {
   it("GETs /api/orchestrator/:ws/sessions/:id/review", async () => {
     const mockResponse = {
-      agentSessionId: "s-1",
-      taskId: "t-1",
       taskTitle: "Fix login bug",
       diff: { files: [], rawDiff: "", stats: { filesChanged: 0, insertions: 0, deletions: 0 } },
-      session: { startedAt: "2026-03-07T12:00:00Z", decisionsCount: 0, questionsCount: 0, observationsCount: 0 },
+      session: { orchestratorStatus: "idle", startedAt: "2026-03-07T12:00:00Z" },
     };
     fetchStub = async () =>
       new Response(JSON.stringify(mockResponse), { status: 200 });
@@ -136,11 +149,19 @@ describe("getSessionReview", () => {
     expect(result.taskTitle).toBe("Fix login bug");
   });
 
-  it("throws on error response", async () => {
+  it("throws OrchestratorError on error response", async () => {
     fetchStub = async () =>
       new Response("Review not available", { status: 400 });
 
-    await expect(getSessionReview("ws-3", "s-1")).rejects.toThrow("400");
+    try {
+      await getSessionReview("ws-3", "s-1");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("BAD_REQUEST");
+      expect(oe.httpStatus).toBe(400);
+    }
   });
 });
 
@@ -172,11 +193,19 @@ describe("acceptSession", () => {
     expect(body.summary).toBe("Looks good");
   });
 
-  it("throws on error response", async () => {
+  it("throws OrchestratorError with SESSION_ERROR for 409", async () => {
     fetchStub = async () =>
       new Response("Session not idle", { status: 409 });
 
-    await expect(acceptSession("ws-4", "s-2")).rejects.toThrow("409");
+    try {
+      await acceptSession("ws-4", "s-2");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_ERROR");
+      expect(oe.httpStatus).toBe(409);
+    }
   });
 });
 
@@ -200,13 +229,19 @@ describe("rejectSession", () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it("throws on error response", async () => {
+  it("throws OrchestratorError on error response", async () => {
     fetchStub = async () =>
       new Response("Cannot reject completed session", { status: 409 });
 
-    await expect(
-      rejectSession("ws-5", "s-3", "feedback"),
-    ).rejects.toThrow("409");
+    try {
+      await rejectSession("ws-5", "s-3", "feedback");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_ERROR");
+      expect(oe.httpStatus).toBe(409);
+    }
   });
 });
 
@@ -228,11 +263,19 @@ describe("abortSession", () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it("throws on error response", async () => {
+  it("throws OrchestratorError on error response", async () => {
     fetchStub = async () =>
       new Response("Session already aborted", { status: 409 });
 
-    await expect(abortSession("ws-6", "s-4")).rejects.toThrow("409");
+    try {
+      await abortSession("ws-6", "s-4");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_ERROR");
+      expect(oe.httpStatus).toBe(409);
+    }
   });
 });
 
@@ -256,14 +299,20 @@ describe("sendPrompt", () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it("throws on error response with status and message", async () => {
+  it("throws OrchestratorError with code, message, httpStatus on failure", async () => {
     fetchStub = async () =>
       new Response("Session is completed", { status: 409 });
 
-    await expect(sendPrompt("ws-7", "s-5", "Try again")).rejects.toThrow("409");
-    await expect(sendPrompt("ws-7", "s-5", "Try again")).rejects.toThrow(
-      "Session is completed",
-    );
+    try {
+      await sendPrompt("ws-7", "s-5", "Try again");
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(OrchestratorError);
+      const oe = err as OrchestratorError;
+      expect(oe.code).toBe("SESSION_ERROR");
+      expect(oe.message).toBe("Session is completed");
+      expect(oe.httpStatus).toBe(409);
+    }
   });
 });
 

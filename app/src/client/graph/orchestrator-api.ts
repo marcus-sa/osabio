@@ -24,10 +24,7 @@ export type SessionStatusResponse = {
 };
 
 export type SessionReviewResponse = {
-  agentSessionId: string;
-  taskId: string;
   taskTitle: string;
-  summary?: string;
   diff: {
     files: Array<{
       path: string;
@@ -43,11 +40,12 @@ export type SessionReviewResponse = {
     };
   };
   session: {
-    startedAt: string;
+    orchestratorStatus: string;
+    worktreeBranch?: string;
+    startedAt?: string;
     lastEventAt?: string;
-    decisionsCount: number;
-    questionsCount: number;
-    observationsCount: number;
+    toolCallCount?: number;
+    filesEdited?: number;
   };
 };
 
@@ -71,6 +69,40 @@ export type SendPromptResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Structured Error
+// ---------------------------------------------------------------------------
+
+export type OrchestratorErrorCode =
+  | "SESSION_NOT_FOUND"
+  | "SESSION_ERROR"
+  | "TASK_NOT_FOUND"
+  | "TASK_NOT_ASSIGNABLE"
+  | "BAD_REQUEST"
+  | "SERVER_ERROR"
+  | "UNKNOWN_ERROR";
+
+export class OrchestratorError extends Error {
+  readonly code: OrchestratorErrorCode;
+  readonly httpStatus: number;
+
+  constructor(code: OrchestratorErrorCode, message: string, httpStatus: number) {
+    super(message);
+    this.name = "OrchestratorError";
+    this.code = code;
+    this.httpStatus = httpStatus;
+  }
+}
+
+function mapHttpStatusToErrorCode(httpStatus: number): OrchestratorErrorCode {
+  switch (httpStatus) {
+    case 400: return "BAD_REQUEST";
+    case 404: return "SESSION_NOT_FOUND";
+    case 409: return "SESSION_ERROR";
+    default: return httpStatus >= 500 ? "SERVER_ERROR" : "UNKNOWN_ERROR";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Internal Helpers
 // ---------------------------------------------------------------------------
 
@@ -84,7 +116,8 @@ async function orchestratorFetch<T>(url: string, init?: RequestInit): Promise<T>
   const response = await fetch(url, init);
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Orchestrator request failed (${response.status}): ${text}`);
+    const code = mapHttpStatusToErrorCode(response.status);
+    throw new OrchestratorError(code, text, response.status);
   }
   return (await response.json()) as T;
 }
