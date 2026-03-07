@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "brain": {
-      "command": "brain",
+      "command": "./cli/brain.ts",
       "args": [
         "mcp"
       ]
