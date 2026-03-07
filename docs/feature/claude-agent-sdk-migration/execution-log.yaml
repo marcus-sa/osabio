@@ -171,5 +171,80 @@ events:
   s: EXECUTED
   sid: 04-01
   t: '2026-03-07T19:18:55Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-07T19:20:34Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-07T19:21:32Z'
+- d: 'NOT_APPLICABLE: documentation-only change, no code behavior to test'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 04-02
+  t: '2026-03-07T19:21:34Z'
+- d: 'NOT_APPLICABLE: documentation-only change, no code behavior to test'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-02
+  t: '2026-03-07T19:21:36Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-07T19:21:37Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-07T19:22:57Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: refactor
+  t: '2026-03-07T19:29:09Z'
+- d: 'NOT_APPLICABLE: refactoring pass, no new behavior'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: refactor
+  t: '2026-03-07T19:29:10Z'
+- d: 'NOT_APPLICABLE: refactoring pass, no new behavior'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: refactor
+  t: '2026-03-07T19:29:10Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: refactor
+  t: '2026-03-07T19:29:10Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: refactor
+  t: '2026-03-07T19:29:10Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: review-fix
+  t: '2026-03-07T19:32:25Z'
+- d: 'NOT_APPLICABLE: fixes to existing code, no new acceptance test needed'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: review-fix
+  t: '2026-03-07T19:33:50Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: review-fix
+  t: '2026-03-07T19:33:50Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: review-fix
+  t: '2026-03-07T19:33:51Z'
 project_id: claude-agent-sdk-migration
 schema_version: '3.0'

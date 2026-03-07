@@ -18,6 +18,8 @@ import {
   acceptOrchestratorSession,
   getOrchestratorReview,
   rejectOrchestratorSession,
+  startEventIteration,
+  type EventIterationDeps,
 } from "../../../app/src/server/orchestrator/session-lifecycle";
 
 // ---------------------------------------------------------------------------
@@ -707,5 +709,66 @@ describe("rejectOrchestratorSession", () => {
     if (!result.ok) {
       expect(result.error.code).toBe("SESSION_NOT_FOUND");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// startEventIteration
+// ---------------------------------------------------------------------------
+
+describe("startEventIteration", () => {
+  function createEventIterationDeps(overrides: Partial<EventIterationDeps> = {}): EventIterationDeps & {
+    statusUpdates: Array<{ sessionId: string; status: string; error?: string }>;
+  } {
+    const statusUpdates: Array<{ sessionId: string; status: string; error?: string }> = [];
+    return {
+      emitEvent: () => {},
+      updateSessionStatus: async (sessionId, status, error) => {
+        statusUpdates.push({ sessionId, status, error });
+      },
+      updateLastEventAt: async () => {},
+      getSessionStatus: async () => "spawning" as any,
+      startStallDetector: () => ({
+        recordActivity: () => {},
+        incrementStepCount: () => {},
+        stop: () => {},
+      }),
+      statusUpdates,
+      ...overrides,
+    };
+  }
+
+  test("transitions to error status when async iteration throws", async () => {
+    const deps = createEventIterationDeps();
+
+    const failingStream = {
+      async *[Symbol.asyncIterator]() {
+        yield { type: "assistant", content: [{ type: "text", text: "hello" }] };
+        throw new Error("MCP server connection lost");
+      },
+    };
+
+    await startEventIteration(deps, failingStream, "stream-1", "sess-err");
+
+    const errorUpdate = deps.statusUpdates.find((u) => u.status === "error");
+    expect(errorUpdate).toBeDefined();
+    expect(errorUpdate!.error).toBe("MCP server connection lost");
+    expect(errorUpdate!.sessionId).toBe("sess-err");
+  });
+
+  test("transitions to active on first message then processes stream", async () => {
+    const deps = createEventIterationDeps();
+
+    const stream = {
+      async *[Symbol.asyncIterator]() {
+        yield { type: "assistant", content: [{ type: "text", text: "working" }] };
+      },
+    };
+
+    await startEventIteration(deps, stream, "stream-1", "sess-ok");
+
+    const activeUpdate = deps.statusUpdates.find((u) => u.status === "active");
+    expect(activeUpdate).toBeDefined();
+    expect(activeUpdate!.sessionId).toBe("sess-ok");
   });
 });

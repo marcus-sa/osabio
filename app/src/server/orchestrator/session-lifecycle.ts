@@ -174,6 +174,7 @@ export function startEventIteration(
       await deps.updateSessionStatus(sessionId, "error", errorMessage);
     } finally {
       bridge.stop();
+      handleRegistry.delete(sessionId);
     }
   }
 

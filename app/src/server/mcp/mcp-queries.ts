@@ -775,7 +775,7 @@ export async function logCommit(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Plugin-scoped queries (flat response shapes for OpenCode plugin tools)
+// MCP tool queries (flat response shapes for Brain MCP tools)
 // ---------------------------------------------------------------------------
 
 type PluginTaskRow = {
