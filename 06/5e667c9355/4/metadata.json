@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "065e667c9355",
+  "session_id": "6adaf94b-0aa6-4745-a95e-bcf06d1877cc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T14:44:42.009008Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/workspace-repo-path/roadmap.yaml",
+    "schema/migrations/0016_workspace_repo_path.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/coding-agent-orchestrator/repo-path.test.ts",
+    "app/src/shared/contracts.ts",
+    "docs/feature/workspace-repo-path/design/architecture-design.md",
+    "docs/feature/workspace-repo-path/distill/test-scenarios.md",
+    "docs/feature/workspace-repo-path/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "11fae87133c8",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T14:44:41.999493Z",
+    "agent_lines": 591,
+    "human_added": 30,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 631,
+    "agent_percentage": 93.6608557844691
+  }
+}
