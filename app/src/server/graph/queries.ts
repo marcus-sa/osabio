@@ -268,16 +268,7 @@ export async function isEntityInWorkspace(
   if (table === "feature") {
     const [rows] = await surreal
       .query<[Array<{ id: RecordId<"feature", string> }>]>(
-        [
-          "SELECT id",
-          "FROM feature",
-          "WHERE id = $feature",
-          "AND id IN (",
-          "  SELECT VALUE out",
-          "  FROM has_feature",
-          "  WHERE `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-          ");",
-        ].join(" "),
+        "SELECT id FROM feature WHERE id = $feature AND workspace = $workspace;",
         { workspace: workspaceRecord, feature: entityRecord },
       )
       .collect<[Array<{ id: RecordId<"feature", string> }>]>();
@@ -619,15 +610,7 @@ export async function resolveWorkspaceFeatureRecord(input: {
 
   const [rows] = await input.surreal
     .query<[Array<{ id: RecordId<"feature", string>; name: string }>]>(
-      [
-        "SELECT id, name",
-        "FROM feature",
-        "WHERE id IN (",
-        "  SELECT VALUE out",
-        "  FROM has_feature",
-        "  WHERE `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-        ");",
-      ].join(" "),
+      "SELECT id, name FROM feature WHERE workspace = $workspace;",
       {
         workspace: input.workspaceRecord,
       },
@@ -687,23 +670,24 @@ async function listScopedEntityCandidates(input: {
   }
 
   if (kinds.includes("feature")) {
+    const featureConditions = ["workspace = $workspace"];
+    if (input.projectRecord) {
+      featureConditions.push("id IN (SELECT VALUE out FROM has_feature WHERE `in` = $project)");
+    }
+
     const [rows] = await input.surreal
       .query<[Array<{ id: RecordId<"feature", string>; name: string; status: string; embedding?: number[] }>]>(
         [
           "SELECT id, name, status, embedding",
           "FROM feature",
-          "WHERE id IN (",
-          "  SELECT VALUE out",
-          "  FROM has_feature",
-          input.projectRecord
-            ? "  WHERE `in` = $project"
-            : "  WHERE `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
-          ")",
+          `WHERE ${featureConditions.join(" AND ")}`,
           "LIMIT $limit;",
         ].join(" "),
-        input.projectRecord
-          ? { project: input.projectRecord, limit: input.candidateLimit }
-          : { workspace: input.workspaceRecord, limit: input.candidateLimit },
+        {
+          workspace: input.workspaceRecord,
+          ...(input.projectRecord ? { project: input.projectRecord } : {}),
+          limit: input.candidateLimit,
+        },
       )
       .collect<[Array<{ id: RecordId<"feature", string>; name: string; status: string; embedding?: number[] }>]>();
 

@@ -147,6 +147,7 @@ async function handleAcceptWorkItem(
     await deps.surreal.create(featureRecord).content({
       name: item.title,
       status: "active",
+      workspace: workspaceRecord,
       ...(item.category ? { category: item.category } : {}),
       ...(embedding ? { embedding } : {}),
       created_at: now,

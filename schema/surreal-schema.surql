@@ -94,9 +94,11 @@ DEFINE FIELD owner ON feature TYPE option<record<person>>;
 DEFINE FIELD owner_name ON feature TYPE option<string>;
 DEFINE FIELD category ON feature TYPE option<string>;
 DEFINE FIELD embedding ON feature TYPE option<array<float>>;
+DEFINE FIELD workspace ON feature TYPE record<workspace>;
 DEFINE FIELD created_at ON feature TYPE datetime;
 DEFINE FIELD updated_at ON feature TYPE option<datetime>;
 DEFINE INDEX feature_name ON feature FIELDS name;
+DEFINE INDEX feature_workspace ON feature FIELDS workspace;
 DEFINE INDEX idx_feature_embedding ON feature FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE task SCHEMAFULL;

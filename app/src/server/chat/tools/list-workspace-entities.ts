@@ -178,18 +178,13 @@ async function listFeatures(
   status: string | undefined,
   limit: number,
 ) {
-  // Features don't have a direct workspace field — they're linked via has_feature from projects.
-  // Scope to workspace by finding all workspace projects first.
-  const projectIds = projectRecord
-    ? [projectRecord]
-    : await getWorkspaceProjectIds(surreal, workspaceRecord);
+  const conditions = ["workspace = $workspace"];
+  const params: Record<string, unknown> = { workspace: workspaceRecord, limit };
 
-  if (projectIds.length === 0) {
-    return { kind: "feature", count: 0, entities: [] };
+  if (projectRecord) {
+    conditions.push("id IN (SELECT VALUE out FROM has_feature WHERE `in` = $project)");
+    params.project = projectRecord;
   }
-
-  const conditions = ["id IN (SELECT VALUE out FROM has_feature WHERE `in` IN $projects)"];
-  const params: Record<string, unknown> = { projects: projectIds, limit };
 
   if (status) {
     conditions.push("status = $status");
@@ -217,17 +212,4 @@ async function listFeatures(
       status: f.status,
     })),
   };
-}
-
-async function getWorkspaceProjectIds(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
-): Promise<RecordId<"project", string>[]> {
-  const [rows] = await surreal
-    .query<[Array<RecordId<"project", string>>]>(
-      "SELECT VALUE out FROM has_project WHERE `in` = $workspace;",
-      { workspace: workspaceRecord },
-    )
-    .collect<[Array<RecordId<"project", string>>]>();
-  return rows;
 }

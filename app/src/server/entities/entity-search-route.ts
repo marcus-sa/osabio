@@ -41,7 +41,7 @@ SELECT id, "suggestion" AS kind, text AS text, search::score(1) AS score
 FROM suggestion WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "feature" AS kind, name AS text, search::score(1) AS score
-FROM feature WHERE name @1@ ${q} ORDER BY score DESC LIMIT $limit;
+FROM feature WHERE name @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "project" AS kind, name AS text, search::score(1) AS score
 FROM project WHERE name @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;

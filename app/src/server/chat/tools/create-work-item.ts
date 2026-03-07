@@ -151,6 +151,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
       await deps.surreal.create(featureRecord).content({
         name: input.title,
         status: "active",
+        workspace: context.workspaceRecord,
         ...(input.category ? { category: input.category } : {}),
         ...(embedding ? { embedding } : {}),
         created_at: now,
