@@ -9,6 +9,7 @@ import { useWorkspaceState } from "./stores/workspace-state";
 import { ChatPage } from "./routes/chat-page";
 import { GraphPage } from "./routes/graph-page";
 import { HomePage } from "./routes/home-page";
+import { ReviewPage } from "./routes/review-page";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 
@@ -148,10 +149,16 @@ const graphRoute = createRoute({
   component: GraphPage,
 });
 
+const reviewRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/review/$sessionId",
+  component: ReviewPage,
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

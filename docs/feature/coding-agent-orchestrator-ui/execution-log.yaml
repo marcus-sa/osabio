@@ -200,5 +200,35 @@ events:
   s: EXECUTED
   sid: 06-02
   t: '2026-03-07T12:23:38Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 06-01
+  t: '2026-03-07T12:23:48Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 06-02
+  t: '2026-03-07T12:24:25Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 06-04
+  t: '2026-03-07T12:25:59Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 06-04
+  t: '2026-03-07T12:26:37Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 06-04
+  t: '2026-03-07T12:26:37Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 06-04
+  t: '2026-03-07T12:27:53Z'
 project_id: coding-agent-orchestrator-ui
 schema_version: '3.0'
