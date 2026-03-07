@@ -68,5 +68,25 @@ events:
   s: EXECUTED
   sid: 05-01
   t: '2026-03-07T12:12:14Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 05-04
+  t: '2026-03-07T12:12:58Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 06-03
+  t: '2026-03-07T12:13:03Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 05-05
+  t: '2026-03-07T12:13:04Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 05-01
+  t: '2026-03-07T12:13:05Z'
 project_id: coding-agent-orchestrator-ui
 schema_version: '3.0'

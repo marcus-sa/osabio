@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message";
+export type EntityKind = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 
@@ -321,6 +321,14 @@ export type GraphResponse = {
   edges: ReagraphEdge[];
 };
 
+export type AgentSessionSummary = {
+  agentSessionId: string;
+  orchestratorStatus: string;
+  streamId: string;
+  startedAt: string;
+  filesChangedCount: number;
+};
+
 export type EntityDetailResponse = {
   entity: {
     id: string;
@@ -347,6 +355,7 @@ export type EntityDetailResponse = {
     resolvedFrom?: string;
     fromText?: string;
   }>;
+  agentSession?: AgentSessionSummary;
 };
 
 export type BranchConversationRequest = {
@@ -362,7 +371,7 @@ export type BranchConversationResponse = {
 export type GovernanceTier = "blocking" | "review" | "awareness";
 
 export type GovernanceFeedAction = {
-  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss" | "accept" | "defer";
+  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss" | "accept" | "defer" | "abort" | "review";
   label: string;
 };
 
@@ -395,7 +404,7 @@ export type GovernanceFeedResponse = {
 };
 
 export type EntityActionRequest = {
-  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer" | "convert";
+  action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer" | "convert" | "abort" | "review";
   notes?: string;
   newSummary?: string;
   priority?: EntityPriority;

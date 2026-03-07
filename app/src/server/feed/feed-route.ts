@@ -16,6 +16,7 @@ import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
+  listAgentAttentionSessions,
   listBlockedTasks,
   listBlockingQuestions,
   listLowConfidenceDecisions,
@@ -24,6 +25,7 @@ import {
   listRecentlyCompletedItems,
   listStaleTasks,
   listWorkspaceConflicts,
+  mapAgentSessionToFeedItem,
 } from "./feed-queries";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -71,6 +73,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       staleTasks,
       recentlyCompleted,
       recentExtractions,
+      agentAttentionSessions,
     ] = await Promise.all([
       listProvisionalDecisions(queryInput),
       listWorkspaceConflicts(queryInput),
@@ -82,6 +85,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       listStaleTasks({ ...queryInput, staleDays: STALE_DAYS }),
       listRecentlyCompletedItems({ ...queryInput, recentDays: RECENT_COMPLETED_DAYS }),
       listRecentExtractions({ ...queryInput, cutoff: new Date(Date.now() - AWARENESS_RECENCY_DAYS * 24 * 60 * 60 * 1000) }),
+      listAgentAttentionSessions(queryInput),
     ]);
 
     const blocking: GovernanceFeedItem[] = [];
@@ -145,6 +149,16 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
         createdAt: toIsoString(row.created_at),
         actions: questionActions(),
       });
+    }
+
+    // Blocking + Review: agent attention sessions (error -> blocking, idle -> review)
+    for (const session of agentAttentionSessions) {
+      const item = mapAgentSessionToFeedItem(session);
+      if (item.tier === "blocking") {
+        blocking.push(item);
+      } else {
+        review.push(item);
+      }
     }
 
     // Review: low confidence decisions

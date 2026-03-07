@@ -1,4 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
+import type { GovernanceFeedAction, GovernanceFeedItem } from "../../shared/contracts";
 
 // --- Shared types ---
 
@@ -749,6 +750,101 @@ export async function listRecentExtractions(input: WorkspaceQueryInput & { cutof
   }
 
   return results;
+}
+
+// --- Agent attention sessions ---
+
+export type AgentAttentionSessionRow = {
+  id: RecordId<"agent_session", string>;
+  orchestrator_status: "idle" | "error";
+  task_id?: RecordId<"task", string>;
+  task_title?: string;
+  error_message?: string;
+  started_at: string | Date;
+};
+
+export async function listAgentAttentionSessions(
+  input: WorkspaceQueryInput,
+): Promise<AgentAttentionSessionRow[]> {
+  const [rows] = await input.surreal
+    .query<[
+      Array<{
+        id: RecordId<"agent_session", string>;
+        orchestrator_status: string;
+        task_id?: RecordId<"task", string>;
+        error_message?: string;
+        started_at: string | Date;
+      }>,
+    ]>(
+      [
+        "SELECT id, orchestrator_status, task_id, error_message, started_at",
+        "FROM agent_session",
+        "WHERE orchestrator_status IN ['idle', 'error']",
+        "AND workspace = $workspace",
+        "ORDER BY started_at DESC",
+        "LIMIT $limit;",
+      ].join(" "),
+      { workspace: input.workspaceRecord, limit: input.limit },
+    )
+    .collect<[
+      Array<{
+        id: RecordId<"agent_session", string>;
+        orchestrator_status: string;
+        task_id?: RecordId<"task", string>;
+        error_message?: string;
+        started_at: string | Date;
+      }>,
+    ]>();
+
+  const results: AgentAttentionSessionRow[] = [];
+
+  for (const row of rows) {
+    let taskTitle: string | undefined;
+    if (row.task_id) {
+      const taskRow = await input.surreal.select<{ title: string }>(row.task_id);
+      taskTitle = taskRow?.title;
+    }
+
+    results.push({
+      id: row.id,
+      orchestrator_status: row.orchestrator_status as "idle" | "error",
+      ...(row.task_id ? { task_id: row.task_id } : {}),
+      ...(taskTitle ? { task_title: taskTitle } : {}),
+      ...(row.error_message ? { error_message: row.error_message } : {}),
+      started_at: row.started_at,
+    });
+  }
+
+  return results;
+}
+
+export function mapAgentSessionToFeedItem(row: AgentAttentionSessionRow): GovernanceFeedItem {
+  const rawId = row.id.id as string;
+  const entityId = `agent_session:${rawId}`;
+  const entityName = row.task_title ?? `Agent session ${rawId}`;
+
+  const isError = row.orchestrator_status === "error";
+  const tier = isError ? "blocking" : "review";
+
+  const reason = isError
+    ? `Agent error${row.error_message ? `: ${row.error_message}` : ""}`
+    : `Agent completed work on '${entityName}' -- review ready`;
+
+  const actions: GovernanceFeedAction[] = isError
+    ? [{ action: "discuss", label: "Discuss" }, { action: "abort", label: "Abort" }]
+    : [{ action: "review", label: "Review" }, { action: "abort", label: "Abort" }];
+
+  return {
+    id: `${entityId}:${row.orchestrator_status}`,
+    tier,
+    entityId,
+    entityKind: "agent_session",
+    entityName,
+    reason,
+    status: row.orchestrator_status,
+    createdAt: row.started_at instanceof Date ? row.started_at.toISOString() : new Date(row.started_at).toISOString(),
+    actions,
+  };
 }
 
 // --- Shared helper ---
