@@ -5,7 +5,12 @@
   "branch": "marcus-sa/coding-agent-orch",
   "checkpoints_count": 1,
   "files_touched": [
-    "app/src/server/orchestrator/routes.ts"
+    "app/src/server/orchestrator/routes.ts",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "app/src/server/runtime/start-server.ts",
+    "docs/feature/coding-session/execution-log.yaml",
+    "tests/unit/orchestrator/prompt-route.test.ts",
+    "tests/unit/orchestrator/send-session-prompt.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +19,13 @@
       "context": "/c9/36a998241e/0/context.md",
       "content_hash": "/c9/36a998241e/0/content_hash.txt",
       "prompt": "/c9/36a998241e/0/prompt.txt"
+    },
+    {
+      "metadata": "/c9/36a998241e/1/metadata.json",
+      "transcript": "/c9/36a998241e/1/full.jsonl",
+      "context": "/c9/36a998241e/1/context.md",
+      "content_hash": "/c9/36a998241e/1/content_hash.txt",
+      "prompt": "/c9/36a998241e/1/prompt.txt"
     }
   ],
   "token_usage": {
