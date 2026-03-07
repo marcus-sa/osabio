@@ -146,7 +146,7 @@ function endAgentSessionStub() {
 }
 
 // Stub for validateAssignment
-function validateAssignmentStubOk(taskTitle = "Implement feature X") {
+function validateAssignmentStubOk(taskTitle = "Implement feature X", repoPath = "/repo") {
   const calls: Array<{ workspaceId: string; taskId: string }> = [];
   return {
     fn: async (_surreal: unknown, workspaceId: string, taskId: string) => {
@@ -158,11 +158,16 @@ function validateAssignmentStubOk(taskTitle = "Implement feature X") {
           workspaceRecord: new RecordId("workspace", workspaceId),
           taskStatus: "ready" as const,
           title: taskTitle,
+          repoPath,
         },
       };
     },
     calls,
   };
+}
+
+function resolveRepoRootStub(repoPath = "/repo") {
+  return async () => repoPath;
 }
 
 function validateAssignmentStubErr(code = "TASK_NOT_FOUND") {
@@ -195,7 +200,6 @@ describe("createOrchestratorSession", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-abc",
@@ -221,7 +225,6 @@ describe("createOrchestratorSession", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-missing",
@@ -248,7 +251,6 @@ describe("createOrchestratorSession", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: failingShellExec,
-      repoRoot: "/repo",
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-abc",
@@ -275,7 +277,6 @@ describe("createOrchestratorSession", () => {
     await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-abc",
@@ -371,7 +372,6 @@ describe("abortOrchestratorSession", () => {
     await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-abc",
@@ -384,7 +384,7 @@ describe("abortOrchestratorSession", () => {
     const result = await abortOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
+      resolveRepoRoot: resolveRepoRootStub(),
       sessionId: "sess-1",
       endAgentSession: endSessionStub.fn as any,
     });
@@ -410,7 +410,7 @@ describe("abortOrchestratorSession", () => {
     const result = await abortOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      repoRoot: "/repo",
+      resolveRepoRoot: resolveRepoRootStub(),
       sessionId: "nonexistent",
       endAgentSession: endSessionStub.fn as any,
     });
@@ -529,7 +529,7 @@ describe("getOrchestratorReview", () => {
       },
     });
 
-    const getDiffStub = async () => ({
+    const getDiffStub = async (_repoRoot: string) => ({
       ok: true as const,
       value: {
         files: [{ path: "src/index.ts", status: "M", additions: 10, deletions: 2 }],
@@ -543,6 +543,7 @@ describe("getOrchestratorReview", () => {
     const result = await getOrchestratorReview({
       surreal: surrealSpy.stub as any,
       sessionId: "sess-1",
+      resolveRepoRoot: resolveRepoRootStub(),
       getDiff: getDiffStub,
       getTaskTitle: getTaskTitleStub,
     });
@@ -572,6 +573,7 @@ describe("getOrchestratorReview", () => {
     const result = await getOrchestratorReview({
       surreal: surrealSpy.stub as any,
       sessionId: "sess-1",
+      resolveRepoRoot: resolveRepoRootStub(),
       getDiff: async () => ({ ok: true as const, value: { files: [], rawDiff: "", stats: { filesChanged: 0, insertions: 0, deletions: 0 } } }),
       getTaskTitle: async () => "Fix the bug",
     });
@@ -590,6 +592,7 @@ describe("getOrchestratorReview", () => {
     const result = await getOrchestratorReview({
       surreal: surrealSpy.stub as any,
       sessionId: "nonexistent",
+      resolveRepoRoot: resolveRepoRootStub(),
       getDiff: async () => ({ ok: true as const, value: { files: [], rawDiff: "", stats: { filesChanged: 0, insertions: 0, deletions: 0 } } }),
       getTaskTitle: async () => "N/A",
     });
@@ -614,6 +617,7 @@ describe("getOrchestratorReview", () => {
     const result = await getOrchestratorReview({
       surreal: surrealSpy.stub as any,
       sessionId: "sess-1",
+      resolveRepoRoot: resolveRepoRootStub(),
       getDiff: async () => ({ ok: true as const, value: { files: [], rawDiff: "", stats: { filesChanged: 0, insertions: 0, deletions: 0 } } }),
       getTaskTitle: async () => "Fix the bug",
     });

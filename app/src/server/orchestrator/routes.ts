@@ -248,7 +248,6 @@ export function createStreamRouteHandler(deps: StreamRouteDeps) {
 export type OrchestratorWiringDeps = {
   surreal: import("surrealdb").Surreal;
   shellExec: import("./worktree-manager").ShellExec;
-  repoRoot: string;
   brainBaseUrl: string;
   sseRegistry?: SseRegistry;
 };
@@ -269,6 +268,19 @@ export function wireOrchestratorRoutes(
   const queriesImport = import("../mcp/mcp-queries");
   const guardImport = import("./assignment-guard");
 
+  // Helper: resolve repo_path from workspace record
+  const resolveRepoRoot = async (workspaceRecord: import("surrealdb").RecordId<"workspace", string>): Promise<string> => {
+    const [rows] = await wiringDeps.surreal.query<[Array<{ repo_path?: string }>]>(
+      `SELECT repo_path FROM $ws;`,
+      { ws: workspaceRecord },
+    );
+    const repoPath = rows[0]?.repo_path;
+    if (!repoPath) {
+      throw new Error(`Workspace ${workspaceRecord.id} has no repo_path configured`);
+    }
+    return repoPath;
+  };
+
   // Mock OpenCode spawning when env var is set (for acceptance tests)
   const mockOpenCode = process.env.ORCHESTRATOR_MOCK_OPENCODE === "true";
   const mockSpawnOpenCode = mockOpenCode
@@ -288,7 +300,6 @@ export function wireOrchestratorRoutes(
       return lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
-        repoRoot: wiringDeps.repoRoot,
         brainBaseUrl: wiringDeps.brainBaseUrl,
         workspaceId,
         taskId,
@@ -315,7 +326,7 @@ export function wireOrchestratorRoutes(
       return lifecycle.abortOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
-        repoRoot: wiringDeps.repoRoot,
+        resolveRepoRoot,
         sessionId,
         endAgentSession: queries.endAgentSession,
       });
@@ -342,8 +353,9 @@ export function wireOrchestratorRoutes(
       return lifecycle.getOrchestratorReview({
         surreal: wiringDeps.surreal,
         sessionId,
-        getDiff: (branchName: string) =>
-          worktreeManager.getDiff(wiringDeps.shellExec, wiringDeps.repoRoot, branchName),
+        resolveRepoRoot,
+        getDiff: (repoRoot: string, branchName: string) =>
+          worktreeManager.getDiff(wiringDeps.shellExec, repoRoot, branchName),
         getTaskTitle: async (taskId: string) => {
           const { RecordId } = await import("surrealdb");
           const taskRecord = new RecordId("task", taskId);

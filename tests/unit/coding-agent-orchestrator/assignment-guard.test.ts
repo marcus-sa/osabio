@@ -21,6 +21,7 @@ type QueryResult = Array<Record<string, unknown>>;
 function createSurrealStub(responses: {
   taskQuery?: QueryResult;
   sessionQuery?: QueryResult;
+  workspaceQuery?: QueryResult;
 }): unknown {
   return {
     query(sql: string, _bindings?: Record<string, unknown>) {
@@ -31,6 +32,10 @@ function createSurrealStub(responses: {
       // Active session query
       if (sql.includes("orchestrator_status")) {
         return Promise.resolve([responses.sessionQuery ?? []]);
+      }
+      // Workspace repo_path query
+      if (sql.includes("repo_path")) {
+        return Promise.resolve([responses.workspaceQuery ?? []]);
       }
       return Promise.resolve([[]]);
     },
@@ -47,6 +52,18 @@ function taskRow(overrides: {
       title: "Test task",
       status: overrides.status,
       workspace: new RecordId("workspace", overrides.workspaceId ?? "ws-1"),
+    },
+  ];
+}
+
+function workspaceRow(overrides?: {
+  workspaceId?: string;
+  repoPath?: string;
+}): Array<Record<string, unknown>> {
+  return [
+    {
+      id: new RecordId("workspace", overrides?.workspaceId ?? "ws-1"),
+      ...(overrides?.repoPath ? { repo_path: overrides.repoPath } : {}),
     },
   ];
 }
@@ -95,6 +112,7 @@ describe("Assignment Guard: task eligibility", () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "ready" }),
       sessionQuery: [],
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -113,6 +131,7 @@ describe("Assignment Guard: task eligibility", () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "todo" }),
       sessionQuery: [],
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -130,6 +149,7 @@ describe("Assignment Guard: task eligibility", () => {
   test("rejects a task with status 'in_progress'", async () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "in_progress" }),
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -148,6 +168,7 @@ describe("Assignment Guard: task eligibility", () => {
   test("rejects a task with status 'done'", async () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "done" }),
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -166,6 +187,7 @@ describe("Assignment Guard: task eligibility", () => {
   test("rejects a task with status 'completed'", async () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "completed" }),
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -232,6 +254,7 @@ describe("Assignment Guard: one agent per task", () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "ready" }),
       sessionQuery: activeSession(),
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -251,6 +274,7 @@ describe("Assignment Guard: one agent per task", () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "ready" }),
       sessionQuery: [], // no active sessions
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
     });
 
     const result = await validateAssignment(
@@ -277,6 +301,52 @@ describe("Assignment Guard: input validation", () => {
     if (!result.ok) {
       expect(result.error.code).toBe("MISSING_TASK_ID");
       expect(result.error.httpStatus).toBe(400);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Repo path required
+// ---------------------------------------------------------------------------
+
+describe("Assignment Guard: repo_path required", () => {
+  test("rejects assignment when workspace has no repo_path", async () => {
+    const surreal = createSurrealStub({
+      taskQuery: taskRow({ status: "ready" }),
+      sessionQuery: [],
+      workspaceQuery: workspaceRow(), // no repoPath
+    });
+
+    const result = await validateAssignment(
+      surreal as any,
+      "ws-1",
+      "task-123",
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("REPO_PATH_REQUIRED");
+      expect(result.error.httpStatus).toBe(400);
+      expect(result.error.message).toContain("repo_path");
+    }
+  });
+
+  test("succeeds when workspace has repo_path set", async () => {
+    const surreal = createSurrealStub({
+      taskQuery: taskRow({ status: "ready" }),
+      sessionQuery: [],
+      workspaceQuery: workspaceRow({ repoPath: "/home/user/my-project" }),
+    });
+
+    const result = await validateAssignment(
+      surreal as any,
+      "ws-1",
+      "task-123",
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.validation.repoPath).toBe("/home/user/my-project");
     }
   });
 });

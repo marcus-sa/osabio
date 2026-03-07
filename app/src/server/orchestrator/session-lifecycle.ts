@@ -18,7 +18,6 @@ export type OpenCodeHandle = {
 export type SessionDeps = {
   surreal: Surreal;
   shellExec: ShellExec;
-  repoRoot: string;
   brainBaseUrl: string;
   spawnOpenCode?: (
     config: OpencodeConfig,
@@ -183,7 +182,6 @@ type SessionRow = {
 type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
-  repoRoot: string;
   brainBaseUrl: string;
   workspaceId: string;
   taskId: string;
@@ -221,11 +219,12 @@ export async function createOrchestratorSession(
 
   const { validation } = assignmentResult;
   const taskSlug = slugFromTitle(validation.title);
+  const repoRoot = validation.repoPath;
 
   // 2. Create worktree
   const worktreeResult = await createWorktree(
     input.shellExec,
-    input.repoRoot,
+    repoRoot,
     taskSlug,
   );
 
@@ -261,7 +260,7 @@ export async function createOrchestratorSession(
     handle = await spawnFn(config, worktreePath);
   } catch (err) {
     // Rollback: remove worktree and delete agent_session on spawn failure
-    await removeWorktree(input.shellExec, input.repoRoot, branchName);
+    await removeWorktree(input.shellExec, repoRoot, branchName);
     const sessionRecord = new RecordId("agent_session", agentSessionId);
     await input.surreal.delete(sessionRecord);
     return {
@@ -341,7 +340,7 @@ export async function getOrchestratorSessionStatus(
 type AbortSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
-  repoRoot: string;
+  resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
   endAgentSession: (input: {
     surreal: Surreal;
@@ -373,8 +372,9 @@ export async function abortOrchestratorSession(
   });
 
   // 3. Remove worktree if branch name exists
-  if (session.worktree_branch) {
-    await removeWorktree(input.shellExec, input.repoRoot, session.worktree_branch);
+  if (session.worktree_branch && session.workspace) {
+    const repoRoot = await input.resolveRepoRoot(session.workspace as RecordId<"workspace", string>);
+    await removeWorktree(input.shellExec, repoRoot, session.worktree_branch);
   }
 
   // 4. Return task to ready
@@ -501,7 +501,8 @@ function sessionAborted(sessionId: string): SessionError {
 type GetReviewInput = {
   surreal: Surreal;
   sessionId: string;
-  getDiff: (branchName: string) => Promise<import("./worktree-manager").WorktreeResult<import("./worktree-manager").DiffResult>>;
+  getDiff: (repoRoot: string, branchName: string) => Promise<import("./worktree-manager").WorktreeResult<import("./worktree-manager").DiffResult>>;
+  resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   getTaskTitle: (taskId: string) => Promise<string>;
 };
 
@@ -524,7 +525,11 @@ export async function getOrchestratorReview(
 
   // Get diff from the branch
   const branchName = session.worktree_branch ?? "";
-  const diffResult = await input.getDiff(branchName);
+  if (!session.workspace) {
+    throw new Error(`agent_session ${input.sessionId} missing workspace — data corruption`);
+  }
+  const repoRoot = await input.resolveRepoRoot(session.workspace as RecordId<"workspace", string>);
+  const diffResult = await input.getDiff(repoRoot, branchName);
 
   const diff = diffResult.ok
     ? diffResult.value

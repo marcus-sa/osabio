@@ -80,6 +80,17 @@ function agentAlreadyActive(taskId: string): AssignmentResult {
   };
 }
 
+function repoPathRequired(workspaceId: string): AssignmentResult {
+  return {
+    ok: false,
+    error: {
+      code: "REPO_PATH_REQUIRED",
+      message: `Workspace ${workspaceId} has no repo_path configured. Set a repository path before assigning tasks to agents.`,
+      httpStatus: 400,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // DB queries (thin wrappers — side effects isolated here)
 // ---------------------------------------------------------------------------
@@ -93,6 +104,21 @@ async function fetchTask(
     { taskRecord },
   );
   return rows[0];
+}
+
+type WorkspaceRepoRow = {
+  repo_path?: string;
+};
+
+async function fetchWorkspaceRepoPath(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<string | undefined> {
+  const [rows] = await surreal.query<[WorkspaceRepoRow[]]>(
+    `SELECT repo_path FROM $workspaceRecord;`,
+    { workspaceRecord },
+  );
+  return rows[0]?.repo_path;
 }
 
 async function hasActiveSession(
@@ -141,12 +167,18 @@ export async function validateAssignment(
     return workspaceMismatch(taskId);
   }
 
-  // 4. Status eligibility
+  // 4. Repo path required
+  const repoPath = await fetchWorkspaceRepoPath(surreal, task.workspace);
+  if (!repoPath) {
+    return repoPathRequired(workspaceId);
+  }
+
+  // 5. Status eligibility
   if (!isAssignableStatus(task.status)) {
     return taskNotAssignable(taskId, task.status);
   }
 
-  // 5. One-agent-per-task
+  // 6. One-agent-per-task
   const alreadyActive = await hasActiveSession(surreal, taskRecord);
   if (alreadyActive) {
     return agentAlreadyActive(taskId);
@@ -160,6 +192,7 @@ export async function validateAssignment(
       workspaceRecord: task.workspace,
       taskStatus: task.status,
       title: task.title,
+      repoPath,
     },
   };
 }

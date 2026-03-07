@@ -40,6 +40,7 @@ export type AssignmentValidation = {
   workspaceRecord: RecordId<"workspace", string>;
   taskStatus: AssignableTaskStatus;
   title: string;
+  repoPath: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -51,7 +52,8 @@ export type AssignmentErrorCode =
   | "TASK_NOT_ASSIGNABLE"
   | "AGENT_ALREADY_ACTIVE"
   | "WORKSPACE_MISMATCH"
-  | "MISSING_TASK_ID";
+  | "MISSING_TASK_ID"
+  | "REPO_PATH_REQUIRED";
 
 export type AssignmentError = {
   code: AssignmentErrorCode;

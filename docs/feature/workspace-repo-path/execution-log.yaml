@@ -103,5 +103,30 @@ events:
   s: EXECUTED
   sid: 01-05
   t: '2026-03-07T15:02:29Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-05
+  t: '2026-03-07T15:03:46Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-07T15:05:39Z'
+- d: 'NOT_APPLICABLE: acceptance tests pre-written in DISTILL wave at tests/acceptance/coding-agent-orchestrator/repo-path.test.ts'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-04
+  t: '2026-03-07T15:05:44Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-07T15:06:48Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-07T15:14:17Z'
 project_id: workspace-repo-path
 schema_version: '3.0'

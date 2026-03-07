@@ -70,7 +70,6 @@ export async function startServer(): Promise<void> {
   const orchestratorHandlers = wireOrchestratorRoutes({
     surreal: runtime.surreal,
     shellExec,
-    repoRoot: process.cwd(),
     brainBaseUrl: `http://127.0.0.1:${config.port}`,
   });
 
