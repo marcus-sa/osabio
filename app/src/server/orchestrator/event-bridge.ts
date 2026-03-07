@@ -11,6 +11,7 @@ import type {
   AgentStatusEvent,
   StreamEvent,
 } from "../../shared/contracts";
+import { logWarn } from "../http/observability";
 import type { StallDetectorHandle } from "./stall-detector";
 
 // ---------------------------------------------------------------------------
@@ -186,7 +187,9 @@ export function startEventBridge(
 
     // Fire-and-forget: update last_event_at for stall detection
     if (streamEvents.length > 0) {
-      deps.updateLastEventAt(sessionId);
+      deps.updateLastEventAt(sessionId).catch((err) => {
+        logWarn("event-bridge", "Failed to update last_event_at", { sessionId, error: String(err) });
+      });
     }
 
     // Notify stall detector of activity

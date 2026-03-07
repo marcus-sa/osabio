@@ -69,6 +69,7 @@
 - Fail fast: throw immediately when required data is missing or does not match the expected shape.
 - Prefer explicit hard failures over silent degradation, synthetic defaults, or "best effort" recovery.
 - Only introduce fallback behavior when explicitly requested, and document the reason in code comments.
+- Never silently ignore errors (e.g. empty `.catch(() => {})`). Always surface them via logging or re-throw.
 
 ## Schema Awareness
 

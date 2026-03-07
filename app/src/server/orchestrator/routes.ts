@@ -378,7 +378,7 @@ export function wireOrchestratorRoutes(
               updateLastEventAt: async (sid) => {
                 const rec = new RecordId("agent_session", sid);
                 await wiringDeps.surreal.update(rec).merge({
-                  last_event_at: new Date().toISOString(),
+                  last_event_at: new Date(),
                 });
               },
               getSessionStatus: async (sid) => {
