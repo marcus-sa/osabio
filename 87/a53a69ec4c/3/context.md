@@ -111,3 +111,23 @@ Create E2E acceptance tests from requirements|architecture|infrastructure design
 
 commit and deliver
 
+### Prompt 17
+
+# NW-DELIVER: Complete DELIVER Wave Orchestrator
+
+**Wave**: DELIVER (wave 6 of 6)|**Agent**: Main Instance (orchestrator)|**Command**: `/nw:deliver "{feature-description}"`
+
+## Overview
+
+Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN > DEVOP > DISTILL > DELIVER).
+
+Sub-agents cannot use Skill tool or `/nw...
+
+### Prompt 18
+
+Tool loaded.
+
+### Prompt 19
+
+Tool loaded.
+
