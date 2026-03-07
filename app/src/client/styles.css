@@ -1,67 +1,81 @@
 :root {
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 
-  /* Dark mode — default per DESIGN_TOKENS.md */
-  --background: oklch(0.12 0.005 285);
-  --foreground: oklch(0.94 0 0);
-  --card: oklch(0.16 0.005 285);
-  --card-foreground: oklch(0.94 0 0);
-  --muted: oklch(0.21 0.005 285);
-  --muted-foreground: oklch(0.55 0 0);
-  --border: oklch(0.26 0.005 285);
-  --input: oklch(0.26 0.005 285);
-  --ring: oklch(0.55 0.15 250);
-  --destructive: oklch(0.55 0.2 25);
+  /* Dark mode — default, matching landing page palette */
+  --background: #0a0a0c;
+  --foreground: #e8e6e3;
+  --card: #111114;
+  --card-foreground: #e8e6e3;
+  --muted: #18181c;
+  --muted-foreground: #9a9a9a;
+  --border: #1e1e26;
+  --input: #1e1e26;
+  --ring: #c4f042;
+  --destructive: #d66a8a;
 
   /* Hover/active surface variants */
-  --hover: oklch(0.24 0.005 285);
-  --active: oklch(0.28 0.01 250);
+  --hover: #2a2a32;
+  --active: #32323c;
 
-  /* Entity accent palette — OKLCH for perceptual uniformity */
-  --entity-project: oklch(0.65 0.15 250);
-  --entity-feature: oklch(0.65 0.15 170);
-  --entity-task: oklch(0.70 0.15 145);
-  --entity-decision: oklch(0.70 0.15 55);
-  --entity-question: oklch(0.65 0.15 300);
-  --entity-person: oklch(0.65 0.15 25);
+  /* Accent / brand */
+  --accent: #c4f042;
+  --accent-glow: rgba(196, 240, 66, 0.08);
+  --accent-hover: #d4ff52;
 
-  /* Entity foregrounds — high contrast text on accent backgrounds */
-  --entity-project-fg: oklch(0.95 0.02 250);
-  --entity-feature-fg: oklch(0.95 0.02 170);
-  --entity-task-fg: oklch(0.95 0.02 145);
-  --entity-decision-fg: oklch(0.95 0.02 55);
-  --entity-question-fg: oklch(0.95 0.02 300);
-  --entity-person-fg: oklch(0.95 0.02 25);
+  /* Typography */
+  --font-mono: "JetBrains Mono", monospace;
 
-  /* Entity muted variants — for backgrounds, badges, subtle indicators */
-  --entity-project-muted: oklch(0.25 0.05 250);
-  --entity-feature-muted: oklch(0.25 0.05 170);
-  --entity-task-muted: oklch(0.25 0.05 145);
-  --entity-decision-muted: oklch(0.25 0.05 55);
-  --entity-question-muted: oklch(0.25 0.05 300);
-  --entity-person-muted: oklch(0.25 0.05 25);
+  /* Radius */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+
+  /* Entity accent palette — mapped to landing page colors */
+  --entity-project: #5b8dee;
+  --entity-feature: #6ee7b7;
+  --entity-task: #c4f042;
+  --entity-decision: #e8944a;
+  --entity-question: #a78bfa;
+  --entity-person: #d66a8a;
+
+  /* Entity foregrounds — light tints for text on accent backgrounds */
+  --entity-project-fg: #c4d8f8;
+  --entity-feature-fg: #c4f5e4;
+  --entity-task-fg: #e8f8b0;
+  --entity-decision-fg: #f5d4a8;
+  --entity-question-fg: #d8c8f8;
+  --entity-person-fg: #f0c0d0;
+
+  /* Entity muted variants — dark subtle backgrounds */
+  --entity-project-muted: #161c2a;
+  --entity-feature-muted: #142420;
+  --entity-task-muted: #1c2010;
+  --entity-decision-muted: #241c12;
+  --entity-question-muted: #1c162a;
+  --entity-person-muted: #2a1620;
 
   /* Governance tiers */
-  --tier-blocking: oklch(0.60 0.20 25);
-  --tier-blocking-muted: oklch(0.22 0.04 25);
-  --tier-review: oklch(0.70 0.15 70);
-  --tier-review-muted: oklch(0.22 0.04 70);
-  --tier-awareness: oklch(0.65 0.15 145);
-  --tier-awareness-muted: oklch(0.22 0.04 145);
+  --tier-blocking: #d66a8a;
+  --tier-blocking-muted: #2a1a20;
+  --tier-review: #e8944a;
+  --tier-review-muted: #2a221a;
+  --tier-awareness: #6ee7b7;
+  --tier-awareness-muted: #1a2a22;
 }
 
 .light {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1.0 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.55 0 0);
-  --border: oklch(0.87 0 0);
-  --input: oklch(0.87 0 0);
-  --ring: oklch(0.145 0 0);
-  --hover: oklch(0.92 0 0);
-  --active: oklch(0.88 0.02 250);
+  --background: #fafaf9;
+  --foreground: #1a1a1c;
+  --card: #ffffff;
+  --card-foreground: #1a1a1c;
+  --muted: #f0f0ed;
+  --muted-foreground: #6a6a6a;
+  --border: #e2e2dd;
+  --input: #e2e2dd;
+  --ring: #a0c830;
+  --hover: #eaeae5;
+  --active: #e0e0da;
 }
 
 * {
@@ -127,14 +141,14 @@ body {
   justify-content: space-between;
   gap: 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--muted);
   padding: 0.6rem 0.8rem;
 }
 
 .seed-toggle {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: var(--card);
   color: var(--foreground);
   padding: 0.42rem 0.7rem;
@@ -159,7 +173,7 @@ body {
 
 .pending-file button {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--foreground);
   cursor: pointer;
@@ -175,7 +189,7 @@ body {
 
 .onboarding-action-buttons button {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--foreground);
   padding: 0.42rem 0.7rem;
@@ -246,7 +260,7 @@ body {
   cursor: pointer;
   line-height: 1;
   padding: 0 0.2rem;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-new-chat-btn:hover {
@@ -264,7 +278,7 @@ body {
   display: block;
   width: 100%;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: transparent;
   padding: 0.3rem 0.4rem;
   font-size: 0.78rem;
@@ -321,7 +335,7 @@ body {
 
 .seed-panel {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   padding: 0.75rem;
 }
@@ -352,7 +366,7 @@ body {
 .seed-panel li button {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--muted);
   padding: 0.5rem 0.55rem;
   text-align: left;
@@ -365,7 +379,7 @@ body {
 .seed-kind {
   display: inline-flex;
   width: fit-content;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: var(--entity-project-muted);
   color: var(--entity-project-fg);
   font-size: 0.65rem;
@@ -388,7 +402,7 @@ body {
 .source-match-tag {
   margin-top: 0.4rem;
   display: inline-flex;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: var(--entity-decision-muted);
   color: var(--entity-decision-fg);
   font-size: 0.67rem;
@@ -400,7 +414,7 @@ body {
   max-width: 560px;
   margin: 1.5rem auto;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   padding: 1rem;
 }
@@ -431,7 +445,7 @@ body {
 
 .workspace-form input {
   border: 1px solid var(--input);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.55rem 0.65rem;
   background: var(--background);
   color: var(--foreground);
@@ -440,7 +454,7 @@ body {
 .workspace-form button {
   width: fit-content;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--ring);
   color: var(--foreground);
   padding: 0.48rem 0.85rem;
@@ -476,7 +490,7 @@ body {
 .relationship-badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   font-size: 0.73rem;
   line-height: 1;
   padding: 0.34rem 0.62rem;
@@ -498,7 +512,7 @@ body {
 .extraction-summary {
   margin-top: 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   padding: 0.65rem;
 }
@@ -517,9 +531,15 @@ body {
 
 .entity-card {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   padding: 0.5rem 0.55rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.entity-card:hover {
+  border-color: var(--hover);
+  transform: translateY(-1px);
 }
 
 .entity-card-header {
@@ -587,7 +607,7 @@ body {
 .work-item-suggestion-list {
   margin-top: 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   padding: 0.65rem;
 }
@@ -601,10 +621,10 @@ body {
 
 .work-item-suggestion {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   padding: 0.5rem 0.55rem;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .work-item-suggestion--accepted {
@@ -626,7 +646,7 @@ body {
 
 .work-item-btn {
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.2rem 0.5rem;
   font-size: 0.7rem;
   font-weight: 600;
@@ -640,12 +660,12 @@ body {
 }
 
 .work-item-btn--accept {
-  background: var(--ring);
-  color: var(--foreground);
+  background: var(--accent);
+  color: #0a0a0c;
 }
 
 .work-item-btn--accept:hover:not(:disabled) {
-  opacity: 0.85;
+  background: var(--accent-hover);
 }
 
 .work-item-btn--dismiss {
@@ -680,7 +700,7 @@ body {
   font-size: 0.6rem;
   font-weight: 600;
   padding: 0.1rem 0.3rem;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: var(--entity-decision-muted);
   color: var(--entity-decision-fg);
   text-transform: uppercase;
@@ -736,7 +756,7 @@ body {
   min-height: 64vh;
   background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   background-size: 20px 20px;
-  border-radius: 0;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
@@ -762,7 +782,7 @@ body {
   align-items: center;
   gap: 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--muted);
   padding: 0.5rem 0.8rem;
   flex-wrap: wrap;
@@ -771,7 +791,7 @@ body {
 .graph-toolbar select,
 .graph-toolbar button {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--foreground);
   padding: 0.35rem 0.55rem;
@@ -814,7 +834,7 @@ body {
 
 .entity-detail-panel {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   padding: 0.75rem;
   overflow-y: auto;
@@ -909,7 +929,7 @@ body {
 
 .entity-detail-actions button {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--foreground);
   padding: 0.35rem 0.6rem;
@@ -1063,7 +1083,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   font-size: 0.67rem;
   font-weight: 700;
   padding: 0.15rem 0.42rem;
@@ -1074,7 +1094,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   font-size: 0.6rem;
   font-weight: 600;
   padding: 0.12rem 0.38rem;
@@ -1104,7 +1124,7 @@ body {
   align-items: center;
   gap: 0.35rem;
   padding: 0.25rem 0.35rem;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.78rem;
   color: var(--card-foreground);
@@ -1118,7 +1138,7 @@ body {
 
 .provenance-item {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.4rem 0.5rem;
   font-size: 0.76rem;
   color: var(--card-foreground);
@@ -1156,7 +1176,7 @@ body {
   padding: 0.15rem;
   line-height: 1;
   font-size: 0.8rem;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
 
 .entity-card-graph-link:hover {
@@ -1203,7 +1223,7 @@ body {
   color: var(--muted-foreground, #888);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   opacity: 0.5;
   transition: opacity 0.15s, background 0.15s, border-color 0.15s;
@@ -1225,7 +1245,7 @@ body {
 .thinking-block {
   margin: 0.25rem 0;
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   font-size: 0.8rem;
 }
@@ -1280,7 +1300,7 @@ body {
 
 .feed-error {
   border: 1px solid var(--destructive);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   padding: 0.75rem;
   color: var(--destructive);
@@ -1290,7 +1310,7 @@ body {
 .feed-error button {
   margin-top: 0.5rem;
   border: 1px solid var(--destructive);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--destructive);
   padding: 0.3rem 0.55rem;
@@ -1316,7 +1336,7 @@ body {
 
 .feed-section {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--card);
   overflow: hidden;
 }
@@ -1335,7 +1355,7 @@ body {
   justify-content: center;
   width: 1.4rem;
   height: 1.4rem;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   font-size: 0.65rem;
   font-weight: 800;
   line-height: 1;
@@ -1352,7 +1372,7 @@ body {
 .feed-section-count {
   font-size: 0.67rem;
   font-weight: 700;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   padding: 0.1rem 0.38rem;
 }
 
@@ -1429,12 +1449,18 @@ body {
 
 .feed-item {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   padding: 0.55rem 0.65rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.feed-item:hover {
+  border-color: var(--hover);
+  transform: translateY(-1px);
 }
 
 .feed-item--blocking {
@@ -1474,7 +1500,7 @@ body {
   font-size: 0.6rem;
   font-weight: 600;
   padding: 0.1rem 0.3rem;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
   background: var(--entity-decision-muted);
   color: var(--entity-decision-fg);
   text-transform: uppercase;
@@ -1516,7 +1542,7 @@ body {
 
 .feed-action-btn {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--foreground);
   padding: 0.25rem 0.5rem;
@@ -1604,7 +1630,7 @@ body {
 
 .search-trigger {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--muted);
   color: var(--muted-foreground);
   padding: 0.35rem 0.7rem;
@@ -1622,7 +1648,7 @@ body {
 .search-overlay-backdrop {
   position: fixed;
   inset: 0;
-  background: oklch(0.08 0 0 / 0.6);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 100;
   display: flex;
   justify-content: center;
@@ -1640,8 +1666,8 @@ body {
   max-height: 76vh;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 0;
-  box-shadow: 0 16px 48px oklch(0.08 0 0 / 0.3);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1672,7 +1698,7 @@ body {
   cursor: pointer;
   padding: 0.25rem 0.4rem;
   line-height: 1;
-  border-radius: 0;
+  border-radius: var(--radius-xs);
 }
 
 .search-overlay-close:hover {
@@ -1693,7 +1719,7 @@ body {
 .search-input {
   width: 100%;
   border: 1px solid var(--input);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.65rem 0.85rem;
   font-size: 0.9rem;
   color: var(--foreground);
@@ -1704,7 +1730,7 @@ body {
 
 .search-input:focus {
   border-color: var(--ring);
-  box-shadow: 0 0 0 2px oklch(0.55 0.15 250 / 0.2);
+  box-shadow: 0 0 0 2px rgba(196, 240, 66, 0.2);
 }
 
 .search-input::placeholder {
@@ -1719,7 +1745,7 @@ body {
 
 .search-filter-chip {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--card-foreground);
   padding: 0.3rem 0.65rem;
@@ -1747,17 +1773,18 @@ body {
 
 .search-result-card {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--muted);
   padding: 0.6rem 0.7rem;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  transition: border-color 0.2s, transform 0.2s;
 }
 
 .search-result-card:hover {
   border-color: var(--ring);
-  box-shadow: 0 2px 8px oklch(0.08 0 0 / 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .search-result-card-header {
@@ -1789,7 +1816,7 @@ body {
 
 .search-result-graph-btn {
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--ring);
   padding: 0.28rem 0.55rem;
@@ -1902,7 +1929,7 @@ body {
 
 .chat-suggestion-pill {
   border: 1px solid;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.35rem 0.65rem;
   font-size: 0.78rem;
   font-weight: 600;
@@ -1933,7 +1960,7 @@ body {
   background: var(--muted);
   border: 1px solid var(--border);
   padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
 }
 
 .chat-message--assistant .chat-message-text {
@@ -1959,6 +1986,7 @@ body {
 .chat-message-text pre {
   background: var(--muted);
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0.5rem;
   overflow-x: auto;
   font-size: 0.82rem;
@@ -1984,6 +2012,7 @@ body {
 .thinking-block {
   margin: 0.3rem 0;
   border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
@@ -2016,6 +2045,7 @@ body {
   font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
   background: var(--muted);
   color: var(--muted-foreground);
 }
@@ -2105,6 +2135,7 @@ body {
 
 .suggestion-tool-card {
   border: 1px solid;
+  border-radius: var(--radius);
   padding: 0.5rem 0.75rem;
   font-size: 0.8rem;
   display: flex;
@@ -2150,6 +2181,7 @@ body {
   align-items: flex-end;
   gap: 0.5rem;
   border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--card);
   padding: 0.5rem;
 }
@@ -2172,18 +2204,20 @@ body {
 }
 
 .chat-input-btn {
-  border: 1px solid var(--border);
-  background: var(--muted);
-  color: var(--foreground);
+  border: none;
+  background: var(--accent);
+  color: #0a0a0c;
   padding: 0.35rem 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
 .chat-input-btn:hover:not(:disabled) {
-  background: var(--hover);
+  background: var(--accent-hover);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .chat-input-btn:disabled {
@@ -2263,9 +2297,9 @@ body {
 .sign-in-button {
   width: 100%;
   padding: 0.5rem;
-  background: var(--ring);
+  background: var(--accent);
   border: 1px solid transparent;
-  color: var(--foreground);
+  color: #0a0a0c;
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
@@ -2398,7 +2432,7 @@ body {
 .consent-scope-name {
   color: var(--muted-foreground);
   font-size: 0.75rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .consent-error {

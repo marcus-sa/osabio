@@ -1,8 +1,8 @@
 # Design Tokens & Visual Language
 
 **Platform:** AI-Native Business Management Platform
-**Aesthetic:** Scandinavian clarity meets developer tooling. Inspired by Tana's restraint — typography-led, content-first, with color reserved for meaning.
-**Principle:** The UI disappears. Entities, relationships, and actions are the visual language, not chrome.
+**Aesthetic:** Modern SaaS with visual continuity to the landing page. Instrument Sans typography, lime-green accent, rounded cards with hover lift — polished but content-first.
+**Principle:** The UI serves the content. Entities, relationships, and actions are the visual language. Color is reserved for meaning and primary actions.
 
 ---
 
@@ -10,71 +10,130 @@
 
 ### 1.1 Base Theme — Dark Mode Default
 
-Built on shadcn/ui's Zinc base with OKLCH color space (Tailwind v4). Dark mode is the default — developers and founders live here.
+Dark mode is the default. Colors are hex values matching the landing page palette for visual continuity.
 
 ```css
 :root {
-  /* Light mode — available but not default */
-  --background: oklch(0.985 0 0);           /* zinc-50 */
-  --foreground: oklch(0.145 0 0);           /* zinc-950 */
-  --card: oklch(1.0 0 0);                   /* white */
-  --card-foreground: oklch(0.145 0 0);      /* zinc-950 */
-  --muted: oklch(0.94 0 0);                 /* zinc-100 */
-  --muted-foreground: oklch(0.55 0 0);      /* zinc-500 */
-  --border: oklch(0.87 0 0);               /* zinc-200 */
-  --input: oklch(0.87 0 0);                /* zinc-200 */
-  --ring: oklch(0.145 0 0);                /* zinc-950 */
+  /* Dark mode — default */
+  --background: #0a0a0c;        /* deep black */
+  --foreground: #e8e6e3;        /* warm off-white */
+  --card: #111114;              /* raised surface */
+  --card-foreground: #e8e6e3;   /* warm off-white */
+  --muted: #18181c;             /* subtle background */
+  --muted-foreground: #9a9a9a;  /* medium gray */
+  --border: #1e1e26;            /* subtle dividers */
+  --input: #1e1e26;             /* input borders */
+  --ring: #c4f042;              /* focus ring — accent green */
+  --destructive: #d66a8a;       /* error/danger — rose */
+  --hover: #2a2a32;             /* hover surface */
+  --active: #32323c;            /* active/pressed surface */
+
+  /* Accent / brand */
+  --accent: #c4f042;            /* lime green — primary CTA */
+  --accent-glow: rgba(196, 240, 66, 0.08);
+  --accent-hover: #d4ff52;      /* lighter lime for hover */
+
+  /* Typography */
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Radius */
+  --radius: 12px;               /* cards, panels, overlays */
+  --radius-sm: 8px;             /* buttons, inputs, pills */
+  --radius-xs: 6px;             /* badges, small inline elements */
 }
 
-.dark {
-  /* Dark mode — default */
-  --background: oklch(0.12 0.005 285);      /* near-black with subtle cool tint */
-  --foreground: oklch(0.94 0 0);            /* zinc-100 */
-  --card: oklch(0.16 0.005 285);            /* raised surface */
-  --card-foreground: oklch(0.94 0 0);       /* zinc-100 */
-  --muted: oklch(0.21 0.005 285);           /* subtle background */
-  --muted-foreground: oklch(0.55 0 0);      /* zinc-500 */
-  --border: oklch(0.26 0.005 285);          /* subtle dividers */
-  --input: oklch(0.26 0.005 285);           /* input borders */
-  --ring: oklch(0.55 0.15 250);             /* focus ring — brand blue */
+.light {
+  --background: #fafaf9;
+  --foreground: #1a1a1c;
+  --card: #ffffff;
+  --card-foreground: #1a1a1c;
+  --muted: #f0f0ed;
+  --muted-foreground: #6a6a6a;
+  --border: #e2e2dd;
+  --input: #e2e2dd;
+  --ring: #a0c830;
+  --hover: #eaeae5;
+  --active: #e0e0da;
 }
 ```
 
 ### 1.2 Entity Type Colors
 
-The visual vocabulary of the product. Each entity type has a single accent color used consistently across chat (EntityCard borders), graph (node fills), feed (card accents), and suggestions. Muted in dark mode, slightly saturated in light mode.
+The visual vocabulary of the product. Each entity type has a single accent color mapped to the landing page palette, used consistently across chat (EntityCard borders), graph (node fills), feed (card accents), and suggestions.
 
 ```css
-:root, .dark {
-  /* Entity accent palette — 6 colors, OKLCH for perceptual uniformity */
-  --entity-project:   oklch(0.65 0.15 250);  /* blue — primary containers */
-  --entity-feature:   oklch(0.65 0.15 170);  /* teal — capabilities */
-  --entity-task:      oklch(0.70 0.15 145);  /* green — actionable items */
-  --entity-decision:  oklch(0.70 0.15 55);   /* amber — ratified choices */
-  --entity-question:  oklch(0.65 0.15 300);  /* purple — open items */
-  --entity-person:    oklch(0.65 0.15 25);   /* warm coral — people */
+:root {
+  /* Entity accent palette — mapped to landing page colors */
+  --entity-project:   #5b8dee;  /* blue — primary containers */
+  --entity-feature:   #6ee7b7;  /* teal — capabilities */
+  --entity-task:      #c4f042;  /* lime — actionable items */
+  --entity-decision:  #e8944a;  /* orange — ratified choices */
+  --entity-question:  #a78bfa;  /* purple — open items */
+  --entity-person:    #d66a8a;  /* rose — people */
 
-  /* Foregrounds — high contrast text on entity accent backgrounds */
-  --entity-project-fg:   oklch(0.95 0.02 250);
-  --entity-feature-fg:   oklch(0.95 0.02 170);
-  --entity-task-fg:      oklch(0.95 0.02 145);
-  --entity-decision-fg:  oklch(0.95 0.02 55);
-  --entity-question-fg:  oklch(0.95 0.02 300);
-  --entity-person-fg:    oklch(0.95 0.02 25);
+  /* Foregrounds — light tints for text on accent backgrounds */
+  --entity-project-fg:   #c4d8f8;
+  --entity-feature-fg:   #c4f5e4;
+  --entity-task-fg:      #e8f8b0;
+  --entity-decision-fg:  #f5d4a8;
+  --entity-question-fg:  #d8c8f8;
+  --entity-person-fg:    #f0c0d0;
 
-  /* Muted variants — for backgrounds, badges, subtle indicators */
-  --entity-project-muted:   oklch(0.25 0.05 250);
-  --entity-feature-muted:   oklch(0.25 0.05 170);
-  --entity-task-muted:      oklch(0.25 0.05 145);
-  --entity-decision-muted:  oklch(0.25 0.05 55);
-  --entity-question-muted:  oklch(0.25 0.05 300);
-  --entity-person-muted:    oklch(0.25 0.05 25);
+  /* Muted variants — dark subtle backgrounds */
+  --entity-project-muted:   #161c2a;
+  --entity-feature-muted:   #142420;
+  --entity-task-muted:      #1c2010;
+  --entity-decision-muted:  #241c12;
+  --entity-question-muted:  #1c162a;
+  --entity-person-muted:    #2a1620;
 }
 ```
 
 **Usage rules:**
-- Entity colors are the *only* non-neutral colors in the product
-- Never use raw Tailwind color classes (no `bg-blue-500`) — always use entity tokens
+- Entity colors and the accent are the *only* non-neutral colors in the product
+- Never use raw color values in components — always use entity/accent tokens
 - EntityCard: muted background + accent left border (3px)
 - Graph nodes: accent fill at 80% opacity
 - Suggestions: muted background, accent text
+- Primary action buttons: `--accent` background with dark text (`#0a0a0c`)
+
+### 1.3 Governance Tiers
+
+```css
+:root {
+  --tier-blocking: #d66a8a;       /* rose */
+  --tier-blocking-muted: #2a1a20;
+  --tier-review: #e8944a;         /* orange */
+  --tier-review-muted: #2a221a;
+  --tier-awareness: #6ee7b7;      /* teal */
+  --tier-awareness-muted: #1a2a22;
+}
+```
+
+---
+
+## 2. Typography
+
+- **Primary font:** Instrument Sans (400, 500, 600, 700) — loaded from Google Fonts
+- **Monospace:** JetBrains Mono (400, 500) — loaded from Google Fonts
+- **Font smoothing:** `-webkit-font-smoothing: antialiased`
+
+---
+
+## 3. Border Radius
+
+Three tiers applied consistently:
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--radius` | 12px | Cards, panels, overlays, modals |
+| `--radius-sm` | 8px | Buttons, inputs, selects, pills, chips |
+| `--radius-xs` | 6px | Badges, small inline elements, sidebar items |
+
+---
+
+## 4. Interactive Effects
+
+- **Hover lift:** Cards (entity-card, feed-item, search-result-card) lift 1px on hover with border color transition
+- **Accent glow:** Primary buttons emit subtle green glow on hover via `box-shadow: 0 0 20px var(--accent-glow)`
+- **Transitions:** All interactive elements use `0.2s` transitions for border-color, transform, and background

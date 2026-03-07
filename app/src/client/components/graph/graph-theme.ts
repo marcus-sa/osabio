@@ -39,15 +39,15 @@ export type EdgeStyleResult = {
 export function edgeStyle(type: string): EdgeStyleResult {
   switch (type) {
     case "depends_on":
-      return { stroke: "#6a7e94", strokeDasharray: "4 2", opacity: 0.8 };
+      return { stroke: "#5a5a64", strokeDasharray: "4 2", opacity: 0.8 };
     case "conflicts_with":
-      return { stroke: "#c44040", strokeDasharray: "none", opacity: 0.9 };
+      return { stroke: "#d66a8a", strokeDasharray: "none", opacity: 0.9 };
     case "belongs_to":
     case "has_feature":
     case "has_task":
     case "has_project":
-      return { stroke: "#9fbfe4", strokeDasharray: "none", opacity: 0.4 };
+      return { stroke: "#5b8dee", strokeDasharray: "none", opacity: 0.3 };
     default:
-      return { stroke: "#9fbfe4", strokeDasharray: "none", opacity: 0.6 };
+      return { stroke: "#5b8dee", strokeDasharray: "none", opacity: 0.5 };
   }
 }
