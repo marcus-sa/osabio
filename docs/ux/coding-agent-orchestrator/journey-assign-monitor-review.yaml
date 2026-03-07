@@ -1,0 +1,153 @@
+journey:
+  name: assign-monitor-review
+  epic: coding-agent-orchestrator
+  actors:
+    - id: user
+      role: Engineering lead / developer
+    - id: platform
+      role: Brain web application
+    - id: agent
+      role: OpenCode coding agent
+    - id: mcp
+      role: Brain MCP server
+
+  phases:
+    - id: assign
+      name: Assign Task to Agent
+      jobs: [job-1-assign]
+      steps:
+        - id: view-task
+          actor: user
+          action: Views task detail with status ready/todo
+          emotion: neutral
+          artifacts_read: [task]
+
+        - id: click-assign
+          actor: user
+          action: Clicks "Assign to Agent" on task card
+          emotion: hopeful
+          trigger: true
+
+        - id: validate-context
+          actor: platform
+          action: Check task has title + description + project association
+          emotion: null
+          gate: true
+          failure: Show "Task needs more context before agent assignment"
+
+        - id: create-opencode-session
+          actor: platform
+          action: |
+            1. Create opencode session via SDK
+            2. Configure MCP server pointing to Brain
+            3. Inject workspace + project context via noReply prompt
+          artifacts_created: [opencode-session, agent-session]
+
+        - id: send-task-prompt
+          actor: platform
+          action: |
+            Send task description + acceptance criteria as initial prompt.
+            Include: task title, description, related entities, project context.
+          artifacts_read: [task, project-context]
+
+        - id: update-task-status
+          actor: platform
+          action: Set task status to in_progress, link agent_session
+          artifacts_modified: [task]
+
+    - id: working
+      name: Agent Working
+      jobs: [job-2-monitor]
+      steps:
+        - id: agent-reads-context
+          actor: agent
+          action: Calls Brain MCP get_task_context and get_project_context
+          artifacts_read: [task, project-context]
+
+        - id: agent-implements
+          actor: agent
+          action: Reads files, writes code, runs tests
+          artifacts_created: [file-changes]
+
+        - id: agent-reports-progress
+          actor: agent
+          action: Updates task status via MCP, creates observations if blocked
+          artifacts_modified: [task]
+          artifacts_created: [observation]
+
+        - id: stream-events
+          actor: platform
+          action: |
+            Subscribe to opencode event stream.
+            Forward key events (file_change, tool_call, error, complete) to Brain SSE.
+          artifacts_read: [opencode-session]
+
+        - id: user-monitors
+          actor: user
+          action: Optionally watches activity feed on task detail page
+          emotion: steady-confidence
+
+    - id: review
+      name: Review Agent Output
+      jobs: [job-3-review]
+      steps:
+        - id: agent-completes
+          actor: agent
+          action: Signals completion via MCP update_task_status or structured output
+          artifacts_modified: [task]
+
+        - id: notify-user
+          actor: platform
+          action: Send notification that agent completed task
+          emotion: null
+
+        - id: show-review
+          actor: platform
+          action: |
+            Present:
+            - Git diff (files changed)
+            - Agent session trace (reasoning, tool calls)
+            - Test results if available
+            - Observations created during work
+          artifacts_read: [agent-session, file-changes, observation]
+
+        - id: user-reviews
+          actor: user
+          action: Reviews diff + reasoning, decides accept or reject
+          emotion: evaluating
+
+        - id: accept-or-reject
+          actor: user
+          action: |
+            Accept: task → done, changes ready to merge
+            Reject: task → open, feedback sent as follow-up prompt
+          artifacts_modified: [task]
+
+  artifacts:
+    - id: task
+      type: surreal-record
+      table: task
+      source: pre-existing
+
+    - id: agent-session
+      type: surreal-record
+      table: agent_session
+      source: step:create-opencode-session
+
+    - id: opencode-session
+      type: external
+      system: opencode-sdk
+      source: step:create-opencode-session
+
+    - id: project-context
+      type: mcp-context-packet
+      source: brain-mcp-server
+
+    - id: file-changes
+      type: git-diff
+      source: step:agent-implements
+
+    - id: observation
+      type: surreal-record
+      table: observation
+      source: step:agent-reports-progress
