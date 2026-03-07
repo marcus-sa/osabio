@@ -11,6 +11,7 @@ import type {
   AgentStatusEvent,
   StreamEvent,
 } from "../../shared/contracts";
+import type { StallDetectorHandle } from "./stall-detector";
 
 // ---------------------------------------------------------------------------
 // OpenCode event types (from @opencode-ai/sdk)
@@ -100,10 +101,16 @@ export function transformOpencodeEvent(
 // Bridge handle factory
 // ---------------------------------------------------------------------------
 
+/** Tool-related event types that count as agent steps. */
+const STEP_EVENT_TYPES: ReadonlySet<OpencodeEvent["type"]> = new Set([
+  "file.edited",
+]);
+
 export function startEventBridge(
   deps: EventBridgeDeps,
   streamId: string,
   sessionId: string,
+  stallDetector?: StallDetectorHandle,
 ): EventBridgeHandle {
   let stopped = false;
 
@@ -116,10 +123,20 @@ export function startEventBridge(
 
       // Fire-and-forget: update last_event_at for stall detection
       deps.updateLastEventAt(sessionId);
+
+      // Notify stall detector of activity
+      if (stallDetector) {
+        stallDetector.recordActivity();
+
+        if (STEP_EVENT_TYPES.has(event.type)) {
+          stallDetector.incrementStepCount();
+        }
+      }
     },
 
     stop(): void {
       stopped = true;
+      stallDetector?.stop();
     },
   };
 }
