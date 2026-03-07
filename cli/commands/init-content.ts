@@ -100,6 +100,129 @@ You can include task IDs (\`task:abc123\`), project names, file paths, or just a
 // Commands (slash commands installed to .claude/commands/)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// OpenCode Plugin Content
+// ---------------------------------------------------------------------------
+
+export type OpencodePluginInput = {
+  brainBaseUrl: string;
+  workspaceId: string;
+  authToken: string;
+};
+
+export function buildOpencodePluginContent(input: OpencodePluginInput): string {
+  const baseUrl = input.brainBaseUrl.replace(/\/$/, "");
+  const apiBase = `${baseUrl}/api/mcp/${input.workspaceId}`;
+
+  return `import type { Plugin } from "@opencode-ai/plugin";
+
+const API_BASE = "${apiBase}";
+const AUTH_TOKEN = "${input.authToken}";
+
+async function brainFetch(path: string, body: Record<string, unknown>): Promise<unknown> {
+  const res = await fetch(\`\${API_BASE}\${path}\`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: \`Bearer \${AUTH_TOKEN}\`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(\`Brain API error: \${res.status} \${await res.text()}\`);
+  return res.json();
+}
+
+export default {
+  name: "brain",
+
+  tools: {
+    "task-context": {
+      description: "Get task details and context from the Brain knowledge graph",
+      parameters: { task_id: { type: "string", description: "The task identifier" } },
+      async execute({ task_id }) {
+        return brainFetch("/task-context", { task_id });
+      },
+    },
+    "project-context": {
+      description: "Get project overview and decisions from the Brain knowledge graph",
+      parameters: { project_id: { type: "string", description: "The project identifier" } },
+      async execute({ project_id }) {
+        return brainFetch("/project-context", { project_id });
+      },
+    },
+    "status-update": {
+      description: "Update task status in the Brain knowledge graph",
+      parameters: {
+        task_id: { type: "string", description: "The task identifier" },
+        status: { type: "string", description: "New status: open|todo|ready|in_progress|blocked|done|completed" },
+        reason: { type: "string", description: "Reason for status change (required for blocked)", optional: true },
+      },
+      async execute({ task_id, status, reason }) {
+        return brainFetch("/tasks/status", { task_id, status, reason });
+      },
+    },
+    observations: {
+      description: "Log an observation (risk, conflict, or signal) to the Brain knowledge graph",
+      parameters: {
+        text: { type: "string", description: "What was observed" },
+        severity: { type: "string", description: "Severity: info|warning|conflict" },
+        category: { type: "string", description: "Category: architecture|security|performance|data|ux|other" },
+      },
+      async execute({ text, severity, category }) {
+        return brainFetch("/observations", { text, severity, category });
+      },
+    },
+  },
+
+  hooks: {
+    "session.created": async ({ session }) => {
+      await brainFetch("/sessions/start", { agent: "opencode" });
+    },
+    "session.idle": async ({ session }) => {
+      await brainFetch("/sessions/end", {
+        session_id: session?.id,
+        summary: "Session ended",
+      });
+    },
+  },
+} satisfies Plugin;
+`;
+}
+
+export function buildOpencodeJsonContent(): Record<string, unknown> {
+  return {
+    plugins: [".opencode/plugins/brain.ts"],
+  };
+}
+
+export const OPENCODE_MD_CONTENT = `# Brain Knowledge Graph Integration (OpenCode)
+
+This project is connected to the Brain knowledge graph via the OpenCode plugin. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
+
+## Available Tools
+
+- **task-context**: Get task details and context for the current work item
+- **project-context**: Get project overview, decisions, and constraints
+- **status-update**: Update task status (open, in_progress, blocked, done, etc.)
+- **observations**: Log risks, conflicts, or signals discovered during work
+
+## Lifecycle Hooks
+
+- **session.created**: Automatically registers the agent session with Brain
+- **session.idle**: Automatically ends the session and records summary
+
+## Best Practices
+
+1. **Check context first.** Use task-context or project-context before starting work.
+2. **Update status as you go.** Mark tasks in_progress when starting, blocked when stuck, done when complete.
+3. **Log observations.** Flag risks, conflicts, and architectural concerns as you discover them.
+4. **Include task IDs in commits.** Use \`task:<id>\` in commit messages for traceability.
+`;
+
+// ---------------------------------------------------------------------------
+// Commands (slash commands installed to .claude/commands/)
+// ---------------------------------------------------------------------------
+
 export const BRAIN_COMMANDS: Record<string, string> = {
   "brain-start-task.md": `---
 name: brain-start-task

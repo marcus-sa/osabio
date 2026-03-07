@@ -3,7 +3,15 @@ import { join } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
 import { findGitRoot, saveRepoConfig, loadGlobalConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
-import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS } from "./init-content";
+import {
+  BRAIN_HOOKS,
+  BRAIN_CLAUDE_MD,
+  BRAIN_COMMANDS,
+  buildOpencodePluginContent,
+  buildOpencodeJsonContent,
+  OPENCODE_MD_CONTENT,
+  type OpencodePluginInput,
+} from "./init-content";
 
 const DEFAULT_SERVER_URL = "http://localhost:3000";
 
@@ -374,6 +382,54 @@ brain check-commit
       console.log("  Removed legacy Brain post-commit hook");
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Step 7: OpenCode plugin files
+// ---------------------------------------------------------------------------
+
+const BRAIN_PLUGIN_PATH = ".opencode/plugins/brain.ts";
+
+export async function setupOpencode(
+  gitRoot: string,
+  input: OpencodePluginInput,
+): Promise<void> {
+  // 1. Create plugin file
+  const pluginsDir = join(gitRoot, ".opencode", "plugins");
+  if (!existsSync(pluginsDir)) mkdirSync(pluginsDir, { recursive: true });
+
+  const pluginContent = buildOpencodePluginContent(input);
+  await Bun.write(join(gitRoot, BRAIN_PLUGIN_PATH), pluginContent);
+  console.log("✓ OpenCode: .opencode/plugins/brain.ts created");
+
+  // 2. Create/update opencode.json
+  const jsonPath = join(gitRoot, "opencode.json");
+  const jsonFile = Bun.file(jsonPath);
+  let opcConfig: Record<string, unknown> = {};
+
+  if (await jsonFile.exists()) {
+    try {
+      opcConfig = await jsonFile.json();
+    } catch {
+      // Corrupted -- start fresh
+    }
+  }
+
+  const plugins = Array.isArray(opcConfig.plugins)
+    ? (opcConfig.plugins as string[])
+    : [];
+
+  if (!plugins.includes(BRAIN_PLUGIN_PATH)) {
+    plugins.push(BRAIN_PLUGIN_PATH);
+  }
+  opcConfig.plugins = plugins;
+
+  await Bun.write(jsonPath, JSON.stringify(opcConfig, null, 2) + "\n");
+  console.log("✓ OpenCode: opencode.json updated");
+
+  // 3. Write OPENCODE.md (idempotent overwrite)
+  await Bun.write(join(gitRoot, "OPENCODE.md"), OPENCODE_MD_CONTENT);
+  console.log("✓ OpenCode: OPENCODE.md created");
 }
 
 export async function setupCommands(gitRoot: string): Promise<void> {
