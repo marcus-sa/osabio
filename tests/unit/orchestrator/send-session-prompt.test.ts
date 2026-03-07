@@ -65,7 +65,6 @@ function spawnAgentStub() {
       abort: () => {
         abortCalls.push("aborted");
       },
-      result: Promise.resolve({ conversationId: "conv-1" }),
     }),
     abortCalls,
   };

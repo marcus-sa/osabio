@@ -1,26 +1,15 @@
 // ---------------------------------------------------------------------------
-// Agent spawning — thin adapter over Claude Agent SDK query()
+// Agent spawning — SDK adapter over @anthropic-ai/claude-agent-sdk
 // ---------------------------------------------------------------------------
 
 import { buildAgentOptions, type AgentSpawnConfig } from "./agent-options";
+import type { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
 
 // ---------------------------------------------------------------------------
-// Port: QueryFn — the SDK's query() function signature
+// QueryFn — port type matching the SDK's query() signature
 // ---------------------------------------------------------------------------
 
-export type QueryResult = {
-  [Symbol.asyncIterator](): AsyncIterator<unknown>;
-  result: Promise<ConversationResponse>;
-};
-
-export type ConversationResponse = {
-  conversationId: string;
-};
-
-export type QueryFn = (opts: {
-  prompt: string;
-  options: Record<string, unknown>;
-}) => QueryResult;
+export type QueryFn = typeof sdkQuery;
 
 // ---------------------------------------------------------------------------
 // AgentHandle — returned by spawnAgent
@@ -29,7 +18,6 @@ export type QueryFn = (opts: {
 export type AgentHandle = {
   messages: AsyncIterable<unknown>;
   abort: () => void;
-  result: Promise<ConversationResponse>;
 };
 
 // ---------------------------------------------------------------------------
@@ -45,17 +33,13 @@ export type SpawnAgentFn = (config: AgentSpawnConfig) => AgentHandle;
 export function createSpawnAgent(queryFn: QueryFn): SpawnAgentFn {
   return (config: AgentSpawnConfig): AgentHandle => {
     const abortController = new AbortController();
-    const agentOptions = buildAgentOptions(config, abortController);
+    const opts = buildAgentOptions(config, abortController);
 
-    const conversation = queryFn({
-      prompt: agentOptions.prompt,
-      options: agentOptions.options as unknown as Record<string, unknown>,
-    });
+    const stream = queryFn(opts);
 
     return {
-      messages: conversation,
+      messages: stream,
       abort: () => abortController.abort(),
-      result: conversation.result,
     };
   };
 }

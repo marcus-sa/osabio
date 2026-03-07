@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   createSpawnAgent,
   type AgentHandle,
-  type SpawnAgentFn,
   type QueryFn,
 } from "../../../app/src/server/orchestrator/spawn-agent";
 import type { AgentSpawnConfig } from "../../../app/src/server/orchestrator/agent-options";
@@ -13,32 +12,26 @@ import type { AgentSpawnConfig } from "../../../app/src/server/orchestrator/agen
 
 function createFakeQuery(options?: {
   messages?: Array<{ type: string }>;
-  result?: { conversationId: string };
   shouldThrow?: Error;
 }): { queryFn: QueryFn; calls: Array<unknown> } {
   const calls: Array<unknown> = [];
   const messages = options?.messages ?? [{ type: "assistant" }];
-  const result = options?.result ?? { conversationId: "conv-1" };
 
-  const queryFn: QueryFn = (opts) => {
+  const queryFn = ((opts: unknown) => {
     calls.push(opts);
 
     if (options?.shouldThrow) {
       throw options.shouldThrow;
     }
 
-    // Return an object that is both AsyncIterable<Message> and has .result
-    const iterable = {
-      async *[Symbol.asyncIterator]() {
-        for (const msg of messages) {
-          yield msg;
-        }
-      },
-      result: Promise.resolve(result),
-    };
-
-    return iterable;
-  };
+    // Return an AsyncGenerator matching the SDK Query interface
+    async function* generate() {
+      for (const msg of messages) {
+        yield msg;
+      }
+    }
+    return generate();
+  }) as unknown as QueryFn;
 
   return { queryFn, calls };
 }
@@ -56,13 +49,12 @@ describe("createSpawnAgent", () => {
   };
 
   // -------------------------------------------------------------------------
-  // Acceptance: spawnAgent returns AgentHandle with messages, abort, result
+  // Acceptance: spawnAgent returns AgentHandle with messages and abort
   // -------------------------------------------------------------------------
 
-  test("returns AgentHandle with messages iterable and result promise", async () => {
+  test("returns AgentHandle with messages iterable", async () => {
     const { queryFn } = createFakeQuery({
       messages: [{ type: "assistant" }, { type: "result" }],
-      result: { conversationId: "conv-42" },
     });
 
     const spawnAgent = createSpawnAgent(queryFn);
@@ -70,7 +62,6 @@ describe("createSpawnAgent", () => {
 
     expect(handle.messages).toBeDefined();
     expect(handle.abort).toBeInstanceOf(Function);
-    expect(handle.result).toBeInstanceOf(Promise);
 
     // Consume messages
     const collected: Array<unknown> = [];
@@ -78,9 +69,6 @@ describe("createSpawnAgent", () => {
       collected.push(msg);
     }
     expect(collected).toHaveLength(2);
-
-    const result = await handle.result;
-    expect(result.conversationId).toBe("conv-42");
   });
 
   // -------------------------------------------------------------------------

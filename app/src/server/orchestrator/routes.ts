@@ -290,7 +290,7 @@ export type OrchestratorWiringDeps = {
   shellExec: import("./worktree-manager").ShellExec;
   brainBaseUrl: string;
   sseRegistry?: SseRegistry;
-  queryFn?: import("./spawn-agent").QueryFn;
+  queryFn: import("./spawn-agent").QueryFn;
 };
 
 export function wireOrchestratorRoutes(
@@ -327,11 +327,10 @@ export function wireOrchestratorRoutes(
   // Use mock spawn for acceptance tests, production spawn otherwise
   const spawnAgentImport = process.env.ORCHESTRATOR_MOCK_AGENT === "true"
     ? Promise.resolve({
-        createSpawnAgent: (_queryFn?: import("./spawn-agent").QueryFn): import("./spawn-agent").SpawnAgentFn =>
+        createSpawnAgent: (_qfn: import("./spawn-agent").QueryFn): import("./spawn-agent").SpawnAgentFn =>
           () => ({
             messages: (async function* () {})(),
             abort: () => {},
-            result: Promise.resolve({ conversationId: "mock" }),
           }),
       })
     : import("./spawn-agent");
@@ -345,10 +344,7 @@ export function wireOrchestratorRoutes(
         spawnAgentImport,
         stallDetectorImport,
       ]);
-      // Wire spawnAgent: createSpawnAgent needs a QueryFn from Claude Agent SDK
-      const spawnAgent = wiringDeps.queryFn
-        ? createSpawnAgent(wiringDeps.queryFn)
-        : undefined;
+      const spawnAgent = createSpawnAgent(wiringDeps.queryFn);
       const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,

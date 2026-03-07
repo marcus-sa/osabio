@@ -9,28 +9,8 @@ export type AgentSpawnConfig = {
   brainBaseUrl: string;
 };
 
-type McpServerConfig = {
-  type: "stdio";
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-};
-
-export type AgentQueryOptions = {
-  prompt: string;
-  options: {
-    cwd: string;
-    maxTurns: number;
-    allowedTools: string[];
-    systemPrompt: { type: string; preset: string };
-    settingSources: string[];
-    mcpServers: Record<string, McpServerConfig>;
-    abortController?: AbortController;
-  };
-};
-
 // ---------------------------------------------------------------------------
-// buildAgentOptions — pure function mapping config to SDK query options
+// buildAgentOptions — pure function mapping config to SDK query params
 // ---------------------------------------------------------------------------
 
 const ALLOWED_TOOLS = [
@@ -47,15 +27,16 @@ const MAX_TURNS = 200;
 export function buildAgentOptions(
   config: AgentSpawnConfig,
   abortController?: AbortController,
-): AgentQueryOptions {
+): { prompt: string; options: Record<string, unknown> } {
   return {
     prompt: config.prompt,
     options: {
       cwd: config.workDir,
       maxTurns: MAX_TURNS,
       allowedTools: [...ALLOWED_TOOLS],
-      systemPrompt: { type: "preset", preset: "claude_code" },
-      settingSources: ["project"],
+      systemPrompt: { type: "preset" as const, preset: "claude_code" as const },
+      settingSources: ["project"] as const,
+      permissionMode: "bypassPermissions" as const,
       mcpServers: {
         brain: {
           type: "stdio",

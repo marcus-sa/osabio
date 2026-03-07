@@ -89,7 +89,6 @@ function createHandleCapture(
       abort: () => {
         capture.abortCalls++;
       },
-      result: Promise.resolve({ conversationId: "conv-1" }),
     };
     capture.capturedHandle = handle;
     return handle;
