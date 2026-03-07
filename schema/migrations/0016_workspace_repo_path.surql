@@ -1,0 +1,5 @@
+BEGIN TRANSACTION;
+
+DEFINE FIELD OVERWRITE repo_path ON workspace TYPE option<string>;
+
+COMMIT TRANSACTION;

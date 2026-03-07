@@ -11,6 +11,7 @@ export type EntityPriority = (typeof ENTITY_PRIORITIES)[number];
 export type CreateWorkspaceRequest = {
   name: string;
   description?: string;
+  repoPath?: string;
 };
 
 export type CreateWorkspaceResponse = {
@@ -177,6 +178,7 @@ export type WorkspaceBootstrapResponse = {
   workspaceId: string;
   workspaceName: string;
   workspaceDescription?: string;
+  repoPath?: string;
   onboardingComplete: boolean;
   onboardingState: OnboardingState;
   conversationId: string;

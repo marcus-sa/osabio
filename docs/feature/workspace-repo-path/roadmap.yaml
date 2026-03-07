@@ -1,0 +1,77 @@
+roadmap:
+  project_id: workspace-repo-path
+  created_at: '2026-03-07T14:35:26Z'
+  total_steps: 5
+  phases: 1
+phases:
+- id: '01'
+  name: 'Workspace repo_path field'
+  steps:
+  - id: 01-01
+    name: 'Schema migration and shared contracts'
+    description: 'Add optional repo_path field to workspace table. Extend CreateWorkspaceRequest and WorkspaceBootstrapResponse with repoPath.'
+    time_estimate: '15 min'
+    dependencies: []
+    criteria:
+      - 'Migration 0018 uses DEFINE FIELD OVERWRITE repo_path ON workspace TYPE option<string> within SCHEMAFULL table'
+      - 'CreateWorkspaceRequest type includes repoPath?: string'
+      - 'WorkspaceBootstrapResponse type includes repoPath?: string; present when set, omitted when absent'
+      - 'bun migrate applies without error'
+  - id: 01-02
+    name: 'Repo path validation and update endpoint'
+    description: 'Create validateRepoPath function (shells out to git rev-parse). Add POST /api/workspaces/:workspaceId/repo-path endpoint that validates then persists.'
+    time_estimate: '30 min'
+    dependencies: ['01-01']
+    criteria:
+      - 'validateRepoPath(path, shellExec) pure function exists; validates via git -C <path> rev-parse --git-dir (exit 0 = valid)'
+      - 'POST /api/workspaces/:ws/repo-path with valid git repo returns 200 and persists path'
+      - 'POST with nonexistent path returns 400'
+      - 'POST with non-git directory returns 400'
+      - 'GET /api/workspaces/:ws/bootstrap returns repoPath after set via POST repo-path'
+  - id: 01-03
+    name: 'Workspace creation with optional repo_path'
+    description: 'Wire repoPath through workspace creation flow: parse from request body, validate if present, persist to workspace record.'
+    time_estimate: '20 min'
+    dependencies: ['01-02']
+    criteria:
+      - 'Workspace created with valid repoPath persists it and returns in bootstrap'
+      - 'Workspace created with invalid repoPath is rejected with 400'
+      - 'Workspace created without repoPath succeeds; bootstrap omits repoPath'
+  - id: 01-04
+    name: 'Assignment guard and orchestrator wiring'
+    description: 'Add REPO_PATH_REQUIRED check to assignment guard. Remove static repoRoot from OrchestratorWiringDeps; read repo_path from workspace record at assignment time and pass to session lifecycle.'
+    time_estimate: '30 min'
+    dependencies: ['01-03']
+    criteria:
+      - 'Task assignment on workspace without repo_path returns 400 JSON { error: <string> } where error contains "repo_path"'
+      - 'Task assignment succeeds after repo_path is set on workspace'
+      - 'OrchestratorWiringDeps no longer accepts static repoRoot; repo_path resolved per-workspace from DB at assignment time'
+      - 'Session lifecycle receives repo_path from workspace record, not process.cwd()'
+  - id: 01-05
+    name: 'UI: repo path input and missing-path banner'
+    description: 'Add repo path text input to WorkspaceGuard creation form. Show banner in AgentStatusSection when repo_path is missing with action to set it.'
+    time_estimate: '25 min'
+    dependencies: ['01-01']
+    criteria:
+      - 'WorkspaceGuard form includes "Repository path" text input below description'
+      - 'AgentStatusSection shows banner when workspace has no repo_path'
+      - 'Banner provides action to navigate to or open repo path setting'
+implementation_scope:
+  source_directories:
+  - app/src/shared/
+  - app/src/server/workspace/
+  - app/src/server/orchestrator/
+  - app/src/server/runtime/
+  - app/src/server/http/
+  - app/src/client/components/layout/
+  - app/src/client/components/graph/
+  - schema/migrations/
+  test_directories:
+  - tests/acceptance/coding-agent-orchestrator/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: nw-software-crafter-reviewer
+  approved_at: '2026-03-07T14:50:00Z'

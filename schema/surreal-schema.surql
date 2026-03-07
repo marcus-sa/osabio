@@ -63,6 +63,7 @@ DEFINE FIELD onboarding_started_at ON workspace TYPE datetime;
 DEFINE FIELD onboarding_completed_at ON workspace TYPE option<datetime>;
 DEFINE FIELD created_at ON workspace TYPE datetime;
 DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
+DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;

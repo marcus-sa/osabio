@@ -1,0 +1,23 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-07T14:43:38Z'
+- d: 'NOT_APPLICABLE: acceptance tests pre-written in DISTILL wave'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-07T14:43:44Z'
+- d: 'NOT_APPLICABLE: schema+types step validated by compilation and acceptance tests'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-07T14:43:45Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-07T14:43:46Z'
+project_id: workspace-repo-path
+schema_version: '3.0'
