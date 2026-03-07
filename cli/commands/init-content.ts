@@ -24,7 +24,7 @@ export const BRAIN_HOOKS: Record<string, Array<{ type: string; command?: string;
       type: "prompt",
       prompt: `Review this conversation for items that were discussed but NOT logged via the Brain MCP tools. Check each category:
 
-1. **Decisions**: Implementation choices made but not logged. Call create_provisional_decision for each.
+1. **Decisions**: Architecture or design choices where alternatives existed (e.g. choosing a pattern, library, data model, or trade-off). Do NOT log mechanical bugfixes, typo corrections, or changes with only one correct approach. Call create_provisional_decision for each genuine decision.
 2. **Questions**: Unresolved questions raised but not logged. Call ask_question for each.
 3. **Observations**: Contradictions, duplication, missing items, deprecated patterns, or anomalies noticed. Call log_observation for each.
 4. **Task progress**: Tasks worked on whose status wasn't updated. Call update_task_status for each.
