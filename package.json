@@ -30,7 +30,6 @@
     "@anthropic-ai/claude-code": "^2.1.71",
     "@better-auth/oauth-provider": "^1.5.3",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@opencode-ai/sdk": "^1.2.20",
     "@openrouter/ai-sdk-provider": "^2.2.3",
     "@tanstack/react-router": "^1.131.24",
     "ai": "^6.0.101",
