@@ -73,7 +73,7 @@ async function handleAcceptWorkItem(
       const taskRecord = new RecordId("task", entityId);
       await deps.surreal.create(taskRecord).content({
         title: item.title,
-        status: "open",
+        status: "todo",
         workspace: workspaceRecord,
         ...(item.category ? { category: item.category } : {}),
         ...(item.priority ? { priority: item.priority } : {}),
