@@ -6,7 +6,8 @@
   "checkpoints_count": 0,
   "files_touched": [
     "app/src/server/orchestrator/session-lifecycle.ts",
-    "docs/feature/coding-session/execution-log.yaml"
+    "docs/feature/coding-session/execution-log.yaml",
+    "tests/unit/orchestrator/event-stream-wiring.test.ts"
   ],
   "sessions": [
     {
@@ -15,6 +16,13 @@
       "context": "/a3/34162d87eb/0/context.md",
       "content_hash": "/a3/34162d87eb/0/content_hash.txt",
       "prompt": "/a3/34162d87eb/0/prompt.txt"
+    },
+    {
+      "metadata": "/a3/34162d87eb/1/metadata.json",
+      "transcript": "/a3/34162d87eb/1/full.jsonl",
+      "context": "/a3/34162d87eb/1/context.md",
+      "content_hash": "/a3/34162d87eb/1/content_hash.txt",
+      "prompt": "/a3/34162d87eb/1/prompt.txt"
     }
   ],
   "token_usage": {
