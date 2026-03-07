@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9a6c5a5a29c1",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-008-claude-agent-sdk-over-opencode.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/6c5a5a29c1/0/metadata.json",
+      "transcript": "/9a/6c5a5a29c1/0/full.jsonl",
+      "context": "/9a/6c5a5a29c1/0/context.md",
+      "content_hash": "/9a/6c5a5a29c1/0/content_hash.txt",
+      "prompt": "/9a/6c5a5a29c1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
