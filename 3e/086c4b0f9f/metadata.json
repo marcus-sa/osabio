@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3e086c4b0f9f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/fix-entity-search-pm-dispatch",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/chat/tools/create-work-item.ts",
+    "tests/smoke/create-work-item-edge.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3e/086c4b0f9f/0/metadata.json",
+      "transcript": "/3e/086c4b0f9f/0/full.jsonl",
+      "context": "/3e/086c4b0f9f/0/context.md",
+      "content_hash": "/3e/086c4b0f9f/0/content_hash.txt",
+      "prompt": "/3e/086c4b0f9f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 123,
+    "cache_creation_tokens": 187673,
+    "cache_read_tokens": 3073553,
+    "output_tokens": 17561,
+    "api_call_count": 56
+  }
+}

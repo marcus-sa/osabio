@@ -1,0 +1,162 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/toronto-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:root-why "Bug: create_work_item silently fails to create has_feature edge when PM agent creates project + features in same tool loop
+
+When the PM agent creates a new project and then immediately creates features scoped to that project (e.g., create_work_item({kind: "feature", project: "Orders"})), the has_feature edge linking the feature to the project sometimes fails to create. The error is silently swallowed by the catch block at app/src/server/chat/tools/create-work-item.ts:178. This means features exist as records but have no has_feature edge to their parent project.
+
+The workspace field fix (this branch) makes features discoverable without the edge, but the has_feature edge is still needed for project-scoped queries (e.g., “list features in project Orders”). The edge creation failure needs to be investigated and fixed — likely a race condition in resolveWorkspaceProjectRecord not finding a just-created project, or a Surreal write consistency issue. Start by adding error logging in the catch block to surface what’s actually throwing."
+
+---
+
+Tool loaded.
+
+---
+
+Continue from where you left off.
+
+---
+
+# NW-ROOT-WHY: Toyota 5 Whys Root Cause Analysis
+
+**Wave**: CROSS_WAVE
+**Agent**: Rex (nw-troubleshooter)
+
+## Overview
+
+Systematic root cause analysis using Toyota's 5 Whys with multi-causal investigation and evidence-based validation. Investigates multiple cause branches at each level|validates solutions against all identified root causes.
+
+## Agent Invocation
+
+@nw-troubleshooter
+
+Execute \*investigate-root-cause for {problem-statement}.
+
+**Configuration:**
+- investigation_depth: 5
+- multi_causal: true
+- evidence_required: true
+
+## Usage: DELIVER Wave Retrospective (Phase 3.5)
+
+When invoked as part of `/nw:deliver` Phase 3.5, analyze across 4 categories:
+
+1. **What worked well** (and why — preserve these practices)
+2. **What worked better than before** (and why — reinforce improvements)
+3. **What worked badly** (5 Whys root cause, actionable fix)
+4. **What worked worse than before** (5 Whys root cause, prevent regression)
+
+**Inputs**: Evolution document|execution-log.yaml|mutation results|git log.
+**Output**: Retrospective section appended to evolution document.
+**Skip**: If clean execution (no skips|no failures|no tooling issues), generate brief summary only.
+
+Tag items requiring nWave framework changes as **meta-improvements**.
+
+## Success Criteria
+
+- [ ] All 5 WHY levels investigated with evidence
+- [ ] Multi-causal branches explored at each level
+- [ ] Root causes identified and validated
+- [ ] Solutions address all identified root causes
+- [ ] Backward chain validation performed
+
+## Next Wave
+
+**Handoff To**: {invoking-agent-returns-to-workflow}
+**Deliverables**: Root cause analysis report with solutions
+
+## Examples
+
+### Example 1: Investigate test flakiness
+```
+/nw:root-why "Integration tests fail intermittently on CI but pass locally"
+```
+Rex investigates 5 WHY levels with multi-causal branches, discovers race condition in database cleanup, proposes transaction-isolated test fixtures.
+
+## Expected Outputs
+
+```
+docs/analysis/root-cause-analysis-{problem}.md
+```
+
+
+ARGUMENTS:  "Bug: create_work_item silently fails to create has_feature edge when PM agent creates project + features in same tool loop
+
+When the PM agent creates a new project and then immediately creates features scoped to that project (e.g., create_work_item({kind: "feature", project: "Orders"})), the has_feature edge linking the feature to the project sometimes fails to create. The error is silently swallowed by the catch block at app/src/server/chat/tools/create-work-item.ts:178. This means features exist as records but have no has_feature edge to their parent project.
+
+The workspace field fix (this branch) makes features discoverable without the edge, but the has_feature edge is still needed for project-scoped queries (e.g., “list features in project Orders”). The edge creation failure needs to be investigated and fixed — likely a race condition in resolveWorkspaceProjectRecord not finding a just-created project, or a Surreal write consistency issue. Start by adding error logging in the catch block to surface what’s actually throwing."
+
+---
+
+Tool loaded.
+
+---
+
+shouldn't we just ensure in the prompt that parent entities are created first ?
+
+---
+
+add a regression smoke test
+
+---
+
+tests/smoke/create-work-item-edge.test.ts:
+2963 |          const { query, transaction, session, json } = this.#options;
+2964 |          const chunks = this.#connection.query(query, session, transaction);
+2965 |          const responses = [];
+2966 |          const queryIndexes = queries.length > 0 ? new Map(queries.map((idx, i) => [idx, i])) : void 0;
+2967 |          for await (const chunk of chunks) {
+2968 |                  if (chunk.error) throw new ResponseError(chunk.error);
+                                 ^
+ResponseError: Couldn't coerce value for field `createdAt` of `message:`19f31f6a-fe47-498f-9bcb-9dde9ee2d676``: Expected `datetime` but found `NONE`
+ code: 0,
+
+      at collect (/Users/marcus/conductor/workspaces/brain/toronto-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+✗ (unnamed) [753.42ms]
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [866.00ms]
+marcus@Marcuss-MacBook-Pro toronto-v1 %
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/toronto-v1/.context/attachments/pasted_text_2026-03-07_20-42-56.txt
+</system_instruction>
+
+
+
+OPENROUTER_EMBEDDING_MODEL is set in .env
+
+---
+
+why are u mocking embedding???
+
+---
+
+great, commit
+
+---
+
+Tool loaded.
+
+---
+
+Continue from where you left off.
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/toronto-v1/.context/attachments/pasted_text_2026-03-07_20-46-00.txt
+</system_instruction>

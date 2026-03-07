@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3e086c4b0f9f",
+  "session_id": "392e3614-0dd1-4129-9d3b-a590e4fceb13",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T13:46:41.21374Z",
+  "branch": "marcus-sa/fix-entity-search-pm-dispatch",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/chat/tools/create-work-item.ts",
+    "tests/smoke/create-work-item-edge.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7f99c3a7f5af",
+  "checkpoint_transcript_start": 21,
+  "transcript_lines_at_start": 21,
+  "token_usage": {
+    "input_tokens": 123,
+    "cache_creation_tokens": 187673,
+    "cache_read_tokens": 3073553,
+    "output_tokens": 17561,
+    "api_call_count": 56
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T13:46:40.539689Z",
+    "agent_lines": 256,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 256,
+    "agent_percentage": 100
+  }
+}
