@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "46dcb580a6e9",
+  "session_id": "6adaf94b-0aa6-4745-a95e-bcf06d1877cc",
   "strategy": "manual-commit",
+  "created_at": "2026-03-07T12:19:40.901447Z",
   "branch": "marcus-sa/coding-agent-orch",
   "checkpoints_count": 0,
   "files_touched": [
@@ -9,27 +11,24 @@
     "docs/feature/coding-agent-orchestrator-ui/execution-log.yaml",
     "tests/unit/coding-agent-orchestrator/ui/use-agent-session.test.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/46/dcb580a6e9/0/metadata.json",
-      "transcript": "/46/dcb580a6e9/0/full.jsonl",
-      "context": "/46/dcb580a6e9/0/context.md",
-      "content_hash": "/46/dcb580a6e9/0/content_hash.txt",
-      "prompt": "/46/dcb580a6e9/0/prompt.txt"
-    },
-    {
-      "metadata": "/46/dcb580a6e9/1/metadata.json",
-      "transcript": "/46/dcb580a6e9/1/full.jsonl",
-      "context": "",
-      "content_hash": "/46/dcb580a6e9/1/content_hash.txt",
-      "prompt": ""
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "11fae87133c8",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
   "token_usage": {
     "input_tokens": 0,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
     "output_tokens": 0,
     "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T12:19:40.899894Z",
+    "agent_lines": 418,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 418,
+    "agent_percentage": 100
   }
 }
