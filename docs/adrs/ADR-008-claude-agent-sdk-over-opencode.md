@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted 2026-03-08
 
 Supersedes: ADR-001, ADR-003
 
