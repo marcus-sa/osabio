@@ -1,0 +1,678 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/richmond directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:root-why when trying to assign an agent to a task: "Orchestrator request failed (500): {"error":"Failed to spawn OpenCode: spawnOpenCode not provided -- must be injected for production use"}"
+
+---
+
+Tool loaded.
+
+---
+
+# NW-ROOT-WHY: Toyota 5 Whys Root Cause Analysis
+
+**Wave**: CROSS_WAVE
+**Agent**: Rex (nw-troubleshooter)
+
+## Overview
+
+Systematic root cause analysis using Toyota's 5 Whys with multi-causal investigation and evidence-based validation. Investigates multiple cause branches at each level|validates solutions against all identified root causes.
+
+## Agent Invocation
+
+@nw-troubleshooter
+
+Execute \*investigate-root-cause for {problem-statement}.
+
+**Configuration:**
+- investigation_depth: 5
+- multi_causal: true
+- evidence_required: true
+
+## Usage: DELIVER Wave Retrospective (Phase 3.5)
+
+When invoked as part of `/nw:deliver` Phase 3.5, analyze across 4 categories:
+
+1. **What worked well** (and why — preserve these practices)
+2. **What worked better than before** (and why — reinforce improvements)
+3. **What worked badly** (5 Whys root cause, actionable fix)
+4. **What worked worse than before** (5 Whys root cause, prevent regression)
+
+**Inputs**: Evolution document|execution-log.yaml|mutation results|git log.
+**Output**: Retrospective section appended to evolution document.
+**Skip**: If clean execution (no skips|no failures|no tooling issues), generate brief summary only.
+
+Tag items requiring nWave framework changes as **meta-improvements**.
+
+## Success Criteria
+
+- [ ] All 5 WHY levels investigated with evidence
+- [ ] Multi-causal branches explored at each level
+- [ ] Root causes identified and validated
+- [ ] Solutions address all identified root causes
+- [ ] Backward chain validation performed
+
+## Next Wave
+
+**Handoff To**: {invoking-agent-returns-to-workflow}
+**Deliverables**: Root cause analysis report with solutions
+
+## Examples
+
+### Example 1: Investigate test flakiness
+```
+/nw:root-why "Integration tests fail intermittently on CI but pass locally"
+```
+Rex investigates 5 WHY levels with multi-causal branches, discovers race condition in database cleanup, proposes transaction-isolated test fixtures.
+
+## Expected Outputs
+
+```
+docs/analysis/root-cause-analysis-{problem}.md
+```
+
+
+ARGUMENTS: when trying to assign an agent to a task: "Orchestrator request failed (500): {"error":"Failed to spawn OpenCode: spawnOpenCode not provided -- must be injected for production use"}"
+
+---
+
+Tool loaded.
+
+---
+
+https://opencode.ai/docs/sdk/#_top
+
+---
+
+Tool loaded.
+
+---
+
+Tool loaded.
+
+---
+
+Tool loaded.
+
+---
+
+# NW-DISCUSS: Jobs-to-be-Done Analysis, UX Journey Design, and Requirements Gathering
+
+**Wave**: DISCUSS (wave 2 of 6) | **Agent**: Luna (nw-product-owner) | **Command**: `/nw:discuss`
+
+## Overview
+
+Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journey discovery|emotional arc design|shared artifact tracking|requirements gathering|user story creation|acceptance criteria definition. Luna uncovers jobs users accomplish, maps to journeys and requirements, handles complete lifecycle from user motivations through DoR-validated stories ready for DESIGN. Establishes ATDD foundation.
+
+For greenfield projects (no src/ code, no docs/feature/ history), Luna proposes Walking Skeleton as Feature 0.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Type
+**Question**: What type of feature is this?
+**Options**:
+1. User-facing -- UI/UX functionality visible to end users
+2. Backend -- APIs, services, data processing
+3. Infrastructure -- DevOps, CI/CD, tooling
+4. Cross-cutting -- Spans multiple layers (auth, logging, etc.)
+5. Other -- user provides custom input
+
+### Decision 2: Walking Skeleton
+**Question**: Should we start with a walking skeleton?
+**Options**:
+1. Yes -- recommended for greenfield projects
+2. Depends -- brownfield; Luna evaluates existing structure first
+3. No -- feature is isolated enough to skip
+
+### Decision 3: UX Research Depth
+**Question**: Priority for UX research depth?
+**Options**:
+1. Lightweight -- quick journey map, focus on happy path
+2. Comprehensive -- full experience mapping with emotional arcs
+3. Deep-dive -- extensive user research, multiple personas, edge cases
+
+### Decision 4: Number of User Jobs
+**Question**: How many distinct jobs are your users trying to accomplish with this feature?
+**Options**:
+1. Single job -- one primary job to focus on
+2. Multiple jobs (2-4) -- several related jobs, will need opportunity scoring
+3. Unclear -- Luna will help discover and define the jobs through interview
+
+## Context Files Required
+
+- docs/project-brief.md | docs/stakeholders.yaml | docs/architecture/constraints.md
+
+## Previous Artifacts (Wave Handoff)
+
+- docs/discovery/problem-validation.md | opportunity-tree.md | lean-canvas.md — From DISCOVER
+
+## Agent Invocation
+
+@nw-product-owner
+
+Execute *jtbd-analysis for {feature-name}, then *journey informed by JTBD artifacts, then *gather-requirements informed by both.
+
+Context files: see Context Files Required and Previous Artifacts above.
+
+**Configuration:**
+- format: visual | yaml | gherkin | all (default: all)
+- research_depth: {Decision 3} | interactive: high | output_format: markdown
+- elicitation_depth: comprehensive | feature_type: {Decision 1}
+- walking_skeleton: {Decision 2} | job_count: {Decision 4}
+- output_directory: docs/ux/{epic}/ (JTBD + journeys), docs/requirements/ (stories)
+
+**Phase 1 -- Jobs-to-be-Done Analysis (REQUIRED):**
+
+Grounds all subsequent artifacts in real user motivations.
+
+1. **Job Discovery**: Ask user what users are trying to accomplish. Capture in job story format: "When [situation], I want to [motivation], so I can [outcome]."
+2. **Job Dimensions**: For each job — functional (practical task)|emotional (desired feeling)|social (desired perception)
+3. **Four Forces Analysis**: For each primary job:
+   - **Push** (current frustration): "What frustrated users enough to request this?"
+   - **Pull** (desired future): "What could they do that they cannot now?"
+   - **Anxiety** (adoption concerns): "What concerns about adopting this?"
+   - **Habit** (current behavior): "What behavior must change?"
+   If interview transcripts|support tickets|analytics exist, extract forces from those instead of relying solely on user description.
+4. **Opportunity Scoring** (multiple jobs): Rank by importance vs. satisfaction gap. High importance + low satisfaction = strongest opportunities. Produce scored table.
+5. **JTBD-to-Story Bridge**: Each job story feeds into user stories and acceptance criteria in Phase 3. Every user story must trace to at least one job.
+
+| Artifact | Path |
+|----------|------|
+| Job Stories | `docs/ux/{epic}/jtbd-job-stories.md` |
+| Four Forces | `docs/ux/{epic}/jtbd-four-forces.md` |
+| Opportunity Scores | `docs/ux/{epic}/jtbd-opportunity-scores.md` (when multiple jobs) |
+
+**Phase 2 -- Journey Design:**
+
+Luna runs deep discovery (mental model|emotional arc|shared artifacts|error paths) informed by JTBD, produces visual journey + YAML schema + Gherkin scenarios. Each journey maps to one or more identified jobs.
+
+| Artifact | Path |
+|----------|------|
+| Visual Journey | `docs/ux/{epic}/journey-{name}-visual.md` |
+| Journey Schema | `docs/ux/{epic}/journey-{name}.yaml` |
+| Gherkin Scenarios | `docs/ux/{epic}/journey-{name}.feature` |
+| Artifact Registry | `docs/ux/{epic}/shared-artifacts-registry.md` |
+
+**Phase 3 -- Requirements and User Stories:**
+
+Luna crafts LeanUX stories informed by JTBD + journey artifacts. Every story traces to at least one job story. Validates against DoR, invokes peer review, prepares handoff.
+
+| Artifact | Path |
+|----------|------|
+| Requirements | `docs/requirements/requirements.md` |
+| User Stories | `docs/requirements/user-stories.md` |
+| Acceptance Criteria | `docs/requirements/acceptance-criteria.md` |
+| DoR Checklist | `docs/requirements/dor-checklist.md` |
+
+## Success Criteria
+
+- [ ] JTBD analysis complete: all jobs in job story format
+- [ ] Job dimensions identified: functional|emotional|social per job
+- [ ] Four Forces mapped per job (push|pull|anxiety|habit)
+- [ ] Opportunity scores produced (when multiple jobs)
+- [ ] UX journey map with emotional arcs and shared artifacts
+- [ ] Every journey maps to at least one job
+- [ ] Discovery complete: user mental model understood, no vague steps
+- [ ] Happy path defined: all steps start-to-goal with expected outputs
+- [ ] Emotional arc coherent: confidence builds progressively
+- [ ] Shared artifacts tracked: every ${variable} has single documented source
+- [ ] Requirements completeness score > 0.95
+- [ ] Every user story traces to at least one job story
+- [ ] All acceptance criteria testable
+- [ ] DoR passed: all 8 items validated with evidence
+- [ ] Peer review approved
+- [ ] Handoff accepted by nw-solution-architect (DESIGN wave)
+
+## Next Wave
+
+**Handoff To**: nw-solution-architect (DESIGN wave)
+**Deliverables**: JTBD artifacts (job stories|four forces|opportunity scores) + journey artifacts (visual|YAML|Gherkin|artifact registry) + requirements (stories|acceptance criteria|DoR validation|peer review)
+
+## Expected Outputs
+
+```
+docs/ux/{epic}/
+  jtbd-job-stories.md
+  jtbd-four-forces.md
+  jtbd-opportunity-scores.md    (when multiple jobs)
+  journey-{name}-visual.md
+  journey-{name}.yaml
+  journey-{name}.feature
+  shared-artifacts-registry.md
+
+docs/requirements/
+  requirements.md
+  user-stories.md               (each story traces to a job)
+  acceptance-criteria.md
+  dor-checklist.md
+```
+
+## Examples
+
+### Example 1: User-facing feature with comprehensive UX research
+```
+/nw:discuss first-time-setup
+```
+Orchestrator asks Decision 1-4. User selects "User-facing", "No skeleton", "Comprehensive", "Multiple jobs". Luna starts with JTBD analysis: discovers jobs like "When I first open the app, I want to feel productive immediately, so I can justify the purchase." Maps four forces for each job. Scores opportunities. Then runs journey discovery informed by JTBD, produces visual journey + YAML + Gherkin. Finally crafts stories where each traces to a job, validates DoR, and prepares handoff.
+
+### Example 2: JTBD-only invocation
+```
+/nw:discuss --phase=jtbd onboarding-flow
+```
+Runs only Luna's JTBD analysis phase (job discovery + dimensions + four forces + opportunity scoring). Produces JTBD artifacts without proceeding to journey design or requirements. Useful for early discovery when you need to understand user motivations before committing to UX design.
+
+### Example 3: Journey-only invocation
+```
+/nw:discuss --phase=journey release-nwave
+```
+Runs only Luna's journey design phases (discovery + visualization + coherence validation). Produces journey artifacts without proceeding to requirements crafting. Useful when JTBD is already done and journey design needs standalone iteration.
+
+### Example 4: Requirements-only invocation
+```
+/nw:discuss --phase=requirements new-plugin-system
+```
+Runs only Luna's requirements phases (gathering + crafting + DoR validation). Assumes JTBD and journey artifacts already exist or are not needed (e.g., backend feature).
+
+
+ARGUMENTS:  i don't quite understand how this is supposed to work. "spawnOpencode" creates a session with a hardcoded title, but only returns the sessionId. how is this supposed to delegate a task to it and prompt it?
+
+---
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md
+- docs/feature/{feature-name}/discuss/user-stories.md
+- docs/feature/{feature-name}/discuss/domain-model.md
+- docs/feature/{feature-name}/discuss/ux-journey.md
+- docs/feature/{feature-name}/discuss/jtbd-job-stories.md — Job stories (JTBD Phase 1)
+- docs/feature/{feature-name}/discuss/jtbd-four-forces.md — Four Forces analysis
+- docs/feature/{feature-name}/discuss/jtbd-opportunity-scores.md — Opportunity scores (if multiple jobs)
+- docs/feature/{feature-name}/design/constraints.md — Technical and business constraints
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-name}.
+
+Context files: see Context Files Required above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOP wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOP wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Expected Outputs
+
+```
+docs/feature/{feature-name}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+
+ARGUMENTS: yes, but in the extended task view, it should also be possible for the user to add another prompt to it. this is really only half baked. we've focused more on the orchestration than we have around the actual coding session.
+
+---
+
+Tool loaded.
+
+---
+
+# NW-ROADMAP: Goal Planning
+
+**Wave**: CROSS_WAVE
+**Agent**: Architect (nw-solution-architect) or domain-appropriate agent
+
+## Overview
+
+Dispatches expert agent to fill a pre-scaffolded YAML roadmap skeleton. CLI tools handle structure; agent handles content.
+
+Output: `docs/feature/{project-id}/roadmap.yaml`
+
+## Usage
+
+```bash
+/nw:roadmap @nw-solution-architect "Migrate monolith to microservices"
+/nw:roadmap @nw-software-crafter "Replace legacy authentication system"
+/nw:roadmap @nw-product-owner "Implement multi-tenant support"
+```
+
+## Execution Steps
+
+You MUST execute these steps in order. Do NOT skip any.
+
+**Step 1 — Parse parameters:**
+1. Agent name (after @, validated against agent registry)
+2. Goal description (quoted string)
+3. Derive project-id from goal (kebab-case, e.g., "Migrate to OAuth2" -> "migrate-to-oauth2")
+
+**Step 2 — Scaffold skeleton via CLI (mandatory, BEFORE invoking agent):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap init \
+  --project-id {project-id} \
+  --goal "{goal-description}" \
+  --output docs/feature/{project-id}/roadmap.yaml
+```
+For complex projects add: `--phases 3 --steps "01:3,02:2,03:1"`
+
+If exit code non-zero, stop and report error. Do NOT write file manually.
+
+**Step 3 — Invoke agent to fill skeleton:**
+
+Skeleton exists with TODO placeholders. Invoke via Task tool:
+```
+@{agent-name}
+
+Fill in the roadmap skeleton at docs/feature/{project-id}/roadmap.yaml.
+Replace every TODO with real content. Do NOT change the YAML structure
+(phases, steps, keys). Fill in: names, descriptions, acceptance criteria,
+time estimates, dependencies, and implementation_scope paths.
+
+Goal: {goal-description}
+```
+
+Context to pass (if available): measurement baseline|mikado-graph.md|existing docs.
+
+**Step 4 — Validate via CLI (hard gate, mandatory):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap validate docs/feature/{project-id}/roadmap.yaml
+```
+- Exit 0 -> success, roadmap ready
+- Exit 1 -> print errors, STOP, do NOT proceed
+- Exit 2 -> usage error, STOP
+
+## Invocation Principles
+
+Keep agent prompt minimal. Agent knows roadmap structure and planning methodology.
+
+Pass: skeleton file path + goal description + measurement context (if available).
+Do not pass: YAML templates|phase guidance|step decomposition rules.
+
+For performance roadmaps, include measurement context inline so agent can validate targets against baselines.
+
+## Success Criteria
+
+### Dispatcher (you) — all 4 must be checked
+- [ ] Parameters parsed (agent name, goal, project-id)
+- [ ] `des.cli.roadmap init` executed via Bash (exit 0)
+- [ ] Agent invoked via Task tool to fill TODO placeholders
+- [ ] `des.cli.roadmap validate` executed via Bash (exit 0)
+
+### Agent output (reference)
+- [ ] All TODO placeholders replaced with real content
+- [ ] Steps are self-contained and atomic
+- [ ] Acceptance criteria are behavioral and measurable
+- [ ] Step decomposition ratio <= 2.5 (steps / production files)
+- [ ] Dependencies mapped, time estimates provided
+
+## Error Handling
+
+- Invalid agent: report valid agents and stop
+- Missing goal: show usage syntax and stop
+- Scaffold failure (exit 2): report CLI error and stop
+- Validation failure (exit 1): print errors, do not proceed
+
+## Examples
+
+### Example 1: Standard architecture roadmap
+```
+/nw:roadmap @nw-solution-architect "Migrate authentication to OAuth2"
+```
+Derives project-id="migrate-auth-to-oauth2", scaffolds skeleton, invokes agent to fill TODOs, validates. Produces docs/feature/migrate-auth-to-oauth2/roadmap.yaml.
+
+### Example 2: Performance roadmap with measurement context
+```
+/nw:roadmap @nw-solution-architect "Optimize test suite execution"
+```
+Passes measurement data inline. Agent fills skeleton, validates targets against baseline, prioritizes largest bottleneck first.
+
+### Example 3: Mikado refactoring
+```
+/nw:roadmap @nw-software-crafter "Extract payment module from monolith"
+```
+Agent fills skeleton with methodology: mikado, references mikado-graph.md, maps leaf nodes to steps.
+
+## Workflow Context
+
+```bash
+/nw:roadmap @agent "goal"           # 1. Plan (init -> agent fills -> validate)
+/nw:execute @agent "project" "01-01" # 2. Execute steps
+/nw:finalize @agent "project"        # 3. Finalize
+```
+
+---
+
+before the task gets delegated, we need to ensure that the brain cli is installed and authenticated for the repo
+
+---
+
+Continue from where you left off.
+
+---
+
+init only needs to happen once in the original repo path, not in the git worktrees
+
+---
+
+the first prompt to the coding agent should be something like "brain start task xxx" and then the cli will also validate that it is authenticated. that also verifies if brain cli is actually installed on the machine
+
+---
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOP informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md | user-stories.md
+- docs/feature/{feature-name}/design/architecture-design.md | component-boundaries.md | technology-stack.md
+- docs/feature/{feature-name}/deliver/* (infrastructure design from DEVOP)
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-name}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw:distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-name}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-name}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
