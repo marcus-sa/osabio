@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b940f24e2458",
+  "session_id": "4057cc93-4587-4339-806a-d6f38f6d55b7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T17:53:57.426328Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "package.json",
+    "patches/reachat@3.0.0.patch",
+    "tests/unit/chat-component-catalog-rendering.test.ts",
+    "tests/unit/chat-component-system-prompt.test.ts",
+    "tests/unit/chat-context.test.ts",
+    "tests/unit/confirm-decision-tool.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5e280fee3921",
+  "checkpoint_transcript_start": 27,
+  "transcript_lines_at_start": 27,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T17:53:57.392155Z",
+    "agent_lines": 29,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 29,
+    "agent_percentage": 100
+  }
+}
