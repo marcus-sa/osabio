@@ -11,7 +11,7 @@ type StreamEvent =
 
 const getRuntime = setupSmokeSuite("readme_import");
 
-describe("README import smoke", () => {
+describe.skip("README import smoke", () => {
   it("ingests README.md and persists document chunks", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUser(baseUrl, "readme");

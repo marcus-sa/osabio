@@ -1,0 +1,146 @@
+roadmap:
+  project_id: coding-session
+  created_at: '2026-03-07T15:48:20Z'
+  total_steps: 6
+  phases: 3
+phases:
+- id: '01'
+  name: 'Spawn enrichment and event subscription'
+  description: >
+    Enrich spawnOpenCode to send the initial task prompt via brain CLI
+    slash command, subscribe to OpenCode SSE events, and expose
+    sendPrompt + eventStream on the handle.
+  steps:
+  - id: 01-01
+    name: 'Enrich OpenCodeHandle with prompt and event stream'
+    description: >
+      Extend OpenCodeHandle to carry sendPrompt and async-iterable eventStream.
+      Initial prompt is /brain-start-task <taskId> which triggers the brain CLI
+      to load task context and validate CLI installation + authentication.
+      If brain CLI is missing or not authenticated, OpenCode surfaces the error.
+    criteria:
+      - 'Initial prompt delivers task context to agent for parsing and validation'
+      - 'OpenCodeHandle exposes sendPrompt to deliver follow-up text to the session'
+      - 'OpenCodeHandle exposes async-iterable event stream from client.event.subscribe()'
+      - 'Abort cleans up event subscription, session, and server process'
+    time_estimate: '2h'
+    dependencies: []
+    implementation_scope:
+      - app/src/server/orchestrator/spawn-opencode.ts
+      - app/src/server/orchestrator/session-lifecycle.ts
+  - id: 01-02
+    name: 'Wire event stream into session lifecycle'
+    description: >
+      Integrate OpenCode event stream with event bridge and stall
+      monitoring in the session lifecycle.
+    criteria:
+      - 'Agent events are transformed and delivered to browser clients in real-time through the session stream'
+      - 'Stall detector starts monitoring activity on the new session'
+      - 'Session status transitions to active after first agent event received'
+      - 'Event iteration stops on session abort or terminal status'
+    time_estimate: '2h'
+    dependencies:
+      - 01-01
+    implementation_scope:
+      - app/src/server/orchestrator/session-lifecycle.ts
+      - app/src/server/orchestrator/event-bridge.ts
+- id: '02'
+  name: 'Follow-up prompt endpoint and session handle registry'
+  description: >
+    Expose sendPrompt handles via in-memory registry so the new
+    POST prompt endpoint can deliver follow-up messages to active sessions.
+  steps:
+  - id: 02-01
+    name: 'Register sendPrompt handle and expose prompt endpoint'
+    description: >
+      Store sendPrompt in the existing handleRegistry (alongside abort).
+      Add POST /api/orchestrator/:ws/sessions/:id/prompt route that
+      validates session is active and forwards text via the registered handle.
+    criteria:
+      - 'POST prompt endpoint accepts { text } body and delivers it to the active OpenCode session'
+      - 'Endpoint returns 404 if session not found, 409 if session is in terminal status'
+      - 'Prompt delivery is fire-and-forget (async); endpoint returns 202 immediately'
+      - 'Handle registry stores sendPrompt alongside abort for each active session'
+    time_estimate: '2h'
+    dependencies:
+      - 01-01
+      - 01-02
+    implementation_scope:
+      - app/src/server/orchestrator/session-lifecycle.ts
+      - app/src/server/orchestrator/routes.ts
+  - id: 02-02
+    name: 'Client API wrapper for follow-up prompts'
+    description: >
+      Add sendPrompt function to orchestrator-api.ts client module
+      and corresponding shared contract type for the prompt request.
+    criteria:
+      - 'Client function sends POST to prompt endpoint with text payload'
+      - 'Error handling follows existing orchestratorFetch pattern (throw on non-OK)'
+      - 'Prompt request type is defined in shared contracts'
+    time_estimate: '1h'
+    dependencies:
+      - 02-01
+    implementation_scope:
+      - app/src/client/graph/orchestrator-api.ts
+      - app/src/shared/contracts.ts
+- id: '03'
+  name: 'Live session UI with token output and follow-up input'
+  description: >
+    Add in-session interaction: streaming token output display and
+    a text input for sending follow-up prompts to the working agent.
+  steps:
+  - id: 03-01
+    name: 'Agent token stream display component'
+    description: >
+      Accumulate agent_token events into rendered output within the
+      active session view. Show streaming text with auto-scroll.
+    criteria:
+      - 'Agent token events render as streaming text in the active session panel'
+      - 'Output auto-scrolls to latest content while actively streaming'
+      - 'Token accumulation resets when a new prompt is sent'
+      - 'File change events appear as inline notifications within the output'
+    time_estimate: '2.5h'
+    dependencies:
+      - 01-02
+    implementation_scope:
+      - app/src/client/components/graph/AgentSessionOutput.tsx
+      - app/src/client/hooks/use-agent-session.ts
+      - app/src/client/components/graph/AgentStatusSection.tsx
+  - id: 03-02
+    name: 'Follow-up prompt input and session interaction panel'
+    description: >
+      Add text input below agent output for sending follow-up prompts.
+      Wire to sendPrompt client API. Disable input when session is in
+      terminal status or while a prompt is in-flight.
+    criteria:
+      - 'Text input appears below agent output when session status is active or idle'
+      - 'Submitting sends text via sendPrompt API and clears the input'
+      - 'Input is disabled during prompt submission and in terminal session states'
+      - 'Abort button remains accessible alongside the prompt input'
+    time_estimate: '2h'
+    dependencies:
+      - 02-02
+      - 03-01
+    implementation_scope:
+      - app/src/client/components/graph/AgentSessionPanel.tsx
+      - app/src/client/components/graph/AgentStatusSection.tsx
+      - app/src/client/graph/orchestrator-api.ts
+implementation_scope:
+  source_directories:
+  - app/src/server/orchestrator/
+  - app/src/client/components/graph/
+  - app/src/client/hooks/
+  - app/src/client/graph/
+  - app/src/shared/
+  test_directories:
+  - tests/unit/orchestrator/
+  - tests/unit/client/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: atlas
+  reviewed_at: '2026-03-08T00:00:00Z'
+  approved_at: '2026-03-08T00:01:00Z'
+  revision_notes: 'Fixed 2 AC coupling issues (01-01 AC#1, 01-02 AC#1) per reviewer feedback'

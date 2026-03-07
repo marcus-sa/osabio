@@ -108,16 +108,23 @@ function spawnOpenCodeStub(
 ): {
   spawn: NonNullable<SessionDeps["spawnOpenCode"]>;
   abortCalls: string[];
+  promptCalls: string[];
 } {
   const abortCalls: string[] = [];
+  const promptCalls: string[] = [];
   return {
-    spawn: async (_config, _worktreePath) => ({
+    spawn: async (_config, _worktreePath, _taskId) => ({
       sessionId,
       abort: () => {
         abortCalls.push(sessionId);
       },
+      sendPrompt: async (text: string) => {
+        promptCalls.push(text);
+      },
+      eventStream: (async function* () {})(),
     }),
     abortCalls,
+    promptCalls,
   };
 }
 

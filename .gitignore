@@ -8,5 +8,5 @@ eval-results/
 **/CLAUDE.md
 .nwave/des/logs
 dist/
-brain
 .devtools
+.brain/

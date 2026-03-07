@@ -1,0 +1,296 @@
+journey:
+  name: "Interactive Coding Session"
+  goal: "Delegate coding tasks to an AI agent, monitor its work in real-time, course-correct when needed, and review changes with full context before accepting"
+  persona: "Marcus Oliveira -- solo technical founder delegating coding to AI agents"
+
+  emotional_arc:
+    start: "Hopeful but uncertain -- will the agent get this right?"
+    middle: "Engaged and in control -- I can see what it's doing and guide it"
+    end: "Confident and satisfied -- I understand the changes and trust the result"
+
+  jobs:
+    - id: J1
+      story: "When I have a well-defined task that I know an AI agent can handle, I want to assign it and trust that the agent understands what to build, so I can shift my attention to other work without worrying."
+      functional: "Assign a task to an AI coding agent with enough context that it produces correct, mergeable code"
+      emotional: "Feel confident that delegation is safe"
+      social: "Build effective human-AI workflows"
+
+    - id: J2
+      story: "When I notice the agent is heading in the wrong direction, I want to send it guidance without disrupting its flow, so I can steer it toward the right solution without starting over."
+      functional: "Send a follow-up prompt that adjusts the agent's approach mid-task"
+      emotional: "Feel in control, like guiding a junior developer"
+      social: "Demonstrate effective AI supervision"
+
+    - id: J3
+      story: "When the agent has finished and I need to decide whether to accept its changes, I want to review the diff alongside the agent's reasoning, so I can make a confident accept/reject decision."
+      functional: "Review diff with full context of agent reasoning and conversation trail"
+      emotional: "Feel confident in the accept decision"
+      social: "Maintain code quality standards"
+
+steps:
+  - id: 1
+    name: "Assign Agent"
+    action: "Click 'Assign Agent' button on task entity detail"
+
+    shared_artifacts:
+      - name: taskId
+        source: "Entity detail panel props"
+        displayed_as: "${taskId}"
+        consumers: ["assign button onClick", "orchestrator POST /assign", "spawn-opencode taskId param"]
+      - name: workspaceId
+        source: "Workspace state store"
+        displayed_as: "${workspaceId}"
+        consumers: ["orchestrator URL path", "session record workspace field"]
+      - name: repoPath
+        source: "Workspace record in SurrealDB"
+        displayed_as: "${repoPath}"
+        consumers: ["worktree creation cwd", "agent repo path banner"]
+
+    emotional_state:
+      entry: "Hopeful, decisive"
+      exit: "Expectant"
+
+    integration_checkpoint: |
+      Task status must be 'ready' or 'todo'.
+      Workspace must have repo_path configured.
+      No other active agent session on this task.
+
+    gherkin: |
+      Scenario: Marcus assigns an agent to a ready task
+        Given Marcus is viewing task "Add pagination to entity search" with status "ready"
+        And workspace "Richmond" has repo path "/Users/marcus/conductor/workspaces/brain/richmond"
+        When Marcus clicks "Assign Agent"
+        Then the system creates a worktree branch "agent/add-pagination-to-entity-search"
+        And the system spawns an OpenCode agent session
+        And the agent status section shows "Spawning..."
+
+  - id: 2
+    name: "Spawn Progress"
+    action: "System spawns OpenCode server, creates session, sends initial command"
+
+    shared_artifacts:
+      - name: agentSessionId
+        source: "createOrchestratorSession return value"
+        displayed_as: "${agentSessionId}"
+        consumers: ["session status polling", "review page URL", "abort/accept/reject endpoints", "handle registry key"]
+      - name: streamId
+        source: "generateStreamId(agentSessionId)"
+        displayed_as: "${streamId}"
+        consumers: ["SSE EventSource URL", "event bridge target", "stall detector"]
+      - name: streamUrl
+        source: "Derived: /api/orchestrator/stream/${streamId}"
+        displayed_as: "${streamUrl}"
+        consumers: ["useAgentSession hook", "EventSource constructor"]
+
+    emotional_state:
+      entry: "Expectant, slight anxiety during wait"
+      exit: "Relieved when first output appears"
+
+    integration_checkpoint: |
+      Spawn must complete within 15 seconds (SERVER_START_TIMEOUT_MS).
+      Event stream subscription must be established.
+      Initial /brain-start-task command must be sent.
+      On spawn failure: worktree removed, agent_session deleted, task returned to ready.
+
+    gherkin: |
+      Scenario: Agent spawns and begins working
+        Given Marcus has assigned an agent to task "Add pagination to entity search"
+        When the OpenCode server starts and session is created
+        Then the initial command "/brain-start-task" is sent with the task ID
+        And the event stream subscription begins
+        And the stall detector starts monitoring
+        And the status transitions from "spawning" to "active"
+
+      Scenario: Spawn fails and rolls back cleanly
+        Given Marcus has assigned an agent to task "Add pagination to entity search"
+        When the OpenCode server fails to start within 15 seconds
+        Then the worktree is removed
+        And the agent session record is deleted
+        And the task status returns to "ready"
+        And an error message explains "Agent failed to start. Please try again."
+
+  - id: 3
+    name: "Live Output Stream"
+    action: "Agent output streams to browser via SSE; user watches agent work"
+
+    shared_artifacts:
+      - name: agentTokens
+        source: "OpenCode event stream -> event bridge -> SSE"
+        displayed_as: "Streaming text in agent output panel"
+        consumers: ["AgentSessionOutput component", "agent log for review"]
+      - name: fileChangeNotifications
+        source: "file.edited events from OpenCode"
+        displayed_as: "Inline file change badges in output"
+        consumers: ["AgentSessionOutput component", "files changed count badge"]
+      - name: orchestratorStatus
+        source: "session.updated events from OpenCode"
+        displayed_as: "Status badge (Working/Idle/Completed)"
+        consumers: ["AgentStatusSection badge", "review link visibility", "prompt input enabled state"]
+
+    emotional_state:
+      entry: "Curious, engaged"
+      exit: "Confident (right direction) or alert (needs correction)"
+
+    integration_checkpoint: |
+      SSE events must arrive within 100ms of OpenCode event emission.
+      Token events accumulate in rendered output with auto-scroll.
+      File change events show as distinct inline notifications.
+      Status badge updates in real-time from status events.
+
+    gherkin: |
+      Scenario: Marcus watches the agent work in real-time
+        Given Marcus has an active agent session on task "Add pagination to entity search"
+        When the agent reads files and begins making changes
+        Then agent output streams as text in the session panel
+        And the output auto-scrolls to the latest content
+        And file changes appear as inline notifications "entity-search-route.ts modified"
+        And the files changed count updates in the status bar
+
+      Scenario: Agent goes idle after completing work
+        Given Marcus is watching the agent output stream
+        When the agent finishes all changes and becomes idle
+        Then the status badge changes from "Working" to "Idle"
+        And a "Review" link appears in the agent status section
+        And the prompt input remains available for follow-up instructions
+
+  - id: 4
+    name: "Course Correction"
+    action: "User types a follow-up prompt and sends it to the running agent"
+
+    shared_artifacts:
+      - name: followUpPromptText
+        source: "User input in prompt text field"
+        displayed_as: "Visually distinct user message in agent output"
+        consumers: ["sendPrompt API call", "agent output display", "agent log for review"]
+      - name: sendPromptHandle
+        source: "OpenCodeHandle.sendPrompt from handleRegistry"
+        displayed_as: "N/A (backend function)"
+        consumers: ["POST /prompt endpoint handler"]
+
+    emotional_state:
+      entry: "Alert, slightly concerned about agent direction"
+      exit: "In control, satisfied that guidance was received"
+
+    integration_checkpoint: |
+      Prompt endpoint must validate session is in active or idle status.
+      Prompt delivery is fire-and-forget (202 response).
+      User message appears immediately in output (optimistic rendering).
+      Agent response streams back confirming guidance was received.
+
+    gherkin: |
+      Scenario: Marcus course-corrects the agent mid-task
+        Given Marcus is watching the agent work on task "Add pagination to entity search"
+        And the agent output shows "I'll create a new pagination helper function"
+        When Marcus types "Use the existing paginate() function from query-helpers.ts instead" and sends
+        Then Marcus's message appears in the output as a distinct user message
+        And the agent responds "Good catch! I'll use the existing paginate() function"
+        And the agent continues working with the corrected approach
+
+      Scenario: Marcus sends a prompt to an idle agent
+        Given the agent session is idle after completing initial work
+        When Marcus types "Also add cursor-based pagination as an alternative" and sends
+        Then the agent session status changes back to "active"
+        And the agent begins working on the additional request
+
+      Scenario: Prompt rejected for terminal session
+        Given the agent session has status "completed"
+        When Marcus attempts to send a follow-up prompt
+        Then the prompt input is disabled
+        And a message explains "Session has ended. Review the changes or start a new session."
+
+  - id: 5
+    name: "Review with Context"
+    action: "User navigates to review page; reviews diff alongside agent conversation log"
+
+    shared_artifacts:
+      - name: diffResult
+        source: "git diff between worktree branch and base"
+        displayed_as: "Unified diff view with file-level breakdown"
+        consumers: ["Review page diff tab", "accept/reject decision"]
+      - name: agentConversationLog
+        source: "Accumulated agent tokens + user prompts from session"
+        displayed_as: "Chronological conversation trail in Agent Log tab"
+        consumers: ["Review page Agent Log tab"]
+      - name: sessionMetadata
+        source: "agent_session record"
+        displayed_as: "Session duration, files changed count"
+        consumers: ["Review page header"]
+
+    emotional_state:
+      entry: "Analytical, focused"
+      exit: "Confident in decision (accept or reject with specific feedback)"
+
+    integration_checkpoint: |
+      Session must be in idle or completed status for review.
+      Diff must include all files changed during session.
+      Agent log must include all token output and user prompts.
+      Review page loads within 2 seconds.
+
+    gherkin: |
+      Scenario: Marcus reviews agent changes with full context
+        Given the agent has completed work on task "Add pagination to entity search"
+        And the agent modified 3 files with 12 insertions and 3 deletions
+        When Marcus navigates to the review page
+        Then the diff tab shows changes for each modified file
+        And the Agent Log tab shows the full conversation including Marcus's course correction
+        And the session header shows "3 files changed, started 8 minutes ago"
+
+  - id: 6
+    name: "Accept or Reject"
+    action: "User accepts changes (task done) or rejects with specific feedback (agent resumes)"
+
+    shared_artifacts:
+      - name: acceptDecision
+        source: "User click on Accept button"
+        displayed_as: "Confirmation: 'Changes accepted. Task marked as done.'"
+        consumers: ["task status update to 'done'", "session status to 'completed'"]
+      - name: rejectFeedback
+        source: "User input in reject feedback textarea"
+        displayed_as: "Feedback text sent to agent"
+        consumers: ["session last_feedback field", "agent prompt via sendPrompt", "task status to 'in_progress'"]
+
+    emotional_state:
+      entry: "Decisive"
+      exit_accept: "Satisfied, accomplished"
+      exit_reject: "Constructive, hopeful for next iteration"
+
+    integration_checkpoint: |
+      Accept: session -> completed, task -> done, handle cleaned up.
+      Reject: session -> active, task -> in_progress, feedback sent via sendPrompt.
+      Abort: session -> aborted, task -> ready, worktree removed.
+
+    gherkin: |
+      Scenario: Marcus accepts the agent's changes
+        Given Marcus is reviewing the diff for task "Add pagination to entity search"
+        And the changes look correct after the course correction
+        When Marcus clicks "Accept"
+        Then the task status changes to "done"
+        And the session status changes to "completed"
+        And a confirmation shows "Changes accepted. Task marked as done."
+        And the branch "agent/add-pagination-to-entity-search" is ready for merge
+
+      Scenario: Marcus rejects with specific feedback
+        Given Marcus is reviewing the diff for task "Add pagination to entity search"
+        And the response type in contracts.ts was not updated
+        When Marcus clicks "Reject with Feedback"
+        And types "Update the SearchResponse type in contracts.ts to include total, limit, and offset fields"
+        And clicks "Send Feedback & Resume Agent"
+        Then the feedback is sent to the agent as a follow-up prompt
+        And the session status changes back to "active"
+        And the task status changes to "in_progress"
+        And Marcus is returned to the live session view
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: agentSessionId
+      must_match_across: [1, 2, 3, 4, 5, 6]
+      failure_message: "Session ID must be consistent from creation through accept/reject"
+    - artifact: streamId
+      must_match_across: [2, 3]
+      failure_message: "Stream ID used for SSE must match the one registered at spawn"
+    - artifact: workspaceId
+      must_match_across: [1, 2, 3, 4, 5, 6]
+      failure_message: "Workspace context must be maintained across all orchestrator API calls"
+    - artifact: orchestratorStatus
+      must_match_across: [2, 3, 4, 5, 6]
+      failure_message: "Status transitions must be consistent: spawning -> active -> idle -> completed/aborted"
