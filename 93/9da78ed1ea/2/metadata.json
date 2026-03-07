@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "939da78ed1ea",
+  "session_id": "4057cc93-4587-4339-806a-d6f38f6d55b7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T15:14:54.605863Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts",
+    "docs/feature/workspace-repo-path/execution-log.yaml",
+    "tests/unit/coding-agent-orchestrator/assignment-guard.test.ts",
+    "tests/unit/coding-agent-orchestrator/session-lifecycle.test.ts",
+    "app/src/server/orchestrator/assignment-guard.ts",
+    "app/src/server/orchestrator/routes.ts",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "app/src/server/orchestrator/types.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5e280fee3921",
+  "checkpoint_transcript_start": 27,
+  "transcript_lines_at_start": 27,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T15:14:54.591373Z",
+    "agent_lines": 149,
+    "human_added": 8,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 167,
+    "agent_percentage": 89.22155688622755
+  }
+}
