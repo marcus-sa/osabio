@@ -27,6 +27,7 @@ export type SdkMessage =
   | { type: "assistant"; content: ContentBlock[] }
   | { type: "result"; subtype: "success"; duration_ms: number }
   | { type: "result"; subtype: "error"; error: string }
+  | { type: "system"; subtype: string; [key: string]: unknown }
   | { type: "user" };
 
 // ---------------------------------------------------------------------------
@@ -137,6 +138,27 @@ function transformResultMessage(
   };
 }
 
+function transformSystemMessage(
+  message: { type: "system"; subtype: string; [key: string]: unknown },
+  sessionId: string,
+): AgentTokenEvent | undefined {
+  const subtype = message.subtype;
+
+  if (subtype === "init") {
+    const version = message.claude_code_version ?? "unknown";
+    return { type: "agent_token", sessionId, token: `[system] Claude Code ${version} initialized\n` };
+  }
+
+  if (subtype === "mcp_server_error") {
+    const server = (message as Record<string, unknown>).server_name ?? "unknown";
+    const error = (message as Record<string, unknown>).error ?? "";
+    return { type: "agent_token", sessionId, token: `[system] MCP server "${server}" failed: ${error}\n` };
+  }
+
+  // Surface other system subtypes as informational tokens
+  return { type: "agent_token", sessionId, token: `[system] ${subtype}\n` };
+}
+
 export function transformSdkMessage(
   message: SdkMessage,
   sessionId: string,
@@ -147,6 +169,11 @@ export function transformSdkMessage(
 
     case "result":
       return [transformResultMessage(message, sessionId)];
+
+    case "system": {
+      const event = transformSystemMessage(message, sessionId);
+      return event ? [event] : [];
+    }
 
     default:
       return [];

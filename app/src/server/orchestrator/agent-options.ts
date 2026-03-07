@@ -37,10 +37,11 @@ export function buildAgentOptions(
       systemPrompt: { type: "preset" as const, preset: "claude_code" as const },
       settingSources: ["project"] as const,
       permissionMode: "bypassPermissions" as const,
+      allowDangerouslySkipPermissions: true,
       mcpServers: {
         brain: {
           type: "stdio",
-          command: "brain",
+          command: process.env.NODE_ENV === "development" ? `${process.cwd()}/cli/brain.ts` : "brain",
           args: ["mcp"],
           env: {
             BRAIN_SERVER_URL: config.brainBaseUrl,

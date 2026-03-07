@@ -69,6 +69,9 @@ export function createSseRegistry(): SseRegistry {
             return;
           }
 
+          // Send immediate keep-alive so the EventSource confirms the connection
+          controller.enqueue(encoder.encode(": keep-alive\n\n"));
+
           state.keepAliveId = setInterval(() => {
             controller.enqueue(encoder.encode(": keep-alive\n\n"));
           }, 15_000);

@@ -9,6 +9,7 @@ import { TERMINAL_ORCHESTRATOR_STATUSES } from "./types";
 import { startEventBridge, type SdkMessage } from "./event-bridge";
 import type { StreamEvent } from "../../shared/contracts";
 import type { StallDetectorHandle } from "./stall-detector";
+import { logError, logInfo, logWarn } from "../http/observability";
 
 // ---------------------------------------------------------------------------
 // Types — exported for tests
@@ -150,13 +151,25 @@ export function startEventIteration(
   );
 
   let firstMessageReceived = false;
+  let messageCount = 0;
 
   async function iterate(): Promise<void> {
+    logInfo("orchestrator.iteration", "Event iteration started, awaiting SDK messages", { sessionId, streamId });
     try {
       for await (const rawMessage of messageStream) {
+        messageCount++;
+        const msg = rawMessage as SdkMessage;
+        logInfo("orchestrator.iteration", `SDK message received (#${messageCount})`, {
+          sessionId,
+          messageType: msg.type,
+          ...(msg.type === "result" ? { subtype: msg.subtype, ...(msg.subtype === "error" ? { error: msg.error } : {}) } : {}),
+          ...(msg.type === "system" ? { subtype: msg.subtype } : {}),
+        });
+
         // Check if session has reached terminal status
         const currentStatus = await deps.getSessionStatus(sessionId);
         if (TERMINAL_STATUSES.has(currentStatus)) {
+          logInfo("orchestrator.iteration", "Stopping: session reached terminal status", { sessionId, currentStatus });
           break;
         }
 
@@ -167,12 +180,17 @@ export function startEventIteration(
         }
 
         // Forward through event bridge (transform + emit + stall detection)
-        bridge.handleMessage(rawMessage as SdkMessage);
+        bridge.handleMessage(msg);
       }
+      logInfo("orchestrator.iteration", "Event iteration ended normally", { sessionId, messageCount });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      logError("orchestrator.iteration", "Agent message stream error", err, { sessionId, streamId });
       await deps.updateSessionStatus(sessionId, "error", errorMessage);
     } finally {
+      if (!firstMessageReceived) {
+        logWarn("orchestrator.iteration", "Agent stream ended with zero messages", { sessionId, streamId });
+      }
       bridge.stop();
       handleRegistry.delete(sessionId);
     }
