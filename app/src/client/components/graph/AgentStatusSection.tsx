@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import type { AgentSessionSummary, EntityKind } from "../../../shared/contracts";
-import { useAgentSession, type AgentSessionState, type AgentSessionStatus } from "../../hooks/use-agent-session";
+import { useAgentSession, type AgentSessionStatus } from "../../hooks/use-agent-session";
 import { assignAgent, type AssignAgentResponse } from "../../graph/orchestrator-api";
 import { useWorkspaceState } from "../../stores/workspace-state";
 

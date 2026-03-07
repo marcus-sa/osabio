@@ -532,8 +532,8 @@ async function handleUpdateRepoPath(
       return jsonError("Body must be an object", 400);
     }
 
-    const { path } = body as { path?: string };
-    if (!path || typeof path !== "string" || path.trim().length === 0) {
+    const { path: rawPath } = body as { path?: string };
+    if (!rawPath || typeof rawPath !== "string" || rawPath.trim().length === 0) {
       return jsonError("path is required", 400);
     }
 
@@ -541,7 +541,9 @@ async function handleUpdateRepoPath(
       return jsonError("shell execution not available", 500);
     }
 
-    const repoValidation = await validateRepoPath(path.trim(), shellExec);
+    const trimmedPath = rawPath.trim();
+
+    const repoValidation = await validateRepoPath(trimmedPath, shellExec);
     if (!repoValidation.ok) {
       return jsonError(repoValidation.error, 400);
     }
@@ -550,12 +552,12 @@ async function handleUpdateRepoPath(
 
     await deps.surreal.query(
       "UPDATE $workspace SET repo_path = $repoPath, updated_at = time::now();",
-      { workspace: workspaceRecord, repoPath: path.trim() },
+      { workspace: workspaceRecord, repoPath: trimmedPath },
     );
 
     logInfo("workspace.repo_path.update.completed", "Repo path update completed", {
       workspaceId,
-      repoPath: path.trim(),
+      repoPath: trimmedPath,
       durationMs: elapsedMs(startedAt),
     });
 

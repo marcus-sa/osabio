@@ -430,7 +430,7 @@ export async function acceptOrchestratorSession(
   }
   const { session, record: sessionRecord, status } = lookup;
 
-  if (!ACCEPTABLE_STATUSES.includes(status)) {
+  if (!ACCEPTABLE_STATUSES.has(status)) {
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "accept") };
   }
 
@@ -474,9 +474,9 @@ export async function acceptOrchestratorSession(
 // State guard helpers
 // ---------------------------------------------------------------------------
 
-const REVIEWABLE_STATUSES: OrchestratorStatus[] = ["idle", "completed"];
-const REJECTABLE_STATUSES: OrchestratorStatus[] = ["idle"];
-const ACCEPTABLE_STATUSES: OrchestratorStatus[] = ["idle", "completed"];
+const REVIEWABLE_STATUSES = new Set<OrchestratorStatus>(["idle", "completed"]);
+const REJECTABLE_STATUSES = new Set<OrchestratorStatus>(["idle"]);
+const ACCEPTABLE_STATUSES = new Set<OrchestratorStatus>(["idle", "completed"]);
 
 function sessionStateConflict(sessionId: string, currentStatus: string, action: string): SessionError {
   return {
@@ -519,7 +519,7 @@ export async function getOrchestratorReview(
     return { ok: false, error: sessionAborted(input.sessionId) };
   }
 
-  if (!REVIEWABLE_STATUSES.includes(status)) {
+  if (!REVIEWABLE_STATUSES.has(status)) {
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "review") };
   }
 
@@ -573,7 +573,7 @@ export async function rejectOrchestratorSession(
   }
   const { session, record: sessionRecord, status } = lookup;
 
-  if (!REJECTABLE_STATUSES.includes(status)) {
+  if (!REJECTABLE_STATUSES.has(status)) {
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "reject") };
   }
 
