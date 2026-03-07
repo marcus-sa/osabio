@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5304b1dbc9ab",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/unit/orchestrator/opencode-handle-enrichment.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/53/04b1dbc9ab/0/metadata.json",
+      "transcript": "/53/04b1dbc9ab/0/full.jsonl",
+      "context": "/53/04b1dbc9ab/0/context.md",
+      "content_hash": "/53/04b1dbc9ab/0/content_hash.txt",
+      "prompt": "/53/04b1dbc9ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
