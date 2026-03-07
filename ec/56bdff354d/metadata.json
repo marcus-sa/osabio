@@ -3,7 +3,7 @@
   "checkpoint_id": "ec56bdff354d",
   "strategy": "manual-commit",
   "branch": "marcus-sa/coding-agent-orch",
-  "checkpoints_count": 3,
+  "checkpoints_count": 5,
   "files_touched": [
     ".gitignore",
     "CLAUDE.md",
@@ -76,13 +76,20 @@
       "context": "",
       "content_hash": "/ec/56bdff354d/3/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/ec/56bdff354d/4/metadata.json",
+      "transcript": "/ec/56bdff354d/4/full.jsonl",
+      "context": "/ec/56bdff354d/4/context.md",
+      "content_hash": "/ec/56bdff354d/4/content_hash.txt",
+      "prompt": "/ec/56bdff354d/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 745,
-    "cache_creation_tokens": 301756,
-    "cache_read_tokens": 3886597,
-    "output_tokens": 33011,
-    "api_call_count": 63
+    "input_tokens": 777,
+    "cache_creation_tokens": 341417,
+    "cache_read_tokens": 4408275,
+    "output_tokens": 37043,
+    "api_call_count": 79
   }
 }
