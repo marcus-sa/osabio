@@ -1,42 +1,41 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "f8438b78d840",
+  "session_id": "21f17b0d-1fc4-4df8-8c19-5d77636586c1",
   "strategy": "manual-commit",
+  "created_at": "2026-03-07T17:47:43.61924Z",
   "branch": "marcus-sa/coding-agent-orch",
   "checkpoints_count": 0,
   "files_touched": [
     "app/src/client/graph/orchestrator-api.ts",
     "app/src/client/hooks/use-agent-session.ts",
-    "app/src/client/routes/review-page.tsx",
-    "app/src/server/orchestrator/session-lifecycle.ts",
     "tests/acceptance/coding-agent-orchestrator/review-flow.test.ts",
-    "tests/acceptance/coding-agent-orchestrator/worktree-management.test.ts",
     "tests/unit/coding-agent-orchestrator/ui/agent-session-panel.test.ts",
     "tests/unit/coding-agent-orchestrator/ui/review-page.test.ts",
     "tests/unit/coding-agent-orchestrator/ui/use-agent-review.test.ts",
-    "tests/unit/orchestrator-api.test.ts"
+    "tests/unit/orchestrator-api.test.ts",
+    "app/src/client/routes/review-page.tsx",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "tests/acceptance/coding-agent-orchestrator/worktree-management.test.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/f8/438b78d840/0/metadata.json",
-      "transcript": "/f8/438b78d840/0/full.jsonl",
-      "context": "/f8/438b78d840/0/context.md",
-      "content_hash": "/f8/438b78d840/0/content_hash.txt",
-      "prompt": "/f8/438b78d840/0/prompt.txt"
-    },
-    {
-      "metadata": "/f8/438b78d840/1/metadata.json",
-      "transcript": "/f8/438b78d840/1/full.jsonl",
-      "context": "",
-      "content_hash": "/f8/438b78d840/1/content_hash.txt",
-      "prompt": ""
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "8ea12d0d8542",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
   "token_usage": {
     "input_tokens": 0,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
     "output_tokens": 0,
     "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T17:47:43.617404Z",
+    "agent_lines": 220,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 220,
+    "agent_percentage": 100
   }
 }
