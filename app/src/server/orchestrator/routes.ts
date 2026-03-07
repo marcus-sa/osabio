@@ -290,6 +290,7 @@ export type OrchestratorWiringDeps = {
   shellExec: import("./worktree-manager").ShellExec;
   brainBaseUrl: string;
   sseRegistry?: SseRegistry;
+  queryFn?: import("./spawn-agent").QueryFn;
 };
 
 export function wireOrchestratorRoutes(
@@ -324,26 +325,30 @@ export function wireOrchestratorRoutes(
   };
 
   // Use mock spawn for acceptance tests, production spawn otherwise
-  const spawnOpenCodeImport = process.env.ORCHESTRATOR_MOCK_OPENCODE === "true"
+  const spawnAgentImport = process.env.ORCHESTRATOR_MOCK_AGENT === "true"
     ? Promise.resolve({
-        spawnOpenCode: async () => ({
-          sessionId: crypto.randomUUID(),
-          abort: () => {},
-          sendPrompt: async () => {},
-          eventStream: (async function* () {})(),
-        }),
+        createSpawnAgent: (_queryFn?: import("./spawn-agent").QueryFn): import("./spawn-agent").SpawnAgentFn =>
+          () => ({
+            messages: (async function* () {})(),
+            abort: () => {},
+            result: Promise.resolve({ conversationId: "mock" }),
+          }),
       })
-    : import("./spawn-opencode");
+    : import("./spawn-agent");
 
   const routeDeps: OrchestratorRouteDeps = {
     createSession: async (workspaceId, taskId, authToken) => {
-      const [lifecycle, queries, guard, { spawnOpenCode }, stallDetector] = await Promise.all([
+      const [lifecycle, queries, guard, { createSpawnAgent }, stallDetector] = await Promise.all([
         lifecycleImport,
         queriesImport,
         guardImport,
-        spawnOpenCodeImport,
+        spawnAgentImport,
         stallDetectorImport,
       ]);
+      // Wire spawnAgent: createSpawnAgent needs a QueryFn from Claude Agent SDK
+      const spawnAgent = wiringDeps.queryFn
+        ? createSpawnAgent(wiringDeps.queryFn)
+        : undefined;
       const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
@@ -353,7 +358,7 @@ export function wireOrchestratorRoutes(
         authToken,
         validateAssignment: guard.validateAssignment,
         createAgentSession: queries.createAgentSession,
-        spawnOpenCode,
+        spawnAgent,
       });
 
       // Wire SSE stream + event iteration on success
@@ -406,7 +411,7 @@ export function wireOrchestratorRoutes(
                   stId,
                 ),
             },
-            handle.eventStream,
+            handle.messages,
             streamId,
             agentSessionId,
           );
