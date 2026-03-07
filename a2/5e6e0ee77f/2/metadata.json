@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a25e6e0ee77f",
+  "session_id": "894b454e-45bc-45f3-9e33-0d2e2a5a99b6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T07:08:56.502492Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "docs/adrs/ADR-001-opencode-sdk-integration-pattern.md",
+    "docs/adrs/ADR-002-git-worktree-isolation.md",
+    "docs/adrs/ADR-003-opencode-plugin-over-mcp.md",
+    "docs/feature/coding-agent-orchestrator/design/architecture-design.md",
+    "docs/feature/coding-agent-orchestrator/design/component-boundaries.md",
+    "docs/feature/coding-agent-orchestrator/design/data-models.md",
+    "docs/feature/coding-agent-orchestrator/design/technology-stack.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "61f5a6ac0e5a",
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 175828,
+    "cache_read_tokens": 5016082,
+    "output_tokens": 28057,
+    "api_call_count": 49
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T07:08:55.567455Z",
+    "agent_lines": 1246,
+    "human_added": 803,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2049,
+    "agent_percentage": 60.81015129331381
+  }
+}
