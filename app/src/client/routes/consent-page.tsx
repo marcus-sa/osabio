@@ -46,6 +46,7 @@ export function ConsentPage() {
         body: JSON.stringify({
           accept,
           ...(accept ? { scope: scopeString } : {}),
+          oauth_query: new URLSearchParams(search).toString(),
         }),
       });
 
