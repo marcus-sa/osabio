@@ -149,5 +149,51 @@ events:
   s: EXECUTED
   sid: 05-02
   t: '2026-03-07T12:19:03Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 05-03
+  t: '2026-03-07T12:19:25Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 05-02
+  t: '2026-03-07T12:19:57Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 06-01
+  t: '2026-03-07T12:21:33Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 06-01
+  t: '2026-03-07T12:22:01Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 06-01
+  t: '2026-03-07T12:22:06Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 06-02
+  t: '2026-03-07T12:22:09Z'
+- d: 'NOT_APPLICABLE: client-side UI component; no DOM/browser test harness available;
+    logic tested via unit tests on extracted pure function'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 06-02
+  t: '2026-03-07T12:22:15Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 06-02
+  t: '2026-03-07T12:22:42Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 06-01
+  t: '2026-03-07T12:23:05Z'
 project_id: coding-agent-orchestrator-ui
 schema_version: '3.0'

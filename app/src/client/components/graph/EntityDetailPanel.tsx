@@ -7,6 +7,7 @@ import { DescriptionSection } from "./DescriptionSection";
 import { EntityBadge } from "./EntityBadge";
 import { RelationshipList } from "./RelationshipList";
 import { ProvenanceSection } from "./ProvenanceSection";
+import { AgentStatusSection } from "./AgentStatusSection";
 import { useViewState } from "../../stores/view-state";
 import { acceptSuggestion, confirmDecision, convertSuggestion, deferSuggestion, dismissSuggestion, markTaskComplete, overrideDecision, setEntityPriority } from "../../graph/actions";
 
@@ -230,6 +231,16 @@ export function EntityDetailPanel({
           ) : undefined}
         </dl>
       </div>
+
+      {kind === "task" ? (
+        <AgentStatusSection
+          entityId={entityId}
+          workspaceId={workspaceId}
+          entityKind={kind}
+          entityStatus={status}
+          agentSession={detail.agentSession}
+        />
+      ) : undefined}
 
       <DescriptionSection data={detail.entity.data} kind={kind} onEntityClick={onEntityClick} />
 
