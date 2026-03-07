@@ -19,6 +19,8 @@ import { createGitHubWebhookHandler } from "../webhook/github-webhook-route";
 import { createFeedRouteHandler } from "../feed/feed-route";
 import { createChatRouteHandler } from "../chat/chat-route";
 import { createMcpRouteHandlers } from "../mcp/mcp-route";
+import { wireOrchestratorRoutes } from "../orchestrator/routes";
+import type { ShellExec } from "../orchestrator/worktree-manager";
 import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 
@@ -52,6 +54,23 @@ export async function startServer(): Promise<void> {
   const feedHandler = createFeedRouteHandler(deps);
   const chatRouteHandler = createChatRouteHandler(deps);
   const mcpHandlers = createMcpRouteHandlers(deps);
+
+  // Orchestrator wiring
+  const shellExec: ShellExec = async (command, args, cwd) => {
+    const proc = Bun.spawn([command, ...args], { cwd, stdout: "pipe", stderr: "pipe" });
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    const exitCode = await proc.exited;
+    return { exitCode, stdout, stderr };
+  };
+  const orchestratorHandlers = wireOrchestratorRoutes({
+    surreal: runtime.surreal,
+    shellExec,
+    repoRoot: process.cwd(),
+    brainBaseUrl: `http://127.0.0.1:${config.port}`,
+  });
 
   const server = Bun.serve({
     port: config.port,
@@ -149,6 +168,19 @@ export async function startServer(): Promise<void> {
           "POST",
           (request) => githubWebhookHandler(request.params.workspaceId, request),
         ),
+      },
+      // Orchestrator — coding agent session management
+      "/api/orchestrator/:workspaceId/assign": {
+        POST: orchestratorHandlers.assign,
+      },
+      "/api/orchestrator/:workspaceId/sessions/:sessionId": {
+        GET: orchestratorHandlers.status,
+      },
+      "/api/orchestrator/:workspaceId/sessions/:sessionId/accept": {
+        POST: orchestratorHandlers.accept,
+      },
+      "/api/orchestrator/:workspaceId/sessions/:sessionId/abort": {
+        POST: orchestratorHandlers.abort,
       },
       // MCP — Setup
       "/api/mcp/:workspaceId/projects": {
