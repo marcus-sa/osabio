@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e64405dacbf4",
+  "session_id": "4057cc93-4587-4339-806a-d6f38f6d55b7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T18:28:18.880036Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-008-claude-agent-sdk-over-opencode.md",
+    "docs/feature/claude-agent-sdk-migration/design/data-models.md",
+    "docs/ux/claude-agent-sdk-migration/journey-agent-spawn.feature",
+    "docs/ux/claude-agent-sdk-migration/jtbd-job-stories.md",
+    "docs/adrs/ADR-001-opencode-sdk-integration-pattern.md",
+    "docs/feature/claude-agent-sdk-migration/design/component-boundaries.md",
+    "docs/feature/claude-agent-sdk-migration/design/technology-stack.md",
+    "docs/requirements/claude-agent-sdk-migration/requirements.md",
+    "docs/requirements/claude-agent-sdk-migration/user-stories.md",
+    "docs/ux/claude-agent-sdk-migration/jtbd-four-forces.md",
+    "cli/commands/init-content.ts",
+    "docs/adrs/ADR-003-opencode-plugin-over-mcp.md",
+    "docs/requirements/claude-agent-sdk-migration/acceptance-criteria.md",
+    "docs/ux/claude-agent-sdk-migration/jtbd-opportunity-scores.md",
+    "docs/ux/claude-agent-sdk-migration/shared-artifacts-registry.md",
+    "cli/commands/init.ts",
+    "docs/feature/claude-agent-sdk-migration/design/architecture-design.md",
+    "docs/requirements/claude-agent-sdk-migration/dor-checklist.md",
+    "docs/ux/claude-agent-sdk-migration/journey-agent-spawn-visual.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5e280fee3921",
+  "checkpoint_transcript_start": 27,
+  "transcript_lines_at_start": 27,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T18:28:18.868868Z",
+    "agent_lines": 1635,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1635,
+    "agent_percentage": 100
+  }
+}
