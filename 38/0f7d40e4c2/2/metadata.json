@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "380f7d40e4c2",
+  "session_id": "894b454e-45bc-45f3-9e33-0d2e2a5a99b6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T08:36:21.102032Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/coding-agent-orchestrator/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "cc9aa04dd197",
+  "token_usage": {
+    "input_tokens": 331,
+    "cache_creation_tokens": 599880,
+    "cache_read_tokens": 15933405,
+    "output_tokens": 81092,
+    "api_call_count": 142
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T08:36:20.009737Z",
+    "agent_lines": 5,
+    "human_added": 192,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 197,
+    "agent_percentage": 2.5380710659898478
+  }
+}
