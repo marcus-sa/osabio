@@ -6,6 +6,8 @@ import type {
 } from "../../../shared/contracts";
 import { useWorkspaceState } from "../../stores/workspace-state";
 import { useViewState } from "../../stores/view-state";
+import { abortSession } from "../../graph/orchestrator-api";
+import { classifyFeedAction } from "./feed-action-routing";
 import { FeedSection } from "./FeedSection";
 
 async function executeEntityAction(
@@ -45,19 +47,33 @@ export function GovernanceFeed({
   async function handleAction(item: GovernanceFeedItem, action: GovernanceFeedAction) {
     if (!workspaceId) return;
 
-    if (action.action === "discuss") {
-      navigateToDiscussEntity({
-        id: item.entityId,
-        kind: item.entityKind,
-        name: item.entityName,
-        ...(item.status ? { status: item.status } : {}),
-      });
-      void navigate({ to: "/chat" });
-      return;
-    }
+    const classification = classifyFeedAction(item, action);
 
-    await executeEntityAction(workspaceId, item.entityId, action.action);
-    onRefresh();
+    switch (classification.type) {
+      case "navigate_discuss":
+        navigateToDiscussEntity({
+          id: item.entityId,
+          kind: item.entityKind,
+          name: item.entityName,
+          ...(item.status ? { status: item.status } : {}),
+        });
+        void navigate({ to: "/chat" });
+        return;
+
+      case "navigate_review":
+        void navigate({ to: `/review/${classification.sessionId}` as string });
+        return;
+
+      case "abort_session":
+        await abortSession(workspaceId, classification.sessionId);
+        onRefresh();
+        return;
+
+      case "entity_action":
+        await executeEntityAction(workspaceId, item.entityId, action.action);
+        onRefresh();
+        return;
+    }
   }
 
   if (error) {
