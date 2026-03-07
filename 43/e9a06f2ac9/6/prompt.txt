@@ -1,0 +1,56 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/richmond directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:root-why when assigning a task to an agent through the ui, it immediately displays: "Completed - Waiting for agent output..." and then the server logs shows failure {"level":"debug","time":"2026-03-07T19:57:29.262Z","service":"brain-server","env":"development","runtime":"bun","requestId":"414e9394-700d-4091-8a8e-f770ab306368","method":"POST","route":"orchestrator.assign","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/assign","event":"http.request.received","msg":"HTTP request received"}
+{"level":"info","time":"2026-03-07T19:57:29.386Z","service":"brain-server","env":"development","runtime":"bun","requestId":"414e9394-700d-4091-8a8e-f770ab306368","method":"POST","route":"orchestrator.assign","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/assign","event":"http.request.completed","statusCode":200,"durationMs":124.13,"msg":"HTTP request completed"}
+{"level":"debug","time":"2026-03-07T19:57:29.394Z","service":"brain-server","env":"development","runtime":"bun","requestId":"cea6251f-5c28-4b19-8429-4536f8cc6c62","method":"GET","route":"orchestrator.stream","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/sessions/45ea1dc9-cdc4-4824-ba85-f022f6022e9a/stream","event":"http.request.received","msg":"HTTP request received"}
+{"level":"info","time":"2026-03-07T19:57:29.395Z","service":"brain-server","env":"development","runtime":"bun","requestId":"cea6251f-5c28-4b19-8429-4536f8cc6c62","method":"GET","route":"orchestrator.stream","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/sessions/45ea1dc9-cdc4-4824-ba85-f022f6022e9a/stream","event":"sse.stream.opened","messageId":"stream-45ea1dc9-cdc4-4824-ba85-f022f6022e9a","queuedEventCount":0,"msg":"SSE stream opened"}
+{"level":"info","time":"2026-03-07T19:57:29.395Z","service":"brain-server","env":"development","runtime":"bun","requestId":"cea6251f-5c28-4b19-8429-4536f8cc6c62","method":"GET","route":"orchestrator.stream","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/sessions/45ea1dc9-cdc4-4824-ba85-f022f6022e9a/stream","event":"http.request.completed","statusCode":200,"durationMs":0.38,"msg":"HTTP request completed"}
+{"level":"info","time":"2026-03-07T19:57:31.340Z","service":"brain-server","env":"development","runtime":"bun","requestId":"cea6251f-5c28-4b19-8429-4536f8cc6c62","method":"GET","route":"orchestrator.stream","path":"/api/orchestrator/419bb6cd-d89f-45c2-a2d7-e1759e91ccb1/sessions/45ea1dc9-cdc4-4824-ba85-f022f6022e9a/stream","event":"sse.stream.closed","messageId":"stream-45ea1dc9-cdc4-4824-ba85-f022f6022e9a","reason":"client_cancelled","msg":"SSE stream closed"}
+2963 |          const { query, transaction, session, json } = this.#options;
+2964 |          const chunks = this.#connection.query(query, session, transaction);
+2965 |          const responses = [];
+2966 |          const queryIndexes = queries.length > 0 ? new Map(queries.map((idx, i) => [idx, i])) : void 0;
+2967 |          for await (const chunk of chunks) {
+2968 |                  if (chunk.error) throw new ResponseError(chunk.error);
+                                 ^
+ResponseError: Couldn't coerce value for field `last_event_at` of `agent_session:`45ea1dc9-cdc4-4824-ba85-f022f6022e9a``: Expected `none | datetime` but found `'2026-03-07T19:57:31.337Z'`
+ code: 0,
+
+      at collect (/Users/marcus/conductor/workspaces/brain/richmond/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+
+---
+
+Tool loaded.
+
+---
+
+Tool loaded.
+
+---
+
+but shouldnt it show an error because it failed?
+
+---
+
+"deps.updateLastEventAt(sessionId).catch(() => {});" we. cant just silently ignore errors? log them
+
+---
+
+add this learning to AGENTS.md - never silently ignore errors. always surface them or log them
+
+---
+
+commit
+
+---
+
+Tool loaded.
