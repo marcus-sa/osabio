@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7e35acdda808",
+  "session_id": "4dfb0c63-3f4b-4512-a1ee-d2caa6a65ab9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T14:50:39.737248Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/workspace/validate-repo-path.ts",
+    "app/src/server/workspace/workspace-routes.ts",
+    "tests/unit/coding-agent-orchestrator/validate-repo-path.test.ts",
+    "app/src/server/http/parsing.ts",
+    "app/src/server/runtime/start-server.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7b91598f9fce",
+  "checkpoint_transcript_start": 26,
+  "transcript_lines_at_start": 26,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T14:50:39.71405Z",
+    "agent_lines": 0,
+    "human_added": 214,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 214,
+    "agent_percentage": 0
+  }
+}
