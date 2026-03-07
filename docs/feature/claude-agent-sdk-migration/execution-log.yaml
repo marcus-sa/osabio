@@ -70,5 +70,56 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-07T18:56:53Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-07T18:58:31Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T19:00:05Z'
+- d: 'NOT_APPLICABLE: acceptance tests updated in step 04-01'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-07T19:00:10Z'
+- d: 'NOT_APPLICABLE: wiring code in wireOrchestratorRoutes requires real infra deps;
+    validated by existing handler unit tests + acceptance tests in step 04-01'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-07T19:00:17Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T19:02:33Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T19:04:08Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T19:05:31Z'
+- d: 'NOT_APPLICABLE: CLI init tested manually/integration, per task instructions'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 03-01
+  t: '2026-03-07T19:05:36Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T19:06:02Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T19:07:27Z'
 project_id: claude-agent-sdk-migration
 schema_version: '3.0'

@@ -7,8 +7,6 @@ import {
   BRAIN_HOOKS,
   BRAIN_CLAUDE_MD,
   BRAIN_COMMANDS,
-  buildOpencodeJsonContent,
-  OPENCODE_MD_CONTENT,
 } from "./init-content";
 
 const DEFAULT_SERVER_URL = "http://localhost:3000";
@@ -379,53 +377,6 @@ brain check-commit
       unlinkSync(postCommitPath);
       console.log("  Removed legacy Brain post-commit hook");
     }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Step 7: OpenCode MCP configuration
-// ---------------------------------------------------------------------------
-
-export async function setupOpencode(gitRoot: string): Promise<void> {
-  // 1. Create/update opencode.json with brain MCP server
-  const jsonPath = join(gitRoot, "opencode.json");
-  const jsonFile = Bun.file(jsonPath);
-  let opcConfig: Record<string, unknown> = {};
-
-  if (await jsonFile.exists()) {
-    try {
-      opcConfig = await jsonFile.json();
-    } catch {
-      // Corrupted -- start fresh
-    }
-  }
-
-  // Merge MCP config (preserve existing MCP servers)
-  const mcp = (opcConfig.mcp ?? {}) as Record<string, unknown>;
-  mcp.brain = { type: "local", command: ["brain", "mcp"], enabled: true };
-  opcConfig.mcp = mcp;
-  opcConfig.$schema ??= "https://opencode.ai/config.json";
-
-  // Remove legacy plugin reference
-  if (Array.isArray(opcConfig.plugins)) {
-    opcConfig.plugins = (opcConfig.plugins as string[]).filter(
-      (p) => !p.includes("brain"),
-    );
-    if ((opcConfig.plugins as string[]).length === 0) delete opcConfig.plugins;
-  }
-
-  await Bun.write(jsonPath, JSON.stringify(opcConfig, null, 2) + "\n");
-  console.log("✓ OpenCode: opencode.json updated (brain MCP server configured)");
-
-  // 2. Write OPENCODE.md (idempotent overwrite)
-  await Bun.write(join(gitRoot, "OPENCODE.md"), OPENCODE_MD_CONTENT);
-  console.log("✓ OpenCode: OPENCODE.md created");
-
-  // 3. Clean up legacy plugin file
-  const legacyPlugin = join(gitRoot, ".opencode", "plugins", "brain.ts");
-  if (existsSync(legacyPlugin)) {
-    unlinkSync(legacyPlugin);
-    console.log("  Removed legacy .opencode/plugins/brain.ts");
   }
 }
 
