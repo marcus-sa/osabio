@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f8438b78d840",
+  "session_id": "7dbe3e46-f734-439c-932c-89d788dddb37",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T17:48:15.408971Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/coding-agent-orchestrator/worktree-management.test.ts",
+    "app/src/client/graph/orchestrator-api.ts",
+    "app/src/client/hooks/use-agent-session.ts",
+    "tests/acceptance/coding-agent-orchestrator/review-flow.test.ts",
+    "tests/unit/coding-agent-orchestrator/ui/agent-session-panel.test.ts",
+    "tests/unit/coding-agent-orchestrator/ui/review-page.test.ts",
+    "tests/unit/coding-agent-orchestrator/ui/use-agent-review.test.ts",
+    "tests/unit/orchestrator-api.test.ts",
+    "app/src/client/routes/review-page.tsx",
+    "app/src/server/orchestrator/session-lifecycle.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "027fc62764e2",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T17:48:15.406791Z",
+    "agent_lines": 220,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 220,
+    "agent_percentage": 100
+  }
+}
