@@ -122,5 +122,30 @@ events:
   s: EXECUTED
   sid: 02-02
   t: '2026-03-07T17:27:10Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T17:28:46Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-07T17:30:42Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-07T17:31:24Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-07T17:31:31Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-07T17:32:44Z'
 project_id: coding-session
 schema_version: '3.0'

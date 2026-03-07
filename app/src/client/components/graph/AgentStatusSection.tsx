@@ -10,7 +10,7 @@ import type { AgentSessionSummary, EntityKind } from "../../../shared/contracts"
 import { useAgentSession, type AgentSessionStatus } from "../../hooks/use-agent-session";
 import { assignAgent, type AssignAgentResponse } from "../../graph/orchestrator-api";
 import { useWorkspaceState } from "../../stores/workspace-state";
-import { AgentSessionOutput } from "./AgentSessionOutput";
+import { AgentSessionPanel } from "./AgentSessionPanel";
 
 // ---------------------------------------------------------------------------
 // Pure core: view derivation
@@ -147,6 +147,9 @@ export function AgentStatusSection({
       ? initialView.filesChangedCount + sessionState.filesChanged
       : sessionState.filesChanged;
 
+    const currentSessionId = assignResult?.agentSessionId
+      ?? (initialView.variant === "active" ? initialView.agentSessionId : "");
+
     return (
       <div className="entity-detail-section agent-status-section">
         <h4>Agent</h4>
@@ -160,26 +163,19 @@ export function AgentStatusSection({
             </span>
           ) : undefined}
         </div>
-        <AgentSessionOutput
+        <AgentSessionPanel
+          workspaceId={workspaceId}
+          agentSessionId={currentSessionId}
+          sessionStatus={displayStatus}
           outputEntries={sessionState.outputEntries}
-          status={displayStatus}
+          stallWarning={sessionState.stallWarning}
+          connectionError={sessionState.connectionError}
         />
-        {sessionState.stallWarning ? (
-          <p className="agent-stall-warning" data-testid="agent-stall-warning">
-            Agent may be stalled (no activity for {sessionState.stallWarning.stallDurationSeconds}s)
-          </p>
-        ) : undefined}
-        {sessionState.connectionError ? (
-          <p className="agent-connection-error">{sessionState.connectionError}</p>
-        ) : undefined}
         {displayStatus === "idle" ? (
           <a
             className="agent-review-link"
             data-testid="agent-review-link"
-            href={`/review/${encodeURIComponent(
-              assignResult?.agentSessionId
-                ?? (initialView.variant === "active" ? initialView.agentSessionId : ""),
-            )}`}
+            href={`/review/${encodeURIComponent(currentSessionId)}`}
           >
             Review
           </a>
