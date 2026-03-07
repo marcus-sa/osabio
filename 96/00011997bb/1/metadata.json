@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9600011997bb",
+  "session_id": "a0603a08-e313-4099-a16c-bcb2641f9e0a",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T13:31:54.895158Z",
+  "branch": "marcus-sa/fix-entity-search-pm-dispatch",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/chat/tools/create-work-item.ts",
+    "app/src/server/chat/tools/list-workspace-entities.ts",
+    "app/src/server/entities/entity-search-route.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/feed/feed-queries.ts",
+    "app/src/server/graph/queries.ts",
+    "schema/migrations/0014_feature_workspace.surql",
+    "schema/surreal-schema.surql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ba68629468b2",
+  "token_usage": {
+    "input_tokens": 121,
+    "cache_creation_tokens": 258345,
+    "cache_read_tokens": 2771517,
+    "output_tokens": 16395,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T13:31:54.618943Z",
+    "agent_lines": 34,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 34,
+    "agent_percentage": 100
+  }
+}

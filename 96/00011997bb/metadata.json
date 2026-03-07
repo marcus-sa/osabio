@@ -3,7 +3,7 @@
   "checkpoint_id": "9600011997bb",
   "strategy": "manual-commit",
   "branch": "marcus-sa/fix-entity-search-pm-dispatch",
-  "checkpoints_count": 0,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/server/chat/tools/create-work-item.ts",
     "app/src/server/chat/tools/list-workspace-entities.ts",
@@ -21,13 +21,20 @@
       "context": "/96/00011997bb/0/context.md",
       "content_hash": "/96/00011997bb/0/content_hash.txt",
       "prompt": "/96/00011997bb/0/prompt.txt"
+    },
+    {
+      "metadata": "/96/00011997bb/1/metadata.json",
+      "transcript": "/96/00011997bb/1/full.jsonl",
+      "context": "/96/00011997bb/1/context.md",
+      "content_hash": "/96/00011997bb/1/content_hash.txt",
+      "prompt": "/96/00011997bb/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 6,
-    "cache_creation_tokens": 22007,
-    "cache_read_tokens": 29924,
-    "output_tokens": 273,
-    "api_call_count": 2
+    "input_tokens": 127,
+    "cache_creation_tokens": 280352,
+    "cache_read_tokens": 2801441,
+    "output_tokens": 16668,
+    "api_call_count": 56
   }
 }
