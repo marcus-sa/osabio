@@ -1,0 +1,268 @@
+roadmap:
+  project_id: coding-agent-orchestrator
+  created_at: '2026-03-07T08:02:37Z'
+  total_steps: 14
+  phases: 4
+phases:
+- id: '01'
+  name: Foundation and Walking Skeleton
+  steps:
+  - id: 01-01
+    name: Schema migration and stream event types
+    description: >
+      Add migration 0014 extending agent_session with orchestrator fields.
+      Define AgentTokenEvent, AgentFileChangeEvent, AgentStatusEvent,
+      AgentStallWarningEvent discriminated union in shared contracts.
+    criteria: >
+      Migration 0014 applies cleanly via bun migrate.
+      agent_session table accepts orchestrator_status, worktree_branch,
+      worktree_path, stream_id, last_event_at, error_message,
+      opencode_session_id fields (all option types).
+      StreamEvent union exported from shared/contracts with four agent
+      event variants.
+      Observation table is pre-existing and not modified by this migration.
+    files_to_modify:
+    - schema/migrations/0014_orchestrator_fields.surql
+    - app/src/shared/contracts.ts
+    dependencies: []
+  - id: 01-02
+    name: Assignment guard
+    description: >
+      Validate task eligibility (status in ready/todo), enforce one-agent-per-task,
+      verify workspace membership, reject missing task ID. Agent is considered
+      active if orchestrator_status is in {spawning, active, idle}.
+    criteria: >
+      Ready/todo tasks accepted for assignment.
+      In-progress/done/nonexistent tasks rejected.
+      Second assignment rejected while first agent active (spawning/active/idle).
+      Sessions in completed/aborted/error do not block reassignment.
+      Missing taskId returns 400, wrong workspace returns 403.
+    files_to_modify:
+    - app/src/server/orchestrator/assignment-guard.ts
+    - app/src/server/orchestrator/types.ts
+    dependencies:
+    - 01-01
+  - id: 01-03
+    name: Worktree manager (create)
+    description: >
+      Create isolated git worktree per assignment at .brain/worktrees/agent-{taskSlug}
+      with agent/{taskSlug} branch prefix. Pure git CLI adapter with no internal deps.
+    criteria: >
+      Worktree created at .brain/worktrees/ with unique agent/ prefixed branch.
+      Separate worktrees for different task assignments do not interfere.
+      Worktree directory and branch name returned to caller.
+    files_to_modify:
+    - app/src/server/orchestrator/worktree-manager.ts
+    dependencies:
+    - 01-01
+  - id: 01-04
+    name: OpenCode config builder
+    description: >
+      Pure function that builds OpenCode config object from server config,
+      workspace ID, Brain base URL, and auth token. Produces config for
+      OPENCODE_CONFIG_CONTENT env var injection.
+    criteria: >
+      Config object contains mcpBaseUrl, authToken, and model settings.
+      Config includes permission overrides for unattended agent operation.
+      Function is pure with no side effects or external calls.
+    files_to_modify:
+    - app/src/server/orchestrator/config-builder.ts
+    dependencies:
+    - 01-01
+  - id: 01-05
+    name: Session lifecycle (create, status, abort)
+    description: >
+      Spawn OpenCode process (mocked for tests), create agent_session record,
+      manage AbortController. Support status query and session abort with
+      worktree cleanup.
+    criteria: >
+      Agent session created with orchestrator fields populated.
+      Session status returns orchestrator_status, worktree branch, timestamps.
+      Abort kills process, marks session aborted, removes worktree,
+      returns task to ready.
+    files_to_modify:
+    - app/src/server/orchestrator/session-lifecycle.ts
+    dependencies:
+    - 01-01
+    - 01-02
+    - 01-03
+    - 01-04
+  - id: 01-06
+    name: Orchestrator routes (assign, status, abort, accept)
+    description: >
+      HTTP handlers for assign (POST), session status (GET), abort (POST),
+      and accept (POST). Wire assignment guard, worktree manager, session
+      lifecycle. Register routes in server startup.
+    criteria: >
+      POST assign creates session, returns agentSessionId and streamUrl.
+      GET session status returns orchestrator state and branch info.
+      POST abort terminates session and returns task to ready.
+      POST accept marks task done and session completed.
+      Walking skeleton scenarios WS-1 and WS-2 pass.
+    files_to_modify:
+    - app/src/server/orchestrator/routes.ts
+    - app/src/server/runtime/start-server.ts
+    dependencies:
+    - 01-05
+
+- id: '02'
+  name: Assignment Guard Hardening and Worktree Lifecycle
+  steps:
+  - id: 02-01
+    name: Assignment guard edge cases
+    description: >
+      Reassignment allowed after abort or accept. Batch all remaining
+      assignment-guard error/edge scenarios (AG-2 through AG-10).
+    criteria: >
+      Reassignment succeeds after previous session aborted.
+      Reassignment succeeds after previous session accepted and task reset.
+      Todo-status tasks accepted for assignment.
+      All assignment-guard.test.ts scenarios pass.
+    files_to_modify:
+    - app/src/server/orchestrator/assignment-guard.ts
+    dependencies:
+    - 01-06
+  - id: 02-02
+    name: Worktree diff, merge, and cleanup
+    description: >
+      Generate diff with file list and stats from worktree branch.
+      Merge branch on accept, remove branch on abort. Block review
+      for aborted sessions.
+    criteria: >
+      Diff returns files array with path/status/additions/deletions and stats.
+      Accept merges agent branch into target branch.
+      Abort removes agent branch and worktree directory.
+      Review returns 404 for aborted sessions.
+    files_to_modify:
+    - app/src/server/orchestrator/worktree-manager.ts
+    dependencies:
+    - 01-06
+
+- id: '03'
+  name: Event Bridge, Review Flow, and Stall Detection
+  steps:
+  - id: 03-01
+    name: Event bridge (SSE forwarding)
+    description: >
+      Subscribe to OpenCode SSE events, transform to Brain StreamEvent
+      variants, forward to SSE registry by streamId. Handle nonexistent
+      streams and error event forwarding.
+    criteria: >
+      Agent file changes and status transitions appear in SSE stream.
+      Nonexistent stream ID returns error response.
+      Agent errors forwarded with diagnostic information.
+      All event-bridge.test.ts scenarios pass.
+    files_to_modify:
+    - app/src/server/orchestrator/event-bridge.ts
+    - app/src/server/orchestrator/routes.ts
+    dependencies:
+    - 01-06
+  - id: 03-02
+    name: Review flow (diff display, accept, reject with feedback)
+    description: >
+      GET review endpoint returns diff summary, session activity trace,
+      and task title. POST reject sends feedback to agent, resumes work.
+      Guard against accepting aborted or rejecting accepted sessions.
+    criteria: >
+      Review shows diff files, stats, session activity, and task title.
+      Session status includes branch name for manual inspection.
+      Reject with non-empty feedback text succeeds and returns task
+      to in_progress so agent continues.
+      Reject without feedback text returns 400.
+      Accept/reject on invalid session state returns 409.
+    files_to_modify:
+    - app/src/server/orchestrator/routes.ts
+    - app/src/server/orchestrator/session-lifecycle.ts
+    dependencies:
+    - 02-02
+  - id: 03-03
+    name: Stall detection
+    description: >
+      Monitor last_event_at for inactivity timeout. Track step count
+      against configured maximum. Auto-abort stalled sessions, return
+      task to assignable state, create warning observation.
+    criteria: >
+      Session auto-aborted when no activity within configured timeout.
+      Warning observation created explaining stall reason.
+      Active agent not falsely detected as stalled.
+      Session aborted when max step count exceeded.
+      Agent within step limit continues uninterrupted.
+    files_to_modify:
+    - app/src/server/orchestrator/stall-detector.ts
+    - app/src/server/orchestrator/event-bridge.ts
+    dependencies:
+    - 03-01
+
+- id: '04'
+  name: Plugin Integration and CLI Extension
+  steps:
+  - id: 04-01
+    name: Plugin MCP endpoints (task context, project context, status updates)
+    description: >
+      Add MCP route handlers for task-context, project-context, tasks/status,
+      and observations endpoints. Batch all plugin-tools scenarios.
+    criteria: >
+      Task context returns title, description, status for valid task.
+      Project context returns project name and status.
+      Agent can update task status to blocked (with reason) or done.
+      Invalid status values rejected. Nonexistent task returns 404.
+      Agent can create warning and conflict observations.
+    files_to_modify:
+    - app/src/server/mcp/mcp-route.ts
+    - app/src/server/mcp/mcp-queries.ts
+    dependencies:
+    - 01-06
+  - id: 04-02
+    name: Plugin lifecycle hooks (session start/end)
+    description: >
+      MCP endpoints for session.created and session.idle hooks.
+      Create/end agent sessions with summary. Handle missing agent type,
+      nonexistent session, and idempotent duplicate end.
+    criteria: >
+      Session start creates agent_session record, returns session_id.
+      Session end records summary and files_changed.
+      Missing agent type on start returns error.
+      End for nonexistent session returns error.
+      Duplicate session end succeeds silently with 200, summary not overwritten.
+    files_to_modify:
+    - app/src/server/mcp/mcp-route.ts
+    - app/src/server/mcp/mcp-queries.ts
+    dependencies:
+    - 01-06
+  - id: 04-03
+    name: Brain OpenCode plugin and init command extension
+    description: >
+      Plugin file registering Brain tools (task-context, project-context,
+      status-update, observations) and lifecycle hooks (session.created,
+      session.idle) for OpenCode. CLI init --opencode generates plugin
+      files, opencode.json, and OPENCODE.md.
+    criteria: >
+      Plugin file exports tool registrations and lifecycle hooks.
+      brain init --opencode generates .opencode/plugins/brain.ts.
+      Generated opencode.json references Brain plugin.
+      Generated OPENCODE.md contains agent instructions.
+    files_to_modify:
+    - .opencode/plugins/brain.ts
+    - cli/commands/init.ts
+    - cli/commands/init-content.ts
+    dependencies:
+    - 04-01
+    - 04-02
+
+implementation_scope:
+  source_directories:
+  - app/src/server/orchestrator/
+  - app/src/server/mcp/
+  - app/src/shared/
+  - cli/commands/
+  - schema/migrations/
+  - .opencode/plugins/
+  test_directories:
+  - tests/acceptance/coding-agent-orchestrator/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: nw-software-crafter-reviewer
+  approved_at: '2026-03-07T08:15:00Z'
