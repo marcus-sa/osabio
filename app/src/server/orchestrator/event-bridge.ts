@@ -29,17 +29,6 @@ export type SdkMessage =
   | { type: "user" };
 
 // ---------------------------------------------------------------------------
-// Backward-compatible aliases (consumed by session-lifecycle until migrated)
-// ---------------------------------------------------------------------------
-
-/** @deprecated Use SdkMessage instead. */
-export type OpencodeEvent =
-  | { type: "message.part.updated"; sessionId: string; part: { type: "text"; content: string } }
-  | { type: "file.edited"; sessionId: string; file: string }
-  | { type: "session.updated"; sessionId: string; status: string }
-  | { type: "session.error"; sessionId: string; error: string };
-
-// ---------------------------------------------------------------------------
 // Port: dependencies as function signatures
 // ---------------------------------------------------------------------------
 
@@ -54,8 +43,6 @@ export type EventBridgeDeps = {
 
 export type EventBridgeHandle = {
   handleMessage: (message: SdkMessage) => void;
-  /** @deprecated Use handleMessage instead. Accepts legacy OpencodeEvent. */
-  handleEvent: (event: OpencodeEvent) => void;
   stop: () => void;
 };
 
@@ -166,56 +153,6 @@ export function transformSdkMessage(
 }
 
 // ---------------------------------------------------------------------------
-// Legacy transform (backward compat)
-// ---------------------------------------------------------------------------
-
-const LEGACY_STATUS_MAP: Record<string, AgentStatusEvent["status"]> = {
-  busy: "active",
-  running: "active",
-  idle: "idle",
-  completed: "completed",
-  done: "completed",
-  error: "error",
-  failed: "error",
-  aborted: "aborted",
-  cancelled: "aborted",
-};
-
-/** @deprecated Use transformSdkMessage instead. */
-export function transformOpencodeEvent(
-  event: OpencodeEvent,
-): AgentTokenEvent | AgentFileChangeEvent | AgentStatusEvent {
-  switch (event.type) {
-    case "message.part.updated":
-      return {
-        type: "agent_token",
-        sessionId: event.sessionId,
-        token: event.part.content,
-      };
-    case "file.edited":
-      return {
-        type: "agent_file_change",
-        sessionId: event.sessionId,
-        file: event.file,
-        changeType: "modified",
-      };
-    case "session.updated":
-      return {
-        type: "agent_status",
-        sessionId: event.sessionId,
-        status: LEGACY_STATUS_MAP[event.status] ?? "active",
-      };
-    case "session.error":
-      return {
-        type: "agent_status",
-        sessionId: event.sessionId,
-        status: "error",
-        error: event.error,
-      };
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Step event detection for stall detector
 // ---------------------------------------------------------------------------
 
@@ -225,7 +162,6 @@ function containsFileOperationStep(message: SdkMessage): boolean {
   return message.content.some(
     (block) => block.type === "tool_use" && isFileOperationTool(block.name),
   );
-
 }
 
 // ---------------------------------------------------------------------------
@@ -263,27 +199,8 @@ export function startEventBridge(
     }
   };
 
-  /** @deprecated Use handleMessage instead. */
-  const handleEvent = (event: OpencodeEvent): void => {
-    if (stopped) return;
-
-    const streamEvent = transformOpencodeEvent(event);
-    deps.emitEvent(streamId, streamEvent);
-
-    deps.updateLastEventAt(sessionId);
-
-    if (stallDetector) {
-      stallDetector.recordActivity();
-
-      if (event.type === "file.edited") {
-        stallDetector.incrementStepCount();
-      }
-    }
-  };
-
   return {
     handleMessage,
-    handleEvent,
     stop(): void {
       stopped = true;
       stallDetector?.stop();

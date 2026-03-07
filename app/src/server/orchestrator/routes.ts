@@ -86,7 +86,7 @@ function assignResponse(
 function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined && value !== null) {
+    if (value !== undefined) {
       result[key] = value;
     }
   }
