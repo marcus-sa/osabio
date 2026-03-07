@@ -97,6 +97,10 @@ export type RejectSessionResult = SessionResult<{
   continuing: boolean;
 }>;
 
+export type PromptSessionResult = SessionResult<{
+  delivered: boolean;
+}>;
+
 // ---------------------------------------------------------------------------
 // In-memory handle registry — maps agentSessionId to OpenCodeHandle
 // ---------------------------------------------------------------------------
@@ -561,6 +565,7 @@ export async function acceptOrchestratorSession(
 const REVIEWABLE_STATUSES = new Set<OrchestratorStatus>(["idle", "completed"]);
 const REJECTABLE_STATUSES = new Set<OrchestratorStatus>(["idle"]);
 const ACCEPTABLE_STATUSES = new Set<OrchestratorStatus>(["idle", "completed"]);
+const PROMPTABLE_STATUSES = new Set<OrchestratorStatus>(["spawning", "active", "idle"]);
 
 function sessionStateConflict(sessionId: string, currentStatus: string, action: string): SessionError {
   return {
@@ -681,5 +686,51 @@ export async function rejectOrchestratorSession(
       rejected: true,
       continuing: true,
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// sendSessionPrompt
+// ---------------------------------------------------------------------------
+
+type SendPromptInput = {
+  surreal: Surreal;
+  sessionId: string;
+  text: string;
+};
+
+export async function sendSessionPrompt(
+  input: SendPromptInput,
+): Promise<PromptSessionResult> {
+  const lookup = await lookupSession(input.surreal, input.sessionId);
+  if (!lookup.ok) {
+    return { ok: false, error: lookup.error };
+  }
+  const { status } = lookup;
+
+  if (!PROMPTABLE_STATUSES.has(status)) {
+    return { ok: false, error: sessionStateConflict(input.sessionId, status, "prompt") };
+  }
+
+  const handle = handleRegistry.get(input.sessionId);
+  if (!handle) {
+    return {
+      ok: false,
+      error: {
+        code: "SESSION_ERROR",
+        message: `Cannot prompt session ${input.sessionId}: agent handle not available (server may have restarted)`,
+        httpStatus: 409,
+      },
+    };
+  }
+
+  // Fire-and-forget: deliver prompt to the agent process
+  handle.sendPrompt(input.text).catch(() => {
+    // Prompt delivery failure is non-fatal; the session continues
+  });
+
+  return {
+    ok: true,
+    value: { delivered: true },
   };
 }

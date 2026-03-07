@@ -196,6 +196,9 @@ export async function startServer(): Promise<void> {
       "/api/orchestrator/:workspaceId/sessions/:sessionId/reject": {
         POST: orchestratorHandlers.reject,
       },
+      "/api/orchestrator/:workspaceId/sessions/:sessionId/prompt": {
+        POST: orchestratorHandlers.prompt,
+      },
       // MCP — Setup
       "/api/mcp/:workspaceId/projects": {
         GET: withRequestLogging("GET /api/mcp/:workspaceId/projects", "GET", (request) =>

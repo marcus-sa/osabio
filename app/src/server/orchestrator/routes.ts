@@ -13,6 +13,7 @@ import type {
   AcceptSessionResult,
   ReviewResult,
   RejectSessionResult,
+  PromptSessionResult,
 } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
 
@@ -37,6 +38,10 @@ export type OrchestratorRouteDeps = {
     sessionId: string,
     feedback: string,
   ) => Promise<RejectSessionResult>;
+  sendPrompt: (
+    sessionId: string,
+    text: string,
+  ) => Promise<PromptSessionResult>;
 };
 
 // ---------------------------------------------------------------------------
@@ -46,6 +51,7 @@ export type OrchestratorRouteDeps = {
 type AssignBody = { taskId?: string };
 type AcceptBody = { summary?: string };
 type RejectBody = { feedback?: string };
+type PromptBody = { text?: string };
 
 async function parseJsonBody<T>(request: Request): Promise<T | undefined> {
   try {
@@ -120,6 +126,10 @@ function reviewResponse(value: {
 
 function rejectResponse(): Response {
   return jsonResponse({ rejected: true, continuing: true }, 200);
+}
+
+function promptResponse(): Response {
+  return jsonResponse({ delivered: true }, 202);
 }
 
 function sessionErrorResponse(error: {
@@ -216,7 +226,24 @@ export function createOrchestratorRouteHandlers(deps: OrchestratorRouteDeps) {
     return rejectResponse();
   };
 
-  return { assign, status, accept, abort, review, reject };
+  const prompt: RouteHandler = async (request) => {
+    const sessionId = request.params.sessionId;
+    const body = await parseJsonBody<PromptBody>(request);
+
+    if (!body?.text || body.text.trim() === "") {
+      return jsonError("text is required", 400);
+    }
+
+    const result = await deps.sendPrompt(sessionId, body.text);
+
+    if (!result.ok) {
+      return sessionErrorResponse(result.error);
+    }
+
+    return promptResponse();
+  };
+
+  return { assign, status, accept, abort, review, reject, prompt };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +288,7 @@ export function wireOrchestratorRoutes(
   abort: RouteHandler;
   review: RouteHandler;
   reject: RouteHandler;
+  prompt: RouteHandler;
   stream?: RouteHandler;
 } {
   // Lazy imports to keep module boundary clean
@@ -281,21 +309,25 @@ export function wireOrchestratorRoutes(
     return repoPath;
   };
 
-  // Mock OpenCode spawning when env var is set (for acceptance tests)
-  const mockOpenCode = process.env.ORCHESTRATOR_MOCK_OPENCODE === "true";
-  const mockSpawnOpenCode = mockOpenCode
-    ? async () => ({
-        sessionId: crypto.randomUUID(),
-        abort: () => {},
+  // Use mock spawn for acceptance tests, production spawn otherwise
+  const spawnOpenCodeImport = process.env.ORCHESTRATOR_MOCK_OPENCODE === "true"
+    ? Promise.resolve({
+        spawnOpenCode: async () => ({
+          sessionId: crypto.randomUUID(),
+          abort: () => {},
+          sendPrompt: async () => {},
+          eventStream: (async function* () {})(),
+        }),
       })
-    : undefined;
+    : import("./spawn-opencode");
 
   const routeDeps: OrchestratorRouteDeps = {
     createSession: async (workspaceId, taskId, authToken) => {
-      const [lifecycle, queries, guard] = await Promise.all([
+      const [lifecycle, queries, guard, { spawnOpenCode }] = await Promise.all([
         lifecycleImport,
         queriesImport,
         guardImport,
+        spawnOpenCodeImport,
       ]);
       return lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
@@ -306,7 +338,7 @@ export function wireOrchestratorRoutes(
         authToken,
         validateAssignment: guard.validateAssignment,
         createAgentSession: queries.createAgentSession,
-        ...(mockSpawnOpenCode ? { spawnOpenCode: mockSpawnOpenCode } : {}),
+        spawnOpenCode,
       });
     },
 
@@ -376,6 +408,15 @@ export function wireOrchestratorRoutes(
         feedback,
       });
     },
+
+    sendPrompt: async (sessionId, text) => {
+      const lifecycle = await lifecycleImport;
+      return lifecycle.sendSessionPrompt({
+        surreal: wiringDeps.surreal,
+        sessionId,
+        text,
+      });
+    },
   };
 
   const handlers = createOrchestratorRouteHandlers(routeDeps);
@@ -391,6 +432,7 @@ export function wireOrchestratorRoutes(
     abort: withRequestLogging("orchestrator.abort", "POST", handlers.abort),
     review: withRequestLogging("orchestrator.review", "GET", handlers.review),
     reject: withRequestLogging("orchestrator.reject", "POST", handlers.reject),
+    prompt: withRequestLogging("orchestrator.prompt", "POST", handlers.prompt),
     ...(streamHandler
       ? { stream: withRequestLogging("orchestrator.stream", "GET", streamHandler.stream) }
       : {}),
