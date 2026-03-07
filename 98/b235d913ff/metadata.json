@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "98b235d913ff",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/graph/AgentStatusSection.tsx",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/components/review/AgentActivityLog.tsx",
+    "app/src/client/components/review/diff-parser.ts",
+    "app/src/client/hooks/use-agent-review.ts",
+    "app/src/client/hooks/use-agent-session.ts",
+    "app/src/client/routes/review-page.tsx",
+    "app/src/server/entities/entity-detail-route.ts",
+    "app/src/server/feed/feed-queries.ts",
+    "docs/feature/coding-agent-orchestrator-ui/execution-log.yaml",
+    "tests/unit/coding-agent-orchestrator/ui/use-agent-review.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/98/b235d913ff/0/metadata.json",
+      "transcript": "/98/b235d913ff/0/full.jsonl",
+      "context": "/98/b235d913ff/0/context.md",
+      "content_hash": "/98/b235d913ff/0/content_hash.txt",
+      "prompt": "/98/b235d913ff/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
