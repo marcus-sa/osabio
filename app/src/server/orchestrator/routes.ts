@@ -12,6 +12,7 @@ import type {
   AbortSessionResult,
   AcceptSessionResult,
 } from "./session-lifecycle";
+import type { SseRegistry } from "../streaming/sse-registry";
 
 // ---------------------------------------------------------------------------
 // Port: Dependencies as function signatures
@@ -171,6 +172,28 @@ export function createOrchestratorRouteHandlers(deps: OrchestratorRouteDeps) {
 }
 
 // ---------------------------------------------------------------------------
+// SSE stream route handler factory
+// ---------------------------------------------------------------------------
+
+export type StreamRouteDeps = {
+  sseRegistry: SseRegistry;
+};
+
+export function createStreamRouteHandler(deps: StreamRouteDeps) {
+  const stream: RouteHandler = async (request) => {
+    const streamId = request.params.streamId;
+
+    if (!streamId) {
+      return jsonError("streamId is required", 400);
+    }
+
+    return deps.sseRegistry.handleStreamRequest(streamId);
+  };
+
+  return { stream };
+}
+
+// ---------------------------------------------------------------------------
 // Wiring factory: creates OrchestratorRouteDeps from server dependencies
 // ---------------------------------------------------------------------------
 
@@ -179,6 +202,7 @@ export type OrchestratorWiringDeps = {
   shellExec: import("./worktree-manager").ShellExec;
   repoRoot: string;
   brainBaseUrl: string;
+  sseRegistry?: SseRegistry;
 };
 
 export function wireOrchestratorRoutes(
@@ -188,6 +212,7 @@ export function wireOrchestratorRoutes(
   status: RouteHandler;
   accept: RouteHandler;
   abort: RouteHandler;
+  stream?: RouteHandler;
 } {
   // Lazy imports to keep module boundary clean
   const lifecycleImport = import("./session-lifecycle");
@@ -262,10 +287,17 @@ export function wireOrchestratorRoutes(
 
   const handlers = createOrchestratorRouteHandlers(routeDeps);
 
+  const streamHandler = wiringDeps.sseRegistry
+    ? createStreamRouteHandler({ sseRegistry: wiringDeps.sseRegistry })
+    : undefined;
+
   return {
     assign: withRequestLogging("orchestrator.assign", "POST", handlers.assign),
     status: withRequestLogging("orchestrator.status", "GET", handlers.status),
     accept: withRequestLogging("orchestrator.accept", "POST", handlers.accept),
     abort: withRequestLogging("orchestrator.abort", "POST", handlers.abort),
+    ...(streamHandler
+      ? { stream: withRequestLogging("orchestrator.stream", "GET", streamHandler.stream) }
+      : {}),
   };
 }

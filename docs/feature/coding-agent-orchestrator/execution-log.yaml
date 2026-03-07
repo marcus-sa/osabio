@@ -172,5 +172,55 @@ events:
   s: SKIPPED
   sid: 02-01
   t: '2026-03-07T08:51:31Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-07T08:52:24Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T08:55:24Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T08:55:24Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T08:55:24Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T08:55:24Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T08:55:24Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T08:57:18Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T08:57:20Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T08:57:20Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T08:58:38Z'
 project_id: coding-agent-orchestrator
 schema_version: '3.0'
