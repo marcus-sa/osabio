@@ -179,7 +179,7 @@ export async function setupAuth(
   authUrl.searchParams.set("code_challenge_method", "S256");
   authUrl.searchParams.set("state", state);
   // Pass resource so better-auth issues a JWT access token (not opaque)
-  authUrl.searchParams.set("resource", serverUrl);
+  authUrl.searchParams.set("resource", `${serverUrl}/api/auth`);
 
   console.log("Opening browser for authentication...");
   console.log(`If the browser doesn't open, visit: ${authUrl.toString()}\n`);
@@ -209,7 +209,7 @@ export async function setupAuth(
       redirect_uri: redirectUri,
       client_id: actualClientId,
       code_verifier: pkce.verifier,
-      resource: serverUrl,
+      resource: `${serverUrl}/api/auth`,
     }),
   });
 
