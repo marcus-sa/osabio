@@ -1,45 +1,44 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "8d4ae8e49463",
+  "session_id": "6adaf94b-0aa6-4745-a95e-bcf06d1877cc",
   "strategy": "manual-commit",
+  "created_at": "2026-03-07T12:13:31.796321Z",
   "branch": "marcus-sa/coding-agent-orch",
   "checkpoints_count": 0,
   "files_touched": [
+    "tests/unit/entity-detail-agent-session.test.ts",
     "app/src/client/components/review/AgentActivityLog.tsx",
     "app/src/client/components/review/DiffViewer.tsx",
     "app/src/client/components/review/diff-parser.ts",
     "app/src/server/entities/entity-detail-response.ts",
     "app/src/server/entities/entity-detail-route.ts",
     "app/src/server/feed/feed-queries.ts",
-    "app/src/server/feed/feed-route.ts",
     "app/src/shared/contracts.ts",
     "docs/feature/coding-agent-orchestrator-ui/execution-log.yaml",
+    "app/src/server/feed/feed-route.ts",
     "tests/unit/agent-session-feed.test.ts",
     "tests/unit/coding-agent-orchestrator/ui/agent-activity-log.test.ts",
-    "tests/unit/coding-agent-orchestrator/ui/diff-parser.test.ts",
-    "tests/unit/entity-detail-agent-session.test.ts"
+    "tests/unit/coding-agent-orchestrator/ui/diff-parser.test.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/8d/4ae8e49463/0/metadata.json",
-      "transcript": "/8d/4ae8e49463/0/full.jsonl",
-      "context": "/8d/4ae8e49463/0/context.md",
-      "content_hash": "/8d/4ae8e49463/0/content_hash.txt",
-      "prompt": "/8d/4ae8e49463/0/prompt.txt"
-    },
-    {
-      "metadata": "/8d/4ae8e49463/1/metadata.json",
-      "transcript": "/8d/4ae8e49463/1/full.jsonl",
-      "context": "",
-      "content_hash": "/8d/4ae8e49463/1/content_hash.txt",
-      "prompt": ""
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "11fae87133c8",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
   "token_usage": {
     "input_tokens": 0,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
     "output_tokens": 0,
     "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T12:13:31.794906Z",
+    "agent_lines": 763,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 763,
+    "agent_percentage": 100
   }
 }
