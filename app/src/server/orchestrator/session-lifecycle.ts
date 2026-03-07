@@ -112,6 +112,10 @@ export function clearHandleRegistry(): void {
   handleRegistry.clear();
 }
 
+export function getHandle(sessionId: string): OpenCodeHandle | undefined {
+  return handleRegistry.get(sessionId);
+}
+
 // ---------------------------------------------------------------------------
 // Event iteration — port (dependencies as function signatures)
 // ---------------------------------------------------------------------------

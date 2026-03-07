@@ -198,14 +198,17 @@ export function useAgentSession(
     const eventSource = new EventSource(streamUrl);
     eventSourceRef.current = eventSource;
 
-    function handleEvent(eventType: string, rawData: string) {
-      // Reset stall timer on every received event, even if parsing fails.
-      // A received event proves the connection is alive.
+    // SSE registry sends unnamed events (data-only, no event: field).
+    // Use onmessage and dispatch on the parsed type.
+    eventSource.onmessage = (e) => {
       resetStallTimer();
 
       try {
-        const data = JSON.parse(rawData);
-        const event: AgentEvent = { ...data, type: eventType };
+        const data = JSON.parse(e.data);
+        const eventType = data.type as string | undefined;
+        if (!eventType) return;
+
+        const event: AgentEvent = data as AgentEvent;
         setState((prev) => reduceAgentSessionEvent(prev, event));
 
         // Close on terminal status
@@ -215,25 +218,9 @@ export function useAgentSession(
         }
       } catch {
         // Malformed event data -- state not updated but stall timer is reset
-        console.warn(`Failed to parse ${eventType} event data`);
+        console.warn("Failed to parse SSE event data");
       }
-    }
-
-    eventSource.addEventListener("agent_status", (e) =>
-      handleEvent("agent_status", e.data),
-    );
-    eventSource.addEventListener("agent_file_change", (e) =>
-      handleEvent("agent_file_change", e.data),
-    );
-    eventSource.addEventListener("agent_stall_warning", (e) =>
-      handleEvent("agent_stall_warning", e.data),
-    );
-    eventSource.addEventListener("agent_token", (e) =>
-      handleEvent("agent_token", e.data),
-    );
-    eventSource.addEventListener("agent_prompt", (e) =>
-      handleEvent("agent_prompt", e.data),
-    );
+    };
 
     eventSource.onerror = () => {
       eventSource.close();

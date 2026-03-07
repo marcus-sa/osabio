@@ -268,12 +268,13 @@ export type StreamRouteDeps = {
 
 export function createStreamRouteHandler(deps: StreamRouteDeps) {
   const stream: RouteHandler = async (request) => {
-    const streamId = request.params.streamId;
+    const sessionId = request.params.sessionId;
 
-    if (!streamId) {
-      return jsonError("streamId is required", 400);
+    if (!sessionId) {
+      return jsonError("sessionId is required", 400);
     }
 
+    const streamId = `stream-${sessionId}`;
     return deps.sseRegistry.handleStreamRequest(streamId);
   };
 
@@ -307,6 +308,7 @@ export function wireOrchestratorRoutes(
   const lifecycleImport = import("./session-lifecycle");
   const queriesImport = import("../mcp/mcp-queries");
   const guardImport = import("./assignment-guard");
+  const stallDetectorImport = import("./stall-detector");
 
   // Helper: resolve repo_path from workspace record
   const resolveRepoRoot = async (workspaceRecord: import("surrealdb").RecordId<"workspace", string>): Promise<string> => {
@@ -335,13 +337,14 @@ export function wireOrchestratorRoutes(
 
   const routeDeps: OrchestratorRouteDeps = {
     createSession: async (workspaceId, taskId, authToken) => {
-      const [lifecycle, queries, guard, { spawnOpenCode }] = await Promise.all([
+      const [lifecycle, queries, guard, { spawnOpenCode }, stallDetector] = await Promise.all([
         lifecycleImport,
         queriesImport,
         guardImport,
         spawnOpenCodeImport,
+        stallDetectorImport,
       ]);
-      return lifecycle.createOrchestratorSession({
+      const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
         brainBaseUrl: wiringDeps.brainBaseUrl,
@@ -352,6 +355,65 @@ export function wireOrchestratorRoutes(
         createAgentSession: queries.createAgentSession,
         spawnOpenCode,
       });
+
+      // Wire SSE stream + event iteration on success
+      if (result.ok && wiringDeps.sseRegistry) {
+        const { agentSessionId, streamId } = result.value;
+        wiringDeps.sseRegistry.registerMessage(streamId);
+
+        const handle = lifecycle.getHandle(agentSessionId);
+        if (handle) {
+          const { RecordId } = await import("surrealdb");
+          lifecycle.startEventIteration(
+            {
+              emitEvent: wiringDeps.sseRegistry.emitEvent,
+              updateSessionStatus: async (sid, status, error) => {
+                const rec = new RecordId("agent_session", sid);
+                await wiringDeps.surreal.update(rec).merge({
+                  orchestrator_status: status,
+                  ...(error !== undefined ? { error } : {}),
+                });
+              },
+              updateLastEventAt: async (sid) => {
+                const rec = new RecordId("agent_session", sid);
+                await wiringDeps.surreal.update(rec).merge({
+                  last_event_at: new Date().toISOString(),
+                });
+              },
+              getSessionStatus: async (sid) => {
+                const rec = new RecordId("agent_session", sid);
+                const row = await wiringDeps.surreal.select(rec) as { orchestrator_status?: string } | undefined;
+                return (row?.orchestrator_status ?? "error") as import("./types").OrchestratorStatus;
+              },
+              startStallDetector: (sid, stId) =>
+                stallDetector.startStallDetector(
+                  {
+                    abortSession: async (abortSid) => {
+                      const abortResult = await lifecycle.abortOrchestratorSession({
+                        surreal: wiringDeps.surreal,
+                        shellExec: wiringDeps.shellExec,
+                        resolveRepoRoot,
+                        sessionId: abortSid,
+                        endAgentSession: queries.endAgentSession,
+                      });
+                      return abortResult;
+                    },
+                    createObservation: async () => {},
+                    emitEvent: wiringDeps.sseRegistry!.emitEvent,
+                  },
+                  stallDetector.DEFAULT_STALL_CONFIG,
+                  sid,
+                  stId,
+                ),
+            },
+            handle.eventStream,
+            streamId,
+            agentSessionId,
+          );
+        }
+      }
+
+      return result;
     },
 
     getSessionStatus: async (sessionId) => {

@@ -71,6 +71,7 @@ export async function startServer(): Promise<void> {
     surreal: runtime.surreal,
     shellExec,
     brainBaseUrl: `http://127.0.0.1:${config.port}`,
+    sseRegistry: deps.sse,
   });
 
   const server = Bun.serve({
@@ -198,6 +199,9 @@ export async function startServer(): Promise<void> {
       },
       "/api/orchestrator/:workspaceId/sessions/:sessionId/prompt": {
         POST: orchestratorHandlers.prompt,
+      },
+      "/api/orchestrator/:workspaceId/sessions/:sessionId/stream": {
+        GET: orchestratorHandlers.stream!,
       },
       // MCP — Setup
       "/api/mcp/:workspaceId/projects": {
