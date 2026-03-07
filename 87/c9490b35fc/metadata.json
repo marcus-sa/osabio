@@ -3,7 +3,7 @@
   "checkpoint_id": "87c9490b35fc",
   "strategy": "manual-commit",
   "branch": "marcus-sa/coding-agent-orch",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/client/components/graph/AgentSessionOutput.tsx",
     "app/src/client/components/graph/AgentStatusSection.tsx",
@@ -82,13 +82,20 @@
       "context": "/87/c9490b35fc/9/context.md",
       "content_hash": "/87/c9490b35fc/9/content_hash.txt",
       "prompt": "/87/c9490b35fc/9/prompt.txt"
+    },
+    {
+      "metadata": "/87/c9490b35fc/10/metadata.json",
+      "transcript": "/87/c9490b35fc/10/full.jsonl",
+      "context": "/87/c9490b35fc/10/context.md",
+      "content_hash": "/87/c9490b35fc/10/content_hash.txt",
+      "prompt": "/87/c9490b35fc/10/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 42,
-    "cache_creation_tokens": 62459,
-    "cache_read_tokens": 654855,
-    "output_tokens": 11717,
-    "api_call_count": 16
+    "input_tokens": 107,
+    "cache_creation_tokens": 165313,
+    "cache_read_tokens": 2579242,
+    "output_tokens": 22258,
+    "api_call_count": 54
   }
 }
