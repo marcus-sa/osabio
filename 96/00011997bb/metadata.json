@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9600011997bb",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/fix-entity-search-pm-dispatch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/chat/tools/create-work-item.ts",
+    "app/src/server/chat/tools/list-workspace-entities.ts",
+    "app/src/server/entities/entity-search-route.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/feed/feed-queries.ts",
+    "app/src/server/graph/queries.ts",
+    "schema/migrations/0014_feature_workspace.surql",
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/96/00011997bb/0/metadata.json",
+      "transcript": "/96/00011997bb/0/full.jsonl",
+      "context": "/96/00011997bb/0/context.md",
+      "content_hash": "/96/00011997bb/0/content_hash.txt",
+      "prompt": "/96/00011997bb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 22007,
+    "cache_read_tokens": 29924,
+    "output_tokens": 273,
+    "api_call_count": 2
+  }
+}
