@@ -66,6 +66,10 @@ export type AbortSessionResponse = {
   taskStatus: string;
 };
 
+export type SendPromptResponse = {
+  delivered: boolean;
+};
+
 // ---------------------------------------------------------------------------
 // Internal Helpers
 // ---------------------------------------------------------------------------
@@ -160,6 +164,21 @@ export function abortSession(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+    },
+  );
+}
+
+export function sendPrompt(
+  workspaceId: string,
+  sessionId: string,
+  text: string,
+): Promise<SendPromptResponse> {
+  return orchestratorFetch<SendPromptResponse>(
+    orchestratorUrl(workspaceId, "sessions", sessionId, "prompt"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
     },
   );
 }

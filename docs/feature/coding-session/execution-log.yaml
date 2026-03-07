@@ -91,5 +91,36 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-07T17:21:41Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-07T17:22:38Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-07T17:23:30Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T17:25:20Z'
+- d: 'NOT_APPLICABLE: client wrapper module tested at unit level; acceptance tests
+    exist for server endpoint in follow-up-prompt.test.ts'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-07T17:25:30Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T17:26:14Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-07T17:27:10Z'
 project_id: coding-session
 schema_version: '3.0'

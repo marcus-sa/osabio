@@ -412,6 +412,14 @@ export type GovernanceFeedResponse = {
   updatedAt: string;
 };
 
+export type SessionPromptRequest = {
+  text: string;
+};
+
+export type SendPromptResponse = {
+  delivered: boolean;
+};
+
 export type EntityActionRequest = {
   action: "confirm" | "override" | "complete" | "set_priority" | "acknowledge" | "resolve" | "dismiss" | "accept" | "defer" | "convert" | "abort" | "review";
   notes?: string;

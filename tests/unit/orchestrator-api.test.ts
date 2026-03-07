@@ -20,6 +20,7 @@ import {
   acceptSession,
   rejectSession,
   abortSession,
+  sendPrompt,
 } from "../../app/src/client/graph/orchestrator-api";
 
 type FetchCall = {
@@ -232,6 +233,37 @@ describe("abortSession", () => {
       new Response("Session already aborted", { status: 409 });
 
     await expect(abortSession("ws-6", "s-4")).rejects.toThrow("409");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sendPrompt
+// ---------------------------------------------------------------------------
+
+describe("sendPrompt", () => {
+  it("POSTs to /api/orchestrator/:ws/sessions/:id/prompt with text body", async () => {
+    const mockResponse = { delivered: true };
+    fetchStub = async () =>
+      new Response(JSON.stringify(mockResponse), { status: 202 });
+
+    const result = await sendPrompt("ws-7", "s-5", "Add input validation");
+
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toBe("/api/orchestrator/ws-7/sessions/s-5/prompt");
+    expect(fetchCalls[0].init?.method).toBe("POST");
+    const body = JSON.parse(fetchCalls[0].init?.body as string);
+    expect(body.text).toBe("Add input validation");
+    expect(result).toEqual(mockResponse);
+  });
+
+  it("throws on error response with status and message", async () => {
+    fetchStub = async () =>
+      new Response("Session is completed", { status: 409 });
+
+    await expect(sendPrompt("ws-7", "s-5", "Try again")).rejects.toThrow("409");
+    await expect(sendPrompt("ws-7", "s-5", "Try again")).rejects.toThrow(
+      "Session is completed",
+    );
   });
 });
 
