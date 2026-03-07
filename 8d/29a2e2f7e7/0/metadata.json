@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8d29a2e2f7e7",
+  "session_id": "040f2789-b468-47bc-987c-0ff12448f17f",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T09:26:16.902405Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/mcp/mcp-queries.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "docs/feature/coding-agent-orchestrator/execution-log.yaml",
+    "tests/acceptance/coding-agent-orchestrator/plugin-lifecycle.test.ts",
+    "tests/unit/mcp-plugin-lifecycle.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "351e8bd3d552",
+  "checkpoint_transcript_start": 34,
+  "transcript_lines_at_start": 34,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T09:26:16.843685Z",
+    "agent_lines": 44,
+    "human_added": 353,
+    "human_modified": 13,
+    "human_removed": 0,
+    "total_committed": 410,
+    "agent_percentage": 10.731707317073171
+  }
+}
