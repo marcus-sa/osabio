@@ -153,13 +153,117 @@ export async function removeWorktree(
 }
 
 // ---------------------------------------------------------------------------
-// getDiff — stub signature for step 02-02
+// Pure parsers: git diff output
+// ---------------------------------------------------------------------------
+
+type NumstatEntry = { path: string; additions: number; deletions: number };
+type NameStatusEntry = { path: string; status: string };
+
+export function parseNumstat(output: string): NumstatEntry[] {
+  return output
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => {
+      const [addStr, delStr, ...pathParts] = line.split("\t");
+      return {
+        path: pathParts.join("\t"),
+        additions: addStr === "-" ? 0 : parseInt(addStr, 10),
+        deletions: delStr === "-" ? 0 : parseInt(delStr, 10),
+      };
+    });
+}
+
+export function parseNameStatus(output: string): NameStatusEntry[] {
+  return output
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => {
+      const [status, ...pathParts] = line.split("\t");
+      return { path: pathParts.join("\t"), status };
+    });
+}
+
+export function combineDiffFileEntries(
+  numstat: NumstatEntry[],
+  nameStatus: NameStatusEntry[],
+): DiffResult["files"] {
+  const statusByPath = new Map(nameStatus.map((e) => [e.path, e.status]));
+  return numstat.map((entry) => ({
+    path: entry.path,
+    status: statusByPath.get(entry.path) ?? "M",
+    additions: entry.additions,
+    deletions: entry.deletions,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// getDiff — generates diff between main and agent branch
 // ---------------------------------------------------------------------------
 
 export async function getDiff(
-  _exec: ShellExec,
-  _repoRoot: string,
-  _branchName: string,
+  exec: ShellExec,
+  repoRoot: string,
+  branchName: string,
 ): Promise<WorktreeResult<DiffResult>> {
-  throw new Error("Not implemented — will be implemented in step 02-02");
+  const diffRef = `main...${branchName}`;
+
+  const numstatResult = await exec(
+    "git",
+    ["diff", "--numstat", diffRef],
+    repoRoot,
+  );
+  if (numstatResult.exitCode !== 0) {
+    return gitError(numstatResult.stderr);
+  }
+
+  const nameStatusResult = await exec(
+    "git",
+    ["diff", "--name-status", diffRef],
+    repoRoot,
+  );
+  if (nameStatusResult.exitCode !== 0) {
+    return gitError(nameStatusResult.stderr);
+  }
+
+  const rawDiffResult = await exec("git", ["diff", diffRef], repoRoot);
+  if (rawDiffResult.exitCode !== 0) {
+    return gitError(rawDiffResult.stderr);
+  }
+
+  const numstatEntries = parseNumstat(numstatResult.stdout);
+  const nameStatusEntries = parseNameStatus(nameStatusResult.stdout);
+  const files = combineDiffFileEntries(numstatEntries, nameStatusEntries);
+
+  const stats = {
+    filesChanged: files.length,
+    insertions: files.reduce((sum, f) => sum + f.additions, 0),
+    deletions: files.reduce((sum, f) => sum + f.deletions, 0),
+  };
+
+  return {
+    ok: true,
+    value: { files, rawDiff: rawDiffResult.stdout, stats },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// mergeBranch — merges agent branch into current branch
+// ---------------------------------------------------------------------------
+
+export async function mergeBranch(
+  exec: ShellExec,
+  repoRoot: string,
+  branchName: string,
+): Promise<WorktreeResult<void>> {
+  const result = await exec(
+    "git",
+    ["merge", branchName, "--no-ff", "-m", `Merge agent work: ${branchName}`],
+    repoRoot,
+  );
+
+  if (result.exitCode !== 0) {
+    return gitError(result.stderr);
+  }
+
+  return { ok: true, value: undefined };
 }
