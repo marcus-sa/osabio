@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b9f163301ae3",
+  "session_id": "21f17b0d-1fc4-4df8-8c19-5d77636586c1",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-07T18:57:29.081253Z",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/unit/coding-agent-orchestrator/session-lifecycle.test.ts",
+    "tests/unit/orchestrator/event-stream-wiring.test.ts",
+    "tests/unit/orchestrator/opencode-handle-enrichment.test.ts",
+    "tests/unit/orchestrator/send-session-prompt.test.ts",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "docs/feature/claude-agent-sdk-migration/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8ea12d0d8542",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-07T18:57:29.079651Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 224,
+    "human_removed": 120,
+    "total_committed": 5,
+    "agent_percentage": 0
+  }
+}
