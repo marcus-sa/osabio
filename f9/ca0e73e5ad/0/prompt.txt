@@ -1,0 +1,36 @@
+test
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: This conversation contains only a single user message ('test') and one assistant response ('👋 Working. What do you need?'). There is no substantive discussion of decisions, questions, observations, tasks, subtasks, or suggestions to review and log. The session has not yet produced any work artifacts or analytical output that would warrant Brain MCP logging.
+
+---
+
+is there a way to simply log nothing when nothing happens in brain stop hook instead of this : "👋 Working. What do you need?
+
+⏺ Ran 6 stop hooks (ctrl+o to expand)                                                                                                                                                                                                               
+  ⎿  This conversation contains only a single user message ('test') and one assistant response ('👋 Working. What do you need?'). There is no substantive discussion of decisions, questions, observations, tasks, subtasks, or suggestions
+  to review and log. The session has not yet produced any work artifacts or analytical output that would warrant Brain MCP logging.                                                                                                                 
+  ⎿  Stop hook error: Prompt hook condition was not met: This conversation contains only a single user message ('test') and one assistant response ('👋 Working. What do you need?'). There is no substantive discussion of decisions,            
+  questions, observations, tasks, subtasks, or suggestions to review and log. The session has not yet produced any work artifacts or analytical output that would warrant Brain MCP logging.   "
+
+---
+
+commit
+
+---
+
+[Request interrupted by user]
+
+---
+
+retry
+
+---
+
+[Request interrupted by user]
+
+---
+
+retry ocmmit
