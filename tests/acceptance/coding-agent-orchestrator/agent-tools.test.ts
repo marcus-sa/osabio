@@ -1,17 +1,17 @@
 /**
- * Plugin Tools: Brain OpenCode Plugin Tool Registration and Execution
+ * Agent Tools: Brain MCP Tool Registration and Execution
  *
  * Traces: US-0.2 (agent reads context via tools),
  *         US-0.3 (agent updates task status via tools)
  *
- * Validates that the OpenCode agent can read context and update task state
- * through Brain tools. Tests exercise the MCP endpoints that the plugin
- * wraps, since the plugin is a thin HTTP adapter.
+ * Validates that the coding agent can read context and update task state
+ * through Brain tools. Tests exercise the MCP endpoints that the agent
+ * uses for context loading and status reporting.
  *
- * Driving ports: POST /api/mcp/:ws/task-context (via plugin tool)
- *                POST /api/mcp/:ws/project-context (via plugin tool)
- *                POST /api/mcp/:ws/tasks/status (via plugin tool)
- *                POST /api/mcp/:ws/observations (via plugin tool)
+ * Driving ports: POST /api/mcp/:ws/task-context (via agent tool)
+ *                POST /api/mcp/:ws/project-context (via agent tool)
+ *                POST /api/mcp/:ws/tasks/status (via agent tool)
+ *                POST /api/mcp/:ws/observations (via agent tool)
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -24,9 +24,9 @@ import {
   fetchJson,
 } from "./orchestrator-test-kit";
 
-const getRuntime = setupOrchestratorSuite("plugin_tools");
+const getRuntime = setupOrchestratorSuite("agent_tools");
 
-describe("Plugin Tools: Agent reads task context", () => {
+describe("Agent Tools: Agent reads task context", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Agent retrieves task details
   // US-0.2
@@ -35,7 +35,7 @@ describe("Plugin Tools: Agent reads task context", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task with detailed description in a workspace
-    const user = await createTestUser(baseUrl, "plugin-taskctx");
+    const user = await createTestUser(baseUrl, "agent-taskctx");
     const workspace = await createTestWorkspace(baseUrl, user);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Implement CSV export",
@@ -67,7 +67,7 @@ describe("Plugin Tools: Agent reads task context", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a project with associated tasks in a workspace
-    const user = await createTestUser(baseUrl, "plugin-projctx");
+    const user = await createTestUser(baseUrl, "agent-projctx");
     const workspace = await createTestWorkspace(baseUrl, user);
     const project = await createTestProject(
       surreal,
@@ -101,7 +101,7 @@ describe("Plugin Tools: Agent reads task context", () => {
     const { baseUrl } = getRuntime();
 
     // Given a workspace with no matching task
-    const user = await createTestUser(baseUrl, "plugin-notask");
+    const user = await createTestUser(baseUrl, "agent-notask");
     const workspace = await createTestWorkspace(baseUrl, user);
 
     // When the agent requests context for a task that does not exist
@@ -120,7 +120,7 @@ describe("Plugin Tools: Agent reads task context", () => {
   }, 60_000);
 });
 
-describe("Plugin Tools: Agent updates task status", () => {
+describe("Agent Tools: Agent updates task status", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Agent marks task as blocked
   // US-0.3
@@ -129,7 +129,7 @@ describe("Plugin Tools: Agent updates task status", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task that the agent is working on
-    const user = await createTestUser(baseUrl, "plugin-block");
+    const user = await createTestUser(baseUrl, "agent-block");
     const workspace = await createTestWorkspace(baseUrl, user);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Integrate payment gateway",
@@ -160,7 +160,7 @@ describe("Plugin Tools: Agent updates task status", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task that the agent has been working on
-    const user = await createTestUser(baseUrl, "plugin-done");
+    const user = await createTestUser(baseUrl, "agent-done");
     const workspace = await createTestWorkspace(baseUrl, user);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Add rate limiting middleware",
@@ -189,7 +189,7 @@ describe("Plugin Tools: Agent updates task status", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task with status "ready"
-    const user = await createTestUser(baseUrl, "plugin-badstatus");
+    const user = await createTestUser(baseUrl, "agent-badstatus");
     const workspace = await createTestWorkspace(baseUrl, user);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Fix memory leak",
@@ -214,7 +214,7 @@ describe("Plugin Tools: Agent updates task status", () => {
   }, 60_000);
 });
 
-describe("Plugin Tools: Agent creates observations", () => {
+describe("Agent Tools: Agent creates observations", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Agent logs an observation about a risk
   // US-0.3 (related)
@@ -223,7 +223,7 @@ describe("Plugin Tools: Agent creates observations", () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace where the agent is working
-    const user = await createTestUser(baseUrl, "plugin-obs");
+    const user = await createTestUser(baseUrl, "agent-obs");
     const workspace = await createTestWorkspace(baseUrl, user);
 
     // When the agent creates an observation about a discovered risk
@@ -251,7 +251,7 @@ describe("Plugin Tools: Agent creates observations", () => {
     const { baseUrl } = getRuntime();
 
     // Given a workspace where the agent encounters contradictory decisions
-    const user = await createTestUser(baseUrl, "plugin-conflict");
+    const user = await createTestUser(baseUrl, "agent-conflict");
     const workspace = await createTestWorkspace(baseUrl, user);
 
     // When the agent flags the contradiction

@@ -146,5 +146,30 @@ events:
   s: EXECUTED
   sid: 03-02
   t: '2026-03-07T19:11:47Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-07T19:13:25Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-07T19:15:25Z'
+- d: 'NOT_APPLICABLE: tests themselves are the deliverable'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-07T19:15:27Z'
+- d: 'NOT_APPLICABLE: acceptance/integration tests only'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-07T19:15:28Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-07T19:18:55Z'
 project_id: claude-agent-sdk-migration
 schema_version: '3.0'

@@ -68,7 +68,7 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
 
     // When Marcus opens the live output for the session
     // Then agent activity appears as streaming text
-    // (With mocked OpenCode, verify the stream infrastructure is wired)
+    // (With mocked agent, verify the stream infrastructure is wired)
     const events = await collectSessionEvents(baseUrl, assignment.streamUrl, {
       timeoutMs: 5_000,
       maxEvents: 10,
@@ -146,7 +146,7 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
     );
 
     // When the agent encounters an error during its work
-    // (With mocked OpenCode configured to emit error events)
+    // (With mocked agent configured to emit error events)
 
     // Then the session status shows an error occurred
     const status = await getSessionStatus(

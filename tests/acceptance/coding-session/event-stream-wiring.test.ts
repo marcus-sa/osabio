@@ -3,7 +3,7 @@
  *
  * Traces: US-CS-003 (wire event stream into session lifecycle)
  *
- * Validates that OpenCode events flow through event bridge to SSE registry
+ * Validates that agent SDK messages flow through event bridge to SSE registry
  * and reach the client's EventSource subscription. Also validates that
  * stall detection starts, terminal statuses stop iteration, and stream
  * errors update session status.
@@ -124,7 +124,7 @@ describe("Event Stream Wiring: Agent events flow to user", () => {
       workspace.workspaceId,
       assignment.agentSessionId,
     );
-    // Stall detector should have fired (mock OpenCode emits no events)
+    // Stall detector should have fired (mock agent emits no events)
     expect(["aborted", "error"]).toContain(status.orchestratorStatus);
   }, 30_000);
 });
@@ -151,7 +151,7 @@ describe("Event Stream Wiring: Error and terminal status handling", () => {
     );
 
     // When the agent's event stream encounters an error
-    // (Mock OpenCode configured to emit error after delay)
+    // (Mock agent configured to emit error after delay)
     await Bun.sleep(5_000);
 
     // Then the session status changes to "error"

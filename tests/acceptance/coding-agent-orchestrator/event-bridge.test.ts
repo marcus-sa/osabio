@@ -5,7 +5,7 @@
  *
  * Validates that activity from the coding agent (file changes, tool calls,
  * errors) is forwarded to the user's browser through the Brain SSE stream.
- * The Event Bridge transforms OpenCode-native events into Brain stream events.
+ * The Event Bridge transforms SDK messages into Brain stream events.
  *
  * Driving ports: GET /api/orchestrator/stream/:streamId (SSE)
  *                POST /api/orchestrator/:ws/assign (triggers event bridge)
@@ -116,8 +116,8 @@ describe("Event Bridge: Agent activity streamed to user", () => {
     // Then file change events appear in the activity stream
     const fileEvents = events.filter((e) => e.type === "agent_file_change");
     expect(fileEvents.length).toBeGreaterThanOrEqual(0);
-    // Note: with mocked OpenCode, we verify the stream infrastructure works.
-    // Full file change events require a real OpenCode session.
+    // Note: with mocked agent, we verify the stream infrastructure works.
+    // Full file change events require a real agent session.
   }, 60_000);
 
   // -------------------------------------------------------------------------

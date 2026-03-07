@@ -3,7 +3,7 @@
  *
  * Extends the smoke-test-kit with orchestrator-specific helpers.
  * Boots a Brain server + SurrealDB with isolated namespace.
- * Provides helpers for workspace/task/session setup and OpenCode SDK mocking.
+ * Provides helpers for workspace/task/session setup and agent spawning mock.
  */
 import { afterAll, beforeAll } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -166,8 +166,8 @@ export function setupOrchestratorSuite(
         GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
         GITHUB_CLIENT_SECRET:
           process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
-        // Orchestrator-specific: disable real OpenCode spawning in tests
-        ORCHESTRATOR_MOCK_OPENCODE: "true",
+        // Orchestrator-specific: disable real agent spawning in tests
+        ORCHESTRATOR_MOCK_AGENT: "true",
       },
       stdout: "pipe",
       stderr: "inherit",

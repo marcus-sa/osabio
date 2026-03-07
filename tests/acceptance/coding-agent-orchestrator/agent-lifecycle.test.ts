@@ -1,12 +1,11 @@
 /**
- * Plugin Lifecycle: Session Hooks for OpenCode Integration
+ * Agent Lifecycle: Session Hooks for Agent Integration
  *
  * Traces: US-0.1 (agent session creation), US-0.2 (context loading at start)
  *
- * Validates that the Brain OpenCode Plugin lifecycle hooks correctly
- * start and end agent sessions. These hooks fire automatically when
- * OpenCode starts/stops a session, and they register the agent with
- * Brain's knowledge graph context system.
+ * Validates that the Brain MCP lifecycle hooks correctly start and end
+ * agent sessions. These hooks fire when an agent starts/stops a session,
+ * and they register the agent with Brain's knowledge graph context system.
  *
  * Driving ports: POST /api/mcp/:ws/sessions/start
  *                POST /api/mcp/:ws/sessions/end
@@ -20,27 +19,27 @@ import {
   fetchRaw,
 } from "./orchestrator-test-kit";
 
-const getRuntime = setupOrchestratorSuite("plugin_lifecycle");
+const getRuntime = setupOrchestratorSuite("agent_lifecycle");
 
-describe("Plugin Lifecycle: Session start hook", () => {
+describe("Agent Lifecycle: Session start hook", () => {
   // -------------------------------------------------------------------------
-  // Happy Path: Plugin starts a session on agent init
+  // Happy Path: Agent starts a session on init
   // US-0.1
   // -------------------------------------------------------------------------
-  it("creates an agent session when the plugin fires session.created", async () => {
+  it("creates an agent session when the agent fires session.created", async () => {
     const { baseUrl } = getRuntime();
 
-    // Given an OpenCode agent starting up with the Brain plugin
+    // Given a coding agent starting up with the Brain MCP integration
     const user = await createTestUser(baseUrl, "lifecycle-start");
     const workspace = await createTestWorkspace(baseUrl, user);
 
-    // When the plugin fires the session.created hook
+    // When the agent fires the session.created hook
     const session = await fetchJson<{ session_id: string }>(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/start`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ agent: "opencode" }),
+        body: JSON.stringify({ agent: "claude" }),
       },
     );
 
@@ -54,7 +53,7 @@ describe("Plugin Lifecycle: Session start hook", () => {
   it("rejects session start when agent type is not specified", async () => {
     const { baseUrl } = getRuntime();
 
-    // Given a plugin hook that fires without identifying the agent
+    // Given a hook that fires without identifying the agent
     const user = await createTestUser(baseUrl, "lifecycle-noagent");
     const workspace = await createTestWorkspace(baseUrl, user);
 
@@ -73,11 +72,11 @@ describe("Plugin Lifecycle: Session start hook", () => {
   }, 60_000);
 });
 
-describe("Plugin Lifecycle: Session end hook", () => {
+describe("Agent Lifecycle: Session end hook", () => {
   // -------------------------------------------------------------------------
-  // Happy Path: Plugin ends session with summary
+  // Happy Path: Agent ends session with summary
   // -------------------------------------------------------------------------
-  it("records session summary when the plugin fires session.idle", async () => {
+  it("records session summary when the agent fires session.idle", async () => {
     const { baseUrl } = getRuntime();
 
     // Given an agent with an active session
@@ -89,11 +88,11 @@ describe("Plugin Lifecycle: Session end hook", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ agent: "opencode" }),
+        body: JSON.stringify({ agent: "claude" }),
       },
     );
 
-    // When the plugin fires the session.idle hook with a summary
+    // When the agent fires the session.idle hook with a summary
     await fetchJson(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
@@ -124,7 +123,7 @@ describe("Plugin Lifecycle: Session end hook", () => {
     const user = await createTestUser(baseUrl, "lifecycle-badend");
     const workspace = await createTestWorkspace(baseUrl, user);
 
-    // When the plugin tries to end a nonexistent session
+    // When the agent tries to end a nonexistent session
     const response = await fetchRaw(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
@@ -156,7 +155,7 @@ describe("Plugin Lifecycle: Session end hook", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ agent: "opencode" }),
+        body: JSON.stringify({ agent: "claude" }),
       },
     );
 
@@ -172,7 +171,7 @@ describe("Plugin Lifecycle: Session end hook", () => {
       },
     );
 
-    // When the plugin fires session.idle again (e.g. due to retry)
+    // When the agent fires session.idle again (e.g. due to retry)
     const response = await fetchRaw(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {

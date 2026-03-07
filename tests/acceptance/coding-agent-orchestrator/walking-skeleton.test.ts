@@ -61,7 +61,7 @@ describe("Walking Skeleton: User assigns task, monitors agent, accepts work", ()
     // And the agent session is recorded in the workspace
     const sessions = await getAgentSessionsForTask(surreal, task.taskId);
     expect(sessions.length).toBe(1);
-    expect(sessions[0].agent).toBe("opencode");
+    expect(sessions[0].agent).toBe("claude-agent-sdk");
 
     // When the user checks the agent's progress
     const status = await getSessionStatus(
