@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "87a53a69ec4c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/coding-agent-orch",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docs/adrs/ADR-004-client-sse-consumption-strategy.md",
+    "docs/feature/coding-agent-orchestrator/design/component-boundaries.md",
+    "docs/feature/coding-agent-orchestrator/design/ui-architecture.md",
+    "docs/feature/coding-agent-orchestrator/distill/ui-test-scenarios.md",
+    "docs/feature/coding-agent-orchestrator/distill/ui-walking-skeleton.md",
+    "docs/requirements/coding-agent-orchestrator-user-stories.md",
+    "docs/ux/coding-agent-orchestrator/journey-assign-monitor-review-visual.md",
+    "docs/ux/coding-agent-orchestrator/ui-surface-mapping.md",
+    "tests/acceptance/orchestrator-ui/agent-review-view.feature",
+    "tests/acceptance/orchestrator-ui/governance-feed-alerts.feature",
+    "tests/acceptance/orchestrator-ui/orchestrator-ui-test-kit.ts",
+    "tests/acceptance/orchestrator-ui/task-popup-delegation.feature",
+    "tests/acceptance/orchestrator-ui/walking-skeleton.feature",
+    "tests/acceptance/orchestrator-ui/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/a53a69ec4c/0/metadata.json",
+      "transcript": "/87/a53a69ec4c/0/full.jsonl",
+      "context": "/87/a53a69ec4c/0/context.md",
+      "content_hash": "/87/a53a69ec4c/0/content_hash.txt",
+      "prompt": "/87/a53a69ec4c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
