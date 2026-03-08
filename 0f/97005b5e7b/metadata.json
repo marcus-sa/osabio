@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0f97005b5e7b",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/task-status-ownership",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/task-status-ownership/execution-log.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0f/97005b5e7b/0/metadata.json",
+      "transcript": "/0f/97005b5e7b/0/full.jsonl",
+      "context": "/0f/97005b5e7b/0/context.md",
+      "content_hash": "/0f/97005b5e7b/0/content_hash.txt",
+      "prompt": "/0f/97005b5e7b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 35,
+    "cache_creation_tokens": 61115,
+    "cache_read_tokens": 813345,
+    "output_tokens": 11285,
+    "api_call_count": 15
+  }
+}
