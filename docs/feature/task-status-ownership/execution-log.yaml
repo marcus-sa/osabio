@@ -56,5 +56,25 @@ events:
   s: SKIPPED
   sid: 01-01
   t: '2026-03-08T15:42:56Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-08T15:59:41Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-08T15:59:47Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-08T16:00:30Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-08T16:03:13Z'
 project_id: task-status-ownership
 schema_version: '3.0'

@@ -1,6 +1,4 @@
 import { RecordId } from "surrealdb";
-import { generateObject } from "ai";
-import { z } from "zod";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
@@ -49,6 +47,7 @@ import {
 import { createEmbeddingVector } from "../graph/embeddings";
 import type { ServerDependencies } from "../runtime/types";
 import { requireRawId } from "./id-format";
+import { processCommitTaskRefs } from "./commit-check";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -97,7 +96,7 @@ function hasTokenOverlap(a: Set<string>, b: Set<string>): boolean {
 // ---------------------------------------------------------------------------
 
 export function createMcpRouteHandlers(deps: ServerDependencies) {
-  const { surreal, config, extractionModel } = deps;
+  const { surreal, config } = deps;
 
   // ---- Auth helper: returns McpAuthResult or error Response ----
   async function requireAuth(request: Request, workspaceId: string): Promise<McpAuthResult | Response> {
@@ -1159,23 +1158,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
   // Git — Check commit
   // =========================================================================
 
-  const commitCheckSchema = z.object({
-    task_completions: z.array(z.object({
-      task_title: z.string().describe("Title of the task this commit likely completes"),
-      confidence: z.number().describe("0-1 confidence score"),
-    })),
-    unlogged_decisions: z.array(z.object({
-      description: z.string().describe("What architectural/design decision was made"),
-    })),
-    constraint_violations: z.array(z.object({
-      constraint: z.string().describe("The constraint being violated"),
-      violation: z.string().describe("How the diff violates it"),
-      severity: z.enum(["warning", "error"]),
-    })),
-    summary: z.string().describe("One-line summary of the analysis"),
-  });
-
-  /** POST /api/mcp/:workspaceId/commits/check — Pre-commit LLM analysis */
+  /** POST /api/mcp/:workspaceId/commits/check — Extract task refs and set tasks to done */
   async function handleCheckCommit(workspaceId: string, request: Request): Promise<Response> {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
@@ -1183,88 +1166,56 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (scopeDenied) return scopeDenied;
 
     const body = await parseJsonBody<{
-      project_id?: string;
-      diff: string;
-      commit_message: string;
+      message?: string;
+      commit_message?: string;
     }>(request);
     if (body instanceof Response) return body;
-    if (!body.diff) return jsonError("diff is required", 400);
 
-    let projectRecord: RecordId<"project", string> | undefined;
-    if (body.project_id) {
-      let projectId: string;
+    const commitMessage = body.message ?? body.commit_message;
+    if (!commitMessage) return jsonError("message is required", 400);
+
+    const workspaceRecord = auth.workspaceRecord;
+
+    const taskExists = async (taskId: string): Promise<boolean> => {
       try {
-        projectId = requireRawId(body.project_id, "project_id");
-      } catch (error) {
-        return jsonError(error instanceof Error ? error.message : "invalid project_id", 400);
+        const taskRecord = new RecordId("task", taskId);
+        const [rows] = await surreal
+          .query<[Array<{ id: RecordId }>]>(
+            "SELECT id FROM $task WHERE workspace = $ws LIMIT 1;",
+            { task: taskRecord, ws: workspaceRecord },
+          )
+          .collect<[Array<{ id: RecordId }>]>();
+        return rows.length > 0;
+      } catch {
+        return false;
       }
-      projectRecord = new RecordId("project", projectId);
-      const scopedProjectError = await requireScopedRecord(projectRecord, auth.workspaceRecord, "project");
-      if (scopedProjectError) return scopedProjectError;
-    }
+    };
 
-    // Load workspace (or project) context for analysis
-    const [decisions, constraints, activeTasks] = await Promise.all([
-      listProjectDecisions({
-        surreal,
-        workspaceRecord: auth.workspaceRecord,
-        projectRecord,
-      }),
-      listProjectConstraints({
-        surreal,
-        workspaceRecord: auth.workspaceRecord,
-        projectRecord,
-      }),
-      surreal.query<[Array<{ title: string; status: string; source_session?: string }>]>(
-        `SELECT title, status, source_session, created_at FROM task WHERE workspace = $ws AND status IN ["todo", "in_progress"] ORDER BY created_at DESC LIMIT 30;`,
-        { ws: auth.workspaceRecord },
-      ).then((r) => r[0] ?? []),
-    ]);
+    const updateTask = async (taskId: string, status: string) => {
+      const taskRecord = new RecordId("task", taskId);
+      try {
+        await updateTaskStatus({
+          surreal,
+          workspaceRecord,
+          taskRecord,
+          status,
+        });
+        return { task_id: taskId, status, updated: true };
+      } catch (error) {
+        logInfo("commit-check", `Skipping task ${taskId}: ${error instanceof Error ? error.message : "unknown"}`);
+        return { task_id: taskId, status, updated: false };
+      }
+    };
 
-    // Truncate diff for token budget
-    const truncatedDiff = body.diff.length > 8000 ? body.diff.slice(0, 8000) + "\n... (truncated)" : body.diff;
-
-    const result = await generateObject({
-      model: extractionModel,
-      schema: commitCheckSchema,
-      temperature: 0.1,
-      system: [
-        "You are a pre-commit analyzer for a knowledge graph-integrated development workflow.",
-        "Analyze the staged git diff and commit message against the project context.",
-        "Detect:",
-        "1. Task completions — does this commit complete or substantially finish any active tasks?",
-        "2. Unlogged decisions — does this commit introduce architectural or design decisions not already in the knowledge graph?",
-        "3. Constraint violations — does this commit contradict any confirmed decisions or active constraints?",
-        "Be conservative: only flag items with genuine evidence in the diff. Empty arrays are fine if nothing is detected.",
-      ].join("\n"),
-      prompt: [
-        "## Commit message",
-        body.commit_message || "(no message)",
-        "",
-        "## Staged diff",
-        truncatedDiff,
-        "",
-        "## Active tasks",
-        activeTasks.length > 0
-          ? activeTasks.map((t) => `- [${t.status}] ${t.title}`).join("\n")
-          : "(no active tasks)",
-        "",
-        "## Recent decisions",
-        (() => {
-          const allDecisions = [...decisions.confirmed, ...decisions.provisional, ...decisions.contested];
-          return allDecisions.length > 0
-            ? allDecisions.map((d) => `- [${d.status}] ${d.summary}`).join("\n")
-            : "(no decisions)";
-        })(),
-        "",
-        "## Active constraints",
-        constraints.length > 0
-          ? constraints.map((c) => `- [${c.severity}] ${c.text}`).join("\n")
-          : "(no constraints)",
-      ].join("\n"),
+    const result = await processCommitTaskRefs({
+      commitMessage,
+      updateTask,
+      taskExists,
     });
 
-    return jsonResponse(result.object, 200);
+    return jsonResponse({
+      updated_tasks: result.updatedTasks,
+    }, 200);
   }
 
   // =========================================================================
