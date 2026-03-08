@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f7b0cfb6f3f2",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/task-status-ownership",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/requirements/task-status-ownership/acceptance-criteria.md",
+    "docs/requirements/task-status-ownership/dor-checklist.md",
+    "docs/requirements/task-status-ownership/requirements.md",
+    "docs/requirements/task-status-ownership/user-stories.md",
+    "docs/ux/task-status-ownership/jtbd-four-forces.md",
+    "docs/ux/task-status-ownership/jtbd-job-stories.md",
+    "docs/ux/task-status-ownership/jtbd-opportunity-scores.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f7/b0cfb6f3f2/0/metadata.json",
+      "transcript": "/f7/b0cfb6f3f2/0/full.jsonl",
+      "context": "/f7/b0cfb6f3f2/0/context.md",
+      "content_hash": "/f7/b0cfb6f3f2/0/content_hash.txt",
+      "prompt": "/f7/b0cfb6f3f2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 138142,
+    "cache_read_tokens": 1333031,
+    "output_tokens": 11692,
+    "api_call_count": 31
+  }
+}

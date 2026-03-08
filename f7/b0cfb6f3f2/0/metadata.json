@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f7b0cfb6f3f2",
+  "session_id": "c7c6e6a8-61bd-4f0a-a985-3502f924961c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-08T05:28:47.285587Z",
+  "branch": "marcus-sa/task-status-ownership",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/requirements/task-status-ownership/acceptance-criteria.md",
+    "docs/requirements/task-status-ownership/dor-checklist.md",
+    "docs/requirements/task-status-ownership/requirements.md",
+    "docs/requirements/task-status-ownership/user-stories.md",
+    "docs/ux/task-status-ownership/jtbd-four-forces.md",
+    "docs/ux/task-status-ownership/jtbd-job-stories.md",
+    "docs/ux/task-status-ownership/jtbd-opportunity-scores.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "01ea69896a88",
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 138142,
+    "cache_read_tokens": 1333031,
+    "output_tokens": 11692,
+    "api_call_count": 31
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-08T05:28:46.954454Z",
+    "agent_lines": 359,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 359,
+    "agent_percentage": 100
+  }
+}
