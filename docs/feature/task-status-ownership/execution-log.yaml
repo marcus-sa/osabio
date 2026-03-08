@@ -76,5 +76,31 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-08T16:03:13Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-08T16:03:57Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-08T16:05:30Z'
+- d: 'NOT_APPLICABLE: thin CLI command wrapping HTTP call, no server available for
+    acceptance test'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-08T16:05:35Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-08T16:06:02Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-08T16:07:09Z'
 project_id: task-status-ownership
 schema_version: '3.0'
