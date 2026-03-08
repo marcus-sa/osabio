@@ -119,7 +119,7 @@ implementation_scope:
       change: "Add runCommitCheck() thin client — POST commit message to server"
     - path: "cli/brain.ts"
       change: "Add commit-check routing case"
-    - path: "app/src/server/mcp/mcp-routes.ts"
+    - path: "app/src/server/mcp/mcp-route.ts"
       change: "Add POST /api/mcp/:workspaceId/commits/check endpoint for LLM commit analysis"
     - path: "cli/commands/init.ts"
       change: "Add post-commit hook installation"

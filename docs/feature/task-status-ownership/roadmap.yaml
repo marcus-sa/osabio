@@ -109,6 +109,27 @@ phases:
           - "Extend ProcessWebhookResult with taskStatusUpdates for observability"
         traces: [US-6, R6]
 
+
+  "04":
+    title: "Review defect fixes"
+    steps:
+      "04-01":
+        title: "Fix review defects D2, D3, D4"
+        description: >
+          Address code review findings:
+          D2: Remove try/catch from taskExists in handleCheckCommit (mcp-route.ts) — DB errors must propagate, not be masked as non-existence.
+          D3: Change logInfo to logError for failed task updates in handleCheckCommit (mcp-route.ts).
+          D4: Remove redundant message field from CLI checkCommit call (cli/commands/commit-check.ts) — use only commit_message.
+        acceptance_criteria:
+          - "taskExists propagates DB errors instead of catching and returning false"
+          - "Failed task status updates are logged at ERROR level, not INFO"
+          - "CLI sends only commit_message field to checkCommit, no duplicate message field"
+          - "All existing unit tests still pass"
+        architectural_constraints:
+          - "Modify only mcp-route.ts handleCheckCommit() and cli/commands/commit-check.ts"
+          - "No new tests needed — these are fixes to existing behavior"
+        traces: [D2, D3, D4]
+
 implementation_scope:
   files_modified:
     - path: "app/src/server/mcp/mcp-queries.ts"
