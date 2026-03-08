@@ -17,6 +17,7 @@ import {
   assignTaskToAgent,
   abortAgentSession,
   acceptAgentWork,
+  simulateSessionStatus,
   fetchRaw,
 } from "./orchestrator-test-kit";
 
@@ -235,6 +236,9 @@ describe("Assignment Guard: One agent per task enforcement", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work (mock agent produces no messages)
+    await simulateSessionStatus(surreal, first.agentSessionId, "idle");
 
     await acceptAgentWork(
       baseUrl,

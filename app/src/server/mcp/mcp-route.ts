@@ -239,14 +239,19 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
     // Plugin mode: return flat project fields only
     if (!sessionId || body.mode === "plugin") {
-      const pluginContext = await getPluginProjectContext({
-        surreal,
-        workspaceRecord: auth.workspaceRecord,
-        projectRecord,
-      });
-      if (!pluginContext) return jsonError("project not found", 404);
-      logInfo("mcp.project-context.plugin", "Plugin project context returned", { workspaceId, projectId });
-      return jsonResponse(pluginContext, 200);
+      try {
+        const pluginContext = await getPluginProjectContext({
+          surreal,
+          workspaceRecord: auth.workspaceRecord,
+          projectRecord,
+        });
+        if (!pluginContext) return jsonError("project not found", 404);
+        logInfo("mcp.project-context.plugin", "Plugin project context returned", { workspaceId, projectId });
+        return jsonResponse(pluginContext, 200);
+      } catch (error) {
+        logError("mcp.project-context.plugin.failed", "Failed to get plugin project context", error);
+        return jsonError("failed to get project context", 500);
+      }
     }
 
     // Rich mode: full context packet for agent sessions

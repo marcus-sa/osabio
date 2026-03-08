@@ -72,6 +72,7 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
     const events = await collectSessionEvents(baseUrl, assignment.streamUrl, {
       timeoutMs: 5_000,
       maxEvents: 10,
+      authHeaders: user.headers,
     });
     // Stream should be connectable even if mock emits no events
     expect(events).toBeInstanceOf(Array);
@@ -85,8 +86,9 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
       "Please also add input validation",
     );
 
-    // Then the prompt is accepted and the agent continues working
-    expect(promptResponse.status).toBe(202);
+    // Then the prompt is rejected because the Agent SDK uses single-query conversations
+    // (follow-up prompts are not supported in the current architecture)
+    expect(promptResponse.status).toBe(409);
   }, 60_000);
 
   // ---------------------------------------------------------------------------

@@ -826,16 +826,24 @@ export async function getPluginProjectContext(input: {
   if ((project.workspace?.id as string) !== (input.workspaceRecord.id as string)) return undefined;
 
   // Count tasks and features belonging to this project
-  const [countResults] = await input.surreal
-    .query<[Array<{ task_count: number; feature_count: number }>]>(
-      `SELECT
-         (SELECT count() FROM task WHERE id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project) GROUP ALL)[0].count AS task_count,
-         (SELECT count() FROM feature WHERE id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project) GROUP ALL)[0].count AS feature_count;`,
+  const [taskCountRows] = await input.surreal
+    .query<[Array<{ count: number }>]>(
+      `SELECT count() FROM task WHERE id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project) GROUP ALL;`,
       { project: input.projectRecord },
     )
-    .collect<[Array<{ task_count: number; feature_count: number }>]>();
+    .collect<[Array<{ count: number }>]>();
 
-  const counts = countResults[0];
+  const [featureCountRows] = await input.surreal
+    .query<[Array<{ count: number }>]>(
+      `SELECT count() FROM feature WHERE id IN (SELECT VALUE \`in\` FROM belongs_to WHERE out = $project) GROUP ALL;`,
+      { project: input.projectRecord },
+    )
+    .collect<[Array<{ count: number }>]>();
+
+  const counts = {
+    task_count: taskCountRows[0]?.count ?? 0,
+    feature_count: featureCountRows[0]?.count ?? 0,
+  };
 
   return {
     name: project.name,

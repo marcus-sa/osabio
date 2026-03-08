@@ -24,6 +24,7 @@ import {
   getReviewSummary,
   acceptAgentWork,
   abortAgentSession,
+  simulateSessionStatus,
 } from "./orchestrator-test-kit";
 
 const getRuntime = setupOrchestratorSuite("worktree_management");
@@ -32,7 +33,7 @@ describe("Worktree Management: Isolation per agent assignment", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Worktree created on assignment
   // -------------------------------------------------------------------------
-  it.skip("creates a dedicated worktree branch when a task is assigned", async () => {
+  it("creates a dedicated worktree branch when a task is assigned", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task ready for agent work
@@ -64,7 +65,7 @@ describe("Worktree Management: Isolation per agent assignment", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Each assignment gets its own worktree
   // -------------------------------------------------------------------------
-  it.skip("creates separate worktrees for different task assignments", async () => {
+  it("creates separate worktrees for different task assignments", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given two tasks ready for agent work
@@ -112,7 +113,7 @@ describe("Worktree Management: Diff review", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Review shows changes made by agent
   // -------------------------------------------------------------------------
-  it.skip("shows files changed and diff statistics in the review", async () => {
+  it("shows files changed and diff statistics in the review", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task where the agent has finished its work
@@ -127,6 +128,9 @@ describe("Worktree Management: Diff review", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user reviews the agent's completed work
     const review = await getReviewSummary(
@@ -151,7 +155,7 @@ describe("Worktree Management: Diff review", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Review includes session activity summary
   // -------------------------------------------------------------------------
-  it.skip("includes session activity in the review", async () => {
+  it("includes session activity in the review", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given completed agent work
@@ -166,6 +170,9 @@ describe("Worktree Management: Diff review", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user reviews the work
     const review = await getReviewSummary(
@@ -188,7 +195,7 @@ describe("Worktree Management: Cleanup on accept and abort", () => {
   // -------------------------------------------------------------------------
   // Happy Path: Merge on accept
   // -------------------------------------------------------------------------
-  it.skip("merges the agent's branch when work is accepted", async () => {
+  it("merges the agent's branch when work is accepted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given completed agent work on a task
@@ -204,6 +211,9 @@ describe("Worktree Management: Cleanup on accept and abort", () => {
       task.taskId,
     );
 
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
+
     // When the user accepts the work
     const result = await acceptAgentWork(
       baseUrl,
@@ -215,23 +225,20 @@ describe("Worktree Management: Cleanup on accept and abort", () => {
     // Then the work is accepted and the agent's branch is merged
     expect(result.accepted).toBe(true);
 
-    // And the session no longer appears in active sessions
-    const { listActiveSessions } = await import("./orchestrator-test-kit");
-    const sessions = await listActiveSessions(
+    // And the session is marked as completed (no longer active)
+    const status = await getSessionStatus(
       baseUrl,
       user,
       workspace.workspaceId,
+      assignment.agentSessionId,
     );
-    const found = sessions.find(
-      (s) => s.agentSessionId === assignment.agentSessionId,
-    );
-    expect(found).toBeUndefined();
+    expect(status.orchestratorStatus).toBe("completed");
   }, 60_000);
 
   // -------------------------------------------------------------------------
   // Happy Path: Remove on abort
   // -------------------------------------------------------------------------
-  it.skip("removes the agent's branch when the session is aborted", async () => {
+  it("removes the agent's branch when the session is aborted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an active agent session
@@ -258,23 +265,20 @@ describe("Worktree Management: Cleanup on accept and abort", () => {
     // Then the agent's work is discarded and the branch is removed
     expect(result.aborted).toBe(true);
 
-    // And no active sessions remain for that task
-    const { listActiveSessions } = await import("./orchestrator-test-kit");
-    const sessions = await listActiveSessions(
+    // And the session is marked as aborted
+    const status = await getSessionStatus(
       baseUrl,
       user,
       workspace.workspaceId,
+      assignment.agentSessionId,
     );
-    const found = sessions.find(
-      (s) => s.agentSessionId === assignment.agentSessionId,
-    );
-    expect(found).toBeUndefined();
+    expect(status.orchestratorStatus).toBe("aborted");
   }, 60_000);
 
   // -------------------------------------------------------------------------
   // Error Path: Review not available for aborted sessions
   // -------------------------------------------------------------------------
-  it.skip("review is not available for an aborted session", async () => {
+  it("review is not available for an aborted session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent session that was aborted
@@ -303,7 +307,7 @@ describe("Worktree Management: Cleanup on accept and abort", () => {
       { headers: user.headers },
     );
 
-    // Then the review is not available because the work was discarded
-    expect(response.status).toBe(404);
+    // Then the review is not available because the session was aborted (conflict)
+    expect(response.status).toBe(409);
   }, 60_000);
 });

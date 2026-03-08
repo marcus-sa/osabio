@@ -15,6 +15,7 @@ import {
   setupOrchestratorSuite,
   createTestUser,
   createTestWorkspace,
+  getTestUserBearerToken,
   fetchJson,
   fetchRaw,
 } from "./orchestrator-test-kit";
@@ -27,18 +28,19 @@ describe("Agent Lifecycle: Session start hook", () => {
   // US-0.1
   // -------------------------------------------------------------------------
   it("creates an agent session when the agent fires session.created", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given a coding agent starting up with the Brain MCP integration
     const user = await createTestUser(baseUrl, "lifecycle-start");
     const workspace = await createTestWorkspace(baseUrl, user);
+    const tokenUser = await getTestUserBearerToken(baseUrl, surreal, user);
 
     // When the agent fires the session.created hook
     const session = await fetchJson<{ session_id: string }>(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/start`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({ agent: "claude" }),
       },
     );
@@ -51,18 +53,19 @@ describe("Agent Lifecycle: Session start hook", () => {
   // Error Path: Session start without agent identifier
   // -------------------------------------------------------------------------
   it("rejects session start when agent type is not specified", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given a hook that fires without identifying the agent
     const user = await createTestUser(baseUrl, "lifecycle-noagent");
     const workspace = await createTestWorkspace(baseUrl, user);
+    const tokenUser = await getTestUserBearerToken(baseUrl, surreal, user);
 
     // When the session start is attempted without an agent type
     const response = await fetchRaw(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/start`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({}),
       },
     );
@@ -77,17 +80,18 @@ describe("Agent Lifecycle: Session end hook", () => {
   // Happy Path: Agent ends session with summary
   // -------------------------------------------------------------------------
   it("records session summary when the agent fires session.idle", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with an active session
     const user = await createTestUser(baseUrl, "lifecycle-end");
     const workspace = await createTestWorkspace(baseUrl, user);
+    const tokenUser = await getTestUserBearerToken(baseUrl, surreal, user);
 
     const session = await fetchJson<{ session_id: string }>(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/start`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({ agent: "claude" }),
       },
     );
@@ -97,7 +101,7 @@ describe("Agent Lifecycle: Session end hook", () => {
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({
           session_id: session.session_id,
           summary: "Implemented user registration endpoint with email validation",
@@ -117,18 +121,19 @@ describe("Agent Lifecycle: Session end hook", () => {
   // Error Path: Ending a nonexistent session
   // -------------------------------------------------------------------------
   it("rejects session end for a session that does not exist", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given a session identifier that has no matching record
     const user = await createTestUser(baseUrl, "lifecycle-badend");
     const workspace = await createTestWorkspace(baseUrl, user);
+    const tokenUser = await getTestUserBearerToken(baseUrl, surreal, user);
 
     // When the agent tries to end a nonexistent session
     const response = await fetchRaw(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({
           session_id: "nonexistent-session-id",
           summary: "Some work",
@@ -144,17 +149,18 @@ describe("Agent Lifecycle: Session end hook", () => {
   // Edge Case: Double session end is idempotent
   // -------------------------------------------------------------------------
   it("handles duplicate session end calls gracefully", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given a session that has already been ended
     const user = await createTestUser(baseUrl, "lifecycle-double");
     const workspace = await createTestWorkspace(baseUrl, user);
+    const tokenUser = await getTestUserBearerToken(baseUrl, surreal, user);
 
     const session = await fetchJson<{ session_id: string }>(
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/start`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({ agent: "claude" }),
       },
     );
@@ -163,7 +169,7 @@ describe("Agent Lifecycle: Session end hook", () => {
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({
           session_id: session.session_id,
           summary: "First end",
@@ -176,7 +182,7 @@ describe("Agent Lifecycle: Session end hook", () => {
       `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions/end`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: tokenUser.bearerHeaders,
         body: JSON.stringify({
           session_id: session.session_id,
           summary: "Duplicate end",

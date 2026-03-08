@@ -74,6 +74,7 @@ export async function startServer(): Promise<void> {
     brainBaseUrl: `http://127.0.0.1:${config.port}`,
     sseRegistry: deps.sse,
     queryFn: query,
+    auth: runtime.auth,
   });
 
   const server = Bun.serve({

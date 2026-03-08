@@ -131,7 +131,7 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
   }, 60_000);
 
   // US-2.3
-  it.skip("rejects agent work with feedback and sees agent resume", async () => {
+  it("rejects agent work with feedback and sees agent resume", async () => {
     const runtime = getRuntime();
     user = await createTestUser(runtime.baseUrl, "ws2");
     workspace = await createTestWorkspace(runtime.baseUrl, user);
@@ -172,7 +172,7 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
   }, 60_000);
 
   // US-1.2
-  it.skip("surfaces agent error as blocking feed item", async () => {
+  it("surfaces agent error as blocking feed item", async () => {
     const runtime = getRuntime();
     user = await createTestUser(runtime.baseUrl, "ws3");
     workspace = await createTestWorkspace(runtime.baseUrl, user);

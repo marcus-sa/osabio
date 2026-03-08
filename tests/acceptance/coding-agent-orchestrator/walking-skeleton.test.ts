@@ -20,6 +20,7 @@ import {
   assignTaskToAgent,
   getSessionStatus,
   acceptAgentWork,
+  simulateSessionStatus,
   getTaskStatus,
   getAgentSessionsForTask,
 } from "./orchestrator-test-kit";
@@ -74,6 +75,9 @@ describe("Walking Skeleton: User assigns task, monitors agent, accepts work", ()
     // Then the session shows as active or idle (agent working or awaiting review)
     expect(["spawning", "active", "idle"]).toContain(status.orchestratorStatus);
     expect(status.startedAt).toBeTruthy();
+
+    // Simulate agent completing work (mock agent produces no messages)
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user accepts the completed agent work
     const acceptResult = await acceptAgentWork(
