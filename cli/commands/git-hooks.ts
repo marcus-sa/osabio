@@ -31,7 +31,7 @@ export async function runCheckCommit(): Promise<void> {
     // Truncate for token budget
     const truncatedDiff = diff.length > 8000 ? diff.slice(0, 8000) : diff;
 
-    const result = await client.checkCommit({
+    const result = await client.preCheckCommit({
       diff: truncatedDiff,
       commit_message: commitMessage,
     });

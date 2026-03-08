@@ -338,9 +338,14 @@ export async function startServer(): Promise<void> {
           mcpHandlers.handleLogCommit(request.params.workspaceId, request),
         ),
       },
-      "/api/mcp/:workspaceId/commits/check": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits/check", "POST", (request) =>
-          mcpHandlers.handleCheckCommit(request.params.workspaceId, request),
+      "/api/mcp/:workspaceId/commits/pre-check": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits/pre-check", "POST", (request) =>
+          mcpHandlers.handlePreCheck(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/commits/post-check": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits/post-check", "POST", (request) =>
+          mcpHandlers.handlePostCheck(request.params.workspaceId, request),
         ),
       },
       // OAuth 2.1 discovery — proxy root-level .well-known to better-auth handler

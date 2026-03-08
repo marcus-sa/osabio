@@ -239,14 +239,17 @@ describe("installGitHooks", () => {
     expect(content).not.toContain("brain check-commit");
   });
 
-  it("removes legacy Brain post-commit hook", () => {
+  it("replaces legacy Brain post-commit hook with commit-check hook", () => {
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     mkdirSync(join(gitRoot, ".git", "hooks"), { recursive: true });
     writeFileSync(hookPath, "#!/bin/sh\n# Brain post-commit hook\nbrain log-commit\n");
 
     installGitHooks(gitRoot);
 
-    expect(existsSync(hookPath)).toBe(false);
+    expect(existsSync(hookPath)).toBe(true);
+    const content = readFileSync(hookPath, "utf-8");
+    expect(content).toContain("brain commit-check");
+    expect(content).not.toContain("brain log-commit");
   });
 
   it("preserves non-Brain post-commit hooks", () => {

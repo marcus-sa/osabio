@@ -1,0 +1,171 @@
+roadmap:
+  name: "Task Status Ownership"
+  paradigm: functional
+  estimated_production_files: 8
+  # step_ratio: 7/8 = 0.88 (well under 2.5 threshold)
+
+phases:
+  "01":
+    title: "Remove server-owned forward transitions"
+    steps:
+      "01-01":
+        title: "Remove in_progress from createAgentSession"
+        description: "Remove status promotion from createAgentSession(); keep source_session linkage and workspace validation"
+        acceptance_criteria:
+          - "Creating agent session for a ready/todo task does not change task status"
+          - "Task source_session is still linked to new session"
+          - "Workspace scope validation still rejects cross-workspace tasks"
+        architectural_constraints:
+          - "Modify only mcp-queries.ts createAgentSession()"
+        traces: [US-1, R1]
+
+      "01-02":
+        title: "Remove done from acceptOrchestratorSession"
+        description: "Remove task status update from acceptOrchestratorSession(); keep session lifecycle (orchestrator_status, handle cleanup, agent session end)"
+        acceptance_criteria:
+          - "Accepting session does not change linked task status"
+          - "Session orchestrator_status still becomes completed"
+          - "Agent session end and handle cleanup still execute"
+        architectural_constraints:
+          - "Modify only session-lifecycle.ts acceptOrchestratorSession()"
+        traces: [US-2, R1]
+
+  "02":
+    title: "CLI commit-check with post-commit hook"
+    steps:
+      "02-01":
+        title: "Server endpoint for commit check"
+        description: >
+          Add POST /api/mcp/:workspaceId/commits/check endpoint that accepts a
+          commit message and handles all logic server-side:
+          1. Fast path: extractReferencedTaskIds() (regex)
+          2. LLM fallback: extractStructuredGraph() to infer task matches
+          For each matched task, set status → done (idempotent).
+          Extraction model and pipeline already wired via dependencies.ts.
+        acceptance_criteria:
+          - "Commit with task:abc123 sets task abc123 to done (regex fast path)"
+          - "Commit with tasks: abc, def sets both to done"
+          - "Commit without explicit task refs uses LLM to infer tasks and sets them to done"
+          - "Already-done task remains done without error"
+          - "Returns empty list when no tasks can be inferred"
+        architectural_constraints:
+          - "Reuse extractReferencedTaskIds() from webhook/commit-task-refs.ts"
+          - "Reuse extractStructuredGraph() from extraction/extract-graph.ts"
+          - "Reuse extraction model from server dependencies"
+          - "No new model initialization needed"
+        traces: [US-3, R3]
+
+      "02-02":
+        title: "Add brain commit-check CLI command"
+        description: >
+          Thin CLI client: reads latest commit message, POSTs it to
+          /api/mcp/:workspaceId/commits/check, exits 0 regardless of outcome.
+          All parsing and LLM logic is server-side.
+        acceptance_criteria:
+          - "CLI sends commit message to server endpoint"
+          - "API failures log to stderr and exit 0"
+        architectural_constraints:
+          - "Add commit-check case to cli/brain.ts routing"
+          - "CLI is a thin HTTP client only"
+        traces: [US-3, R3]
+
+      "02-03":
+        title: "Install post-commit hook via brain init"
+        description: "Extend brain init to install .git/hooks/post-commit invoking brain commit-check. Fire-and-forget shell script."
+        acceptance_criteria:
+          - "brain init creates post-commit hook that invokes brain commit-check"
+          - "Git commit in initialized repo triggers commit-check automatically"
+          - "Hook script exits 0 regardless of commit-check outcome"
+        architectural_constraints:
+          - "Extend cli/commands/init.ts hook installation section"
+          - "Follow existing pre-commit hook pattern"
+        traces: [US-4, R4]
+
+  "03":
+    title: "GitHub processor status transitions"
+    steps:
+      "03-01":
+        title: "GitHub processor sets done on non-main push"
+        description: "After creating implemented_by relations, set referenced tasks to done when push is to a non-default branch"
+        acceptance_criteria:
+          - "Push to feature branch with task refs sets tasks to done"
+          - "implemented_by relation is still created"
+          - "Already-done tasks remain done without error"
+        architectural_constraints:
+          - "Modify processCommit() in github-commit-processor.ts"
+          - "Branch info from GitHubPushEvent.ref vs repository.default_branch"
+          - "Idempotent: skip if task already at or beyond target status"
+        traces: [US-5, R5]
+
+      "03-02":
+        title: "GitHub processor sets completed on merge to main"
+        description: "When push targets the default branch, set referenced tasks to completed instead of done"
+        acceptance_criteria:
+          - "Merge/push to main with task refs sets tasks to completed"
+          - "Already-completed tasks remain completed without error"
+          - "Non-main branch pushes still set done (not completed)"
+        architectural_constraints:
+          - "Same processCommit() modification, branching on isDefaultBranch"
+          - "Extend ProcessWebhookResult with taskStatusUpdates for observability"
+        traces: [US-6, R6]
+
+
+  "04":
+    title: "Review defect fixes"
+    steps:
+      "04-01":
+        title: "Fix review defects D2, D3, D4"
+        description: >
+          Address code review findings:
+          D2: Remove try/catch from taskExists in handleCheckCommit (mcp-route.ts) — DB errors must propagate, not be masked as non-existence.
+          D3: Change logInfo to logError for failed task updates in handleCheckCommit (mcp-route.ts).
+          D4: Remove redundant message field from CLI checkCommit call (cli/commands/commit-check.ts) — use only commit_message.
+        acceptance_criteria:
+          - "taskExists propagates DB errors instead of catching and returning false"
+          - "Failed task status updates are logged at ERROR level, not INFO"
+          - "CLI sends only commit_message field to checkCommit, no duplicate message field"
+          - "All existing unit tests still pass"
+        architectural_constraints:
+          - "Modify only mcp-route.ts handleCheckCommit() and cli/commands/commit-check.ts"
+          - "No new tests needed — these are fixes to existing behavior"
+        traces: [D2, D3, D4]
+
+implementation_scope:
+  files_modified:
+    - path: "app/src/server/mcp/mcp-queries.ts"
+      change: "Remove in_progress status promotion from createAgentSession()"
+    - path: "app/src/server/orchestrator/session-lifecycle.ts"
+      change: "Remove done status update from acceptOrchestratorSession()"
+    - path: "cli/commands/git-hooks.ts"
+      change: "Add runCommitCheck() thin client — POST commit message to server"
+    - path: "cli/brain.ts"
+      change: "Add commit-check routing case"
+    - path: "app/src/server/mcp/mcp-route.ts"
+      change: "Add POST /api/mcp/:workspaceId/commits/check endpoint for LLM commit analysis"
+    - path: "cli/commands/init.ts"
+      change: "Add post-commit hook installation"
+    - path: "app/src/server/webhook/github-commit-processor.ts"
+      change: "Add status transitions (done/completed) based on branch"
+    - path: "app/src/server/webhook/types.ts"
+      change: "Extend ProcessWebhookResult with taskStatusUpdates"
+
+  files_unchanged:
+    - path: "app/src/server/webhook/commit-task-refs.ts"
+      reason: "Pure function reused as-is"
+    - path: "cli/http-client.ts"
+      reason: "updateTaskStatus() already exists"
+    - path: ".claude/commands/brain-start-task.md"
+      reason: "Already instructs agent to call update_task_status"
+    - path: "app/src/server/orchestrator/session-lifecycle.ts (abort/reject)"
+      reason: "Backward transitions unchanged"
+
+validation:
+  status: approved
+  approved_at: "2026-03-08"
+  notes: "Automated gate PASS. Reviewer conflated roadmap with implementation review — defects describe unbuilt work, not plan flaws."
+  quality_gates:
+    - "All forward transitions removed from server (US-1, US-2)"
+    - "commit-check never blocks git workflow"
+    - "Idempotent transitions: duplicate fires produce no error"
+    - "Backward transitions (abort/reject -> ready) unchanged"
+    - "Existing smoke test extended for webhook status transitions"

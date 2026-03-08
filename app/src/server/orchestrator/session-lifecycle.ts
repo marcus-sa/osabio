@@ -561,15 +561,7 @@ export async function acceptOrchestratorSession(
     orchestrator_status: "completed" as OrchestratorStatus,
   });
 
-  // 2. Mark task as done
-  if (session.task_id) {
-    await input.surreal.update(session.task_id).merge({
-      status: "done",
-      updated_at: new Date(),
-    });
-  }
-
-  // 3. Clean up handle registry
+  // 2. Clean up handle registry
   handleRegistry.delete(input.sessionId);
 
   // 4. End the agent session

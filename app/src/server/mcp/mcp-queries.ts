@@ -542,7 +542,7 @@ export async function createAgentSession(input: {
     ...(input.taskId ? { task_id: new RecordId("task", requireRawId(input.taskId, "task_id")) } : {}),
   });
 
-  // If task-scoped, link session to task and auto-promote status
+  // If task-scoped, link session to task (status is managed by explicit transitions, not session creation)
   if (input.taskId) {
     const taskRecord = new RecordId("task", requireRawId(input.taskId, "task_id"));
     const task = await input.surreal.select<TaskRow>(taskRecord);
@@ -553,9 +553,6 @@ export async function createAgentSession(input: {
       throw new Error("task is outside the current workspace scope");
     }
     await input.surreal.update(taskRecord).merge({
-      ...(task.status === "todo" || task.status === "ready"
-        ? { status: "in_progress" }
-        : {}),
       source_session: sessionRecord,
       updated_at: now,
     });

@@ -1,6 +1,4 @@
 import { RecordId } from "surrealdb";
-import { generateObject } from "ai";
-import { z } from "zod";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
@@ -49,6 +47,9 @@ import {
 import { createEmbeddingVector } from "../graph/embeddings";
 import type { ServerDependencies } from "../runtime/types";
 import { requireRawId } from "./id-format";
+import { processCommitTaskRefs } from "./commit-check";
+import { generateObject } from "ai";
+import { z } from "zod";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -97,7 +98,7 @@ function hasTokenOverlap(a: Set<string>, b: Set<string>): boolean {
 // ---------------------------------------------------------------------------
 
 export function createMcpRouteHandlers(deps: ServerDependencies) {
-  const { surreal, config, extractionModel } = deps;
+  const { surreal, config } = deps;
 
   // ---- Auth helper: returns McpAuthResult or error Response ----
   async function requireAuth(request: Request, workspaceId: string): Promise<McpAuthResult | Response> {
@@ -1161,7 +1162,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
   }
 
   // =========================================================================
-  // Git — Check commit
+  // Git — Pre-check (LLM analysis for pre-commit hook)
   // =========================================================================
 
   const commitCheckSchema = z.object({
@@ -1180,8 +1181,8 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     summary: z.string().describe("One-line summary of the analysis"),
   });
 
-  /** POST /api/mcp/:workspaceId/commits/check — Pre-commit LLM analysis */
-  async function handleCheckCommit(workspaceId: string, request: Request): Promise<Response> {
+  /** POST /api/mcp/:workspaceId/commits/pre-check — Pre-commit LLM analysis */
+  async function handlePreCheck(workspaceId: string, request: Request): Promise<Response> {
     const auth = await requireAuth(request, workspaceId);
     if (auth instanceof Response) return auth;
     const scopeDenied = requireScope(auth.scopes, "graph:reason");
@@ -1229,6 +1230,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     // Truncate diff for token budget
     const truncatedDiff = body.diff.length > 8000 ? body.diff.slice(0, 8000) + "\n... (truncated)" : body.diff;
 
+    const { extractionModel } = deps;
     const result = await generateObject({
       model: extractionModel,
       schema: commitCheckSchema,
@@ -1270,6 +1272,66 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     });
 
     return jsonResponse(result.object, 200);
+  }
+
+  // =========================================================================
+  // Git — Post-check (task-ref extraction for post-commit hook)
+  // =========================================================================
+
+  /** POST /api/mcp/:workspaceId/commits/post-check — Extract task refs and set tasks to done */
+  async function handlePostCheck(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+    const scopeDenied = requireScope(auth.scopes, "graph:reason");
+    if (scopeDenied) return scopeDenied;
+
+    const body = await parseJsonBody<{
+      message?: string;
+      commit_message?: string;
+    }>(request);
+    if (body instanceof Response) return body;
+
+    const commitMessage = body.message ?? body.commit_message;
+    if (!commitMessage) return jsonError("message is required", 400);
+
+    const workspaceRecord = auth.workspaceRecord;
+
+    const taskExists = async (taskId: string): Promise<boolean> => {
+      const taskRecord = new RecordId("task", taskId);
+      const [rows] = await surreal
+        .query<[Array<{ id: RecordId }>]>(
+          "SELECT id FROM $task WHERE workspace = $ws LIMIT 1;",
+          { task: taskRecord, ws: workspaceRecord },
+        )
+        .collect<[Array<{ id: RecordId }>]>();
+      return rows.length > 0;
+    };
+
+    const updateTask = async (taskId: string, status: string) => {
+      const taskRecord = new RecordId("task", taskId);
+      try {
+        await updateTaskStatus({
+          surreal,
+          workspaceRecord,
+          taskRecord,
+          status,
+        });
+        return { task_id: taskId, status, updated: true };
+      } catch (error) {
+        logError("commit-check", `Failed to update task ${taskId}`, error);
+        return { task_id: taskId, status, updated: false };
+      }
+    };
+
+    const result = await processCommitTaskRefs({
+      commitMessage,
+      updateTask,
+      taskExists,
+    });
+
+    return jsonResponse({
+      updated_tasks: result.updatedTasks,
+    }, 200);
   }
 
   // =========================================================================
@@ -1591,6 +1653,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     handleSessionStart,
     handleSessionEnd,
     handleLogCommit,
-    handleCheckCommit,
+    handlePreCheck,
+    handlePostCheck,
   };
 }

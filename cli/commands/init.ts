@@ -359,6 +359,11 @@ export function installGitHooks(gitRoot?: string): void {
 # Brain pre-commit hook: check for task completion and unlogged decisions
 brain check-commit
 `;
+  const postCommitScript = `#!/bin/sh
+# Brain post-commit hook: fire-and-forget commit-check
+brain commit-check &
+exit 0
+`;
 
   if (!existsSync(preCommitPath)) {
     writeFileSync(preCommitPath, preCommitScript, { mode: 0o755 });
@@ -367,17 +372,30 @@ brain check-commit
     console.log("✓ Git: pre-commit hook already exists");
   }
 
-  // Remove legacy Brain post-commit hook
+  // Remove legacy Brain post-commit hook, then install new one
   if (existsSync(postCommitPath)) {
     const postCommitContent = readFileSync(postCommitPath, "utf-8");
-    const isBrainManaged =
+    const isLegacyBrain =
       postCommitContent.includes("Brain post-commit hook") &&
       postCommitContent.includes("brain log-commit");
-    if (isBrainManaged) {
+    const isCurrentBrain =
+      postCommitContent.includes("Brain post-commit hook") &&
+      postCommitContent.includes("brain commit-check");
+    if (isLegacyBrain) {
       unlinkSync(postCommitPath);
       console.log("  Removed legacy Brain post-commit hook");
+    } else if (isCurrentBrain) {
+      console.log("✓ Git: post-commit hook already exists");
+      return;
+    } else {
+      // Non-brain hook — leave it alone
+      console.log("✓ Git: post-commit hook already exists (non-brain)");
+      return;
     }
   }
+
+  writeFileSync(postCommitPath, postCommitScript, { mode: 0o755 });
+  console.log("✓ Git: post-commit hook installed");
 }
 
 export async function setupCommands(gitRoot: string): Promise<void> {

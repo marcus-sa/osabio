@@ -325,7 +325,7 @@ export class BrainHttpClient {
     return res.json();
   }
 
-  async checkCommit(body: {
+  async preCheckCommit(body: {
     project_id?: string;
     diff: string;
     commit_message: string;
@@ -335,12 +335,26 @@ export class BrainHttpClient {
     constraint_violations: Array<{ constraint: string; violation: string; severity: string }>;
     summary: string;
   }> {
-    const res = await fetch(this.url("/commits/check"), {
+    const res = await fetch(this.url("/commits/pre-check"), {
       method: "POST",
       headers: await this.headers(),
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`Failed to check commit: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`Failed to pre-check commit: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async postCheckCommit(body: {
+    commit_message: string;
+  }): Promise<{
+    updated_tasks: Array<{ task_id: string; status: string; updated: boolean }>;
+  }> {
+    const res = await fetch(this.url("/commits/post-check"), {
+      method: "POST",
+      headers: await this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Failed to post-check commit: ${res.status} ${await res.text()}`);
     return res.json();
   }
 

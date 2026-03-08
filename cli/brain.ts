@@ -3,6 +3,7 @@
 import { runInit } from "./commands/init";
 import { runLoadContext, runCheckUpdates, runEndSession, runPreToolUse } from "./commands/system";
 import { runCheckCommit, runLogCommit } from "./commands/git-hooks";
+import { runCommitCheck } from "./commands/commit-check";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -43,6 +44,10 @@ async function main(): Promise<void> {
       await runLogCommit();
       break;
 
+    case "commit-check":
+      await runCommitCheck();
+      break;
+
     case "mcp":
       // MCP stdio server — import dynamically to avoid loading deps unless needed
       const { runMcpServer } = await import("./mcp-server");
@@ -75,6 +80,7 @@ Usage:
   brain system end-session       End agent session (SessionEnd hook)
   brain system pretooluse        Inject brain context into subagent dispatch (PreToolUse hook)
   brain check-commit             Pre-commit hook: check for task completion
+  brain commit-check             Post-commit hook: extract task refs and mark done
   brain log-commit               Deprecated no-op (GitHub webhook ingests commits)
   brain mcp                      Start MCP stdio server
 

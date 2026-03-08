@@ -9,9 +9,11 @@ import { createEmbedding } from "../extraction/embedding-writeback";
 import { createObservation } from "../observation/queries";
 import { elapsedMs, logError, logInfo } from "../http/observability";
 import type { SourceRecord } from "../extraction/types";
+import { updateTaskStatus } from "../mcp/mcp-queries";
 import { extractReferencedTaskIds } from "./commit-task-refs";
+import { determineTaskStatusUpdates } from "./task-status-from-push";
 import { classifyDecisionLinks } from "./types";
-import type { CommitInput, ProcessCommitResult, ProcessWebhookInput, ProcessWebhookResult } from "./types";
+import type { CommitInput, ProcessCommitResult, ProcessWebhookInput, ProcessWebhookResult, TaskStatusUpdateResult } from "./types";
 
 export async function processGitCommits(input: ProcessWebhookInput): Promise<ProcessWebhookResult> {
   const startedAt = performance.now();
@@ -33,6 +35,8 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
     .collect<[Array<{ name: string }>]>();
   const workspaceName = workspaceRows[0]?.name;
 
+  const isDefaultBranch = input.event.ref === `refs/heads/${input.event.repository.default_branch}`;
+
   const result: ProcessWebhookResult = {
     commitsProcessed: 0,
     commitsSkipped: 0,
@@ -40,6 +44,7 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
     totalRelationships: 0,
     autoLinkedDecisions: [],
     observationsCreated: [],
+    taskStatusUpdates: [],
   };
 
   for (const rawCommit of input.event.commits) {
@@ -67,6 +72,7 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
         workspaceName,
         projectNames,
         autoLinkThreshold: input.autoLinkThreshold,
+        isDefaultBranch,
         now: new Date(),
       });
 
@@ -75,6 +81,7 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
       result.totalRelationships += commitResult.relationships.length;
       result.autoLinkedDecisions.push(...commitResult.autoLinkedDecisions);
       result.observationsCreated.push(...commitResult.observationsCreated);
+      result.taskStatusUpdates.push(...commitResult.taskStatusUpdates);
     } catch (error) {
       logError("webhook.commit.failed", "Failed to process commit", error, {
         workspaceId,
@@ -105,6 +112,7 @@ async function processCommit(input: {
   workspaceName?: string;
   projectNames?: string[];
   autoLinkThreshold: number;
+  isDefaultBranch: boolean;
   now: Date;
 }): Promise<ProcessCommitResult> {
   const commitRecordId = randomUUID();
@@ -147,15 +155,16 @@ async function processCommit(input: {
   let linkedTaskCount = 0;
   let unresolvedTaskIds: string[] = [];
   let linkedTaskSummaries: Array<{ id: string; title: string }> = [];
+  const taskStatusResults: TaskStatusUpdateResult[] = [];
 
   if (referencedTaskIds.length > 0) {
     const taskRecords = referencedTaskIds.map((taskId) => new RecordId("task", taskId));
     const [taskRows] = await input.surreal
-      .query<[Array<{ id: RecordId<"task", string>; title: string }> ]>(
-        "SELECT id, title FROM task WHERE workspace = $workspace AND id IN $taskIds;",
+      .query<[Array<{ id: RecordId<"task", string>; title: string; status: string }> ]>(
+        "SELECT id, title, status FROM task WHERE workspace = $workspace AND id IN $taskIds;",
         { workspace: input.workspaceRecord, taskIds: taskRecords },
       )
-      .collect<[Array<{ id: RecordId<"task", string>; title: string }>]>();
+      .collect<[Array<{ id: RecordId<"task", string>; title: string; status: string }>]>();
 
     const foundTaskIds = new Set(taskRows.map((row) => row.id.id as string));
     unresolvedTaskIds = referencedTaskIds.filter((id) => !foundTaskIds.has(id));
@@ -174,6 +183,38 @@ async function processCommit(input: {
       id: row.id.id as string,
       title: row.title,
     }));
+
+    // Determine and apply task status updates based on branch
+    const statusUpdates = determineTaskStatusUpdates({
+      tasks: taskRows.map((row) => ({
+        taskId: row.id.id as string,
+        currentStatus: row.status,
+      })),
+      isDefaultBranch: input.isDefaultBranch,
+    });
+
+    for (const update of statusUpdates) {
+      try {
+        await updateTaskStatus({
+          surreal: input.surreal,
+          workspaceRecord: input.workspaceRecord,
+          taskRecord: new RecordId("task", update.taskId),
+          status: update.targetStatus,
+        });
+        taskStatusResults.push({ taskId: update.taskId, status: update.targetStatus });
+        logInfo("webhook.commit.task_status", "Updated task status from push", {
+          taskId: update.taskId,
+          status: update.targetStatus,
+          sha: input.commit.sha,
+          isDefaultBranch: input.isDefaultBranch,
+        });
+      } catch (error) {
+        logError("webhook.commit.task_status_failed", "Failed to update task status", error, {
+          taskId: update.taskId,
+          sha: input.commit.sha,
+        });
+      }
+    }
   }
 
   logInfo("webhook.commit.task_refs", "Processed explicit commit task references", {
@@ -273,6 +314,7 @@ async function processCommit(input: {
     relationships: persisted.relationships,
     autoLinkedDecisions,
     observationsCreated,
+    taskStatusUpdates: taskStatusResults,
   };
 }
 
