@@ -53,12 +53,18 @@ export type ProcessCommitInput = {
   now: Date;
 };
 
+export type TaskStatusUpdateResult = {
+  taskId: string;
+  status: string;
+};
+
 export type ProcessCommitResult = {
   commitRecord: RecordId<"git_commit", string>;
   entities: ExtractedEntity[];
   relationships: ExtractedRelationship[];
   autoLinkedDecisions: string[];
   observationsCreated: string[];
+  taskStatusUpdates: TaskStatusUpdateResult[];
 };
 
 // --- Webhook Processing ---
@@ -82,6 +88,7 @@ export type ProcessWebhookResult = {
   totalRelationships: number;
   autoLinkedDecisions: string[];
   observationsCreated: string[];
+  taskStatusUpdates: TaskStatusUpdateResult[];
 };
 
 // --- Decision Linking Classification ---

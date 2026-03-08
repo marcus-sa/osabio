@@ -102,5 +102,56 @@ events:
   s: EXECUTED
   sid: 02-02
   t: '2026-03-08T16:07:09Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-08T16:07:48Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-08T16:08:40Z'
+- d: 'NOT_APPLICABLE: hook installation requires real git repo; covered by unit tests
+    on installGitHooks'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-03
+  t: '2026-03-08T16:08:45Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-08T16:09:11Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-08T16:10:00Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-08T16:10:25Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-08T16:12:12Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-08T16:12:19Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-08T16:12:53Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-08T16:15:15Z'
 project_id: task-status-ownership
 schema_version: '3.0'
