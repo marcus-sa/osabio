@@ -18,9 +18,11 @@ export type BrainTokenClaims = {
  * Tokens must be JWTs (issued when `resource` param is passed during authorization).
  */
 export function createJwtValidator(issuerUrl: string) {
-  // issuerUrl is already the full better-auth baseURL (e.g. "http://localhost:3000/api/auth")
-  const jwksUrl = `${issuerUrl}/jwks`;
-  const issuer = issuerUrl;
+  // issuerUrl is the server baseURL (e.g. "http://localhost:3000").
+  // Better Auth mounts at /api/auth (basePath), so JWKS and issuer include that path.
+  const authBase = issuerUrl.endsWith("/api/auth") ? issuerUrl : `${issuerUrl}/api/auth`;
+  const jwksUrl = `${authBase}/jwks`;
+  const issuer = authBase;
 
   return async (token: string): Promise<BrainTokenClaims> => {
     const payload = await verifyAccessToken(token, {

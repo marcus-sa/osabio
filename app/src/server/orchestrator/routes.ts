@@ -291,6 +291,7 @@ export type OrchestratorWiringDeps = {
   brainBaseUrl: string;
   sseRegistry?: SseRegistry;
   queryFn: import("./spawn-agent").QueryFn;
+  auth: { api: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string } } | null> } };
 };
 
 export function wireOrchestratorRoutes(
@@ -305,6 +306,25 @@ export function wireOrchestratorRoutes(
   prompt: RouteHandler;
   stream?: RouteHandler;
 } {
+  // Workspace access guard — resolves user from session cookie, checks membership
+  const validateWorkspaceAccess = async (request: Request, workspaceId: string): Promise<Response | undefined> => {
+    const session = await wiringDeps.auth.api.getSession({ headers: request.headers });
+    if (!session?.user?.id) {
+      return jsonError("authentication required", 401);
+    }
+    const { RecordId } = await import("surrealdb");
+    const personRecord = new RecordId("person", session.user.id);
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+    const [memberRows] = await wiringDeps.surreal.query<[Array<{ role: string }>]>(
+      `SELECT role FROM member_of WHERE in = $person AND out = $ws LIMIT 1;`,
+      { person: personRecord, ws: workspaceRecord },
+    );
+    if (!memberRows || memberRows.length === 0) {
+      return jsonError("not a member of this workspace", 403);
+    }
+    return undefined;
+  };
+
   // Lazy imports to keep module boundary clean
   const lifecycleImport = import("./session-lifecycle");
   const queriesImport = import("../mcp/mcp-queries");
@@ -496,20 +516,30 @@ export function wireOrchestratorRoutes(
 
   const handlers = createOrchestratorRouteHandlers(routeDeps);
 
+  // Wrap handler with workspace access check
+  const withWorkspaceAccess = (handler: RouteHandler): RouteHandler => async (request) => {
+    const workspaceId = request.params.workspaceId;
+    if (workspaceId) {
+      const accessError = await validateWorkspaceAccess(request, workspaceId);
+      if (accessError) return accessError;
+    }
+    return handler(request);
+  };
+
   const streamHandler = wiringDeps.sseRegistry
     ? createStreamRouteHandler({ sseRegistry: wiringDeps.sseRegistry })
     : undefined;
 
   return {
-    assign: withRequestLogging("orchestrator.assign", "POST", handlers.assign),
-    status: withRequestLogging("orchestrator.status", "GET", handlers.status),
-    accept: withRequestLogging("orchestrator.accept", "POST", handlers.accept),
-    abort: withRequestLogging("orchestrator.abort", "POST", handlers.abort),
-    review: withRequestLogging("orchestrator.review", "GET", handlers.review),
-    reject: withRequestLogging("orchestrator.reject", "POST", handlers.reject),
-    prompt: withRequestLogging("orchestrator.prompt", "POST", handlers.prompt),
+    assign: withRequestLogging("orchestrator.assign", "POST", withWorkspaceAccess(handlers.assign)),
+    status: withRequestLogging("orchestrator.status", "GET", withWorkspaceAccess(handlers.status)),
+    accept: withRequestLogging("orchestrator.accept", "POST", withWorkspaceAccess(handlers.accept)),
+    abort: withRequestLogging("orchestrator.abort", "POST", withWorkspaceAccess(handlers.abort)),
+    review: withRequestLogging("orchestrator.review", "GET", withWorkspaceAccess(handlers.review)),
+    reject: withRequestLogging("orchestrator.reject", "POST", withWorkspaceAccess(handlers.reject)),
+    prompt: withRequestLogging("orchestrator.prompt", "POST", withWorkspaceAccess(handlers.prompt)),
     ...(streamHandler
-      ? { stream: withRequestLogging("orchestrator.stream", "GET", streamHandler.stream) }
+      ? { stream: withRequestLogging("orchestrator.stream", "GET", withWorkspaceAccess(streamHandler.stream)) }
       : {}),
   };
 }

@@ -6,6 +6,7 @@
  * Provides helpers for workspace/task/session setup and agent spawning mock.
  */
 import { afterAll, beforeAll } from "bun:test";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
@@ -79,6 +80,11 @@ export type ReviewResponse = {
     toolCallCount?: number;
     filesEdited?: number;
   };
+};
+
+export type TestUserWithToken = TestUser & {
+  bearerHeaders: Record<string, string>;
+  accessToken: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -269,7 +275,13 @@ export async function createTestWorkspace(
   baseUrl: string,
   user: TestUser,
   name?: string,
+  options?: { repoPath?: string | false },
 ): Promise<TestWorkspace> {
+  // Default to process.cwd() (a valid git repo) unless explicitly disabled
+  const repoPath = options?.repoPath === false
+    ? undefined
+    : (options?.repoPath ?? process.cwd());
+
   const workspace = await fetchJson<TestWorkspace>(
     `${baseUrl}/api/workspaces`,
     {
@@ -277,6 +289,7 @@ export async function createTestWorkspace(
       headers: { "Content-Type": "application/json", ...user.headers },
       body: JSON.stringify({
         name: name ?? `Orchestrator Test ${Date.now()}`,
+        ...(repoPath ? { repoPath } : {}),
       }),
     },
   );
@@ -316,7 +329,7 @@ export async function createReadyTask(
     const projectRecord = new RecordId("project", options.projectId);
     await surreal.query(
       `CREATE $task CONTENT $content;
-       RELATE $task->belongs_to->$project SET created_at = time::now();`,
+       RELATE $task->belongs_to->$project SET added_at = time::now();`,
       { task: taskRecord, content: { ...content }, project: projectRecord },
     );
   } else {
@@ -341,16 +354,21 @@ export async function createTestProject(
   const projectRecord = new RecordId("project", projectId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  await surreal.query(`CREATE $project CONTENT $content;`, {
-    project: projectRecord,
-    content: {
-      name,
-      status: "active",
-      created_at: new Date(),
-      updated_at: new Date(),
-      workspace: workspaceRecord,
+  await surreal.query(
+    `CREATE $project CONTENT $content;
+     RELATE $ws->has_project->$project SET added_at = time::now();`,
+    {
+      project: projectRecord,
+      ws: workspaceRecord,
+      content: {
+        name,
+        status: "active",
+        created_at: new Date(),
+        updated_at: new Date(),
+        workspace: workspaceRecord,
+      },
     },
-  });
+  );
 
   return { projectId, projectRecord };
 }
@@ -517,6 +535,21 @@ export async function getAgentSessionsForTask(
 }
 
 /**
+ * Transitions an agent session to a given status via direct DB update.
+ * Used in tests to simulate agent lifecycle without a real agent process.
+ */
+export async function simulateSessionStatus(
+  surreal: Surreal,
+  sessionId: string,
+  status: string,
+): Promise<void> {
+  const sessionRecord = new RecordId("agent_session", sessionId);
+  await surreal.update(sessionRecord).merge({
+    orchestrator_status: status,
+  });
+}
+
+/**
  * Attempts to fetch a URL and returns the raw Response,
  * useful for asserting error status codes.
  */
@@ -525,6 +558,128 @@ export async function fetchRaw(
   init?: RequestInit,
 ): Promise<Response> {
   return fetch(url, init);
+}
+
+// ---------------------------------------------------------------------------
+// OAuth / JWT Token Helpers (for MCP endpoint tests)
+// ---------------------------------------------------------------------------
+
+function base64url(buf: Buffer): string {
+  return buf.toString("base64url");
+}
+
+function generatePkce(): { verifier: string; challenge: string } {
+  const verifier = base64url(randomBytes(32));
+  const challenge = base64url(createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+
+const MCP_SCOPES = "graph:read graph:reason decision:write task:write observation:write question:write session:write offline_access";
+
+/**
+ * Obtains a JWT Bearer token for a test user via the full OAuth 2.1 flow.
+ * Required for MCP endpoints which validate JWT tokens (not session cookies).
+ *
+ * Flow: register OAuth client → skip consent → authorize with PKCE → exchange for JWT
+ */
+export async function getTestUserBearerToken(
+  baseUrl: string,
+  surreal: Surreal,
+  user: TestUser,
+  scopes?: string,
+): Promise<TestUserWithToken> {
+  // Trigger JWKS key generation
+  await fetch(`${baseUrl}/api/auth/jwks`);
+
+  // Register a public OAuth client via DCR
+  const dcrRes = await fetch(`${baseUrl}/api/auth/oauth2/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_name: `test-client-${Date.now()}`,
+      redirect_uris: ["http://127.0.0.1:9999/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    }),
+  });
+
+  if (!dcrRes.ok) {
+    throw new Error(`DCR failed: ${dcrRes.status} ${await dcrRes.text()}`);
+  }
+
+  const { client_id } = (await dcrRes.json()) as { client_id: string };
+
+  // Skip consent for test clients
+  await surreal.query(
+    `UPDATE oauthClient SET skipConsent = true WHERE clientId = $cid;`,
+    { cid: client_id },
+  );
+
+  // Get authorization code with PKCE
+  const { verifier, challenge } = generatePkce();
+  const authUrl = new URL(`${baseUrl}/api/auth/oauth2/authorize`);
+  authUrl.searchParams.set("client_id", client_id);
+  authUrl.searchParams.set("redirect_uri", "http://127.0.0.1:9999/callback");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", scopes ?? MCP_SCOPES);
+  authUrl.searchParams.set("state", "test-state");
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  // Pass resource so better-auth issues a JWT (not opaque token)
+  authUrl.searchParams.set("resource", baseUrl);
+
+  const authRes = await fetch(authUrl.toString(), {
+    headers: user.headers,
+    redirect: "manual",
+  });
+
+  if (authRes.status !== 302) {
+    const body = await authRes.text();
+    throw new Error(`OAuth authorize did not redirect: ${authRes.status} body=${body}`);
+  }
+
+  const location = authRes.headers.get("location");
+  if (!location) throw new Error("No location header in auth redirect");
+  const redirectUrl = new URL(location, baseUrl);
+  const code = redirectUrl.searchParams.get("code") ?? "";
+  if (!code) {
+    const error = redirectUrl.searchParams.get("error");
+    throw new Error(`No code in redirect: ${location} (error=${error})`);
+  }
+
+  // Exchange code for tokens
+  const tokenRes = await fetch(`${baseUrl}/api/auth/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: "http://127.0.0.1:9999/callback",
+      client_id,
+      code_verifier: verifier,
+      resource: baseUrl,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    throw new Error(`Token exchange failed: ${tokenRes.status} ${await tokenRes.text()}`);
+  }
+
+  const tokens = (await tokenRes.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
+
+  return {
+    ...user,
+    accessToken: tokens.access_token,
+    bearerHeaders: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${tokens.access_token}`,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

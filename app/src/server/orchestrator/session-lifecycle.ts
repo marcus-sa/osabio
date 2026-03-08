@@ -183,6 +183,13 @@ export function startEventIteration(
         bridge.handleMessage(msg);
       }
       logInfo("orchestrator.iteration", "Event iteration ended normally", { sessionId, messageCount });
+      // Transition to idle when stream ends normally and agent produced output
+      if (firstMessageReceived) {
+        const finalStatus = await deps.getSessionStatus(sessionId);
+        if (!TERMINAL_STATUSES.has(finalStatus)) {
+          await deps.updateSessionStatus(sessionId, "idle");
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logError("orchestrator.iteration", "Agent message stream error", err, { sessionId, streamId });
@@ -331,7 +338,7 @@ export async function createOrchestratorSession(
   }
 
   const { validation } = assignmentResult;
-  const taskSlug = slugFromTitle(validation.title);
+  const taskSlug = `${slugFromTitle(validation.title)}-${Date.now()}`;
   const repoRoot = validation.repoPath;
 
   // 2. Create worktree

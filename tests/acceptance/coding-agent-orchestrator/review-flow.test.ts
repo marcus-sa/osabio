@@ -23,6 +23,7 @@ import {
   getReviewSummary,
   acceptAgentWork,
   rejectWithFeedback,
+  simulateSessionStatus,
   getTaskStatus,
   fetchRaw,
 } from "./orchestrator-test-kit";
@@ -34,7 +35,7 @@ describe("Review Flow: Viewing agent work for review", () => {
   // Happy Path: Review shows diff and session summary
   // US-2.1
   // -------------------------------------------------------------------------
-  it.skip("review provides diff summary and agent activity trace", async () => {
+  it("review provides diff summary and agent activity trace", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task where the agent has completed its work
@@ -50,6 +51,9 @@ describe("Review Flow: Viewing agent work for review", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user views the review for the completed work
     const review = await getReviewSummary(
@@ -84,7 +88,7 @@ describe("Review Flow: Viewing agent work for review", () => {
   // Happy Path: Review shows the branch name for manual inspection
   // US-2.1
   // -------------------------------------------------------------------------
-  it.skip("session status includes the branch name for manual code inspection", async () => {
+  it("session status includes the branch name for manual code inspection", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task with completed agent work
@@ -118,7 +122,7 @@ describe("Review Flow: Accepting agent work", () => {
   // Happy Path: Accept merges changes and completes task
   // US-2.2
   // -------------------------------------------------------------------------
-  it.skip("accepting work marks the task as done and completes the session", async () => {
+  it("accepting work marks the task as done and completes the session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given completed agent work ready for review
@@ -133,6 +137,9 @@ describe("Review Flow: Accepting agent work", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user accepts the agent's work
     const result = await acceptAgentWork(
@@ -162,7 +169,7 @@ describe("Review Flow: Accepting agent work", () => {
   // -------------------------------------------------------------------------
   // Error Path: Cannot accept an already-aborted session
   // -------------------------------------------------------------------------
-  it.skip("cannot accept work from an aborted session", async () => {
+  it("cannot accept work from an aborted session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session that was already aborted
@@ -202,7 +209,7 @@ describe("Review Flow: Accepting agent work", () => {
   // -------------------------------------------------------------------------
   // Error Path: Cannot accept a nonexistent session
   // -------------------------------------------------------------------------
-  it.skip("cannot accept work from a nonexistent session", async () => {
+  it("cannot accept work from a nonexistent session", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a session identifier that does not exist
@@ -228,7 +235,7 @@ describe("Review Flow: Rejecting with feedback", () => {
   // Happy Path: Rejection sends feedback, agent resumes
   // US-2.3
   // -------------------------------------------------------------------------
-  it.skip("rejecting with feedback returns the task to in-progress and the agent continues", async () => {
+  it("rejecting with feedback returns the task to in-progress and the agent continues", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given completed agent work that the user wants to improve
@@ -243,6 +250,9 @@ describe("Review Flow: Rejecting with feedback", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user rejects the work with specific feedback
     const result = await rejectWithFeedback(
@@ -265,7 +275,7 @@ describe("Review Flow: Rejecting with feedback", () => {
   // -------------------------------------------------------------------------
   // Error Path: Rejection without feedback text
   // -------------------------------------------------------------------------
-  it.skip("rejects the rejection request when no feedback text is provided", async () => {
+  it("rejects the rejection request when no feedback text is provided", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given completed agent work
@@ -280,6 +290,9 @@ describe("Review Flow: Rejecting with feedback", () => {
       workspace.workspaceId,
       task.taskId,
     );
+
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
 
     // When the user rejects without providing feedback
     const response = await fetchRaw(
@@ -298,7 +311,7 @@ describe("Review Flow: Rejecting with feedback", () => {
   // -------------------------------------------------------------------------
   // Error Path: Cannot reject an already-completed session
   // -------------------------------------------------------------------------
-  it.skip("cannot reject a session that has already been accepted", async () => {
+  it("cannot reject a session that has already been accepted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session whose work was already accepted
@@ -313,6 +326,9 @@ describe("Review Flow: Rejecting with feedback", () => {
       workspace.workspaceId,
       task.taskId,
     );
+    // Simulate agent completing work
+    await simulateSessionStatus(surreal, assignment.agentSessionId, "idle");
+
     await acceptAgentWork(
       baseUrl,
       user,

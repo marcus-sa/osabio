@@ -84,6 +84,7 @@ export async function collectSessionEvents(
     timeoutMs?: number;
     stopOnTypes?: string[];
     maxEvents?: number;
+    authHeaders?: Record<string, string>;
   } = {},
 ): Promise<AgentStreamEvent[]> {
   const timeoutMs = options.timeoutMs ?? 15_000;
@@ -91,7 +92,7 @@ export async function collectSessionEvents(
   const maxEvents = options.maxEvents ?? 1000;
 
   const response = await fetch(`${baseUrl}${streamUrl}`, {
-    headers: { Accept: "text/event-stream" },
+    headers: { Accept: "text/event-stream", ...options.authHeaders },
   });
 
   if (!response.ok || !response.body) {
