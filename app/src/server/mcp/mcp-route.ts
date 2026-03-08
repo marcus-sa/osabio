@@ -1177,18 +1177,14 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const workspaceRecord = auth.workspaceRecord;
 
     const taskExists = async (taskId: string): Promise<boolean> => {
-      try {
-        const taskRecord = new RecordId("task", taskId);
-        const [rows] = await surreal
-          .query<[Array<{ id: RecordId }>]>(
-            "SELECT id FROM $task WHERE workspace = $ws LIMIT 1;",
-            { task: taskRecord, ws: workspaceRecord },
-          )
-          .collect<[Array<{ id: RecordId }>]>();
-        return rows.length > 0;
-      } catch {
-        return false;
-      }
+      const taskRecord = new RecordId("task", taskId);
+      const [rows] = await surreal
+        .query<[Array<{ id: RecordId }>]>(
+          "SELECT id FROM $task WHERE workspace = $ws LIMIT 1;",
+          { task: taskRecord, ws: workspaceRecord },
+        )
+        .collect<[Array<{ id: RecordId }>]>();
+      return rows.length > 0;
     };
 
     const updateTask = async (taskId: string, status: string) => {
@@ -1202,7 +1198,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         });
         return { task_id: taskId, status, updated: true };
       } catch (error) {
-        logInfo("commit-check", `Skipping task ${taskId}: ${error instanceof Error ? error.message : "unknown"}`);
+        logError("commit-check", `Failed to update task ${taskId}`, error);
         return { task_id: taskId, status, updated: false };
       }
     };

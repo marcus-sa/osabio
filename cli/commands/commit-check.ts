@@ -51,7 +51,7 @@ async function createPostCommitCheck(): Promise<PostCommitCheck> {
   const config = await requireConfig();
   const client = new BrainHttpClient(config);
   return async (message: string) => {
-    await client.checkCommit({ message, diff: "", commit_message: message });
+    await client.checkCommit({ diff: "", commit_message: message });
   };
 }
 
