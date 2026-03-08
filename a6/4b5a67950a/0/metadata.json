@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a64b5a67950a",
+  "session_id": "c7c6e6a8-61bd-4f0a-a985-3502f924961c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-08T05:42:39.888366Z",
+  "branch": "marcus-sa/task-status-ownership",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "docs/adrs/ADR-009-task-status-ownership.md",
+    "docs/design/task-status-ownership/architecture.md",
+    "docs/design/task-status-ownership/roadmap.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f7c00290f72c",
+  "checkpoint_transcript_start": 519,
+  "transcript_lines_at_start": 519,
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 53535,
+    "cache_read_tokens": 2559225,
+    "output_tokens": 13580,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-08T05:42:38.984921Z",
+    "agent_lines": 438,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 438,
+    "agent_percentage": 100
+  }
+}

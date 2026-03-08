@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a64b5a67950a",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/task-status-ownership",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "docs/adrs/ADR-009-task-status-ownership.md",
+    "docs/design/task-status-ownership/architecture.md",
+    "docs/design/task-status-ownership/roadmap.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a6/4b5a67950a/0/metadata.json",
+      "transcript": "/a6/4b5a67950a/0/full.jsonl",
+      "context": "/a6/4b5a67950a/0/context.md",
+      "content_hash": "/a6/4b5a67950a/0/content_hash.txt",
+      "prompt": "/a6/4b5a67950a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 53535,
+    "cache_read_tokens": 2559225,
+    "output_tokens": 13580,
+    "api_call_count": 30
+  }
+}
