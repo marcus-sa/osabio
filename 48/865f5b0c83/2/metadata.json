@@ -3,15 +3,14 @@
   "checkpoint_id": "48865f5b0c83",
   "session_id": "56dd4ad3-d6c5-4b5d-ba1e-4b6827bb8206",
   "strategy": "manual-commit",
-  "created_at": "2026-03-08T16:44:06.130183Z",
+  "created_at": "2026-03-08T16:47:52.705186Z",
   "branch": "marcus-sa/task-status-ownership",
   "checkpoints_count": 0,
   "files_touched": [
-    "docs/feature/task-status-ownership/execution-log.yaml",
     "docs/feature/task-status-ownership/roadmap.yaml",
     ".nwave/des-config.json",
-    ".nwave/des/deliver-session.json",
-    "docs/design/task-status-ownership/roadmap.yaml"
+    "docs/design/task-status-ownership/roadmap.yaml",
+    "docs/feature/task-status-ownership/execution-log.yaml"
   ],
   "agent": "Claude Code",
   "turn_id": "81ff548156d9",
@@ -25,12 +24,12 @@
     "api_call_count": 0
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-08T16:44:06.12857Z",
-    "agent_lines": 28,
-    "human_added": 11,
+    "calculated_at": "2026-03-08T16:47:52.703653Z",
+    "agent_lines": 0,
+    "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 39,
-    "agent_percentage": 71.7948717948718
+    "total_committed": 0,
+    "agent_percentage": 0
   }
 }
