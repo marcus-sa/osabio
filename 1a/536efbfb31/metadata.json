@@ -5,7 +5,11 @@
   "branch": "marcus-sa/task-status-ownership",
   "checkpoints_count": 1,
   "files_touched": [
-    "docs/feature/task-status-ownership/execution-log.yaml"
+    "app/src/server/webhook/github-commit-processor.ts",
+    "app/src/server/webhook/task-status-from-push.ts",
+    "app/src/server/webhook/types.ts",
+    "docs/feature/task-status-ownership/execution-log.yaml",
+    "tests/unit/task-status-ownership/task-status-from-push.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +18,13 @@
       "context": "/1a/536efbfb31/0/context.md",
       "content_hash": "/1a/536efbfb31/0/content_hash.txt",
       "prompt": "/1a/536efbfb31/0/prompt.txt"
+    },
+    {
+      "metadata": "/1a/536efbfb31/1/metadata.json",
+      "transcript": "/1a/536efbfb31/1/full.jsonl",
+      "context": "",
+      "content_hash": "/1a/536efbfb31/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
