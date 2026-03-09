@@ -16,6 +16,7 @@ export function entityColor(kind: EntityKind): string {
     case "message": return "#22c55e";
     case "identity": return "#f97316";
     case "agent_session": return "#22c55e";
+    case "intent": return "#14b8a6";
   }
 }
 

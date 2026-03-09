@@ -14,6 +14,7 @@ export function entityColor(kind: EntityKind): string {
     case "message": return "var(--entity-task)";
     case "identity": return "var(--entity-person)";
     case "agent_session": return "var(--entity-task)";
+    case "intent": return "var(--entity-feature)";
   }
 }
 
@@ -31,6 +32,7 @@ export function entityMutedColor(kind: EntityKind): string {
     case "message": return "var(--entity-task-muted)";
     case "identity": return "var(--entity-person-muted)";
     case "agent_session": return "var(--entity-task-muted)";
+    case "intent": return "var(--entity-feature-muted)";
   }
 }
 

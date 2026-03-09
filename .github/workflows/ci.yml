@@ -44,7 +44,7 @@ jobs:
           surrealdb_password: root
           surrealdb_auth: true
           surrealdb_additional_args: --allow-guests --allow-net
-      - run: bun test:smoke
+      - run: bun run test:acceptance
         env:
           NODE_ENV: test
           LOG_LEVEL: debug
