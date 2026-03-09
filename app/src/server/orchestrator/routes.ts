@@ -315,9 +315,9 @@ export function wireOrchestratorRoutes(
     const { RecordId } = await import("surrealdb");
     const personRecord = new RecordId("person", session.user.id);
     const workspaceRecord = new RecordId("workspace", workspaceId);
-    // member_of is identity->workspace; resolve person->identity via identity_person
+    // member_of is identity->workspace; resolve person->identity via identity_person subquery
     const [memberRows] = await wiringDeps.surreal.query<[Array<{ role: string }>]>(
-      `SELECT role FROM member_of WHERE in IN $person<-identity_person<-identity AND out = $ws LIMIT 1;`,
+      `SELECT role FROM member_of WHERE in IN (SELECT VALUE in FROM identity_person WHERE out = $person) AND out = $ws LIMIT 1;`,
       { person: personRecord, ws: workspaceRecord },
     );
     if (!memberRows || memberRows.length === 0) {

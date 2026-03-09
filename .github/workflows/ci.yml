@@ -30,7 +30,7 @@ jobs:
           NODE_ENV: test
           LOG_LEVEL: debug
 
-  smoke-tests:
+  acceptance-tests:
     runs-on: ubicloud-standard-8
     steps:
       - uses: actions/checkout@v4
