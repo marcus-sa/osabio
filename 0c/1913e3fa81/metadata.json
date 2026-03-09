@@ -3,7 +3,7 @@
   "checkpoint_id": "0c1913e3fa81",
   "strategy": "manual-commit",
   "branch": "marcus-sa/github-ci-ubicloud",
-  "checkpoints_count": 3,
+  "checkpoints_count": 0,
   "files_touched": [
     ".github/workflows/ci.yml"
   ],
@@ -17,10 +17,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 33,
-    "cache_creation_tokens": 84743,
-    "cache_read_tokens": 571081,
-    "output_tokens": 3274,
-    "api_call_count": 15
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
   }
 }
