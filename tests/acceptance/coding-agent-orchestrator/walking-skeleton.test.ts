@@ -55,9 +55,9 @@ describe("Walking Skeleton: User assigns task, monitors agent, accepts work", ()
     expect(assignment.agentSessionId).toBeTruthy();
     expect(assignment.streamUrl).toBeTruthy();
 
-    // And the task status changes to "in_progress"
+    // Task status remains "ready" — assignment creates a session, not a status transition
     const taskStatus = await getTaskStatus(surreal, task.taskId);
-    expect(taskStatus).toBe("in_progress");
+    expect(taskStatus).toBe("ready");
 
     // And the agent session is recorded in the workspace
     const sessions = await getAgentSessionsForTask(surreal, task.taskId);
