@@ -91,16 +91,16 @@
 
 - Install deps: `bun install`
 - Run deterministic unit tests (no LLM/API calls): `bun test tests/unit/`
-- Run smoke test: `bun test tests/smoke/`
+- Run acceptance tests: `bun test tests/acceptance/`
 - Run eval suite: `bun run eval`
 - Run eval watch mode: `bun run eval:watch`
 - Agents must not run evals directly. Delegate eval execution to the user and ask them to run eval commands and share results.
 
-### Smoke Test Isolation
+### Acceptance Test Isolation
 
-- Smoke tests create an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
-- Smoke tests require a reachable SurrealDB server at `SURREAL_URL` with credentials from env.
-- Smoke tests boot a dedicated app server process with test `SURREAL_NAMESPACE`, `SURREAL_DATABASE`, and `PORT`; do not point smoke runs at shared production-like DBs.
+- Acceptance tests boot an in-process Brain server with an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
+- Acceptance tests require a reachable SurrealDB server at `SURREAL_URL` with credentials from env.
+- All test suites share `tests/acceptance/acceptance-test-kit.ts` for server boot and DB isolation; domain-specific kits (orchestrator, intent, coding-session) extend it with business-language helpers.
 
 ### Eval Requirements
 

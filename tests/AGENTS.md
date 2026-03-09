@@ -8,33 +8,38 @@
 ```
 tests/
   unit/                              # Deterministic, no network/DB
-  smoke/                             # Requires running SurrealDB
-  acceptance/                        # Driving-port-level (HTTP/SSE)
+  acceptance/                        # Requires running SurrealDB, in-process server
+    acceptance-test-kit.ts           # Shared infrastructure (server boot, DB isolation, auth)
+    core/                            # Core platform acceptance tests
+    task-status-ownership/           # Task status transition tests
+    unified-identity/                # Identity model tests
     coding-agent-orchestrator/       # Orchestrator acceptance tests
     coding-session/                  # Interactive session acceptance tests
+    intent-node/                     # Intent authorization pipeline tests
     orchestrator-ui/                 # UI-focused acceptance tests
 ```
 
 ## Running Tests
 
 - Unit: `bun test tests/unit/`
-- Smoke: `bun test tests/smoke/` (requires `SURREAL_URL` + credentials)
-- Acceptance: `bun test tests/acceptance/<suite>/`
-- Single file: `bun test tests/unit/some-test.test.ts`
+- All acceptance: `bun test tests/acceptance/` (requires `SURREAL_URL` + credentials)
+- Acceptance suite: `bun test tests/acceptance/<suite>/`
+- Single file: `bun test tests/acceptance/core/phase1.test.ts`
 
 ## Conventions
 
 - File naming: `<feature>.test.ts`
 - Gherkin `.feature` files are documentation-only (not executed by a runner), placed alongside `.test.ts` files
 - Shared test helpers go in `*-test-kit.ts` files per suite (e.g., `orchestrator-test-kit.ts`, `coding-session-test-kit.ts`)
+- All acceptance test kits extend `acceptance-test-kit.ts` which provides in-process server boot with isolated SurrealDB namespace
 - Acceptance tests drive through HTTP endpoints and SSE streams only — no internal module imports
 - One-at-a-time TDD: new scenarios start skipped (`it.skip`), enable one at a time as implementation progresses
-- Smoke tests create isolated SurrealDB namespace/database per suite, cleaned up after
+- Each test suite creates an isolated SurrealDB namespace/database, cleaned up after
 
-## Smoke Test AI Dependencies
+## Test AI Dependencies
 
-- Standalone smoke tests that need AI models (extraction, embedding) MUST import `smokeAI` from `./smoke-test-kit` — never create ad-hoc OpenRouter instances or use `{} as any` stubs.
-- `smokeAI` exports: `openrouter`, `extractionModel`, `extractionModelId`, `embeddingModel`, `embeddingDimension`.
+- Standalone acceptance tests that need AI models (extraction, embedding) MUST import `testAI` from `./acceptance-test-kit` — never create ad-hoc OpenRouter instances or use `{} as any` stubs.
+- `testAI` exports: `openrouter`, `extractionModel`, `extractionModelId`, `embeddingModel`, `embeddingDimension`.
 - All env vars are validated via `requireTestEnv` (fail-fast, no defaults).
 - Required env: `OPENROUTER_API_KEY`, `EXTRACTION_MODEL`, `OPENROUTER_EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`.
 - Fake model stubs (`{} as any`, `undefined as any`) break fire-and-forget description triggers when entities accumulate >1 description entry — the Vercel AI SDK requires `specificationVersion` on model objects.

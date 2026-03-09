@@ -212,7 +212,7 @@ bun run dev
 bun run start
 bun run typecheck
 bun test tests/unit/
-bun test --env-file=.env tests/smoke/
+bun test --env-file=.env tests/acceptance/
 bun run eval
 bun run eval:watch
 bun migrate
@@ -231,7 +231,7 @@ schema/
   migrations/                   # versioned migrations
 tests/
   unit/                         # deterministic unit tests
-  smoke/                        # integration tests
+  acceptance/                    # acceptance tests (in-process server + isolated DB)
 evals/                          # model eval suites + scorers
 ```
 
