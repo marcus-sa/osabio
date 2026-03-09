@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "644145da1779",
+  "session_id": "4f31993c-3062-4d81-823b-702606220458",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T12:58:30.240072Z",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-011-intent-authorization-gate.md",
+    "docs/adrs/ADR-012-surrealql-event-for-intent-evaluation.md",
+    "docs/adrs/ADR-013-two-tier-intent-evaluation.md",
+    "docs/feature/intent-node/design/architecture-design.md",
+    "docs/feature/intent-node/design/component-boundaries.md",
+    "docs/feature/intent-node/design/data-models.md",
+    "docs/feature/intent-node/design/technology-stack.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "558b138cd812",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 30958,
+    "cache_read_tokens": 206852,
+    "output_tokens": 2360,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T12:58:30.117856Z",
+    "agent_lines": 782,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 782,
+    "agent_percentage": 100
+  }
+}

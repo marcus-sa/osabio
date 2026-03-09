@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "644145da1779",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-011-intent-authorization-gate.md",
+    "docs/adrs/ADR-012-surrealql-event-for-intent-evaluation.md",
+    "docs/adrs/ADR-013-two-tier-intent-evaluation.md",
+    "docs/feature/intent-node/design/architecture-design.md",
+    "docs/feature/intent-node/design/component-boundaries.md",
+    "docs/feature/intent-node/design/data-models.md",
+    "docs/feature/intent-node/design/technology-stack.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/64/4145da1779/0/metadata.json",
+      "transcript": "/64/4145da1779/0/full.jsonl",
+      "context": "/64/4145da1779/0/context.md",
+      "content_hash": "/64/4145da1779/0/content_hash.txt",
+      "prompt": "/64/4145da1779/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 30958,
+    "cache_read_tokens": 206852,
+    "output_tokens": 2360,
+    "api_call_count": 6
+  }
+}
