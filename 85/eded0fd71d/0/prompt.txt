@@ -1,0 +1,622 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/dubai-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:deliver intent-node
+
+remember to update acceptance tests
+
+---
+
+# NW-DELIVER: Complete DELIVER Wave Orchestrator
+
+**Wave**: DELIVER (wave 6 of 6)|**Agent**: Main Instance (orchestrator)|**Command**: `/nw:deliver "{feature-description}"`
+
+## Overview
+
+Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN > DEVOP > DISTILL > DELIVER).
+
+Sub-agents cannot use Skill tool or `/nw:*` commands. You MUST:
+- Read the relevant command file and embed instructions in the Task prompt
+- Remind the crafter to load its skills as needed for the task (skill files are at `~/.claude/skills/nw/{agent-name}/`)
+
+## CRITICAL BOUNDARY RULES
+
+1. **NEVER implement steps directly.** ALL implementation MUST be delegated to the selected crafter (@nw-software-crafter or @nw-functional-software-crafter per step 1.5) via Task tool with DES markers. You are ORCHESTRATOR — coordinate, not implement.
+2. **NEVER write phase entries to execution-log.yaml.** Only the crafter subagent that performed TDD work may append entries.
+3. **Extract step context from roadmap.yaml ONLY for Task prompt.** Grep roadmap for step_id ~50 lines context, extract (description|acceptance_criteria|files_to_modify), pass in DES template.
+
+**DES circumvention is fraud.** Without DES monitoring, nWave cannot guarantee code quality. For non-deliver tasks (docs, research, one-off edits): `<!-- DES-ENFORCEMENT : exempt -->`. Faking step IDs, omitting markers, or writing log entries manually is never acceptable.
+
+Finalize verification checks every completed step has valid DES-format entries (5 TDD phases + timestamps). Steps without DES monitoring → flagged, finalize blocks until re-executed via Task.
+
+## Rigor Profile Integration
+
+Before dispatching any agent, read the rigor profile from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+**How rigor affects deliver phases:**
+
+| Setting | Effect |
+|---------|--------|
+| `agent_model` | Pass as `model` parameter to all Task tool invocations for crafter agents. If `"inherit"`, omit `model` parameter (Task tool inherits from session). |
+| `reviewer_model` | Pass as `model` parameter to reviewer Task invocations. If `"skip"`, skip Phase 4 entirely. |
+| `review_enabled` | If `false`, skip Phase 4 (Adversarial Review). |
+| `double_review` | If `true`, run Phase 4 twice with separate review scopes. |
+| `tdd_phases` | Pass to crafter in DES template. Replace `# TDD_PHASES` section with the configured phases. If only `[RED_UNIT, GREEN]`, omit PREPARE/RED_ACCEPTANCE/COMMIT instructions. |
+| `refactor_pass` | If `false`, skip Phase 3 (Complete Refactoring). |
+| `mutation_enabled` | If `false`, skip Phase 5 regardless of mutation strategy in CLAUDE.md. |
+
+**Task invocation with rigor model:**
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit this line entirely if "inherit"
+    max_turns=45,
+    prompt=...,
+)
+```
+
+## Orchestration Flow
+
+```
+INPUT: "{feature-description}"
+  |
+  0. Read rigor profile from .nwave/des-config.json (default: standard)
+     Store: agent_model|reviewer_model|tdd_phases|review_enabled|double_review|mutation_enabled|refactor_pass
+  |
+  1. Parse input|derive project-id (kebab-case)|create docs/feature/{project-id}/
+     a. Create execution-log.yaml if missing: schema_version "2.0"|project_id|events: []
+     b. Create deliver session marker: .nwave/des/deliver-session.json
+  |
+  1.5. Detect development paradigm
+     a. Read project CLAUDE.md (project root, NOT ~/.claude/CLAUDE.md)
+     b. Search "## Development Paradigm"
+     c. Found → extract paradigm: "functional"/@nw-functional-software-crafter or "object-oriented"/@nw-software-crafter (default)
+     d. Not found → ask user "OOP or Functional?"|offer to write to CLAUDE.md
+     e. Store selected crafter for all Phase 2 dispatches
+     f. Functional → property-based testing default|@property tags signal PBT|example-based = fallback
+  |
+  1.6. Detect mutation testing strategy
+     a. Same CLAUDE.md|search "## Mutation Testing Strategy"
+     b. Found → extract: per-feature|nightly-delta|pre-release|disabled
+     c. Not found → default "per-feature"
+     d. Log strategy for traceability
+     Note: Strategy locks at deliver start. CLAUDE.md edits during delivery take effect next run.
+  |
+  2. Phase 1 — Roadmap Creation + Review
+     a. Skip if roadmap.yaml exists with validation.status == "approved"
+     b. @nw-solution-architect creates roadmap.yaml (read ~/.claude/commands/nw/roadmap.md)
+        Step IDs: NN-NN format (01-01, 01-02, 02-01). 01-A or 1-1 = invalid.
+     c. Automated quality gate (see below)
+     d. @nw-software-crafter-reviewer reviews (read ~/.claude/commands/nw/review.md)
+     e. Retry once on rejection → stop for manual intervention
+  |
+  3. Phase 2 — Execute All Steps
+     a. Extract steps from roadmap.yaml in dependency order
+     b. Check execution-log.yaml for prior completion (resume)
+     c. {selected-crafter} executes 5-phase TDD cycle (read ~/.claude/commands/nw/execute.md)
+        Use crafter from step 1.5|@nw-functional-software-crafter → PBT default|@property tags signal PBT
+        IMPORTANT: Use DES Prompt Template from execute.md|Include DES markers (DES-VALIDATION|DES-PROJECT-ID|DES-STEP-ID) + 9 mandatory sections
+        OUTCOME_RECORDING: agents use DES CLI (python -m des.cli.log_phase)|CLI bypass → SubagentStop hook corrects timestamps
+     d. Verify COMMIT/PASS in execution-log.yaml per step
+     e. Missing phase → RE-DISPATCH agent. NEVER write entries yourself.
+     f. Stop on first failure
+     g. Timeout recovery: GREEN completed → resume (~5 turns)|GREEN partial → resume|Otherwise → restart higher max_turns
+  |
+  4. Phase 3 — Complete Refactoring (L1-L4) [SKIP if rigor.refactor_pass = false]
+     a. Collect modified files: git diff --name-only {base-commit}..HEAD -- '*.py' | sort -u
+        Split: PRODUCTION_FILES (src/) | TEST_FILES (tests/)
+     b. /nw:refactor {files} --levels L1-L4 via {selected-crafter} with DES orchestrator markers:
+        <!-- DES-VALIDATION : required -->|<!-- DES-PROJECT-ID : {project-id} -->|<!-- DES-MODE : orchestrator -->
+     c. All tests green after each module
+  |
+  5. Phase 4 — Adversarial Review [SKIP if rigor.review_enabled = false]
+     a. If rigor.reviewer_model = "skip" → SKIP phase entirely
+     b. /nw:review @nw-software-crafter-reviewer implementation "{execution-log-path}"
+        Use model=rigor.reviewer_model for reviewer Task invocation
+        Include DES orchestrator markers (same as Phase 3)
+     c. If rigor.double_review = true → run review a second time with different scope focus
+     d. Scope: ALL files modified during feature|includes Testing Theater 7-pattern detection
+     e. One revision pass on rejection → proceed
+  |
+  6. Phase 5 — Mutation Testing [SKIP if rigor.mutation_enabled = false]
+     If rigor.mutation_enabled = false → SKIP regardless of CLAUDE.md strategy
+     Otherwise, apply CLAUDE.md strategy:
+     per-feature → gate ≥80% kill rate (read ~/.claude/commands/nw/mutation-test.md)
+     nightly-delta → SKIP|log "handled by CI nightly pipeline"
+     pre-release → SKIP|log "handled at release boundary"
+     disabled → SKIP|log "disabled per project configuration"
+  |
+  7. Phase 6 — Deliver Integrity Verification
+     a. PYTHONPATH=$HOME/.claude/lib/python python -m des.cli.verify_deliver_integrity docs/feature/{project-id}/
+     b. Exit 0 → proceed|Exit 1 → STOP, read output
+     c. No entries = not executed through DES|Partial = incomplete TDD
+     d. Violations → re-execute via Task with DES markers|Only proceed after pass
+  |
+  8. Phase 7 — Finalize
+     a. @nw-platform-architect archives to docs/evolution/ (read ~/.claude/commands/nw/finalize.md)
+     b. Commit + push|rm -f .nwave/des/deliver-session.json .nwave/des/des-task-active
+  |
+  9. Phase 8 — Retrospective (conditional)
+     Skip if clean execution|@nw-troubleshooter 5 Whys on issues found
+  |
+  10. Phase 9 — Report Completion
+      Display summary: phases|steps|reviews|artifacts|Return to DISCOVER for next iteration
+```
+
+## Orchestrator Responsibilities
+
+Follow this flow directly. Do not delegate orchestration.
+
+Per phase:
+1. Read the relevant command file (paths listed above)
+2. Extract instructions and embed them in the Task prompt
+3. Include task boundary instructions to prevent workflow continuation
+4. Verify output artifacts exist after each Task completes
+5. Update .develop-progress.json for resume capability
+
+## Task Invocation Pattern
+
+DES markers required for step execution. Without markers → unmonitored. Full DES Prompt Template (9 sections) in `~/.claude/commands/nw/execute.md`.
+
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit if "inherit"
+    max_turns=45,  # 25 hotfix|45 standard|65 complex
+    prompt=f'''
+<!-- DES-VALIDATION : required -->
+<!-- DES-PROJECT-ID : {project_id} -->
+<!-- DES-STEP-ID : {step_id} -->
+(step_id: NN-NN format. DES hooks require this.)
+
+TASK BOUNDARY: {task_description}
+Return control to orchestrator after completion.
+
+Read full DES Prompt Template from ~/.claude/commands/nw/execute.md.
+Fill: step_id={step_id}|project_id={project_id}|agent={agent}|task_context={instructions}
+
+SKILL_LOADING: Read your skill files at ~/.claude/skills/nw/{agent-name}/.
+At PREPARE phase, always load: tdd-methodology.md, quality-framework.md.
+Then follow your Skill Loading Strategy table for phase-specific skills.
+''',
+    description="{phase description}"
+)
+```
+
+## Roadmap Quality Gate (Automated, Zero Token Cost)
+
+After roadmap creation, before reviewer:
+1. AC coupling: flag AC referencing private methods (`_method()`)
+2. Decomposition ratio: flag steps/files > 2.5
+3. Identical patterns: flag 3+ steps with same AC structure (batch them)
+4. Validation-only: flag steps with no files_to_modify
+5. Step ID format: flag non-matching `^\d{2}-\d{2}$`
+
+HIGH findings → return to architect for one revision.
+
+## Skip and Resume
+
+- Check `.develop-progress.json` on start for resume
+- Skip if file exists with validation.status == "approved"
+- Skip completed steps via execution-log.yaml COMMIT/PASS
+- Max 2 retry per review rejection → stop for manual intervention
+
+## Input
+
+- `feature-description` (string, required, min 10 chars)
+- project-id: strip prefixes (implement|add|create)|remove stop words|kebab-case|max 5 words
+
+## Output Artifacts
+
+```
+docs/feature/{project-id}/
+  roadmap.yaml|execution-log.yaml|.develop-progress.json
+docs/evolution/
+  {project-id}-evolution.md
+```
+
+## Quality Gates
+
+Roadmap review (1 review, max 2 attempts)|Per-step 5-phase TDD (PREPARE→RED_ACCEPTANCE→RED_UNIT→GREEN→COMMIT)|Paradigm-appropriate crafter|L1-L4 refactoring (Phase 3)|Adversarial review + Testing Theater detection (Phase 4)|Mutation ≥80% if per-feature (Phase 5)|Integrity verification (Phase 6)|All tests passing per phase
+
+## Success Criteria
+
+- [ ] Roadmap created and approved
+- [ ] All steps COMMIT/PASS (5-phase TDD)
+- [ ] L1-L4 refactoring complete (Phase 3)
+- [ ] Adversarial review passed (Phase 4)
+- [ ] Mutation gate ≥80% or skipped per strategy (Phase 5)
+- [ ] Integrity verification passed (Phase 6)
+- [ ] Evolution archived (Phase 7)
+- [ ] Retrospective or clean execution noted (Phase 8)
+- [ ] Completion report (Phase 9)
+
+## Examples
+
+### 1: Fresh Feature
+`/nw:deliver "Implement user authentication with JWT"` → roadmap → review → TDD all steps → mutation → finalize → report
+
+### 2: Resume After Failure
+Same command → loads .develop-progress.json → skips completed → resumes from failure
+
+### 3: Single Step Alternative
+For manual granular control, use individual commands:
+```
+/nw:roadmap @nw-solution-architect "goal"
+/nw:execute {selected-crafter} "project-id" "01-01"
+/nw:finalize @nw-platform-architect "project-id"
+```
+
+## Completion
+
+DELIVER is final wave. After completion → DISCOVER for next feature or mark project complete.
+
+
+ARGUMENTS: intent-node
+
+---
+
+cant we just execute this via surrealdb in the test itself with the right port?:
+```
+DEFINE EVENT intent_pending_auth ON intent
+  WHEN $before.status != "pending_auth" AND $after.status = "pending_auth"
+  THEN {
+    http::post(
+      "http://127.0.0.1:{PORT}/api/intents/" + <string> meta::id($after.id) + "/evaluate",
+      $after,
+      { "Content-Type": "application/json" }
+    );
+  };
+```
+
+> The 4 failures are in pre-existing orchestrator-ui and coding-agent-orchestrator tests (review flow, walking skeleton) — not in intent-node tests. These are the same failures that existed before (the session-lifecycle changes from 03-02 may have affected them). Let me check if they were already failing.
+
+incorrect, these are working on main
+
+---
+
+Continue from where you left off.
+
+---
+
+smoke and acceptance tests are the same. we should merge them together into acceptance tests but reuse the server setup logic from smoke test kit
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   - User invoked `/nw:deliver intent-node` to orchestrate the full DELIVER wave for the intent authorization node feature
+   - User explicitly said "remember to update acceptance tests"
+   - User pointed out that the SurrealQL EVENT (`DEFINE EVENT intent_pending_auth`) could be executed dynamically in tests with the real server port, instead of using `simulateEvaluation` for test determinism
+   - User corrected that the 4 orchestrator test failures are NOT pre-existing - they work on main, meaning our changes caused regressions
+   - User stated: "smoke and acceptance tests are the same. we should merge them together into acceptance tests but reuse the server setup logic from smoke test kit"
+
+2. Key Technical Concepts:
+   - Intent authorization node: agents declare intents before consequential actions, evaluated by LLM-based authorizer with risk-based routing
+   - Pure core / effect shell architecture (functional paradigm)
+   - SurrealDB SCHEMAFULL tables, TYPE RELATION edges, DEFINE EVENT for http::post callbacks
+   - Status machine with transition map: draft → pending_auth → pending_veto/authorized/vetoed/failed → executing → completed/failed
+   - Risk routing: auto_approve (risk ≤ 30), veto_window (risk > 30), reject
+   - Veto window lifecycle with in-memory timers and recovery sweep
+   - InflightTracker for fire-and-forget DB operation tracking
+   - ServerDependencies type extended with `inflight: InflightTracker`
+   - `createBrainServer(deps)` extracted from `startServer()` for testability
+
+3. Files and Code Sections:
+   - `app/src/server/runtime/types.ts`
+     - Added `InflightTracker` type and `createInflightTracker()` factory
+     - Added `inflight: InflightTracker` to `ServerDependencies` (BREAKING: all consumers must provide it)
+     ```typescript
+     export type InflightTracker = {
+       track(promise: Promise<unknown>): void;
+       drain(timeoutMs?: number): Promise<void>;
+     };
+     export type ServerDependencies = {
+       // ... existing fields ...
+       inflight: InflightTracker;
+     };
+     ```
+   
+   - `app/src/server/runtime/start-server.ts`
+     - MAJOR refactor: extracted `createBrainServer(deps)` from `startServer()`
+     - Added intent route registration, MCP intent routes, veto recovery at startup
+     - `startServer()` now creates deps with `inflight: createInflightTracker()` then calls `createBrainServer(deps)`
+     - Added veto recovery sweep as fire-and-forget via `deps.inflight.track()`
+   
+   - `app/src/server/orchestrator/session-lifecycle.ts`
+     - Added optional `intentId?: string` and `authToken?: string` to `CreateSessionInput`
+     - Added `checkIntentAuthorization()` with workspace scope validation (D1 fix)
+     - Added `transitionIntentToExecuting()` creating `gates` relation
+     - Added `INTENT_NOT_AUTHORIZED` and `WORKSPACE_MISMATCH` to `SessionErrorCode`
+     - Removed `TerminalOrchestratorStatus` from imports
+   
+   - `app/src/server/mcp/mcp-route.ts`
+     - Added 3 MCP handlers: `handleCreateIntent`, `handleSubmitIntent`, `handleGetIntentStatus`
+     - Routes at `/api/mcp/:workspaceId/intents/{create,submit,status}`
+   
+   - `app/src/shared/contracts.ts`
+     - Added `"intent"` to `EntityKind` union
+     - Added `"veto"` to `GovernanceFeedAction.action` union
+   
+   - `app/src/server/intent/types.ts` - All domain types: IntentStatus, ActionSpec, BudgetLimit, EvaluationResult, RoutingDecision, IntentRecord
+   - `app/src/server/intent/status-machine.ts` - Pure `transitionStatus()` with TRANSITION_MAP
+   - `app/src/server/intent/risk-router.ts` - Pure `routeByRisk()` with configurable threshold
+   - `app/src/server/intent/authorizer.ts` - `checkPolicyGate()`, `evaluateIntent()` pipeline, `createLlmEvaluator()` factory
+   - `app/src/server/intent/intent-queries.ts` - `createIntent`, `getIntentById`, `updateIntentStatus`, `listPendingIntents`, `listIntentsByWorkspace`, `queryExpiredVetoIntents`
+   - `app/src/server/intent/intent-routes.ts` - `createIntentRouteHandlers(deps)` with `handleEvaluate`, `handleVeto`, `handleListPending`
+   - `app/src/server/intent/veto-manager.ts` - `createVetoManager()` factory with timer Map, `startVetoWindow`, `cancelVetoWindow`, `recoverExpiredWindows`, `shutdown`
+   - `app/src/server/feed/feed-queries.ts` - Added `listPendingVetoIntents()` and `mapPendingIntentToFeedItem()`
+   - `app/src/server/feed/feed-route.ts` - Wired pending intents into feed response
+   - `schema/migrations/0021_intent_node.surql` - Full migration with DEFINE OVERWRITE pattern
+   - `schema/surreal-schema.surql` - Intent table, 3 relations, EVENT, authority_scope seeds
+   
+   - Test files: `tests/unit/intent/{status-machine,risk-router,authorizer,veto-manager}.test.ts` (73 tests)
+   - Test files: `tests/acceptance/intent-node/{walking-skeleton,milestone-1,milestone-2,milestone-3,intent-test-kit}.ts` (24 tests)
+
+4. Errors and fixes:
+   - **Roadmap validation failed**: Architect used `acceptance_criteria` key but CLI expected `criteria`. Fixed with `replace_all` edit.
+   - **Walking skeleton test failures**: Schema mismatches between test kit helpers and migration. Fixed by adjusting test kit and queries.
+   - **Milestone-1 test failures**: `identity.workspace` required by SCHEMAFULL schema. Fixed `createTestIdentity` to pass `workspaceId`.
+   - **Adversarial review D1**: Authorization gate missing workspace scope validation. Fixed by adding `workspaceId` parameter comparison.
+   - **Adversarial review D5**: LLM failure fallback auto-approved (risk_score=0). Fixed by changing to risk_score=50 so it routes through veto_window.
+   - **Adversarial review D6**: `recoverExpiredWindows` never called at startup. Fixed by wiring it in `startServer()` via `deps.inflight.track()`.
+   - **4 orchestrator test regressions**: I incorrectly claimed these were pre-existing by running `git stash` and testing. **User corrected me** - these tests pass on main. The regressions are caused by our changes (likely the `start-server.ts` refactoring or `session-lifecycle.ts` changes). Investigation was in progress.
+   - **Pre-existing test verification was WRONG**: I ran `git stash` which only stashes uncommitted changes, NOT all the committed changes on the branch. So my "verification" was invalid - I was still testing on the branch with all commits, not on main.
+
+5. Problem Solving:
+   - Successfully delivered 11-step roadmap across 3 phases with 97 passing tests
+   - Identified `ServerDependencies` now requires `inflight` which could affect test server setup
+   - Orchestrator acceptance tests spawn server via `Bun.spawn(["bun", "run", "app/server.ts"])` so they use real `startServer()`
+   - The 4 failing tests show task status staying "ready" instead of becoming "done", and review flow file status issues
+   - The `TerminalOrchestratorStatus` type import was removed from session-lifecycle.ts - need to verify this doesn't break anything
+   - Was investigating the root cause when conversation paused
+
+6. All user messages:
+   - `/nw:deliver intent-node` with "remember to update acceptance tests"
+   - "cant we just execute this via surrealdb in the test itself with the right port?: [SurrealQL EVENT definition] ... incorrect, these are working on main"
+   - "Continue from where you left off."
+   - "smoke and acceptance tests are the same. we should merge them together into acceptance tests but reuse the server setup logic from smoke test kit"
+
+7. Pending Tasks:
+   - **Fix 4 orchestrator test regressions** caused by our changes (session-lifecycle.ts, start-server.ts, types.ts modifications)
+   - **Wire SurrealQL EVENT in tests** with real server port instead of using `simulateEvaluation` - define the event dynamically in the test setup with the actual port
+   - **Consider merging smoke/acceptance test infrastructure** - reuse smoke-test-kit server setup logic in acceptance tests
+
+8. Current Work:
+   I was investigating the 4 orchestrator test regressions. The failing tests are:
+   - `tests/acceptance/coding-agent-orchestrator/review-flow.test.ts` (2 tests)
+   - `tests/acceptance/coding-agent-orchestrator/walking-skeleton.test.ts` (1 test)
+   - `tests/acceptance/orchestrator-ui/walking-skeleton.test.ts` (1 test)
+   
+   Errors show task status remaining "ready" instead of "done", suggesting `acceptOrchestratorSession` or the orchestrator flow is broken.
+   
+   I found that `start-server.ts` was significantly refactored:
+   - Extracted `createBrainServer(deps)` from `startServer()`
+   - Added `inflight: InflightTracker` to `ServerDependencies` (breaking change)
+   - `TerminalOrchestratorStatus` import removed from session-lifecycle.ts
+   
+   The smoke-test-kit already handles `inflight` but orchestrator tests spawn via `Bun.spawn`. Need to determine if the TypeScript compilation succeeds with the new required `inflight` field, or if existing code that constructs `ServerDependencies` (e.g., in smoke-test-kit) now fails.
+
+9. Optional Next Step:
+   Fix the 4 orchestrator test regressions. User said "these are working on main" and "Continue from where you left off." I need to:
+   1. Run `git diff main -- app/src/server/orchestrator/session-lifecycle.ts app/src/server/runtime/start-server.ts app/src/server/runtime/types.ts` to understand all changes
+   2. Check if the `TerminalOrchestratorStatus` type removal or the `SessionErrorCode` addition broke anything
+   3. Check if the `createBrainServer` extraction or `inflight` requirement causes server startup issues
+   4. Run the failing tests with verbose output to pinpoint exact failure location
+   5. Then address the SurrealQL EVENT in tests and smoke/acceptance test merge per user's requests
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-dubai-v2/5d3eb319-80f2-4283-bfa3-ffdd9f2feae6.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+---
+
+Continue from where you left off.
+
+---
+
+the tests have now been merged together and they're all succeeding. `bun typecheck` is failing.
+
+---
+
+continue applying review fixes
+
+---
+
+D4: Evaluation Pipeline Doesn’t Validate requester Field ?
+
+---
+
+commit
+
+---
+
+# NW-REVIEW: Expert Critique and Quality Assurance
+
+**Wave**: CROSS_WAVE
+**Agent**: Dynamic (nw-*-reviewer)
+
+## Overview
+
+Dispatches expert reviewer agent to critique workflow artifacts. Takes base agent name, appends `-reviewer`, invokes with artifact. Reviewer agent owns all review methodology|criteria|output format.
+
+## Review Philosophy: Radical Candor
+
+Every review MUST embody Radical Candor — kind AND clear, specific AND sincere:
+
+- **Care personally**: Acknowledge what works. Understand author's intent before critiquing. Include at least one genuine `praise:` per review.
+- **Challenge directly**: Be specific about what is wrong and WHY. Ground feedback in evidence|consequences, not preference. Never soften security/data-loss issues.
+- **Avoid ruinous empathy**: Never "LGTM" when real issues exist. Hedging ("maybe consider possibly...") on blocking concerns is a review failure.
+- **Avoid obnoxious aggression**: Never "this is terrible" without constructive alternative. Focus on work, not author. Explain "why" behind every critique.
+
+## Feedback Format: Conventional Comments
+
+All findings MUST use Conventional Comments labels:
+
+| Label | Purpose | Blocking? |
+|---|---|---|
+| `praise:` | Highlight something done well (genuine, not filler) | No |
+| `issue (blocking):` | Must be resolved before proceeding | Yes |
+| `issue (blocking, security):` | Security vulnerability — maximum directness | Yes |
+| `suggestion:` | Propose improvement with reasoning | Mark `(blocking)` or `(non-blocking)` |
+| `nitpick (non-blocking):` | Trivial, preference-based | No |
+| `question (non-blocking):` | Seek clarification before assuming | No |
+| `thought (non-blocking):` | Idea sparked by the review | No |
+
+Findings MUST be priority-ordered: blocking issues first, then suggestions, then nitpicks/praise.
+
+## Approval Criteria
+
+| Verdict | Criteria |
+|---|---|
+| **APPROVED** | No blocking issues. Non-blocking feedback is advisory. |
+| **NEEDS_REVISION** | Blocking issues exist. Author must address. Each blocking issue enumerated. |
+| **REJECTED** | Fundamental design problems requiring significant rework. Rare — explain thoroughly, offer alternatives. |
+
+## Syntax
+
+```
+/nw:review @{agent-name} {artifact-type} "{artifact-path}" [step_id={id}] [--dimensions=rpp] [--from=1] [--to=3]
+```
+
+**Parameters:**
+- `@{agent-name}` - Base agent (e.g., `@nw-software-crafter`). `-reviewer` suffix appended automatically.
+- `{artifact-type}` - One of: `baseline`, `roadmap`, `step`, `task`, `implementation`
+- `{artifact-path}` - Path to artifact file (resolved to absolute)
+- `step_id={id}` - Required for step and implementation reviews
+- `--dimensions=rpp` - Triggers RPP code smell scan alongside standard review (Dimension 4)
+- `--from=N` / `--to=N` - RPP level range (default: 1-6). Requires `--dimensions=rpp`
+
+## Rigor Profile Integration
+
+Before dispatching the reviewer agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`review_enabled`**: If `false`, skip the review entirely. Output: "Review skipped per rigor profile (review_enabled=false)."
+- **`reviewer_model`**: Pass as `model` parameter to Task tool. If `"skip"`, skip the review. Overrides the default Haiku model.
+- **`double_review`**: If `true` and called from deliver Phase 4, the caller is responsible for invoking review twice.
+
+## Agent Derivation
+
+| User provides | Reviewer invoked |
+|---|---|
+| `@nw-software-crafter` | `nw-software-crafter-reviewer` |
+| `@nw-solution-architect` | `nw-solution-architect-reviewer` |
+| `@nw-platform-architect` | `nw-platform-architect-reviewer` |
+
+Default model: Haiku (overridden by `rigor.reviewer_model` when set).
+
+## Agent Invocation
+
+Parse parameters, validate, then invoke via Task tool:
+
+```python
+Task(
+    subagent_type="{agent-name}-reviewer",
+    model=rigor_reviewer_model,  # omit if using default haiku
+    prompt="Review {artifact-type}: {absolute-artifact-path} [step_id={id}]"
+)
+```
+
+Reviewer handles: reading artifact|applying domain expertise|generating structured critique|updating original artifact with review metadata.
+
+## Validation (before invoking)
+
+1. Base agent name exists (strip `@`, check agent registry)
+2. Artifact type valid (baseline, roadmap, step, task, implementation)
+3. Artifact file exists at resolved absolute path
+4. step_id provided when artifact type is `step` or `implementation`
+
+On validation failure, return specific error and stop.
+
+## Success Criteria
+
+- [ ] Reviewer agent invoked (not self-performed)
+- [ ] Original artifact file updated with review metadata
+- [ ] Review includes severity levels and approval status (APPROVED, NEEDS_REVISION, REJECTED)
+
+## Examples
+
+### Example 1: Step review
+```
+/nw:review @nw-software-crafter step "docs/feature/auth-upgrade/execution-log.yaml" step_id=02-01
+```
+Invokes `nw-software-crafter-reviewer` with step review of execution log, step 02-01.
+
+### Example 2: Roadmap review
+```
+/nw:review @nw-solution-architect roadmap "docs/feature/auth-upgrade/roadmap.yaml"
+```
+Invokes `nw-solution-architect-reviewer` with roadmap review.
+
+### Example 3: Implementation review
+```
+/nw:review @nw-platform-architect implementation "docs/feature/auth-upgrade/execution-log.yaml" step_id=01-01
+```
+Invokes `nw-platform-architect-reviewer` with implementation review of step 01-01.
+
+### Example 4: RPP code quality review
+```
+/nw:review @nw-software-crafter implementation "src/des/" --dimensions=rpp --from=1 --to=3
+```
+Invokes `nw-software-crafter-reviewer` with implementation review + RPP L1-L3 code smell detection using cascade rule.
+
+## Error Messages
+
+- Invalid agent: "Unknown agent: {name}. Check available agents with /nw:agents."
+- Invalid type: "Invalid artifact type: {type}. Use: baseline, roadmap, step, task, implementation."
+- Missing file: "Artifact not found: {path}."
+- Missing step_id: "step_id required for {type} reviews."
+
+## Next Wave
+
+**Handoff To**: Depends on review outcome (rework or proceed)
+**Deliverables**: Updated artifact file with embedded review metadata
+
+## Expected Outputs
+
+```
+Updated artifact file (roadmap.yaml, execution-log.yaml, etc.) with reviews section
+```
+
+
+ARGUMENTS:  intent-node
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain, Supermemory) not available in this context. Cannot log decisions, observations, or task progress without them.
+
+---
+
+D1: Evaluation triggered by opaque SurrealQL EVENT — Agents submit intents via MCP but evaluation happens via a hidden DB EVENT → HTTP POST. Tests bypass this with simulateEvaluation(). If the EVENT HTTP call fails, intent is stuck in pending_auth forever.
+
+This is by design (async event-driven), but the user previously asked to wire the EVENT dynamically in tests with the real port. That would fix the test validity concern.
+
+yes do this. update @tests/acceptance/acceptance-test-kit.ts
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain, Supermemory) not available in this context. Cannot log decisions, observations, or task progress without them.
+
+---
+
+wireEventToServer makes no sense. why have eventDef.then be a callback? port isnt even used in the function. the entire wireEventToServer function is redundant. caller should just execute surreal.query directly...
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain, Supermemory) not available in this context. Cannot log decisions, observations, or task progress without them.
+
+---
+
+done. commit
