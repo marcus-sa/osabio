@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "949d6b9167e9",
+  "session_id": "38c482df-7be4-48fc-8f0c-2c9cd9992e54",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T15:26:27.525007Z",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/auth.ts",
+    "app/src/server/orchestrator/routes.ts",
+    "tests/smoke/smoke-test-kit.ts",
+    "tests/smoke/task-status-ownership/backward-transitions.test.ts",
+    "tests/smoke/task-status-ownership/commit-check-endpoint.test.ts",
+    "tests/smoke/task-status-ownership/session-no-status-change.test.ts",
+    "tests/smoke/task-status-ownership/webhook-status-transitions.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "591d93bcfa12",
+  "token_usage": {
+    "input_tokens": 217,
+    "cache_creation_tokens": 223339,
+    "cache_read_tokens": 12364948,
+    "output_tokens": 40428,
+    "api_call_count": 116
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T15:26:27.088255Z",
+    "agent_lines": 0,
+    "human_added": 154,
+    "human_modified": 62,
+    "human_removed": 0,
+    "total_committed": 196,
+    "agent_percentage": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "949d6b9167e9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/auth.ts",
+    "app/src/server/orchestrator/routes.ts",
+    "tests/smoke/smoke-test-kit.ts",
+    "tests/smoke/task-status-ownership/backward-transitions.test.ts",
+    "tests/smoke/task-status-ownership/commit-check-endpoint.test.ts",
+    "tests/smoke/task-status-ownership/session-no-status-change.test.ts",
+    "tests/smoke/task-status-ownership/webhook-status-transitions.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/94/9d6b9167e9/0/metadata.json",
+      "transcript": "/94/9d6b9167e9/0/full.jsonl",
+      "context": "/94/9d6b9167e9/0/context.md",
+      "content_hash": "/94/9d6b9167e9/0/content_hash.txt",
+      "prompt": "/94/9d6b9167e9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 217,
+    "cache_creation_tokens": 223339,
+    "cache_read_tokens": 12364948,
+    "output_tokens": 40428,
+    "api_call_count": 116
+  }
+}
