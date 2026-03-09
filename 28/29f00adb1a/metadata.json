@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2829f00adb1a",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/extraction/identity-resolution.ts",
+    "docs/feature/unified-identity/execution-log.yaml",
+    "tests/smoke/unified-identity/agent-mention-resolution.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/28/29f00adb1a/0/metadata.json",
+      "transcript": "/28/29f00adb1a/0/full.jsonl",
+      "context": "/28/29f00adb1a/0/context.md",
+      "content_hash": "/28/29f00adb1a/0/content_hash.txt",
+      "prompt": "/28/29f00adb1a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 423,
+    "cache_creation_tokens": 342866,
+    "cache_read_tokens": 23236838,
+    "output_tokens": 92575,
+    "api_call_count": 237
+  }
+}
