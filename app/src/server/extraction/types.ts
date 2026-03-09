@@ -8,7 +8,7 @@ import type {
 
 export type ExtractableEntityKind = Exclude<EntityKind, "workspace" | "observation">;
 export type PersistableExtractableEntityKind = Exclude<ExtractableEntityKind, "person">;
-export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation";
+export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation";
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 export type SourceRecord = RecordId<"message" | "document_chunk" | "git_commit", string>;
 

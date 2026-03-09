@@ -284,6 +284,7 @@ function buildEntityRecordContent(
     return {
       name: text,
       status: "active",
+      workspace: workspaceRecord,
       ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,

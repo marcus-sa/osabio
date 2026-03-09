@@ -19,6 +19,11 @@ export async function readEntityText(surreal: Surreal, record: GraphEntityRecord
     return row?.name;
   }
 
+  if (table === "identity") {
+    const row = await surreal.select<{ name: string }>(record as RecordId<"identity", string>);
+    return row?.name;
+  }
+
   if (table === "feature") {
     const row = await surreal.select<{ name: string }>(record as RecordId<"feature", string>);
     return row?.name;

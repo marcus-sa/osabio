@@ -213,11 +213,20 @@ describe("OAuth MCP Auth", () => {
     // Sign up a user
     const { userId } = await signUpAndGetSession(baseUrl, "oauth-test@example.com", "OAuth Tester");
 
-    // Create member_of edge (person -> workspace)
+    // Create identity + spoke edge, then member_of (identity -> workspace)
     const personRecord = new RecordId("person", userId);
+    const identityRecord = new RecordId("identity", crypto.randomUUID());
     await surreal.query(
-      `RELATE $person->member_of->$ws SET role = "admin", added_at = time::now();`,
-      { person: personRecord, ws: wsRecord },
+      `CREATE $identity CONTENT { name: "OAuth Tester", type: "human", role: "admin", workspace: $ws, created_at: time::now() };`,
+      { identity: identityRecord, ws: wsRecord },
+    );
+    await surreal.query(
+      `RELATE $identity->identity_person->$person SET added_at = time::now();`,
+      { identity: identityRecord, person: personRecord },
+    );
+    await surreal.query(
+      `RELATE $identity->member_of->$ws SET role = "admin", added_at = time::now();`,
+      { identity: identityRecord, ws: wsRecord },
     );
 
     // Trigger JWKS key generation by hitting the JWKS endpoint

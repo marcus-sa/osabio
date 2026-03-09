@@ -102,15 +102,15 @@ describe("extraction quality smoke", () => {
 async function loadWorkspacePeople(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-): Promise<Array<{ id: RecordId<"person", string>; name: string }>> {
+): Promise<Array<{ id: RecordId<"identity", string>; name: string }>> {
   const [rows] = await surreal
-    .query<[Array<{ id: RecordId<"person", string>; name: string }>]>(
-      "SELECT id, name FROM person WHERE id IN (SELECT VALUE `in` FROM member_of WHERE out = $workspace);",
+    .query<[Array<{ id: RecordId<"identity", string>; name: string }>]>(
+      "SELECT id, name FROM identity WHERE id IN (SELECT VALUE `in` FROM member_of WHERE out = $workspace);",
       {
         workspace: workspaceRecord,
       },
     )
-    .collect<[Array<{ id: RecordId<"person", string>; name: string }>]>();
+    .collect<[Array<{ id: RecordId<"identity", string>; name: string }>]>();
 
   return rows;
 }

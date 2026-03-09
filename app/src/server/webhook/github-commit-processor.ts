@@ -4,7 +4,7 @@ import { extractStructuredGraph } from "../extraction/extract-graph";
 import { persistExtractionOutput } from "../extraction/persist-extraction";
 import { loadWorkspaceGraphContext } from "../extraction/context-loaders";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
-import { findWorkspacePersonByName } from "../extraction/person";
+import { findWorkspaceIdentityByName } from "../extraction/identity-resolution";
 import { createEmbedding } from "../extraction/embedding-writeback";
 import { createObservation } from "../observation/queries";
 import { elapsedMs, logError, logInfo } from "../http/observability";
@@ -118,11 +118,11 @@ async function processCommit(input: {
   const commitRecordId = randomUUID();
   const commitRecord = new RecordId("git_commit", commitRecordId);
 
-  // Resolve author
-  const authorRecord = await findWorkspacePersonByName({
+  // Resolve author identity
+  const authorRecord = await findWorkspaceIdentityByName({
     surreal: input.surreal,
     workspaceRecord: input.workspaceRecord,
-    personName: input.commit.authorName,
+    identityName: input.commit.authorName,
   });
 
   // Create embedding for commit message

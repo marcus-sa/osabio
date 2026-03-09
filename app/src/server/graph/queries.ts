@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion";
+export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
@@ -67,12 +67,20 @@ export type EntityProvenance = {
   fromText?: string;
 };
 
+export type IdentityAttribution = {
+  actorName: string;
+  actorType: "human" | "agent" | "system";
+  accountableHumanName?: string;
+};
+
 export type EntityDetail = {
   entity: {
     id: string;
     kind: GraphEntityTable;
     name: string;
     data: Record<string, unknown>;
+    identityType?: "human" | "agent" | "system";
+    attribution?: IdentityAttribution;
   };
   relationships: EntityNeighbor[];
   provenance: EntityProvenance[];
@@ -185,7 +193,7 @@ export async function readEntityName(
 ): Promise<string | undefined> {
   const table = record.table.name;
 
-  if (table === "workspace" || table === "project" || table === "person" || table === "feature") {
+  if (table === "workspace" || table === "project" || table === "person" || table === "identity" || table === "feature") {
     const row = await surreal.select<{ name: string }>(record as RecordId<typeof table, string>);
     return row?.name;
   }
@@ -261,6 +269,17 @@ export async function isEntityInWorkspace(
         { workspace: workspaceRecord, person: entityRecord },
       )
       .collect<[Array<{ id: RecordId<"member_of", string> }>]>();
+
+    return rows.length > 0;
+  }
+
+  if (table === "identity") {
+    const [rows] = await surreal
+      .query<[Array<{ id: RecordId<"identity", string> }>]>(
+        "SELECT id FROM identity WHERE id = $identity AND workspace = $workspace;",
+        { workspace: workspaceRecord, identity: entityRecord },
+      )
+      .collect<[Array<{ id: RecordId<"identity", string> }>]>();
 
     return rows.length > 0;
   }
@@ -921,6 +940,55 @@ export async function listEntityNeighbors(input: {
   return neighbors;
 }
 
+/** Maps entity tables to their identity-referencing owner field */
+const IDENTITY_OWNER_FIELDS: Partial<Record<GraphEntityTable, string>> = {
+  task: "owner",
+  decision: "decided_by",
+  feature: "owner",
+};
+
+async function resolveEntityAttribution(
+  surreal: Surreal,
+  entityRecord: GraphEntityRecord,
+  table: GraphEntityTable,
+): Promise<IdentityAttribution | undefined> {
+  const ownerField = IDENTITY_OWNER_FIELDS[table];
+  if (!ownerField) return undefined;
+
+  // Step 1: get actor identity from owner field
+  const [actorRows] = await surreal
+    .query<[Array<{ actor_name: string; actor_type: string; owner_id: RecordId }>]>(
+      `SELECT ${ownerField}.name AS actor_name, ${ownerField}.type AS actor_type, ${ownerField} AS owner_id FROM $record;`,
+      { record: entityRecord },
+    )
+    .collect<[Array<{ actor_name: string; actor_type: string; owner_id: RecordId }>]>();
+
+  if (actorRows.length === 0 || !actorRows[0].actor_name) return undefined;
+
+  const { actor_name, actor_type, owner_id } = actorRows[0];
+  const actorType = actor_type as "human" | "agent" | "system";
+
+  if (actorType === "human" || actorType === "system") {
+    return { actorName: actor_name, actorType };
+  }
+
+  // Step 2: for agent identities, resolve managed_by chain
+  const [managedByRows] = await surreal
+    .query<[Array<{ managed_by_name: Array<string> }>]>(
+      `SELECT ->identity_agent->agent.managed_by.name AS managed_by_name FROM $identity;`,
+      { identity: owner_id },
+    )
+    .collect<[Array<{ managed_by_name: Array<string> }>]>();
+
+  const accountableHumanName = managedByRows[0]?.managed_by_name?.[0];
+
+  return {
+    actorName: actor_name,
+    actorType,
+    ...(accountableHumanName ? { accountableHumanName } : {}),
+  };
+}
+
 export async function getEntityDetail(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
@@ -1025,12 +1093,17 @@ export async function getEntityDetail(input: {
     ...(row.from_text ? { fromText: row.from_text } : {}),
   } satisfies EntityProvenance));
 
+  // Resolve identity attribution for entities with an owner field
+  const attribution = await resolveEntityAttribution(input.surreal, input.entityRecord, table);
+
   return {
     entity: {
       id: toRecordIdString(input.entityRecord),
       kind: table,
       name,
       data: row,
+      ...(attribution?.actorType ? { identityType: attribution.actorType } : {}),
+      ...(attribution ? { attribution } : {}),
     },
     relationships,
     provenance,
@@ -1456,13 +1529,13 @@ export async function getDecisionPrimarySourceMessage(input: {
 export async function getWorkspaceOwnerRecord(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
-}): Promise<RecordId<"person", string> | undefined> {
+}): Promise<RecordId<"identity", string> | undefined> {
   const [rows] = await input.surreal
-    .query<[Array<RecordId<"person", string>>]>(
+    .query<[Array<RecordId<"identity", string>>]>(
       "SELECT VALUE `in` FROM member_of WHERE out = $workspace AND role = 'owner' LIMIT 1;",
       { workspace: input.workspaceRecord },
     )
-    .collect<[Array<RecordId<"person", string>>]>();
+    .collect<[Array<RecordId<"identity", string>>]>();
 
   return rows[0];
 }

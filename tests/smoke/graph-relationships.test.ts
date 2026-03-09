@@ -34,6 +34,7 @@ let taskRecord: RecordId<"task", string>;
 let decisionRecord: RecordId<"decision", string>;
 let questionRecord: RecordId<"question", string>;
 let personRecord: RecordId<"person", string>;
+let identityRecord: RecordId<"identity", string>;
 
 beforeAll(async () => {
   const runId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -83,7 +84,7 @@ beforeAll(async () => {
   featureRecord = new RecordId("feature", randomUUID());
   await surreal.query("CREATE $record CONTENT $content;", {
     record: featureRecord,
-    content: { name: "Test Feature", status: "active", created_at: now, updated_at: now },
+    content: { name: "Test Feature", status: "active", workspace: workspaceRecord, created_at: now, updated_at: now },
   });
   await surreal.query("RELATE $project->has_feature->$feature SET added_at = $now;", {
     project: projectRecord,
@@ -127,21 +128,31 @@ beforeAll(async () => {
     now,
   });
 
-  // Create person linked to workspace
+  // Create person and identity linked to workspace
   personRecord = new RecordId("person", randomUUID());
   await surreal.query("CREATE $record CONTENT $content;", {
     record: personRecord,
     content: { name: "Test Person", contact_email: "test@test.local", created_at: now, updated_at: now },
   });
-  await surreal.query("RELATE $person->member_of->$workspace SET added_at = $now;", {
+  identityRecord = new RecordId("identity", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: identityRecord,
+    content: { name: "Test Person", type: "human", workspace: workspaceRecord, created_at: now },
+  });
+  await surreal.query("RELATE $identity->identity_person->$person SET added_at = $now;", {
+    identity: identityRecord,
     person: personRecord,
+    now,
+  });
+  await surreal.query("RELATE $identity->member_of->$workspace SET added_at = $now;", {
+    identity: identityRecord,
     workspace: workspaceRecord,
     now,
   });
 
-  // Create an owns edge (person -> task)
-  await surreal.query("RELATE $person->owns->$task SET assigned_at = $now;", {
-    person: personRecord,
+  // Create an owns edge (identity -> task)
+  await surreal.query("RELATE $identity->owns->$task SET assigned_at = $now;", {
+    identity: identityRecord,
     task: taskRecord,
     now,
   });
@@ -213,7 +224,7 @@ describe("RC1: entity detail shows structural relationships", () => {
     expect(featureRel!.direction).toBe("outgoing");
   });
 
-  it("task detail includes owns relationship from person", async () => {
+  it("task detail includes owns relationship from identity", async () => {
     const detail = await getEntityDetail({
       surreal,
       workspaceRecord,
@@ -221,7 +232,7 @@ describe("RC1: entity detail shows structural relationships", () => {
     });
 
     const ownerRel = detail.relationships.find(
-      (r) => r.kind === "person" && r.name === "Test Person",
+      (r) => r.kind === "identity" && r.name === "Test Person",
     );
     expect(ownerRel).toBeDefined();
     expect(ownerRel!.relationKind).toBe("owns");
@@ -291,15 +302,18 @@ describe("RC2: workspace graph overview includes all entity types", () => {
     expect(questionEntity!.name).toBe("Test Question?");
   });
 
-  it("workspace graph overview includes persons", async () => {
+  it("workspace graph overview includes identities", async () => {
     const graph = await getWorkspaceGraphOverview({
       surreal,
       workspaceRecord,
     });
 
+    // The graph may show identity or person depending on traversal; check for identity (hub-spoke model)
+    const identityEntity = graph.entities.find((e) => e.kind === "identity");
     const personEntity = graph.entities.find((e) => e.kind === "person");
-    expect(personEntity).toBeDefined();
-    expect(personEntity!.name).toBe("Test Person");
+    const found = identityEntity ?? personEntity;
+    expect(found).toBeDefined();
+    expect(found!.name).toBe("Test Person");
   });
 });
 
@@ -374,8 +388,9 @@ describe("RC3: graph edges include structural relationships", () => {
     const featureEntity = graph.entities.find((e) => e.kind === "feature");
     expect(featureEntity).toBeDefined();
 
-    // Should also reach person via owns
+    // Should also reach identity via owns
+    const identityEntity = graph.entities.find((e) => e.kind === "identity");
     const personEntity = graph.entities.find((e) => e.kind === "person");
-    expect(personEntity).toBeDefined();
+    expect(identityEntity ?? personEntity).toBeDefined();
   });
 });

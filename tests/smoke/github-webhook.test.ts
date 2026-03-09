@@ -233,7 +233,7 @@ describe("github webhook smoke", () => {
       workspace: workspaceRecord,
       title: "Hook up OAuth callback flow",
       status: "in_progress",
-      category: "backend",
+      category: "engineering",
       priority: "high",
       created_at: new Date(),
       updated_at: new Date(),

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
 import { checkAuthority } from "../../app/src/server/iam/authority";
 import { resolveByEmail } from "../../app/src/server/iam/identity";
-import { resolveWorkspacePerson } from "../../app/src/server/extraction/person";
+import { resolveWorkspaceIdentity } from "../../app/src/server/extraction/identity-resolution";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
@@ -185,8 +185,22 @@ describe("identity resolution", () => {
       updated_at: new Date(),
     });
 
+    const identityRecord = new RecordId("identity", "test-identity-email");
+    await surreal.create(identityRecord).content({
+      name: "Test User",
+      type: "human",
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    });
+
     await surreal
-      .relate(personRecord, new RecordId("member_of", "test-membership"), workspaceRecord, {
+      .relate(identityRecord, new RecordId("identity_person", "test-spoke"), personRecord, {
+        added_at: new Date(),
+      })
+      .output("after");
+
+    await surreal
+      .relate(identityRecord, new RecordId("member_of", "test-membership"), workspaceRecord, {
         role: "member",
         added_at: new Date(),
       })
@@ -199,7 +213,7 @@ describe("identity resolution", () => {
     });
 
     expect(result).toBeDefined();
-    expect(result!.id).toBe("test-person-email");
+    expect(result!.id).toBe("test-identity-email");
   });
 
   it("resolveByEmail returns undefined for non-member", async () => {
@@ -225,6 +239,8 @@ describe("identity resolution", () => {
       updated_at: new Date(),
     });
 
+    // No identity or member_of edge for this person
+
     const result = await resolveByEmail({
       surreal,
       email: "outsider@example.com",
@@ -234,9 +250,8 @@ describe("identity resolution", () => {
     expect(result).toBeUndefined();
   });
 
-  it("resolveWorkspacePerson chains name then email fallback", async () => {
+  it("resolveWorkspaceIdentity resolves by name and rejects unknown", async () => {
     const workspaceRecord = new RecordId("workspace", "test-ws-composite");
-    const personRecord = new RecordId("person", "test-person-composite");
 
     await surreal.create(workspaceRecord).content({
       name: "test-composite",
@@ -249,44 +264,35 @@ describe("identity resolution", () => {
       onboarding_started_at: new Date(),
     });
 
-    await surreal.create(personRecord).content({
+    const identityRecord = new RecordId("identity", "test-identity-composite");
+    await surreal.create(identityRecord).content({
       name: "Alice",
-      contact_email: "alice@example.com",
-      email_verified: false,
+      type: "human",
+      workspace: workspaceRecord,
       created_at: new Date(),
-      updated_at: new Date(),
     });
 
     await surreal
-      .relate(personRecord, new RecordId("member_of", "test-composite-member"), workspaceRecord, {
+      .relate(identityRecord, new RecordId("member_of", "test-composite-member"), workspaceRecord, {
         role: "member",
         added_at: new Date(),
       })
       .output("after");
 
-    // Name match
-    const byName = await resolveWorkspacePerson({
+    // Name match (resolves via identity table)
+    const byName = await resolveWorkspaceIdentity({
       surreal,
       workspaceRecord,
-      personName: "Alice",
+      identityName: "Alice",
     });
     expect(byName).toBeDefined();
-    expect(byName!.id).toBe("test-person-composite");
-
-    // Email fallback
-    const byEmail = await resolveWorkspacePerson({
-      surreal,
-      workspaceRecord,
-      personName: "alice@example.com",
-    });
-    expect(byEmail).toBeDefined();
-    expect(byEmail!.id).toBe("test-person-composite");
+    expect(byName!.id).toBe("test-identity-composite");
 
     // No match
-    const noMatch = await resolveWorkspacePerson({
+    const noMatch = await resolveWorkspaceIdentity({
       surreal,
       workspaceRecord,
-      personName: "nobody",
+      identityName: "nobody",
     });
     expect(noMatch).toBeUndefined();
   });

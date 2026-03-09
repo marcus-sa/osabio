@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { resolvePersonAttributionPatch } from "../../app/src/server/extraction/person";
+import { resolveIdentityAttributionPatch } from "../../app/src/server/extraction/identity-resolution";
 
 describe("person attribution mapping", () => {
   it("maps known people to record-reference fields", () => {
-    const patch = resolvePersonAttributionPatch({
+    const patch = resolveIdentityAttributionPatch({
       targetKind: "decision",
       assigneeName: "Marcus",
-      personRecordId: "marcus",
+      identityRecordId: "marcus",
     });
 
     expect(patch).toEqual({
@@ -17,7 +17,7 @@ describe("person attribution mapping", () => {
   });
 
   it("maps unresolved names to *_name fields", () => {
-    const patch = resolvePersonAttributionPatch({
+    const patch = resolveIdentityAttributionPatch({
       targetKind: "decision",
       assigneeName: "Sarah",
     });
@@ -30,7 +30,7 @@ describe("person attribution mapping", () => {
   });
 
   it("maps tasks to owner_name when unresolved", () => {
-    const patch = resolvePersonAttributionPatch({
+    const patch = resolveIdentityAttributionPatch({
       targetKind: "task",
       assigneeName: "Jordan",
     });
@@ -43,7 +43,7 @@ describe("person attribution mapping", () => {
   });
 
   it("maps questions to assigned_to_name when unresolved", () => {
-    const patch = resolvePersonAttributionPatch({
+    const patch = resolveIdentityAttributionPatch({
       targetKind: "question",
       assigneeName: "Priya",
     });

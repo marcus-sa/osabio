@@ -5,14 +5,14 @@ export type AgentType = "code_agent" | "architect" | "management" | "design_part
 export type ChatToolExecutionContext = {
   actor: "chat_agent" | "mcp" | "pm_agent" | "analytics_agent";
   agentType?: AgentType;
-  /** True only for interactive web sessions where a human is actively present. Must NEVER be true for MCP/autonomous agent contexts. */
+  /** True only for interactive web sessions where a human is actively present. Derived from identity.type === 'human'. */
   humanPresent?: boolean;
-  personRecord: RecordId<"person", string>;
+  identityRecord: RecordId<"identity", string>;
   workspaceRecord: RecordId<"workspace", string>;
   conversationRecord: RecordId<"conversation", string>;
   currentMessageRecord: RecordId<"message", string>;
   latestUserText: string;
-  workspaceOwnerRecord?: RecordId<"person", string>;
+  workspaceOwnerRecord?: RecordId<"identity", string>;
 };
 
 export type ChatToolDeps = {

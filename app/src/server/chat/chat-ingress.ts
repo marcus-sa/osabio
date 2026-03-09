@@ -158,6 +158,16 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   }
   const personRecord = new RecordId("person", session.user.id);
 
+  // Resolve identity from person via spoke edge
+  const [identityRows] = await deps.surreal.query<[Array<{ id: RecordId<"identity", string> }>]>(
+    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+    { person: personRecord },
+  );
+  const identityRecord = identityRows[0] as RecordId<"identity", string> | undefined;
+  if (!identityRecord) {
+    return jsonError("identity not found for user", 500);
+  }
+
   logInfo("chat.message.process.started", "Async chat processing started", {
     workspaceId,
     conversationId,
@@ -173,7 +183,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     userText: messageText,
     attachment: parsed.data.attachment,
     ...(onboardingAction ? { onboardingAction } : {}),
-    personRecord,
+    identityRecord,
   });
 
   const response: ChatMessageResponse = {

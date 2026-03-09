@@ -50,7 +50,7 @@ export async function authenticateMcpRequest(
     return jsonError("invalid or expired token", 401);
   }
 
-  // Extract person identity from sub claim
+  // Extract person from sub claim (better-auth user model is person)
   const personId = claims.sub;
   if (!personId) {
     return jsonError("token missing sub claim", 401);
@@ -69,11 +69,22 @@ export async function authenticateMcpRequest(
     return jsonError("workspace not found", 404);
   }
 
+  // Resolve identity from person via spoke edge
+  const personRecord = new RecordId("person", personId);
+  const [identityRows] = await surreal.query<[Array<RecordId<"identity", string>>]>(
+    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+    { person: personRecord },
+  );
+  const identityRecord = identityRows[0];
+  if (!identityRecord) {
+    return jsonError("identity not found for token owner", 403);
+  }
+
   // If no workspace claim in token, verify membership via DB
   if (!claimedWorkspace) {
     const [memberRows] = await surreal.query<[Array<{ role: string }>]>(
-      `SELECT role FROM member_of WHERE in = $person AND out = $ws LIMIT 1;`,
-      { person: new RecordId("person", personId), ws: workspaceRecord },
+      `SELECT role FROM member_of WHERE in = $identity AND out = $ws LIMIT 1;`,
+      { identity: identityRecord, ws: workspaceRecord },
     );
     if (!memberRows || memberRows.length === 0) {
       return jsonError("token owner is not a member of this workspace", 403);
@@ -95,7 +106,7 @@ export async function authenticateMcpRequest(
     workspaceRecord,
     workspaceName: workspace.name,
     agentType: rawAgentType as AgentType,
-    personRecord: new RecordId("person", personId),
+    identityRecord,
     scopes,
     humanPresent: false as const,
   };

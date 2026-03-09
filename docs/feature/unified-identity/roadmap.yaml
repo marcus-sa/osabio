@@ -1,0 +1,226 @@
+roadmap:
+  project_id: unified-identity
+  created_at: '2026-03-09T06:32:06Z'
+  total_steps: 7
+  phases: 3
+phases:
+- id: '01'
+  name: 'MVP Foundation'
+  steps:
+  - id: 01-01
+    name: 'Identity hub-spoke schema migration'
+    description: >
+      Create identity hub, agent spoke, identity_person and identity_agent relation tables
+      with type assertions, managed_by constraint, and B-tree indexes. Remove person.identities field.
+    criteria: 'Identity and agent tables exist with correct types, spoke edges traverse bidirectionally, invalid types rejected'
+    acceptance_criteria:
+      - 'identity table accepts human, agent, system types and rejects invalid values'
+      - 'agent table enforces managed_by as record<identity>'
+      - 'identity_person and identity_agent spoke edges traverse bidirectionally'
+      - 'person.identities field no longer exists in schema'
+      - 'B-tree indexes exist on identity(workspace) and identity(type, workspace)'
+    files_to_modify:
+      - schema/migrations/0017_identity_hub_spoke.surql
+      - schema/surreal-schema.surql
+    dependencies: []
+    estimated_hours: 3
+    test_file: tests/smoke/unified-identity/identity-schema.test.ts
+    deliverables:
+      - 'Migration script 0017 with identity, agent, identity_person, identity_agent table definitions'
+      - 'Updated surreal-schema.surql reflecting new tables and removed person.identities'
+
+  - id: 01-02
+    name: 'Identity wrapping and agent registration bootstrap'
+    description: >
+      Bootstrap module that wraps each workspace person in an identity hub with spoke edge,
+      registers template agent identities (management, code_agent, observer), and is idempotent.
+    criteria: 'Workspace creation produces identity hubs for all persons plus template agents, idempotent on re-run'
+    acceptance_criteria:
+      - 'Every person gets an identity hub with spoke edge during workspace creation'
+      - 'Template agents created for management, code_agent, and observer types'
+      - 'Each agent managed_by chain resolves to human identity within one hop'
+      - 'Running bootstrap twice produces no duplicate identities or agents'
+      - 'Person record fields remain unchanged after wrapping'
+      - 'New workspace creation includes identity bootstrap atomically'
+    files_to_modify:
+      - app/src/server/workspace/identity-bootstrap.ts
+      - app/src/server/workspace/workspace-routes.ts
+    dependencies:
+      - 01-01
+    estimated_hours: 5
+    test_file: tests/smoke/unified-identity/identity-bootstrap.test.ts
+    deliverables:
+      - 'Identity bootstrap module with idempotent wrapping and agent registration'
+      - 'Workspace creation handler calling bootstrap in transaction'
+
+  - id: 01-03
+    name: 'Edge migration -- ownership and attribution fields'
+    description: >
+      Migrate all record<person> ownership fields to record<identity>, update relation table
+      constraints (owns, member_of, attended_by), rename person resolution to identity resolution
+      in extraction, and update graph traversal functions.
+    criteria: 'All ownership fields reference identity, relations use IN identity, extraction resolves to identity'
+    acceptance_criteria:
+      - 'Ownership fields (task.owner, feature.owner, decision.decided_by/confirmed_by, question.assigned_to, observation.resolved_by, git_commit.author, pull_request.author) accept record<identity>'
+      - 'owns, member_of, attended_by relations use IN identity'
+      - 'Graph functions (fn::workspace_entity_ids, fn::entity_edges, fn::graph_neighbors, fn::entity_neighbors) updated for identity traversals'
+      - 'resolveWorkspaceIdentity returns RecordId<identity> searching identity.name'
+      - 'No remaining record<person> in ownership fields'
+    files_to_modify:
+      - schema/migrations/0018_edge_migration_identity.surql
+      - schema/surreal-schema.surql
+      - app/src/server/graph/queries.ts
+      - app/src/server/extraction/identity-resolution.ts
+      - app/src/server/extraction/entity-upsert.ts
+      - app/src/server/extraction/persist-extraction.ts
+      - app/src/server/extraction/entity-text.ts
+      - app/src/server/extraction/types.ts
+    dependencies:
+      - 01-02
+    estimated_hours: 8
+    test_file: tests/smoke/unified-identity/edge-migration.test.ts
+    deliverables:
+      - 'Migration script 0018 with field type changes and relation constraint updates'
+      - 'Renamed extraction/person.ts to extraction/identity-resolution.ts with identity-based resolution'
+      - 'Updated graph traversal functions for identity-based ownership'
+
+- id: '02'
+  name: 'Auth and Audit'
+  steps:
+  - id: 02-01
+    name: 'Auth rewiring -- session and account to identity'
+    description: >
+      Replace person_id with identity_id on session, account, and OAuth tables. Update IAM
+      resolution, better-auth adapter FK map, chat ingress context, and MCP auth to use identity.
+    criteria: 'Auth chain resolves to identity, chat context carries identityRecord, humanPresent derived from identity.type'
+    acceptance_criteria:
+      - 'Session and account tables use identity_id of type record<identity>'
+      - 'OAuth tables (oauthClient, oauthAccessToken, oauthRefreshToken, oauthConsent) userId references identity'
+      - 'resolveByEmail returns RecordId<identity> via person spoke traversal'
+      - 'Chat ingress builds context with identityRecord instead of personRecord'
+      - 'workspaceOwnerRecord references RecordId<identity>'
+      - 'humanPresent derived from identity.type rather than session existence'
+    files_to_modify:
+      - schema/migrations/0019_auth_identity_rewiring.surql
+      - schema/surreal-schema.surql
+      - app/src/server/iam/identity.ts
+      - app/src/server/auth/config.ts
+      - app/src/server/auth/adapter.ts
+      - app/src/server/chat/chat-ingress.ts
+      - app/src/server/chat/chat-processor.ts
+      - app/src/server/chat/handler.ts
+      - app/src/server/chat/tools/types.ts
+      - app/src/server/mcp/auth.ts
+    dependencies:
+      - 01-03
+    estimated_hours: 10
+    test_file: tests/smoke/unified-identity/auth-rewiring.test.ts
+    deliverables:
+      - 'Migration script 0019 replacing person_id with identity_id on session/account/OAuth tables'
+      - 'Updated IAM identity resolution with spoke traversal'
+      - 'Chat pipeline and MCP auth using identityRecord throughout'
+
+  - id: 02-02
+    name: 'Dual-label audit trail queries'
+    description: >
+      Implement managed_by chain resolution and dual-label attribution (actor + accountable human)
+      in entity detail and agent suggestion tracking queries.
+    criteria: 'Agent actions show actor plus accountable human, human actions show self, entity detail includes identity type'
+    acceptance_criteria:
+      - 'Agent-owned entity query returns actor identity and accountable human via managed_by chain'
+      - 'Human-owned entity returns self as both actor and accountable'
+      - 'Entity detail tool returns identity type context (human or agent)'
+      - 'Mixed human and agent results in same query handled correctly'
+      - 'Suggestion-to-task conversion shows agent actor and task outcome'
+    files_to_modify:
+      - app/src/server/graph/queries.ts
+      - app/src/server/chat/tools/get-entity-detail.ts
+      - app/src/server/extraction/types.ts
+    dependencies:
+      - 02-01
+    estimated_hours: 5
+    test_file: tests/smoke/unified-identity/audit-trail.test.ts
+    deliverables:
+      - 'Dual-label attribution query in graph module'
+      - 'Updated entity detail tool with identity type and managed_by chain'
+
+- id: '03'
+  name: 'Authorization and Extraction'
+  steps:
+  - id: 03-01
+    name: 'Role-based authority with per-identity overrides'
+    description: >
+      Add role field to authority_scope, create authorized_to override relation, update
+      checkAuthority resolution order: override then role default then blocked. Human bypass.
+    criteria: 'Authority resolves via override then role then blocked, humans bypass, per-identity override takes precedence'
+    acceptance_criteria:
+      - 'Authority resolves in order: per-identity override, role default, blocked'
+      - 'Human identity bypasses authority checks entirely'
+      - 'Per-identity authorized_to override takes precedence over role-based authority_scope'
+      - 'No role match and no override returns blocked (fail-safe)'
+      - 'Override with invalid permission value rejected by schema'
+    files_to_modify:
+      - schema/migrations/0020_authority_overrides.surql
+      - app/src/server/iam/authority.ts
+      - schema/surreal-schema.surql
+    dependencies:
+      - 01-02
+    estimated_hours: 5
+    test_file: tests/smoke/unified-identity/authority-overrides.test.ts
+    deliverables:
+      - 'Migration script 0020 with authority_scope.role and authorized_to relation'
+      - 'Updated checkAuthority with override-first resolution and human bypass'
+
+  - id: 03-02
+    name: 'Agent mention resolution in extraction pipeline'
+    description: >
+      Extend resolveWorkspaceIdentity to recognize agent role mentions and name mentions,
+      resolve to identity with confidence threshold, scoped to current workspace.
+    criteria: 'Role and name mentions resolve to agent identity, ambiguous mentions produce no false positives'
+    acceptance_criteria:
+      - 'Role mention ("the PM agent") resolves to matching agent identity'
+      - 'Name mention ("Code Agent") resolves to matching agent identity'
+      - 'Ambiguous mention ("an agent") produces no false-positive attribution'
+      - 'Non-existent agent reference creates no phantom identity'
+      - 'Resolution scoped to current workspace only'
+    files_to_modify:
+      - app/src/server/extraction/identity-resolution.ts
+      - app/src/server/extraction/persist-extraction.ts
+      - app/src/server/extraction/types.ts
+      - app/src/server/extraction/prompt.ts
+    dependencies:
+      - 01-03
+    estimated_hours: 5
+    test_file: tests/smoke/unified-identity/agent-mention-resolution.test.ts
+    deliverables:
+      - 'Extended identity resolution with agent role and name matching'
+      - 'Confidence threshold to prevent false-positive agent attribution'
+
+implementation_scope:
+  source_directories:
+  - app/src/server/iam/
+  - app/src/server/workspace/
+  - app/src/server/auth/
+  - app/src/server/chat/
+  - app/src/server/extraction/
+  - app/src/server/graph/
+  - app/src/server/mcp/
+  - schema/migrations/
+  - schema/
+  test_directories:
+  - tests/smoke/unified-identity/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: crafty-review-mode
+  approved_at: '2026-03-09T06:35:00Z'
+  iteration: 1
+  blocking_resolved:
+    - id: D3
+      fix: "Added extraction/prompt.ts to step 03-02 files_to_modify"
+    - id: D1
+      resolution: "Dismissed - index performance AC unnecessary for ~5-10 records per workspace"
+    - id: D2
+      resolution: "Kept 01-02 as correct dependency - identity table created in 01-01, bootstrap creates records in 01-02"

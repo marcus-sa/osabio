@@ -77,7 +77,7 @@ async function createFeature(name: string): Promise<RecordId> {
   const record = new RecordId("feature", id);
   await surreal.query("CREATE $record CONTENT $content;", {
     record,
-    content: { name, status: "open", created_at: new Date() },
+    content: { name, status: "open", workspace: workspaceRecord, created_at: new Date() },
   });
   return record;
 }

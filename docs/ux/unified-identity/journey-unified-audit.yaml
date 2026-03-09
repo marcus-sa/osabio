@@ -1,0 +1,210 @@
+journey:
+  name: "Unified Audit Trail"
+  goal: "Establish hub-and-spoke identity model so that every action in the knowledge graph is attributable to a specific actor (human or agent) with a clear accountability chain to a responsible human"
+  persona: "Marcus -- workspace owner evaluating AI collaboration ROI"
+
+  emotional_arc:
+    start: "Frustrated/Blind -- agent actions are invisible or misattributed in the graph"
+    middle: "Focused/Methodical -- systematically migrating schema and repointing edges"
+    end: "Confident/Empowered -- can query full actor history across humans and agents"
+
+  jobs:
+    - id: "J1"
+      story: "When I am reviewing actions taken on my workspace, I want to see exactly which actor performed each action and who is accountable, so I can evaluate AI collaboration quality"
+    - id: "J3"
+      story: "When I am running multiple agent sessions, I want persistent agent identities that survive across sessions, so I can track agent performance history"
+
+steps:
+  - id: 1
+    name: "Schema Bootstrap"
+    action: "Create identity hub table, agent spoke table, spoke relation edges via SurrealDB migration"
+
+    shared_artifacts:
+      - name: "identity_type_enum"
+        source: "schema/migrations/00XX_unified_identity.surql"
+        displayed_as: "ASSERT $value IN ['human', 'agent']"
+        consumers:
+          - "authority.ts -- permission resolution"
+          - "extraction/person.ts -- identity resolution"
+          - "chat/context.ts -- actor display"
+          - "audit queries"
+
+      - name: "spoke_relation_tables"
+        source: "schema/migrations/00XX_unified_identity.surql"
+        displayed_as: "identity_person, identity_agent"
+        consumers:
+          - "identity wrapping (step 2)"
+          - "audit queries (step 6)"
+          - "entity detail rendering"
+
+    emotional_state:
+      entry: "Anxious -- will this structural change work?"
+      exit: "Cautiously optimistic -- schema is clean, tables defined"
+
+    integration_checkpoint: |
+      identity table exists with all required fields.
+      agent table exists with managed_by field.
+      identity_person and identity_agent relation tables defined.
+      No data yet -- structural readiness only.
+
+  - id: 2
+    name: "Identity Wrapping"
+    action: "Create identity records for existing persons and register template agent identities per workspace"
+
+    shared_artifacts:
+      - name: "identity_record_id"
+        source: "identity wrapping migration or bootstrap code"
+        displayed_as: "identity:marcus-human, identity:pm-agent-ws1"
+        consumers:
+          - "session table (step 4)"
+          - "account table (step 4)"
+          - "ownership edges (step 3)"
+          - "authority checks (step 5)"
+
+      - name: "managed_by_edge"
+        source: "agent spoke table, managed_by field"
+        displayed_as: "agent:pm-ws1.managed_by = identity:marcus-human"
+        consumers:
+          - "audit trail dual-label rendering"
+          - "accountability chain queries"
+          - "agent performance dashboard"
+
+    emotional_state:
+      entry: "Focused -- clear task, wrap existing data"
+      exit: "Satisfied -- data model taking shape, identities exist"
+
+    integration_checkpoint: |
+      Every person record has a corresponding identity record (type: human).
+      Every known agent type has a template identity (type: agent).
+      Spoke edges connect identity -> person and identity -> agent.
+      managed_by field on agent spoke points to human identity.
+
+  - id: 3
+    name: "Edge Migration"
+    action: "Change all record<person> fields to record<identity> across task, feature, decision, question tables. Update owns and member_of relation tables."
+
+    shared_artifacts:
+      - name: "record_identity_type"
+        source: "schema/migrations/00XX_edge_migration.surql + TypeScript types"
+        displayed_as: "record<identity> replacing record<person>"
+        consumers:
+          - "task.owner, feature.owner"
+          - "decision.decided_by, decision.confirmed_by"
+          - "question.assigned_to"
+          - "owns relation (IN identity OUT task|project|feature)"
+          - "member_of relation (IN identity OUT workspace)"
+          - "All TypeScript files using RecordId<'person'>"
+
+    emotional_state:
+      entry: "Methodical -- largest surface area change"
+      exit: "Relieved -- breaking change is clean because no backwards compat"
+
+    integration_checkpoint: |
+      No remaining record<person> references in ownership/attribution fields.
+      All TypeScript RecordId<"person"> usages updated to RecordId<"identity">.
+      Relation tables use IN identity OUT ... constraints.
+      Existing graph queries return correct results with new identity references.
+
+  - id: 4
+    name: "Auth Rewiring"
+    action: "Update session and account tables to point at identity. Modify identity resolution functions."
+
+    shared_artifacts:
+      - name: "session_identity_ref"
+        source: "schema migration for session table"
+        displayed_as: "session.person_id -> session.identity_id TYPE record<identity>"
+        consumers:
+          - "auth/adapter.ts -- session lookup"
+          - "auth/config.ts -- session creation"
+          - "chat/chat-ingress.ts -- user identification"
+
+      - name: "identity_resolution_return_type"
+        source: "iam/identity.ts"
+        displayed_as: "resolveIdentity() returns RecordId<'identity'>"
+        consumers:
+          - "OAuth callback handler"
+          - "session creation"
+          - "chat context building"
+          - "MCP auth"
+
+    emotional_state:
+      entry: "Careful -- auth is critical path, must not break login"
+      exit: "Confident -- auth flow verified end-to-end"
+
+    integration_checkpoint: |
+      OAuth login flow works: callback -> resolve email -> find identity -> create session.
+      Session lookup returns identity record, not person record.
+      Chat ingress correctly identifies user via identity.
+      MCP auth resolves to identity.
+
+  - id: 5
+    name: "Authority Migration"
+    action: "Add role field to identity. Modify authority_scope to match on role. Add per-identity override edge support."
+
+    shared_artifacts:
+      - name: "identity_role_field"
+        source: "identity table schema"
+        displayed_as: "identity.role (e.g., 'owner', 'management', 'coder', 'observer')"
+        consumers:
+          - "authority.ts -- checkAuthority()"
+          - "workspace bootstrap -- seed default roles"
+          - "agent template creation"
+
+      - name: "authority_resolution_chain"
+        source: "iam/authority.ts"
+        displayed_as: "override -> role default -> blocked"
+        consumers:
+          - "All tool executions via requireAuthorizedContext()"
+          - "MCP auth"
+          - "Permission audit queries"
+
+    emotional_state:
+      entry: "Deliberate -- getting the permission model right matters"
+      exit: "Assured -- clean, auditable, three-tier resolution"
+
+    integration_checkpoint: |
+      Authority checks pass for human identities (bypass as before).
+      Authority checks pass for agent identities via role lookup.
+      Per-identity override edges grant elevated permissions when configured.
+      Fail-safe: no match = blocked (unchanged behavior).
+
+  - id: 6
+    name: "Audit Query"
+    action: "Run the query Marcus has been wanting: 'Show me all suggestions made by agents that were actually implemented'"
+
+    shared_artifacts:
+      - name: "dual_label_audit"
+        source: "Audit query result structure"
+        displayed_as: "suggested_by: 'PM Agent', accountable_human: 'Marcus'"
+        consumers:
+          - "Chat agent entity detail tool"
+          - "UI feed rendering"
+          - "ROI evaluation dashboard"
+
+    emotional_state:
+      entry: "Expectant -- will it actually work?"
+      exit: "Triumphant/Empowered -- full visibility into AI collaboration"
+
+    integration_checkpoint: |
+      Query returns agent-created suggestions with identity attribution.
+      Dual-label shows both actor and accountable human.
+      Results include link to implemented tasks.
+      No unattributed actions remain in the graph.
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "identity_type_enum"
+      must_match_across: [1, 2, 3, 5, 6]
+      failure_message: "Identity type enum values must be consistent across schema, authority checks, extraction, and audit queries"
+
+    - artifact: "record_identity_type"
+      must_match_across: [3, 4]
+      failure_message: "All ownership and session fields must use record<identity>, not record<person>"
+
+    - artifact: "identity_role_field"
+      must_match_across: [2, 5]
+      failure_message: "Role values assigned during identity creation must match roles recognized by authority_scope"
+
+    - artifact: "managed_by_edge"
+      must_match_across: [2, 6]
+      failure_message: "managed_by on agent spoke must resolve to a valid human identity for audit trail dual-labeling"

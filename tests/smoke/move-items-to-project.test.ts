@@ -15,6 +15,7 @@ let database: string;
 let workspaceRecord: RecordId<"workspace", string>;
 let conversationRecord: RecordId<"conversation", string>;
 let personRecord: RecordId<"person", string>;
+let identityRecord: RecordId<"identity", string>;
 
 beforeAll(async () => {
   const runId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -57,8 +58,17 @@ beforeAll(async () => {
     record: personRecord,
     content: { name: "Test User", contact_email: "test@test.local", created_at: now, updated_at: now },
   });
-  await surreal.query("RELATE $person->member_of->$workspace SET added_at = time::now();", {
+  identityRecord = new RecordId("identity", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: identityRecord,
+    content: { name: "Test User", type: "human", workspace: workspaceRecord, created_at: now },
+  });
+  await surreal.query("RELATE $identity->identity_person->$person SET added_at = time::now();", {
+    identity: identityRecord,
     person: personRecord,
+  });
+  await surreal.query("RELATE $identity->member_of->$workspace SET added_at = time::now();", {
+    identity: identityRecord,
     workspace: workspaceRecord,
   });
 }, 30_000);
@@ -91,7 +101,7 @@ async function createFeature(name: string): Promise<RecordId<"feature", string>>
   const record = new RecordId("feature", randomUUID());
   await surreal.query("CREATE $record CONTENT $content;", {
     record,
-    content: { name, status: "open", created_at: new Date() },
+    content: { name, status: "open", workspace: workspaceRecord, created_at: new Date() },
   });
   return record;
 }
@@ -147,7 +157,7 @@ function makeOptions() {
     experimental_context: {
       actor: "pm_agent" as const,
       humanPresent: true,
-      personRecord,
+      identityRecord,
       workspaceRecord,
       conversationRecord,
       currentMessageRecord: new RecordId("message", randomUUID()),

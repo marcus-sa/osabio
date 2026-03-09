@@ -92,7 +92,10 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
           const [memberRows] = await surreal.query<
             [Array<{ workspace_id: RecordId<"workspace", string>; workspace_name: string }>]
           >(
-            "SELECT out.id AS workspace_id, out.name AS workspace_name FROM member_of WHERE in = $person LIMIT 1;",
+            `SELECT out.id AS workspace_id, out.name AS workspace_name
+             FROM member_of
+             WHERE in IN (SELECT VALUE in FROM identity_person WHERE out = $person)
+             LIMIT 1;`,
             { person: new RecordId("person", user.id) },
           );
 

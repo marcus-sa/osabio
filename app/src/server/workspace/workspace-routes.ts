@@ -23,6 +23,7 @@ import { resolveWorkspaceRecord } from "./workspace-scope";
 import { buildWorkspaceConversationSidebar } from "./conversation-sidebar";
 import { loadMessagesWithInheritance } from "../chat/branch-chain";
 import { validateRepoPath } from "./validate-repo-path";
+import { bootstrapWorkspaceIdentities } from "./identity-bootstrap";
 import type { ShellExecResult } from "../orchestrator/worktree-manager";
 
 type WorkspaceRow = {
@@ -150,11 +151,6 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
       updated_at: now,
     });
 
-    await transaction.relate(ownerRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
-      role: "owner",
-      added_at: now,
-    }).output("after");
-
     await transaction.create(conversationRecord).content({
       createdAt: now,
       updatedAt: now,
@@ -181,6 +177,16 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
     });
     const errorText = error instanceof Error ? error.message : "workspace creation failed";
     return jsonError(errorText, 500);
+  }
+
+  // Bootstrap identity hub-and-spoke (non-blocking: workspace creation succeeds even if bootstrap fails)
+  try {
+    await bootstrapWorkspaceIdentities(deps.surreal, workspaceRecord, ownerRecord);
+  } catch (error) {
+    logWarn("workspace.create.identity_bootstrap_failed", "Identity bootstrap failed but workspace creation succeeded", {
+      workspaceId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   const response: CreateWorkspaceResponse = {

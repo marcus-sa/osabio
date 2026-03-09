@@ -12,7 +12,7 @@ export type McpAuthResult = {
   workspaceRecord: RecordId<"workspace", string>;
   workspaceName: string;
   agentType: AgentType;
-  personRecord: RecordId<"person", string>;
+  identityRecord: RecordId<"identity", string>;
   scopes: Set<string>;
   /** Always false for MCP contexts — autonomous agents never bypass authority checks. */
   humanPresent: false;

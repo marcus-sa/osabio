@@ -93,8 +93,17 @@ describe("CLI init setupAuth", () => {
       "CLI Init Tester",
     );
     const personRecord = new RecordId("person", userId);
-    await surreal.query(`RELATE $person->member_of->$ws SET role = "admin", added_at = time::now();`, {
-      person: personRecord,
+    const identityRecord = new RecordId("identity", crypto.randomUUID());
+    await surreal.query(
+      `CREATE $identity CONTENT { name: "CLI Init Tester", type: "human", role: "admin", workspace: $ws, created_at: time::now() };`,
+      { identity: identityRecord, ws: wsRecord },
+    );
+    await surreal.query(
+      `RELATE $identity->identity_person->$person SET added_at = time::now();`,
+      { identity: identityRecord, person: personRecord },
+    );
+    await surreal.query(`RELATE $identity->member_of->$ws SET role = "admin", added_at = time::now();`, {
+      identity: identityRecord,
       ws: wsRecord,
     });
 
