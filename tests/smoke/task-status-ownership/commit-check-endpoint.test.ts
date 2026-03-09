@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
-import { createTestUser, fetchJson, setupSmokeSuite } from "../smoke-test-kit";
+import { createTestUser, createTestUserWithMcp, fetchJson, setupSmokeSuite } from "../smoke-test-kit";
 
 /**
  * US-3: brain commit-check parses task refs and sets tasks to done.
  *
- * Tests the server endpoint POST /api/mcp/:workspaceId/commits/check
+ * Tests the server endpoint POST /api/mcp/:workspaceId/commits/post-check
  * which accepts a commit message, extracts task refs (regex fast path),
  * and sets matched tasks to done.
  */
@@ -18,7 +18,7 @@ async function setupWorkspaceWithTasks(
   suffix: string,
   tasks: Array<{ id: string; title: string; status: string }>,
 ) {
-  const user = await createTestUser(baseUrl, `commit-check-${suffix}`);
+  const user = await createTestUserWithMcp(baseUrl, surreal, `commit-check-${suffix}`);
 
   const workspace = await fetchJson<{ workspaceId: string }>(
     `${baseUrl}/api/workspaces`,
@@ -38,7 +38,7 @@ async function setupWorkspaceWithTasks(
       workspace: workspaceRecord,
       title: task.title,
       status: task.status,
-      category: "backend",
+      category: "engineering",
       priority: "medium",
       created_at: new Date(),
       updated_at: new Date(),
@@ -52,7 +52,7 @@ async function setupWorkspaceWithTasks(
 describe("commit-check endpoint sets tasks to done (US-3)", () => {
   // Walking skeleton: commit with task ref sets task to done
 
-  it.skip("Given a task in_progress and a commit referencing it, When commit-check runs, Then the task status becomes 'done'", async () => {
+  it("Given a task in_progress and a commit referencing it, When commit-check runs, Then the task status becomes 'done'", async () => {
     const { baseUrl, surreal } = getRuntime();
     const taskId = `cc-task-${Date.now()}-single`;
 
@@ -62,10 +62,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({
           message: `Implement login flow\n\ntask:${taskId}`,
         }),
@@ -85,7 +85,7 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     expect(taskRows[0]?.status).toBe("done");
   }, 30_000);
 
-  it.skip("Given multiple tasks in_progress, When commit-check runs with message referencing both, Then both tasks become 'done'", async () => {
+  it("Given multiple tasks in_progress, When commit-check runs with message referencing both, Then both tasks become 'done'", async () => {
     const { baseUrl, surreal } = getRuntime();
     const taskId1 = `cc-task-${Date.now()}-multi-a`;
     const taskId2 = `cc-task-${Date.now()}-multi-b`;
@@ -99,10 +99,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({
           message: `Batch update\n\ntasks: ${taskId1}, ${taskId2}`,
         }),
@@ -122,7 +122,7 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
 
   // --- Error paths ---
 
-  it.skip("Given a commit message with no task refs, When commit-check runs, Then no task statuses change and response is successful", async () => {
+  it("Given a commit message with no task refs, When commit-check runs, Then no task statuses change and response is successful", async () => {
     const { baseUrl, surreal } = getRuntime();
     const taskId = `cc-task-${Date.now()}-noref`;
 
@@ -132,10 +132,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({ message: "Fix typo in README" }),
       },
     );
@@ -152,7 +152,7 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     expect(taskRows[0]?.status).toBe("in_progress");
   }, 30_000);
 
-  it.skip("Given a task already 'done', When commit-check runs referencing it, Then the task remains 'done' and no error occurs (idempotent)", async () => {
+  it("Given a task already 'done', When commit-check runs referencing it, Then the task remains 'done' and no error occurs (idempotent)", async () => {
     const { baseUrl, surreal } = getRuntime();
     const taskId = `cc-task-${Date.now()}-idempotent`;
 
@@ -162,10 +162,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({
           message: `followup\n\ntask:${taskId}`,
         }),
@@ -184,9 +184,9 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     expect(taskRows[0]?.status).toBe("done");
   }, 30_000);
 
-  it.skip("Given a commit referencing a task id that does not exist, When commit-check runs, Then the response succeeds without error", async () => {
-    const { baseUrl } = getRuntime();
-    const user = await createTestUser(baseUrl, "commit-check-missing");
+  it("Given a commit referencing a task id that does not exist, When commit-check runs, Then the response succeeds without error", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, "commit-check-missing");
 
     const workspace = await fetchJson<{ workspaceId: string }>(
       `${baseUrl}/api/workspaces`,
@@ -198,10 +198,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({
           message: "task:nonexistent-task-9999 some work",
         }),
@@ -212,9 +212,9 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     expect(res.ok).toBe(true);
   }, 30_000);
 
-  it.skip("Given no commit message in the request body, When commit-check is called, Then a validation error is returned", async () => {
-    const { baseUrl } = getRuntime();
-    const user = await createTestUser(baseUrl, "commit-check-empty");
+  it("Given no commit message in the request body, When commit-check is called, Then a validation error is returned", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, "commit-check-empty");
 
     const workspace = await fetchJson<{ workspaceId: string }>(
       `${baseUrl}/api/workspaces`,
@@ -226,10 +226,10 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     );
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/check`,
+      `${baseUrl}/api/mcp/${workspace.workspaceId}/commits/post-check`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...user.mcpHeaders },
         body: JSON.stringify({}),
       },
     );
@@ -239,11 +239,11 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
     expect(res.status).toBeLessThan(500);
   }, 30_000);
 
-  it.skip("Given an invalid workspace id, When commit-check is called, Then a 404 is returned", async () => {
+  it("Given an invalid workspace id, When commit-check is called, Then a 401 is returned", async () => {
     const { baseUrl } = getRuntime();
 
     const res = await fetch(
-      `${baseUrl}/api/mcp/nonexistent-workspace/commits/check`,
+      `${baseUrl}/api/mcp/nonexistent-workspace/commits/post-check`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -251,6 +251,7 @@ describe("commit-check endpoint sets tasks to done (US-3)", () => {
       },
     );
 
-    expect(res.status).toBe(404);
+    // No auth token → 401 before workspace lookup
+    expect(res.status).toBe(401);
   }, 30_000);
 });

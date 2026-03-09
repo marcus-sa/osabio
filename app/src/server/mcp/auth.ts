@@ -14,6 +14,7 @@ const VALID_AGENT_TYPES = new Set<AgentType>([
 ]);
 
 let validateToken: ((token: string) => Promise<BrainTokenClaims>) | undefined;
+let cachedIssuerUrl: string | undefined;
 
 /**
  * Authenticate an MCP request via OAuth 2.1 JWT Bearer token.
@@ -36,9 +37,10 @@ export async function authenticateMcpRequest(
     return jsonError("empty Bearer token", 401);
   }
 
-  // Lazily initialize the JWT validator
-  if (!validateToken) {
+  // Lazily initialize the JWT validator; reinitialize if issuer URL changes
+  if (!validateToken || cachedIssuerUrl !== issuerUrl) {
     validateToken = createJwtValidator(issuerUrl);
+    cachedIssuerUrl = issuerUrl;
   }
 
   let claims: BrainTokenClaims;

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll } from "bun:test";
+import { randomBytes, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
@@ -56,6 +57,12 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
     const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
     await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
 
+    // Reserve a port so betterAuth gets the real URL at init time
+    const tempServer = Bun.serve({ port: 0, fetch: () => new Response() });
+    const reservedPort = tempServer.port;
+    tempServer.stop(true);
+    const baseUrl = `http://127.0.0.1:${reservedPort}`;
+
     const config: ServerConfig = {
       openRouterApiKey: requireTestEnv("OPENROUTER_API_KEY"),
       chatAgentModelId: requireTestEnv("CHAT_AGENT_MODEL"),
@@ -71,9 +78,9 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
       surrealPassword,
       surrealNamespace: namespace,
       surrealDatabase: database,
-      port: 0, // OS-assigned
+      port: reservedPort,
       betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "smoke-test-secret-at-least-32-chars-long",
-      betterAuthUrl: "http://127.0.0.1:0", // placeholder, updated after server starts
+      betterAuthUrl: baseUrl,
       githubClientId: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
       githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
     };
@@ -97,9 +104,6 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
 
     server = createBrainServer(serverDeps);
     const port = server.port;
-    const baseUrl = `http://127.0.0.1:${port}`;
-    // Update betterAuthUrl now that we know the actual port
-    config.betterAuthUrl = baseUrl;
 
     runtime = { baseUrl, surreal, namespace, database, port };
     setupSucceeded = true;
@@ -234,6 +238,109 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
   }
 
   return (await response.json()) as T;
+}
+
+function base64url(buf: Buffer): string {
+  return buf.toString("base64url");
+}
+
+function generatePkce(): { verifier: string; challenge: string } {
+  const verifier = base64url(randomBytes(32));
+  const challenge = base64url(createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+
+/**
+ * Obtain an OAuth2 JWT access token for MCP endpoints.
+ * Requires a SurrealDB connection to skip consent screen.
+ */
+export async function getOAuthToken(
+  baseUrl: string,
+  surreal: Surreal,
+  sessionHeaders: Record<string, string>,
+  scopes: string = "graph:read graph:reason session:write offline_access",
+): Promise<string> {
+  // Trigger JWKS key generation if not yet done
+  await fetch(`${baseUrl}/api/auth/jwks`);
+
+  const dcrRes = await fetch(`${baseUrl}/api/auth/oauth2/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_name: `smoke-test-${Date.now()}`,
+      redirect_uris: ["http://127.0.0.1:9999/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    }),
+  });
+  if (!dcrRes.ok) throw new Error(`DCR failed: ${dcrRes.status} ${await dcrRes.text()}`);
+
+  const { client_id } = (await dcrRes.json()) as { client_id: string };
+
+  await surreal.query(`UPDATE oauthClient SET skipConsent = true WHERE clientId = $cid;`, {
+    cid: client_id,
+  });
+
+  const { verifier, challenge } = generatePkce();
+  const authUrl = new URL(`${baseUrl}/api/auth/oauth2/authorize`);
+  authUrl.searchParams.set("client_id", client_id);
+  authUrl.searchParams.set("redirect_uri", "http://127.0.0.1:9999/callback");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", scopes);
+  authUrl.searchParams.set("state", "test-state");
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("resource", baseUrl);
+
+  const authRes = await fetch(authUrl.toString(), {
+    headers: sessionHeaders,
+    redirect: "manual",
+  });
+  if (authRes.status !== 302) throw new Error(`Authorize did not redirect: ${authRes.status}`);
+
+  const location = authRes.headers.get("location")!;
+  const redirectUrl = new URL(location, baseUrl);
+  const code = redirectUrl.searchParams.get("code") ?? "";
+  if (!code) throw new Error(`No code in redirect: ${location}`);
+
+  const tokenRes = await fetch(`${baseUrl}/api/auth/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: "http://127.0.0.1:9999/callback",
+      client_id,
+      code_verifier: verifier,
+      resource: baseUrl,
+    }),
+  });
+  if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status} ${await tokenRes.text()}`);
+
+  const tokens = (await tokenRes.json()) as { access_token: string };
+  return tokens.access_token;
+}
+
+export type TestUserWithMcp = TestUser & {
+  mcpHeaders: Record<string, string>;
+};
+
+/**
+ * Create a test user with both session cookie and OAuth MCP token.
+ */
+export async function createTestUserWithMcp(
+  baseUrl: string,
+  surreal: Surreal,
+  suffix: string,
+  scopes?: string,
+): Promise<TestUserWithMcp> {
+  const user = await createTestUser(baseUrl, suffix);
+  const accessToken = await getOAuthToken(baseUrl, surreal, user.headers, scopes);
+  return {
+    ...user,
+    mcpHeaders: { Authorization: `Bearer ${accessToken}` },
+  };
 }
 
 function requireTestEnv(name: string): string {

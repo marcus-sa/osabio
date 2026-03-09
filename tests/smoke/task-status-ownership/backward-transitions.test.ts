@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
+import { randomUUID } from "node:crypto";
 import { createTestUser, fetchJson, setupSmokeSuite } from "../smoke-test-kit";
 
 /**
@@ -17,6 +18,7 @@ async function createSessionWithTask(
   surreal: ReturnType<typeof setupSmokeSuite> extends () => infer R ? (R extends { surreal: infer S } ? S : never) : never,
   suffix: string,
   taskStatus: string,
+  orchestratorStatus: string = "active",
 ) {
   const user = await createTestUser(baseUrl, `backward-${suffix}`);
 
@@ -37,34 +39,42 @@ async function createSessionWithTask(
     workspace: workspaceRecord,
     title: `Backward transition test ${suffix}`,
     status: taskStatus,
-    category: "backend",
+    category: "engineering",
     priority: "medium",
     created_at: new Date(),
     updated_at: new Date(),
   });
 
-  // Create a session linked to the task
-  const session = await fetchJson<{ session_id: string }>(
-    `${baseUrl}/api/mcp/${workspace.workspaceId}/sessions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...user.headers },
-      body: JSON.stringify({ agent: "claude", task_id: taskId }),
-    },
+  // Create an orchestrator-managed session directly in the DB
+  const sessionId = randomUUID();
+  const sessionRecord = new RecordId("agent_session", sessionId);
+  await surreal.create(sessionRecord).content({
+    workspace: workspaceRecord,
+    task_id: taskRecord,
+    agent: "claude",
+    orchestrator_status: orchestratorStatus,
+    started_at: new Date(),
+    created_at: new Date(),
+  });
+
+  // Link task to session
+  await surreal.query(
+    `UPDATE $task SET source_session = $sess;`,
+    { task: taskRecord, sess: sessionRecord },
   );
 
-  return { user, workspace, workspaceRecord, taskId, taskRecord, session };
+  return { user, workspace, workspaceRecord, taskId, taskRecord, session: { session_id: sessionId } };
 }
 
 describe("server-owned backward transitions", () => {
-  it.skip("Given a session linked to an in_progress task, When the session is aborted, Then the task status resets to 'ready'", async () => {
+  it("Given a session linked to an in_progress task, When the session is aborted, Then the task status resets to 'ready'", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, session, taskRecord } = await createSessionWithTask(
+    const { user, workspace, session, taskRecord } = await createSessionWithTask(
       baseUrl, surreal, "abort-1", "in_progress",
     );
 
     const abortResult = await fetchJson<{ aborted: boolean }>(
-      `${baseUrl}/api/orchestrator/sessions/${session.session_id}/abort`,
+      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/sessions/${session.session_id}/abort`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
@@ -84,18 +94,18 @@ describe("server-owned backward transitions", () => {
     expect(taskRows[0]?.status).toBe("ready");
   }, 30_000);
 
-  it.skip("Given a session linked to an in_progress task, When the session is rejected, Then the task status resets to 'ready'", async () => {
+  it("Given a session linked to an in_progress task, When the session is rejected, Then the task status remains 'in_progress' (agent resumes work)", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, session, taskRecord } = await createSessionWithTask(
-      baseUrl, surreal, "reject-1", "in_progress",
+    const { user, workspace, session, taskRecord } = await createSessionWithTask(
+      baseUrl, surreal, "reject-1", "in_progress", "idle",
     );
 
     const rejectResult = await fetchJson<{ rejected: boolean }>(
-      `${baseUrl}/api/orchestrator/sessions/${session.session_id}/reject`,
+      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/sessions/${session.session_id}/reject`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ reason: "Work not acceptable" }),
+        body: JSON.stringify({ feedback: "Work not acceptable" }),
       },
     );
 
@@ -108,17 +118,17 @@ describe("server-owned backward transitions", () => {
       )
       .collect<[Array<{ status: string }>]>();
 
-    expect(taskRows[0]?.status).toBe("ready");
+    expect(taskRows[0]?.status).toBe("in_progress");
   }, 30_000);
 
-  it.skip("Given a session linked to a 'done' task, When the session is aborted, Then the task status resets to 'ready'", async () => {
+  it("Given a session linked to a 'done' task, When the session is aborted, Then the task status resets to 'ready'", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, session, taskRecord } = await createSessionWithTask(
+    const { user, workspace, session, taskRecord } = await createSessionWithTask(
       baseUrl, surreal, "abort-done-1", "done",
     );
 
     await fetchJson<{ aborted: boolean }>(
-      `${baseUrl}/api/orchestrator/sessions/${session.session_id}/abort`,
+      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/sessions/${session.session_id}/abort`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
