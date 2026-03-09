@@ -109,6 +109,14 @@ async function ensureOwnerIdentity(
     })
     .output("after");
 
+  // Create member_of relation from identity to workspace (identity is now the actor for all relations)
+  await surreal
+    .relate(identityRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
+      role: "owner",
+      added_at: now,
+    })
+    .output("after");
+
   logInfo("identity.bootstrap.owner_created", "Owner identity created", {
     workspaceId: workspaceRecord.id as string,
     identityId: identityRecord.id as string,

@@ -151,11 +151,6 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
       updated_at: now,
     });
 
-    await transaction.relate(ownerRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
-      role: "owner",
-      added_at: now,
-    }).output("after");
-
     await transaction.create(conversationRecord).content({
       createdAt: now,
       updatedAt: now,

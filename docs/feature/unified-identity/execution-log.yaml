@@ -46,5 +46,25 @@ events:
   s: EXECUTED
   sid: 01-02
   t: '2026-03-09T07:44:43Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-09T07:45:11Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-09T07:47:42Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-09T07:48:18Z'
+- d: 'NOT_APPLICABLE: smoke tests cover schema+edge validation directly'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-03
+  t: '2026-03-09T07:48:19Z'
 project_id: unified-identity
 schema_version: '3.0'

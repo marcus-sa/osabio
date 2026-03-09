@@ -91,7 +91,7 @@ DEFINE FIELD description_entries[*].text ON feature TYPE string;
 DEFINE FIELD description_entries[*].source ON feature TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON feature TYPE datetime;
 DEFINE FIELD prd ON feature TYPE option<string>;
-DEFINE FIELD owner ON feature TYPE option<record<person>>;
+DEFINE FIELD owner ON feature TYPE option<record<identity>>;
 DEFINE FIELD owner_name ON feature TYPE option<string>;
 DEFINE FIELD category ON feature TYPE option<string>;
 DEFINE FIELD embedding ON feature TYPE option<array<float>>;
@@ -109,7 +109,7 @@ DEFINE FIELD description_entries ON task TYPE option<array<object>>;
 DEFINE FIELD description_entries[*].text ON task TYPE string;
 DEFINE FIELD description_entries[*].source ON task TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON task TYPE datetime;
-DEFINE FIELD owner ON task TYPE option<record<person>>;
+DEFINE FIELD owner ON task TYPE option<record<identity>>;
 DEFINE FIELD owner_name ON task TYPE option<string>;
 DEFINE FIELD deadline ON task TYPE option<datetime>;
 DEFINE FIELD status ON task TYPE string
@@ -136,12 +136,12 @@ DEFINE INDEX task_workspace ON task FIELDS workspace;
 DEFINE TABLE decision SCHEMAFULL;
 DEFINE FIELD summary ON decision TYPE string;
 DEFINE FIELD rationale ON decision TYPE option<string>;
-DEFINE FIELD decided_by ON decision TYPE option<record<person>>;
+DEFINE FIELD decided_by ON decision TYPE option<record<identity>>;
 DEFINE FIELD decided_by_name ON decision TYPE option<string>;
 DEFINE FIELD decided_at ON decision TYPE option<datetime>;
 DEFINE FIELD status ON decision TYPE string ASSERT $value IN ["extracted", "proposed", "confirmed", "superseded", "provisional", "inferred", "contested"];
 DEFINE FIELD inferred_by ON decision TYPE option<string>;
-DEFINE FIELD confirmed_by ON decision TYPE option<record<person>>;
+DEFINE FIELD confirmed_by ON decision TYPE option<record<identity>>;
 DEFINE FIELD confirmed_at ON decision TYPE option<datetime>;
 DEFINE FIELD options_considered ON decision TYPE option<array<string>>;
 DEFINE FIELD based_on ON decision TYPE option<array<record>>;
@@ -166,7 +166,7 @@ DEFINE INDEX decision_workspace ON decision FIELDS workspace;
 
 DEFINE TABLE question SCHEMAFULL;
 DEFINE FIELD text ON question TYPE string;
-DEFINE FIELD assigned_to ON question TYPE option<record<person>>;
+DEFINE FIELD assigned_to ON question TYPE option<record<identity>>;
 DEFINE FIELD assigned_to_name ON question TYPE option<string>;
 DEFINE FIELD status ON question TYPE string;
 DEFINE FIELD context ON question TYPE option<string>;
@@ -238,7 +238,7 @@ DEFINE FIELD workspace ON observation TYPE record<workspace>;
 DEFINE FIELD source_message ON observation TYPE option<record<message>>;
 DEFINE FIELD source_session ON observation TYPE option<record<agent_session>>;
 DEFINE FIELD resolved_at ON observation TYPE option<datetime>;
-DEFINE FIELD resolved_by ON observation TYPE option<record<person>>;
+DEFINE FIELD resolved_by ON observation TYPE option<record<identity>>;
 DEFINE FIELD created_at ON observation TYPE datetime;
 DEFINE FIELD updated_at ON observation TYPE option<datetime>;
 DEFINE FIELD embedding ON observation TYPE option<array<float>>;
@@ -343,7 +343,7 @@ DEFINE FIELD sha ON git_commit TYPE string;
 DEFINE FIELD repository ON git_commit TYPE option<string>;
 DEFINE FIELD message ON git_commit TYPE option<string>;
 DEFINE FIELD authored_at ON git_commit TYPE option<datetime>;
-DEFINE FIELD author ON git_commit TYPE option<record<person>>;
+DEFINE FIELD author ON git_commit TYPE option<record<identity>>;
 DEFINE FIELD author_name ON git_commit TYPE string;
 DEFINE FIELD url ON git_commit TYPE option<string>;
 DEFINE FIELD workspace ON git_commit TYPE record<workspace>;
@@ -358,7 +358,7 @@ DEFINE FIELD external_id ON pull_request TYPE option<string>;
 DEFINE FIELD title ON pull_request TYPE string;
 DEFINE FIELD url ON pull_request TYPE string;
 DEFINE FIELD status ON pull_request TYPE string;
-DEFINE FIELD author ON pull_request TYPE option<record<person>>;
+DEFINE FIELD author ON pull_request TYPE option<record<identity>>;
 DEFINE FIELD repository ON pull_request TYPE option<string>;
 DEFINE FIELD opened_at ON pull_request TYPE option<datetime>;
 DEFINE FIELD merged_at ON pull_request TYPE option<datetime>;
@@ -374,10 +374,10 @@ DEFINE FIELD added_at ON has_project TYPE datetime;
 DEFINE TABLE has_task TYPE RELATION IN feature OUT task SCHEMAFULL;
 DEFINE FIELD added_at ON has_task TYPE datetime;
 
-DEFINE TABLE owns TYPE RELATION IN person OUT task | project | feature SCHEMAFULL;
+DEFINE TABLE owns TYPE RELATION IN identity OUT task | project | feature SCHEMAFULL;
 DEFINE FIELD assigned_at ON owns TYPE datetime;
 
-DEFINE TABLE member_of TYPE RELATION IN person OUT workspace SCHEMAFULL;
+DEFINE TABLE member_of TYPE RELATION IN identity OUT workspace SCHEMAFULL;
 DEFINE FIELD role ON member_of TYPE option<string>;
 DEFINE FIELD added_at ON member_of TYPE datetime;
 
@@ -479,7 +479,7 @@ DEFINE FIELD branch_point_message ON branched_from TYPE record<message>;
 DEFINE INDEX branched_from_out ON branched_from FIELDS out;
 DEFINE INDEX branched_from_in ON branched_from FIELDS `in`;
 
-DEFINE TABLE attended_by TYPE RELATION IN meeting OUT person SCHEMAFULL;
+DEFINE TABLE attended_by TYPE RELATION IN meeting OUT identity SCHEMAFULL;
 DEFINE FIELD role ON attended_by TYPE option<string> ASSERT $value = NONE OR $value IN ["organizer", "attendee"];
 DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 
@@ -675,8 +675,8 @@ DEFINE FUNCTION fn::conversation_recent($conversation: record<conversation>, $li
 
 DEFINE FUNCTION fn::entity_neighbors($entity: record) {
   RETURN SELECT
-    ->entity_relation->(workspace, project, person, feature, task, decision, question) AS outgoing,
-    <-entity_relation<-(workspace, project, person, feature, task, decision, question) AS incoming
+    ->entity_relation->(workspace, project, person, identity, feature, task, decision, question) AS outgoing,
+    <-entity_relation<-(workspace, project, person, identity, feature, task, decision, question) AS incoming
   FROM $entity;
 };
 
@@ -710,7 +710,7 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
   LET $tasks = (SELECT VALUE out FROM has_task WHERE `in` IN $features);
   LET $belongs_project = (SELECT VALUE `in` FROM belongs_to WHERE out IN $projects);
   LET $belongs_feature = (SELECT VALUE `in` FROM belongs_to WHERE out IN $features);
-  LET $persons = (SELECT VALUE `in` FROM member_of WHERE out = $ws);
+  LET $identities = (SELECT VALUE `in` FROM member_of WHERE out = $ws);
   LET $provenance = (
     SELECT VALUE out FROM extraction_relation
     WHERE `in` IN (
@@ -723,7 +723,7 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
   RETURN array::distinct(
     $projects + $features + $tasks +
     $belongs_project + $belongs_feature +
-    $persons + $provenance
+    $identities + $provenance
   );
 };
 
@@ -732,7 +732,7 @@ DEFINE FUNCTION fn::project_entity_ids($ws: record<workspace>, $project: record<
   LET $tasks = (SELECT VALUE out FROM has_task WHERE `in` IN $features);
   LET $belongs_project = (SELECT VALUE `in` FROM belongs_to WHERE out = $project);
   LET $belongs_feature = (SELECT VALUE `in` FROM belongs_to WHERE out IN $features);
-  LET $persons = (SELECT VALUE `in` FROM member_of WHERE out = $ws);
+  LET $identities = (SELECT VALUE `in` FROM member_of WHERE out = $ws);
   LET $provenance = (
     SELECT VALUE out FROM extraction_relation
     WHERE `in` IN (
@@ -745,7 +745,7 @@ DEFINE FUNCTION fn::project_entity_ids($ws: record<workspace>, $project: record<
   RETURN array::distinct(
     [$project] + $features + $tasks +
     $belongs_project + $belongs_feature +
-    $persons + $provenance
+    $identities + $provenance
   );
 };
 

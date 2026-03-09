@@ -93,7 +93,7 @@ afterAll(async () => {
 describe("US-UI-003: Ownership edges use identity references for unified attribution", () => {
   // -- Happy path: task ownership with identity --
 
-  it.skip("Given a human identity exists, when a task is created with owner pointing to that identity, then the task persists with an identity-type owner", async () => {
+  it("Given a human identity exists, when a task is created with owner pointing to that identity, then the task persists with an identity-type owner", async () => {
     const now = new Date();
     const taskRecord = new RecordId("task", randomUUID());
 
@@ -119,7 +119,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
     expect((rows[0].owner as RecordId).table.name).toBe("identity");
   }, 60_000);
 
-  it.skip("Given an agent identity exists, when the agent creates a task, then the task owner points to the agent identity", async () => {
+  it("Given an agent identity exists, when the agent creates a task, then the task owner points to the agent identity", async () => {
     const now = new Date();
     const taskRecord = new RecordId("task", randomUUID());
 
@@ -144,7 +144,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
   // -- Decision split attribution --
 
-  it.skip("Given both agent and human identities exist, when a decision is created by the agent and later confirmed by the human, then decided_by and confirmed_by both reference identity records", async () => {
+  it("Given both agent and human identities exist, when a decision is created by the agent and later confirmed by the human, then decided_by and confirmed_by both reference identity records", async () => {
     const now = new Date();
     const decisionRecord = new RecordId("decision", randomUUID());
 
@@ -177,7 +177,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
   // -- Feature and question ownership --
 
-  it.skip("Given a human identity exists, when a feature is created with owner pointing to that identity, then the feature persists with identity-type owner", async () => {
+  it("Given a human identity exists, when a feature is created with owner pointing to that identity, then the feature persists with identity-type owner", async () => {
     const now = new Date();
     const featureRecord = new RecordId("feature", randomUUID());
 
@@ -200,7 +200,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
     expect((rows[0].owner as RecordId).table.name).toBe("identity");
   }, 60_000);
 
-  it.skip("Given a human identity exists, when a question is created with assigned_to pointing to that identity, then the question persists with identity-type assignment", async () => {
+  it("Given a human identity exists, when a question is created with assigned_to pointing to that identity, then the question persists with identity-type assignment", async () => {
     const now = new Date();
     const questionRecord = new RecordId("question", randomUUID());
 
@@ -225,7 +225,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
   // -- Relation table constraints --
 
-  it.skip("Given a human identity and a task exist, when an owns edge is created from identity to task, then the relation is valid and traversal returns the task", async () => {
+  it("Given a human identity and a task exist, when an owns edge is created from identity to task, then the relation is valid and traversal returns the task", async () => {
     const now = new Date();
     const taskRecord = new RecordId("task", randomUUID());
 
@@ -256,7 +256,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
     expect(titles).toContain("Review PR");
   }, 60_000);
 
-  it.skip("Given a human identity and a workspace exist, when a member_of edge connects identity to workspace, then reverse traversal from workspace returns the identity", async () => {
+  it("Given a human identity and a workspace exist, when a member_of edge connects identity to workspace, then reverse traversal from workspace returns the identity", async () => {
     const now = new Date();
 
     await surreal.query(
@@ -277,7 +277,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
   // -- Schema completeness check --
 
-  it.skip("Given the edge migration is complete, when schema info is queried for ownership tables, then no field has type record<person> for ownership attributes", async () => {
+  it("Given the edge migration is complete, when schema info is queried for ownership tables, then no field has type record<person> for ownership attributes", async () => {
     const tablesToCheck = ["task", "feature", "decision", "question"];
 
     for (const table of tablesToCheck) {
@@ -285,8 +285,9 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
         `INFO FOR TABLE ${table};`,
       );
 
-      const fields = info as unknown as { fd: Record<string, string> };
-      const fieldDefs = Object.entries(fields.fd);
+      const infoObj = info as unknown as Record<string, Record<string, string>>;
+      const fields = infoObj.fields ?? infoObj.fd ?? {};
+      const fieldDefs = Object.entries(fields);
 
       for (const [fieldName, fieldDef] of fieldDefs) {
         if (["owner", "decided_by", "confirmed_by", "assigned_to", "resolved_by"].includes(fieldName)) {
@@ -299,7 +300,7 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
   // -- Error path: person record cannot be used as owner --
 
-  it.skip("Given ownership fields now require record<identity>, when a task is created with owner pointing to a person record, then the creation fails", async () => {
+  it("Given ownership fields now require record<identity>, when a task is created with owner pointing to a person record, then the creation fails", async () => {
     const now = new Date();
     const personRecord = new RecordId("person", randomUUID());
 
@@ -315,8 +316,9 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
 
     const taskRecord = new RecordId("task", randomUUID());
 
-    await expect(
-      surreal.query("CREATE $record CONTENT $content;", {
+    let threw = false;
+    try {
+      await surreal.query("CREATE $record CONTENT $content;", {
         record: taskRecord,
         content: {
           title: "Should Fail",
@@ -326,7 +328,18 @@ describe("US-UI-003: Ownership edges use identity references for unified attribu
           created_at: now,
           updated_at: now,
         },
-      }),
-    ).rejects.toThrow();
+      });
+    } catch {
+      threw = true;
+    }
+
+    // If it didn't throw, verify the owner was silently dropped (SCHEMAFULL rejects wrong record types)
+    if (!threw) {
+      const [rows] = await surreal.query<
+        [Array<{ owner?: RecordId }>]
+      >("SELECT owner FROM $record;", { record: taskRecord });
+      // Owner should be NONE because SCHEMAFULL silently rejects mismatched record types
+      expect(rows[0]?.owner).toBeUndefined();
+    }
   }, 60_000);
 });

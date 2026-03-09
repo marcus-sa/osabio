@@ -8,7 +8,7 @@ import {
   normalizeRelationshipKind,
   upsertGraphEntity,
 } from "./entity-upsert";
-import { resolveWorkspacePerson, resolvePersonAttributionPatch } from "./person";
+import { resolveWorkspaceIdentity, resolveIdentityAttributionPatch } from "./identity-resolution";
 import type {
   GraphEntityRecord,
   PersistExtractionResult,
@@ -263,22 +263,22 @@ async function applyAssigneeReference(input: {
     return { resolved: true, assigneeName };
   }
 
-  const personRecord = await resolveWorkspacePerson({
+  const identityRecord = await resolveWorkspaceIdentity({
     surreal: input.surreal,
     workspaceRecord: input.workspaceRecord,
-    personName: assigneeName,
+    identityName: assigneeName,
   });
 
-  const patch = resolvePersonAttributionPatch({
+  const patch = resolveIdentityAttributionPatch({
     targetKind: input.entityKind,
     assigneeName,
-    ...(personRecord ? { personRecordId: personRecord.id as string } : {}),
+    ...(identityRecord ? { identityRecordId: identityRecord.id as string } : {}),
   });
 
   if (patch.kind === "feature") {
-    if (patch.field === "owner" && personRecord) {
+    if (patch.field === "owner" && identityRecord) {
       await input.surreal.update(input.entityRecord as RecordId<"feature", string>).merge({
-        owner: personRecord,
+        owner: identityRecord,
         updated_at: input.now,
       });
       return { resolved: true, assigneeName };
@@ -292,9 +292,9 @@ async function applyAssigneeReference(input: {
   }
 
   if (patch.kind === "task") {
-    if (patch.field === "owner" && personRecord) {
+    if (patch.field === "owner" && identityRecord) {
       await input.surreal.update(input.entityRecord as RecordId<"task", string>).merge({
-        owner: personRecord,
+        owner: identityRecord,
         updated_at: input.now,
       });
       return { resolved: true, assigneeName };
@@ -308,9 +308,9 @@ async function applyAssigneeReference(input: {
   }
 
   if (patch.kind === "decision") {
-    if (patch.field === "decided_by" && personRecord) {
+    if (patch.field === "decided_by" && identityRecord) {
       await input.surreal.update(input.entityRecord as RecordId<"decision", string>).merge({
-        decided_by: personRecord,
+        decided_by: identityRecord,
         updated_at: input.now,
       });
       return { resolved: true, assigneeName };
@@ -323,9 +323,9 @@ async function applyAssigneeReference(input: {
     return { resolved: false, assigneeName };
   }
 
-  if (patch.field === "assigned_to" && personRecord) {
+  if (patch.field === "assigned_to" && identityRecord) {
     await input.surreal.update(input.entityRecord as RecordId<"question", string>).merge({
-      assigned_to: personRecord,
+      assigned_to: identityRecord,
       updated_at: input.now,
     });
     return { resolved: true, assigneeName };
