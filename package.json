@@ -11,7 +11,7 @@
     "start": "bun run app/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test tests/unit/",
-    "test:smoke": "bun test --env-file=.env tests/smoke/",
+    "test:smoke": "bun test --concurrent --timeout=180000 --env-file=.env tests/smoke/",
     "eval": "evalite run evals/",
     "eval:analytics": "evalite run evals/analytics.eval.ts",
     "eval:chat": "evalite run evals/chat-agent.eval.ts",

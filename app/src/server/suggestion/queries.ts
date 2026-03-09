@@ -321,8 +321,8 @@ export async function convertSuggestion(input: {
     })
     .output("after");
 
-  // 7. Seed description with rationale (fire-and-forget)
-  void seedDescriptionEntry({
+  // 7. Seed description with rationale
+  await seedDescriptionEntry({
     surreal: input.surreal,
     targetRecord,
     text: row.rationale,

@@ -125,7 +125,7 @@ export function startStallDetector(
   let lastActivityAt = clock.now();
   let stepCount = 0;
 
-  async function handleStall(reason: string, observation: string): Promise<void> {
+  async function handleStall(_reason: string, observation: string): Promise<void> {
     if (aborted || stopped) return;
     aborted = true;
 

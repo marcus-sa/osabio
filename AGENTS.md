@@ -13,6 +13,7 @@
 - Do NOT use `null`. Use `undefined` via optional properties (`field?: Type`) instead.
 - Do NOT create wrapper/helper functions for simple operations. Cast directly with `as`.
 - Type result payloads once and avoid repetitive per-field casting.
+- Do NOT use module-level mutable singletons (e.g. `let cache` at file scope) for caching or shared state. Module-level state is shared across the entire process — when multiple server instances run concurrently (e.g. smoke tests with `--concurrent`), they silently corrupt each other. Pass shared state via dependency injection or use per-instance caches scoped to the owning object.
 
 
 
@@ -66,6 +67,13 @@
 - In this codebase, represent missing values as omitted fields / `NONE` (never `null`) during data transforms.
 - Validate scripts with `surreal validate <migration-file>` before apply if the `surreal` CLI is available.
 - Verify result counts and shape after apply (`SELECT count() ...`, `INFO FOR TABLE ...`).
+
+## Fire-and-Forget & Inflight Tracking
+
+- Do NOT use `void` for fire-and-forget DB operations in route handlers. Background work that uses the SurrealDB connection will fail with `ConnectionUnavailableError` when smoke tests close the DB in `afterAll`.
+- Route-level async work (e.g. `processGitCommits`, `processChatMessage`) must be tracked via `deps.inflight.track(promise)`. The `InflightTracker` (`runtime/types.ts`) lets smoke tests `drain()` pending work before closing connections.
+- Nested async work inside tracked parents (e.g. `seedDescriptionEntry`, `fireDescriptionUpdates`, `persistEmbeddings`) should use `await ... .catch(() => undefined)` instead of `void`. Since the parent is already background work, awaiting doesn't affect user-facing latency.
+- When adding new background DB operations in route handlers, always use `deps.inflight.track()` or `await` within an already-tracked parent.
 
 ## Failure Handling
 

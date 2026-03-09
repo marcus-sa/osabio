@@ -67,7 +67,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
           await deps.surreal.update(projectRecord).merge({ embedding });
         }
 
-        void seedDescriptionEntry({
+        await seedDescriptionEntry({
           surreal: deps.surreal,
           targetRecord: projectRecord,
           text: input.rationale,
@@ -122,7 +122,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
           }
         }
 
-        void seedDescriptionEntry({
+        await seedDescriptionEntry({
           surreal: deps.surreal,
           targetRecord: taskRecord,
           text: input.rationale,
@@ -168,7 +168,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
           });
           await ensureProjectFeatureEdge(deps.surreal, projectRecord, featureRecord, now);
 
-          void fireDescriptionUpdates({
+          await fireDescriptionUpdates({
             surreal: deps.surreal,
             extractionModel: deps.extractionModel,
             trigger: {
@@ -182,7 +182,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
         }
       }
 
-      void seedDescriptionEntry({
+      await seedDescriptionEntry({
         surreal: deps.surreal,
         targetRecord: featureRecord,
         text: input.rationale,

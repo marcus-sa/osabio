@@ -4,7 +4,7 @@ import type { AgentSpawnConfig } from "./agent-options";
 import type { ShellExec } from "./worktree-manager";
 import { createWorktree, removeWorktree } from "./worktree-manager";
 import type { AssignmentResult } from "./assignment-guard";
-import type { AssignmentError, OrchestratorStatus, TerminalOrchestratorStatus } from "./types";
+import type { AssignmentError, OrchestratorStatus } from "./types";
 import { TERMINAL_ORCHESTRATOR_STATUSES } from "./types";
 import { startEventBridge, type SdkMessage } from "./event-bridge";
 import type { StreamEvent } from "../../shared/contracts";
@@ -309,6 +309,7 @@ type CreateSessionInput = {
   brainBaseUrl: string;
   workspaceId: string;
   taskId: string;
+  authToken?: string;
   spawnAgent?: SpawnAgentFn;
   validateAssignment: (
     surreal: Surreal,

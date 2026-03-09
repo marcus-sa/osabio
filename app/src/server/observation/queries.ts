@@ -79,7 +79,7 @@ export async function resolveObservation(input: {
   workspaceRecord: RecordId<"workspace", string>;
   observationRecord: ObservationRecord;
   now: Date;
-  resolvedByRecord?: RecordId<"person", string>;
+  resolvedByRecord?: RecordId<"identity", string>;
 }): Promise<void> {
   const row = await input.surreal.select<{ workspace: RecordId<"workspace", string> }>(input.observationRecord);
   if (!row) {

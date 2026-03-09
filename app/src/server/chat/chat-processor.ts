@@ -86,7 +86,7 @@ export async function processChatMessage(input: {
     // Embed user message early: used for context enrichment and persisted to the message record
     const userMessageEmbedding = await createEmbedding(input.deps.embeddingModel, input.deps.config.embeddingDimension, input.userText);
     if (userMessageEmbedding) {
-      void input.deps.surreal
+      await input.deps.surreal
         .query("UPDATE $record MERGE { embedding: $embedding };", {
           record: input.userMessageRecord,
           embedding: userMessageEmbedding,
@@ -237,7 +237,7 @@ export async function processChatMessage(input: {
       updatedAt: now,
     });
 
-    void persistEmbeddings({
+    await persistEmbeddings({
       surreal: input.deps.surreal,
       embeddingModel: input.deps.embeddingModel,
       embeddingDimension: input.deps.config.embeddingDimension,

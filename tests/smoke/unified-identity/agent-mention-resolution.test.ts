@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
 import { setupSmokeSuite } from "../smoke-test-kit";
 import {
@@ -24,7 +25,7 @@ const getRuntime = setupSmokeSuite("agent-mention-resolution");
  * Returns the workspace record and identity IDs.
  */
 async function seedAgentIdentities(surreal: ReturnType<typeof getRuntime>["surreal"]) {
-  const workspaceId = `ws-agent-test-${Date.now()}`;
+  const workspaceId = `ws-agent-test-${randomUUID()}`;
   const wsRecord = new RecordId("workspace", workspaceId);
 
   // Create workspace
@@ -34,7 +35,7 @@ async function seedAgentIdentities(surreal: ReturnType<typeof getRuntime>["surre
   );
 
   // Create PM Agent identity (role: management)
-  const pmIdentityId = `pm-agent-${Date.now()}`;
+  const pmIdentityId = `pm-agent-${randomUUID()}`;
   const pmIdentityRecord = new RecordId("identity", pmIdentityId);
   await surreal.query(
     "CREATE $id CONTENT { name: 'PM Agent', type: 'agent', role: 'management', workspace: $ws, created_at: time::now() };",
@@ -42,7 +43,7 @@ async function seedAgentIdentities(surreal: ReturnType<typeof getRuntime>["surre
   );
 
   // Create Code Agent identity (role: coder)
-  const codeIdentityId = `code-agent-${Date.now()}`;
+  const codeIdentityId = `code-agent-${randomUUID()}`;
   const codeIdentityRecord = new RecordId("identity", codeIdentityId);
   await surreal.query(
     "CREATE $id CONTENT { name: 'Code Agent', type: 'agent', role: 'coder', workspace: $ws, created_at: time::now() };",
@@ -50,7 +51,7 @@ async function seedAgentIdentities(surreal: ReturnType<typeof getRuntime>["surre
   );
 
   // Create Observer Agent identity (role: observer)
-  const observerIdentityId = `observer-agent-${Date.now()}`;
+  const observerIdentityId = `observer-agent-${randomUUID()}`;
   const observerIdentityRecord = new RecordId("identity", observerIdentityId);
   await surreal.query(
     "CREATE $id CONTENT { name: 'Observer Agent', type: 'agent', role: 'observer', workspace: $ws, created_at: time::now() };",
@@ -58,14 +59,14 @@ async function seedAgentIdentities(surreal: ReturnType<typeof getRuntime>["surre
   );
 
   // Create a second workspace with its own PM agent (for cross-workspace scoping)
-  const otherWsId = `ws-other-${Date.now()}`;
+  const otherWsId = `ws-other-${randomUUID()}`;
   const otherWsRecord = new RecordId("workspace", otherWsId);
   await surreal.query(
     "CREATE $ws CONTENT { name: 'Other Workspace', status: 'active', onboarding_complete: true, onboarding_turn_count: 0, onboarding_summary_pending: false, onboarding_started_at: time::now(), created_at: time::now() };",
     { ws: otherWsRecord },
   );
 
-  const otherPmId = `other-pm-${Date.now()}`;
+  const otherPmId = `other-pm-${randomUUID()}`;
   const otherPmRecord = new RecordId("identity", otherPmId);
   await surreal.query(
     "CREATE $id CONTENT { name: 'PM Agent', type: 'agent', role: 'management', workspace: $ws, created_at: time::now() };",

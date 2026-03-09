@@ -159,7 +159,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   const personRecord = new RecordId("person", session.user.id);
 
   // Resolve identity from person via spoke edge
-  const [identityRows] = await deps.surreal.query<[Array<{ id: RecordId<"identity", string> }>]>(
+  const [identityRows] = await deps.surreal.query<[RecordId<"identity", string>[]]>(
     "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
     { person: personRecord },
   );
@@ -174,7 +174,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     messageId,
   });
 
-  void processChatMessage({
+  deps.inflight.track(processChatMessage({
     deps,
     conversationId,
     messageId,
@@ -184,7 +184,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     attachment: parsed.data.attachment,
     ...(onboardingAction ? { onboardingAction } : {}),
     identityRecord,
-  });
+  }));
 
   const response: ChatMessageResponse = {
     messageId,

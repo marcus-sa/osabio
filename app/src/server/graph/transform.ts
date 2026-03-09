@@ -14,6 +14,8 @@ export function entityColor(kind: EntityKind): string {
     case "person": return "#f97316";    // oklch(0.65 0.15 25)
     case "workspace": return "#3b82f6";
     case "message": return "#22c55e";
+    case "identity": return "#f97316";
+    case "agent_session": return "#22c55e";
   }
 }
 

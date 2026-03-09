@@ -5,6 +5,7 @@ import { logInfo } from "../http/observability";
 import { createSseRegistry } from "../streaming/sse-registry";
 import { createRuntimeDependencies } from "./dependencies";
 import { loadServerConfig } from "./config";
+import { createInflightTracker } from "./types";
 import type { ServerDependencies } from "./types";
 import { ensureDefaultWorkspaceProjectScope } from "../workspace/workspace-scope";
 import { createWorkspaceRouteHandlers } from "../workspace/workspace-routes";
@@ -25,23 +26,8 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 
-export async function startServer(): Promise<void> {
-  const config = loadServerConfig();
-  const runtime = await createRuntimeDependencies(config);
-  await ensureDefaultWorkspaceProjectScope(runtime.surreal);
-
-  const deps: ServerDependencies = {
-    config,
-    surreal: runtime.surreal,
-    analyticsSurreal: runtime.analyticsSurreal,
-    auth: runtime.auth,
-    chatAgentModel: runtime.chatAgentModel,
-    extractionModel: runtime.extractionModel,
-    pmAgentModel: runtime.pmAgentModel,
-    analyticsAgentModel: runtime.analyticsAgentModel,
-    embeddingModel: runtime.embeddingModel,
-    sse: createSseRegistry(),
-  };
+export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
+  const config = deps.config;
 
   // Shell execution — shared by workspace and orchestrator routes
   const shellExec: ShellExec = async (command, args, cwd) => {
@@ -69,15 +55,15 @@ export async function startServer(): Promise<void> {
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
-    surreal: runtime.surreal,
+    surreal: deps.surreal,
     shellExec,
     brainBaseUrl: `http://127.0.0.1:${config.port}`,
     sseRegistry: deps.sse,
     queryFn: query,
-    auth: runtime.auth,
+    auth: deps.auth,
   });
 
-  const server = Bun.serve({
+  return Bun.serve({
     port: config.port,
     idleTimeout: 0,
     routes: {
@@ -372,6 +358,28 @@ export async function startServer(): Promise<void> {
       "/*": appHtml,
     },
   });
+}
+
+export async function startServer(): Promise<void> {
+  const config = loadServerConfig();
+  const runtime = await createRuntimeDependencies(config);
+  await ensureDefaultWorkspaceProjectScope(runtime.surreal);
+
+  const deps: ServerDependencies = {
+    config,
+    surreal: runtime.surreal,
+    analyticsSurreal: runtime.analyticsSurreal,
+    auth: runtime.auth,
+    chatAgentModel: runtime.chatAgentModel,
+    extractionModel: runtime.extractionModel,
+    pmAgentModel: runtime.pmAgentModel,
+    analyticsAgentModel: runtime.analyticsAgentModel,
+    embeddingModel: runtime.embeddingModel,
+    sse: createSseRegistry(),
+    inflight: createInflightTracker(),
+  };
+
+  const server = createBrainServer(deps);
 
   logInfo("server.started", "Brain app server started", {
     port: server.port,

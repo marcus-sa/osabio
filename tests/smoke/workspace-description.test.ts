@@ -110,7 +110,7 @@ describe("workspace description in onboarding", () => {
 
     // Suggestions should use default wording
     expect(starterMessage.suggestions).toBeDefined();
-    expect(starterMessage.suggestions!.some((s) => s.toLowerCase().includes("primary project"))).toBe(true);
+    expect(starterMessage.suggestions!.some((s) => s.toLowerCase().includes("business"))).toBe(true);
 
     // Send a message describing the business (not a specific project)
     const chatResponse = await fetchJson<ChatMessageResponse>(`${baseUrl}/api/chat/messages`, {

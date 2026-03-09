@@ -99,11 +99,11 @@ async function handleAcceptWorkItem(
         }
       }
 
-      void seedDescriptionEntry({
+      deps.inflight.track(seedDescriptionEntry({
         surreal: deps.surreal,
         targetRecord: taskRecord,
         text: item.rationale,
-      }).catch(() => undefined);
+      }).catch(() => undefined));
 
       logInfo("work-item.accept.task.created", "Task created from work item suggestion", {
         workspaceId,
@@ -127,11 +127,11 @@ async function handleAcceptWorkItem(
         await deps.surreal.update(projectRecord).merge({ embedding });
       }
 
-      void seedDescriptionEntry({
+      deps.inflight.track(seedDescriptionEntry({
         surreal: deps.surreal,
         targetRecord: projectRecord,
         text: item.rationale,
-      }).catch(() => undefined);
+      }).catch(() => undefined));
 
       logInfo("work-item.accept.project.created", "Project created from work item suggestion", {
         workspaceId,
@@ -163,7 +163,7 @@ async function handleAcceptWorkItem(
         });
         await ensureProjectFeatureEdge(deps.surreal, projectRecord, featureRecord, now);
 
-        void fireDescriptionUpdates({
+        deps.inflight.track(fireDescriptionUpdates({
           surreal: deps.surreal,
           extractionModel: deps.extractionModel,
           trigger: {
@@ -171,17 +171,17 @@ async function handleAcceptWorkItem(
             entity: featureRecord,
             summary: `Feature added: ${item.title}`,
           },
-        }).catch(() => undefined);
+        }).catch(() => undefined));
       } catch {
         // project resolution is best-effort; feature still created
       }
     }
 
-    void seedDescriptionEntry({
+    deps.inflight.track(seedDescriptionEntry({
       surreal: deps.surreal,
       targetRecord: featureRecord,
       text: item.rationale,
-    }).catch(() => undefined);
+    }).catch(() => undefined));
 
     logInfo("work-item.accept.feature.created", "Feature created from work item suggestion", {
       workspaceId,

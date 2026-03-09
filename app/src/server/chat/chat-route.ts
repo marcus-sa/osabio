@@ -128,12 +128,12 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
     // Embed user message (fire-and-forget)
     const userMessageEmbedding = await createEmbedding(deps.embeddingModel, deps.config.embeddingDimension, userText);
     if (userMessageEmbedding) {
-      void deps.surreal
+      deps.inflight.track(deps.surreal
         .query("UPDATE $record MERGE { embedding: $embedding };", {
           record: userMessageRecord,
           embedding: userMessageEmbedding,
         })
-        .catch(() => undefined);
+        .catch(() => undefined));
     }
 
     // Compute onboarding state
@@ -259,14 +259,14 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
         await maybeUpgradeConversationTitle(deps.surreal, conversationRecord);
 
         // Fire-and-forget: embeddings
-        void persistEmbeddings({
+        deps.inflight.track(persistEmbeddings({
           surreal: deps.surreal,
           embeddingModel: deps.embeddingModel,
           embeddingDimension: deps.config.embeddingDimension,
           assistantMessageRecord,
           assistantText,
           entities: [],
-        }).catch(() => undefined);
+        }).catch(() => undefined));
 
         logInfo("chat.route.completed", "Chat response completed", {
           conversationId,

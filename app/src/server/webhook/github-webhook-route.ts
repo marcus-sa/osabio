@@ -68,7 +68,7 @@ async function handleGitHubWebhook(
   });
 
   // Fire-and-forget: process commits asynchronously so we return 200 within GitHub's timeout
-  void processGitCommits({
+  const work = processGitCommits({
     surreal: deps.surreal,
     extractionModel: deps.extractionModel,
     embeddingModel: deps.embeddingModel,
@@ -84,6 +84,7 @@ async function handleGitHubWebhook(
       repository: event.repository.full_name,
     });
   });
+  deps.inflight.track(work);
 
   return jsonResponse({
     accepted: true,

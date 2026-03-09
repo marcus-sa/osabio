@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
 import { createTestUser, fetchJson, setupSmokeSuite } from "../smoke-test-kit";
 
@@ -15,12 +15,30 @@ import { createTestUser, fetchJson, setupSmokeSuite } from "../smoke-test-kit";
 const getRuntime = setupSmokeSuite("auth-rewiring");
 
 describe("US-UI-004: Auth resolves identity from person via spoke traversal", () => {
+  // Shared state: one user + workspace created once before all tests run.
+  // With --concurrent, all it() blocks run in parallel — creating users and workspaces
+  // inside each it() overloads the server and causes silent bootstrap failures.
+  let sharedUser: { headers: Record<string, string> };
+  let sharedWorkspace: { workspaceId: string; conversationId: string };
+
+  beforeAll(async () => {
+    const { baseUrl } = getRuntime();
+
+    sharedUser = await createTestUser(baseUrl, "auth-rewiring");
+    sharedWorkspace = await fetchJson<{ workspaceId: string; conversationId: string }>(
+      `${baseUrl}/api/workspaces`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...sharedUser.headers },
+        body: JSON.stringify({ name: `Auth Rewiring Test ${Date.now()}` }),
+      },
+    );
+  }, 60_000);
+
   // -- Session still references person --
 
   it("Given a user signs up, when the session is queried, then session.person_id references a person record", async () => {
-    const { baseUrl, surreal } = getRuntime();
-
-    await createTestUser(baseUrl, "auth-identity");
+    const { surreal } = getRuntime();
 
     const [sessions] = await surreal.query<
       [Array<{ person_id: RecordId }>]
@@ -34,23 +52,10 @@ describe("US-UI-004: Auth resolves identity from person via spoke traversal", ()
   // -- Person has identity via spoke edge --
 
   it("Given a user signs up and creates a workspace, when the identity_person spoke is queried, then the person has a linked identity with type human", async () => {
-    const { baseUrl, surreal } = getRuntime();
+    const { surreal } = getRuntime();
 
-    const user = await createTestUser(baseUrl, "auth-spoke");
+    const wsRecord = new RecordId("workspace", sharedWorkspace.workspaceId);
 
-    // Create workspace to trigger identity bootstrap
-    const workspace = await fetchJson<{ workspaceId: string }>(
-      `${baseUrl}/api/workspaces`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ name: `Spoke Test ${Date.now()}` }),
-      },
-    );
-
-    const wsRecord = new RecordId("workspace", workspace.workspaceId);
-
-    // Find identity created by bootstrap for this workspace
     const [identities] = await surreal.query<
       [Array<{ id: RecordId; type: string; name: string }>]
     >(
@@ -73,19 +78,9 @@ describe("US-UI-004: Auth resolves identity from person via spoke traversal", ()
   // -- Identity is member_of workspace --
 
   it("Given a user creates a workspace, when member_of is queried, then the identity (not person) is the member", async () => {
-    const { baseUrl, surreal } = getRuntime();
+    const { surreal } = getRuntime();
 
-    const user = await createTestUser(baseUrl, "auth-member");
-    const workspace = await fetchJson<{ workspaceId: string }>(
-      `${baseUrl}/api/workspaces`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ name: `Member Test ${Date.now()}` }),
-      },
-    );
-
-    const wsRecord = new RecordId("workspace", workspace.workspaceId);
+    const wsRecord = new RecordId("workspace", sharedWorkspace.workspaceId);
     const [members] = await surreal.query<
       [Array<{ in: RecordId; role: string }>]
     >(
@@ -103,27 +98,17 @@ describe("US-UI-004: Auth resolves identity from person via spoke traversal", ()
   it("Given a user is logged in and has a workspace, when the user sends a chat message, then the chat pipeline processes the message using the user's identity as the actor", async () => {
     const { baseUrl } = getRuntime();
 
-    const user = await createTestUser(baseUrl, "auth-chat");
-    const workspace = await fetchJson<{ workspaceId: string; conversationId: string }>(
-      `${baseUrl}/api/workspaces`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
-        body: JSON.stringify({ name: `Auth Chat Test ${Date.now()}` }),
-      },
-    );
-
     // Send a message - the pipeline should resolve identity from person via spoke
     // We verify this works end-to-end (no crash from type mismatches)
     const chatResponse = await fetchJson<{ messageId: string }>(
       `${baseUrl}/api/chat/messages`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...user.headers },
+        headers: { "Content-Type": "application/json", ...sharedUser.headers },
         body: JSON.stringify({
           clientMessageId: `auth-test-${Date.now()}`,
-          workspaceId: workspace.workspaceId,
-          conversationId: workspace.conversationId,
+          workspaceId: sharedWorkspace.workspaceId,
+          conversationId: sharedWorkspace.conversationId,
           text: "Hello, testing identity-based chat context.",
         }),
       },

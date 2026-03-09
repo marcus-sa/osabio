@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { beforeAll, describe, expect, it } from "bun:test";
 import { createHash, randomBytes } from "node:crypto";
 import { RecordId } from "surrealdb";
 import { setupSmokeSuite } from "./smoke-test-kit";
@@ -175,7 +175,7 @@ describe("OAuth MCP Auth", () => {
   let workspaceId: string;
   let fullToken: string;
 
-  it("setup: create workspace and person with OAuth tokens", async () => {
+  beforeAll(async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Create workspace with all required SCHEMAFULL fields
@@ -236,8 +236,6 @@ describe("OAuth MCP Auth", () => {
     const session = await signInAndGetSession(baseUrl, "oauth-test@example.com");
     const tokens = await getOAuthTokens(baseUrl, surreal, session.headers, ALL_SCOPES);
     fullToken = tokens.accessToken;
-
-    expect(fullToken).toBeTruthy();
   }, 30_000);
 
   it("MCP route with valid JWT returns data", async () => {

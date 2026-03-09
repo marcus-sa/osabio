@@ -1563,7 +1563,7 @@ export async function confirmDecisionRecord(input: {
   surreal: Surreal;
   decisionRecord: RecordId<"decision", string>;
   confirmedAt: Date;
-  confirmedBy?: RecordId<"person", string>;
+  confirmedBy?: RecordId<"identity", string>;
   notes?: string;
 }): Promise<void> {
   await input.surreal.update(input.decisionRecord).merge({

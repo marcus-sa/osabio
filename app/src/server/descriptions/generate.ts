@@ -12,6 +12,12 @@ export async function synthesizeDescription(input: {
   entityType: DescriptionTarget;
   entries: DescriptionEntry[];
 }): Promise<string> {
+  if (!input.extractionModel?.specificationVersion) {
+    throw new Error(
+      `Description synthesis requires a valid AI model but received ${typeof input.extractionModel} without specificationVersion`,
+    );
+  }
+
   const entryLines = input.entries
     .map((entry, i) => {
       const sourceLabel = entry.source

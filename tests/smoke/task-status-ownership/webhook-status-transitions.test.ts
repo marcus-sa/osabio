@@ -87,7 +87,7 @@ async function setupWorkspaceWithTask(
     workspace: workspaceRecord,
     title: `Webhook status test task ${suffix}`,
     status: taskStatus,
-    category: "backend",
+    category: "engineering",
     priority: "medium",
     created_at: new Date(),
     updated_at: new Date(),
@@ -99,7 +99,7 @@ async function setupWorkspaceWithTask(
 describe("GitHub push to feature branch sets task to done (US-5)", () => {
   // Walking skeleton: push to feature branch with task ref -> task done
 
-  it.skip("Given a task in_progress, When a commit referencing it is pushed to a feature branch, Then the task status becomes 'done' and an implemented_by relation is created", async () => {
+  it("Given a task in_progress, When a commit referencing it is pushed to a feature branch, Then the task status becomes 'done' and an implemented_by relation is created", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "feat-done-1", "in_progress",
@@ -147,7 +147,7 @@ describe("GitHub push to feature branch sets task to done (US-5)", () => {
     expect(linkRows.length).toBeGreaterThan(0);
   }, 45_000);
 
-  it.skip("Given a task already 'done', When a push references it on a feature branch, Then the task remains 'done' (idempotent)", async () => {
+  it("Given a task already 'done', When a push references it on a feature branch, Then the task remains 'done' (idempotent)", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "feat-idemp-1", "done",
@@ -195,7 +195,7 @@ describe("GitHub push to feature branch sets task to done (US-5)", () => {
 describe("GitHub push to main sets task to completed (US-6)", () => {
   // Walking skeleton: merge to main -> task completed
 
-  it.skip("Given a task with status 'done', When a commit referencing it is pushed to main, Then the task status becomes 'completed'", async () => {
+  it("Given a task with status 'done', When a commit referencing it is pushed to main, Then the task status becomes 'completed'", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "main-comp-1", "done",
@@ -232,7 +232,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
     expect(finalStatus).toBe("completed");
   }, 45_000);
 
-  it.skip("Given a task with status 'in_progress', When a commit referencing it lands on main, Then the task status becomes 'completed'", async () => {
+  it("Given a task with status 'in_progress', When a commit referencing it lands on main, Then the task status becomes 'completed'", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "main-skip-1", "in_progress",
@@ -267,7 +267,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
     expect(finalStatus).toBe("completed");
   }, 45_000);
 
-  it.skip("Given a task already 'completed', When a merge to main references it again, Then the task remains 'completed' (idempotent)", async () => {
+  it("Given a task already 'completed', When a merge to main references it again, Then the task remains 'completed' (idempotent)", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "main-idemp-1", "completed",
@@ -310,7 +310,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
     expect(rows[0]?.status).toBe("completed");
   }, 30_000);
 
-  it.skip("Given a push to a non-main branch, When the same commit later merges to main, Then status upgrades from done to completed", async () => {
+  it("Given a push to a non-main branch, When the same commit later merges to main, Then status upgrades from done to completed", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskId, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "upgrade-1", "in_progress",
@@ -372,7 +372,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
 });
 
 describe("push without task refs does not affect task status", () => {
-  it.skip("Given a task in_progress, When a commit without task refs is pushed, Then the task status remains unchanged", async () => {
+  it("Given a task in_progress, When a commit without task refs is pushed, Then the task status remains unchanged", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspace, taskRecord } = await setupWorkspaceWithTask(
       baseUrl, surreal, "noref-wh-1", "in_progress",

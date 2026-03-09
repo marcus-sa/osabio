@@ -54,9 +54,19 @@ export function surrealdbAdapter(surreal: Surreal) {
         return value;
       }
 
-      /** Convert RecordId objects back to plain strings for the factory. */
+      /** Convert RecordId objects back to plain strings and SurrealDB Datetime to native Date for the factory. */
       function fromRecord(value: unknown): unknown {
         if (value instanceof RecordId) return value.id as string;
+        // SurrealDB SDK returns Datetime objects (not native Date) for datetime fields.
+        // better-auth expects native Date instances (e.g. JWT adapter calls .getTime()).
+        if (
+          value !== null &&
+          typeof value === "object" &&
+          !(value instanceof Date) &&
+          typeof (value as any).toISOString === "function"
+        ) {
+          return new Date((value as any).toISOString());
+        }
         return value;
       }
 

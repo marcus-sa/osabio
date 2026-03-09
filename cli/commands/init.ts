@@ -209,7 +209,7 @@ export async function setupAuth(
       redirect_uri: redirectUri,
       client_id: actualClientId,
       code_verifier: pkce.verifier,
-      resource: `${serverUrl}/api/auth`,
+      resource: serverUrl,
     }),
   });
 

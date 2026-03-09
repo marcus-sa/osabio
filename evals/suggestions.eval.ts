@@ -91,14 +91,14 @@ async function runCase(testCase: SuggestionGoldenCase): Promise<SuggestionsEvalO
   const sseStub = createEventCollector();
   sseStub.registerMessage(messageId);
 
-  const deps: ServerDependencies = {
+  const deps = {
     config: runtime.config,
     surreal: runtime.surreal,
     chatAgentModel: runtime.chatAgentModel,
     extractionModel: runtime.extractionModel,
     embeddingModel: runtime.embeddingModel,
     sse: sseStub,
-  };
+  } as ServerDependencies;
 
   await processChatMessage({
     deps,

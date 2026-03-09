@@ -1,7 +1,27 @@
 import { afterAll, beforeAll } from "bun:test";
+import { randomBytes, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createBrainServer } from "../../app/src/server/runtime/start-server";
+import { createRuntimeDependencies } from "../../app/src/server/runtime/dependencies";
+import { createSseRegistry } from "../../app/src/server/streaming/sse-registry";
+import { createInflightTracker } from "../../app/src/server/runtime/types";
+import type { ServerConfig } from "../../app/src/server/runtime/config";
+import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
+
+// ── Shared AI dependencies for standalone smoke tests ──
+
+const openrouter = createOpenRouter({ apiKey: requireTestEnv("OPENROUTER_API_KEY") });
+
+export const smokeAI = {
+  openrouter,
+  extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
+  extractionModel: openrouter(requireTestEnv("EXTRACTION_MODEL")),
+  embeddingModel: openrouter.textEmbeddingModel(requireTestEnv("OPENROUTER_EMBEDDING_MODEL")),
+  embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
+};
 
 export type SmokeTestRuntime = {
   baseUrl: string;
@@ -14,7 +34,6 @@ export type SmokeTestRuntime = {
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
 const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
-const smokePortBase = Number(process.env.SMOKE_PORT_BASE ?? "3100");
 
 export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
   const runId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -26,18 +45,13 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
   const database = `${suiteSlug || "suite"}_${Math.floor(Math.random() * 100000)}`;
 
   let runtime: SmokeTestRuntime | undefined;
-  let serverProcess: ReturnType<typeof Bun.spawn> | undefined;
+  let server: ReturnType<typeof Bun.serve> | undefined;
+  let runtimeSurreal: Surreal | undefined;
+  let analyticsSurreal: Surreal | undefined;
+  let inflight: InflightTracker | undefined;
   let setupSucceeded = false;
 
   beforeAll(async () => {
-    const port = process.env.SMOKE_PORT
-      ? Number(process.env.SMOKE_PORT)
-      : smokePortBase + Math.floor(Math.random() * 20000);
-    if (!Number.isFinite(port) || port <= 0) {
-      throw new Error(`Invalid smoke test port value: ${port}`);
-    }
-    const baseUrl = `http://127.0.0.1:${port}`;
-
     const surreal = new Surreal();
     await withTimeout(() => surreal.connect(surrealUrl), 10_000, "connect to SurrealDB");
     await withTimeout(
@@ -58,31 +72,75 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
     const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
     await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
 
-    serverProcess = Bun.spawn(["bun", "run", "app/server.ts"], {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        PORT: String(port),
-        SURREAL_NAMESPACE: namespace,
-        SURREAL_DATABASE: database,
-        BETTER_AUTH_URL: baseUrl,
-        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "smoke-test-secret-at-least-32-chars-long",
-        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
-        GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
-      },
-      stdout: "pipe",
-      stderr: "inherit",
-    });
+    // Reserve a port so betterAuth gets the real URL at init time
+    const tempServer = Bun.serve({ port: 0, fetch: () => new Response() });
+    const reservedPort = tempServer.port;
+    tempServer.stop(true);
+    const baseUrl = `http://127.0.0.1:${reservedPort}`;
 
-    await waitForHealth(baseUrl, serverProcess, 15_000);
+    const config: ServerConfig = {
+      openRouterApiKey: requireTestEnv("OPENROUTER_API_KEY"),
+      chatAgentModelId: requireTestEnv("CHAT_AGENT_MODEL"),
+      extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
+      pmAgentModelId: process.env.PM_AGENT_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
+      analyticsAgentModelId: requireTestEnv("ANALYTICS_MODEL"),
+      embeddingModelId: requireTestEnv("OPENROUTER_EMBEDDING_MODEL"),
+      embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
+      extractionStoreThreshold: Number(requireTestEnv("EXTRACTION_STORE_THRESHOLD")),
+      extractionDisplayThreshold: Number(requireTestEnv("EXTRACTION_DISPLAY_THRESHOLD")),
+      surrealUrl,
+      surrealUsername,
+      surrealPassword,
+      surrealNamespace: namespace,
+      surrealDatabase: database,
+      port: reservedPort,
+      betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "smoke-test-secret-at-least-32-chars-long",
+      betterAuthUrl: baseUrl,
+      githubClientId: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
+      githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
+    };
+
+    const deps = await createRuntimeDependencies(config);
+    runtimeSurreal = deps.surreal;
+    analyticsSurreal = deps.analyticsSurreal;
+    inflight = createInflightTracker();
+
+    const serverDeps: ServerDependencies = {
+      config,
+      surreal: deps.surreal,
+      analyticsSurreal: deps.analyticsSurreal,
+      auth: deps.auth,
+      chatAgentModel: deps.chatAgentModel,
+      extractionModel: deps.extractionModel,
+      pmAgentModel: deps.pmAgentModel,
+      analyticsAgentModel: deps.analyticsAgentModel,
+      embeddingModel: deps.embeddingModel,
+      sse: createSseRegistry(),
+      inflight,
+    };
+
+    server = createBrainServer(serverDeps);
+    const port = server.port;
+
     runtime = { baseUrl, surreal, namespace, database, port };
     setupSucceeded = true;
   }, 60_000);
 
   afterAll(async () => {
-    if (serverProcess) {
-      serverProcess.kill();
-      await serverProcess.exited;
+    // Drain fire-and-forget work (e.g. webhook extraction) before closing DB
+    if (inflight) {
+      await inflight.drain(15_000);
+    }
+
+    if (server) {
+      server.stop(true);
+    }
+
+    if (runtimeSurreal) {
+      await runtimeSurreal.close().catch(() => undefined);
+    }
+    if (analyticsSurreal) {
+      await analyticsSurreal.close().catch(() => undefined);
     }
 
     if (!runtime) {
@@ -91,19 +149,19 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
 
     if (setupSucceeded && !process.env.SMOKE_KEEP_DB) {
       try {
-        await withTimeout(() => runtime.surreal.query(`REMOVE DATABASE ${database};`), 10_000, "remove test database");
+        await withTimeout(() => runtime!.surreal.query(`REMOVE DATABASE ${database};`), 10_000, "remove test database");
       } catch {
         // Best effort cleanup.
       }
 
       try {
-        await withTimeout(() => runtime.surreal.query(`REMOVE NAMESPACE ${namespace};`), 10_000, "remove test namespace");
+        await withTimeout(() => runtime!.surreal.query(`REMOVE NAMESPACE ${namespace};`), 10_000, "remove test namespace");
       } catch {
         // Best effort cleanup.
       }
     }
 
-    await withTimeout(() => runtime.surreal.close(), 2_000, "close SurrealDB").catch(() => undefined);
+    await withTimeout(() => runtime!.surreal.close(), 2_000, "close SurrealDB").catch(() => undefined);
   }, 20_000);
 
   return () => {
@@ -204,28 +262,115 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
   return (await response.json()) as T;
 }
 
-async function waitForHealth(url: string, process: ReturnType<typeof Bun.spawn>, timeoutMs: number): Promise<void> {
-  const start = Date.now();
+function base64url(buf: Buffer): string {
+  return buf.toString("base64url");
+}
 
-  while (Date.now() - start < timeoutMs) {
-    if (typeof process.exitCode === "number") {
-      const stderr = process.stderr ? await new Response(process.stderr).text() : "";
-      throw new Error(`Smoke server exited early with code ${process.exitCode}\n${stderr}`);
-    }
+function generatePkce(): { verifier: string; challenge: string } {
+  const verifier = base64url(randomBytes(32));
+  const challenge = base64url(createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
 
-    try {
-      const response = await fetch(`${url}/healthz`);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Keep polling.
-    }
+/**
+ * Obtain an OAuth2 JWT access token for MCP endpoints.
+ * Requires a SurrealDB connection to skip consent screen.
+ */
+export async function getOAuthToken(
+  baseUrl: string,
+  surreal: Surreal,
+  sessionHeaders: Record<string, string>,
+  scopes: string = "graph:read graph:reason session:write offline_access",
+): Promise<string> {
+  // Trigger JWKS key generation if not yet done
+  await fetch(`${baseUrl}/api/auth/jwks`);
 
-    await Bun.sleep(200);
+  const dcrRes = await fetch(`${baseUrl}/api/auth/oauth2/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_name: `smoke-test-${Date.now()}`,
+      redirect_uris: ["http://127.0.0.1:9999/callback"],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    }),
+  });
+  if (!dcrRes.ok) throw new Error(`DCR failed: ${dcrRes.status} ${await dcrRes.text()}`);
+
+  const { client_id } = (await dcrRes.json()) as { client_id: string };
+
+  await surreal.query(`UPDATE oauthClient SET skipConsent = true WHERE clientId = $cid;`, {
+    cid: client_id,
+  });
+
+  const { verifier, challenge } = generatePkce();
+  const authUrl = new URL(`${baseUrl}/api/auth/oauth2/authorize`);
+  authUrl.searchParams.set("client_id", client_id);
+  authUrl.searchParams.set("redirect_uri", "http://127.0.0.1:9999/callback");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", scopes);
+  authUrl.searchParams.set("state", "test-state");
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("resource", baseUrl);
+
+  const authRes = await fetch(authUrl.toString(), {
+    headers: sessionHeaders,
+    redirect: "manual",
+  });
+  if (authRes.status !== 302) throw new Error(`Authorize did not redirect: ${authRes.status}`);
+
+  const location = authRes.headers.get("location")!;
+  const redirectUrl = new URL(location, baseUrl);
+  const code = redirectUrl.searchParams.get("code") ?? "";
+  if (!code) throw new Error(`No code in redirect: ${location}`);
+
+  const tokenRes = await fetch(`${baseUrl}/api/auth/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: "http://127.0.0.1:9999/callback",
+      client_id,
+      code_verifier: verifier,
+      resource: baseUrl,
+    }),
+  });
+  if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status} ${await tokenRes.text()}`);
+
+  const tokens = (await tokenRes.json()) as { access_token: string };
+  return tokens.access_token;
+}
+
+export type TestUserWithMcp = TestUser & {
+  mcpHeaders: Record<string, string>;
+};
+
+/**
+ * Create a test user with both session cookie and OAuth MCP token.
+ */
+export async function createTestUserWithMcp(
+  baseUrl: string,
+  surreal: Surreal,
+  suffix: string,
+  scopes?: string,
+): Promise<TestUserWithMcp> {
+  const user = await createTestUser(baseUrl, suffix);
+  const accessToken = await getOAuthToken(baseUrl, surreal, user.headers, scopes);
+  return {
+    ...user,
+    mcpHeaders: { Authorization: `Bearer ${accessToken}` },
+  };
+}
+
+function requireTestEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Smoke test requires env var ${name}`);
   }
-
-  throw new Error(`Timed out waiting for smoke server health at ${url}/healthz`);
+  return value;
 }
 
 async function withTimeout<T>(callback: () => Promise<T>, timeoutMs: number, label: string): Promise<T> {

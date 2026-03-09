@@ -36,21 +36,21 @@ describe("edgeStyle", () => {
 
   it("returns red style for conflicts_with", () => {
     const style = edgeStyle("conflicts_with");
-    expect(style.stroke).toBe("#c44040");
+    expect(style.stroke).toBe("#d66a8a");
     expect(style.opacity).toBe(0.9);
   });
 
   it("returns subtle style for structural edges", () => {
     for (const type of ["belongs_to", "has_feature", "has_task", "has_project"]) {
       const style = edgeStyle(type);
-      expect(style.opacity).toBe(0.4);
+      expect(style.opacity).toBe(0.3);
       expect(style.strokeDasharray).toBe("none");
     }
   });
 
   it("returns default style for unknown types", () => {
     const style = edgeStyle("unknown_relation");
-    expect(style.opacity).toBe(0.6);
+    expect(style.opacity).toBe(0.5);
     expect(style.strokeDasharray).toBe("none");
   });
 });

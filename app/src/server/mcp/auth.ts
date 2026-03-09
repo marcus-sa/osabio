@@ -13,7 +13,7 @@ const VALID_AGENT_TYPES = new Set<AgentType>([
   "code_agent", "architect", "management", "design_partner", "observer",
 ]);
 
-let validateToken: ((token: string) => Promise<BrainTokenClaims>) | undefined;
+const validatorsByIssuer = new Map<string, (token: string) => Promise<BrainTokenClaims>>();
 
 /**
  * Authenticate an MCP request via OAuth 2.1 JWT Bearer token.
@@ -36,9 +36,11 @@ export async function authenticateMcpRequest(
     return jsonError("empty Bearer token", 401);
   }
 
-  // Lazily initialize the JWT validator
+  // Get or create a JWT validator for this issuer URL (safe for concurrent test suites)
+  let validateToken = validatorsByIssuer.get(issuerUrl);
   if (!validateToken) {
     validateToken = createJwtValidator(issuerUrl);
+    validatorsByIssuer.set(issuerUrl, validateToken);
   }
 
   let claims: BrainTokenClaims;

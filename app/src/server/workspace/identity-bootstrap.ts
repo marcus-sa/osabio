@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import { logInfo, logWarn } from "../http/observability";
+import { logInfo } from "../http/observability";
 
 // -- Types --
 

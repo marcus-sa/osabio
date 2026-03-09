@@ -167,7 +167,7 @@ async function handleEntityAction(
         notes: body.notes,
       });
 
-      void fireDescriptionUpdates({
+      deps.inflight.track(fireDescriptionUpdates({
         surreal: deps.surreal,
         extractionModel: deps.extractionModel,
         trigger: {
@@ -175,7 +175,7 @@ async function handleEntityAction(
           entity: entityRecord,
           summary: `Decision confirmed: ${decisionSummary}`,
         },
-      }).catch(() => undefined);
+      }).catch(() => undefined));
 
       logInfo("entity.action.confirm", "Decision confirmed", { workspaceId, entityId });
       return jsonResponse({ status: "confirmed" }, 200);
@@ -209,7 +209,7 @@ async function handleEntityAction(
         updated_at: now,
       });
 
-      void fireDescriptionUpdates({
+      deps.inflight.track(fireDescriptionUpdates({
         surreal: deps.surreal,
         extractionModel: deps.extractionModel,
         trigger: {
@@ -217,7 +217,7 @@ async function handleEntityAction(
           entity: entityRecord,
           summary: `Feature completed: ${featureName}`,
         },
-      }).catch(() => undefined);
+      }).catch(() => undefined));
 
       logInfo("entity.action.complete", "Feature completed", { workspaceId, entityId });
       return jsonResponse({ status: "completed" }, 200);
@@ -238,7 +238,7 @@ async function handleEntityAction(
         updated_at: now,
       });
 
-      void fireDescriptionUpdates({
+      deps.inflight.track(fireDescriptionUpdates({
         surreal: deps.surreal,
         extractionModel: deps.extractionModel,
         trigger: {
@@ -246,7 +246,7 @@ async function handleEntityAction(
           entity: entityRecord,
           summary: `Task completed: ${taskTitle}`,
         },
-      }).catch(() => undefined);
+      }).catch(() => undefined));
 
       logInfo("entity.action.complete", "Task completed", { workspaceId, entityId });
       return jsonResponse({ status: "completed" }, 200);

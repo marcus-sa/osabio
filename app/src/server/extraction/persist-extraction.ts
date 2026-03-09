@@ -147,7 +147,7 @@ export async function persistExtractionOutput(input: {
 
         const descriptionTargets: DescriptionTarget[] = ["project", "feature", "task"];
         if (descriptionTargets.includes(persisted.kind as DescriptionTarget)) {
-          void seedDescriptionEntry({
+          await seedDescriptionEntry({
             surreal: input.surreal,
             targetRecord: persisted.record,
             text: extracted.evidence,
@@ -156,7 +156,7 @@ export async function persistExtractionOutput(input: {
         }
 
         if (persisted.kind === "feature") {
-          void fireDescriptionUpdates({
+          await fireDescriptionUpdates({
             surreal: input.surreal,
             extractionModel: input.extractionModel,
             trigger: {
