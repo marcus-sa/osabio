@@ -3,7 +3,7 @@
   "checkpoint_id": "7f3a590a2ca1",
   "strategy": "manual-commit",
   "branch": "marcus-sa/intent-node-issue",
-  "checkpoints_count": 5,
+  "checkpoints_count": 7,
   "files_touched": [
     ".github/workflows/ci.yml",
     "docker-compose.yml",
@@ -17,13 +17,20 @@
       "context": "/7f/3a590a2ca1/0/context.md",
       "content_hash": "/7f/3a590a2ca1/0/content_hash.txt",
       "prompt": "/7f/3a590a2ca1/0/prompt.txt"
+    },
+    {
+      "metadata": "/7f/3a590a2ca1/1/metadata.json",
+      "transcript": "/7f/3a590a2ca1/1/full.jsonl",
+      "context": "/7f/3a590a2ca1/1/context.md",
+      "content_hash": "/7f/3a590a2ca1/1/content_hash.txt",
+      "prompt": "/7f/3a590a2ca1/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 231,
-    "cache_creation_tokens": 432700,
-    "cache_read_tokens": 11276741,
-    "output_tokens": 53682,
-    "api_call_count": 132
+    "input_tokens": 1022,
+    "cache_creation_tokens": 1054705,
+    "cache_read_tokens": 21880420,
+    "output_tokens": 114429,
+    "api_call_count": 240
   }
 }
