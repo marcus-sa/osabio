@@ -20,12 +20,14 @@ import {
   listBlockedTasks,
   listBlockingQuestions,
   listLowConfidenceDecisions,
+  listPendingVetoIntents,
   listProvisionalDecisions,
   listRecentExtractions,
   listRecentlyCompletedItems,
   listStaleTasks,
   listWorkspaceConflicts,
   mapAgentSessionToFeedItem,
+  mapPendingIntentToFeedItem,
 } from "./feed-queries";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -74,6 +76,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       recentlyCompleted,
       recentExtractions,
       agentAttentionSessions,
+      pendingVetoIntents,
     ] = await Promise.all([
       listProvisionalDecisions(queryInput),
       listWorkspaceConflicts(queryInput),
@@ -86,6 +89,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       listRecentlyCompletedItems({ ...queryInput, recentDays: RECENT_COMPLETED_DAYS }),
       listRecentExtractions({ ...queryInput, cutoff: new Date(Date.now() - AWARENESS_RECENCY_DAYS * 24 * 60 * 60 * 1000) }),
       listAgentAttentionSessions(queryInput),
+      listPendingVetoIntents(queryInput),
     ]);
 
     const blocking: GovernanceFeedItem[] = [];
@@ -159,6 +163,11 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       } else {
         review.push(item);
       }
+    }
+
+    // Blocking: pending veto intents (agent actions awaiting human review)
+    for (const intent of pendingVetoIntents) {
+      blocking.push(mapPendingIntentToFeedItem(intent));
     }
 
     // Review: low confidence decisions

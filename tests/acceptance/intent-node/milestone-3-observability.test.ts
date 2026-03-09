@@ -34,13 +34,13 @@ describe("Milestone 3: Governance Feed (US-3)", () => {
   // ---------------------------------------------------------------------------
   // US-3: High-risk intent appears in governance feed
   // ---------------------------------------------------------------------------
-  it.skip("high-risk intent in veto window appears in governance feed for human review", async () => {
+  it("high-risk intent in veto window appears in governance feed for human review", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent evaluated as high-risk that entered the veto window
     const user = await createTestUser(baseUrl, "m3-feed");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -84,7 +84,7 @@ describe("Milestone 3: Audit Trail (US-7)", () => {
   // ---------------------------------------------------------------------------
   // US-7: Full intent chain is traceable in graph
   // ---------------------------------------------------------------------------
-  it.skip("complete authorization chain is traceable from task through intent to evaluation", async () => {
+  it("complete authorization chain is traceable from task through intent to evaluation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task that triggered an intent which was evaluated and authorized
@@ -93,7 +93,7 @@ describe("Milestone 3: Audit Trail (US-7)", () => {
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Implement search autocomplete",
     });
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -149,13 +149,13 @@ describe("Milestone 3: SurrealQL EVENT (US-8)", () => {
   // ---------------------------------------------------------------------------
   // US-8: SurrealQL EVENT fires on pending_auth transition only
   // ---------------------------------------------------------------------------
-  it.skip("event fires when intent transitions to pending_auth but not on other transitions", async () => {
+  it("event fires when intent transitions to pending_auth but not on other transitions", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent in draft status
     const user = await createTestUser(baseUrl, "m3-event");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -188,13 +188,13 @@ describe("Milestone 3: Error Handling", () => {
   // ---------------------------------------------------------------------------
   // Error: Evaluation timeout fails intent with reason
   // ---------------------------------------------------------------------------
-  it.skip("intent fails with timeout reason when evaluation takes too long", async () => {
+  it("intent fails with timeout reason when evaluation takes too long", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent submitted for authorization
     const user = await createTestUser(baseUrl, "m3-timeout");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -227,13 +227,13 @@ describe("Milestone 3: Error Handling", () => {
   // ---------------------------------------------------------------------------
   // Error: LLM failure falls back to policy-only check
   // ---------------------------------------------------------------------------
-  it.skip("evaluation falls back to policy-only check when LLM is unavailable", async () => {
+  it("evaluation falls back to policy-only check when LLM is unavailable", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent submitted for authorization
     const user = await createTestUser(baseUrl, "m3-fallback");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,

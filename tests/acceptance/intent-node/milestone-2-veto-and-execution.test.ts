@@ -33,13 +33,13 @@ describe("Milestone 2: Veto Window Lifecycle (US-4)", () => {
   // ---------------------------------------------------------------------------
   // US-4: Auto-approve on veto window expiry
   // ---------------------------------------------------------------------------
-  it.skip("intent auto-approves when no human vetoes within the veto window", async () => {
+  it("intent auto-approves when no human vetoes within the veto window", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent in the veto window with an expiry in the past
     const user = await createTestUser(baseUrl, "m2-auto-approve");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -87,13 +87,13 @@ describe("Milestone 2: Veto Window Lifecycle (US-4)", () => {
   // ---------------------------------------------------------------------------
   // US-4: Human veto within window stops execution
   // ---------------------------------------------------------------------------
-  it.skip("human veto within the window prevents intent from proceeding", async () => {
+  it("human veto within the window prevents intent from proceeding", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent in the veto window
     const user = await createTestUser(baseUrl, "m2-human-veto");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -140,13 +140,13 @@ describe("Milestone 2: Veto Window Lifecycle (US-4)", () => {
   // ---------------------------------------------------------------------------
   // US-4 edge case: Veto after execution started
   // ---------------------------------------------------------------------------
-  it.skip("veto after execution has started aborts the active session", async () => {
+  it("veto after execution has started aborts the active session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that was authorized and an agent session was spawned
     const user = await createTestUser(baseUrl, "m2-late-veto");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -199,13 +199,13 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
   // ---------------------------------------------------------------------------
   // US-6: Orchestrator blocks spawn for unauthorized intent
   // ---------------------------------------------------------------------------
-  it.skip("orchestrator refuses to spawn agent for intent that is not authorized", async () => {
+  it("orchestrator refuses to spawn agent for intent that is not authorized", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that is still pending authorization
     const user = await createTestUser(baseUrl, "m2-gate-block");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -234,13 +234,13 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
   // ---------------------------------------------------------------------------
   // US-6: Orchestrator spawns session on authorized intent
   // ---------------------------------------------------------------------------
-  it.skip("orchestrator spawns agent session when intent is authorized and creates gates relation", async () => {
+  it("orchestrator spawns agent session when intent is authorized and creates gates relation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that has been authorized
     const user = await createTestUser(baseUrl, "m2-gate-spawn");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -280,13 +280,13 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
   // ---------------------------------------------------------------------------
   // US-6: Execution completion updates intent to completed
   // ---------------------------------------------------------------------------
-  it.skip("intent transitions to completed when agent session finishes successfully", async () => {
+  it("intent transitions to completed when agent session finishes successfully", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that is currently executing
     const user = await createTestUser(baseUrl, "m2-complete");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,
@@ -324,13 +324,13 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
   // ---------------------------------------------------------------------------
   // US-6: Execution failure updates intent to failed
   // ---------------------------------------------------------------------------
-  it.skip("intent transitions to failed when agent session encounters an error", async () => {
+  it("intent transitions to failed when agent session encounters an error", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that is currently executing
     const user = await createTestUser(baseUrl, "m2-fail");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "test-agent", "agent", workspace.workspaceId);
 
     const { intentId } = await createDraftIntent(
       surreal,

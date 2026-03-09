@@ -818,6 +818,93 @@ export function mapAgentSessionToFeedItem(row: AgentAttentionSessionRow): Govern
   };
 }
 
+// --- Intent governance (pending veto intents for human review) ---
+
+export type PendingIntentRow = {
+  id: RecordId<"intent", string>;
+  goal: string;
+  status: string;
+  priority: number;
+  risk_score?: number;
+  reason?: string;
+  veto_expires_at?: string | Date;
+  created_at: string | Date;
+};
+
+export async function listPendingVetoIntents(
+  input: WorkspaceQueryInput,
+): Promise<PendingIntentRow[]> {
+  const [rows] = await input.surreal
+    .query<[
+      Array<{
+        id: RecordId<"intent", string>;
+        goal: string;
+        status: string;
+        priority: number;
+        evaluation?: { risk_score: number; reason: string };
+        veto_expires_at?: string | Date;
+        created_at: string | Date;
+      }>,
+    ]>(
+      [
+        "SELECT id, goal, status, priority, evaluation, veto_expires_at, created_at",
+        "FROM intent",
+        "WHERE status = 'pending_veto'",
+        `AND ${WORKSPACE_SCOPE_CLAUSE}`,
+        "ORDER BY priority DESC, created_at ASC",
+        "LIMIT $limit;",
+      ].join(" "),
+      { workspace: input.workspaceRecord, limit: input.limit },
+    )
+    .collect<[
+      Array<{
+        id: RecordId<"intent", string>;
+        goal: string;
+        status: string;
+        priority: number;
+        evaluation?: { risk_score: number; reason: string };
+        veto_expires_at?: string | Date;
+        created_at: string | Date;
+      }>,
+    ]>();
+
+  return rows.map((row) => ({
+    id: row.id,
+    goal: row.goal,
+    status: row.status,
+    priority: row.priority,
+    ...(row.evaluation ? { risk_score: row.evaluation.risk_score, reason: row.evaluation.reason } : {}),
+    ...(row.veto_expires_at ? { veto_expires_at: row.veto_expires_at } : {}),
+    created_at: row.created_at,
+  }));
+}
+
+export function mapPendingIntentToFeedItem(row: PendingIntentRow): GovernanceFeedItem {
+  const rawId = row.id.id as string;
+  const riskLabel = row.risk_score !== undefined ? ` (risk ${row.risk_score})` : "";
+
+  return {
+    id: `intent:${rawId}:pending_veto`,
+    tier: "blocking",
+    entityId: `intent:${rawId}`,
+    entityKind: "intent",
+    entityName: row.goal,
+    reason: `Intent awaiting human review${riskLabel}`,
+    status: row.status,
+    priority: row.priority > 50 ? "high" : "medium",
+    createdAt: toIso(row.created_at),
+    actions: intentActions(),
+  };
+}
+
+function intentActions(): GovernanceFeedAction[] {
+  return [
+    { action: "confirm", label: "Approve" },
+    { action: "override", label: "Veto" },
+    { action: "discuss", label: "Discuss" },
+  ];
+}
+
 // --- Shared helper ---
 
 async function readEntityNameByTable(
