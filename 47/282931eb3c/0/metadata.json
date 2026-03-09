@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "47282931eb3c",
+  "session_id": "38c482df-7be4-48fc-8f0c-2c9cd9992e54",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T15:42:08.503492Z",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/mcp/auth.ts",
+    "tests/smoke/unified-identity/auth-rewiring.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "164ca829f1a8",
+  "token_usage": {
+    "input_tokens": 326,
+    "cache_creation_tokens": 272996,
+    "cache_read_tokens": 16380546,
+    "output_tokens": 52689,
+    "api_call_count": 163
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T15:42:07.910757Z",
+    "agent_lines": 0,
+    "human_added": 7,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 12,
+    "agent_percentage": 0
+  }
+}
