@@ -10,6 +10,7 @@ services:
       - --pass
       - root
       - --allow-guests
+      - --allow-net
       - rocksdb:/data/brain.db
     ports:
       - "8000:8000"

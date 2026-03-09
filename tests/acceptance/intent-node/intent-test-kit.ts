@@ -433,3 +433,24 @@ export async function createTestIdentity(
   });
   return identityId;
 }
+
+/**
+ * Wires the SurrealQL EVENT that fires when an intent transitions to
+ * pending_auth. The EVENT calls http::post to the real test server's
+ * evaluate endpoint, enabling true E2E testing of the async evaluation flow.
+ *
+ * Call this in beforeAll after the test server has booted.
+ */
+export async function wireIntentEvaluationEvent(
+  surreal: Surreal,
+  port: number,
+): Promise<void> {
+  const baseUrl = `http://127.0.0.1:${port}`;
+  await surreal.query(`
+    DEFINE EVENT OVERWRITE intent_pending_auth ON intent
+      WHEN $before.status != "pending_auth" AND $after.status = "pending_auth"
+      THEN {
+        http::post("${baseUrl}/api/intents/" + <string> meta::id($after.id) + "/evaluate", $after)
+      };
+  `);
+}
