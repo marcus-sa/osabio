@@ -179,7 +179,7 @@ events:
   s: EXECUTED
   sid: 02-04
   t: '2026-03-09T17:38:09Z'
-- d: 'PASS: 1 pass 9 fail - identity.workspace required'
+- d: PASS
   p: RED_ACCEPTANCE
   s: EXECUTED
   sid: 02-04
@@ -194,7 +194,7 @@ events:
   s: EXECUTED
   sid: 02-04
   t: '2026-03-09T17:39:50Z'
-- d: 'PASS: 8bfea70'
+- d: PASS
   p: COMMIT
   s: EXECUTED
   sid: 02-04
