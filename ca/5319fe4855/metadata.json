@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ca5319fe4855",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/intent-node/distill/test-scenarios.md",
+    "docs/feature/intent-node/distill/walking-skeleton.md",
+    "tests/acceptance/intent-node/intent-test-kit.ts",
+    "tests/acceptance/intent-node/milestone-1-authorization-pipeline.test.ts",
+    "tests/acceptance/intent-node/milestone-2-veto-and-execution.test.ts",
+    "tests/acceptance/intent-node/milestone-3-observability.test.ts",
+    "tests/acceptance/intent-node/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/5319fe4855/0/metadata.json",
+      "transcript": "/ca/5319fe4855/0/full.jsonl",
+      "context": "/ca/5319fe4855/0/context.md",
+      "content_hash": "/ca/5319fe4855/0/content_hash.txt",
+      "prompt": "/ca/5319fe4855/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 94415,
+    "cache_read_tokens": 597037,
+    "output_tokens": 5902,
+    "api_call_count": 11
+  }
+}
