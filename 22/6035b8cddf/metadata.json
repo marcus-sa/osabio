@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "226035b8cddf",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/mcp/token-validation.ts",
+    "tests/smoke/oauth-mcp-auth.test.ts",
+    "tests/smoke/unified-identity/auth-rewiring.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/22/6035b8cddf/0/metadata.json",
+      "transcript": "/22/6035b8cddf/0/full.jsonl",
+      "context": "/22/6035b8cddf/0/context.md",
+      "content_hash": "/22/6035b8cddf/0/content_hash.txt",
+      "prompt": "/22/6035b8cddf/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 125729,
+    "cache_read_tokens": 3207170,
+    "output_tokens": 19098,
+    "api_call_count": 37
+  }
+}
