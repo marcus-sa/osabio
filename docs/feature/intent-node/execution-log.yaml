@@ -69,5 +69,35 @@ events:
   s: EXECUTED
   sid: 01-03
   t: '2026-03-09T17:21:13Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-09T17:21:35Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-09T17:22:30Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-09T17:22:45Z'
+- d: 'NOT_APPLICABLE: acceptance tests ARE the tests for this step'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-04
+  t: '2026-03-09T17:22:50Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-09T17:25:43Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-09T17:26:10Z'
 project_id: intent-node
 schema_version: '3.0'
