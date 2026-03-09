@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "aad97c3eb062",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/aa/d97c3eb062/0/metadata.json",
+      "transcript": "/aa/d97c3eb062/0/full.jsonl",
+      "context": "/aa/d97c3eb062/0/context.md",
+      "content_hash": "/aa/d97c3eb062/0/content_hash.txt",
+      "prompt": "/aa/d97c3eb062/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 5,
+    "cache_creation_tokens": 1488,
+    "cache_read_tokens": 244178,
+    "output_tokens": 440,
+    "api_call_count": 3
+  }
+}
