@@ -333,7 +333,7 @@ export async function createOrchestratorSession(
 ): Promise<OrchestratorSessionResult> {
   // 0. Intent authorization gate (optional — backwards compatible)
   if (input.intentId) {
-    const gateResult = await checkIntentAuthorization(input.surreal, input.intentId);
+    const gateResult = await checkIntentAuthorization(input.surreal, input.intentId, input.workspaceId);
     if (!gateResult.ok) {
       return { ok: false, error: gateResult.error };
     }
@@ -437,6 +437,7 @@ export async function createOrchestratorSession(
 async function checkIntentAuthorization(
   surreal: Surreal,
   intentId: string,
+  workspaceId: string,
 ): Promise<SessionResult<void>> {
   const intent = await getIntentById(surreal, intentId);
   if (!intent) {
@@ -446,6 +447,19 @@ async function checkIntentAuthorization(
         code: "INTENT_NOT_AUTHORIZED",
         message: `Intent ${intentId} not found`,
         httpStatus: 404,
+      },
+    };
+  }
+
+  // Validate workspace scope: intent must belong to the session's workspace
+  const intentWorkspaceId = intent.workspace.id as string;
+  if (intentWorkspaceId !== workspaceId) {
+    return {
+      ok: false,
+      error: {
+        code: "WORKSPACE_MISMATCH",
+        message: `Intent ${intentId} belongs to workspace "${intentWorkspaceId}", not "${workspaceId}"`,
+        httpStatus: 403,
       },
     };
   }

@@ -142,6 +142,17 @@ export async function listPendingIntents(
   return rows;
 }
 
+export async function queryExpiredVetoIntents(
+  surreal: Surreal,
+): Promise<IntentRecord[]> {
+  const [rows] = await surreal.query<[IntentRecord[]]>(
+    `SELECT * FROM intent
+     WHERE status = "pending_veto"
+       AND veto_expires_at < time::now();`,
+  );
+  return rows;
+}
+
 export async function listIntentsByWorkspace(
   surreal: Surreal,
   workspaceId: string,

@@ -125,13 +125,15 @@ export async function evaluateIntent(
     const llmResult = await input.llmEvaluator(input.intent, controller.signal);
     return { ...llmResult, policy_only: false };
   } catch (error) {
-    // Step 3: Fallback to policy-only approval on any LLM failure
+    // Step 3: Fallback to high-risk APPROVE on any LLM failure.
+    // risk_score=50 ensures the intent routes through veto_window
+    // (human review) rather than auto_approve.
     const reason = isAbortError(error)
-      ? "LLM evaluation timeout — falling back to policy-only"
-      : "LLM evaluation failed — falling back to policy-only";
+      ? "LLM evaluation timeout — falling back to policy-only with veto window"
+      : "LLM evaluation failed — falling back to policy-only with veto window";
     return {
       decision: "APPROVE",
-      risk_score: 0,
+      risk_score: 50,
       reason,
       policy_only: true,
     };

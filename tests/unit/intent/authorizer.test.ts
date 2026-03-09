@@ -127,8 +127,8 @@ describe("evaluateIntent", () => {
     });
   });
 
-  describe("LLM failure falls back to policy-only approval", () => {
-    test("returns APPROVE with policy_only=true when LLM throws", async () => {
+  describe("LLM failure falls back to high-risk approval for human review", () => {
+    test("returns APPROVE with risk_score=50 and policy_only=true when LLM throws", async () => {
       const result = await evaluateIntent({
         intent: defaultIntent,
         policy: defaultPolicy,
@@ -137,13 +137,13 @@ describe("evaluateIntent", () => {
 
       expect(result.decision).toBe("APPROVE");
       expect(result.policy_only).toBe(true);
-      expect(result.risk_score).toBe(0);
+      expect(result.risk_score).toBe(50);
       expect(result.reason).toContain("LLM");
     });
   });
 
-  describe("evaluation timeout produces fallback", () => {
-    test("returns APPROVE with policy_only=true and timeout reason on timeout", async () => {
+  describe("evaluation timeout produces high-risk fallback for human review", () => {
+    test("returns APPROVE with risk_score=50 and policy_only=true on timeout", async () => {
       const result = await evaluateIntent({
         intent: defaultIntent,
         policy: defaultPolicy,
@@ -153,6 +153,7 @@ describe("evaluateIntent", () => {
 
       expect(result.decision).toBe("APPROVE");
       expect(result.policy_only).toBe(true);
+      expect(result.risk_score).toBe(50);
       expect(result.reason).toContain("timeout");
     });
   });

@@ -1,7 +1,7 @@
 import appHtml from "../../client/index.html";
 import { withRequestLogging } from "../http/request-logging";
 import { jsonResponse } from "../http/response";
-import { logInfo } from "../http/observability";
+import { logError, logInfo } from "../http/observability";
 import { createSseRegistry } from "../streaming/sse-registry";
 import { createRuntimeDependencies } from "./dependencies";
 import { loadServerConfig } from "./config";
@@ -26,6 +26,8 @@ import type { ShellExec } from "../orchestrator/worktree-manager";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
+import { createVetoManager } from "../intent/veto-manager";
+import { updateIntentStatus, queryExpiredVetoIntents } from "../intent/intent-queries";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -421,6 +423,18 @@ export async function startServer(): Promise<void> {
   };
 
   const server = createBrainServer(deps);
+
+  // Recover intents stuck in pending_veto with expired windows (fire-and-forget)
+  const vetoManager = createVetoManager();
+  deps.inflight.track(
+    vetoManager.recoverExpiredWindows({
+      updateStatus: (intentId, status) => updateIntentStatus(deps.surreal, intentId, status),
+      emitVetoEvent: (event) => logInfo("intent.veto.recovery", "Recovered expired veto window", { event }),
+      queryExpiredVetoIntents: () => queryExpiredVetoIntents(deps.surreal),
+    }).catch((err) => {
+      logError("intent.veto.recovery", "Failed to recover expired veto windows", err);
+    }),
+  );
 
   logInfo("server.started", "Brain app server started", {
     port: server.port,
