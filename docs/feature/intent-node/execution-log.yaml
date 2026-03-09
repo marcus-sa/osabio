@@ -99,5 +99,25 @@ events:
   s: EXECUTED
   sid: 01-04
   t: '2026-03-09T17:26:10Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T17:28:15Z'
+- d: 'NOT_APPLICABLE: pure core tested via unit tests only'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-09T17:28:19Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T17:28:55Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T17:29:29Z'
 project_id: intent-node
 schema_version: '3.0'
