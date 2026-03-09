@@ -113,7 +113,7 @@ afterAll(async () => {
 describe("US-UI-005: Dual-label audit trail shows actor and accountable human for every action", () => {
   // -- Happy path: agent action with dual-label --
 
-  it.skip("Given the PM Agent created a task, when the task's audit trail is queried, then the result shows actor 'PM Agent' with type 'agent' and accountable human 'Marcus Oliveira'", async () => {
+  it("Given the PM Agent created a task, when the task's audit trail is queried, then the result shows actor 'PM Agent' with type 'agent' and accountable human 'Marcus Oliveira'", async () => {
     const now = new Date();
     const taskRecord = new RecordId("task", randomUUID());
 
@@ -130,34 +130,32 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
     });
 
     // Dual-label query: resolve owner identity and managed_by chain
-    const [result] = await surreal.query<
-      [Array<{
-        title: string;
-        actor_name: string;
-        actor_type: string;
-        managed_by_name: Array<string>;
-        managed_by_type: Array<string>;
-      }>]
+    // Step 1: get actor identity
+    const [actorRows] = await surreal.query<
+      [Array<{ title: string; actor_name: string; actor_type: string; owner_id: RecordId }>]
     >(
-      `SELECT
-        title,
-        owner.name AS actor_name,
-        owner.type AS actor_type,
-        owner.->identity_agent->agent.managed_by.name AS managed_by_name,
-        owner.->identity_agent->agent.managed_by.type AS managed_by_type
-      FROM $record;`,
+      `SELECT title, owner.name AS actor_name, owner.type AS actor_type, owner AS owner_id FROM $record;`,
       { record: taskRecord },
     );
 
-    expect(result[0].actor_name).toBe("PM Agent");
-    expect(result[0].actor_type).toBe("agent");
-    expect(result[0].managed_by_name).toContain("Marcus Oliveira");
-    expect(result[0].managed_by_type).toContain("human");
+    expect(actorRows[0].actor_name).toBe("PM Agent");
+    expect(actorRows[0].actor_type).toBe("agent");
+
+    // Step 2: traverse managed_by chain from agent identity
+    const [managedByRows] = await surreal.query<
+      [Array<{ managed_by_name: string; managed_by_type: string }>]
+    >(
+      `SELECT ->identity_agent->agent.managed_by.name AS managed_by_name, ->identity_agent->agent.managed_by.type AS managed_by_type FROM $identity;`,
+      { identity: actorRows[0].owner_id },
+    );
+
+    expect(managedByRows[0].managed_by_name).toContain("Marcus Oliveira");
+    expect(managedByRows[0].managed_by_type).toContain("human");
   }, 60_000);
 
   // -- Human action: self as accountable --
 
-  it.skip("Given Marcus directly created a decision, when the decision's audit trail is queried, then actor and accountable human are both 'Marcus Oliveira'", async () => {
+  it("Given Marcus directly created a decision, when the decision's audit trail is queried, then actor and accountable human are both 'Marcus Oliveira'", async () => {
     const now = new Date();
     const decisionRecord = new RecordId("decision", randomUUID());
 
@@ -195,7 +193,7 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
 
   // -- Mixed attribution in workspace --
 
-  it.skip("Given both human and agent owned tasks exist, when all tasks are queried with attribution, then each task shows an identity reference with type context", async () => {
+  it("Given both human and agent owned tasks exist, when all tasks are queried with attribution, then each task shows an identity reference with type context", async () => {
     const now = new Date();
 
     // Human-owned task
@@ -231,12 +229,14 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
         title: string;
         actor_name: string;
         actor_type: string;
+        created_at: string;
       }>]
     >(
       `SELECT
         title,
         owner.name AS actor_name,
-        owner.type AS actor_type
+        owner.type AS actor_type,
+        created_at
       FROM task
       WHERE workspace = $ws AND owner != NONE
       ORDER BY created_at DESC;`,
@@ -257,7 +257,7 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
 
   // -- No unattributed entities --
 
-  it.skip("Given the unified identity migration is complete, when all tasks with owners are queried, then every owner references an identity record (not person or null)", async () => {
+  it("Given the unified identity migration is complete, when all tasks with owners are queried, then every owner references an identity record (not person or null)", async () => {
     const [tasks] = await surreal.query<
       [Array<{ title: string; owner: RecordId }>]
     >(
@@ -273,7 +273,7 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
 
   // -- Suggestion-to-task tracking --
 
-  it.skip("Given the PM Agent created a suggestion that was converted to a task, when the suggestion trail is queried, then the suggestion shows the agent actor and the resulting task", async () => {
+  it("Given the PM Agent created a suggestion that was converted to a task, when the suggestion trail is queried, then the suggestion shows the agent actor and the resulting task", async () => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -328,13 +328,15 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
         suggested_by: string;
         task_title: string;
         task_status: string;
+        created_at: string;
       }>]
     >(
       `SELECT
         text AS suggestion_text,
         suggested_by,
         converted_to.title AS task_title,
-        converted_to.status AS task_status
+        converted_to.status AS task_status,
+        created_at
       FROM suggestion
       WHERE workspace = $ws AND status = 'converted'
       ORDER BY created_at DESC;`,
@@ -351,7 +353,7 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
 
   // -- Error/edge case: identity with no managed_by (human) --
 
-  it.skip("Given a human identity has no managed_by chain, when the dual-label query is run, then the managed_by traversal returns empty without error", async () => {
+  it("Given a human identity has no managed_by chain, when the dual-label query is run, then the managed_by traversal returns empty without error", async () => {
     const now = new Date();
     const taskRecord = new RecordId("task", randomUUID());
 
@@ -367,21 +369,25 @@ describe("US-UI-005: Dual-label audit trail shows actor and accountable human fo
       },
     });
 
-    const [result] = await surreal.query<
-      [Array<{
-        actor_type: string;
-        managed_by_chain: Array<unknown>;
-      }>]
+    // Step 1: get actor identity
+    const [actorRows] = await surreal.query<
+      [Array<{ actor_type: string; owner_id: RecordId }>]
     >(
-      `SELECT
-        owner.type AS actor_type,
-        owner.->identity_agent->agent.managed_by AS managed_by_chain
-      FROM $record;`,
+      `SELECT owner.type AS actor_type, owner AS owner_id FROM $record;`,
       { record: taskRecord },
     );
 
-    expect(result[0].actor_type).toBe("human");
+    expect(actorRows[0].actor_type).toBe("human");
+
+    // Step 2: traverse managed_by chain -- for human identity, no agent spoke exists
+    const [managedByRows] = await surreal.query<
+      [Array<{ managed_by_chain: Array<unknown> }>]
+    >(
+      `SELECT ->identity_agent->agent.managed_by AS managed_by_chain FROM $identity;`,
+      { identity: actorRows[0].owner_id },
+    );
+
     // managed_by traversal on a human identity yields empty (no agent spoke)
-    expect(result[0].managed_by_chain).toEqual([]);
+    expect(managedByRows[0].managed_by_chain).toEqual([]);
   }, 60_000);
 });

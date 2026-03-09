@@ -83,5 +83,46 @@ events:
   s: SKIPPED
   sid: 02-01
   t: '2026-03-09T07:58:05Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T09:24:52Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T09:24:52Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T09:24:52Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-09T09:24:52Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-09T09:26:29Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-09T09:27:10Z'
+- d: 'NOT_APPLICABLE: acceptance tests cover query-level behaviors at integration
+    boundary'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-09T09:27:15Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-09T09:29:38Z'
 project_id: unified-identity
 schema_version: '3.0'
