@@ -50,6 +50,8 @@ import { requireRawId } from "./id-format";
 import { processCommitTaskRefs } from "./commit-check";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { createIntent, updateIntentStatus, getIntentById } from "../intent/intent-queries";
+import type { IntentStatus } from "../intent/types";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -1618,6 +1620,134 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
   }
 
   // =========================================================================
+  // Intent — MCP tools
+  // =========================================================================
+
+  /** POST /api/mcp/:workspaceId/intents/create — Create a draft intent */
+  async function handleCreateIntent(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+    const scopeDenied = requireScope(auth.scopes, "task:write");
+    if (scopeDenied) return scopeDenied;
+
+    const body = await parseJsonBody<{
+      goal: string;
+      reasoning: string;
+      priority?: number;
+      action: string;
+      provider: string;
+      params?: Record<string, unknown>;
+      budget_limit?: { amount: number; currency: string };
+    }>(request);
+    if (body instanceof Response) return body;
+
+    if (!body.goal) return jsonError("goal is required", 400);
+    if (!body.reasoning) return jsonError("reasoning is required", 400);
+    if (!body.action) return jsonError("action is required", 400);
+    if (!body.provider) return jsonError("provider is required", 400);
+
+    try {
+      const intentRecord = await createIntent(surreal, {
+        goal: body.goal,
+        reasoning: body.reasoning,
+        priority: body.priority ?? 5,
+        action_spec: {
+          provider: body.provider,
+          action: body.action,
+          ...(body.params ? { params: body.params } : {}),
+        },
+        ...(body.budget_limit ? { budget_limit: body.budget_limit } : {}),
+        trace_id: crypto.randomUUID(),
+        requester: auth.identityRecord,
+        workspace: auth.workspaceRecord,
+      });
+
+      logInfo("mcp.intent.created", "Draft intent created", { workspaceId, intentId: intentRecord.id as string });
+
+      return jsonResponse({ intent_id: intentRecord.id as string, status: "draft" as IntentStatus }, 201);
+    } catch (error) {
+      logError("mcp.intent.create.failed", "Failed to create intent", error);
+      return jsonError("failed to create intent", 500);
+    }
+  }
+
+  /** POST /api/mcp/:workspaceId/intents/submit — Submit a draft intent for authorization */
+  async function handleSubmitIntent(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+    const scopeDenied = requireScope(auth.scopes, "task:write");
+    if (scopeDenied) return scopeDenied;
+
+    const body = await parseJsonBody<{ intent_id: string }>(request);
+    if (body instanceof Response) return body;
+
+    if (!body.intent_id) return jsonError("intent_id is required", 400);
+
+    let intentId: string;
+    try {
+      intentId = requireRawId(body.intent_id, "intent_id");
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "invalid intent_id", 400);
+    }
+
+    try {
+      const result = await updateIntentStatus(surreal, intentId, "pending_auth");
+      if (!result.ok) {
+        return jsonError(result.error, 409);
+      }
+
+      logInfo("mcp.intent.submitted", "Intent submitted for authorization", { workspaceId, intentId });
+
+      return jsonResponse({ intent_id: intentId, status: "pending_auth" as IntentStatus }, 200);
+    } catch (error) {
+      logError("mcp.intent.submit.failed", "Failed to submit intent", error);
+      return jsonError("failed to submit intent", 500);
+    }
+  }
+
+  /** POST /api/mcp/:workspaceId/intents/status — Get current intent status */
+  async function handleGetIntentStatus(workspaceId: string, request: Request): Promise<Response> {
+    const auth = await requireAuth(request, workspaceId);
+    if (auth instanceof Response) return auth;
+    const scopeDenied = requireScope(auth.scopes, "graph:read");
+    if (scopeDenied) return scopeDenied;
+
+    const body = await parseJsonBody<{ intent_id: string }>(request);
+    if (body instanceof Response) return body;
+
+    if (!body.intent_id) return jsonError("intent_id is required", 400);
+
+    let intentId: string;
+    try {
+      intentId = requireRawId(body.intent_id, "intent_id");
+    } catch (error) {
+      return jsonError(error instanceof Error ? error.message : "invalid intent_id", 400);
+    }
+
+    try {
+      const intent = await getIntentById(surreal, intentId);
+      if (!intent) {
+        return jsonError("intent not found", 404);
+      }
+
+      return jsonResponse({
+        intent_id: intentId,
+        status: intent.status,
+        goal: intent.goal,
+        reasoning: intent.reasoning,
+        priority: intent.priority,
+        created_at: intent.created_at,
+        ...(intent.evaluation ? { evaluation: intent.evaluation } : {}),
+        ...(intent.veto_reason ? { veto_reason: intent.veto_reason } : {}),
+        ...(intent.error_reason ? { error_reason: intent.error_reason } : {}),
+      }, 200);
+    } catch (error) {
+      logError("mcp.intent.status.failed", "Failed to get intent status", error);
+      return jsonError("failed to get intent status", 500);
+    }
+  }
+
+  // =========================================================================
   // Return all handlers
   // =========================================================================
 
@@ -1655,5 +1785,9 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     handleLogCommit,
     handlePreCheck,
     handlePostCheck,
+    // Intent
+    handleCreateIntent,
+    handleSubmitIntent,
+    handleGetIntentStatus,
   };
 }

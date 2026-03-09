@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session";
+export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 
@@ -380,7 +380,7 @@ export type BranchConversationResponse = {
 export type GovernanceTier = "blocking" | "review" | "awareness";
 
 export type GovernanceFeedAction = {
-  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss" | "accept" | "defer" | "abort" | "review";
+  action: "confirm" | "override" | "acknowledge" | "resolve" | "complete" | "discuss" | "dismiss" | "accept" | "defer" | "abort" | "review" | "veto";
   label: string;
 };
 

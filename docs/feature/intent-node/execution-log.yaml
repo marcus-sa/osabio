@@ -219,5 +219,30 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-09T17:43:48Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T17:44:14Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-09T17:46:11Z'
+- d: 'NOT_APPLICABLE: tested via milestone-2 acceptance tests in 03-03'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-09T17:46:16Z'
+- d: 'NOT_APPLICABLE: integration tested via acceptance tests'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-09T17:46:17Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-09T17:49:43Z'
 project_id: intent-node
 schema_version: '3.0'

@@ -10,6 +10,8 @@ import { startEventBridge, type SdkMessage } from "./event-bridge";
 import type { StreamEvent } from "../../shared/contracts";
 import type { StallDetectorHandle } from "./stall-detector";
 import { logError, logInfo, logWarn } from "../http/observability";
+import { getIntentById, updateIntentStatus } from "../intent/intent-queries";
+import type { IntentStatus } from "../intent/types";
 
 // ---------------------------------------------------------------------------
 // Types — exported for tests
@@ -30,7 +32,8 @@ export type SessionErrorCode =
   | "MISSING_TASK_ID"
   | "WORKTREE_ERROR"
   | "SESSION_NOT_FOUND"
-  | "SESSION_ERROR";
+  | "SESSION_ERROR"
+  | "INTENT_NOT_AUTHORIZED";
 
 export type SessionError = {
   code: SessionErrorCode;
@@ -309,6 +312,7 @@ type CreateSessionInput = {
   brainBaseUrl: string;
   workspaceId: string;
   taskId: string;
+  intentId?: string;
   authToken?: string;
   spawnAgent?: SpawnAgentFn;
   validateAssignment: (
@@ -327,6 +331,14 @@ type CreateSessionInput = {
 export async function createOrchestratorSession(
   input: CreateSessionInput,
 ): Promise<OrchestratorSessionResult> {
+  // 0. Intent authorization gate (optional — backwards compatible)
+  if (input.intentId) {
+    const gateResult = await checkIntentAuthorization(input.surreal, input.intentId);
+    if (!gateResult.ok) {
+      return { ok: false, error: gateResult.error };
+    }
+  }
+
   // 1. Validate assignment eligibility
   const assignmentResult = await input.validateAssignment(
     input.surreal,
@@ -403,6 +415,11 @@ export async function createOrchestratorSession(
     stream_id: streamId,
   });
 
+  // 7. Transition intent to executing and create gates relation
+  if (input.intentId) {
+    await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
+  }
+
   return {
     ok: true,
     value: {
@@ -411,6 +428,60 @@ export async function createOrchestratorSession(
       worktreeBranch: branchName,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Intent authorization helpers
+// ---------------------------------------------------------------------------
+
+async function checkIntentAuthorization(
+  surreal: Surreal,
+  intentId: string,
+): Promise<SessionResult<void>> {
+  const intent = await getIntentById(surreal, intentId);
+  if (!intent) {
+    return {
+      ok: false,
+      error: {
+        code: "INTENT_NOT_AUTHORIZED",
+        message: `Intent ${intentId} not found`,
+        httpStatus: 404,
+      },
+    };
+  }
+
+  const status = intent.status as IntentStatus;
+  if (status !== "authorized") {
+    return {
+      ok: false,
+      error: {
+        code: "INTENT_NOT_AUTHORIZED",
+        message: `Intent ${intentId} has status "${status}", expected "authorized"`,
+        httpStatus: 403,
+      },
+    };
+  }
+
+  return { ok: true, value: undefined as void };
+}
+
+async function transitionIntentToExecuting(
+  surreal: Surreal,
+  intentId: string,
+  sessionRecord: RecordId<"agent_session", string>,
+): Promise<void> {
+  await updateIntentStatus(surreal, intentId, "executing");
+
+  const intentRecord = new RecordId("intent", intentId);
+  await surreal.query(
+    "RELATE $intent->gates->$session SET created_at = time::now();",
+    { intent: intentRecord, session: sessionRecord },
+  );
+
+  logInfo("orchestrator.intent-gate", "Intent transitioned to executing with gates relation", {
+    intentId,
+    sessionId: sessionRecord.id as string,
+  });
 }
 
 // Default spawn -- placeholder for production use

@@ -336,6 +336,22 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           mcpHandlers.handlePostCheck(request.params.workspaceId, request),
         ),
       },
+      // MCP — Intent tools
+      "/api/mcp/:workspaceId/intents/create": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/create", "POST", (request) =>
+          mcpHandlers.handleCreateIntent(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/intents/submit": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/submit", "POST", (request) =>
+          mcpHandlers.handleSubmitIntent(request.params.workspaceId, request),
+        ),
+      },
+      "/api/mcp/:workspaceId/intents/status": {
+        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/status", "POST", (request) =>
+          mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
+        ),
+      },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)
       "/api/intents/:intentId/evaluate": {
         POST: withRequestLogging("POST /api/intents/:intentId/evaluate", "POST", (request) =>
