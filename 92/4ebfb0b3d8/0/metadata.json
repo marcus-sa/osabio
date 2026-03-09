@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "924ebfb0b3d8",
+  "session_id": "39affcc6-442d-4446-b1e9-2d591fc7c313",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T13:37:14.960042Z",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/ci.yml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f15cda4cd0f4",
+  "checkpoint_transcript_start": 401,
+  "transcript_lines_at_start": 401,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 5695,
+    "cache_read_tokens": 710127,
+    "output_tokens": 1703,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T13:37:14.758173Z",
+    "agent_lines": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3,
+    "agent_percentage": 100
+  }
+}
