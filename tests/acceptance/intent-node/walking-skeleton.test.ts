@@ -57,7 +57,7 @@ describe("Walking Skeleton: Agent intent is authorized and proceeds to execution
     });
 
     // And an agent identity that will request authorization
-    const agentIdentityId = await createTestIdentity(surreal, "coding-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
 
     // When the agent creates an intent declaring what it wants to do
     const { intentId } = await createDraftIntent(
@@ -136,7 +136,7 @@ describe("Walking Skeleton: Agent intent is authorized and proceeds to execution
     });
 
     // And an agent identity requesting authorization for a destructive action
-    const agentIdentityId = await createTestIdentity(surreal, "coding-agent", "agent");
+    const agentIdentityId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
 
     // When the agent creates an intent for a destructive database operation
     const { intentId } = await createDraftIntent(

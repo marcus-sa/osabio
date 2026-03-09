@@ -365,7 +365,7 @@ export async function simulateEvaluation(
     decision: evaluation.decision,
     risk_score: evaluation.risk_score,
     reason: evaluation.reason,
-    evaluated_at: new Date().toISOString(),
+    evaluated_at: new Date(),
     policy_only: evaluation.policy_only ?? false,
   };
 
@@ -412,16 +412,24 @@ export async function createTestIdentity(
   surreal: Surreal,
   name: string,
   type: "human" | "agent" = "agent",
+  workspaceId?: string,
 ): Promise<string> {
   const identityId = `id-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   const identityRecord = new RecordId("identity", identityId);
+
+  const content: Record<string, unknown> = {
+    name,
+    type,
+    created_at: new Date(),
+  };
+
+  if (workspaceId) {
+    content.workspace = new RecordId("workspace", workspaceId);
+  }
+
   await surreal.query(`CREATE $identity CONTENT $content;`, {
     identity: identityRecord,
-    content: {
-      name,
-      type,
-      created_at: new Date(),
-    },
+    content,
   });
   return identityId;
 }

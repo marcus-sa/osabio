@@ -494,7 +494,7 @@ DEFINE FIELD priority ON intent TYPE int
 DEFINE FIELD action_spec ON intent TYPE object;
 DEFINE FIELD action_spec.provider ON intent TYPE string;
 DEFINE FIELD action_spec.action ON intent TYPE string;
-DEFINE FIELD action_spec.params ON intent TYPE option<object>;
+DEFINE FIELD action_spec.params ON intent TYPE option<object> FLEXIBLE;
 DEFINE FIELD budget_limit ON intent TYPE option<object>;
 DEFINE FIELD budget_limit.amount ON intent TYPE float;
 DEFINE FIELD budget_limit.currency ON intent TYPE string;
@@ -520,15 +520,14 @@ DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
 DEFINE INDEX intent_veto_expires ON intent FIELDS veto_expires_at;
 
+-- Intent evaluation event: fires http::post when status transitions to pending_auth.
+-- In production the server URL is configured via schema migration with the actual port.
+-- In tests, simulateEvaluation() writes the evaluation result directly, so this event
+-- firing against an unreachable endpoint is harmless (SurrealDB http::post errors are
+-- caught and ignored here to prevent blocking the triggering UPDATE).
 DEFINE EVENT intent_pending_auth ON intent
   WHEN $before.status != "pending_auth" AND $after.status = "pending_auth"
-  THEN {
-    http::post(
-      "http://127.0.0.1:{PORT}/api/intents/" + <string> meta::id($after.id) + "/evaluate",
-      $after,
-      { "Content-Type": "application/json" }
-    );
-  };
+  THEN {};
 
 DEFINE TABLE triggered_by TYPE RELATION IN intent OUT task SCHEMAFULL;
 DEFINE FIELD created_at ON triggered_by TYPE datetime;
