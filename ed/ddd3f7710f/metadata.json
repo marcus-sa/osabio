@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "edddd3f7710f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/extraction/entity-text.ts",
+    "app/src/server/extraction/persist-extraction.ts",
+    "app/src/server/extraction/types.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/webhook/github-commit-processor.ts",
+    "docs/feature/unified-identity/execution-log.yaml",
+    "schema/surreal-schema.surql",
+    "tests/smoke/unified-identity/edge-migration.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ed/ddd3f7710f/0/metadata.json",
+      "transcript": "/ed/ddd3f7710f/0/full.jsonl",
+      "context": "/ed/ddd3f7710f/0/context.md",
+      "content_hash": "/ed/ddd3f7710f/0/content_hash.txt",
+      "prompt": "/ed/ddd3f7710f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 203852,
+    "cache_read_tokens": 13783035,
+    "output_tokens": 58627,
+    "api_call_count": 130
+  }
+}

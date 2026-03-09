@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "edddd3f7710f",
+  "session_id": "4d4ff12e-ad32-4d6b-ae11-5050541579cc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T07:54:40.117084Z",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/extraction/entity-text.ts",
+    "app/src/server/extraction/persist-extraction.ts",
+    "app/src/server/extraction/types.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/webhook/github-commit-processor.ts",
+    "docs/feature/unified-identity/execution-log.yaml",
+    "schema/surreal-schema.surql",
+    "tests/smoke/unified-identity/edge-migration.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "962fd8479094",
+  "token_usage": {
+    "input_tokens": 228,
+    "cache_creation_tokens": 203852,
+    "cache_read_tokens": 13783035,
+    "output_tokens": 58627,
+    "api_call_count": 130
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T07:54:39.824403Z",
+    "agent_lines": 110,
+    "human_added": 205,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 317,
+    "agent_percentage": 34.70031545741325
+  }
+}
