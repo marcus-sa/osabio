@@ -31,6 +31,14 @@ tests/
 - One-at-a-time TDD: new scenarios start skipped (`it.skip`), enable one at a time as implementation progresses
 - Smoke tests create isolated SurrealDB namespace/database per suite, cleaned up after
 
+## Smoke Test AI Dependencies
+
+- Standalone smoke tests that need AI models (extraction, embedding) MUST import `smokeAI` from `./smoke-test-kit` — never create ad-hoc OpenRouter instances or use `{} as any` stubs.
+- `smokeAI` exports: `openrouter`, `extractionModel`, `extractionModelId`, `embeddingModel`, `embeddingDimension`.
+- All env vars are validated via `requireTestEnv` (fail-fast, no defaults).
+- Required env: `OPENROUTER_API_KEY`, `EXTRACTION_MODEL`, `OPENROUTER_EMBEDDING_MODEL`, `EMBEDDING_DIMENSION`.
+- Fake model stubs (`{} as any`, `undefined as any`) break fire-and-forget description triggers when entities accumulate >1 description entry — the Vercel AI SDK requires `specificationVersion` on model objects.
+
 ## What to Mock
 
 - External processes (OpenCode spawn) — mock the handle, not the process

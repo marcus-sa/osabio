@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
 import { createMoveItemsToProjectTool } from "../../app/src/server/chat/tools/move-items-to-project";
+import { smokeAI } from "./smoke-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
@@ -142,10 +143,10 @@ async function countEdges(table: string, from: RecordId, to: RecordId): Promise<
 function makeTool() {
   return createMoveItemsToProjectTool({
     surreal,
-    embeddingModel: {} as any,
-    embeddingDimension: 1536,
-    extractionModelId: "test",
-    extractionModel: {} as any,
+    embeddingModel: smokeAI.embeddingModel as any,
+    embeddingDimension: smokeAI.embeddingDimension,
+    extractionModelId: smokeAI.extractionModelId,
+    extractionModel: smokeAI.extractionModel,
     extractionStoreThreshold: 0.5,
   });
 }

@@ -3,12 +3,8 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createCreateWorkItemTool } from "../../app/src/server/chat/tools/create-work-item";
-
-const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
-const embeddingModel = openrouter.textEmbeddingModel(process.env.OPENROUTER_EMBEDDING_MODEL!);
-const embeddingDimension = Number(process.env.EMBEDDING_DIMENSION ?? "1536");
+import { smokeAI } from "./smoke-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
@@ -104,10 +100,10 @@ afterAll(async () => {
 function makeTool() {
   return createCreateWorkItemTool({
     surreal,
-    embeddingModel: embeddingModel as any,
-    embeddingDimension,
-    extractionModelId: "test",
-    extractionModel: {} as any,
+    embeddingModel: smokeAI.embeddingModel as any,
+    embeddingDimension: smokeAI.embeddingDimension,
+    extractionModelId: smokeAI.extractionModelId,
+    extractionModel: smokeAI.extractionModel,
     extractionStoreThreshold: 0.5,
   });
 }

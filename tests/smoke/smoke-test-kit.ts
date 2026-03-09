@@ -3,12 +3,25 @@ import { randomBytes, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createBrainServer } from "../../app/src/server/runtime/start-server";
 import { createRuntimeDependencies } from "../../app/src/server/runtime/dependencies";
 import { createSseRegistry } from "../../app/src/server/streaming/sse-registry";
 import { createInflightTracker } from "../../app/src/server/runtime/types";
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
+
+// ── Shared AI dependencies for standalone smoke tests ──
+
+const openrouter = createOpenRouter({ apiKey: requireTestEnv("OPENROUTER_API_KEY") });
+
+export const smokeAI = {
+  openrouter,
+  extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
+  extractionModel: openrouter(requireTestEnv("EXTRACTION_MODEL")),
+  embeddingModel: openrouter.textEmbeddingModel(requireTestEnv("OPENROUTER_EMBEDDING_MODEL")),
+  embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
+};
 
 export type SmokeTestRuntime = {
   baseUrl: string;
