@@ -45,7 +45,7 @@ C4Container
   Container_Boundary(server, "Bun Server") {
     Container(auth, "Auth Module", "better-auth + adapter", "OAuth login, session management, identity_id on session/account")
     Container(iam, "IAM Module", "identity.ts + authority.ts", "Resolves email/provider to identity, checks authority with overrides")
-    Container(chat, "Chat Pipeline", "ingress + processor + handler", "Builds identity-based execution context, dispatches to agents")
+    Container(chat, "Chat Pipeline", "ingress + processor + handler", "Builds identity-based context (identityRecord + workspaceOwnerRecord as RecordId<identity>), dispatches to agents")
     Container(extraction, "Extraction Pipeline", "Haiku LLM + resolution", "Extracts entities, resolves assignees to identity records")
     Container(workspace, "Workspace Module", "routes + bootstrap", "Creates workspaces, bootstraps identity wrapping and agent registration")
     Container(audit, "Audit Queries", "graph queries", "Dual-label attribution, agent suggestion tracking")
@@ -179,6 +179,15 @@ No changes to deployment. The feature is entirely schema + application code:
 2. Application restart picks up new TypeScript types and resolution logic
 3. Workspace bootstrap creates identity records on first load
 
+### Deployment Safety
+
+- All migration scripts wrapped in `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` — succeed or fail atomically
+- `bun migrate` tracks applied migrations in `_migration` table; partial runs are safe to retry
+- Step_02 bootstrap is explicitly idempotent (safe to re-run on failure)
+- Steps 01, 03, 04 are schema DDL (`DEFINE FIELD OVERWRITE`, `ALTER TABLE`) — idempotent by nature
+- Steps 05-07 are query/code layer only — no schema risk
+- Per project convention, schema changes are breaking and old data is discarded. No rollback scripts needed; re-apply schema from scratch if needed
+
 ## Implementation Roadmap
 
 ### Phase 1: MVP Foundation (US-UI-001 through US-UI-005)
@@ -193,6 +202,7 @@ step_01:
     - "agent table enforces managed_by as record<identity>"
     - "spoke edges traverse bidirectionally"
     - "HNSW index on identity.embedding"
+    - "Identity vector search uses LET + WHERE split pattern (KNN+WHERE bug workaround): KNN in LET subquery, workspace filter in second query"
     - "person.identities field removed"
   files_touched: 2  # migration script, surreal-schema.surql
 
@@ -204,6 +214,7 @@ step_02:
     - "Every person gets identity hub with spoke edge on workspace creation"
     - "Template agents created for management, code_agent, observer types"
     - "Each agent managed_by workspace owner identity"
+    - "All agent managed_by chains resolve to human identity within 1 hop; circular managed_by rejected at creation time"
     - "Running bootstrap twice produces no duplicates"
     - "New workspace creation includes identity bootstrap"
   files_touched: 3  # bootstrap module, workspace-routes.ts, tests
@@ -218,7 +229,9 @@ step_03:
     - "Graph functions updated for identity traversals"
     - "TypeScript RecordId<'person'> in ownership contexts changed to RecordId<'identity'>"
     - "No remaining record<person> in ownership fields"
-  files_touched: 8  # migration, schema, graph queries, extraction/person, entity-upsert, persist-extraction, entity-text, types
+    - "resolveWorkspacePerson() renamed to resolveWorkspaceIdentity(), returns RecordId<'identity'>, searches identity.name (workspace-scoped)"
+    - "PersonAttributionPatch renamed to IdentityAttributionPatch with identity record references"
+  files_touched: 8  # migration, schema, graph queries, extraction/person→identity-resolution, entity-upsert, persist-extraction, entity-text, types
 
 step_04:
   title: "Auth rewiring -- session and account to identity"
@@ -229,6 +242,7 @@ step_04:
     - "OAuth tables (oauthClient, oauthAccessToken, oauthRefreshToken, oauthConsent) userId references identity"
     - "resolveByEmail returns RecordId<'identity'>"
     - "Chat ingress builds context with identityRecord"
+    - "workspaceOwnerRecord references RecordId<'identity'> (workspace owner's identity, not person)"
     - "humanPresent derived from identity.type"
   files_touched: 10  # migration, schema, iam/identity, auth/config, auth/adapter, chat-ingress, chat-processor, handler, tools/types, mcp/auth
 
@@ -317,6 +331,21 @@ revisions_applied:
   - issue: "ADR-010 missing quality attribute trade-off matrix"
     severity: "medium"
     fix: "Added Quality Attribute Impact table and Observability Note to ADR-010"
+  - issue: "KNN+WHERE split not specified for identity vector search"
+    severity: "high"
+    fix: "Added split query template to data-models.md and KNN+WHERE AC to step_01"
+  - issue: "workspaceOwnerRecord type change missing from C4 L2 and step_04 AC"
+    severity: "high"
+    fix: "Added workspaceOwnerRecord to C4 L2 description, step_04 AC, and component-boundaries section 5"
+  - issue: "Extraction pipeline scope unclear in step_03"
+    severity: "high"
+    fix: "Added resolveWorkspacePerson→resolveWorkspaceIdentity rename and IdentityAttributionPatch to step_03 AC; clarified US-UI-003 vs US-UI-007 scope in component-boundaries"
+  - issue: "Circular managed_by chain risk not addressed"
+    severity: "medium"
+    fix: "Added managed_by human validation to step_02 AC and agent table definition in data-models"
+  - issue: "No deployment safety / rollback guidance"
+    severity: "medium"
+    fix: "Added Deployment Safety section with idempotency and transaction guarantees per step"
 
 quality_gates:
   requirements_traced: PASS  # all 7 stories mapped to components

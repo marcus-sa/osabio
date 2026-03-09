@@ -43,6 +43,7 @@
 - `resolveIdentity()`: provider+providerId -> RecordId<"identity"> (was RecordId<"person">)
 - `resolveByEmail()`: email -> RecordId<"identity"> (was RecordId<"person">)
 - Resolution path: email -> person -> <-identity_person<-identity (one extra hop)
+- Identity vector search queries must use LET + WHERE split pattern (KNN+WHERE bug workaround) since identity table has B-tree index on workspace
 - Consumed by: auth config (better-auth adapter), chat ingress, MCP auth
 
 ---
@@ -79,7 +80,7 @@
 - `chat-processor.ts`: passes identityRecord through pipeline
 - `handler.ts`: receives identityRecord, passes to tool context
 - `tools/types.ts`: type definition change
-- `workspaceOwnerRecord`: also changes from RecordId<"person"> to RecordId<"identity">
+- `workspaceOwnerRecord`: changes from `RecordId<"person">` to `RecordId<"identity">` — used by permission/scope checks, must reference the workspace owner's identity hub record (not person spoke)
 - `humanPresent` flag: derived from identity.type = 'human' (was implicit from session)
 
 ---
@@ -104,13 +105,15 @@
 
 **Boundary**: `app/src/server/extraction/person.ts` (rename to `identity-resolution.ts` or extend)
 
-**Stories**: US-UI-003 (field type changes), US-UI-007 (agent mention resolution)
+**Stories**: US-UI-003 (rename + retype resolution functions), US-UI-007 (agent mention resolution)
 
-**Integration points**:
-- `resolveWorkspacePerson()` -> `resolveWorkspaceIdentity()`: returns RecordId<"identity">
-- `PersonAttributionPatch` -> `IdentityAttributionPatch`: field values are identity record references
-- `findWorkspacePersonByName()` -> `findWorkspaceIdentityByName()`: searches identity.name instead of person.name
-- US-UI-007: adds agent mention matching (role-based and name-based) with confidence threshold
+**US-UI-003 scope (MUST)**: File `extraction/person.ts` is renamed to `extraction/identity-resolution.ts` in this step. All functions migrate:
+- `resolveWorkspacePerson()` → `resolveWorkspaceIdentity()`: returns `RecordId<"identity">`, searches `identity.name` (workspace-scoped) instead of `person.name`
+- `PersonAttributionPatch` → `IdentityAttributionPatch`: field values are identity record references
+- `findWorkspacePersonByName()` → `findWorkspaceIdentityByName()`: queries `identity` table directly
+- Callers (`entity-upsert.ts`, `persist-extraction.ts`) updated to use new function names and types
+
+**US-UI-007 scope (COULD)**: Extends `resolveWorkspaceIdentity()` with agent mention matching (role-based and name-based) with confidence threshold. No extraction prompt changes in US-UI-003.
 
 ---
 

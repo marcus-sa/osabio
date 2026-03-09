@@ -18,13 +18,25 @@
 - `identity_type_workspace` on `type, workspace`
 - `idx_identity_embedding` HNSW DIMENSION 1536 DIST COSINE on `embedding`
 
+**KNN+WHERE workaround** (required because `identity_workspace` B-tree index conflicts with HNSW in same query):
+```sql
+-- BROKEN: KNN + WHERE with B-tree indexed field
+SELECT *, vector::similarity::cosine(embedding, $vec) AS similarity
+FROM identity WHERE workspace = $ws AND embedding <|K, COSINE|> $vec;
+
+-- CORRECT: split into LET + filter
+LET $candidates = SELECT *, vector::similarity::cosine(embedding, $vec) AS similarity, workspace
+FROM identity WHERE embedding <|K, COSINE|> $vec;
+SELECT * FROM $candidates WHERE workspace = $ws ORDER BY similarity DESC LIMIT $limit;
+```
+
 ### agent (spoke)
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | agent_type | string | yes | Matches authority_scope enum: code_agent, architect, management, design_partner, observer |
 | model | option\<string\> | no | LLM model identifier |
-| managed_by | record\<identity\> | yes | Human identity responsible for this agent |
+| managed_by | record\<identity\> | yes | Human identity responsible for this agent. Must reference identity with type='human' — circular or agent-to-agent managed_by chains rejected at bootstrap creation time |
 | created_at | datetime | yes | |
 
 ### identity_person (spoke edge)
