@@ -5,7 +5,14 @@
   "branch": "marcus-sa/intent-node-issue",
   "checkpoints_count": 1,
   "files_touched": [
-    "app/src/server/intent/intent-routes.ts"
+    ".github/workflows/ci.yml",
+    "AGENTS.md",
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/runtime/start-server.ts",
+    "docker-compose.yml",
+    "schema/migrations/0021_intent_node.surql",
+    "tests/acceptance/intent-node/intent-test-kit.ts"
   ],
   "sessions": [
     {
@@ -14,13 +21,20 @@
       "context": "/85/eded0fd71d/0/context.md",
       "content_hash": "/85/eded0fd71d/0/content_hash.txt",
       "prompt": "/85/eded0fd71d/0/prompt.txt"
+    },
+    {
+      "metadata": "/85/eded0fd71d/1/metadata.json",
+      "transcript": "/85/eded0fd71d/1/full.jsonl",
+      "context": "/85/eded0fd71d/1/context.md",
+      "content_hash": "/85/eded0fd71d/1/content_hash.txt",
+      "prompt": "/85/eded0fd71d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 232,
-    "cache_creation_tokens": 433009,
-    "cache_read_tokens": 11395910,
-    "output_tokens": 53745,
-    "api_call_count": 133
+    "input_tokens": 235,
+    "cache_creation_tokens": 458700,
+    "cache_read_tokens": 11406678,
+    "output_tokens": 54211,
+    "api_call_count": 134
   }
 }
