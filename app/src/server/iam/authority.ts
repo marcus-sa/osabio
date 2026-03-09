@@ -44,8 +44,57 @@ export async function checkAuthority(input: {
   agentType: AgentType;
   action: AuthorityAction;
   workspaceRecord?: RecordId<"workspace", string>;
+  identityRecord?: RecordId<"identity", string>;
 }): Promise<AuthorityPermission> {
-  // 1. Try workspace-specific override
+  // 0. Human bypass: if identity type is human, always allow
+  if (input.identityRecord) {
+    const [identityRows] = await input.surreal.query<[Array<{ type: string; role?: string }>]>(
+      "SELECT type, role FROM $record;",
+      { record: input.identityRecord },
+    );
+
+    if (identityRows.length > 0 && identityRows[0].type === "human") {
+      return "auto";
+    }
+
+    const identityRole = identityRows.length > 0 ? identityRows[0].role : undefined;
+
+    // 1. Per-identity override via authorized_to relation
+    const [overrideRows] = await input.surreal.query<[Array<{ permission: string }>]>(
+      `SELECT permission FROM authorized_to
+       WHERE in = $identity
+       AND out.action = $action
+       LIMIT 1;`,
+      { identity: input.identityRecord, action: input.action },
+    );
+
+    if (overrideRows.length > 0) {
+      return overrideRows[0].permission as AuthorityPermission;
+    }
+
+    // 2. Role-based resolution: use identity.role to match authority_scope.agent_type
+    if (identityRole) {
+      if (input.workspaceRecord) {
+        const [wsRoleRows] = await input.surreal.query<[Array<{ permission: string }>]>(
+          "SELECT permission FROM authority_scope WHERE agent_type = $role AND action = $action AND workspace = $workspace LIMIT 1;",
+          { role: identityRole, action: input.action, workspace: input.workspaceRecord },
+        );
+        if (wsRoleRows.length > 0) {
+          return wsRoleRows[0].permission as AuthorityPermission;
+        }
+      }
+
+      const [globalRoleRows] = await input.surreal.query<[Array<{ permission: string }>]>(
+        "SELECT permission FROM authority_scope WHERE agent_type = $role AND action = $action AND workspace IS NONE LIMIT 1;",
+        { role: identityRole, action: input.action },
+      );
+      if (globalRoleRows.length > 0) {
+        return globalRoleRows[0].permission as AuthorityPermission;
+      }
+    }
+  }
+
+  // 3. Agent-type based resolution (existing behavior)
   if (input.workspaceRecord) {
     const [wsRows] = await input.surreal.query<[Array<{ permission: string }>]>(
       "SELECT permission FROM authority_scope WHERE agent_type = $agentType AND action = $action AND workspace = $workspace LIMIT 1;",
@@ -61,7 +110,7 @@ export async function checkAuthority(input: {
     }
   }
 
-  // 2. Fall back to global default (workspace IS NONE)
+  // 4. Fall back to global default (workspace IS NONE)
   const [globalRows] = await input.surreal.query<[Array<{ permission: string }>]>(
     "SELECT permission FROM authority_scope WHERE agent_type = $agentType AND action = $action AND workspace IS NONE LIMIT 1;",
     { agentType: input.agentType, action: input.action },
@@ -71,7 +120,7 @@ export async function checkAuthority(input: {
     return globalRows[0].permission as AuthorityPermission;
   }
 
-  // 3. Fail-safe: no row = blocked
+  // 5. Fail-safe: no row = blocked
   return "blocked";
 }
 

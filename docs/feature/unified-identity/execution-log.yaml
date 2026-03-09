@@ -124,5 +124,30 @@ events:
   s: EXECUTED
   sid: 02-02
   t: '2026-03-09T09:29:38Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-09T09:29:59Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T09:32:06Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T09:33:42Z'
+- d: SKIP_acceptance_sufficient
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T09:33:48Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T09:34:55Z'
 project_id: unified-identity
 schema_version: '3.0'

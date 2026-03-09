@@ -556,6 +556,13 @@ CREATE authority_scope CONTENT { agent_type: "observer", action: "resolve_observ
 CREATE authority_scope CONTENT { agent_type: "observer", action: "create_question", permission: "auto", created_at: time::now() };
 CREATE authority_scope CONTENT { agent_type: "observer", action: "create_suggestion", permission: "blocked", created_at: time::now() };
 
+-- Per-identity authority overrides (identity -> authority_scope)
+DEFINE TABLE authorized_to TYPE RELATION IN identity OUT authority_scope SCHEMAFULL;
+DEFINE FIELD permission ON authorized_to TYPE string
+  ASSERT $value IN ["auto", "provisional", "propose", "blocked"];
+DEFINE FIELD created_at ON authorized_to TYPE datetime;
+DEFINE INDEX authorized_to_lookup ON authorized_to FIELDS in, out UNIQUE;
+
 DEFINE FUNCTION fn::entity_search_workspace($q: string, $limit: int, $workspace: record<workspace>) {
   LET $query = string::lowercase(string::trim($q));
   LET $safe_limit = math::min([math::max([$limit, 1]), 100]);
