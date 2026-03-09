@@ -20,5 +20,10 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-09T07:40:54Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-09T07:41:08Z'
 project_id: unified-identity
 schema_version: '3.0'
