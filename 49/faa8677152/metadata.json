@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "49faa8677152",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-010-unified-identity-hub-spoke.md",
+    "docs/feature/unified-identity/design/architecture-design.md",
+    "docs/feature/unified-identity/design/component-boundaries.md",
+    "docs/feature/unified-identity/design/data-models.md",
+    "docs/feature/unified-identity/design/technology-stack.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/49/faa8677152/0/metadata.json",
+      "transcript": "/49/faa8677152/0/full.jsonl",
+      "context": "/49/faa8677152/0/context.md",
+      "content_hash": "/49/faa8677152/0/content_hash.txt",
+      "prompt": "/49/faa8677152/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 114381,
+    "cache_read_tokens": 709523,
+    "output_tokens": 4807,
+    "api_call_count": 17
+  }
+}
