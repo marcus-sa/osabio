@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "036f75e2ca84",
+  "session_id": "a22152af-d4a0-48c5-b88f-45e0480f715a",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T15:48:58.847155Z",
+  "branch": "marcus-sa/fix-smoke-tests-typechecks",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/chat/chat-ingress.ts",
+    "app/src/server/chat/chat-route.ts",
+    "app/src/server/entities/entity-actions-route.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/runtime/types.ts",
+    "app/src/server/webhook/github-webhook-route.ts",
+    "evals/suggestions.eval.ts",
+    "tests/smoke/smoke-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2be76b095c23",
+  "checkpoint_transcript_start": 58,
+  "transcript_lines_at_start": 58,
+  "token_usage": {
+    "input_tokens": 88,
+    "cache_creation_tokens": 43846,
+    "cache_read_tokens": 4072246,
+    "output_tokens": 15919,
+    "api_call_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T15:48:58.547849Z",
+    "agent_lines": 59,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 59,
+    "agent_percentage": 100
+  }
+}

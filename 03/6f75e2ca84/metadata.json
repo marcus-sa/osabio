@@ -3,8 +3,16 @@
   "checkpoint_id": "036f75e2ca84",
   "strategy": "manual-commit",
   "branch": "marcus-sa/fix-smoke-tests-typechecks",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
+    "app/src/server/chat/chat-ingress.ts",
+    "app/src/server/chat/chat-route.ts",
+    "app/src/server/entities/entity-actions-route.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/runtime/types.ts",
+    "app/src/server/webhook/github-webhook-route.ts",
+    "evals/suggestions.eval.ts",
     "tests/smoke/smoke-test-kit.ts"
   ],
   "sessions": [
@@ -14,13 +22,20 @@
       "context": "/03/6f75e2ca84/0/context.md",
       "content_hash": "/03/6f75e2ca84/0/content_hash.txt",
       "prompt": "/03/6f75e2ca84/0/prompt.txt"
+    },
+    {
+      "metadata": "/03/6f75e2ca84/1/metadata.json",
+      "transcript": "/03/6f75e2ca84/1/full.jsonl",
+      "context": "/03/6f75e2ca84/1/context.md",
+      "content_hash": "/03/6f75e2ca84/1/content_hash.txt",
+      "prompt": "/03/6f75e2ca84/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 327,
-    "cache_creation_tokens": 273496,
-    "cache_read_tokens": 16491330,
-    "output_tokens": 52845,
-    "api_call_count": 164
+    "input_tokens": 415,
+    "cache_creation_tokens": 317342,
+    "cache_read_tokens": 20563576,
+    "output_tokens": 68764,
+    "api_call_count": 211
   }
 }
