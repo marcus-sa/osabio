@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fadb1a598c85",
+  "session_id": "5e14a341-2771-4820-9e8a-2dc21a8a6414",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-09T05:09:09.268017Z",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/requirements/unified-identity-stories.md",
+    "docs/ux/unified-identity/journey-unified-audit-visual.md",
+    "docs/ux/unified-identity/journey-unified-audit.feature",
+    "docs/ux/unified-identity/journey-unified-audit.yaml",
+    "docs/ux/unified-identity/jtbd-analysis.md",
+    "docs/ux/unified-identity/review-self-assessment.yaml",
+    "docs/ux/unified-identity/shared-artifacts-registry.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0589b33564d1",
+  "token_usage": {
+    "input_tokens": 1849,
+    "cache_creation_tokens": 109927,
+    "cache_read_tokens": 1613583,
+    "output_tokens": 8610,
+    "api_call_count": 31
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-09T05:09:08.708601Z",
+    "agent_lines": 1786,
+    "human_added": 60,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1846,
+    "agent_percentage": 96.74972914409534
+  }
+}

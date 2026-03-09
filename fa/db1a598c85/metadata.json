@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fadb1a598c85",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/requirements/unified-identity-stories.md",
+    "docs/ux/unified-identity/journey-unified-audit-visual.md",
+    "docs/ux/unified-identity/journey-unified-audit.feature",
+    "docs/ux/unified-identity/journey-unified-audit.yaml",
+    "docs/ux/unified-identity/jtbd-analysis.md",
+    "docs/ux/unified-identity/review-self-assessment.yaml",
+    "docs/ux/unified-identity/shared-artifacts-registry.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fa/db1a598c85/0/metadata.json",
+      "transcript": "/fa/db1a598c85/0/full.jsonl",
+      "context": "/fa/db1a598c85/0/context.md",
+      "content_hash": "/fa/db1a598c85/0/content_hash.txt",
+      "prompt": "/fa/db1a598c85/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1849,
+    "cache_creation_tokens": 109927,
+    "cache_read_tokens": 1613583,
+    "output_tokens": 8610,
+    "api_call_count": 31
+  }
+}
