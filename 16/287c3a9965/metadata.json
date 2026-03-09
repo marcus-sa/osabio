@@ -3,7 +3,7 @@
   "checkpoint_id": "16287c3a9965",
   "strategy": "manual-commit",
   "branch": "marcus-sa/fix-smoke-tests-typechecks",
-  "checkpoints_count": 4,
+  "checkpoints_count": 7,
   "files_touched": [
     "tests/AGENTS.md",
     "tests/smoke/create-work-item-edge.test.ts",
@@ -17,13 +17,20 @@
       "context": "/16/287c3a9965/0/context.md",
       "content_hash": "/16/287c3a9965/0/content_hash.txt",
       "prompt": "/16/287c3a9965/0/prompt.txt"
+    },
+    {
+      "metadata": "/16/287c3a9965/1/metadata.json",
+      "transcript": "/16/287c3a9965/1/full.jsonl",
+      "context": "/16/287c3a9965/1/context.md",
+      "content_hash": "/16/287c3a9965/1/content_hash.txt",
+      "prompt": "/16/287c3a9965/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 59,
-    "cache_creation_tokens": 32282,
-    "cache_read_tokens": 2309895,
-    "output_tokens": 8478,
-    "api_call_count": 33
+    "input_tokens": 76,
+    "cache_creation_tokens": 55224,
+    "cache_read_tokens": 3505574,
+    "output_tokens": 9923,
+    "api_call_count": 43
   }
 }

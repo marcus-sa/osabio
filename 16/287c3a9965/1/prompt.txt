@@ -1,0 +1,51 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/manila directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+smoke tests in ci fail with:
+tests/smoke/task-status-ownership/session-no-status-change.test.ts:
+  2026-03-09T15:31:18.275Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  {"level":"error","time":"2026-03-09T15:31:18.964Z","service":"brain-server","env":"test","runtime":"bun","requestId":"523f39a6-5ec4-4eba-bdb7-ee5154f3a794","method":"POST","route":"POST /api/workspaces/:workspaceId/webhooks/github","path":"/api/workspaces/fc8a567f-d96a-4f37-a48c-30bab10db31a/webhooks/github","event":"extraction.persist.failed","workspaceId":"fc8a567f-d96a-4f37-a48c-30bab10db31a","sourceKind":"git_commit","sourceId":"525fa937-664f-4f11-a9dc-4cf37bf423ec","durationMs":11687.55,"err":{"type":"Object","message":"You must be connected to a SurrealDB instance before performing this operation","stack":"ConnectionUnavailableError: You must be connected to a SurrealDB instance before performing this operation\n    at ready (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:6582:46)\n    at collect (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:2962:26)\n    at loadWorkspaceKindCandidates (/home/runner/work/brain/brain/app/src/server/extraction/entity-upsert.ts:394:8)\n    at upsertGraphEntity (/home/runner/work/brain/brain/app/src/server/extraction/entity-upsert.ts:35:28)\n    at processTicksAndRejections (native:7:39)","name":"ConnectionUnavailableError"},"msg":"Extraction persistence failed"}
+
+---
+
+Continue from where you left off.
+
+---
+
+there are many other places that does fire-and-forget - make sure to cover those as well
+
+---
+
+Commit and push all changes
+
+---
+
+this shit still happens
+
+tests/smoke/cli-init-auth.test.ts:
+  2026-03-09T15:50:54.747Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  {"level":"error","time":"2026-03-09T15:50:54.911Z","service":"brain-server","env":"test","runtime":"bun","requestId":"c5b1524d-4b9a-4fc1-879a-0390fd0727b4","method":"POST","route":"POST /api/chat/messages","path":"/api/chat/messages","event":"embedding.persist.failed","messageId":"5589f7af-ea12-4317-8dc6-c2494f8acaf6","entityCount":0,"durationMs":406.4,"err":{"type":"Object","message":"You must be connected to a SurrealDB instance before performing this operation","stack":"ConnectionUnavailableError: You must be connected to a SurrealDB instance before performing this operation\n    at ready (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:6582:46)\n    at collect (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:2962:26)\n    at writeEmbedding (/home/runner/work/brain/brain/app/src/server/extraction/embedding-writeback.ts:103:6)\n    at persistEmbeddings (/home/runner/work/brain/brain/app/src/server/extraction/embedding-writeback.ts:23:13)\n    at processTicksAn
+
+---
+
+there is one more:
+
+tests/smoke/unified-identity/audit-trail.test.ts:
+  {"level":"error","time":"2026-03-09T15:55:01.090Z","service":"brain-server","env":"test","runtime":"bun","requestId":"5d1d34f5-379b-4af3-a6bb-aedc120a8096","method":"POST","route":"POST /api/chat/messages","path":"/api/chat/messages","event":"embedding.persist.failed","messageId":"d187880a-72c6-45d4-ae1e-a441fa4104a2","entityCount":0,"durationMs":291.99,"err":{"type":"Object","message":"You must be connected to a SurrealDB instance before performing this operation","stack":"ConnectionUnavailableError: You must be connected to a SurrealDB instance before performing this operation\n    at ready (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:6582:46)\n    at collect (/home/runner/work/brain/brain/node_modules/surrealdb/dist/surrealdb.mjs:2962:26)\n    at writeEmbedding (/home/runner/work/brain/brain/app/src/server/extraction/embedding-writeback.ts:103:6)\n    at persistEmbeddings (/home/runner/work/brain/brain/app/src/server/extraction/embedding-writeback.ts:23:13)\n    at processTicksA
+
+---
+
+add this as learning to AGENTS.md
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP Brain tools are not available in this environment - cannot log decisions, questions, observations, or tasks to the Brain knowledge graph
