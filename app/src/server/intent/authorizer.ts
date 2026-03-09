@@ -36,6 +36,7 @@ export type EvaluateIntentInput = {
     reasoning: string;
     action_spec: ActionSpec;
     budget_limit?: BudgetLimit;
+    requester?: string;
   };
   policy: WorkspacePolicy;
   llmEvaluator: LlmEvaluator;
@@ -174,6 +175,9 @@ export function createLlmEvaluator(model: LanguageModel): LlmEvaluator {
         : "",
       intent.budget_limit
         ? `Budget: ${intent.budget_limit.amount} ${intent.budget_limit.currency}`
+        : "",
+      intent.requester
+        ? `Requester: ${intent.requester}`
         : "",
     ].filter(Boolean).join("\n");
 

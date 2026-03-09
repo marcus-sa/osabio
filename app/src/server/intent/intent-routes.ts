@@ -38,6 +38,10 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       return jsonError("Missing intent id in body", 400);
     }
 
+    if (!body.requester) {
+      return jsonError("Missing requester in intent body", 400);
+    }
+
     logInfo("intent.evaluate.received", "Evaluate endpoint received intent", {
       intentId,
       status: body.status,
@@ -55,12 +59,17 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
 
     try {
       // Pipeline: policy gate -> LLM evaluator -> risk router -> status update
+      const requesterId = typeof body.requester === "object" && body.requester !== undefined
+        ? (body.requester.id as string)
+        : String(body.requester);
+
       const evaluation = await evaluateIntent({
         intent: {
           goal: body.goal,
           reasoning: body.reasoning,
           action_spec: body.action_spec,
           budget_limit: body.budget_limit,
+          requester: requesterId,
         },
         policy: {},
         llmEvaluator,

@@ -36,7 +36,7 @@ type VetoManagerConfig = {
 
 // --- Factory ---
 
-export function createVetoManager(config?: VetoManagerConfig): VetoManager {
+export function createVetoManager(_config?: VetoManagerConfig): VetoManager {
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
   const autoApprove = async (intentId: string, deps: VetoManagerDeps): Promise<void> => {
