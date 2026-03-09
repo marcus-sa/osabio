@@ -19,7 +19,7 @@ The system has 10+ tables with `record<person>` ownership fields and 2 relation 
 
 Introduce a hub-and-spoke identity model:
 
-- **Hub**: New `identity` table with shared fields (name, type, role, workspace, embedding). Type enum: `['human', 'agent', 'system']`.
+- **Hub**: New `identity` table with shared fields (name, type, role, workspace). Type enum: `['human', 'agent', 'system']`.
 - **Spokes**: `person` (human-specific: email, image) and new `agent` table (agent-specific: agent_type, model, managed_by).
 - **Spoke edges**: `identity_person` (TYPE RELATION IN identity OUT person) and `identity_agent` (TYPE RELATION IN identity OUT agent).
 - **Edge migration**: All `record<person>` ownership fields and relation constraints migrate to `record<identity>`.
@@ -61,7 +61,7 @@ Keep `person` for humans, add `agent_identity` for agents, use `record<person|ag
 - `managed_by` chain enables dual-label audit trails (agent actor + accountable human).
 - Per-identity authorization overrides become possible via `authorized_to` edges.
 - `person` table retains its existing structure and UNIQUE email index.
-- Agent identities are first-class graph citizens: can own tasks, make decisions, have embeddings for vector search.
+- Agent identities are first-class graph citizens: can own tasks, make decisions, participate in graph traversals.
 
 ### Negative
 

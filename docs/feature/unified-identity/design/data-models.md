@@ -10,25 +10,13 @@
 | type | string | yes | ASSERT IN ['human', 'agent', 'system'] |
 | role | option\<string\> | no | Functional role: owner, management, coder, observer, etc. |
 | workspace | record\<workspace\> | yes | Scoped to workspace |
-| embedding | option\<array\<float\>\> | no | HNSW 1536-dim for vector search |
 | created_at | datetime | yes | |
 
 **Indexes**:
 - `identity_workspace` on `workspace`
 - `identity_type_workspace` on `type, workspace`
-- `idx_identity_embedding` HNSW DIMENSION 1536 DIST COSINE on `embedding`
 
-**KNN+WHERE workaround** (required because `identity_workspace` B-tree index conflicts with HNSW in same query):
-```sql
--- BROKEN: KNN + WHERE with B-tree indexed field
-SELECT *, vector::similarity::cosine(embedding, $vec) AS similarity
-FROM identity WHERE workspace = $ws AND embedding <|K, COSINE|> $vec;
-
--- CORRECT: split into LET + filter
-LET $candidates = SELECT *, vector::similarity::cosine(embedding, $vec) AS similarity, workspace
-FROM identity WHERE embedding <|K, COSINE|> $vec;
-SELECT * FROM $candidates WHERE workspace = $ws ORDER BY similarity DESC LIMIT $limit;
-```
+**No vector search**: Identity tables have low cardinality (~5-10 records per workspace). Name-based and type-based lookups via B-tree indexes are sufficient. No embedding field or HNSW index needed.
 
 ### agent (spoke)
 

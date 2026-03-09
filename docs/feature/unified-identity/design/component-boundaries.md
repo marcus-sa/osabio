@@ -43,7 +43,6 @@
 - `resolveIdentity()`: provider+providerId -> RecordId<"identity"> (was RecordId<"person">)
 - `resolveByEmail()`: email -> RecordId<"identity"> (was RecordId<"person">)
 - Resolution path: email -> person -> <-identity_person<-identity (one extra hop)
-- Identity vector search queries must use LET + WHERE split pattern (KNN+WHERE bug workaround) since identity table has B-tree index on workspace
 - Consumed by: auth config (better-auth adapter), chat ingress, MCP auth
 
 ---

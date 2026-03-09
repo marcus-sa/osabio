@@ -29,7 +29,7 @@ C4Context
   Rel(marcus, brain, "Chats, creates workspaces, reviews agent suggestions")
   Rel(code_agent, brain, "Authenticates as agent identity, writes decisions/tasks")
   Rel(brain, github, "OAuth login, PR/commit data")
-  Rel(brain, openai, "Generates embeddings for identities and entities")
+  Rel(brain, openai, "Generates embeddings for entities")
   Rel(brain, llm, "Chat responses, entity extraction")
 ```
 
@@ -169,7 +169,7 @@ Post-migration, `resolveWorkspaceIdentity()` searches `identity.name` in the wor
 
 - Identity resolution adds 1 spoke traversal hop for email-based auth (negligible for auth-frequency operations)
 - Direct identity.name search avoids the extra hop for extraction resolution
-- HNSW index on identity.embedding enables vector search without additional infrastructure
+- No embedding/HNSW on identity table — low cardinality (~5-10 per workspace) makes name/type B-tree lookups sufficient
 
 ## Deployment Architecture
 
@@ -201,8 +201,6 @@ step_01:
     - "identity table accepts human, agent, system types; rejects invalid"
     - "agent table enforces managed_by as record<identity>"
     - "spoke edges traverse bidirectionally"
-    - "HNSW index on identity.embedding"
-    - "Identity vector search uses LET + WHERE split pattern (KNN+WHERE bug workaround): KNN in LET subquery, workspace filter in second query"
     - "person.identities field removed"
   files_touched: 2  # migration script, surreal-schema.surql
 
@@ -331,9 +329,9 @@ revisions_applied:
   - issue: "ADR-010 missing quality attribute trade-off matrix"
     severity: "medium"
     fix: "Added Quality Attribute Impact table and Observability Note to ADR-010"
-  - issue: "KNN+WHERE split not specified for identity vector search"
+  - issue: "Identity vector search complexity unnecessary for low-cardinality table"
     severity: "high"
-    fix: "Added split query template to data-models.md and KNN+WHERE AC to step_01"
+    fix: "Removed embedding field and HNSW index from identity table; B-tree indexes on name/type/workspace sufficient for ~5-10 records per workspace"
   - issue: "workspaceOwnerRecord type change missing from C4 L2 and step_04 AC"
     severity: "high"
     fix: "Added workspaceOwnerRecord to C4 L2 description, step_04 AC, and component-boundaries section 5"

@@ -12,7 +12,7 @@ This feature is implemented entirely within the existing technology stack. No ne
 | Auth | better-auth | latest (existing) | MIT | Session/account field mapping updates |
 | SDK | surrealdb (JS) | v2 (existing) | Apache 2.0 | RecordId type changes, queries |
 | AI SDK | Vercel AI SDK | latest (existing) | Apache 2.0 | Tool context type propagation |
-| Embedding | OpenAI text-embedding-3-small | (existing) | Proprietary API | Identity embeddings (same pipeline) |
+| Embedding | OpenAI text-embedding-3-small | (existing) | Proprietary API | Entity embeddings unchanged (identity table has no embeddings) |
 
 ## Technology Decisions
 
@@ -36,14 +36,15 @@ This feature is implemented entirely within the existing technology stack. No ne
 - SurrealDB indexes on relation `in`/`out` fields enable efficient spoke lookups.
 - Embedded record links would require scanning identity table to find "which identity wraps this person."
 
-### Why HNSW index on identity.embedding
+### Why no embedding/vector search on identity
 
-**Decision**: Add HNSW vector index on identity table for semantic search.
+**Decision**: No embedding field or HNSW index on the identity table.
 
 **Rationale**:
-- Chat agent's `search_entities` tool should find identities by semantic similarity (e.g., "who manages the PM agent?").
-- Same 1536-dimension embedding model already used for all other entity tables.
-- KNN+WHERE split pattern required (per documented SurrealDB v3.0 bug) since identity will have a workspace index.
+- Identity tables have low cardinality (~5-10 records per workspace: 1 owner + 3-5 template agents).
+- Name-based and type-based lookups via B-tree indexes cover all resolution use cases.
+- Adding HNSW would introduce unnecessary KNN+WHERE split workaround complexity for zero benefit.
+- If multi-tenant workspaces with many members emerge later, adding an HNSW index is a single migration line.
 
 ### Why breaking schema change (no data migration)
 
@@ -58,7 +59,7 @@ This feature is implemented entirely within the existing technology stack. No ne
 
 | Constraint | Impact | Workaround |
 |-----------|--------|------------|
-| KNN + WHERE bug | Identity vector search with workspace filter returns empty | Split into LET + filter (existing pattern) |
+| KNN + WHERE bug | Not applicable — identity table has no HNSW index (low cardinality, B-tree only) | N/A |
 | SCHEMAFULL conditional fields | Cannot enforce "agent_type required when type=agent" on single table | Hub-spoke: agent-specific fields on separate `agent` table with its own SCHEMAFULL |
 | DEFINE ANALYZER outside transaction | If identity gets fulltext index, analyzer must precede BEGIN TRANSACTION | Place DEFINE ANALYZER before transaction block in migration |
 | No ALTER TABLE ADD FIELD | Adding identity_id to session | Use DEFINE FIELD OVERWRITE |
