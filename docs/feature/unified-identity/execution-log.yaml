@@ -139,9 +139,10 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-09T09:33:42Z'
-- d: SKIP_acceptance_sufficient
+- d: 'NOT_APPLICABLE: acceptance tests cover all resolution paths through checkAuthority
+    driving port; no additional unit-level properties needed'
   p: RED_UNIT
-  s: EXECUTED
+  s: SKIPPED
   sid: 03-01
   t: '2026-03-09T09:33:48Z'
 - d: PASS
@@ -149,5 +150,10 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-09T09:34:55Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-09T09:35:22Z'
 project_id: unified-identity
 schema_version: '3.0'
