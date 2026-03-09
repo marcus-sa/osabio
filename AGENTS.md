@@ -13,6 +13,7 @@
 - Do NOT use `null`. Use `undefined` via optional properties (`field?: Type`) instead.
 - Do NOT create wrapper/helper functions for simple operations. Cast directly with `as`.
 - Type result payloads once and avoid repetitive per-field casting.
+- Do NOT use module-level mutable singletons (e.g. `let cache` at file scope) for caching or shared state. Module-level state is shared across the entire process — when multiple server instances run concurrently (e.g. smoke tests with `--concurrent`), they silently corrupt each other. Pass shared state via dependency injection or use per-instance caches scoped to the owning object.
 
 
 
