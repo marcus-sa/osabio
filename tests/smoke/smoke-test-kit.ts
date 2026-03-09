@@ -1,8 +1,12 @@
 import { afterAll, beforeAll } from "bun:test";
 import { readFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
+import { createBrainServer } from "../../app/src/server/runtime/start-server";
+import { createRuntimeDependencies } from "../../app/src/server/runtime/dependencies";
+import { createSseRegistry } from "../../app/src/server/streaming/sse-registry";
+import type { ServerConfig } from "../../app/src/server/runtime/config";
+import type { ServerDependencies } from "../../app/src/server/runtime/types";
 
 export type SmokeTestRuntime = {
   baseUrl: string;
@@ -26,18 +30,12 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
   const database = `${suiteSlug || "suite"}_${Math.floor(Math.random() * 100000)}`;
 
   let runtime: SmokeTestRuntime | undefined;
-  let serverProcess: ReturnType<typeof Bun.spawn> | undefined;
+  let server: ReturnType<typeof Bun.serve> | undefined;
+  let runtimeSurreal: Surreal | undefined;
+  let analyticsSurreal: Surreal | undefined;
   let setupSucceeded = false;
 
   beforeAll(async () => {
-    const port = process.env.SMOKE_PORT
-      ? Number(process.env.SMOKE_PORT)
-      : await findAvailablePort();
-    if (!Number.isFinite(port) || port <= 0) {
-      throw new Error(`Invalid smoke test port value: ${port}`);
-    }
-    const baseUrl = `http://127.0.0.1:${port}`;
-
     const surreal = new Surreal();
     await withTimeout(() => surreal.connect(surrealUrl), 10_000, "connect to SurrealDB");
     await withTimeout(
@@ -58,31 +56,65 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
     const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
     await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
 
-    serverProcess = Bun.spawn(["bun", "run", "app/server.ts"], {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        PORT: String(port),
-        SURREAL_NAMESPACE: namespace,
-        SURREAL_DATABASE: database,
-        BETTER_AUTH_URL: baseUrl,
-        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "smoke-test-secret-at-least-32-chars-long",
-        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
-        GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
-      },
-      stdout: "pipe",
-      stderr: "inherit",
-    });
+    const config: ServerConfig = {
+      openRouterApiKey: requireTestEnv("OPENROUTER_API_KEY"),
+      chatAgentModelId: requireTestEnv("CHAT_AGENT_MODEL"),
+      extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
+      pmAgentModelId: process.env.PM_AGENT_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
+      analyticsAgentModelId: requireTestEnv("ANALYTICS_MODEL"),
+      embeddingModelId: requireTestEnv("OPENROUTER_EMBEDDING_MODEL"),
+      embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
+      extractionStoreThreshold: Number(requireTestEnv("EXTRACTION_STORE_THRESHOLD")),
+      extractionDisplayThreshold: Number(requireTestEnv("EXTRACTION_DISPLAY_THRESHOLD")),
+      surrealUrl,
+      surrealUsername,
+      surrealPassword,
+      surrealNamespace: namespace,
+      surrealDatabase: database,
+      port: 0, // OS-assigned
+      betterAuthSecret: process.env.BETTER_AUTH_SECRET ?? "smoke-test-secret-at-least-32-chars-long",
+      betterAuthUrl: "http://127.0.0.1:0", // placeholder, updated after server starts
+      githubClientId: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
+      githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
+    };
 
-    await waitForHealth(baseUrl, serverProcess, 15_000);
+    const deps = await createRuntimeDependencies(config);
+    runtimeSurreal = deps.surreal;
+    analyticsSurreal = deps.analyticsSurreal;
+
+    const serverDeps: ServerDependencies = {
+      config,
+      surreal: deps.surreal,
+      analyticsSurreal: deps.analyticsSurreal,
+      auth: deps.auth,
+      chatAgentModel: deps.chatAgentModel,
+      extractionModel: deps.extractionModel,
+      pmAgentModel: deps.pmAgentModel,
+      analyticsAgentModel: deps.analyticsAgentModel,
+      embeddingModel: deps.embeddingModel,
+      sse: createSseRegistry(),
+    };
+
+    server = createBrainServer(serverDeps);
+    const port = server.port;
+    const baseUrl = `http://127.0.0.1:${port}`;
+    // Update betterAuthUrl now that we know the actual port
+    config.betterAuthUrl = baseUrl;
+
     runtime = { baseUrl, surreal, namespace, database, port };
     setupSucceeded = true;
   }, 60_000);
 
   afterAll(async () => {
-    if (serverProcess) {
-      serverProcess.kill();
-      await serverProcess.exited;
+    if (server) {
+      server.stop(true);
+    }
+
+    if (runtimeSurreal) {
+      await runtimeSurreal.close().catch(() => undefined);
+    }
+    if (analyticsSurreal) {
+      await analyticsSurreal.close().catch(() => undefined);
     }
 
     if (!runtime) {
@@ -91,19 +123,19 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
 
     if (setupSucceeded && !process.env.SMOKE_KEEP_DB) {
       try {
-        await withTimeout(() => runtime.surreal.query(`REMOVE DATABASE ${database};`), 10_000, "remove test database");
+        await withTimeout(() => runtime!.surreal.query(`REMOVE DATABASE ${database};`), 10_000, "remove test database");
       } catch {
         // Best effort cleanup.
       }
 
       try {
-        await withTimeout(() => runtime.surreal.query(`REMOVE NAMESPACE ${namespace};`), 10_000, "remove test namespace");
+        await withTimeout(() => runtime!.surreal.query(`REMOVE NAMESPACE ${namespace};`), 10_000, "remove test namespace");
       } catch {
         // Best effort cleanup.
       }
     }
 
-    await withTimeout(() => runtime.surreal.close(), 2_000, "close SurrealDB").catch(() => undefined);
+    await withTimeout(() => runtime!.surreal.close(), 2_000, "close SurrealDB").catch(() => undefined);
   }, 20_000);
 
   return () => {
@@ -204,39 +236,12 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
   return (await response.json()) as T;
 }
 
-async function waitForHealth(url: string, process: ReturnType<typeof Bun.spawn>, timeoutMs: number): Promise<void> {
-  const start = Date.now();
-
-  while (Date.now() - start < timeoutMs) {
-    if (typeof process.exitCode === "number") {
-      const stderr = process.stderr ? await new Response(process.stderr).text() : "";
-      throw new Error(`Smoke server exited early with code ${process.exitCode}\n${stderr}`);
-    }
-
-    try {
-      const response = await fetch(`${url}/healthz`);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Keep polling.
-    }
-
-    await Bun.sleep(200);
+function requireTestEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`Smoke test requires env var ${name}`);
   }
-
-  throw new Error(`Timed out waiting for smoke server health at ${url}/healthz`);
-}
-
-function findAvailablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const port = (server.address() as import("node:net").AddressInfo).port;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
+  return value;
 }
 
 async function withTimeout<T>(callback: () => Promise<T>, timeoutMs: number, label: string): Promise<T> {
