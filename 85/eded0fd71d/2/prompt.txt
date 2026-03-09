@@ -1,0 +1,191 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/dubai-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:refactor smoke and acceptance tests are the same. we should merge them together into acceptance tests but reuse the server setup logic from smoke test kit
+
+---
+
+# NW-REFACTOR: Systematic Code Refactoring
+
+**Wave**: CROSS_WAVE
+**Agent**: Crafty (nw-software-crafter)
+**Command**: `*refactor`
+
+## Overview
+
+Applies the Refactoring Priority Premise (RPP) — cascading 6-level hierarchy where lower levels complete before higher. Levels: L1 Readability|L2 Complexity|L3 Responsibilities|L4 Abstractions|L5 Design Patterns|L6 SOLID++. Each builds on previous. For complex multi-class refactorings, agent applies Mikado Method internally.
+
+## Context Files Required
+
+- src/\* - Production codebase
+- tests/\* - Test codebase
+
+## Agent Invocation
+
+@nw-software-crafter
+
+Execute \*refactor for {target-class-or-module}.
+
+**Context Files:**
+- src/\*
+- tests/\*
+
+**Configuration:**
+- level: 3 # Shorthand: --from=1 --to=3 (RPP range)
+- from: 1 # Start RPP level (default: 1)
+- to: 3 # End RPP level (default: same as level)
+- scope: module # file/module/project
+- method: extract # extract/inline/rename/move
+- mikado_planning: false # Use Mikado Method for complex refactorings
+
+## Success Criteria
+
+- [ ] Code quality metrics improved (measured before/after)
+- [ ] All tests passing after refactoring
+- [ ] Refactoring levels applied in sequence (L1 before L2, etc.)
+- [ ] Technical debt reduced measurably
+
+## Next Wave
+
+**Handoff To**: {invoking-agent-returns-to-workflow}
+**Deliverables**: Refactored codebase with quality improvements
+
+## Examples
+
+### Example 1: Module-level readability refactor
+```
+/nw:refactor src/auth/token_manager.py --level=2 --scope=module
+```
+Crafty applies RPP L1-L2: rename ambiguous variables|extract magic numbers into constants|remove dead code (L1), then simplify conditionals|extract long methods (L2).
+
+### Example 2: SOLID-level design refactor
+```
+/nw:refactor src/billing/ --level=6 --scope=module --mikado_planning=true
+```
+Crafty uses Mikado Method for multi-class refactoring, applies dependency inversion|interface segregation across billing module.
+
+### Example 3: RPP range sweep (L1-L3)
+```
+/nw:refactor src/des/domain/ --from=1 --to=3 --scope=module
+```
+Sweeps L1 readability|L2 complexity|L3 responsibility smells. Cascade rule: L2 only after L1 clean, L3 only after L2 clean.
+
+### Example 4: Targeted single-level refactor
+```
+/nw:refactor src/des/cli/verify.py --level=3 --scope=file
+```
+Targets L3 responsibility smells only (Large Class, Feature Envy, Shotgun Surgery). Assumes L1-L2 already clean.
+
+## Expected Outputs
+
+```
+src/*                              (refactored production code)
+tests/*                            (refactored test code)
+docs/refactoring/
+  refactoring-log.md
+  quality-metrics.md
+```
+
+
+ARGUMENTS: smoke and acceptance tests are the same. we should merge them together into acceptance tests but reuse the server setup logic from smoke test kit
+
+---
+
+Continue from where you left off.
+
+---
+
+"This exploration shows a well-organized test architecture with clear separation of concerns: smoke tests validate core features in isolation with in-process servers, while acceptance tests validate E2E workflows with realistic out-of-process servers. The kit-based approach (setupSmokeSuite, setupOrchestratorSuite) provides composable, reusable test infrastructure with domain-specific helpers in business language.agentId: a36bb195ed217fca0 (for resuming to continue this agent’s work if needed)"
+
+yes, this is correct, but smoke tests previously used the same setup as acceptance tests by spawning a real bun server process, but we refactored that to be in memory because it is unnecessary. we want the same for acceptance tests. as i said, merge them
+
+---
+
+great, commit and run acceptance tests
+
+---
+
+no, dont run them in the background..
+
+---
+
+Tool loaded.
+
+---
+
+Continue from where you left off.
+
+---
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '../../cli/commands/init' from '/Users/marcus/conductor/workspaces/brain/dubai-v2/tests/acceptance/core/cli-init-auth.test.ts'
+
+---
+
+55 |     expect(assignment.agentSessionId).toBeTruthy();
+56 |     expect(assignment.streamUrl).toBeTruthy();
+57 |
+58 |     // And the task status changes to "in_progress"
+59 |     const taskStatus = await getTaskStatus(surreal, task.taskId);
+60 |     expect(taskStatus).toBe("in_progress");
+                            ^
+error: expect(received).toBe(expected)
+
+Expected: "in_progress"
+Received: "ready"
+
+      at <anonymous> (/Users/marcus/conductor/workspaces/brain/dubai-v2/tests/acceptance/coding-agent-orchestrator/walking-skeleton.test.ts:60:24)
+✗ Walking Skeleton: User assigns task, monitors agent, accepts work > user assigns a ready task to an agent, checks progress, and accepts the result [499.16ms]
+
+---
+
+Continue from where you left off.
+
+---
+
+"I need to add a task status update to in_progress after the session is created. The right place is after step 6 (updating agent_session with orchestrator fields), alongside the intent transition in step 7:"
+
+no, it should not be set to in_progress
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain/dubai-v2/.context/attachments/pasted_text_2026-03-10_01-39-00.txt
+</system_instruction>
+
+---
+
+125 |     );
+126 |     expect(acceptResult.accepted).toBe(true);
+127 |
+128 |     // Then the task status is "done"
+129 |     const finalStatus = await getTaskStatus(runtime.surreal, task.taskId);
+130 |     expect(finalStatus).toBe("done");
+                              ^
+error: expect(received).toBe(expected)
+
+Expected: "done"
+Received: "ready"
+
+✗ UI Walking Skeleton: Agent Delegation Across Three Surfaces > assigns from popup, monitors in feed, accepts in review view [617.43ms]
+
+---
+
+run ONLY these acceptance tests again:
+✗ Review Flow: Accepting agent work > accepting work marks the task as done and completes the session [1343.88ms]
+✗ Review Flow: Viewing agent work for review > review provides diff summary and agent activity trace [1466.33ms]
+✗ Walking Skeleton: User assigns task, monitors agent, accepts work > user assigns a ready task to an agent, checks progress, and accepts the result [499.16ms]
+✗ UI Walking Skeleton: Agent Delegation Across Three Surfaces > rejects agent work with feedback and sees agent resume [338.76ms]
+✗ UI Walking Skeleton: Agent Delegation Across Three Surfaces > surfaces agent error as blocking feed item [339.69ms]
+✗ UI Walking Skeleton: Agent Delegation Across Three Surfaces > assigns from popup, monitors in feed, accepts in review view [346.77ms]
+✗ Walking Skeleton: User assigns task, monitors agent, accepts work > user assigns a ready task to an agent, checks progress, and accepts the result [499.16ms]

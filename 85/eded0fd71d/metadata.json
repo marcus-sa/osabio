@@ -3,7 +3,7 @@
   "checkpoint_id": "85eded0fd71d",
   "strategy": "manual-commit",
   "branch": "marcus-sa/intent-node-issue",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".github/workflows/ci.yml",
     "AGENTS.md",
@@ -28,13 +28,20 @@
       "context": "/85/eded0fd71d/1/context.md",
       "content_hash": "/85/eded0fd71d/1/content_hash.txt",
       "prompt": "/85/eded0fd71d/1/prompt.txt"
+    },
+    {
+      "metadata": "/85/eded0fd71d/2/metadata.json",
+      "transcript": "/85/eded0fd71d/2/full.jsonl",
+      "context": "/85/eded0fd71d/2/context.md",
+      "content_hash": "/85/eded0fd71d/2/content_hash.txt",
+      "prompt": "/85/eded0fd71d/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 235,
-    "cache_creation_tokens": 458700,
-    "cache_read_tokens": 11406678,
-    "output_tokens": 54211,
-    "api_call_count": 134
+    "input_tokens": 1032,
+    "cache_creation_tokens": 1086903,
+    "cache_read_tokens": 22649846,
+    "output_tokens": 115712,
+    "api_call_count": 246
   }
 }
