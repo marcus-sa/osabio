@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9f3b2d8ce227",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/identity-hub-spoke",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/auth/config.ts",
+    "app/src/server/chat/chat-ingress.ts",
+    "app/src/server/chat/chat-processor.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/chat/tools/types.ts",
+    "app/src/server/extraction/entity-upsert.ts",
+    "app/src/server/extraction/person.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/iam/identity.ts",
+    "app/src/server/mcp/auth.ts",
+    "app/src/server/mcp/types.ts",
+    "docs/feature/unified-identity/execution-log.yaml",
+    "schema/migrations/0019_auth_identity_rewiring.surql",
+    "tests/smoke/authority.test.ts",
+    "tests/smoke/cli-init-auth.test.ts",
+    "tests/smoke/create-work-item-edge.test.ts",
+    "tests/smoke/description-entries.test.ts",
+    "tests/smoke/extraction-quality.test.ts",
+    "tests/smoke/github-webhook.test.ts",
+    "tests/smoke/graph-relationships.test.ts",
+    "tests/smoke/move-items-to-project.test.ts",
+    "tests/smoke/oauth-mcp-auth.test.ts",
+    "tests/smoke/unified-identity/auth-rewiring.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9f/3b2d8ce227/0/metadata.json",
+      "transcript": "/9f/3b2d8ce227/0/full.jsonl",
+      "context": "/9f/3b2d8ce227/0/context.md",
+      "content_hash": "/9f/3b2d8ce227/0/content_hash.txt",
+      "prompt": "/9f/3b2d8ce227/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 403,
+    "cache_creation_tokens": 334037,
+    "cache_read_tokens": 22141013,
+    "output_tokens": 86891,
+    "api_call_count": 227
+  }
+}
