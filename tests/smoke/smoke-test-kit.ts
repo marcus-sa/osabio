@@ -70,7 +70,7 @@ export function setupSmokeSuite(suiteName: string): () => SmokeTestRuntime {
         GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
         GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
       },
-      stdout: "inherit",
+      stdout: "pipe",
       stderr: "inherit",
     });
 
