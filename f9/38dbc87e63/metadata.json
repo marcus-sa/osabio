@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f938dbc87e63",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des/deliver-session.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f9/38dbc87e63/0/metadata.json",
+      "transcript": "/f9/38dbc87e63/0/full.jsonl",
+      "context": "/f9/38dbc87e63/0/context.md",
+      "content_hash": "/f9/38dbc87e63/0/content_hash.txt",
+      "prompt": "/f9/38dbc87e63/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 264,
+    "cache_creation_tokens": 47351,
+    "cache_read_tokens": 93237,
+    "output_tokens": 782,
+    "api_call_count": 3
+  }
+}
