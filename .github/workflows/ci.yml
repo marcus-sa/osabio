@@ -62,7 +62,7 @@ jobs:
           EXTRACTION_STORE_THRESHOLD: ${{ vars.EXTRACTION_STORE_THRESHOLD }}
           OPENAI_BASE_URL: https://openrouter.ai/api/v1
           EXTRACTION_DISPLAY_THRESHOLD: ${{ vars.EXTRACTION_DISPLAY_THRESHOLD }}
-          SURREAL_URL: ws://localhost:8000
+          SURREAL_URL: ws://127.0.0.1:8000/rpc
           SURREAL_USERNAME: root
           SURREAL_PASSWORD: root
           SURREAL_NAMESPACE: test
