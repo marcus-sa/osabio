@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c10303d1b031",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/trace-table-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/trace-migration/distill/test-scenarios.md",
+    "docs/feature/trace-migration/distill/walking-skeleton.md",
+    "tests/acceptance/chat/trace-migration/batch-loading.test.ts",
+    "tests/acceptance/chat/trace-migration/branch-inheritance.test.ts",
+    "tests/acceptance/chat/trace-migration/graph-queryability.test.ts",
+    "tests/acceptance/chat/trace-migration/trace-test-kit.ts",
+    "tests/acceptance/chat/trace-migration/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c1/0303d1b031/0/metadata.json",
+      "transcript": "/c1/0303d1b031/0/full.jsonl",
+      "context": "/c1/0303d1b031/0/context.md",
+      "content_hash": "/c1/0303d1b031/0/content_hash.txt",
+      "prompt": "/c1/0303d1b031/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 89891,
+    "cache_read_tokens": 2216407,
+    "output_tokens": 16407,
+    "api_call_count": 28
+  }
+}

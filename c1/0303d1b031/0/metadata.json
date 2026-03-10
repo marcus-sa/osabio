@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c10303d1b031",
+  "session_id": "d1dbfbf0-dc21-48e1-af84-0d6d05e09541",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T17:55:08.57273Z",
+  "branch": "marcus-sa/trace-table-migration",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/trace-migration/distill/test-scenarios.md",
+    "docs/feature/trace-migration/distill/walking-skeleton.md",
+    "tests/acceptance/chat/trace-migration/batch-loading.test.ts",
+    "tests/acceptance/chat/trace-migration/branch-inheritance.test.ts",
+    "tests/acceptance/chat/trace-migration/graph-queryability.test.ts",
+    "tests/acceptance/chat/trace-migration/trace-test-kit.ts",
+    "tests/acceptance/chat/trace-migration/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5abbe2fd2c6d",
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 89891,
+    "cache_read_tokens": 2216407,
+    "output_tokens": 16407,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T17:55:08.248899Z",
+    "agent_lines": 986,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 986,
+    "agent_percentage": 100
+  }
+}
