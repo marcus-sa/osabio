@@ -1,0 +1,213 @@
+journey:
+  name: "Migrate subagent_traces to trace table"
+  goal: "Unify subagent execution traces into the graph-native trace table, eliminating embedded arrays on message records"
+  persona: "System (chat pipeline, API consumers, graph query authors, frontend renderer)"
+
+  emotional_arc:
+    start: "Fragmented -- two parallel trace systems with no connection"
+    middle: "Transitioning -- write and read paths moving to unified model"
+    end: "Unified -- single trace table, graph-traversable, independently queryable"
+
+  job_story: |
+    When an agent, developer, or frontend consumer needs to inspect the execution history of a subagent invocation,
+    I want to query trace data as independent graph-native records with parent-child hierarchy,
+    so I can traverse execution trees, correlate traces across messages and intents, and render call trees without parsing embedded arrays.
+
+steps:
+  - id: 1
+    name: "Schema: Define spawns relation and remove embedded fields"
+    action: "Migration 0024 -- DEFINE TABLE spawns TYPE RELATION, REMOVE FIELD subagent_traces from message"
+
+    shared_artifacts:
+      - name: "spawns_relation"
+        source: "schema/surreal-schema.surql"
+        consumers:
+          - "chat-route.ts (write path)"
+          - "workspace-routes.ts (read path)"
+          - "branch-chain.ts (read path)"
+
+      - name: "trace_type_enum"
+        source: "schema/surreal-schema.surql (ASSERT on trace.type)"
+        consumers:
+          - "chat-route.ts (creates trace records with type)"
+          - "pm/agent.ts (returns trace steps with type)"
+
+    integration_checkpoint: |
+      After migration: INFO FOR TABLE spawns returns relation definition.
+      After migration: INFO FOR TABLE message shows no subagent_traces field.
+      trace table ASSERT includes "subagent_spawn" (already present from 0023).
+
+    gherkin: |
+      Scenario: Schema migration creates spawns relation
+        Given migration 0024 has been applied
+        When querying INFO FOR TABLE spawns
+        Then the result shows TYPE RELATION IN message OUT trace
+
+      Scenario: Schema migration removes embedded fields
+        Given migration 0024 has been applied
+        When querying INFO FOR TABLE message
+        Then the result does not contain subagent_traces fields
+
+  - id: 2
+    name: "Write path: chat-route creates trace records"
+    action: "In onFinish callback, create trace records and RELATE message->spawns->trace instead of embedding"
+
+    shared_artifacts:
+      - name: "trace_record_shape"
+        source: "schema/surreal-schema.surql (trace table definition)"
+        consumers:
+          - "chat-route.ts (creates records)"
+          - "workspace-routes.ts (reads records)"
+          - "branch-chain.ts (reads records)"
+          - "acceptance test (validates records)"
+
+      - name: "spawns_edge"
+        source: "chat-route.ts (RELATE statement)"
+        consumers:
+          - "workspace-routes.ts (graph traversal)"
+          - "branch-chain.ts (graph traversal)"
+
+    integration_checkpoint: |
+      After a chat message triggers PM agent:
+      - trace table contains root record with type "subagent_spawn"
+      - trace table contains child records with parent_trace pointing to root
+      - spawns edge exists from assistant message to root trace
+      - message record has no subagent_traces field
+
+    gherkin: |
+      Scenario: Chat agent persists subagent trace as graph records
+        Given Elena Vasquez sends "Plan work for Riverside Bakery: online ordering and delivery tracking"
+        And the PM agent is invoked and completes with tool calls
+        When the assistant message is persisted
+        Then a trace record exists with type "subagent_spawn" and tool_name "invoke_pm_agent"
+        And child trace records exist for each PM agent tool call
+        And each child trace has parent_trace pointing to the root trace
+        And a spawns edge connects the assistant message to the root trace
+
+  - id: 3
+    name: "Read path: workspace-routes reconstructs traces from graph"
+    action: "Query spawns edges and trace children instead of reading embedded subagent_traces"
+
+    shared_artifacts:
+      - name: "api_wire_format"
+        source: "app/src/shared/contracts.ts (SubagentTrace type)"
+        consumers:
+          - "workspace-routes.ts (serializes to API)"
+          - "frontend chat page (renders from API)"
+          - "acceptance test (validates API response)"
+
+    integration_checkpoint: |
+      GET /api/workspaces/:id/conversations/:id returns messages with subagentTraces
+      populated from graph traversal. Wire format identical to previous embedded format.
+
+    gherkin: |
+      Scenario: Conversation load endpoint returns traces from graph
+        Given a message with spawned trace records exists in the database
+        When loading the conversation via GET /api/workspaces/:wsId/conversations/:convId
+        Then the message includes subagentTraces array in the response
+        And each trace contains agentId, intent, steps array, and totalDurationMs
+        And step objects contain type, toolName, argsJson, resultJson, and text fields
+
+  - id: 4
+    name: "Read path: branch-chain loads traces from graph"
+    action: "Remove subagent_traces from message queries, load via spawns edges"
+
+    shared_artifacts:
+      - name: "inheritable_message_traces"
+        source: "branch-chain.ts (loadMessagesWithInheritance)"
+        consumers:
+          - "workspace-routes.ts (branch conversation loading)"
+
+    integration_checkpoint: |
+      loadMessagesWithInheritance returns messages with traces loaded from graph.
+      Inherited messages from ancestor branches include their traces.
+
+    gherkin: |
+      Scenario: Branch inheritance includes traces from ancestor conversations
+        Given a branched conversation exists with PM agent traces on an ancestor message
+        When loading messages with inheritance for the child conversation
+        Then inherited messages include subagent_traces loaded from trace records
+        And the traces match the original structure
+
+  - id: 5
+    name: "PM agent: trace output format alignment"
+    action: "PM agent continues returning SubagentTrace, chat-route maps it to trace records"
+
+    shared_artifacts:
+      - name: "subagent_trace_contract"
+        source: "app/src/shared/contracts.ts"
+        consumers:
+          - "agents/pm/agent.ts (produces)"
+          - "chat-route.ts (consumes and persists)"
+          - "AGENTS.md (documents)"
+
+    integration_checkpoint: |
+      PM agent output.trace still uses SubagentTrace type.
+      chat-route maps SubagentTrace fields to trace record fields.
+      No change to PM agent internals -- only the persistence layer changes.
+
+    gherkin: |
+      Scenario: PM agent trace output is mapped to trace records
+        Given the PM agent returns a trace with agentId "pm_agent" and 3 steps
+        When the chat-route onFinish callback processes the trace
+        Then a root trace record is created with type "subagent_spawn"
+        And 3 child trace records are created with correct types and parent_trace
+
+  - id: 6
+    name: "Graph forensics: enable traversal queries"
+    action: "Verify graph queries work for forensic analysis"
+
+    integration_checkpoint: |
+      SELECT ->spawns->trace FROM message:xyz returns root traces.
+      Recursive child query returns full call tree.
+      Traces from messages and intents share the same trace table.
+
+    gherkin: |
+      Scenario: Graph traversal returns subagent call tree from message
+        Given message:msg1 has a spawns edge to trace:root1
+        And trace:root1 has 3 child traces
+        When querying SELECT ->spawns->trace.{type, tool_name, duration_ms} FROM message:msg1
+        Then the result contains the root trace with type "subagent_spawn"
+
+      Scenario: Full call tree retrieval via parent_trace
+        Given trace:root1 has type "subagent_spawn"
+        And trace:step1, trace:step2, trace:step3 have parent_trace = trace:root1
+        When querying SELECT * FROM trace WHERE parent_trace = trace:root1 ORDER BY created_at ASC
+        Then 3 child trace records are returned in chronological order
+
+  - id: 7
+    name: "Acceptance test: validate normalized trace structure"
+    action: "Rewrite subagent-traces.test.ts to validate trace records instead of embedded arrays"
+
+    integration_checkpoint: |
+      Test creates a chat message, waits for PM agent traces, then:
+      - Queries trace table for records linked via spawns edge
+      - Validates parent-child hierarchy
+      - Validates conversation load endpoint returns traces in API format
+      All assertions pass.
+
+    gherkin: |
+      Scenario: Acceptance test validates trace normalization end-to-end
+        Given a user sends a planning message that triggers PM agent invocation
+        When the assistant response completes
+        Then trace records exist in the trace table with parent-child hierarchy
+        And the conversation load endpoint returns subagentTraces reconstructed from graph
+        And the message record has no subagent_traces embedded field
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "trace_record_shape"
+      must_match_across: [1, 2, 3, 4, 7]
+      failure_message: "Trace record fields in schema must match what write path creates and read paths expect"
+
+    - artifact: "spawns_edge"
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "spawns relation must be defined in schema and used consistently in write and read paths"
+
+    - artifact: "api_wire_format"
+      must_match_across: [3, 4, 7]
+      failure_message: "API contract SubagentTrace shape must be preserved -- frontend must not break"
+
+    - artifact: "subagent_trace_contract"
+      must_match_across: [2, 5]
+      failure_message: "PM agent output type and chat-route consumption must stay aligned"
