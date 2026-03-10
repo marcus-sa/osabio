@@ -1,0 +1,12 @@
+{
+  "project_id": "oauth-rar-dpop",
+  "started_at": "2026-03-10T17:00:00Z",
+  "paradigm": "functional",
+  "crafter": "nw-functional-software-crafter",
+  "mutation_strategy": "per-feature",
+  "rigor": {
+    "agent_model": "inherit",
+    "reviewer_model": "inherit",
+    "review_enabled": true
+  }
+}

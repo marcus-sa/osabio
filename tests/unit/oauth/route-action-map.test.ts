@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { deriveRequestedAction } from "./route-action-map";
+import { deriveRequestedAction } from "../../../app/src/server/oauth/route-action-map";
 
 describe("deriveRequestedAction", () => {
   // -- Read operations --

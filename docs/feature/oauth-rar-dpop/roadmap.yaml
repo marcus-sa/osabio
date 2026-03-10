@@ -1,0 +1,310 @@
+roadmap:
+  project_id: oauth-rar-dpop
+  created_at: '2026-03-10T09:46:23Z'
+  total_steps: 15
+  phases: 4
+  critical_path: '01-01 > 02-01 > 02-02 > 02-03 > 02-04 > 03-01 > 03-02 > 03-03 > 03-04 (Walking Skeleton 1) > 04-01 (Walking Skeleton 2) > 04-02 > 04-03 > 04-04'
+phases:
+- id: '01'
+  name: 'Foundation: Types, Pure DPoP, Schema'
+  steps:
+  - id: 01-01
+    name: 'OAuth shared types and DPoP pure functions'
+    description: >
+      Define algebraic data types (BrainAction, DPoPProofClaims, DPoPBoundTokenClaims,
+      discriminated unions for validation/issuance results). Implement pure DPoP proof
+      validation (structure, signature, claims) and JWK thumbprint computation (RFC 7638)
+      using jose library and Web Crypto API.
+    time_estimate: 4h
+    dependencies: []
+    criteria:
+    - 'ES256 key pair generated with computable JWK thumbprint'
+    - 'Thumbprint deterministic for same key, unique across keys'
+    - 'DPoP proof validated: structure (typ, alg, jwk), signature, claims'
+    - 'Clock skew tolerance: 60s past, 5s future'
+    - 'Enables: M1-K1, M1-K2, M1-K3, M1-K4'
+    implementation_scope:
+    - app/src/server/oauth/types.ts
+    - app/src/server/oauth/dpop.ts
+    - tests/unit/oauth/types.test.ts
+    - tests/unit/oauth/dpop.test.ts
+  - id: 01-02
+    name: 'Nonce cache for replay protection'
+    description: >
+      Time-windowed nonce set storing seen jti values with timestamps.
+      Factory function returns cache instance for dependency injection.
+      Auto-expires entries beyond clock skew window.
+    time_estimate: 2h
+    dependencies: []
+    criteria:
+    - 'Nonce cache rejects previously seen jti within time window'
+    - 'Expired entries auto-purged beyond clock skew window'
+    - 'Factory returns injectable instance (no module singleton)'
+    implementation_scope:
+    - app/src/server/oauth/nonce-cache.ts
+    - tests/unit/oauth/nonce-cache.test.ts
+  - id: 01-03
+    name: 'Schema migration for OAuth fields and tables'
+    description: >
+      Extend intent table with authorization_details, dpop_jwk_thumbprint,
+      token_issued_at, token_expires_at. Define audit_event and as_signing_key
+      tables. Add identity table fields for managed_by, status, revoked_at.
+    time_estimate: 2h
+    dependencies: []
+    criteria:
+    - 'Intent table accepts authorization_details and dpop_jwk_thumbprint'
+    - 'audit_event table defined with required fields and indexes'
+    - 'as_signing_key table defined with kid uniqueness constraint'
+    - 'Identity table supports managed_by, status, revoked_at'
+    - 'Migration applies atomically via bun migrate'
+    implementation_scope:
+    - schema/migrations/0022_oauth_rar_dpop.surql
+    - schema/surreal-schema.surql
+- id: '02'
+  name: 'Custom Authorization Server'
+  steps:
+  - id: 02-01
+    name: 'AS signing key bootstrap and JWKS endpoint'
+    description: >
+      Generate ES256 key pair on first server start, persist to as_signing_key
+      table. Load from DB on subsequent starts. Expose JWKS endpoint
+      (GET /api/auth/brain/.well-known/jwks). Inject into ServerDependencies.
+    time_estimate: 2h
+    dependencies: [01-03]
+    criteria:
+    - 'AS key generated on first start and persisted to SurrealDB'
+    - 'Subsequent starts load existing key from DB'
+    - 'JWKS endpoint returns AS public key in JWK Set format'
+    - 'asSigningKey available in ServerDependencies'
+    implementation_scope:
+    - app/src/server/oauth/as-key-management.ts
+    - app/src/server/runtime/dependencies.ts
+    - app/src/server/runtime/types.ts
+    - app/src/server/runtime/start-server.ts
+  - id: 02-02
+    name: 'Token issuer with DPoP binding'
+    description: >
+      Sign DPoP-bound access tokens with injected AS ES256 key. Token includes
+      sub, cnf.jkt, authorization_details, urn:brain:intent_id, urn:brain:workspace,
+      exp. Default TTL 300s.
+    time_estimate: 3h
+    dependencies: [01-01, 02-01]
+    criteria:
+    - 'Issued token contains cnf.jkt matching actor thumbprint'
+    - 'Token embeds authorization_details and urn:brain:intent_id'
+    - 'Token TTL is at most 300 seconds'
+    - 'Token signed with AS ES256 key, verifiable via AS public key'
+    implementation_scope:
+    - app/src/server/oauth/token-issuer.ts
+    - tests/unit/oauth/token-issuer.test.ts
+  - id: 02-03
+    name: 'Intent submission with DPoP thumbprint binding'
+    description: >
+      New endpoint POST /api/auth/intents requiring authorization_details with
+      type "brain_action" and dpop_jwk_thumbprint. Validates input, stores in
+      intent record, triggers existing evaluation pipeline.
+    time_estimate: 4h
+    dependencies: [01-01, 01-03]
+    criteria:
+    - 'Intent accepted with brain_action and thumbprint stored in record'
+    - 'Missing thumbprint rejected with 400'
+    - 'Missing or wrong-type authorization_details rejected with 400'
+    - 'Low-risk read intents auto-approve'
+    - 'Enables: M1-K5, M1-I1 through M1-I6'
+    implementation_scope:
+    - app/src/server/oauth/intent-submission.ts
+    - app/src/server/intent/types.ts
+    - app/src/server/intent/intent-queries.ts
+    - app/src/server/intent/authorizer.ts
+    - app/src/server/runtime/start-server.ts
+  - id: 02-04
+    name: 'Custom AS token endpoint'
+    description: >
+      POST /api/auth/token accepting grant_type=urn:brain:intent-authorization.
+      Validates DPoP proof, verifies intent status=authorized, matches proof key
+      thumbprint to intent binding, checks authorization_details match. Delegates
+      to token issuer. Supports re-issuance for same intent.
+    time_estimate: 4h
+    dependencies: [02-02, 02-03]
+    criteria:
+    - 'Authorized intent receives DPoP-bound token with token_type=DPoP'
+    - 'Token rejected for non-authorized intent status'
+    - 'Token rejected when proof key does not match intent binding'
+    - 'Token rejected when authorization_details do not match'
+    - 'Token rejected for missing proof or non-existent intent'
+    - 'Enables: M2-T1 through M2-R1 (all token issuance scenarios)'
+    implementation_scope:
+    - app/src/server/oauth/token-endpoint.ts
+    - app/src/server/oauth/audit.ts
+    - app/src/server/runtime/start-server.ts
+- id: '03'
+  name: 'Brain Resource Server Verification'
+  steps:
+  - id: 03-01
+    name: 'DPoP verification middleware'
+    description: >
+      Brain resource server pipeline replacing authenticateMcpRequest. Extracts
+      Authorization: DPoP + DPoP headers. Rejects Bearer tokens, session cookies,
+      missing auth with 401 dpop_required. Validates token signature via AS JWKS,
+      validates proof, verifies sender binding (cnf.jkt match).
+    time_estimate: 5h
+    dependencies: [01-01, 01-02, 02-01]
+    criteria:
+    - 'Bearer tokens rejected with 401 dpop_required'
+    - 'Session cookies rejected with 401 dpop_required'
+    - 'Missing authentication rejected with 401'
+    - 'Valid DPoP proof with matching token grants access'
+    - 'Wrong method, wrong URI, or different key rejected'
+    - 'Enables: M3-A1, M3-A2, M3-A3, M3-V1 through M3-V4'
+    implementation_scope:
+    - app/src/server/oauth/dpop-middleware.ts
+    - app/src/server/mcp/auth.ts
+  - id: 03-02
+    name: 'Replay protection and clock skew enforcement'
+    description: >
+      Integrate nonce cache into DPoP middleware for jti replay detection.
+      Enforce clock skew tolerance (60s past, 5s future) on proof iat.
+      Reject proofs with missing JWK in header.
+    time_estimate: 3h
+    dependencies: [03-01]
+    criteria:
+    - 'Replayed DPoP proof (same jti) rejected on second use'
+    - 'Proof 120s in the past rejected (beyond 60s tolerance)'
+    - 'Proof 30s in the future rejected (beyond 5s tolerance)'
+    - 'Proof with missing JWK in header rejected'
+    - 'Enables: M3-V5, M3-V6, M3-V7, M3-V8'
+    implementation_scope:
+    - app/src/server/oauth/dpop-middleware.ts
+    - app/src/server/oauth/nonce-cache.ts
+  - id: 03-03
+    name: 'RAR operation scope verifier and route-action map'
+    description: >
+      Map HTTP method+path to brain_action via route-action-map. Match
+      requested operation against token authorization_details: type, action,
+      resource exact match; constraint bounds enforcement (numeric <=).
+    time_estimate: 4h
+    dependencies: [01-01]
+    criteria:
+    - 'Matching action and resource succeeds'
+    - 'Mismatched action returns 403 authorization_details_mismatch'
+    - 'Exceeding constraints returns 403 authorization_params_exceeded'
+    - 'Enables: M3-S1, M3-S2, M3-S3'
+    implementation_scope:
+    - app/src/server/oauth/rar-verifier.ts
+    - app/src/server/oauth/route-action-map.ts
+    - tests/unit/oauth/rar-verifier.test.ts
+    - tests/unit/oauth/route-action-map.test.ts
+  - id: 03-04
+    name: 'MCP route migration to DPoP + RAR'
+    description: >
+      Replace authenticateMcpRequest + requireScope in mcp-route.ts with
+      DPoP verification middleware + RAR verifier. Uniform pipeline for
+      all actor types. Walking Skeleton 1 fully passes after this step.
+    time_estimate: 3h
+    dependencies: [03-01, 03-02, 03-03]
+    criteria:
+    - 'All MCP routes use DPoP verification instead of Bearer auth'
+    - 'Agent and human tokens verified through identical pipeline'
+    - 'Walking Skeleton 1 (agent path) passes end-to-end'
+    - 'Enables: M3-U1, Walking Skeleton 1 complete'
+    implementation_scope:
+    - app/src/server/mcp/mcp-route.ts
+    - app/src/server/mcp/auth.ts
+- id: '04'
+  name: 'Bridge, Consent, Identity, Audit'
+  steps:
+  - id: 04-01
+    name: 'Bridge session-to-token exchange'
+    description: >
+      POST /api/auth/bridge/exchange accepting Better Auth session cookie +
+      DPoP proof + authorization_details. Validates session, resolves human
+      identity, creates implicit intent, evaluates via pipeline. Issues
+      DPoP-bound token. Walking Skeleton 2 passes after this step.
+    time_estimate: 5h
+    dependencies: [02-02, 02-04, 03-04]
+    criteria:
+    - 'Valid session + DPoP proof + brain_action yields DPoP-bound token'
+    - 'Bridge token contains correct cnf.jkt and authorization_details'
+    - 'Low-risk reads auto-approve; high-risk triggers evaluation'
+    - 'Expired/invalid session rejected with 401'
+    - 'Missing session, proof, or authorization_details rejected'
+    - 'Enables: M4-B1 through M4-E4, Walking Skeleton 2 complete'
+    implementation_scope:
+    - app/src/server/oauth/bridge.ts
+    - app/src/server/runtime/start-server.ts
+  - id: 04-02
+    name: 'Consent renderer for human-readable authorization display'
+    description: >
+      Transform brain_action authorization_details into human-readable display.
+      Map action verbs and resource types to labels. Format provider-specific
+      values (amounts in dollars). Support approve/veto/constrain actions on
+      pending intents with tighter-bounds-only constraint enforcement.
+    time_estimate: 3h
+    dependencies: [02-03]
+    criteria:
+    - 'brain_action rendered with human-readable labels and formatted values'
+    - 'Human can approve, veto (with reason), or constrain pending intents'
+    - 'Constrain rejects looser bounds than original authorization'
+    - 'Enables: M5-C1, M5-C2, M5-C3, M5-C4, M5-C5'
+    implementation_scope:
+    - app/src/server/oauth/consent-renderer.ts
+    - app/src/server/intent/intent-routes.ts
+    - tests/unit/oauth/consent-renderer.test.ts
+  - id: 04-03
+    name: 'Managed agent identity lifecycle'
+    description: >
+      Agent identity records managed_by relationship to human owner.
+      Revocation checks at intent submission (reject new intents from
+      revoked agents) and Brain verification (reject tokens for revoked agents).
+      Inactive managing human blocks managed agent operations.
+    time_estimate: 2h
+    dependencies: [01-03, 02-03, 03-01]
+    criteria:
+    - 'Agent identity records managed_by relationship'
+    - 'Managed agent blocked when managing human inactive'
+    - 'Revoked agent cannot submit new intents'
+    - 'Revoked agent tokens rejected at Brain boundary'
+    - 'Enables: M5-I1, M5-I2, M5-I3, M5-I4'
+    implementation_scope:
+    - app/src/server/oauth/intent-submission.ts
+    - app/src/server/oauth/dpop-middleware.ts
+    - app/src/server/intent/types.ts
+  - id: 04-04
+    name: 'Audit event logging wiring'
+    description: >
+      Wire audit event logging to all authorization operations: intent
+      submission, evaluation, routing, consent actions, token issuance,
+      DPoP verification. Security events (thumbprint mismatch, replay
+      detection) logged at elevated severity.
+    time_estimate: 2h
+    dependencies: [02-04, 03-04, 04-01]
+    criteria:
+    - 'All auth operations produce audit events in SurrealDB'
+    - 'Security events logged at elevated severity'
+    - 'Audit entries link to intent_id and dpop_thumbprint'
+    implementation_scope:
+    - app/src/server/oauth/audit.ts
+    - app/src/server/oauth/token-endpoint.ts
+    - app/src/server/oauth/bridge.ts
+    - app/src/server/oauth/dpop-middleware.ts
+implementation_scope:
+  source_directories:
+  - app/src/server/oauth/
+  - app/src/server/intent/
+  - app/src/server/mcp/
+  - app/src/server/runtime/
+  test_directories:
+  - tests/acceptance/oauth-rar-dpop/
+  - tests/unit/oauth/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: sentinel
+  approved_at: '2026-03-10'
+  revision: 2
+  notes: >
+    Revision 2 addresses reviewer defects: D1 (reordered key bootstrap before
+    token issuer), D3 (split 04-02 into consent/identity/audit), D5 (added
+    critical path). D4 dismissed (RAR verifier correctly depends on types only).

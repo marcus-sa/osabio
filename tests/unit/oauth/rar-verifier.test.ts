@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { verifyOperationScope } from "./rar-verifier";
-import { createBrainAction } from "./types";
-import type { BrainAction } from "./types";
+import { verifyOperationScope } from "../../../app/src/server/oauth/rar-verifier";
+import { createBrainAction } from "../../../app/src/server/oauth/types";
+import type { BrainAction } from "../../../app/src/server/oauth/types";
 
 describe("verifyOperationScope", () => {
   // -- Matching action and resource succeeds --

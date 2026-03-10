@@ -105,6 +105,12 @@
 - Run eval watch mode: `bun run eval:watch`
 - Agents must not run evals directly. Delegate eval execution to the user and ask them to run eval commands and share results.
 
+### Deliver Phase Testing Gate
+
+- After every `nw:deliver` step execution, run the acceptance tests affected by or introduced for the feature (`bun test tests/acceptance/<relevant-suite>`) before proceeding to the next step.
+- If acceptance tests fail, fix the issue before moving on. Do NOT skip or defer failing tests.
+- This applies to each individual step in the roadmap, not just the final step.
+
 ### Acceptance Test Isolation
 
 - Acceptance tests boot an in-process Brain server with an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.

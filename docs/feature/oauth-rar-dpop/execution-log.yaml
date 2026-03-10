@@ -372,5 +372,10 @@ events:
   s: EXECUTED
   sid: 04-04
   t: '2026-03-10T10:58:10Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-04
+  t: '2026-03-10T10:58:37Z'
 project_id: oauth-rar-dpop
 schema_version: '3.0'
