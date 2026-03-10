@@ -36,22 +36,9 @@ jobs:
       acceptance_dirs: ${{ steps.collect.outputs.acceptance_dirs }}
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
       - id: collect
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-
-          root = "tests/acceptance"
-          dirs = sorted(
-              name
-              for name in os.listdir(root)
-              if os.path.isdir(os.path.join(root, name))
-          )
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
-              out.write(f"acceptance_dirs={json.dumps(dirs)}\n")
-          PY
+        run: bun .github/scripts/collect-acceptance-matrix.ts
 
   acceptance-tests:
     needs: acceptance-test-matrix
