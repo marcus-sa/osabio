@@ -83,24 +83,27 @@ async function issueTestToken(overrides?: {
 /** Create a signed DPoP proof JWT. */
 async function createDPoPProof(
   keyPair: KeyPair,
-  overrides?: { htm?: string; htu?: string },
+  overrides?: { htm?: string; htu?: string; iat?: number; jti?: string; omitJwk?: boolean },
 ): Promise<string> {
-  const header = {
+  const header: Record<string, unknown> = {
     typ: "dpop+jwt" as const,
     alg: "ES256" as const,
-    jwk: {
+  };
+
+  if (!overrides?.omitJwk) {
+    header.jwk = {
       kty: keyPair.publicJwk.kty,
       crv: keyPair.publicJwk.crv,
       x: keyPair.publicJwk.x,
       y: keyPair.publicJwk.y,
-    },
-  };
+    };
+  }
 
   const payload = {
-    jti: crypto.randomUUID(),
+    jti: overrides?.jti ?? crypto.randomUUID(),
     htm: overrides?.htm ?? TEST_METHOD,
     htu: overrides?.htu ?? TEST_URI,
-    iat: Math.floor(Date.now() / 1000),
+    iat: overrides?.iat ?? Math.floor(Date.now() / 1000),
   };
 
   const importedKey = await jose.importJWK(
@@ -109,7 +112,7 @@ async function createDPoPProof(
   );
 
   return await new jose.SignJWT(payload)
-    .setProtectedHeader(header)
+    .setProtectedHeader(header as jose.JWTHeaderParameters)
     .sign(importedKey);
 }
 
@@ -302,6 +305,102 @@ describe("authenticateDPoPRequest", () => {
     expect(response.status).toBe(401);
     const body = await parseErrorBody(response);
     expect(body.error).toBe("dpop_binding_mismatch");
+  });
+
+  // ===========================================================================
+  // M3-V5: Replayed DPoP proof (same jti) rejected on second use
+  // ===========================================================================
+
+  it("rejects replayed DPoP proof with same jti on second use", async () => {
+    const deps = buildDeps();
+    const token = await issueTestToken();
+    const fixedJti = crypto.randomUUID();
+    const proof1 = await createDPoPProof(agentKeyPair, { jti: fixedJti });
+
+    // First request succeeds
+    const request1 = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof1,
+    });
+    const result1 = await authenticateDPoPRequest(request1, deps);
+    expect(result1).not.toBeInstanceOf(Response);
+
+    // Second request with same jti rejected
+    const proof2 = await createDPoPProof(agentKeyPair, { jti: fixedJti });
+    const token2 = await issueTestToken();
+    const request2 = buildRequest({
+      authorization: `DPoP ${token2}`,
+      dpopProof: proof2,
+    });
+    const result2 = await authenticateDPoPRequest(request2, deps);
+
+    expect(result2).toBeInstanceOf(Response);
+    const response = result2 as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("dpop_proof_reused");
+  });
+
+  // ===========================================================================
+  // M3-V6: Proof 120s in the past rejected (beyond 60s tolerance)
+  // ===========================================================================
+
+  it("rejects DPoP proof with iat 120s in the past", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair, { iat: now - 120 });
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+    const result = await authenticateDPoPRequest(request, buildDeps());
+
+    expect(result).toBeInstanceOf(Response);
+    const response = result as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("dpop_proof_expired");
+  });
+
+  // ===========================================================================
+  // M3-V7: Proof 30s in the future rejected (beyond 5s tolerance)
+  // ===========================================================================
+
+  it("rejects DPoP proof with iat 30s in the future", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair, { iat: now + 30 });
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+    const result = await authenticateDPoPRequest(request, buildDeps());
+
+    expect(result).toBeInstanceOf(Response);
+    const response = result as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("dpop_proof_expired");
+  });
+
+  // ===========================================================================
+  // M3-V8: Proof with missing JWK in header rejected
+  // ===========================================================================
+
+  it("rejects DPoP proof with missing JWK in header", async () => {
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair, { omitJwk: true });
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+    const result = await authenticateDPoPRequest(request, buildDeps());
+
+    expect(result).toBeInstanceOf(Response);
+    const response = result as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("dpop_invalid_structure");
   });
 
   // ===========================================================================

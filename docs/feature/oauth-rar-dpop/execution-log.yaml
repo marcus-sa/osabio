@@ -195,5 +195,55 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-10T10:29:40Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-10T10:29:59Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-03
+  t: '2026-03-10T10:31:17Z'
+- d: 'NOT_APPLICABLE: acceptance tests deferred to milestone-3'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 03-03
+  t: '2026-03-10T10:31:22Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-03
+  t: '2026-03-10T10:32:21Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-03
+  t: '2026-03-10T10:33:01Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-03
+  t: '2026-03-10T10:33:21Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-10T10:34:33Z'
+- d: 'NOT_APPLICABLE: acceptance tests in milestone-3 marked .skip'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-10T10:34:34Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-10T10:35:24Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-10T10:35:30Z'
 project_id: oauth-rar-dpop
 schema_version: '3.0'
