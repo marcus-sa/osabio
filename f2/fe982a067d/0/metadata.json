@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f2fe982a067d",
+  "session_id": "2f1d6cc3-653d-4096-80f5-c06cb311b1c9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T13:02:16.19225Z",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/oauth/dpop-middleware.ts",
+    "tests/acceptance/task-status-ownership/commit-check-endpoint.test.ts",
+    "tests/acceptance/task-status-ownership/session-no-status-change.test.ts",
+    "tests/acceptance/workspace/intent-context.test.ts",
+    "app/src/server/oauth/as-key-management.ts",
+    "app/src/server/oauth/route-action-map.ts",
+    "tests/acceptance/auth/oauth-mcp-auth.test.ts",
+    "tests/acceptance/coding-agent-orchestrator/agent-lifecycle.test.ts",
+    "tests/acceptance/intent-node/intent-test-kit.ts",
+    "app/src/server/oauth/bridge.ts",
+    "app/src/server/oauth/dpop.ts",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "tests/acceptance/auth/cli-init-auth.test.ts",
+    "tests/acceptance/coding-agent-orchestrator/agent-tools.test.ts",
+    "tests/acceptance/coding-agent-orchestrator/orchestrator-test-kit.ts",
+    "app/src/server/iam/authority.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7c78200dc7c7",
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 537426,
+    "cache_read_tokens": 10281861,
+    "output_tokens": 39185,
+    "api_call_count": 112
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T13:02:15.683239Z",
+    "agent_lines": 433,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 433,
+    "agent_percentage": 100
+  }
+}
