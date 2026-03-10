@@ -1,10 +1,13 @@
+import { RecordId } from "surrealdb";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
-import { updateIntentStatus, listPendingIntents } from "./intent-queries";
+import { updateIntentStatus, listPendingIntents, getIntentById } from "./intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import { routeByRisk } from "./risk-router";
+import { renderConsentDisplay, validateTighterBounds } from "../oauth/consent-renderer";
 import type { ServerDependencies } from "../runtime/types";
 import type { IntentRecord } from "./types";
+import type { BrainAction } from "../oauth/types";
 
 // --- Route Handler Types ---
 
@@ -12,6 +15,9 @@ type IntentRouteHandlers = {
   handleEvaluate: (intentId: string, request: Request) => Promise<Response>;
   handleVeto: (workspaceId: string, intentId: string, request: Request) => Promise<Response>;
   handleListPending: (workspaceId: string) => Promise<Response>;
+  handleConsent: (workspaceId: string, intentId: string) => Promise<Response>;
+  handleApprove: (workspaceId: string, intentId: string) => Promise<Response>;
+  handleConstrain: (workspaceId: string, intentId: string, request: Request) => Promise<Response>;
 };
 
 // --- Factory ---
@@ -213,5 +219,135 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
     }, 200);
   };
 
-  return { handleEvaluate, handleVeto, handleListPending };
+  const handleConsent = async (
+    workspaceId: string,
+    intentId: string,
+  ): Promise<Response> => {
+    const intent = await getIntentById(surreal, intentId);
+    if (!intent) {
+      return jsonError("Intent not found", 404);
+    }
+
+    // Only pending_veto intents have consent display
+    if (intent.status !== "pending_veto") {
+      return jsonError(`Intent is in '${intent.status}' status, expected 'pending_veto'`, 409);
+    }
+
+    const authDetails = intent.authorization_details ?? [];
+    const firstAction = authDetails[0];
+
+    const consentDisplay = firstAction
+      ? renderConsentDisplay(firstAction)
+      : { action_display: "Unknown", resource_display: "Unknown" };
+
+    return jsonResponse({
+      ...consentDisplay,
+      risk_score: intent.evaluation?.risk_score ?? 0,
+      reasoning: intent.evaluation?.reason ?? "",
+      expires_at: intent.veto_expires_at
+        ? (intent.veto_expires_at instanceof Date
+          ? intent.veto_expires_at.toISOString()
+          : String(intent.veto_expires_at))
+        : "",
+    }, 200);
+  };
+
+  const handleApprove = async (
+    workspaceId: string,
+    intentId: string,
+  ): Promise<Response> => {
+    const result = await updateIntentStatus(surreal, intentId, "authorized");
+
+    if (!result.ok) {
+      logError("intent.approve.failed", "Failed to approve intent", new Error(result.error), {
+        intentId,
+        workspaceId,
+      });
+      return jsonError(result.error, 409);
+    }
+
+    logInfo("intent.approved", "Intent approved by human", {
+      intentId,
+      workspaceId,
+    });
+
+    return jsonResponse({
+      intentId,
+      status: "authorized",
+    }, 200);
+  };
+
+  const handleConstrain = async (
+    workspaceId: string,
+    intentId: string,
+    request: Request,
+  ): Promise<Response> => {
+    let body: { constrained_authorization_details: BrainAction[] };
+    try {
+      body = await request.json() as { constrained_authorization_details: BrainAction[] };
+    } catch {
+      return jsonError("Invalid JSON body", 400);
+    }
+
+    if (!body.constrained_authorization_details || !Array.isArray(body.constrained_authorization_details)) {
+      return jsonError("constrained_authorization_details is required", 400);
+    }
+
+    const intent = await getIntentById(surreal, intentId);
+    if (!intent) {
+      return jsonError("Intent not found", 404);
+    }
+
+    if (intent.status !== "pending_veto") {
+      return jsonError(`Intent is in '${intent.status}' status, expected 'pending_veto'`, 409);
+    }
+
+    const originalDetails = intent.authorization_details ?? [];
+    const proposedDetails = body.constrained_authorization_details;
+
+    // Validate each proposed action against its original
+    for (let i = 0; i < proposedDetails.length; i++) {
+      const original = originalDetails[i];
+      const proposed = proposedDetails[i];
+
+      if (!original) {
+        return jsonError(`No original authorization_details at index ${i}`, 400);
+      }
+
+      const boundsCheck = validateTighterBounds(original, proposed);
+      if (!boundsCheck.valid) {
+        return jsonError(
+          `Constraint validation failed: ${boundsCheck.violations.join("; ")}`,
+          400,
+        );
+      }
+    }
+
+    // Update intent with tighter constraints and authorize
+    const record = await updateIntentStatus(surreal, intentId, "authorized", {});
+    if (!record.ok) {
+      return jsonError(record.error, 409);
+    }
+
+    // Update the authorization_details with the constrained version
+    await surreal.query(
+      "UPDATE $record SET authorization_details = $details;",
+      {
+        record: new RecordId("intent", intentId),
+        details: proposedDetails,
+      },
+    );
+
+    logInfo("intent.constrained", "Intent constrained and authorized by human", {
+      intentId,
+      workspaceId,
+    });
+
+    return jsonResponse({
+      intentId,
+      status: "authorized",
+    }, 200);
+  };
+
+  return { handleEvaluate, handleVeto, handleListPending, handleConsent, handleApprove, handleConstrain };
 }

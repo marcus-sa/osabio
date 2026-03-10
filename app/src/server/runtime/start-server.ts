@@ -366,6 +366,33 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           intentHandlers.handleEvaluate(request.params.intentId, request),
         ),
       },
+      // Intent — consent display
+      "/api/workspaces/:workspaceId/intents/:intentId/consent": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/intents/:intentId/consent",
+          "GET",
+          (request) =>
+            intentHandlers.handleConsent(request.params.workspaceId, request.params.intentId),
+        ),
+      },
+      // Intent — approve from consent
+      "/api/workspaces/:workspaceId/intents/:intentId/approve": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/intents/:intentId/approve",
+          "POST",
+          (request) =>
+            intentHandlers.handleApprove(request.params.workspaceId, request.params.intentId),
+        ),
+      },
+      // Intent — constrain from consent
+      "/api/workspaces/:workspaceId/intents/:intentId/constrain": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/intents/:intentId/constrain",
+          "POST",
+          (request) =>
+            intentHandlers.handleConstrain(request.params.workspaceId, request.params.intentId, request),
+        ),
+      },
       // Intent — veto
       "/api/workspaces/:workspaceId/intents/:intentId/veto": {
         POST: withRequestLogging(
