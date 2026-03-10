@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4350bbe4180c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/policy-node",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/43/50bbe4180c/0/metadata.json",
+      "transcript": "/43/50bbe4180c/0/full.jsonl",
+      "context": "/43/50bbe4180c/0/context.md",
+      "content_hash": "/43/50bbe4180c/0/content_hash.txt",
+      "prompt": "/43/50bbe4180c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 40309,
+    "cache_read_tokens": 198061,
+    "output_tokens": 473,
+    "api_call_count": 5
+  }
+}
