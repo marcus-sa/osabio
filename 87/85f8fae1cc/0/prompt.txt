@@ -1,0 +1,536 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/lusaka directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:refactor 
+
+> DEFINE FIELD OVERWRITE trace_id ON intent TYPE string;
+
+trace_id shouldn't be a string - it should point to a record
+
+---
+
+# NW-REFACTOR: Systematic Code Refactoring
+
+**Wave**: CROSS_WAVE
+**Agent**: Crafty (nw-software-crafter)
+**Command**: `*refactor`
+
+## Overview
+
+Applies the Refactoring Priority Premise (RPP) — cascading 6-level hierarchy where lower levels complete before higher. Levels: L1 Readability|L2 Complexity|L3 Responsibilities|L4 Abstractions|L5 Design Patterns|L6 SOLID++. Each builds on previous. For complex multi-class refactorings, agent applies Mikado Method internally.
+
+## Context Files Required
+
+- src/\* - Production codebase
+- tests/\* - Test codebase
+
+## Agent Invocation
+
+@nw-software-crafter
+
+Execute \*refactor for {target-class-or-module}.
+
+**Context Files:**
+- src/\*
+- tests/\*
+
+**Configuration:**
+- level: 3 # Shorthand: --from=1 --to=3 (RPP range)
+- from: 1 # Start RPP level (default: 1)
+- to: 3 # End RPP level (default: same as level)
+- scope: module # file/module/project
+- method: extract # extract/inline/rename/move
+- mikado_planning: false # Use Mikado Method for complex refactorings
+
+## Success Criteria
+
+- [ ] Code quality metrics improved (measured before/after)
+- [ ] All tests passing after refactoring
+- [ ] Refactoring levels applied in sequence (L1 before L2, etc.)
+- [ ] Technical debt reduced measurably
+
+## Next Wave
+
+**Handoff To**: {invoking-agent-returns-to-workflow}
+**Deliverables**: Refactored codebase with quality improvements
+
+## Examples
+
+### Example 1: Module-level readability refactor
+```
+/nw:refactor src/auth/token_manager.py --level=2 --scope=module
+```
+Crafty applies RPP L1-L2: rename ambiguous variables|extract magic numbers into constants|remove dead code (L1), then simplify conditionals|extract long methods (L2).
+
+### Example 2: SOLID-level design refactor
+```
+/nw:refactor src/billing/ --level=6 --scope=module --mikado_planning=true
+```
+Crafty uses Mikado Method for multi-class refactoring, applies dependency inversion|interface segregation across billing module.
+
+### Example 3: RPP range sweep (L1-L3)
+```
+/nw:refactor src/des/domain/ --from=1 --to=3 --scope=module
+```
+Sweeps L1 readability|L2 complexity|L3 responsibility smells. Cascade rule: L2 only after L1 clean, L3 only after L2 clean.
+
+### Example 4: Targeted single-level refactor
+```
+/nw:refactor src/des/cli/verify.py --level=3 --scope=file
+```
+Targets L3 responsibility smells only (Large Class, Feature Envy, Shotgun Surgery). Assumes L1-L2 already clean.
+
+## Expected Outputs
+
+```
+src/*                              (refactored production code)
+tests/*                            (refactored test code)
+docs/refactoring/
+  refactoring-log.md
+  quality-metrics.md
+```
+
+
+ARGUMENTS: DEFINE FIELD OVERWRITE trace_id ON intent TYPE string; - trace_id shouldn't be a string - it should point to a record
+
+---
+
+# NW-DISCUSS: Jobs-to-be-Done Analysis, UX Journey Design, and Requirements Gathering
+
+**Wave**: DISCUSS (wave 2 of 6) | **Agent**: Luna (nw-product-owner) | **Command**: `/nw:discuss`
+
+## Overview
+
+Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journey discovery|emotional arc design|shared artifact tracking|requirements gathering|user story creation|acceptance criteria definition. Luna uncovers jobs users accomplish, maps to journeys and requirements, handles complete lifecycle from user motivations through DoR-validated stories ready for DESIGN. Establishes ATDD foundation.
+
+For greenfield projects (no src/ code, no docs/feature/ history), Luna proposes Walking Skeleton as Feature 0.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Type
+**Question**: What type of feature is this?
+**Options**:
+1. User-facing -- UI/UX functionality visible to end users
+2. Backend -- APIs, services, data processing
+3. Infrastructure -- DevOps, CI/CD, tooling
+4. Cross-cutting -- Spans multiple layers (auth, logging, etc.)
+5. Other -- user provides custom input
+
+### Decision 2: Walking Skeleton
+**Question**: Should we start with a walking skeleton?
+**Options**:
+1. Yes -- recommended for greenfield projects
+2. Depends -- brownfield; Luna evaluates existing structure first
+3. No -- feature is isolated enough to skip
+
+### Decision 3: UX Research Depth
+**Question**: Priority for UX research depth?
+**Options**:
+1. Lightweight -- quick journey map, focus on happy path
+2. Comprehensive -- full experience mapping with emotional arcs
+3. Deep-dive -- extensive user research, multiple personas, edge cases
+
+### Decision 4: Number of User Jobs
+**Question**: How many distinct jobs are your users trying to accomplish with this feature?
+**Options**:
+1. Single job -- one primary job to focus on
+2. Multiple jobs (2-4) -- several related jobs, will need opportunity scoring
+3. Unclear -- Luna will help discover and define the jobs through interview
+
+## Context Files Required
+
+- docs/project-brief.md | docs/stakeholders.yaml | docs/architecture/constraints.md
+
+## Previous Artifacts (Wave Handoff)
+
+- docs/discovery/problem-validation.md | opportunity-tree.md | lean-canvas.md — From DISCOVER
+
+## Agent Invocation
+
+@nw-product-owner
+
+Execute *jtbd-analysis for {feature-name}, then *journey informed by JTBD artifacts, then *gather-requirements informed by both.
+
+Context files: see Context Files Required and Previous Artifacts above.
+
+**Configuration:**
+- format: visual | yaml | gherkin | all (default: all)
+- research_depth: {Decision 3} | interactive: high | output_format: markdown
+- elicitation_depth: comprehensive | feature_type: {Decision 1}
+- walking_skeleton: {Decision 2} | job_count: {Decision 4}
+- output_directory: docs/ux/{epic}/ (JTBD + journeys), docs/requirements/ (stories)
+
+**Phase 1 -- Jobs-to-be-Done Analysis (REQUIRED):**
+
+Grounds all subsequent artifacts in real user motivations.
+
+1. **Job Discovery**: Ask user what users are trying to accomplish. Capture in job story format: "When [situation], I want to [motivation], so I can [outcome]."
+2. **Job Dimensions**: For each job — functional (practical task)|emotional (desired feeling)|social (desired perception)
+3. **Four Forces Analysis**: For each primary job:
+   - **Push** (current frustration): "What frustrated users enough to request this?"
+   - **Pull** (desired future): "What could they do that they cannot now?"
+   - **Anxiety** (adoption concerns): "What concerns about adopting this?"
+   - **Habit** (current behavior): "What behavior must change?"
+   If interview transcripts|support tickets|analytics exist, extract forces from those instead of relying solely on user description.
+4. **Opportunity Scoring** (multiple jobs): Rank by importance vs. satisfaction gap. High importance + low satisfaction = strongest opportunities. Produce scored table.
+5. **JTBD-to-Story Bridge**: Each job story feeds into user stories and acceptance criteria in Phase 3. Every user story must trace to at least one job.
+
+| Artifact | Path |
+|----------|------|
+| Job Stories | `docs/ux/{epic}/jtbd-job-stories.md` |
+| Four Forces | `docs/ux/{epic}/jtbd-four-forces.md` |
+| Opportunity Scores | `docs/ux/{epic}/jtbd-opportunity-scores.md` (when multiple jobs) |
+
+**Phase 2 -- Journey Design:**
+
+Luna runs deep discovery (mental model|emotional arc|shared artifacts|error paths) informed by JTBD, produces visual journey + YAML schema + Gherkin scenarios. Each journey maps to one or more identified jobs.
+
+| Artifact | Path |
+|----------|------|
+| Visual Journey | `docs/ux/{epic}/journey-{name}-visual.md` |
+| Journey Schema | `docs/ux/{epic}/journey-{name}.yaml` |
+| Gherkin Scenarios | `docs/ux/{epic}/journey-{name}.feature` |
+| Artifact Registry | `docs/ux/{epic}/shared-artifacts-registry.md` |
+
+**Phase 3 -- Requirements and User Stories:**
+
+Luna crafts LeanUX stories informed by JTBD + journey artifacts. Every story traces to at least one job story. Validates against DoR, invokes peer review, prepares handoff.
+
+| Artifact | Path |
+|----------|------|
+| Requirements | `docs/requirements/requirements.md` |
+| User Stories | `docs/requirements/user-stories.md` |
+| Acceptance Criteria | `docs/requirements/acceptance-criteria.md` |
+| DoR Checklist | `docs/requirements/dor-checklist.md` |
+
+## Success Criteria
+
+- [ ] JTBD analysis complete: all jobs in job story format
+- [ ] Job dimensions identified: functional|emotional|social per job
+- [ ] Four Forces mapped per job (push|pull|anxiety|habit)
+- [ ] Opportunity scores produced (when multiple jobs)
+- [ ] UX journey map with emotional arcs and shared artifacts
+- [ ] Every journey maps to at least one job
+- [ ] Discovery complete: user mental model understood, no vague steps
+- [ ] Happy path defined: all steps start-to-goal with expected outputs
+- [ ] Emotional arc coherent: confidence builds progressively
+- [ ] Shared artifacts tracked: every ${variable} has single documented source
+- [ ] Requirements completeness score > 0.95
+- [ ] Every user story traces to at least one job story
+- [ ] All acceptance criteria testable
+- [ ] DoR passed: all 8 items validated with evidence
+- [ ] Peer review approved
+- [ ] Handoff accepted by nw-solution-architect (DESIGN wave)
+
+## Next Wave
+
+**Handoff To**: nw-solution-architect (DESIGN wave)
+**Deliverables**: JTBD artifacts (job stories|four forces|opportunity scores) + journey artifacts (visual|YAML|Gherkin|artifact registry) + requirements (stories|acceptance criteria|DoR validation|peer review)
+
+## Expected Outputs
+
+```
+docs/ux/{epic}/
+  jtbd-job-stories.md
+  jtbd-four-forces.md
+  jtbd-opportunity-scores.md    (when multiple jobs)
+  journey-{name}-visual.md
+  journey-{name}.yaml
+  journey-{name}.feature
+  shared-artifacts-registry.md
+
+docs/requirements/
+  requirements.md
+  user-stories.md               (each story traces to a job)
+  acceptance-criteria.md
+  dor-checklist.md
+```
+
+## Examples
+
+### Example 1: User-facing feature with comprehensive UX research
+```
+/nw:discuss first-time-setup
+```
+Orchestrator asks Decision 1-4. User selects "User-facing", "No skeleton", "Comprehensive", "Multiple jobs". Luna starts with JTBD analysis: discovers jobs like "When I first open the app, I want to feel productive immediately, so I can justify the purchase." Maps four forces for each job. Scores opportunities. Then runs journey discovery informed by JTBD, produces visual journey + YAML + Gherkin. Finally crafts stories where each traces to a job, validates DoR, and prepares handoff.
+
+### Example 2: JTBD-only invocation
+```
+/nw:discuss --phase=jtbd onboarding-flow
+```
+Runs only Luna's JTBD analysis phase (job discovery + dimensions + four forces + opportunity scoring). Produces JTBD artifacts without proceeding to journey design or requirements. Useful for early discovery when you need to understand user motivations before committing to UX design.
+
+### Example 3: Journey-only invocation
+```
+/nw:discuss --phase=journey release-nwave
+```
+Runs only Luna's journey design phases (discovery + visualization + coherence validation). Produces journey artifacts without proceeding to requirements crafting. Useful when JTBD is already done and journey design needs standalone iteration.
+
+### Example 4: Requirements-only invocation
+```
+/nw:discuss --phase=requirements new-plugin-system
+```
+Runs only Luna's requirements phases (gathering + crafting + DoR validation). Assumes JTBD and journey artifacts already exist or are not needed (e.g., backend feature).
+
+
+ARGUMENTS: we already have subtraces, and agent_session table 
+
+It sounds like we’ve hit that classic schema crossroads. If trace_id is currently just a "dumb" UUID string, turning it into a record link is definitely the right move for relational integrity—we just need to decide where that road leads.
+
+Since you're looking at a setup with tool calls, messages, and subagents, here is how the choice impacts your SurrealDB (or similar multi-model) schema:
+
+1. The "Clean Slate" (New trace table)
+
+This is the most robust architectural choice. A dedicated trace table allows you to store metadata about the entire execution flow (start time, total tokens, status, root trigger).
+
+Definition: DEFINE FIELD trace_id ON intent TYPE record<trace>;
+
+Pros: You can query SELECT * FROM trace FETCH intent, message to see the entire tree.
+
+Cons: Requires an extra write at the start of a request to initialize the trace record.
+
+2. The Contextual Link (Reference agent_session)
+
+If your "trace" is effectively synonymous with a user session or a specific agent's lifecycle, you can point it there.
+
+Definition: DEFINE FIELD trace_id ON intent TYPE record<agent_session>;
+
+Pros: No new tables; immediate grouping of intents by session.
+
+Cons: If a session has multiple independent "turns" or traces, this gets messy and loses granularity.
+
+3. The Polymorphic Route (TYPE record)
+
+If you want the flexibility for a trace to sometimes point to a session, sometimes a job, and sometimes a log_entry.
+
+Definition: DEFINE FIELD trace_id ON intent TYPE record;
+
+Pros: Ultimate flexibility.
+
+Cons: You lose schema enforcement. You can’t guarantee that the ID points to something that actually exists or is of a specific type.
+
+---
+
+subagent_traces ON message is what i meant
+
+---
+
+Defining `trace_id` as a `string` in 2026 is like using a paper map in a world of GPS. If we want a **Business OS** that can actually "think" about its own history, every trace must be a **Graph Link**.
+
+Given your specific context—**"3 tool calls, 5 messages, 1 subagent"**—we need a schema that can handle a nested, hierarchical "Call Tree."
+
+Here is the proposal for the **`trace`** table and the refactor.
+
+---
+
+### 1. The Decision: Create a new `trace` table
+
+I recommend **Option 1 (New Table)**.
+
+* **Why:** A "Trace" is a specific technical artifact that represents a "Unit of Thought." While a `message` is for humans and a `session` is for duration, a **Trace** is the forensic record of the logic.
+
+### 2. The Refactored Schema (SurrealQL)
+
+```sql
+-- 1. The Trace Table: The "Black Box Recorder"
+DEFINE TABLE trace SCHEMAFULL;
+DEFINE FIELD type ON trace TYPE string ASSERT $value IN ['tool_call', 'message', 'subagent_spawn', 'logic_step'];
+DEFINE FIELD actor ON trace TYPE record<identity>;
+DEFINE FIELD content ON trace TYPE object; -- The actual input/output or log
+DEFINE FIELD parent_trace ON trace TYPE option<record<trace>>; -- For nested hierarchies
+
+-- 2. The Intent Table (The Refactor)
+DEFINE TABLE intent SCHEMAFULL;
+-- We use TYPE record<trace> to ensure referential integrity
+DEFINE FIELD trace_id ON intent TYPE record<trace>; 
+
+```
+
+---
+
+### 3. How it maps to your "3 tool calls, 5 messages, 1 subagent"
+
+This schema allows your **Authorizer Agent** to walk the tree to see exactly why an intent was generated:
+
+* **Level 1:** `trace:root` (The Subagent spawn).
+* **Level 2:** `trace:msg_1` (Parent: `trace:root`).
+* **Level 3:** `trace:tool_1` (Parent: `trace:msg_1`).
+
+### 4. Why "Generic TYPE record" is a trap
+
+You asked about using a generic `TYPE record`. I’d avoid it here.
+
+* **The Reason:** If `trace_id` can point to *anything*, your **Garbage Collection Agent** won't know how to safely prune old intents.
+* By strictly pointing to the `trace` table, you can write a simple rule: *"If a Trace is archived, the associated Intent is marked as Stale."*
+
+---
+
+### The "Brutally Honest" Take
+
+If you kept `trace_id` as a string, you’d eventually have to write a "Searcher Agent" just to find out which logs belong to which intent. By making it a **Record Link**, the database does that work for you at C++ speeds.
+
+**My intent here:** To ensure that when the "Lying Agent" problem happens (like the LinkedIn post), we can literally **Query the Parent Trace** to see the exact tool call that failed, rather than hunting through UUID strings.
+
+**Would you like me to write the "Trace Builder" logic for your Orchestrator so it automatically nests these 3 tool calls and 5 messages correctly?** Conclude with a clear next step.
+
+---
+
+Continue from where you left off.
+
+---
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md
+- docs/feature/{feature-name}/discuss/user-stories.md
+- docs/feature/{feature-name}/discuss/domain-model.md
+- docs/feature/{feature-name}/discuss/ux-journey.md
+- docs/feature/{feature-name}/discuss/jtbd-job-stories.md — Job stories (JTBD Phase 1)
+- docs/feature/{feature-name}/discuss/jtbd-four-forces.md — Four Forces analysis
+- docs/feature/{feature-name}/discuss/jtbd-opportunity-scores.md — Opportunity scores (if multiple jobs)
+- docs/feature/{feature-name}/design/constraints.md — Technical and business constraints
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-name}.
+
+Context files: see Context Files Required above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOP wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOP wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Expected Outputs
+
+```
+docs/feature/{feature-name}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+---
+
+Continue from where you left off.
+
+---
+
+why "input_summary" as a string - shouldnt it just be a flexible object (input)
+
+---
+
+is trace table then a replacement for subagent_traces on message ?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools are not available in this context. Unable to log decisions, questions, observations, or tasks. Please use the Brain knowledge graph tools directly or provide access to the MCP service.
+
+---
+
+yes, create github issue
+
+---
+
+Commit and push all changes

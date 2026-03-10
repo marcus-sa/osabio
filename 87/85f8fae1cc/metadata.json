@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8785f8fae1cc",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/types.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/oauth/bridge.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "schema/migrations/0023_trace_table.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/intent-node/intent-test-kit.ts",
+    "tests/acceptance/intent-node/milestone-1-authorization-pipeline.test.ts",
+    "tests/acceptance/oauth-rar-dpop/oauth-test-kit.ts",
+    "tests/unit/intent/veto-manager.test.ts",
+    "tests/unit/oauth/token-endpoint.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/85f8fae1cc/0/metadata.json",
+      "transcript": "/87/85f8fae1cc/0/full.jsonl",
+      "context": "/87/85f8fae1cc/0/context.md",
+      "content_hash": "/87/85f8fae1cc/0/content_hash.txt",
+      "prompt": "/87/85f8fae1cc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 197,
+    "cache_creation_tokens": 468562,
+    "cache_read_tokens": 8824897,
+    "output_tokens": 34474,
+    "api_call_count": 99
+  }
+}

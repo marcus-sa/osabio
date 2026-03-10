@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8785f8fae1cc",
+  "session_id": "2f1d6cc3-653d-4096-80f5-c06cb311b1c9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T12:07:44.179903Z",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/types.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/oauth/bridge.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "schema/migrations/0023_trace_table.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/intent-node/intent-test-kit.ts",
+    "tests/acceptance/intent-node/milestone-1-authorization-pipeline.test.ts",
+    "tests/acceptance/oauth-rar-dpop/oauth-test-kit.ts",
+    "tests/unit/intent/veto-manager.test.ts",
+    "tests/unit/oauth/token-endpoint.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "945fca139557",
+  "token_usage": {
+    "input_tokens": 197,
+    "cache_creation_tokens": 468562,
+    "cache_read_tokens": 8824897,
+    "output_tokens": 34474,
+    "api_call_count": 99
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T12:07:43.707676Z",
+    "agent_lines": 0,
+    "human_added": 102,
+    "human_modified": 34,
+    "human_removed": 0,
+    "total_committed": 131,
+    "agent_percentage": 0
+  }
+}
