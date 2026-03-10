@@ -20,5 +20,30 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-10T18:37:54Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-10T18:38:20Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T18:39:32Z'
+- d: 'NOT_APPLICABLE: predicate evaluator is pure function tested via unit tests only'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-02
+  t: '2026-03-10T18:39:34Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T18:40:22Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T18:41:25Z'
 project_id: policy-node
 schema_version: '3.0'
