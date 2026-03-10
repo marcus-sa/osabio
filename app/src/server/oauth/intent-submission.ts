@@ -101,7 +101,7 @@ export function validateIntentSubmission(input: unknown): ValidationResult {
   };
 }
 
-function validateBrainActionEntry(entry: Record<string, unknown>, index: number): string | undefined {
+export function validateBrainActionEntry(entry: Record<string, unknown>, index: number): string | undefined {
   if (!entry || typeof entry !== "object") {
     return `authorization_details[${index}] must be an object`;
   }
@@ -296,7 +296,7 @@ export function createIntentSubmissionHandler(
 // SurrealDB Identity Lookups (adapter functions)
 // ---------------------------------------------------------------------------
 
-import type { default as Surreal } from "surrealdb";
+import type { Surreal } from "surrealdb";
 import type { ResolvedIdentity, ResolvedManager } from "./identity-lifecycle";
 
 type SurrealIdentityRow = {

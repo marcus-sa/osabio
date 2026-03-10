@@ -212,11 +212,6 @@ function isSessionCookie(cookie: string): boolean {
   );
 }
 
-/** Derive the full request URI from the Request object. */
-function deriveRequestUri(request: Request): string {
-  return request.url;
-}
-
 // ---------------------------------------------------------------------------
 // Audit helper
 // ---------------------------------------------------------------------------
@@ -284,7 +279,7 @@ export async function authenticateDPoPRequest(
 
   // Step 4: Validate DPoP proof
   const method = request.method;
-  const uri = deriveRequestUri(request);
+  const uri = request.url;
   const proofResultOrError = await validateProof(proofJwt, method, uri);
   if (proofResultOrError instanceof Response) {
     return proofResultOrError;
@@ -346,8 +341,8 @@ export async function authenticateDPoPRequest(
   }
 
   // Step 9: Build result
-  const actorType = (claims["urn:brain:actor_type"] === "human" ? "human" : "agent") as
-    "human" | "agent";
+  const actorType: "human" | "agent" =
+    claims["urn:brain:actor_type"] === "human" ? "human" : "agent";
 
   return {
     workspaceRecord: new RecordId("workspace", workspaceId),

@@ -68,9 +68,6 @@ export function renderConstraintValue(key: string, value: unknown): string {
   if (AMOUNT_FIELDS.has(key) && typeof value === "number") {
     return formatCentsToDollars(value);
   }
-  if (typeof value === "number") {
-    return String(value);
-  }
   return String(value);
 }
 

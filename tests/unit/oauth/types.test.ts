@@ -11,7 +11,6 @@ import {
   type TokenIssuanceResult,
   type RARVerificationResult,
   createBrainAction,
-  DPOP_ERROR_CODES,
 } from "../../../app/src/server/oauth/types";
 
 describe("BrainAction construction", () => {
@@ -119,20 +118,3 @@ describe("RARVerificationResult discriminated union", () => {
   });
 });
 
-describe("DPoP error codes", () => {
-  it("all error codes are defined", () => {
-    const expectedCodes: DPoPErrorCode[] = [
-      "dpop_required",
-      "dpop_invalid_structure",
-      "dpop_invalid_signature",
-      "dpop_proof_expired",
-      "dpop_proof_reused",
-      "dpop_binding_mismatch",
-      "dpop_key_mismatch",
-    ];
-
-    for (const code of expectedCodes) {
-      expect(DPOP_ERROR_CODES).toContain(code);
-    }
-  });
-});

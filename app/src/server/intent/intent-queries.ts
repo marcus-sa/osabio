@@ -134,6 +134,25 @@ export async function updateIntentStatus(
   return { ok: true, record: rows[0] };
 }
 
+export async function recordTokenIssuance(
+  surreal: Surreal,
+  intentId: string,
+  tokenIssuedAt: Date,
+  tokenExpiresAt: Date,
+): Promise<void> {
+  const record = new RecordId("intent", intentId);
+  await surreal.query(
+    "UPDATE $record MERGE $fields;",
+    {
+      record,
+      fields: {
+        token_issued_at: tokenIssuedAt,
+        token_expires_at: tokenExpiresAt,
+      },
+    },
+  );
+}
+
 export async function listPendingIntents(
   surreal: Surreal,
   workspaceId: string,

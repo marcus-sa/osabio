@@ -73,16 +73,6 @@ export type DPoPErrorCode =
   | "dpop_binding_mismatch"
   | "dpop_key_mismatch";
 
-export const DPOP_ERROR_CODES: DPoPErrorCode[] = [
-  "dpop_required",
-  "dpop_invalid_structure",
-  "dpop_invalid_signature",
-  "dpop_proof_expired",
-  "dpop_proof_reused",
-  "dpop_binding_mismatch",
-  "dpop_key_mismatch",
-];
-
 export type DPoPValidationResult =
   | { valid: true; thumbprint: string; claims: DPoPProofPayload }
   | { valid: false; error: string; code: DPoPErrorCode };

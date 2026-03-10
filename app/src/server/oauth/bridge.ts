@@ -15,16 +15,18 @@ import type { BrainAction } from "./types";
 import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
-import { createIntent, updateIntentStatus } from "../intent/intent-queries";
+import { createIntent, updateIntentStatus, recordTokenIssuance } from "../intent/intent-queries";
 import {
   isLowRiskReadAction,
   deriveActionSpec,
+  validateBrainActionEntry,
 } from "./intent-submission";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
 import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { logAuditEvent, createAuditEvent } from "./audit";
+import { oauthErrorResponse } from "./oauth-errors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,29 +67,9 @@ export function validateBridgeExchangeRequest(body: unknown): BridgeValidation {
 
   for (let i = 0; i < input.authorization_details.length; i++) {
     const entry = input.authorization_details[i] as Record<string, unknown>;
-    if (!entry || typeof entry !== "object") {
-      return {
-        valid: false,
-        error: `authorization_details[${i}] must be an object`,
-      };
-    }
-    if (entry.type !== "brain_action") {
-      return {
-        valid: false,
-        error: `authorization_details[${i}].type must be "brain_action"`,
-      };
-    }
-    if (typeof entry.action !== "string" || entry.action.trim().length === 0) {
-      return {
-        valid: false,
-        error: `authorization_details[${i}].action is required and must be a non-empty string`,
-      };
-    }
-    if (typeof entry.resource !== "string" || entry.resource.trim().length === 0) {
-      return {
-        valid: false,
-        error: `authorization_details[${i}].resource is required and must be a non-empty string`,
-      };
+    const validationError = validateBrainActionEntry(entry, i);
+    if (validationError) {
+      return { valid: false, error: validationError };
     }
   }
 
@@ -138,18 +120,6 @@ async function resolveHumanContext(
   const workspaceId = workspaceRows[0].out.id as string;
 
   return { identityId, workspaceId };
-}
-
-// ---------------------------------------------------------------------------
-// OAuth Error Response Helper
-// ---------------------------------------------------------------------------
-
-function oauthErrorResponse(
-  error: string,
-  errorDescription: string,
-  status: number,
-): Response {
-  return jsonResponse({ error, error_description: errorDescription }, status);
 }
 
 // ---------------------------------------------------------------------------
@@ -340,18 +310,10 @@ export function createBridgeExchangeHandler(
 
       // 11. Update intent with token timestamps
       const now = new Date();
-      await surreal.query(
-        "UPDATE $record MERGE $fields;",
-        {
-          record: new RecordId("intent", intentId),
-          fields: {
-            token_issued_at: now,
-            token_expires_at: tokenResult.expiresAt,
-          },
-        },
-      ).catch((err) => {
-        logError("bridge.exchange.update_intent", "Failed to update intent with token timestamps", err);
-      });
+      await recordTokenIssuance(surreal, intentId, now, tokenResult.expiresAt)
+        .catch((err) => {
+          logError("bridge.exchange.update_intent", "Failed to update intent with token timestamps", err);
+        });
 
       await logAuditEvent(surreal, createAuditEvent("token_issued", {
         actor: new RecordId("identity", identityId),

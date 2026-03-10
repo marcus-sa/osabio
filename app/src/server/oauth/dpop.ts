@@ -253,7 +253,7 @@ function validateClaims(
 
   return {
     ok: true,
-    value: { jti, htm: htm!, htu: htu!, iat },
+    value: { jti, htm: htm as string, htu: htu as string, iat },
   };
 }
 

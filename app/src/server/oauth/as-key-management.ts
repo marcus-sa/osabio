@@ -44,6 +44,11 @@ type LoadActiveKeyFromStore = () => Promise<AsSigningKeyRow | undefined>;
 // Pure functions
 // ---------------------------------------------------------------------------
 
+/** Remove private key material (d parameter) from a JWK. */
+function stripPrivateKeyMaterial(jwk: Record<string, unknown>): void {
+  delete jwk.d;
+}
+
 /** Generate a new ES256 signing key with kid, exportable JWKs, and CryptoKey. */
 export async function generateAsSigningKey(): Promise<AsSigningKey> {
   const kid = crypto.randomUUID();
@@ -64,8 +69,7 @@ export async function generateAsSigningKey(): Promise<AsSigningKey> {
     use: "sig",
   } as AsSigningKey["publicJwk"];
 
-  // Remove private key material from public JWK
-  delete (publicJwk as Record<string, unknown>).d;
+  stripPrivateKeyMaterial(publicJwk as Record<string, unknown>);
 
   return {
     kid,
@@ -92,8 +96,7 @@ export async function loadActiveKey(row: AsSigningKeyRow): Promise<AsSigningKey>
     use: "sig",
   } as AsSigningKey["publicJwk"];
 
-  // Ensure no private material in public JWK
-  delete (publicJwk as Record<string, unknown>).d;
+  stripPrivateKeyMaterial(publicJwk as Record<string, unknown>);
 
   return {
     kid: row.kid,
@@ -106,8 +109,7 @@ export async function loadActiveKey(row: AsSigningKeyRow): Promise<AsSigningKey>
 /** Build RFC 7517 JWK Set response for the JWKS endpoint. */
 export function buildJwksResponse(key: AsSigningKey): jose.JSONWebKeySet {
   const jwk = { ...key.publicJwk };
-  // Defensive: strip private material
-  delete (jwk as Record<string, unknown>).d;
+  stripPrivateKeyMaterial(jwk as Record<string, unknown>);
 
   return {
     keys: [jwk as jose.JWK],

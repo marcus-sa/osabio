@@ -10,18 +10,16 @@
  *
  * Step: 02-04
  */
-import type { Surreal } from "surrealdb";
 import type { BrainAction } from "./types";
-import type { AsSigningKey } from "./as-key-management";
 import type { IntentRecord } from "../intent/types";
 import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
-import { getIntentById } from "../intent/intent-queries";
+import { getIntentById, recordTokenIssuance } from "../intent/intent-queries";
 import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { logAuditEvent, createAuditEvent } from "./audit";
-import { RecordId } from "surrealdb";
+import { oauthErrorResponse } from "./oauth-errors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -187,18 +185,6 @@ export function matchAuthorizationDetails(
 }
 
 // ---------------------------------------------------------------------------
-// OAuth Error Response Helper
-// ---------------------------------------------------------------------------
-
-function oauthErrorResponse(
-  error: string,
-  errorDescription: string,
-  status: number,
-): Response {
-  return jsonResponse({ error, error_description: errorDescription }, status);
-}
-
-// ---------------------------------------------------------------------------
 // HTTP Handler Factory
 // ---------------------------------------------------------------------------
 
@@ -313,18 +299,10 @@ export function createTokenEndpointHandler(
 
       // 7. Update intent with token issuance timestamps
       const now = new Date();
-      await surreal.query(
-        "UPDATE $record MERGE $fields;",
-        {
-          record: new RecordId("intent", data.intentId),
-          fields: {
-            token_issued_at: now,
-            token_expires_at: tokenResult.expiresAt,
-          },
-        },
-      ).catch((err) => {
-        logError("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
-      });
+      await recordTokenIssuance(surreal, data.intentId, now, tokenResult.expiresAt)
+        .catch((err) => {
+          logError("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
+        });
 
       logInfo("token.endpoint.issued", "DPoP-bound access token issued", {
         intentId: data.intentId,
