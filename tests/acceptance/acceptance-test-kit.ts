@@ -495,7 +495,7 @@ export async function createTestUserWithMcp(
 
   await surreal.query(`CREATE $trace CONTENT $traceContent;`, {
     trace: traceRecord,
-    traceContent: { type: "test_setup", actor: identityRecord, workspace: workspaceRecord, created_at: new Date() },
+    traceContent: { type: "intent_submission", actor: identityRecord, workspace: workspaceRecord, created_at: new Date() },
   });
 
   await surreal.query(`CREATE $intent CONTENT $content;`, {
