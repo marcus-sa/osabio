@@ -28,6 +28,7 @@ import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 import { createVetoManager } from "../intent/veto-manager";
 import { updateIntentStatus, queryExpiredVetoIntents } from "../intent/intent-queries";
+import { buildJwksResponse } from "../oauth/as-key-management";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -377,6 +378,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => intentHandlers.handleListPending(request.params.workspaceId),
         ),
       },
+      // AS JWKS endpoint — public keys for token verification
+      "/api/auth/brain/.well-known/jwks": {
+        GET: withRequestLogging("GET /api/auth/brain/.well-known/jwks", "GET", async () =>
+          jsonResponse(buildJwksResponse(deps.asSigningKey), 200),
+        ),
+      },
       // OAuth 2.1 discovery — proxy root-level .well-known to better-auth handler
       "/.well-known/oauth-authorization-server/*": {
         GET: async (request) => deps.auth.handler(request),
@@ -420,6 +427,7 @@ export async function startServer(): Promise<void> {
     embeddingModel: runtime.embeddingModel,
     sse: createSseRegistry(),
     inflight: createInflightTracker(),
+    asSigningKey: runtime.asSigningKey,
   };
 
   const server = createBrainServer(deps);

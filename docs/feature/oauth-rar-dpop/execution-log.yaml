@@ -19,5 +19,81 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-10T10:03:10Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-10T10:03:40Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T10:05:52Z'
+- d: 'NOT_APPLICABLE: infrastructure component, no acceptance test'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-02
+  t: '2026-03-10T10:05:53Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T10:05:54Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T10:05:55Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T10:05:56Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-10T10:08:04Z'
+- d: 'NOT_APPLICABLE: schema-only step'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-03
+  t: '2026-03-10T10:08:06Z'
+- d: 'NOT_APPLICABLE: schema-only step'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-03
+  t: '2026-03-10T10:08:07Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-10T10:08:08Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-10T10:08:32Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-10T10:10:31Z'
+- d: 'NOT_APPLICABLE: key bootstrap is infrastructure concern tested via unit tests
+    on pure functions'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-10T10:10:32Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-10T10:11:14Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-10T10:12:46Z'
 project_id: oauth-rar-dpop
 schema_version: '3.0'

@@ -4,6 +4,7 @@ import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { Surreal } from "surrealdb";
 import type { ServerConfig } from "./config";
 import { createAuth, type Auth } from "../auth/config";
+import { bootstrapSigningKeyFromSurreal, type AsSigningKey } from "../oauth/as-key-management";
 
 const devtools = process.env.AI_DEVTOOLS === "1" ? devToolsMiddleware() : undefined;
 
@@ -16,6 +17,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   pmAgentModel: any;
   analyticsAgentModel: any;
   embeddingModel: any;
+  asSigningKey: AsSigningKey;
 }> {
   const surreal = new Surreal();
   await surreal.connect(config.surrealUrl);
@@ -58,6 +60,8 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     githubClientSecret: config.githubClientSecret,
   });
 
+  const asSigningKey = await bootstrapSigningKeyFromSurreal(surreal);
+
   return {
     surreal,
     analyticsSurreal,
@@ -67,5 +71,6 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     pmAgentModel,
     analyticsAgentModel,
     embeddingModel,
+    asSigningKey,
   };
 }
