@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "71ccd84382b8",
+  "session_id": "9d54790a-cd04-4f87-a025-43507fc3fef3",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T18:00:04.545755Z",
+  "branch": "marcus-sa/policy-node",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-019-graph-backed-policy-evaluation.md",
+    "docs/feature/policy-node/design/architecture-design.md",
+    "docs/feature/policy-node/design/component-boundaries.md",
+    "docs/feature/policy-node/design/data-models.md",
+    "docs/feature/policy-node/design/technology-stack.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c1c297177717",
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 108968,
+    "cache_read_tokens": 1081582,
+    "output_tokens": 9979,
+    "api_call_count": 17
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T18:00:04.163328Z",
+    "agent_lines": 772,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 772,
+    "agent_percentage": 100
+  }
+}
