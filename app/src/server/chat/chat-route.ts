@@ -15,6 +15,7 @@ import { createChatAgentTools } from "./tools";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { loadBranchChain } from "./branch-chain";
+import { persistSubagentTrace } from "./trace-loader";
 
 type ChatRequestBody = {
   messages: UIMessage[];
@@ -242,15 +243,28 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
           }
         }
 
-        // Persist assistant message
+        // Persist assistant message (traces stored separately in trace table)
         const assistantMessageRecord = new RecordId("message", messageId);
         await deps.surreal.create(assistantMessageRecord).content({
           conversation: conversationRecord,
           role: "assistant",
           text: assistantText,
           createdAt: now,
-          ...(subagentTraces.length > 0 ? { subagent_traces: subagentTraces } : {}),
         });
+
+        // Persist subagent traces as normalized trace records with spawns edges
+        if (subagentTraces.length > 0) {
+          const actorRecord = workspaceOwnerRecord ?? new RecordId("identity", "unknown");
+          deps.inflight.track(
+            Promise.all(
+              subagentTraces.map((trace) =>
+                persistSubagentTrace(deps.surreal, assistantMessageRecord, workspaceRecord, actorRecord, trace),
+              ),
+            ).catch((err) => {
+              logError("chat.route.trace_persist_failed", "Failed to persist subagent traces", { error: String(err) });
+            }),
+          );
+        }
 
         await deps.surreal.update(conversationRecord).merge({ updatedAt: now });
 

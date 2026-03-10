@@ -20,17 +20,6 @@ DEFINE FIELD createdAt ON message TYPE datetime;
 DEFINE FIELD suggestions ON message TYPE option<array<string>>;
 DEFINE FIELD clientMessageId ON message TYPE option<string>;
 DEFINE FIELD embedding ON message TYPE option<array<float>>;
-DEFINE FIELD subagent_traces ON message TYPE option<array<object>>;
-DEFINE FIELD subagent_traces[*].agentId ON message TYPE string;
-DEFINE FIELD subagent_traces[*].intent ON message TYPE string;
-DEFINE FIELD subagent_traces[*].totalDurationMs ON message TYPE int;
-DEFINE FIELD subagent_traces[*].steps ON message TYPE array<object>;
-DEFINE FIELD subagent_traces[*].steps[*].type ON message TYPE string;
-DEFINE FIELD subagent_traces[*].steps[*].toolName ON message TYPE option<string>;
-DEFINE FIELD subagent_traces[*].steps[*].argsJson ON message TYPE option<string>;
-DEFINE FIELD subagent_traces[*].steps[*].resultJson ON message TYPE option<string>;
-DEFINE FIELD subagent_traces[*].steps[*].durationMs ON message TYPE option<int>;
-DEFINE FIELD subagent_traces[*].steps[*].text ON message TYPE option<string>;
 DEFINE INDEX message_conversation_createdAt ON message FIELDS conversation, createdAt;
 DEFINE INDEX idx_message_embedding ON message FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
@@ -503,6 +492,8 @@ DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
 DEFINE INDEX trace_created_at ON trace FIELDS created_at;
+
+DEFINE TABLE spawns TYPE RELATION IN message OUT trace SCHEMAFULL;
 
 -- Intent governance
 DEFINE TABLE intent SCHEMAFULL;

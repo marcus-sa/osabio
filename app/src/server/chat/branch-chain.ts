@@ -1,5 +1,6 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { SubagentTrace } from "../../shared/contracts";
+import { batchLoadTraces } from "./trace-loader";
 
 export type BranchLink = {
   conversationId: string;
@@ -24,7 +25,6 @@ type MessageRow = {
   text: string;
   createdAt: Date | string;
   suggestions?: string[];
-  subagent_traces?: SubagentTrace[];
 };
 
 /**
@@ -87,35 +87,47 @@ export async function loadMessagesWithInheritance(
 ): Promise<InheritableMessage[]> {
   const chain = await loadBranchChain(surreal, conversationId);
 
+  let allMessages: InheritableMessage[];
+
   if (chain.length === 0) {
     const messages = await queryConversationMessages(surreal, conversationId, limit);
-    return messages.map((m) => toInheritable(m, false));
-  }
+    allMessages = messages.map((m) => toInheritable(m, false));
+  } else {
+    allMessages = [];
 
-  const allMessages: InheritableMessage[] = [];
-
-  // Root conversation messages up to first branch point
-  const rootConvId = chain[0].parentConversationId;
-  const rootMessages = await queryMessagesUpToBranchPoint(
-    surreal,
-    rootConvId,
-    chain[0].branchPointCreatedAt,
-  );
-  allMessages.push(...rootMessages.map((m) => toInheritable(m, true)));
-
-  // Intermediate ancestor messages between branch points
-  for (let i = 0; i < chain.length - 1; i++) {
-    const intermediateMessages = await queryMessagesUpToBranchPoint(
+    // Root conversation messages up to first branch point
+    const rootConvId = chain[0].parentConversationId;
+    const rootMessages = await queryMessagesUpToBranchPoint(
       surreal,
-      chain[i].conversationId,
-      chain[i + 1].branchPointCreatedAt,
+      rootConvId,
+      chain[0].branchPointCreatedAt,
     );
-    allMessages.push(...intermediateMessages.map((m) => toInheritable(m, true)));
+    allMessages.push(...rootMessages.map((m) => toInheritable(m, true)));
+
+    // Intermediate ancestor messages between branch points
+    for (let i = 0; i < chain.length - 1; i++) {
+      const intermediateMessages = await queryMessagesUpToBranchPoint(
+        surreal,
+        chain[i].conversationId,
+        chain[i + 1].branchPointCreatedAt,
+      );
+      allMessages.push(...intermediateMessages.map((m) => toInheritable(m, true)));
+    }
+
+    // Current conversation's own messages
+    const ownMessages = await queryConversationMessages(surreal, conversationId, limit);
+    allMessages.push(...ownMessages.map((m) => toInheritable(m, false)));
   }
 
-  // Current conversation's own messages
-  const ownMessages = await queryConversationMessages(surreal, conversationId, limit);
-  allMessages.push(...ownMessages.map((m) => toInheritable(m, false)));
+  // Batch-load traces from graph (spawns edges + parent_trace children)
+  const messageIds = allMessages.map((m) => new RecordId("message", m.id));
+  const traceMap = await batchLoadTraces(surreal, messageIds);
+  for (const msg of allMessages) {
+    const traces = traceMap.get(msg.id);
+    if (traces && traces.length > 0) {
+      msg.subagent_traces = traces;
+    }
+  }
 
   return allMessages;
 }
@@ -127,7 +139,6 @@ function toInheritable(row: MessageRow, inherited: boolean): InheritableMessage 
     text: row.text,
     createdAt: row.createdAt,
     ...(row.suggestions && row.suggestions.length > 0 ? { suggestions: row.suggestions } : {}),
-    ...(row.subagent_traces && row.subagent_traces.length > 0 ? { subagent_traces: row.subagent_traces } : {}),
     inherited,
   };
 }
@@ -140,7 +151,7 @@ async function queryConversationMessages(
   const conversationRecord = new RecordId("conversation", conversationId);
   const [rows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT $limit;",
+      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation ORDER BY createdAt ASC LIMIT $limit;",
       { conversation: conversationRecord, limit },
     )
     .collect<[MessageRow[]]>();
@@ -161,7 +172,7 @@ async function queryMessagesUpToBranchPoint(
   // Find the assistant response following the branch point (if any)
   const [nextRows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation AND createdAt > $branchPointAt ORDER BY createdAt ASC LIMIT 1;",
+      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation AND createdAt > $branchPointAt ORDER BY createdAt ASC LIMIT 1;",
       { conversation: conversationRecord, branchPointAt: branchPointCreatedAt },
     )
     .collect<[MessageRow[]]>();
@@ -172,7 +183,7 @@ async function queryMessagesUpToBranchPoint(
 
   const [rows] = await surreal
     .query<[MessageRow[]]>(
-      "SELECT id, role, text, createdAt, suggestions, subagent_traces FROM message WHERE conversation = $conversation AND createdAt <= $cutoff ORDER BY createdAt ASC;",
+      "SELECT id, role, text, createdAt, suggestions FROM message WHERE conversation = $conversation AND createdAt <= $cutoff ORDER BY createdAt ASC;",
       { conversation: conversationRecord, cutoff: cutoffAt },
     )
     .collect<[MessageRow[]]>();

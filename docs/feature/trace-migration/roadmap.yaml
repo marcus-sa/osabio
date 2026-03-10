@@ -1,0 +1,85 @@
+roadmap:
+  project_id: trace-migration
+  created_at: '2026-03-10T17:58:27Z'
+  total_steps: 5
+  phases: 2
+phases:
+- id: '01'
+  name: 'Schema and read path'
+  steps:
+  - id: 01-01
+    name: 'Schema migration: spawns relation and field removal'
+    criteria:
+      - 'Migration 0024 defines spawns TYPE RELATION IN message OUT trace SCHEMAFULL'
+      - 'Migration 0024 removes subagent_traces and subagent_traces[*].* fields from message table'
+      - 'bun migrate applies 0024 without error on a fresh database'
+      - 'surreal-schema.surql updated to include spawns table and exclude embedded trace fields'
+    architectural_constraints:
+      - 'Wrap in BEGIN TRANSACTION / COMMIT TRANSACTION'
+      - 'Use DEFINE ... OVERWRITE for spawns table definition'
+      - 'Use REMOVE FIELD for subagent_traces cleanup'
+  - id: 01-02
+    name: 'Read path: trace batch loader and workspace endpoints'
+    criteria:
+      - 'Conversation detail endpoint returns subagentTraces reconstructed from spawns edges'
+      - 'Bootstrap endpoint returns subagentTraces reconstructed from spawns edges'
+      - 'Messages without spawns edges omit subagentTraces (no empty arrays)'
+      - 'Type mapping: trace record type "message" returned as step type "text" in wire format'
+      - 'Multiple traces per message returned as array on single message'
+    test_suites:
+      - 'tests/acceptance/chat/trace-migration/walking-skeleton.test.ts'
+      - 'tests/acceptance/chat/trace-migration/graph-queryability.test.ts'
+      - 'tests/acceptance/chat/trace-migration/batch-loading.test.ts'
+    architectural_constraints:
+      - 'New trace-loader.ts module with pure batch load function'
+      - 'Two-query pattern: query 1 gets root traces via spawns, query 2 gets children via parent_trace'
+      - 'workspace-routes.ts and branch-chain.ts both consume trace-loader'
+  - id: 01-03
+    name: 'Read path: branch inheritance trace loading'
+    criteria:
+      - 'Branched conversation includes traces on inherited parent messages'
+      - 'Inherited messages marked with inherited: true retain subagentTraces'
+    test_suites:
+      - 'tests/acceptance/chat/trace-migration/branch-inheritance.test.ts'
+    architectural_constraints:
+      - 'branch-chain.ts calls trace batch loader for inherited + own messages'
+- id: '02'
+  name: 'Write path and smoke test'
+  steps:
+  - id: 02-01
+    name: 'Write path: chat-route onFinish trace persistence'
+    criteria:
+      - 'PM agent SubagentTrace written as root trace + child trace records + spawns edge'
+      - 'Root trace has type "subagent_spawn", tool_name, input with intent/agentId, duration_ms'
+      - 'Child tool_call traces have tool_name, parsed input/output, duration_ms'
+      - 'Child text traces stored as type "message" with input.text'
+      - 'Write failure logged but does not block message persistence'
+    architectural_constraints:
+      - 'Trace writes tracked via deps.inflight.track()'
+      - 'SubagentTraceStep.type "text" mapped to trace record type "message" on write'
+      - 'All trace records + spawns edge created in single transaction'
+  - id: 02-02
+    name: 'Update existing smoke test for normalized storage'
+    criteria:
+      - 'tests/acceptance/chat/subagent-traces.test.ts passes with new schema'
+      - 'Smoke test verifies traces returned via API after real LLM PM agent invocation'
+      - 'No assertions on embedded subagent_traces field (removed from schema)'
+    test_suites:
+      - 'tests/acceptance/chat/subagent-traces.test.ts'
+    architectural_constraints:
+      - 'Smoke test remains LLM-dependent; assert on API wire format only'
+implementation_scope:
+  source_directories:
+  - app/src/server/chat/
+  - app/src/server/workspace/
+  - schema/
+  test_directories:
+  - tests/acceptance/chat/trace-migration/
+  - tests/acceptance/chat/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: nw-software-crafter-reviewer
+  approved_at: '2026-03-11T00:00:00Z'
