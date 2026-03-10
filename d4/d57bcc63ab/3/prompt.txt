@@ -1,0 +1,85 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain/dubai-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+split tests/acceptance/core up into multiple dirs in tests/acceptance/* so they get sharded in ci. also add this to tests/AGENTS.md
+
+---
+
+u can see it takes a long time, but im unsure which tests are taking that long:
+
+2m 44s
+Run bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/core/
+bun test v1.3.10 (30e609e0)
+
+tests/acceptance/core/priority.test.ts:
+
+tests/acceptance/core/cli-init-auth.test.ts:
+
+tests/acceptance/core/authority.test.ts:
+
+tests/acceptance/core/extraction-quality.test.ts:
+
+tests/acceptance/core/logging.test.ts:
+
+tests/acceptance/core/graph-relationships.test.ts:
+
+tests/acceptance/core/readme-import.test.ts:
+
+tests/acceptance/core/conversation-sidebar.test.ts:
+
+tests/acceptance/core/branch-inheritance.test.ts:
+
+tests/acceptance/core/oauth-mcp-auth.test.ts:
+
+tests/acceptance/core/intent-context.test.ts:
+
+tests/acceptance/core/github-webhook.test.ts:
+
+tests/acceptance/core/phase1.test.ts:
+
+tests/acceptance/core/subagent-traces.test.ts:
+
+tests/acceptance/core/pipeline.test.ts:
+
+tests/acceptance/core/onboarding.test.ts:
+
+tests/acceptance/core/description-entries.test.ts:
+
+tests/acceptance/core/better-auth-adapter.test.ts:
+
+tests/acceptance/core/create-work-item-edge.test.ts:
+
+tests/acceptance/core/move-items-to-project.test.ts:
+
+tests/acceptance/core/workspace-description.test.ts:
+
+1 tests skipped:
+(skip) README import smoke > ingests README.md and persists document chunks
+
+ 106 pass
+ 1 skip
+ 0 fail
+ 414 expect() calls
+Ran 107 tests across 21 files. [164.09s]
+
+---
+
+can we setup a script to run locally as well ?
+
+---
+
+no, i mean i want a single "test:acceptance" script that runs each of the matrixes in parallel.
+
+so a script file that spawns these in parallel, gathers the output afterwards and logs it
+
+---
+
+Commit and push all changes

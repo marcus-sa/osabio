@@ -3,7 +3,7 @@
   "checkpoint_id": "d4d57bcc63ab",
   "strategy": "manual-commit",
   "branch": "marcus-sa/intent-node-issue",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     "package.json",
     "scripts/test-acceptance.ts"
@@ -29,13 +29,20 @@
       "context": "",
       "content_hash": "/d4/d57bcc63ab/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/d4/d57bcc63ab/3/metadata.json",
+      "transcript": "/d4/d57bcc63ab/3/full.jsonl",
+      "context": "/d4/d57bcc63ab/3/context.md",
+      "content_hash": "/d4/d57bcc63ab/3/content_hash.txt",
+      "prompt": "/d4/d57bcc63ab/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 25,
+    "cache_creation_tokens": 68201,
+    "cache_read_tokens": 522794,
+    "output_tokens": 2944,
+    "api_call_count": 14
   }
 }
