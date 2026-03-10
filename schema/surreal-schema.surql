@@ -486,6 +486,24 @@ DEFINE TABLE attended_by TYPE RELATION IN meeting OUT identity SCHEMAFULL;
 DEFINE FIELD role ON attended_by TYPE option<string> ASSERT $value = NONE OR $value IN ["organizer", "attendee"];
 DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 
+-- Trace: forensic record of a unit of thought (call tree node)
+DEFINE TABLE trace SCHEMAFULL;
+DEFINE FIELD type ON trace TYPE string
+  ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange"];
+DEFINE FIELD actor ON trace TYPE record<identity>;
+DEFINE FIELD workspace ON trace TYPE record<workspace>;
+DEFINE FIELD session ON trace TYPE option<record<agent_session>>;
+DEFINE FIELD parent_trace ON trace TYPE option<record<trace>>;
+DEFINE FIELD tool_name ON trace TYPE option<string>;
+DEFINE FIELD input ON trace TYPE option<object> FLEXIBLE;
+DEFINE FIELD output ON trace TYPE option<object> FLEXIBLE;
+DEFINE FIELD duration_ms ON trace TYPE option<int>;
+DEFINE FIELD created_at ON trace TYPE datetime;
+DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
+DEFINE INDEX trace_session ON trace FIELDS session;
+DEFINE INDEX trace_workspace ON trace FIELDS workspace;
+DEFINE INDEX trace_created_at ON trace FIELDS created_at;
+
 -- Intent governance
 DEFINE TABLE intent SCHEMAFULL;
 DEFINE FIELD goal ON intent TYPE string;
@@ -512,7 +530,7 @@ DEFINE FIELD evaluation.policy_only ON intent TYPE bool;
 DEFINE FIELD veto_expires_at ON intent TYPE option<datetime>;
 DEFINE FIELD veto_reason ON intent TYPE option<string>;
 DEFINE FIELD error_reason ON intent TYPE option<string>;
-DEFINE FIELD trace_id ON intent TYPE string;
+DEFINE FIELD trace_id ON intent TYPE record<trace>;
 DEFINE FIELD requester ON intent TYPE record<identity>;
 DEFINE FIELD workspace ON intent TYPE record<workspace>;
 DEFINE FIELD created_at ON intent TYPE datetime;

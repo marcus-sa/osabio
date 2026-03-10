@@ -14,7 +14,7 @@ import type { ActionSpec } from "../intent/types";
 import type { ServerDependencies } from "../runtime/types";
 import { jsonError, jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
-import { createIntent, updateIntentStatus } from "../intent/intent-queries";
+import { createIntent, createTrace, updateIntentStatus } from "../intent/intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
 import {
@@ -174,7 +174,8 @@ export function createIntentSubmissionHandler(
     }
 
     const { data } = validation;
-    const traceId = crypto.randomUUID();
+    const requester = new RecordId("identity", data.identity_id);
+    const workspace = new RecordId("workspace", data.workspace_id);
 
     try {
       // Check identity lifecycle before creating intent
@@ -195,22 +196,30 @@ export function createIntentSubmissionHandler(
 
       const actionSpec = deriveActionSpec(data.authorization_details);
 
-      // Create intent record with new fields
+      // Create trace record for forensic call tree
+      const traceRecord = await createTrace(surreal, {
+        type: "intent_submission",
+        actor: requester,
+        workspace,
+        input: { authorization_details: data.authorization_details, goal: data.goal },
+      });
+
+      // Create intent record linked to trace
       const intentId = await createIntent(surreal, {
         goal: data.goal,
         reasoning: data.reasoning,
         priority: data.priority ?? 0,
         action_spec: actionSpec,
-        trace_id: traceId,
-        requester: new RecordId("identity", data.identity_id),
-        workspace: new RecordId("workspace", data.workspace_id),
+        trace_id: traceRecord,
+        requester,
+        workspace,
         authorization_details: data.authorization_details,
         dpop_jwk_thumbprint: data.dpop_jwk_thumbprint,
       });
 
       logInfo("intent.submission.created", "Intent created via OAuth submission", {
         intentId: intentId.id as string,
-        traceId,
+        traceId: traceRecord.id as string,
         workspaceId: data.workspace_id,
       });
 
@@ -266,7 +275,7 @@ export function createIntentSubmissionHandler(
             return jsonResponse({
               intent_id: intentId.id as string,
               status: "authorized",
-              trace_id: traceId,
+              trace_id: traceRecord.id as string,
             }, 201);
           }
         } catch (error) {
@@ -283,12 +292,10 @@ export function createIntentSubmissionHandler(
       return jsonResponse({
         intent_id: intentId.id as string,
         status: "pending_auth",
-        trace_id: traceId,
+        trace_id: traceRecord.id as string,
       }, 201);
     } catch (error) {
-      logError("intent.submission.error", "Intent submission failed", error, {
-        traceId,
-      });
+      logError("intent.submission.error", "Intent submission failed", error);
       return jsonError("Internal server error", 500);
     }
   };

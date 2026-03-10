@@ -64,7 +64,7 @@ export type IntentRecord = {
   dpop_jwk_thumbprint?: string;
   token_issued_at?: Date;
   token_expires_at?: Date;
-  trace_id: string;
+  trace_id: RecordId<"trace", string>;
   requester: RecordId<"identity", string>;
   workspace: RecordId<"workspace", string>;
   created_at: Date;

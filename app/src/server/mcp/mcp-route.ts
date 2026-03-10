@@ -52,7 +52,7 @@ import { requireRawId } from "./id-format";
 import { processCommitTaskRefs } from "./commit-check";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { createIntent, updateIntentStatus, getIntentById } from "../intent/intent-queries";
+import { createIntent, createTrace, updateIntentStatus, getIntentById } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 
 type WorkspaceRow = {
@@ -1685,6 +1685,13 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (!body.provider) return jsonError("provider is required", 400);
 
     try {
+      const traceRecord = await createTrace(surreal, {
+        type: "intent_submission",
+        actor: auth.identityRecord,
+        workspace: auth.workspaceRecord,
+        input: { goal: body.goal, action: body.action, provider: body.provider },
+      });
+
       const intentRecord = await createIntent(surreal, {
         goal: body.goal,
         reasoning: body.reasoning,
@@ -1695,7 +1702,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
           ...(body.params ? { params: body.params } : {}),
         },
         ...(body.budget_limit ? { budget_limit: body.budget_limit } : {}),
-        trace_id: crypto.randomUUID(),
+        trace_id: traceRecord,
         requester: auth.identityRecord,
         workspace: auth.workspaceRecord,
       });

@@ -499,6 +499,12 @@ export async function seedAuthorizedIntent(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const requesterRecord = new RecordId("identity", identityId);
 
+  const traceRecord = new RecordId("trace", `trace-${intentId}`);
+  await surreal.query(`CREATE $trace CONTENT $traceContent;`, {
+    trace: traceRecord,
+    traceContent: { type: "intent_submission", actor: requesterRecord, workspace: workspaceRecord, created_at: new Date() },
+  });
+
   await surreal.query(`CREATE $intent CONTENT $content;`, {
     intent: intentRecord,
     content: {
@@ -513,7 +519,7 @@ export async function seedAuthorizedIntent(
         action: brainAction.action,
         params: { resource: brainAction.resource },
       },
-      trace_id: `trace-${intentId}`,
+      trace_id: traceRecord,
       requester: requesterRecord,
       workspace: workspaceRecord,
       evaluation: {
@@ -547,6 +553,12 @@ export async function seedIntentWithStatus(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const requesterRecord = new RecordId("identity", identityId);
 
+  const traceRecord = new RecordId("trace", `trace-${intentId}`);
+  await surreal.query(`CREATE $trace CONTENT $traceContent;`, {
+    trace: traceRecord,
+    traceContent: { type: "intent_submission", actor: requesterRecord, workspace: workspaceRecord, created_at: new Date() },
+  });
+
   await surreal.query(`CREATE $intent CONTENT $content;`, {
     intent: intentRecord,
     content: {
@@ -561,7 +573,7 @@ export async function seedIntentWithStatus(
         action: brainAction.action,
         params: { resource: brainAction.resource },
       },
-      trace_id: `trace-${intentId}`,
+      trace_id: traceRecord,
       requester: requesterRecord,
       workspace: workspaceRecord,
       created_at: new Date(),

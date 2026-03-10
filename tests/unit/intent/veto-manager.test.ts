@@ -23,7 +23,7 @@ const makeIntentRecord = (
   status,
   priority: 5,
   action_spec: { provider: "test", action: "do_thing" },
-  trace_id: "trace-1",
+  trace_id: new RecordId("trace", "trace-1"),
   requester: new RecordId("identity", "user-1"),
   workspace: new RecordId("workspace", "ws-1"),
   created_at: new Date("2026-01-01"),

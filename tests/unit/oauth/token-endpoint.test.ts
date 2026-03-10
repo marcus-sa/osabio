@@ -41,7 +41,7 @@ function createAuthorizedIntent(overrides?: Partial<IntentRecord>): IntentRecord
     status: "authorized",
     priority: 0,
     action_spec: { provider: "brain", action: "read", params: { resource: "workspace" } },
-    trace_id: "trace-abc",
+    trace_id: new RecordId("trace", "trace-abc"),
     requester: new RecordId("identity", "actor-123"),
     workspace: new RecordId("workspace", "ws-456"),
     created_at: new Date(),

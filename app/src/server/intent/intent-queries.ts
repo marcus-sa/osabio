@@ -11,7 +11,7 @@ type CreateIntentParams = {
   priority: number;
   action_spec: ActionSpec;
   budget_limit?: BudgetLimit;
-  trace_id: string;
+  trace_id: RecordId<"trace", string>;
   requester: RecordId<"identity", string>;
   workspace: RecordId<"workspace", string>;
   expiry?: Date;
@@ -30,6 +30,44 @@ type ListFilters = {
   status?: IntentStatus;
   limit?: number;
 };
+
+// --- Trace Creation ---
+
+export type TraceType = "tool_call" | "message" | "subagent_spawn" | "intent_submission" | "bridge_exchange";
+
+export type CreateTraceParams = {
+  type: TraceType;
+  actor: RecordId<"identity", string>;
+  workspace: RecordId<"workspace", string>;
+  session?: RecordId<"agent_session", string>;
+  parent_trace?: RecordId<"trace", string>;
+  tool_name?: string;
+  input?: Record<string, unknown>;
+};
+
+export async function createTrace(
+  surreal: Surreal,
+  params: CreateTraceParams,
+): Promise<RecordId<"trace", string>> {
+  const id = crypto.randomUUID();
+  const record = new RecordId("trace", id);
+
+  const content: Record<string, unknown> = {
+    type: params.type,
+    actor: params.actor,
+    workspace: params.workspace,
+    created_at: new Date(),
+  };
+
+  if (params.session) content.session = params.session;
+  if (params.parent_trace) content.parent_trace = params.parent_trace;
+  if (params.tool_name) content.tool_name = params.tool_name;
+  if (params.input) content.input = params.input;
+
+  await surreal.query("CREATE $record CONTENT $content;", { record, content });
+
+  return record;
+}
 
 // --- Query Functions ---
 

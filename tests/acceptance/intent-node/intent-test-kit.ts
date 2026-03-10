@@ -81,7 +81,7 @@ export type IntentRecord = {
   veto_expires_at?: string;
   veto_reason?: string;
   error_reason?: string;
-  trace_id: string;
+  trace_id: RecordId<"trace">;
   created_at: string;
   updated_at?: string;
 };
@@ -115,13 +115,26 @@ export async function createDraftIntent(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const requesterRecord = new RecordId("identity", requesterId);
 
+  // Create trace record for the intent
+  const traceId = `trace-${intentId}`;
+  const traceRecord = new RecordId("trace", traceId);
+  await surreal.query(`CREATE $trace CONTENT $content;`, {
+    trace: traceRecord,
+    content: {
+      type: "intent_submission",
+      actor: requesterRecord,
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    },
+  });
+
   const content: Record<string, unknown> = {
     goal: opts.goal,
     reasoning: opts.reasoning,
     status: "draft",
     priority: opts.priority ?? 50,
     action_spec: opts.action_spec,
-    trace_id: `trace-${intentId}`,
+    trace_id: traceRecord,
     requester: requesterRecord,
     workspace: workspaceRecord,
     created_at: new Date(),

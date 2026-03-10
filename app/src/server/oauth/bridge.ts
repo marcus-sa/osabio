@@ -15,7 +15,7 @@ import type { BrainAction } from "./types";
 import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
-import { createIntent, updateIntentStatus, recordTokenIssuance } from "../intent/intent-queries";
+import { createIntent, createTrace, updateIntentStatus, recordTokenIssuance } from "../intent/intent-queries";
 import {
   isLowRiskReadAction,
   deriveActionSpec,
@@ -192,19 +192,28 @@ export function createBridgeExchangeHandler(
     }
 
     const { identityId, workspaceId } = humanContext;
-    const traceId = crypto.randomUUID();
+    const requester = new RecordId("identity", identityId);
+    const workspace = new RecordId("workspace", workspaceId);
 
     try {
-      // 5. Create implicit intent
+      // 5. Create trace + implicit intent
       const actionSpec = deriveActionSpec(authorizationDetails);
+
+      const traceRecord = await createTrace(surreal, {
+        type: "bridge_exchange",
+        actor: requester,
+        workspace,
+        input: { authorization_details: authorizationDetails, source: "bridge_exchange" },
+      });
+
       const intentRecord = await createIntent(surreal, {
         goal: `Bridge exchange: ${authorizationDetails.map((a) => `${a.action} ${a.resource}`).join(", ")}`,
         reasoning: "Implicit intent created by bridge session-to-token exchange",
         priority: 0,
         action_spec: actionSpec,
-        trace_id: traceId,
-        requester: new RecordId("identity", identityId),
-        workspace: new RecordId("workspace", workspaceId),
+        trace_id: traceRecord,
+        requester,
+        workspace,
         authorization_details: authorizationDetails,
         dpop_jwk_thumbprint: dpopResult.thumbprint,
       });
