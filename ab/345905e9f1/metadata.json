@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ab345905e9f1",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/policy-node",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/unit/intent/authorizer.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ab/345905e9f1/0/metadata.json",
+      "transcript": "/ab/345905e9f1/0/full.jsonl",
+      "context": "/ab/345905e9f1/0/context.md",
+      "content_hash": "/ab/345905e9f1/0/content_hash.txt",
+      "prompt": "/ab/345905e9f1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
