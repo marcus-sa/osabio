@@ -467,32 +467,40 @@ export async function batchCompleteTasksInTransaction(input: {
   if (input.taskIds.length === 0) return [];
 
   const taskRecords = input.taskIds.map((id) => new RecordId("task", id));
-  const wsId = input.workspaceRecord.id as string;
 
   // Single transaction: verify ownership + update all tasks + collect parents
   const query = `
     BEGIN TRANSACTION;
 
-    -- Update all matching tasks in this workspace to done
-    UPDATE $tasks SET status = 'done', updated_at = time::now()
-      WHERE workspace.id = $ws;
+    -- Update all matching tasks in this workspace to done.
+    -- Compare workspace directly as record<workspace> (workspace.id matching does not work reliably).
+    UPDATE task
+      SET status = 'done', updated_at = time::now()
+      WHERE id IN $tasks AND workspace = $workspace
+      RETURN AFTER;
 
-    -- Collect distinct parent records for rollup
-    SELECT VALUE array::distinct(out) FROM subtask_of WHERE \`in\` IN $tasks;
+    -- Collect parent records for rollup (dedupe in app layer).
+    SELECT VALUE out FROM subtask_of WHERE \`in\` IN $tasks;
 
     COMMIT TRANSACTION;
   `;
 
   const result = await input.surreal.query<[
+    null,
     Array<{ id: RecordId<"task", string>; status: string }>,
-    RecordId<"task", string>[][],
-  ]>(query, { tasks: taskRecords, ws: wsId });
+    Array<RecordId<"task", string>>,
+    null,
+  ]>(query, { tasks: taskRecords, workspace: input.workspaceRecord });
 
-  const updatedRows = result[0] ?? [];
+  // BEGIN/COMMIT emit null outputs, so update rows are at index 1.
+  const updatedRows = result[1] ?? [];
   const updatedIds = new Set(updatedRows.map((r) => r.id.id as string));
 
-  const parentIds = result[1]?.[0] ?? [];
-  await Promise.all(parentIds.map((p) => computeSubtaskRollup(input.surreal, p)));
+  const parentRows = result[2] ?? [];
+  const parentIds = Array.from(
+    new Map(parentRows.map((parent) => [parent.id as string, parent])).values(),
+  );
+  await Promise.all(parentIds.map((parent) => computeSubtaskRollup(input.surreal, parent)));
 
   return input.taskIds.map((id) => ({
     task_id: id,
