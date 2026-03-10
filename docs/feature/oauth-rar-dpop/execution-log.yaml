@@ -331,5 +331,20 @@ events:
   s: EXECUTED
   sid: 04-01
   t: '2026-03-10T10:51:27Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-10T10:51:55Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-10T10:53:33Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-10T10:53:38Z'
 project_id: oauth-rar-dpop
 schema_version: '3.0'

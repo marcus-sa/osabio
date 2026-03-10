@@ -22,6 +22,7 @@ import type { KeyPair } from "../../../app/src/server/oauth/dpop";
 import { createNonceCache } from "../../../app/src/server/oauth/nonce-cache";
 import { authenticateDPoPRequest } from "../../../app/src/server/oauth/dpop-middleware";
 import type { DPoPAuthResult, BrainAction } from "../../../app/src/server/oauth/types";
+import type { LookupIdentity, LookupManager, ResolvedIdentity, ResolvedManager } from "../../../app/src/server/oauth/identity-lifecycle";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -429,5 +430,125 @@ describe("authenticateDPoPRequest", () => {
     expect(authResult.authorizationDetails).toEqual(TEST_ACTIONS);
     expect(authResult.intentId).toBe(TEST_INTENT_ID);
     expect(authResult.dpopThumbprint).toBe(agentKeyPair.thumbprint);
+  });
+
+  // ===========================================================================
+  // M5-I3/I4: Identity lifecycle checks at Brain boundary
+  // ===========================================================================
+
+  it("rejects request when identity is revoked", async () => {
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair);
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+
+    const revokedLookup: LookupIdentity = async (id: string) => ({
+      identityId: id,
+      identityType: "agent" as const,
+      identityStatus: "revoked" as const,
+      managedBy: "human-owner",
+      revokedAt: new Date(),
+    });
+
+    const managerLookup: LookupManager = async () => ({
+      identityId: "human-owner",
+      identityStatus: "active" as const,
+    });
+
+    const deps = {
+      ...buildDeps(),
+      lookupIdentity: revokedLookup,
+      lookupManager: managerLookup,
+    };
+
+    const result = await authenticateDPoPRequest(request, deps);
+    expect(result).toBeInstanceOf(Response);
+    const response = result as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("identity_blocked");
+    expect(body.error_description).toContain("revoked");
+  });
+
+  it("rejects request when managing human is inactive", async () => {
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair);
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+
+    const activeManagedAgent: LookupIdentity = async (id: string) => ({
+      identityId: id,
+      identityType: "agent" as const,
+      identityStatus: "active" as const,
+      managedBy: "human-inactive",
+    });
+
+    const inactiveManagerLookup: LookupManager = async () => ({
+      identityId: "human-inactive",
+      identityStatus: "revoked" as const,
+    });
+
+    const deps = {
+      ...buildDeps(),
+      lookupIdentity: activeManagedAgent,
+      lookupManager: inactiveManagerLookup,
+    };
+
+    const result = await authenticateDPoPRequest(request, deps);
+    expect(result).toBeInstanceOf(Response);
+    const response = result as Response;
+    expect(response.status).toBe(401);
+    const body = await parseErrorBody(response);
+    expect(body.error).toBe("identity_blocked");
+    expect(body.error_description).toContain("inactive");
+  });
+
+  it("allows request when identity is active and manager is active", async () => {
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair);
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+
+    const activeAgentLookup: LookupIdentity = async (id: string) => ({
+      identityId: id,
+      identityType: "agent" as const,
+      identityStatus: "active" as const,
+      managedBy: "human-active",
+    });
+
+    const activeManagerLookup: LookupManager = async () => ({
+      identityId: "human-active",
+      identityStatus: "active" as const,
+    });
+
+    const deps = {
+      ...buildDeps(),
+      lookupIdentity: activeAgentLookup,
+      lookupManager: activeManagerLookup,
+    };
+
+    const result = await authenticateDPoPRequest(request, deps);
+    expect(result).not.toBeInstanceOf(Response);
+    const authResult = result as DPoPAuthResult;
+    expect(authResult.workspaceRecord.id).toBe(TEST_WORKSPACE_ID);
+  });
+
+  it("skips identity check when lookup ports not provided (backward compat)", async () => {
+    const token = await issueTestToken();
+    const proof = await createDPoPProof(agentKeyPair);
+    const request = buildRequest({
+      authorization: `DPoP ${token}`,
+      dpopProof: proof,
+    });
+
+    // buildDeps() does not include lookupIdentity/lookupManager
+    const result = await authenticateDPoPRequest(request, buildDeps());
+    expect(result).not.toBeInstanceOf(Response);
   });
 });

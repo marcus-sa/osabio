@@ -17,6 +17,11 @@ import { logError, logInfo } from "../http/observability";
 import { createIntent, updateIntentStatus } from "../intent/intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
+import {
+  checkIdentityAllowed,
+  type LookupIdentity,
+  type LookupManager,
+} from "./identity-lifecycle";
 
 // ---------------------------------------------------------------------------
 // Input Types
@@ -139,11 +144,21 @@ export function isLowRiskReadAction(actions: BrainAction[]): boolean {
 // HTTP Handler Factory
 // ---------------------------------------------------------------------------
 
+export type IntentSubmissionDeps = {
+  lookupIdentity: LookupIdentity;
+  lookupManager: LookupManager;
+};
+
 export function createIntentSubmissionHandler(
   deps: ServerDependencies,
+  identityDeps?: IntentSubmissionDeps,
 ): (request: Request) => Promise<Response> {
   const { surreal } = deps;
   const llmEvaluator = createLlmEvaluator(deps.extractionModel);
+
+  // Default identity lookup from SurrealDB when no explicit ports provided
+  const lookupIdentity: LookupIdentity = identityDeps?.lookupIdentity ?? createSurrealIdentityLookup(surreal);
+  const lookupManager: LookupManager = identityDeps?.lookupManager ?? createSurrealManagerLookup(surreal);
 
   return async (request: Request): Promise<Response> => {
     let body: unknown;
@@ -162,6 +177,22 @@ export function createIntentSubmissionHandler(
     const traceId = crypto.randomUUID();
 
     try {
+      // Check identity lifecycle before creating intent
+      const identityCheck = await checkIdentityAllowed(
+        data.identity_id,
+        lookupIdentity,
+        lookupManager,
+      );
+
+      if (!identityCheck.allowed) {
+        logInfo("intent.submission.identity_blocked", "Intent submission blocked by identity check", {
+          identityId: data.identity_id,
+          reason: identityCheck.reason,
+          code: identityCheck.code,
+        });
+        return jsonError(identityCheck.reason, 403);
+      }
+
       const actionSpec = deriveActionSpec(data.authorization_details);
 
       // Create intent record with new fields
@@ -258,5 +289,58 @@ export function createIntentSubmissionHandler(
       });
       return jsonError("Internal server error", 500);
     }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// SurrealDB Identity Lookups (adapter functions)
+// ---------------------------------------------------------------------------
+
+import type { default as Surreal } from "surrealdb";
+import type { ResolvedIdentity, ResolvedManager } from "./identity-lifecycle";
+
+type SurrealIdentityRow = {
+  identityId: string;
+  identityType: string;
+  identityStatus?: string;
+  managedBy?: string;
+  revokedAt?: string;
+};
+
+function createSurrealIdentityLookup(surreal: Surreal): LookupIdentity {
+  return async (identityId: string) => {
+    const rows = await surreal.query<[SurrealIdentityRow[]]>(
+      `SELECT meta::id(id) AS identityId, type AS identityType, identity_status AS identityStatus, managed_by AS managedBy, revoked_at AS revokedAt FROM $identity;`,
+      { identity: new RecordId("identity", identityId) },
+    );
+
+    const row = rows[0]?.[0];
+    if (!row) return undefined;
+
+    return {
+      identityId: row.identityId,
+      identityType: row.identityType as ResolvedIdentity["identityType"],
+      identityStatus: (row.identityStatus ?? "active") as ResolvedIdentity["identityStatus"],
+      managedBy: row.managedBy,
+      revokedAt: row.revokedAt ? new Date(row.revokedAt) : undefined,
+    };
+  };
+}
+
+function createSurrealManagerLookup(surreal: Surreal): LookupManager {
+  return async (managerId: string) => {
+    // Manager ID stored as raw string reference; look up identity by searching
+    const rows = await surreal.query<[Array<{ identityStatus?: string }>]>(
+      `SELECT identity_status AS identityStatus FROM identity WHERE meta::id(id) = $managerId LIMIT 1;`,
+      { managerId },
+    );
+
+    const row = rows[0]?.[0];
+    if (!row) return undefined;
+
+    return {
+      identityId: managerId,
+      identityStatus: (row.identityStatus ?? "active") as ResolvedManager["identityStatus"],
+    };
   };
 }

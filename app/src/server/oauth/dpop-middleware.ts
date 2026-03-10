@@ -18,6 +18,11 @@ import { validateDPoPProof, computeJwkThumbprint } from "./dpop";
 import type { AsSigningKey } from "./as-key-management";
 import type { NonceCache } from "./nonce-cache";
 import type { DPoPAuthResult, BrainAction, DPoPBoundTokenClaims } from "./types";
+import {
+  checkIdentityAllowed,
+  type LookupIdentity,
+  type LookupManager,
+} from "./identity-lifecycle";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,6 +37,8 @@ export type DPoPVerificationDeps = {
   asSigningKey: AsSigningKey;
   nonceCache: NonceCache;
   lookupWorkspace: LookupWorkspace;
+  lookupIdentity?: LookupIdentity;
+  lookupManager?: LookupManager;
 };
 
 // ---------------------------------------------------------------------------
@@ -273,7 +280,24 @@ export async function authenticateDPoPRequest(
     return dpopError("invalid_token", 401, "Workspace not found");
   }
 
-  // Step 8: Build result
+  // Step 8: Check identity lifecycle (revocation)
+  if (deps.lookupIdentity && deps.lookupManager) {
+    const identityCheck = await checkIdentityAllowed(
+      workspace.identityId,
+      deps.lookupIdentity,
+      deps.lookupManager,
+    );
+
+    if (!identityCheck.allowed) {
+      return dpopError(
+        "identity_blocked",
+        401,
+        identityCheck.reason,
+      );
+    }
+  }
+
+  // Step 9: Build result
   const actorType = (claims["urn:brain:actor_type"] === "human" ? "human" : "agent") as
     "human" | "agent";
 
