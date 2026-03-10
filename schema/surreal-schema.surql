@@ -292,6 +292,9 @@ DEFINE FIELD type ON identity TYPE string ASSERT $value IN ['human', 'agent', 's
 DEFINE FIELD role ON identity TYPE option<string>;
 DEFINE FIELD workspace ON identity TYPE record<workspace>;
 DEFINE FIELD created_at ON identity TYPE datetime;
+DEFINE FIELD managed_by ON identity TYPE option<string>;
+DEFINE FIELD identity_status ON identity TYPE option<string>;
+DEFINE FIELD revoked_at ON identity TYPE option<datetime>;
 DEFINE INDEX identity_workspace ON identity FIELDS workspace;
 DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 
@@ -515,6 +518,14 @@ DEFINE FIELD workspace ON intent TYPE record<workspace>;
 DEFINE FIELD created_at ON intent TYPE datetime;
 DEFINE FIELD updated_at ON intent TYPE option<datetime>;
 DEFINE FIELD expiry ON intent TYPE option<datetime>;
+DEFINE FIELD authorization_details ON intent TYPE option<array<object>>;
+DEFINE FIELD authorization_details[*].type ON intent TYPE string ASSERT $value = "brain_action";
+DEFINE FIELD authorization_details[*].action ON intent TYPE string;
+DEFINE FIELD authorization_details[*].resource ON intent TYPE string;
+DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> FLEXIBLE;
+DEFINE FIELD dpop_jwk_thumbprint ON intent TYPE option<string>;
+DEFINE FIELD token_issued_at ON intent TYPE option<datetime>;
+DEFINE FIELD token_expires_at ON intent TYPE option<datetime>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
@@ -937,6 +948,36 @@ DEFINE FIELD publicKey ON jwks TYPE string;
 DEFINE FIELD privateKey ON jwks TYPE string;
 DEFINE FIELD createdAt ON jwks TYPE datetime;
 DEFINE FIELD expiresAt ON jwks TYPE option<datetime>;
+
+-- Audit events: OAuth RAR+DPoP security audit trail
+DEFINE TABLE audit_event SCHEMAFULL;
+DEFINE FIELD event_type ON audit_event TYPE string
+  ASSERT $value IN ["intent_submitted", "intent_evaluated", "intent_routed", "consent_approved", "consent_constrained", "consent_vetoed", "token_issued", "token_rejected", "dpop_verified", "dpop_rejected", "security_alert"];
+DEFINE FIELD severity ON audit_event TYPE string
+  ASSERT $value IN ["info", "warning", "security"];
+DEFINE FIELD actor ON audit_event TYPE record<identity>;
+DEFINE FIELD workspace ON audit_event TYPE record<workspace>;
+DEFINE FIELD intent_id ON audit_event TYPE option<record<intent>>;
+DEFINE FIELD dpop_thumbprint ON audit_event TYPE option<string>;
+DEFINE FIELD payload ON audit_event TYPE object FLEXIBLE;
+DEFINE FIELD created_at ON audit_event TYPE datetime;
+DEFINE INDEX audit_event_workspace_type ON audit_event FIELDS workspace, event_type;
+DEFINE INDEX audit_event_created_at ON audit_event FIELDS created_at;
+DEFINE INDEX audit_event_intent ON audit_event FIELDS intent_id;
+DEFINE INDEX audit_event_severity ON audit_event FIELDS severity;
+
+-- Authorization server signing keys
+DEFINE TABLE as_signing_key SCHEMAFULL;
+DEFINE FIELD kid ON as_signing_key TYPE string;
+DEFINE FIELD algorithm ON as_signing_key TYPE string ASSERT $value = "ES256";
+DEFINE FIELD public_jwk ON as_signing_key TYPE object FLEXIBLE;
+DEFINE FIELD private_jwk ON as_signing_key TYPE object FLEXIBLE;
+DEFINE FIELD status ON as_signing_key TYPE string
+  ASSERT $value IN ["active", "rotated"];
+DEFINE FIELD created_at ON as_signing_key TYPE datetime;
+DEFINE FIELD rotated_at ON as_signing_key TYPE option<datetime>;
+DEFINE INDEX as_signing_key_kid ON as_signing_key FIELDS kid UNIQUE;
+DEFINE INDEX as_signing_key_status ON as_signing_key FIELDS status;
 
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;
