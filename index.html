@@ -291,6 +291,33 @@ footer .right a:hover { color: var(--text-dim); }
   .hero-graph { display: none; }
 }
 
+/* COMPARISON TABLE */
+.compare-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+.compare-table th, .compare-table td { padding: 0.75rem 1rem; text-align: left; font-size: 0.83rem; border-bottom: 1px solid var(--border); }
+.compare-table th { color: var(--text-muted); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.compare-table td:first-child { color: var(--text-dim); font-weight: 500; }
+.compare-table td:nth-child(2) { color: var(--text-muted); }
+.compare-table td:nth-child(3) { color: var(--accent); }
+.compare-table tr:last-child td { border-bottom: none; }
+
+/* DRIFT CARDS */
+.drift-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+.drift-card { padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; }
+.drift-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; opacity: 0.5; }
+.drift-card:nth-child(1)::before { background: var(--orange); }
+.drift-card:nth-child(2)::before { background: var(--rose); }
+.drift-card:nth-child(3)::before { background: var(--purple); }
+.drift-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+.drift-card .drift-problem { color: var(--text-muted); font-size: 0.78rem; font-style: italic; margin-bottom: 0.5rem; }
+.drift-card p { color: var(--text-dim); font-size: 0.83rem; line-height: 1.55; }
+
+/* DEPT GRID */
+.dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 1.5rem; }
+.dept-card { padding: 1.1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+.dept-card h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.15rem; }
+.dept-card .dept-role { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+.dept-card p { color: var(--text-dim); font-size: 0.8rem; line-height: 1.5; }
+
 /* RESPONSIVE */
 @media (max-width: 768px) {
   nav { padding: 0.85rem 1.25rem; }
@@ -305,6 +332,9 @@ footer .right a:hover { color: var(--text-dim); }
   .oss-grid { grid-template-columns: 1fr; }
   .deploy-grid { grid-template-columns: 1fr; }
   .detail-row { grid-template-columns: 1fr; }
+  .drift-grid { grid-template-columns: 1fr; }
+  .dept-grid { grid-template-columns: 1fr; }
+  .compare-table { font-size: 0.78rem; }
   footer { flex-direction: column; gap: 0.75rem; text-align: center; }
 }
 </style>
@@ -327,6 +357,7 @@ footer .right a:hover { color: var(--text-dim); }
     <a href="#problem">Problem</a>
     <a href="#agents">Agents</a>
     <a href="#how">How it works</a>
+    <a href="#auth">Auth</a>
     <a href="#oss">Open Source</a>
     <a href="https://www.linkedin.com/pulse/why-message-buses-arent-enough-building-multi-agent-knowledge-schack-0itnc/" target="_blank">Article</a>
     <a href="#cta" class="btn btn-accent">Request Access</a>
@@ -337,8 +368,8 @@ footer .right a:hover { color: var(--text-dim); }
 <section class="hero">
   <canvas class="hero-graph" aria-hidden="true"></canvas>
   <div class="badge"><span class="badge-dot"></span> Open Source &middot; Self-Hosted</div>
-  <h1>The coordination layer<br>for <em>AI agents</em></h1>
-  <p>Your agents don't talk to each other. You're the one copy-pasting context between them. Brain is the knowledge graph that replaces you as the integration layer.</p>
+  <h1>The operating system<br>for <em>autonomous organizations</em></h1>
+  <p>Your agents have amnesia. They can't talk to each other. You spend 80% of your time as a high-paid secretary, copy-pasting context between them. Brain is the self-correcting knowledge graph that gives your agents shared memory, governed autonomy, and verifiable intent.</p>
   <div class="hero-btns">
     <a href="#cta" class="btn btn-accent">Request Early Access</a>
     <a href="#how" class="btn btn-ghost">See how it works</a>
@@ -353,9 +384,11 @@ footer .right a:hover { color: var(--text-dim); }
     <div class="d-arrow">↕</div>
     <div class="d-row"><div class="d-tag">Agents</div><div class="d-boxes"><div class="d-box a">Architect</div><div class="d-box a">Strategist</div><div class="d-box a">Management</div><div class="d-box a">Coding · MCP</div><div class="d-box a">Observer</div></div></div>
     <div class="d-arrow">↕</div>
-    <div class="d-row"><div class="d-tag">Graph</div><div class="d-boxes"><div class="d-box g">Projects</div><div class="d-box g">Decisions</div><div class="d-box g">Tasks</div><div class="d-box g">Observations</div><div class="d-box g">Features</div><div class="d-box g">Questions</div><div class="d-box g">Suggestions</div><div class="d-box g">Conversations</div><div class="d-box g">Commits</div></div></div>
+    <div class="d-row"><div class="d-tag">Graph</div><div class="d-boxes"><div class="d-box g">Projects</div><div class="d-box g">Decisions</div><div class="d-box g">Tasks</div><div class="d-box g">Observations</div><div class="d-box g">Features</div><div class="d-box g">Questions</div><div class="d-box g">Suggestions</div><div class="d-box g">Conversations</div><div class="d-box g">Commits</div><div class="d-box g">Intents</div><div class="d-box g">Learnings</div></div></div>
     <div class="d-arrow">↕</div>
-    <div class="d-row"><div class="d-tag">Integrations</div><div class="d-boxes"><div class="d-box i">GitHub</div><div class="d-box i">Slack</div><div class="d-box i">Git Hooks</div><div class="d-box i">OAuth 2.1</div></div></div>
+    <div class="d-row"><div class="d-tag">Auth</div><div class="d-boxes"><div class="d-box i">OAuth 2.1</div><div class="d-box i">RAR (RFC 9396)</div><div class="d-box i">DPoP (RFC 9449)</div><div class="d-box i">Better Auth IdP</div></div></div>
+    <div class="d-arrow">↕</div>
+    <div class="d-row"><div class="d-tag">Integrations</div><div class="d-boxes"><div class="d-box i">GitHub</div><div class="d-box i">Slack</div><div class="d-box i">Git Hooks</div><div class="d-box i">MCP Protocol</div><div class="d-box i">ERC-8004</div></div></div>
   </div>
 </div>
 
@@ -374,6 +407,28 @@ footer .right a:hover { color: var(--text-dim); }
     <li><span class="arrow">→</span> Context-switch between tools, losing continuity at every step</li>
   </ul>
   <p style="color:var(--text-dim);font-size:1rem;">Every agent you add makes it worse. Brain fixes this — not by replacing your agents, but by giving them shared memory.</p>
+</section>
+
+<hr class="sep">
+
+<!-- WHY A GRAPH -->
+<section class="section reveal">
+  <div class="tag tag-center">The architecture</div>
+  <h2 class="center">Why a graph, not a message bus</h2>
+  <p class="subtitle">Most platforms try "agent swarms" — agents messaging agents. That creates a game of telephone where instructions get distorted. The graph is the single source of truth.</p>
+  <table class="compare-table">
+    <thead><tr><th>Approach</th><th>Agent swarms / message buses</th><th>Knowledge graph (Brain)</th></tr></thead>
+    <tbody>
+      <tr><td>Logic</td><td>Scripted workflows (if A, do B)</td><td>State-based graph (emergent logic)</td></tr>
+      <tr><td>Memory</td><td>Ephemeral, session-based</td><td>Persistent, pruned, versioned</td></tr>
+      <tr><td>Coordination</td><td>Agents message agents (telephone game)</td><td>Agents read/write to shared truth</td></tr>
+      <tr><td>Verification</td><td>Assumes API calls work</td><td>Continuous telemetry (reality grounding)</td></tr>
+      <tr><td>Autonomy</td><td>"Let it rip" (high risk of loops)</td><td>Authority scopes (risk-managed)</td></tr>
+      <tr><td>Over time</td><td>Performance degrades</td><td>System gets smarter via learnings</td></tr>
+      <tr><td>Security</td><td>Sandbox isolation (the "box")</td><td>Governance graph + sandbox (the "brain")</td></tr>
+      <tr><td>Auditing</td><td>Log-based (text dumps)</td><td>Graph-based (structured, machine-readable)</td></tr>
+    </tbody>
+  </table>
 </section>
 
 <hr class="sep">
@@ -527,6 +582,14 @@ footer .right a:hover { color: var(--text-dim); }
       <p>Control what each agent can do without asking. Start restrictive. Expand trust over time. You set the boundary — agents stay within it.</p>
     </div>
     <div class="concept">
+      <h3>⬢ Intents</h3>
+      <p>Every agent action starts as an intent — a structured request in the graph. Intents carry the full authorization context: what, why, and with what constraints. They're evaluated against authority scopes before execution.</p>
+    </div>
+    <div class="concept">
+      <h3>🧠 Learnings</h3>
+      <p>Agents that repeat mistakes are useless. Learnings are behavioral rules injected into agent prompts at runtime — created by humans directly or suggested by other agents. The system gets smarter as it works, not dumber.</p>
+    </div>
+    <div class="concept">
       <h3>◇ Living Descriptions</h3>
       <p>Descriptions update themselves. Ship a feature — the project summary reflects it. Confirm a decision — related entities incorporate it. No one writes status updates.</p>
     </div>
@@ -541,6 +604,101 @@ footer .right a:hover { color: var(--text-dim); }
     <div class="concept">
       <h3>⟐ Identity</h3>
       <p>One person across all tools. Your Slack, GitHub, and terminal sessions all resolve to the same identity. Agents act on your behalf with scoped permissions.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- THREE DRIFTS -->
+<section class="section-wide reveal" id="reliability">
+  <div class="tag tag-center">Reliability layer</div>
+  <h2 class="center">Solving the three drifts</h2>
+  <p class="subtitle">Autonomous systems don't fail from lack of intelligence. They fail from drift — slow divergence between what the system believes and what's actually true.</p>
+  <div class="drift-grid">
+    <div class="drift-card">
+      <h3>Context Drift</h3>
+      <div class="drift-problem">The graph becomes a junkyard of stale decisions</div>
+      <p>Decisions made in v1.0 become poison for v2.0. Brain uses temporal decay — nodes that aren't referenced lose weight over time. The Observer agent runs conflict resolution loops, flagging stale decisions that contradict recent commits. Context is filtered for relevance and recency, not dumped wholesale.</p>
+    </div>
+    <div class="drift-card">
+      <h3>Authority Drift</h3>
+      <div class="drift-problem">Too autonomous = dangerous. Too locked down = a dashboard</div>
+      <p>Autonomy isn't binary. Brain uses tiered authority scopes — from zero-human atomic actions to multi-model consensus for high-stakes moves. Agents operate within risk budgets, not permission checkboxes. You manage thresholds, not individual approvals.</p>
+    </div>
+    <div class="drift-card">
+      <h3>Reality Drift</h3>
+      <div class="drift-problem">The graph says 90% done, but the code is broken</div>
+      <p>If the Brain only reads its own graph, it's a delusion engine. Observer agents perform truth audits — checking claims against actual state via webhooks and integrations. When reality diverges from the graph, the system triggers a desync alert before any agent acts on stale data.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- BEYOND CODING -->
+<section class="section-wide reveal" id="departments">
+  <div class="tag tag-center">Beyond coding</div>
+  <h2 class="center">From developer tool to company brain</h2>
+  <p class="subtitle">The same graph that coordinates coding agents can coordinate entire departments. When Support logs an observation, Sales knows not to pitch an angry customer. No human relayed the message.</p>
+  <div class="dept-grid">
+    <div class="dept-card">
+      <h4>Engineering</h4>
+      <div class="dept-role">Architecture, CI/CD, code quality</div>
+      <p>Coding agents, architecture decisions, commit-linked tasks. The foundation that's already working.</p>
+    </div>
+    <div class="dept-card">
+      <h4>Growth</h4>
+      <div class="dept-role">Marketing, content, SEO</div>
+      <p>Ad spend observations, conversion tracking, copy drafts. Features shipped by Engineering auto-surface for marketing.</p>
+    </div>
+    <div class="dept-card">
+      <h4>Sales</h4>
+      <div class="dept-role">Pipeline, outreach, contracts</div>
+      <p>CRM activity flows into the graph. Agents check customer sentiment before outreach. Deal claims verified against payment webhooks.</p>
+    </div>
+    <div class="dept-card">
+      <h4>Support</h4>
+      <div class="dept-role">Tickets, sentiment, escalation</div>
+      <p>Bug reports become observations. Repeated issues compound into feature suggestions. Support context flows to Engineering automatically.</p>
+    </div>
+    <div class="dept-card">
+      <h4>Operations</h4>
+      <div class="dept-role">Budget, vendors, compliance</div>
+      <p>Procurement tracked as intents with authority scopes. Budget decisions verified against Stripe. No shadow spending.</p>
+    </div>
+    <div class="dept-card">
+      <h4>Strategy</h4>
+      <div class="dept-role">Market intelligence, positioning</div>
+      <p>Competitive observations, pricing decisions, GTM plans. The Strategist challenges product decisions against business viability.</p>
+    </div>
+  </div>
+  <p style="color:var(--text-dim);font-size:0.9rem;margin-top:1.5rem;text-align:center;max-width:640px;margin-left:auto;margin-right:auto;">The competitive advantage isn't automating tasks — it's automating the context-sharing between human silos. When every department writes to the same graph, cross-departmental intelligence emerges for free.</p>
+</section>
+
+<hr class="sep">
+
+<!-- AUDITABLE -->
+<section class="section reveal" id="audit">
+  <div class="tag tag-center">Verifiable autonomy</div>
+  <h2 class="center">Auditable by design,<br>not by afterthought</h2>
+  <p class="subtitle">Most autonomous platforms are black boxes. Brain is a signed logic trace. Every decision, every dollar, every line of code has a provenance chain back to the intent that authorized it.</p>
+  <div class="concept-grid">
+    <div class="concept">
+      <h3>Governance telemetry</h3>
+      <p>Every decision is a node with a UUID, author, timestamp, and reasoning. Researchers and auditors can query the graph directly — no digging through chat logs or stdout dumps.</p>
+    </div>
+    <div class="concept">
+      <h3>Signed intent chains</h3>
+      <p>When an agent spends money or merges code, the graph records which intent authorized it, which authority scope permitted it, and which human (or consensus) approved it. The full chain is machine-readable.</p>
+    </div>
+    <div class="concept">
+      <h3>Eval-ready metrics</h3>
+      <p>Context retention, conflict resolution rate, authority distribution, decision velocity — all computable directly from the graph. No custom instrumentation required.</p>
+    </div>
+    <div class="concept">
+      <h3>The "Judge" pattern</h3>
+      <p>High-stakes actions go through an Authorizer Agent — a separate, privileged instance that validates intents against policy constraints before minting scoped tokens. The worker never sees master keys.</p>
     </div>
   </div>
 </section>
@@ -575,14 +733,102 @@ footer .right a:hover { color: var(--text-dim); }
 <span class="b">Graph</span>        SurrealDB
 <span class="b">Backend</span>      Bun (Bun.serve) · TypeScript
 <span class="b">Frontend</span>     React · Tiptap · Reagraph
-<span class="b">Auth</span>         Better Auth · OAuth 2.1
+<span class="b">Auth</span>         Better Auth · OAuth 2.1 · RAR · DPoP
 <span class="b">LLM</span>          Provider-agnostic (OpenRouter · Ollama · BYO keys)
 <span class="b">Agents</span>       MCP Server · Git Hooks
-<span class="b">Protocol</span>     MCP · OAuth 2.1 · OIDC
+<span class="b">Protocol</span>     MCP · OAuth 2.1 · RAR · DPoP · OIDC
 
 <span class="cm"># Lines of duct tape replaced</span>
 <span class="g">∞</span></pre>
       </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- AGENTIC AUTH -->
+<section class="section-wide reveal" id="auth">
+  <div class="oss-grid">
+    <div>
+      <div class="tag">Agentic authorization</div>
+      <h2>Tokens that know<br>what they're for</h2>
+      <p>Generic OAuth scopes like <code>write:tasks</code> aren't enough for autonomous agents. Brain's authorization server issues tokens that carry the full intent — what the agent wants to do, why, and with what constraints.</p>
+      <div class="oss-points">
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Rich Authorization Requests (RAR)</strong><span>Tokens embed structured <code>authorization_details</code> from the knowledge graph. Not "scope: finance" — but "move $500 from Account A to Account B, authorized by Decision #47."</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>DPoP Proof-of-Possession</strong><span>Every token is cryptographically bound to the agent's key. Stolen tokens are useless without the private key in the agent's isolated runtime.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Intents as Authorization Context</strong><span>Agent actions start as intents in the graph. The authorization server evaluates intents against authority scopes, then mints a token scoped to exactly that action.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Better Auth as Identity Provider</strong><span>Human authentication (login, MFA, sessions) stays with Better Auth. The custom authorization server handles the agent side — token issuance, RAR scopes, DPoP binding.</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="codeblock">
+        <div class="codeblock-bar"><div class="dots"><span></span><span></span><span></span></div><div class="title">authorization flow</div></div>
+        <pre><span class="cm"># 1. Human authenticates via Better Auth</span>
+<span class="b">User</span>  →  Better Auth (login, MFA)
+        →  session cookie
+
+<span class="cm"># 2. Agent requests authorization with intent</span>
+<span class="b">Agent</span> →  POST /authorize
+        authorization_details: [{
+          type: <span class="g">"intent"</span>,
+          intent: <span class="g">"task:deploy-v2"</span>,
+          actions: [<span class="g">"execute"</span>],
+          constraints: <span class="g">decision:d47</span>
+        }]
+
+<span class="cm"># 3. Token issued with DPoP binding</span>
+<span class="b">AS</span>    →  Access Token (JWT)
+        cnf: { jkt: <span class="g">"agent-key-thumbprint"</span> }
+        authorization_details: [<span class="g">...</span>]
+
+<span class="cm"># 4. Agent proves possession on every request</span>
+<span class="b">Agent</span> →  DPoP: <span class="g">signed-proof-jwt</span>
+        Authorization: DPoP <span class="g">access_token</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<!-- EXECUTION -->
+<section class="section reveal">
+  <div class="tag tag-center">Execution layer</div>
+  <h2 class="center">Run anywhere. State lives in the graph.</h2>
+  <p class="subtitle">The Brain is the director. Sandboxes are disposable. An agent can die every 5 seconds — the next one picks up exact context because state is external to the execution environment.</p>
+  <div class="deploy-grid">
+    <div class="deploy-card">
+      <div class="icon">⊞</div>
+      <h3>Local</h3>
+      <p>Claude Code, Codex, Cursor — your existing tools on your machine, connected via MCP.</p>
+      <div class="deploy-cmd">brain start task:xyz</div>
+    </div>
+    <div class="deploy-card">
+      <div class="icon">◉</div>
+      <h3>Sandboxed</h3>
+      <p>E2B, Daytona, or Docker. The graph injects a scoped token — the sandbox never sees master keys.</p>
+      <div class="deploy-cmd">Provider interface</div>
+    </div>
+    <div class="deploy-card">
+      <div class="icon">△</div>
+      <h3>Multi-model consensus</h3>
+      <p>High-stakes moves verified by multiple models before execution. The Authorizer Agent mints tokens only when consensus clears.</p>
+      <div class="deploy-cmd">Authority tier 3</div>
+    </div>
+  </div>
+  <div class="detail-row">
+    <div class="detail-item">
+      <strong>Stateless sandboxes</strong>
+      <span>Observations and decisions write to SurrealDB in real-time. No VM persistence needed. Cheaper, more scalable, fully auditable.</span>
+    </div>
+    <div class="detail-item">
+      <strong>Zero-knowledge execution</strong>
+      <span>Sandboxes generate ephemeral key pairs. Tokens are DPoP-bound to that key. Even a compromised sandbox can't escalate — the token is scoped, short-lived, and useless without the VM's private key.</span>
+    </div>
+    <div class="detail-item">
+      <strong>Provider-agnostic</strong>
+      <span>The orchestrator manages state in the graph. The provider handles execution. Swap runtimes without changing logic. Local for privacy, cloud for scale.</span>
     </div>
   </div>
 </section>
@@ -632,11 +878,49 @@ footer .right a:hover { color: var(--text-dim); }
 
 <hr class="sep">
 
+<!-- AGENT ECONOMY -->
+<section class="section-wide reveal" id="economy">
+  <div class="oss-grid">
+    <div>
+      <div class="tag">The agent economy</div>
+      <h2>From walled garden to<br>open agent network</h2>
+      <p>Your Brain isn't just internal infrastructure. It's a gateway to the decentralized agent economy — where your agents can discover, hire, and transact with external agents on an open, verifiable network.</p>
+      <div class="oss-points">
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>On-chain agent identity</strong><span>Every agent gets a portable identity via ERC-8004. Move agents between platforms without losing history. Your agent's reputation travels with it.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Verifiable work</strong><span>Agents post cryptographic validation proofs when they complete tasks. No trust required — the proof is on-chain and machine-verifiable.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Reputation registry</strong><span>A global credit bureau for machines. Agents that lie, fail, or overcharge get scored down across the entire network, not just your local graph.</span></div></div>
+        <div class="oss-pt"><span class="ic">◈</span><div><strong>Escrow-based autonomy</strong><span>Hire an external researcher agent. Payment locks in a smart contract. Work validates on-chain. Payment releases automatically. No invoices, no wire transfers, zero trust required.</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="codeblock">
+        <div class="codeblock-bar"><div class="dots"><span></span><span></span><span></span></div><div class="title">internal → external governance</div></div>
+        <pre><span class="cm"># Your internal governance</span>
+<span class="b">Identity Node</span>   →  Local agent identity
+<span class="b">Intent Node</span>     →  Private action request
+<span class="b">Observation</span>     →  Internal state signal
+
+<span class="cm"># ERC-8004 external governance</span>
+<span class="g">AgentID</span>         →  Global, portable identity
+<span class="g">Validation</span>      →  Cryptographic proof of work
+<span class="g">Reputation</span>      →  On-chain trust score
+
+<span class="cm"># The bridge</span>
+<span class="b">Brain</span> mints intent → <span class="g">8004</span> verifies identity
+<span class="b">Agent</span> completes work → <span class="g">8004</span> posts proof
+<span class="g">Contract</span> validates → payment released</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
 <!-- CTA -->
 <section class="cta" id="cta">
   <div class="tag tag-center">Early access</div>
   <h2>Stop being the glue<br>between your agents</h2>
-  <p>Brain is in early development. If you're building with multiple AI agents and drowning in context management, we want to talk.</p>
+  <p>Brain is in early development. If you're running multiple AI agents across engineering, sales, or operations and drowning in context management, we want to talk.</p>
   <a href="mailto:marcus@schack.systems" class="btn btn-accent">Request Early Access</a>
 </section>
 
