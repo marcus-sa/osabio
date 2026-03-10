@@ -429,17 +429,32 @@ export async function createTestUserWithMcp(
   // Generate DPoP key pair
   const keyPair = await generateDPoPKeyPair();
 
+  // Create a workspace for this test identity (required by schema)
+  const workspaceId = `test-workspace-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  await surreal.query(`CREATE $workspace CONTENT $content;`, {
+    workspace: workspaceRecord,
+    content: {
+      name: `Test Workspace ${suffix}`,
+      status: "active",
+      onboarding_complete: true,
+      onboarding_turn_count: 0,
+      onboarding_summary_pending: false,
+      onboarding_started_at: new Date(),
+      created_at: new Date(),
+    },
+  });
+
   // Create identity record for this user
   const identityId = `test-identity-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
   const identityRecord = new RecordId("identity", identityId);
 
-  // Find the workspace for this user (or create a temporary one)
-  // For broad test access, create an identity in the DB
   await surreal.query(`CREATE $identity CONTENT $content;`, {
     identity: identityRecord,
     content: {
       name: `Test User ${suffix}`,
       type: "agent",
+      workspace: workspaceRecord,
       identity_status: "active",
       created_at: new Date(),
     },
@@ -480,7 +495,7 @@ export async function createTestUserWithMcp(
 
   await surreal.query(`CREATE $trace CONTENT $traceContent;`, {
     trace: traceRecord,
-    traceContent: { type: "test_setup", actor: identityRecord, created_at: new Date() },
+    traceContent: { type: "test_setup", actor: identityRecord, workspace: workspaceRecord, created_at: new Date() },
   });
 
   await surreal.query(`CREATE $intent CONTENT $content;`, {
@@ -495,6 +510,7 @@ export async function createTestUserWithMcp(
       action_spec: { provider: "test", action: "broad_access", params: {} },
       trace_id: traceRecord,
       requester: identityRecord,
+      workspace: workspaceRecord,
       evaluation: {
         decision: "APPROVE",
         risk_score: 0,

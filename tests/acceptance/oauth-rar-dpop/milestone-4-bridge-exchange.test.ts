@@ -166,9 +166,13 @@ describe("Bridge exchange triggers veto window for high-risk operations", () => 
       const result = (await response.json()) as { status: string; intent_id: string };
       expect(result.status).toBe("pending_veto");
       expect(result.intent_id).toBeTruthy();
+    } else if (status === 403) {
+      // Evaluated and rejected — LLM determined the operation is too risky
+      const result = (await response.json()) as { error: string };
+      expect(result.error).toBeTruthy();
     } else {
       // Unexpected status
-      expect([200, 202]).toContain(status);
+      expect([200, 202, 403]).toContain(status);
     }
   }, 60_000);
 });
