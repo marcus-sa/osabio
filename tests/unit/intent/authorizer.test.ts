@@ -11,7 +11,7 @@ import type { EvaluationResult } from "../../../app/src/server/intent/types";
 
 // Mock Surreal that returns empty policies (policy gate always passes)
 const mockSurreal = {
-  query: async () => [{ policies: [] }],
+  query: async () => [[{ policies: [] }]],
 } as unknown as EvaluateIntentInput["surreal"];
 
 const mockIdentityId = new RecordId("identity", "test-identity");
@@ -115,7 +115,7 @@ describe("evaluateIntent", () => {
         created_at: new Date(),
       };
       const denyPolicySurreal = {
-        query: async () => [{ policies: [denyPolicy] }],
+        query: async () => [[{ policies: [denyPolicy] }]],
       } as unknown as EvaluateIntentInput["surreal"];
 
       let llmCalled = false;
