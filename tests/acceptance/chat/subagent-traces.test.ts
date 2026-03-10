@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import { collectSseEvents, createTestUser, fetchJson, type TestUser, setupAcceptanceSuite } from "../acceptance-test-kit";
-import type { SubagentTrace, WorkspaceConversationResponse } from "../../../app/src/shared/contracts";
+import type { WorkspaceConversationResponse } from "../../../app/src/shared/contracts";
 
 type ChatMessageResponse = {
   messageId: string;
@@ -78,49 +78,41 @@ describe("subagent trace persistence", () => {
     const events = await collectSseEvents<StreamEvent>(`${baseUrl}${message.streamUrl}`, 120_000);
     expect(events.some((e) => e.type === "done")).toBe(true);
 
-    // Verify traces persisted on the assistant message in DB
+    // Verify traces persisted as normalized trace records via spawns edges
     const assistantMessageRecord = new RecordId("message", message.messageId);
-    const [messageRows] = await surreal
-      .query<[Array<{ id: RecordId<"message", string>; subagent_traces?: SubagentTrace[] }>]>(
-        "SELECT id, subagent_traces FROM message WHERE id = $msg;",
+    const [rootTraces] = await surreal
+      .query<[Array<{ id: RecordId; type: string; input?: Record<string, unknown>; duration_ms?: number }>]>(
+        "SELECT id, type, input, duration_ms FROM trace WHERE <-spawns<-message CONTAINS $msg;",
         { msg: assistantMessageRecord },
       )
-      .collect<[Array<{ id: RecordId<"message", string>; subagent_traces?: SubagentTrace[] }>]>();
-
-    expect(messageRows.length).toBe(1);
-    const assistantMsg = messageRows[0]!;
+      .collect<[Array<{ id: RecordId; type: string; input?: Record<string, unknown>; duration_ms?: number }>]>();
 
     // The chat agent should have invoked the PM agent for this planning request.
     // If it did, traces should be present. If not (LLM non-determinism), skip trace assertions.
-    if (!assistantMsg.subagent_traces || assistantMsg.subagent_traces.length === 0) {
+    if (rootTraces.length === 0) {
       console.warn("PM agent was not invoked — skipping trace structure assertions (LLM non-determinism)");
       return;
     }
 
-    const trace = assistantMsg.subagent_traces[0]!;
+    const rootTrace = rootTraces[0]!;
+    expect(rootTrace.type).toBe("subagent_spawn");
+    expect(rootTrace.input?.agentId).toBe("pm_agent");
+    expect(typeof rootTrace.input?.intent).toBe("string");
+    expect(rootTrace.duration_ms).toBeGreaterThan(0);
 
-    // Validate trace structure
-    expect(trace.agentId).toBe("pm_agent");
-    expect(typeof trace.intent).toBe("string");
-    expect(trace.totalDurationMs).toBeGreaterThan(0);
-    expect(Array.isArray(trace.steps)).toBe(true);
-    expect(trace.steps.length).toBeGreaterThan(0);
+    // Verify child traces exist
+    const [children] = await surreal
+      .query<[Array<{ id: RecordId; type: string; tool_name?: string; input?: Record<string, unknown> }>]>(
+        "SELECT id, type, tool_name, input FROM trace WHERE parent_trace = $root ORDER BY created_at ASC;",
+        { root: rootTrace.id },
+      )
+      .collect<[Array<{ id: RecordId; type: string; tool_name?: string; input?: Record<string, unknown> }>]>();
 
-    // Validate step structure
-    for (const step of trace.steps) {
-      expect(["tool_call", "text"]).toContain(step.type);
-      if (step.type === "tool_call") {
-        expect(typeof step.toolName).toBe("string");
-        expect(typeof step.argsJson).toBe("string");
-        // argsJson should be valid JSON
-        expect(() => JSON.parse(step.argsJson!)).not.toThrow();
-        if (step.resultJson) {
-          expect(() => JSON.parse(step.resultJson!)).not.toThrow();
-        }
-      }
-      if (step.type === "text") {
-        expect(typeof step.text).toBe("string");
-        expect(step.text!.length).toBeGreaterThan(0);
+    expect(children.length).toBeGreaterThan(0);
+    for (const child of children) {
+      expect(["tool_call", "message"]).toContain(child.type);
+      if (child.type === "tool_call") {
+        expect(typeof child.tool_name).toBe("string");
       }
     }
 
@@ -136,8 +128,8 @@ describe("subagent trace persistence", () => {
     expect(loadedMsg!.subagentTraces!.length).toBeGreaterThan(0);
 
     const loadedTrace = loadedMsg!.subagentTraces![0]!;
-    expect(loadedTrace.agentId).toBe(trace.agentId);
-    expect(loadedTrace.intent).toBe(trace.intent);
-    expect(loadedTrace.steps.length).toBe(trace.steps.length);
+    expect(loadedTrace.agentId).toBe("pm_agent");
+    expect(typeof loadedTrace.intent).toBe("string");
+    expect(loadedTrace.steps.length).toBe(children.length);
   }, 180_000);
 });
