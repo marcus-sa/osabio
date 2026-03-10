@@ -45,5 +45,32 @@ events:
   s: EXECUTED
   sid: 01-02
   t: '2026-03-10T18:41:25Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-10T18:41:49Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-10T18:43:28Z'
+- d: 'NOT_APPLICABLE: this step adds production queries validated by existing acceptance
+    tests in milestone-1 and milestone-2; no new acceptance tests needed'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-10T18:43:33Z'
+- d: 'NOT_APPLICABLE: SurrealDB query adapter is integration-tested via acceptance
+    tests, not unit-testable without DB'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-10T18:43:37Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-10T18:44:16Z'
 project_id: policy-node
 schema_version: '3.0'
