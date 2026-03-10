@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6cc796741cb9",
+  "session_id": "2ef02d7d-0d23-40fc-a6dd-4391e7130d74",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T16:56:18.812621Z",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/mcp/commit-check.ts",
+    "app/src/server/orchestrator/worktree-manager.ts",
+    "tests/acceptance/coding-agent-orchestrator/orchestrator-test-kit.ts",
+    "tests/unit/coding-agent-orchestrator/worktree-manager.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6cea1cd7439f",
+  "token_usage": {
+    "input_tokens": 97,
+    "cache_creation_tokens": 264953,
+    "cache_read_tokens": 4184089,
+    "output_tokens": 12432,
+    "api_call_count": 46
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T16:56:18.550763Z",
+    "agent_lines": 36,
+    "human_added": 80,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 116,
+    "agent_percentage": 31.03448275862069
+  }
+}
