@@ -24,3 +24,8 @@ Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journe
 
 commit
 
+### Prompt 4
+
+Stop hook feedback:
+Prompt hook condition was not met: Log these items first: decisions_made, observations_logged
+

@@ -206,3 +206,8 @@ ARGUMENTS: read gh issue Migrate subagent_traces from embedded arrays to trace t
 ---
 
 commit
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Log these items first: decisions_made, observations_logged
