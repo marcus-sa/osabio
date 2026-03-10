@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6ee9cb2657f9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/feature/oauth-rar-dpop/execution-log.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6e/e9cb2657f9/0/metadata.json",
+      "transcript": "/6e/e9cb2657f9/0/full.jsonl",
+      "context": "/6e/e9cb2657f9/0/context.md",
+      "content_hash": "/6e/e9cb2657f9/0/content_hash.txt",
+      "prompt": "/6e/e9cb2657f9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 60364,
+    "cache_read_tokens": 182051,
+    "output_tokens": 932,
+    "api_call_count": 7
+  }
+}
