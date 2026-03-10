@@ -79,8 +79,36 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
 
     // Simulate agent transitioning from spawning to active
     await simulateAgentActive(runtime, assignment.agentSessionId);
+    await waitForCondition(
+      async () => {
+        const status = await getSessionStatus(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          assignment.agentSessionId,
+        );
+        return status.orchestratorStatus === "active";
+      },
+      10_000,
+      250,
+      "active session after assignment",
+    );
 
     // Then the popup shows a status badge "Agent working"
+    await waitForCondition(
+      async () => {
+        const detail = await openTaskPopup(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          task.taskId,
+        );
+        return getAgentBadgeText(detail) === "Agent working";
+      },
+      10_000,
+      250,
+      "agent working badge after assignment",
+    );
     const detailAfterAssign = await openTaskPopup(
       runtime.baseUrl,
       user,
@@ -91,8 +119,36 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
 
     // Simulate agent completing work (transitions to idle)
     await simulateAgentCompletion(runtime, assignment.agentSessionId);
+    await waitForCondition(
+      async () => {
+        const status = await getSessionStatus(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          assignment.agentSessionId,
+        );
+        return status.orchestratorStatus === "idle";
+      },
+      10_000,
+      250,
+      "idle session after completion",
+    );
 
     // Surface 2: Governance Feed -- review-ready item appears
+    await waitForCondition(
+      async () => {
+        const currentFeed = await getGovernanceFeed(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+        );
+        const currentResult = findFeedItemForTask(currentFeed, taskTitle);
+        return currentResult?.tier === "review";
+      },
+      10_000,
+      250,
+      "review feed item after completion",
+    );
     const feed = await getGovernanceFeed(
       runtime.baseUrl,
       user,
@@ -149,6 +205,20 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
       task.taskId,
     );
     await simulateAgentCompletion(runtime, assignment.agentSessionId);
+    await waitForCondition(
+      async () => {
+        const status = await getSessionStatus(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          assignment.agentSessionId,
+        );
+        return status.orchestratorStatus === "idle";
+      },
+      10_000,
+      250,
+      "idle session before rejection",
+    );
 
     // When I reject the work with feedback
     const rejectResult = await rejectWithFeedback(
@@ -160,8 +230,36 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
     );
     expect(rejectResult.rejected).toBe(true);
     expect(rejectResult.continuing).toBe(true);
+    await waitForCondition(
+      async () => {
+        const status = await getSessionStatus(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          assignment.agentSessionId,
+        );
+        return status.orchestratorStatus === "active";
+      },
+      10_000,
+      250,
+      "active session after rejection",
+    );
 
     // Then the task popup badge shows "Agent working"
+    await waitForCondition(
+      async () => {
+        const detail = await openTaskPopup(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          task.taskId,
+        );
+        return getAgentBadgeText(detail) === "Agent working";
+      },
+      10_000,
+      250,
+      "agent working badge after rejection",
+    );
     const detailAfterReject = await openTaskPopup(
       runtime.baseUrl,
       user,
@@ -197,8 +295,36 @@ describe("UI Walking Skeleton: Agent Delegation Across Three Surfaces", () => {
       assignment.agentSessionId,
       "Out of memory during compilation",
     );
+    await waitForCondition(
+      async () => {
+        const status = await getSessionStatus(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+          assignment.agentSessionId,
+        );
+        return status.orchestratorStatus === "error";
+      },
+      10_000,
+      250,
+      "error session before blocking feed check",
+    );
 
     // Then the governance feed shows a blocking item
+    await waitForCondition(
+      async () => {
+        const currentFeed = await getGovernanceFeed(
+          runtime.baseUrl,
+          user,
+          workspace.workspaceId,
+        );
+        const currentResult = findFeedItemForTask(currentFeed, taskTitle);
+        return currentResult?.tier === "blocking";
+      },
+      10_000,
+      250,
+      "blocking feed item after error",
+    );
     const feed = await getGovernanceFeed(
       runtime.baseUrl,
       user,
