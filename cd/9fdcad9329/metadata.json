@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cd9fdcad9329",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/scripts/collect-acceptance-matrix.ts",
+    ".github/workflows/ci.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/9fdcad9329/0/metadata.json",
+      "transcript": "/cd/9fdcad9329/0/full.jsonl",
+      "context": "/cd/9fdcad9329/0/context.md",
+      "content_hash": "/cd/9fdcad9329/0/content_hash.txt",
+      "prompt": "/cd/9fdcad9329/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
