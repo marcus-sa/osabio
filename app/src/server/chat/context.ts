@@ -342,19 +342,30 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
             "Do NOT nest the user's described structure one level too deep (e.g. making the workspace name a project and demoting projects to features).",
           ]
           : [
-            "When the workspace has no description yet and no existing projects, the user's first statements likely describe the business/domain context, NOT specific projects.",
-            "Ask the user to clarify whether they are describing the overall workspace or naming specific projects before creating project entities.",
-            "Only dispatch PM agent with plan_work intent when the user explicitly names specific projects or product areas.",
+            "**CRITICAL: The workspace has no description yet.** The user's first messages describe the business or domain — they are NOT naming specific projects.",
+            "You MUST first understand the business context before creating any project entities.",
+            "Do NOT dispatch PM agent with plan_work intent until the user has explicitly named specific projects or product areas as distinct from the business itself.",
+            "Ask the user what specific projects or product areas they are working on within their business. Do NOT interpret the business name or description as a project.",
           ]),
         "Ask one natural question at a time like a smart colleague, never as a form.",
         `Cover these topics over 5-7 turns: ${topicList}`,
         "Keep acknowledgment to one sentence max. Ask exactly one concrete follow-up question.",
         "",
-        "When the user describes their workspace, create entities directly:",
-        "- Projects → dispatch PM agent with plan_work intent (only after intent is clear — see above)",
-        "- Decisions → use create_provisional_decision",
-        "- Open questions requiring a choice → use create_question (not for informational queries)",
-        "- People mentioned → note in your response (person creation is handled separately)",
+        ...(context.workspaceDescription
+          ? [
+            "When the user describes their workspace, create entities directly:",
+            "- Projects → dispatch PM agent with plan_work intent",
+            "- Decisions → use create_provisional_decision",
+            "- Open questions requiring a choice → use create_question (not for informational queries)",
+            "- People mentioned → note in your response (person creation is handled separately)",
+          ]
+          : [
+            "Once the user names specific projects (distinct from the business itself), create entities:",
+            "- Projects → dispatch PM agent with plan_work intent",
+            "- Decisions → use create_provisional_decision",
+            "- Open questions requiring a choice → use create_question (not for informational queries)",
+            "- People mentioned → note in your response (person creation is handled separately)",
+          ]),
         "",
         "Current workspace state:",
         context.onboardingSummary ?? "No entities captured yet.",
