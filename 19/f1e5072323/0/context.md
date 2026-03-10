@@ -12,20 +12,15 @@ The target branch for this workspace is main. Use this for actions like creating
 
 ### Prompt 2
 
-# NW-DISCUSS: Jobs-to-be-Done Analysis, UX Journey Design, and Requirements Gathering
+# NW-DESIGN: Architecture Design
 
-**Wave**: DISCUSS (wave 2 of 6) | **Agent**: Luna (nw-product-owner) | **Command**: `/nw:discuss`
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
 
 ## Overview
 
-Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journey discovery|emotional arc design|shared artifact tracking|requirements gathering|user story creation|acceptance criteria definition. Luna uncovers jobs users accomplish, maps to journeys and requirements, handles compl...
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
 
-### Prompt 3
+## Context Files Required
 
-commit
-
-### Prompt 4
-
-Stop hook feedback:
-Prompt hook condition was not met: Log these items first: decisions_made, observations_logged
+- docs/feature/{feature-nam...
 
