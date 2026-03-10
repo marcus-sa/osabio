@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "074841d69aa8",
+  "session_id": "9a3e3528-2bae-44a9-ba1d-45ac4c351d00",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T11:36:37.859581Z",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/mcp-dpop-auth.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/oauth/dpop-middleware.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "app/src/server/oauth/rar-verifier.ts",
+    "app/src/server/oauth/token-endpoint.ts",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/oauth-rar-dpop/milestone-1-dpop-key-and-intent.test.ts",
+    "tests/acceptance/oauth-rar-dpop/milestone-2-token-issuance.test.ts",
+    "tests/acceptance/oauth-rar-dpop/milestone-3-brain-verification.test.ts",
+    "tests/acceptance/oauth-rar-dpop/milestone-4-bridge-exchange.test.ts",
+    "tests/acceptance/oauth-rar-dpop/milestone-5-consent-and-identity.test.ts",
+    "tests/acceptance/oauth-rar-dpop/oauth-test-kit.ts",
+    "tests/acceptance/oauth-rar-dpop/walking-skeleton.test.ts",
+    "tests/unit/oauth/rar-verifier.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fb1ffa1bff05",
+  "token_usage": {
+    "input_tokens": 205,
+    "cache_creation_tokens": 504810,
+    "cache_read_tokens": 10156072,
+    "output_tokens": 69875,
+    "api_call_count": 110
+  }
+}
