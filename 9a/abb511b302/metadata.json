@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9aabb511b302",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/oauth-rar-dpop/oauth-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/abb511b302/0/metadata.json",
+      "transcript": "/9a/abb511b302/0/full.jsonl",
+      "context": "/9a/abb511b302/0/context.md",
+      "content_hash": "/9a/abb511b302/0/content_hash.txt",
+      "prompt": "/9a/abb511b302/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 222,
+    "cache_creation_tokens": 537426,
+    "cache_read_tokens": 10281861,
+    "output_tokens": 39185,
+    "api_call_count": 112
+  }
+}
