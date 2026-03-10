@@ -26,7 +26,7 @@
   --teal: #6ee7b7;
   --font: 'Instrument Sans', system-ui, sans-serif;
   --mono: 'JetBrains Mono', monospace;
-  --radius: 12px;
+  --radius: 5px;
 }
 
 html { scroll-behavior: smooth; }
@@ -43,12 +43,12 @@ nav {
   border-bottom: 1px solid var(--border);
 }
 .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.5rem; }
-.logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 6px; display: grid; place-items: center; }
+.logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 4px; display: grid; place-items: center; }
 .logo-mark svg { width: 14px; height: 14px; }
 .nav-links { display: flex; align-items: center; gap: 1.75rem; }
 .nav-links a { font-size: 0.85rem; color: var(--text-dim); font-weight: 500; transition: color 0.2s; }
 .nav-links a:hover { color: var(--text); }
-.btn { display: inline-block; padding: 0.6rem 1.4rem; font-weight: 600; font-size: 0.85rem; border-radius: 8px; transition: all 0.2s; cursor: pointer; border: none; font-family: var(--font); }
+.btn { display: inline-block; padding: 0.6rem 1.4rem; font-weight: 600; font-size: 0.85rem; border-radius: 5px; transition: all 0.2s; cursor: pointer; border: none; font-family: var(--font); }
 .btn-accent,
 .btn-accent:link,
 .btn-accent:visited,
@@ -117,7 +117,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); max-width: 1060px; m
 /* DIAGRAM */
 .diagram-wrap { display: flex; justify-content: center; padding: 1rem 1.5rem 4rem; }
 .diagram {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px;
   --diagram-tag-width: 85px;
   --diagram-row-gap: 0.6rem;
   padding: 2rem; max-width: 820px; width: 100%; position: relative; overflow: hidden;
@@ -129,7 +129,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); max-width: 1060px; m
 .d-tag { width: var(--diagram-tag-width); flex-shrink: 0; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; }
 .d-boxes { display: flex; gap: 0.4rem; flex: 1; flex-wrap: wrap; }
 .d-box {
-  padding: 0.45rem 0.75rem; border-radius: 7px; font-size: 0.72rem; font-weight: 500;
+  padding: 0.45rem 0.75rem; border-radius: 4px; font-size: 0.72rem; font-weight: 500;
   font-family: var(--mono); border: 1px solid; flex: 1; min-width: 90px; text-align: center;
 }
 .d-box.h { background: rgba(91,141,238,0.07); border-color: rgba(91,141,238,0.18); color: var(--blue); }
@@ -155,7 +155,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); max-width: 1060px; m
 .problem-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin: 1.25rem 0; }
 .problem-list li {
   padding: 0.8rem 1.1rem; background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; font-size: 0.9rem; color: var(--text-dim);
+  border-radius: 5px; font-size: 0.9rem; color: var(--text-dim);
   display: flex; align-items: flex-start; gap: 0.6rem;
 }
 .problem-list .arrow { color: var(--rose); flex-shrink: 0; }
@@ -250,7 +250,7 @@ hr.sep { border: none; border-top: 1px solid var(--border); max-width: 1060px; m
 .deploy-card p { color: var(--text-dim); font-size: 0.83rem; line-height: 1.5; margin-bottom: 0.75rem; }
 .deploy-cmd {
   display: inline-block; padding: 0.3rem 0.75rem;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
   font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
 }
 .detail-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
@@ -313,7 +313,7 @@ footer .right a:hover { color: var(--text-dim); }
 
 /* DEPT GRID */
 .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin-top: 1.5rem; }
-.dept-card { padding: 1.1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; }
+.dept-card { padding: 1.1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
 .dept-card h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.15rem; }
 .dept-card .dept-role { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
 .dept-card p { color: var(--text-dim); font-size: 0.8rem; line-height: 1.5; }
