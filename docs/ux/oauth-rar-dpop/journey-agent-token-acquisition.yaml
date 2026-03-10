@@ -1,0 +1,308 @@
+journey:
+  name: "Actor Token Acquisition (Sovereign Hybrid Model)"
+  goal: "Any actor (agent or human) obtains a DPoP-bound access token with brain_action authorization_details for ANY Brain operation"
+  personas:
+    - id: agent-kira
+      type: agent
+      description: "code_agent 'Kira' running in E2B sandbox, workspace 'Lusaka'"
+      agent_type: code_agent
+    - id: human-marcus
+      type: human
+      description: "Marcus Santos, workspace owner, reviews high-risk authorizations and accesses Brain via Bridge"
+    - id: custom-as
+      type: system
+      description: "Custom Authorization Server -- evaluates Rich Intent Objects, issues DPoP-bound RAR tokens"
+    - id: better-auth
+      type: system
+      description: "Better Auth IdP -- human login only, session/scopes for dashboard UI authentication"
+
+  emotional_arc:
+    start: "Purposeful -- actor knows it needs authorization before touching the Brain"
+    middle: "Transparent/Waiting -- evaluation pipeline is visible, human review when needed"
+    end: "Confident -- actor holds exactly the authority it needs, cryptographically bound"
+
+  triggers:
+    - "Agent encounters ANY Brain operation during task execution (read, write, integration -- no exceptions)"
+    - "Human dashboard initiates ANY Brain operation (view, create, update -- Bridge exchange required)"
+
+  architectural_principles:
+    - "Classification is a vulnerability -- no tier boundary, no 'is this consequential?' classifier"
+    - "One language of authority -- Authorizer Agent only evaluates Rich Intent Objects, never scopes"
+    - "Uniform token format -- agent sandbox or dashboard, Brain checks authorization_details array"
+    - "Human parity -- Marcus generates DPoP-signed intent just like agent Kira"
+    - "Scopes are for the front door only -- Better Auth scopes = authentication proof, RAR = authorization proof"
+
+steps:
+  - id: 1
+    name: "Intent Formation"
+    actor: agent-kira
+    description: "Actor constructs brain_action intent from task context. ALL Brain operations require this."
+
+    shared_artifacts:
+      - name: brain_action
+        source: "Actor task context / tool invocation parameters / dashboard UI action"
+        displayed_as: "${brain_action}"
+        consumers:
+          - "Step 3: authorization_details in intent submission"
+          - "Step 5: authorization_details in token request"
+          - "Step 6: Token claims"
+          - "Step 7: Brain resource server operation matching"
+
+    emotional_state:
+      entry: "Purposeful -- actor has identified a Brain operation to perform"
+      exit: "Prepared -- brain_action is well-formed and ready for submission"
+
+    integration_checkpoint: |
+      brain_action must be a valid BrainAction: { type: "brain_action", action: string, resource: string, constraints?: Record<string, unknown> }
+      Every Brain operation -- read, write, integration -- requires a brain_action. No scope-only path.
+
+  - id: 2
+    name: "DPoP Key Pair Generation"
+    actor: agent-kira
+    description: "Generate or reuse ES256 key pair for sender-constraining"
+
+    shared_artifacts:
+      - name: dpop_private_key
+        source: "Actor runtime key store (in-memory, per-session)"
+        displayed_as: "${dpop_private_key}"
+        consumers:
+          - "Step 3: dpop_jwk_thumbprint in intent submission"
+          - "Step 5: DPoP proof signing"
+          - "Step 7: DPoP proof signing for Brain resource server"
+      - name: jwk_thumbprint
+        source: "Derived from dpop_private_key public component via RFC 7638"
+        displayed_as: "${jwk_thumbprint}"
+        consumers:
+          - "Step 3: dpop_jwk_thumbprint field"
+          - "Step 6: cnf.jkt claim in access token"
+          - "Step 7: DPoP proof verification"
+
+    emotional_state:
+      entry: "Methodical -- cryptographic setup is routine"
+      exit: "Ready -- key pair exists, thumbprint computed"
+
+    integration_checkpoint: |
+      Key pair algorithm must be ES256 (or other approved asymmetric algorithm)
+      Private key must never leave the actor's runtime boundary (sandbox, browser, CLI process)
+      JWK thumbprint must be deterministic (same key always produces same thumbprint)
+
+  - id: 3
+    name: "Intent Submission"
+    actor: agent-kira
+    description: "Submit intent with brain_action and DPoP thumbprint to Custom AS evaluation pipeline"
+
+    shared_artifacts:
+      - name: intent_id
+        source: "Custom AS response from POST /api/auth/intents"
+        displayed_as: "${intent_id}"
+        consumers:
+          - "Step 4: Human consent notification"
+          - "Step 5: Token request intent_id parameter"
+          - "Step 6: urn:brain:intent_id claim in access token"
+      - name: risk_score
+        source: "Authorizer Agent output via evaluation pipeline"
+        displayed_as: "${risk_score}"
+        consumers:
+          - "Step 3: Risk routing decision"
+          - "Step 4: Displayed to human in consent notification"
+      - name: routing_decision
+        source: "routeByRisk function output"
+        displayed_as: "${routing_decision}"
+        consumers:
+          - "Step 3: Determines which path (auto_approve / veto_window / reject)"
+          - "Step 4: Veto window expiry time"
+
+    emotional_state:
+      entry: "Transparent -- actor submits and can observe pipeline progress"
+      exit: "Waiting or Proceeding -- depends on risk routing"
+
+    integration_checkpoint: |
+      Intent must include dpop_jwk_thumbprint binding the token to the actor's key
+      Evaluation pipeline: Policy Gate -> Authorizer Agent (Rich Intent Objects only) -> Risk Router -> Status Update
+      brain_action in intent MUST be identical to authorization_details in subsequent token request
+      The Authorizer Agent evaluates brain_action objects, NEVER scopes
+
+  - id: 4
+    name: "Human Consent (veto_window path)"
+    actor: human-marcus
+    description: "Human reviews RAR-enriched authorization request"
+    condition: "Only when routing_decision = veto_window"
+
+    shared_artifacts:
+      - name: consent_decision
+        source: "Human action via consent UI"
+        displayed_as: "${consent_decision}"
+        consumers:
+          - "Step 5: Determines whether token can be issued"
+      - name: constrained_params
+        source: "Human modification via [Constrain...] action"
+        displayed_as: "${constrained_params}"
+        consumers:
+          - "Step 5: Modified authorization_details in token request"
+          - "Step 6: Modified authorization_details in token claims"
+
+    emotional_state:
+      entry: "Alert but not alarmed -- notification communicates significance without panic"
+      exit: "Reassured -- human knows exactly what they authorized or vetoed"
+
+    integration_checkpoint: |
+      Consent UI must render authorization_details in human-readable form (not raw JSON)
+      Constrain action must produce valid modified authorization_details
+      Veto must record reason in vetoed_by relation
+
+  - id: 5
+    name: "RAR Token Request"
+    actor: agent-kira
+    description: "Actor requests DPoP-bound access token with brain_action authorization_details"
+
+    shared_artifacts:
+      - name: dpop_proof
+        source: "Signed by actor's DPoP private key"
+        displayed_as: "${dpop_proof}"
+        consumers:
+          - "Step 5: DPoP header on token request"
+          - "Step 7: Fresh DPoP proof for Brain resource server"
+
+    emotional_state:
+      entry: "Expectant -- intent is authorized, requesting the token"
+      exit: "Proceeding -- token received, ready to act"
+
+    integration_checkpoint: |
+      grant_type must be custom: urn:brain:intent-authorization
+      authorization_details must match the (possibly constrained) brain_action from the intent
+      DPoP proof must be signed with the same key whose thumbprint was registered in the intent
+
+  - id: 6
+    name: "Token Issuance"
+    actor: custom-as
+    description: "Custom Authorization Server validates and issues DPoP-bound access token"
+
+    shared_artifacts:
+      - name: access_token
+        source: "Custom AS token endpoint response"
+        displayed_as: "${access_token}"
+        consumers:
+          - "Step 7: Authorization header to Brain resource server"
+      - name: cnf_jkt
+        source: "Derived from DPoP proof JWK in token request"
+        displayed_as: "${cnf_jkt}"
+        consumers:
+          - "Step 7: Brain resource server matches cnf.jkt against DPoP proof key"
+
+    emotional_state:
+      entry: "N/A (system step)"
+      exit: "N/A (system step)"
+
+    integration_checkpoint: |
+      Token MUST include cnf.jkt claim matching the DPoP proof key thumbprint
+      Token MUST include authorization_details matching the approved intent brain_action
+      Token MUST include urn:brain:intent_id linking to the authorizing intent
+      Token TTL: 300 seconds for write operations, configurable for reads
+
+  - id: 7
+    name: "Brain Operation Execution"
+    actor: agent-kira
+    description: "Actor presents DPoP-bound token to Brain resource server for the authorized operation"
+
+    shared_artifacts: []
+
+    emotional_state:
+      entry: "Confident -- actor holds exactly the authority it needs"
+      exit: "Accomplished -- operation completed, intent status updated to completed"
+
+    integration_checkpoint: |
+      Brain resource server MUST verify DPoP proof AND cnf.jkt binding
+      Brain resource server MUST verify authorization_details covers the requested operation
+      NO scope check. NO Bearer fallback. DPoP + RAR only.
+      Same verification pipeline for agents AND humans (via Bridge)
+      Intent status must transition: authorized -> executing -> completed (or failed)
+
+bridge_path:
+  name: "Human Bridge Token Exchange"
+  description: "When a human needs to access the Brain, they exchange their Better Auth session for a DPoP-bound RAR token"
+
+  steps:
+    - id: B1
+      name: "Human Login via Better Auth"
+      actor: human-marcus
+      description: "Standard login, receives session cookie with scopes for dashboard UI only"
+      integration_checkpoint: |
+        Better Auth session/scopes = authentication proof ("I am Marcus")
+        Session cookie CANNOT directly access Brain resources
+        Scopes are for the front door only
+
+    - id: B2
+      name: "Bridge Token Exchange"
+      actor: dashboard-client
+      description: "Dashboard client exchanges session + DPoP proof + brain_action for RAR token"
+      integration_checkpoint: |
+        POST /api/auth/bridge/exchange with session cookie + DPoP proof + authorization_details
+        Custom AS validates Better Auth session is active
+        Custom AS resolves human identity from session
+        Authorizer Agent evaluates the brain_action (same as agent path)
+        Low-risk reads: auto-approve. High-risk writes: veto_window.
+
+    - id: B3
+      name: "Brain Access with DPoP Token"
+      actor: dashboard-client
+      description: "Dashboard uses DPoP-bound token to access Brain -- same verification as agents"
+      integration_checkpoint: |
+        Brain resource server runs SAME verification pipeline
+        Human request is indistinguishable from agent request at Brain boundary
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: brain_action
+      must_match_across: [1, 3, 5, 6, 7]
+      failure_message: "brain_action in intent submission, token request authorization_details, token claims, and Brain resource server request must be identical (or validly constrained)"
+
+    - artifact: jwk_thumbprint
+      must_match_across: [2, 3, 6, 7]
+      failure_message: "DPoP JWK thumbprint must be consistent from key generation through intent submission, token cnf.jkt claim, and Brain resource server DPoP proof verification"
+
+    - artifact: intent_id
+      must_match_across: [3, 5, 6]
+      failure_message: "Intent ID from submission must be referenced in token request and embedded in access token claims"
+
+error_paths:
+  - id: E1
+    name: "Policy Gate Rejection"
+    trigger: "Budget exceeds workspace cap or action not in allowlist"
+    step: 3
+    recovery: "Actor reduces budget or uses an allowed action pattern"
+
+  - id: E2
+    name: "Authorizer Agent Timeout"
+    trigger: "Authorizer Agent evaluation exceeds 30-second timeout"
+    step: 3
+    recovery: "Fallback to APPROVE with risk_score=50, routes to veto_window for human review"
+
+  - id: E3
+    name: "DPoP Key Mismatch"
+    trigger: "Token request DPoP proof signed by different key than intent registration"
+    step: 5
+    recovery: "Actor must re-submit intent with correct dpop_jwk_thumbprint"
+
+  - id: E4
+    name: "Token Expired"
+    trigger: "Access token TTL exceeded before operation execution"
+    step: 7
+    recovery: "Actor requests new token (intent still authorized within expiry window)"
+
+  - id: E5
+    name: "Human Veto"
+    trigger: "Human explicitly vetoes the intent during veto window"
+    step: 4
+    recovery: "Actor modifies params and creates new intent, or escalates"
+
+  - id: E6
+    name: "Better Auth Session Expired (Bridge)"
+    trigger: "Custom AS validates session and finds it expired"
+    step: B2
+    recovery: "Dashboard redirects to Better Auth login page"
+
+  - id: E7
+    name: "Session Cookie at Brain Boundary"
+    trigger: "Client sends session cookie directly to Brain resource server without DPoP token"
+    step: 7
+    recovery: "401 dpop_required -- must use Bridge to exchange session for RAR token"

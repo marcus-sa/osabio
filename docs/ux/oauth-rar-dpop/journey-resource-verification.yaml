@@ -1,0 +1,283 @@
+journey:
+  name: "Brain Resource Server Verification (Sovereign Hybrid Model)"
+  goal: "The Brain resource server verifies DPoP proof-of-possession and RAR brain_action scope for EVERY request -- no scope fallback, no Bearer path, no actor type distinction"
+  personas:
+    - id: any-actor
+      type: any
+      description: "Agent or human presenting a DPoP-bound access token (indistinguishable at Brain boundary)"
+    - id: brain-resource-server
+      type: system
+      description: "Brain API -- single verification pipeline for ALL operations"
+
+  emotional_arc:
+    start: "Vigilant -- every request is potentially hostile"
+    middle: "Methodical -- each check has a clear pass/fail"
+    end: "Assured -- all checks passed, request is legitimate"
+
+  triggers:
+    - "Brain resource server receives ANY HTTP request (from agent sandbox or human dashboard via Bridge)"
+
+  architectural_principles:
+    - "ONE verification pipeline -- no branching on Bearer vs DPoP, no scope vs RAR paths"
+    - "Brain boundary rejects session cookies, Bearer tokens, and scope-only tokens"
+    - "Human and agent tokens are verified identically"
+    - "authorization_details must contain type: brain_action -- always"
+
+steps:
+  - id: 1
+    name: "Header Extraction"
+    actor: brain-resource-server
+    description: "Parse Authorization and DPoP headers -- reject anything that is not DPoP"
+
+    shared_artifacts:
+      - name: access_token_raw
+        source: "Authorization header (after 'DPoP ' prefix)"
+        displayed_as: "${access_token_raw}"
+        consumers:
+          - "Step 2: JWT validation input"
+      - name: dpop_proof_raw
+        source: "DPoP header value"
+        displayed_as: "${dpop_proof_raw}"
+        consumers:
+          - "Step 3: DPoP proof validation input"
+      - name: request_method
+        source: "HTTP request method"
+        displayed_as: "${request_method}"
+        consumers:
+          - "Step 3: htm claim verification"
+      - name: request_uri
+        source: "HTTP request URI (scheme + host + path, no query)"
+        displayed_as: "${request_uri}"
+        consumers:
+          - "Step 3: htu claim verification"
+
+    emotional_state:
+      entry: "Vigilant -- parse before trusting"
+      exit: "Proceeding -- raw inputs extracted for validation"
+
+    integration_checkpoint: |
+      Authorization scheme MUST be "DPoP" -- reject Bearer, session cookies, and missing headers
+      DPoP header MUST be present when Authorization scheme is "DPoP"
+      Both headers extracted atomically -- if either is missing, fail-fast with 401
+      No fallback. No scope path. Brain speaks DPoP+RAR only.
+
+  - id: 2
+    name: "Access Token Validation"
+    actor: brain-resource-server
+    description: "JWT validation with mandatory brain_action authorization_details"
+
+    shared_artifacts:
+      - name: cnf_jkt
+        source: "Access token JWT cnf.jkt claim"
+        displayed_as: "${cnf_jkt}"
+        consumers:
+          - "Step 4: Thumbprint comparison target"
+      - name: authorization_details
+        source: "Access token JWT authorization_details claim"
+        displayed_as: "${authorization_details}"
+        consumers:
+          - "Step 5: Operation scope matching"
+      - name: token_sub
+        source: "Access token JWT sub claim"
+        displayed_as: "${token_sub}"
+        consumers:
+          - "Step 6: Identity resolution"
+      - name: token_workspace
+        source: "Access token JWT urn:brain:workspace claim"
+        displayed_as: "${token_workspace}"
+        consumers:
+          - "Step 6: Workspace membership verification"
+      - name: intent_id
+        source: "Access token JWT urn:brain:intent_id claim"
+        displayed_as: "${intent_id}"
+        consumers:
+          - "Step 7: Audit trail linking"
+
+    emotional_state:
+      entry: "Methodical -- JWT verification extended with brain_action requirements"
+      exit: "Proceeding -- token is structurally valid, claims extracted"
+
+    integration_checkpoint: |
+      Token MUST contain authorization_details with at least one entry of type "brain_action"
+      Tokens without authorization_details are rejected -- no scope fallback
+      Token issuer must be the Custom AS (not Better Auth)
+      Token audience must match the Brain resource server
+
+  - id: 3
+    name: "DPoP Proof Validation"
+    actor: brain-resource-server
+    description: "Validate DPoP proof JWT structure, signature, freshness, and uniqueness"
+
+    shared_artifacts:
+      - name: proof_jwk
+        source: "DPoP proof JWT header jwk field"
+        displayed_as: "${proof_jwk}"
+        consumers:
+          - "Step 4: Thumbprint computation input"
+      - name: proof_jti
+        source: "DPoP proof JWT payload jti claim"
+        displayed_as: "${proof_jti}"
+        consumers:
+          - "Step 3: Replay protection (nonce cache lookup/insert)"
+
+    emotional_state:
+      entry: "Vigilant -- this is the sender-constraining check"
+      exit: "Proceeding -- proof is structurally valid and fresh"
+
+    integration_checkpoint: |
+      DPoP proof typ MUST be "dpop+jwt"
+      DPoP proof alg MUST be an approved asymmetric algorithm (ES256)
+      htm MUST match ${request_method}
+      htu MUST match ${request_uri}
+      iat MUST be within acceptable clock skew window (default: 60 seconds past, 5 seconds future)
+      jti MUST NOT exist in nonce cache (replay protection)
+      After validation, jti is added to nonce cache with TTL matching clock skew window
+
+  - id: 4
+    name: "Sender Binding Verification"
+    actor: brain-resource-server
+    description: "Verify that DPoP proof was signed by the key the token was issued to"
+
+    shared_artifacts:
+      - name: computed_thumbprint
+        source: "RFC 7638 JWK thumbprint of ${proof_jwk}"
+        displayed_as: "${computed_thumbprint}"
+        consumers:
+          - "Step 4: Comparison with ${cnf_jkt}"
+
+    emotional_state:
+      entry: "Critical -- this is THE proof-of-possession check"
+      exit: "Assured (if match) or Alarmed (if mismatch -- possible token theft)"
+
+    integration_checkpoint: |
+      computed_thumbprint MUST equal ${cnf_jkt} from the access token
+      Mismatch indicates the token was presented by an entity other than the one it was issued to
+      Mismatch MUST be logged as a security event with both thumbprints
+      This check is identical for agent and human tokens
+
+  - id: 5
+    name: "Operation Scope Verification (brain_action)"
+    actor: brain-resource-server
+    description: "Verify that the token's brain_action authorization_details cover the requested operation"
+
+    shared_artifacts:
+      - name: requested_action
+        source: "Derived from API route + request body"
+        displayed_as: "${requested_action}"
+        consumers:
+          - "Step 5: Compared against ${authorization_details}"
+
+    emotional_state:
+      entry: "Precise -- matching specific operation against specific authorization"
+      exit: "Confirmed -- token covers exactly this operation"
+
+    integration_checkpoint: |
+      type MUST be "brain_action" (always)
+      action MUST match exactly (read, create, update, delete)
+      resource MUST match exactly (knowledge_graph, invoice, task, ...)
+      constraints: requested values MUST be within authorized bounds
+      If authorization_details is an array, at least one entry must match
+
+  - id: 6
+    name: "Identity and Workspace Resolution"
+    actor: brain-resource-server
+    description: "Resolve identity from token sub claim -- could be agent or human"
+
+    shared_artifacts: []
+
+    emotional_state:
+      entry: "Methodical -- identity resolution does not distinguish actor type"
+      exit: "Resolved -- identity and workspace context established"
+
+    integration_checkpoint: |
+      Identity must exist and be a member of the claimed workspace
+      Identity could be agent (identity:kira-agent-001) or human (identity:marcus-human-001)
+      Brain does not differentiate verification logic based on actor type
+
+  - id: 7
+    name: "Operation Execution"
+    actor: brain-resource-server
+    description: "Execute the authorized operation and update intent status"
+
+    shared_artifacts: []
+
+    emotional_state:
+      entry: "Assured -- all verification steps passed"
+      exit: "Complete -- operation executed, audit trail recorded"
+
+    integration_checkpoint: |
+      Operation executed with verified context (identity, workspace, authorization_details)
+      Intent status updated: executing -> completed (or failed)
+      Audit log entry links operation to ${intent_id}
+      Audit format is identical for agent and human operations
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: cnf_jkt
+      must_match_across: [2, 4]
+      failure_message: "cnf.jkt extracted from access token must be compared against computed thumbprint of DPoP proof JWK"
+
+    - artifact: authorization_details
+      must_match_across: [2, 5]
+      failure_message: "authorization_details from access token must be used for operation scope verification"
+
+    - artifact: request_method
+      must_match_across: [1, 3]
+      failure_message: "HTTP method extracted in Step 1 must match htm claim in DPoP proof"
+
+    - artifact: request_uri
+      must_match_across: [1, 3]
+      failure_message: "HTTP URI extracted in Step 1 must match htu claim in DPoP proof"
+
+    - artifact: proof_jwk
+      must_match_across: [3, 4]
+      failure_message: "JWK from DPoP proof header must be the input for thumbprint computation in Step 4"
+
+error_paths:
+  - id: E1
+    name: "No DPoP Authorization (Bearer/Cookie/Missing)"
+    trigger: "Request does not have Authorization: DPoP scheme"
+    step: 1
+    recovery: "Client must use DPoP-bound RAR tokens. Use Bridge for session exchange."
+
+  - id: E2
+    name: "Missing DPoP Proof Header"
+    trigger: "Authorization scheme is DPoP but no DPoP header present"
+    step: 1
+    recovery: "Client must include DPoP proof header with every request"
+
+  - id: E3
+    name: "Clock Skew Rejection"
+    trigger: "DPoP proof iat outside acceptable window"
+    step: 3
+    recovery: "Actor must synchronize clock (NTP) and retry"
+
+  - id: E4
+    name: "Replay Attack"
+    trigger: "DPoP proof jti already in nonce cache"
+    step: 3
+    recovery: "Each request must use a unique jti; generate fresh UUID per request"
+
+  - id: E5
+    name: "Thumbprint Mismatch"
+    trigger: "Computed thumbprint of proof JWK does not match cnf.jkt"
+    step: 4
+    recovery: "Token was likely intercepted; actor must re-obtain token with correct key"
+
+  - id: E6
+    name: "Operation Scope Mismatch"
+    trigger: "Requested operation does not match any brain_action entry in authorization_details"
+    step: 5
+    recovery: "Actor must obtain a token scoped to the specific operation it wants to perform"
+
+  - id: E7
+    name: "Constraint Violation"
+    trigger: "Request params exceed authorized bounds (e.g., amount > cap)"
+    step: 5
+    recovery: "Actor must request within authorized bounds or obtain a new authorization"
+
+  - id: E8
+    name: "Missing authorization_details"
+    trigger: "Token does not contain authorization_details with brain_action type"
+    step: 2
+    recovery: "Token must be obtained from Custom AS with brain_action authorization_details. No scope fallback."
