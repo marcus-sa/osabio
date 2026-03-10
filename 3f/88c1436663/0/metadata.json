@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3f88c1436663",
+  "session_id": "45ffdc52-6dee-49c2-a8aa-ea3e32b518cc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T05:08:39.924039Z",
+  "branch": "marcus-sa/landing-intent-oauth",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "index.html"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "619599502c7d",
+  "checkpoint_transcript_start": 343,
+  "transcript_lines_at_start": 343,
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 157886,
+    "cache_read_tokens": 3167475,
+    "output_tokens": 11564,
+    "api_call_count": 36
+  }
+}
