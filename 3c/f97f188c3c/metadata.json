@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3cf97f188c3c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-node-issue",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/ci.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/f97f188c3c/0/metadata.json",
+      "transcript": "/3c/f97f188c3c/0/full.jsonl",
+      "context": "/3c/f97f188c3c/0/context.md",
+      "content_hash": "/3c/f97f188c3c/0/content_hash.txt",
+      "prompt": "/3c/f97f188c3c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
