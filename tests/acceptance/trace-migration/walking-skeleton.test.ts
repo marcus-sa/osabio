@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
-import { createTestUser, fetchJson, setupAcceptanceSuite } from "../../acceptance-test-kit";
-import type { WorkspaceBootstrapResponse, WorkspaceConversationResponse } from "../../../../app/src/shared/contracts";
+import { createTestUser, fetchJson, setupAcceptanceSuite } from "../acceptance-test-kit";
+import type { WorkspaceBootstrapResponse, WorkspaceConversationResponse } from "../../../app/src/shared/contracts";
 import {
   seedConversation,
   seedAssistantMessage,

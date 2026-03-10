@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import type { SubagentTrace } from "../../../../app/src/shared/contracts";
-import { fetchJson, type TestUser } from "../../acceptance-test-kit";
+import type { SubagentTrace } from "../../../app/src/shared/contracts";
+import { fetchJson, type TestUser } from "../acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Fixture types

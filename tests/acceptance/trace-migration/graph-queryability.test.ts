@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
-import { createTestUser, setupAcceptanceSuite } from "../../acceptance-test-kit";
+import { createTestUser, setupAcceptanceSuite } from "../acceptance-test-kit";
 import {
   seedConversation,
   seedAssistantMessage,
