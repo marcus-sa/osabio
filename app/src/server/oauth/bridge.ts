@@ -242,9 +242,11 @@ export function createBridgeExchangeHandler(
           goal: `Bridge exchange: ${authorizationDetails[0].action} ${authorizationDetails[0].resource}`,
           reasoning: "Human operator bridge exchange",
           action_spec: actionSpec,
-          requester: identityId,
         },
-        policy: {},
+        surreal,
+        identityId: requester,
+        workspaceId: workspace,
+        requesterType: "human",
         llmEvaluator,
         timeoutMs: 10_000,
       });

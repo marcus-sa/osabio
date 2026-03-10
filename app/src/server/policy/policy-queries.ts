@@ -35,8 +35,8 @@ export async function loadActivePolicies(
     { workspace: workspaceId },
   );
 
-  const identityPolicies = identityResult[0]?.policies ?? [];
-  const workspacePolicies = workspaceResult[0]?.policies ?? [];
+  const identityPolicies = identityResult[0]?.[0]?.policies ?? [];
+  const workspacePolicies = workspaceResult[0]?.[0]?.policies ?? [];
 
   // Deduplicate by policy ID and filter active only
   const seen = new Set<string>();

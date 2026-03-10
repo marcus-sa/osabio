@@ -248,9 +248,11 @@ export function createIntentSubmissionHandler(
               goal: data.goal,
               reasoning: data.reasoning,
               action_spec: actionSpec,
-              requester: data.identity_id,
             },
-            policy: {},
+            surreal,
+            identityId: requester,
+            workspaceId: workspace,
+            requesterType: "agent",
             llmEvaluator,
             timeoutMs: 10_000,
           });
