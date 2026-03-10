@@ -45,7 +45,7 @@ const getRuntime = setupOAuthSuite("oauth_m3_brain_verification");
 // =============================================================================
 
 describe("Brain rejects non-DPoP authentication", () => {
-  it.skip("Brain rejects Bearer tokens with dpop_required error", async () => {
+  it("Brain rejects Bearer tokens with dpop_required error", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a valid Bearer token from the old auth system
@@ -65,7 +65,7 @@ describe("Brain rejects non-DPoP authentication", () => {
     expect(body.error).toContain("dpop_required");
   });
 
-  it.skip("Brain rejects session cookies on DPoP-protected endpoints", async () => {
+  it("Brain rejects session cookies on DPoP-protected endpoints", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human user with a valid session cookie
@@ -85,7 +85,7 @@ describe("Brain rejects non-DPoP authentication", () => {
     expect(body.error).toContain("dpop_required");
   });
 
-  it.skip("Brain rejects requests with no authentication at all", async () => {
+  it("Brain rejects requests with no authentication at all", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a workspace endpoint
@@ -104,7 +104,7 @@ describe("Brain rejects non-DPoP authentication", () => {
 });
 
 describe("DPoP proof validation at Brain boundary", () => {
-  it.skip("valid DPoP proof grants access to authorized operation", async () => {
+  it("valid DPoP proof grants access to authorized operation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with an authorized intent and issued token
@@ -132,7 +132,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.ok).toBe(true);
   });
 
-  it.skip("Brain rejects proof with wrong HTTP method", async () => {
+  it("Brain rejects proof with wrong HTTP method", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token
@@ -165,7 +165,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Brain rejects proof with wrong target URI", async () => {
+  it("Brain rejects proof with wrong target URI", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token
@@ -202,7 +202,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Brain rejects proof signed with different key than token binding", async () => {
+  it("Brain rejects proof signed with different key than token binding", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token bound to key pair A
@@ -232,7 +232,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Brain rejects replayed DPoP proof (same jti used twice)", async () => {
+  it("Brain rejects replayed DPoP proof (same jti used twice)", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token and a proof that was already used
@@ -258,7 +258,9 @@ describe("DPoP proof validation at Brain boundary", () => {
       headers: {
         Authorization: `DPoP ${access_token}`,
         DPoP: proof,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({}),
     });
     expect(firstResponse.ok).toBe(true);
 
@@ -268,7 +270,9 @@ describe("DPoP proof validation at Brain boundary", () => {
       headers: {
         Authorization: `DPoP ${access_token}`,
         DPoP: proof,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({}),
     });
 
     // Then the replay is detected and rejected
@@ -276,7 +280,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(replayResponse.status).toBe(401);
   });
 
-  it.skip("Brain rejects proof with timestamp too far in the past (beyond 60s tolerance)", async () => {
+  it("Brain rejects proof with timestamp too far in the past (beyond 60s tolerance)", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token
@@ -315,7 +319,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Brain rejects proof with timestamp too far in the future (beyond 5s tolerance)", async () => {
+  it("Brain rejects proof with timestamp too far in the future (beyond 5s tolerance)", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token
@@ -354,7 +358,7 @@ describe("DPoP proof validation at Brain boundary", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Brain rejects proof with missing JWK in header", async () => {
+  it("Brain rejects proof with missing JWK in header", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent with a valid token
@@ -399,7 +403,7 @@ describe("DPoP proof validation at Brain boundary", () => {
 // =============================================================================
 
 describe("Brain verifies operation scope against token authorization", () => {
-  it.skip("request matching token action and resource succeeds", async () => {
+  it("request matching token action and resource succeeds", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a token authorized for reading workspace data
@@ -427,7 +431,7 @@ describe("Brain verifies operation scope against token authorization", () => {
     expect(response.ok).toBe(true);
   });
 
-  it.skip("request for different action than authorized is rejected with mismatch error", async () => {
+  it("request for different action than authorized is rejected with mismatch error", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a token authorized only for reading workspace data
@@ -459,7 +463,7 @@ describe("Brain verifies operation scope against token authorization", () => {
     expect(body.error).toContain("authorization_details_mismatch");
   });
 
-  it.skip("request exceeding authorized constraints is rejected with params_exceeded error", async () => {
+  it("request exceeding authorized constraints is rejected with params_exceeded error", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a token authorized for updating a specific task
@@ -494,7 +498,7 @@ describe("Brain verifies operation scope against token authorization", () => {
 });
 
 describe("Uniform verification pipeline for all actor types", () => {
-  it.skip("agent and human tokens are verified through the same pipeline", async () => {
+  it("agent and human tokens are verified through the same pipeline", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent token and a human token both authorized for the same operation

@@ -15,6 +15,7 @@ import { createBrainServer } from "../../app/src/server/runtime/start-server";
 import { createRuntimeDependencies } from "../../app/src/server/runtime/dependencies";
 import { createSseRegistry } from "../../app/src/server/streaming/sse-registry";
 import { createInflightTracker } from "../../app/src/server/runtime/types";
+import { createNonceCache } from "../../app/src/server/oauth/nonce-cache";
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
 
@@ -145,6 +146,8 @@ export function setupAcceptanceSuite(
       embeddingModel: deps.embeddingModel,
       sse: createSseRegistry(),
       inflight,
+      asSigningKey: deps.asSigningKey,
+      nonceCache: createNonceCache(),
     };
 
     server = createBrainServer(serverDeps);

@@ -28,11 +28,22 @@ export function findExceededConstraint(
     const requestedValue = requestedConstraints[key];
     const authorizedValue = authorizedConstraints[key];
 
-    if (typeof requestedValue !== "number" || typeof authorizedValue !== "number") {
-      return false;
+    // Numeric bounds: requested must not exceed authorized
+    if (typeof requestedValue === "number" && typeof authorizedValue === "number") {
+      return requestedValue > authorizedValue;
     }
 
-    return requestedValue > authorizedValue;
+    // String identity: requested must exactly match authorized
+    if (typeof requestedValue === "string" && typeof authorizedValue === "string") {
+      return requestedValue !== authorizedValue;
+    }
+
+    // If authorized has a constraint but requested has a different type, treat as exceeded
+    if (authorizedValue !== undefined && typeof requestedValue !== typeof authorizedValue) {
+      return true;
+    }
+
+    return false;
   });
 }
 

@@ -37,7 +37,7 @@ const getRuntime = setupOAuthSuite("oauth_m4_bridge_exchange");
 // =============================================================================
 
 describe("Bridge exchange with valid session", () => {
-  it.skip("human exchanges session for DPoP-bound token for low-risk read", async () => {
+  it("human exchanges session for DPoP-bound token for low-risk read", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human user with an active dashboard session
@@ -59,7 +59,7 @@ describe("Bridge exchange with valid session", () => {
     expect(result.expires_in).toBeGreaterThan(0);
   });
 
-  it.skip("bridge token contains correct sender binding and authorization details", async () => {
+  it("bridge token contains correct sender binding and authorization details", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human with an active session
@@ -86,7 +86,7 @@ describe("Bridge exchange with valid session", () => {
     expect(authDetails[0]?.type).toBe("brain_action");
   });
 
-  it.skip("low-risk read operation auto-approves without veto window", async () => {
+  it("low-risk read operation auto-approves without veto window", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human requesting a low-risk read operation
@@ -107,7 +107,7 @@ describe("Bridge exchange with valid session", () => {
     // The immediacy of the response proves no veto window was triggered
   });
 
-  it.skip("bridge token can be used to access Brain endpoints", async () => {
+  it("bridge token can be used to access Brain endpoints", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human with a bridge-issued DPoP token
@@ -136,7 +136,7 @@ describe("Bridge exchange with valid session", () => {
 });
 
 describe("Bridge exchange triggers veto window for high-risk operations", () => {
-  it.skip("high-risk write operation triggers evaluation before token issuance", async () => {
+  it("high-risk write operation triggers evaluation before token issuance", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human requesting a potentially risky write operation
@@ -174,7 +174,7 @@ describe("Bridge exchange triggers veto window for high-risk operations", () => 
 });
 
 describe("Bridge exchange rejection for invalid sessions", () => {
-  it.skip("expired or invalid session is rejected by the Bridge", async () => {
+  it("expired or invalid session is rejected by the Bridge", async () => {
     const { baseUrl } = getRuntime();
 
     // Given an expired session cookie
@@ -195,7 +195,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Bridge exchange without any session is rejected", async () => {
+  it("Bridge exchange without any session is rejected", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a request to the Bridge without session credentials
@@ -221,7 +221,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
     expect(response.status).toBe(401);
   });
 
-  it.skip("Bridge exchange without DPoP proof is rejected", async () => {
+  it("Bridge exchange without DPoP proof is rejected", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human with a valid session but no DPoP proof
@@ -245,7 +245,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("Bridge exchange without authorization_details is rejected", async () => {
+  it("Bridge exchange without authorization_details is rejected", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a human with a valid session and key pair

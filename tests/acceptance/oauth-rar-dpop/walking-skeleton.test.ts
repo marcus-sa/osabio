@@ -77,13 +77,13 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
 
     // Then the intent is accepted with a DPoP thumbprint binding
     expect(intentResponse.ok).toBe(true);
-    const intentResult = (await intentResponse.json()) as { intentId: string; status: string };
-    expect(intentResult.intentId).toBeTruthy();
+    const intentResult = (await intentResponse.json()) as { intent_id: string; status: string };
+    expect(intentResult.intent_id).toBeTruthy();
 
     // And the intent proceeds through evaluation to authorization
     const finalStatus = await waitForIntentStatus(
       surreal,
-      intentResult.intentId,
+      intentResult.intent_id,
       ["authorized", "pending_veto"],
       60_000,
     );
@@ -101,7 +101,7 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
 
     const tokenResponse = await requestAccessToken(
       baseUrl,
-      intentResult.intentId,
+      intentResult.intent_id,
       keyPair,
       [brainAction],
     );

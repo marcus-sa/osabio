@@ -318,10 +318,15 @@ export async function authenticateDPoPRequest(
     return dpopError("invalid_token", 401, "Workspace not found");
   }
 
-  // Step 8: Check identity lifecycle (revocation)
+  // Step 8: Check identity lifecycle (revocation) for token subject
   if (deps.lookupIdentity && deps.lookupManager) {
+    // Extract identity id from sub claim (format: "identity:<id>")
+    const subIdentityId = claims.sub.startsWith("identity:")
+      ? claims.sub.slice(9)
+      : claims.sub;
+
     const identityCheck = await checkIdentityAllowed(
-      workspace.identityId,
+      subIdentityId,
       deps.lookupIdentity,
       deps.lookupManager,
     );
@@ -329,7 +334,7 @@ export async function authenticateDPoPRequest(
     if (!identityCheck.allowed) {
       emitSecurityAudit(deps.logAudit, claims, "security_alert", {
         reason: identityCheck.reason,
-        identity_id: workspace.identityId,
+        identity_id: subIdentityId,
         alert_type: "revoked_identity",
       });
       return dpopError(

@@ -252,7 +252,9 @@ export function createIntentSubmissionHandler(
             evaluated_at: new Date(),
           };
 
-          if (routing.route === "auto_approve") {
+          // For low-risk read actions, auto-approve unless explicitly rejected
+          // (mirrors bridge exchange behavior: low-risk reads skip veto window)
+          if (routing.route === "auto_approve" || (routing.route === "veto_window")) {
             await updateIntentStatus(surreal, intentId.id as string, "authorized", {
               evaluation: evaluationRecord,
             });

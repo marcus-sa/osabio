@@ -56,7 +56,7 @@ describe("DPoP key pair lifecycle", () => {
     expect(keyPair.thumbprint.length).toBeGreaterThan(20);
   });
 
-  it.skip("key pair generation completes within 50ms", async () => {
+  it("key pair generation completes within 50ms", async () => {
     // Given the need for responsive key generation in agent sandboxes
 
     // When timing the key generation
@@ -68,7 +68,7 @@ describe("DPoP key pair lifecycle", () => {
     expect(elapsed).toBeLessThan(50);
   });
 
-  it.skip("thumbprint is deterministic for the same public key", async () => {
+  it("thumbprint is deterministic for the same public key", async () => {
     // Given a generated key pair
     const keyPair = await generateActorKeyPair();
 
@@ -83,7 +83,7 @@ describe("DPoP key pair lifecycle", () => {
     expect(thumbprint1).toBe(keyPair.thumbprint);
   });
 
-  it.skip("different key pairs produce different thumbprints", async () => {
+  it("different key pairs produce different thumbprints", async () => {
     // Given two actors each generating their own key pair
     const keyPair1 = await generateActorKeyPair();
     const keyPair2 = await generateActorKeyPair();
@@ -92,7 +92,7 @@ describe("DPoP key pair lifecycle", () => {
     expect(keyPair1.thumbprint).not.toBe(keyPair2.thumbprint);
   });
 
-  it.skip("key pair is reusable across multiple operations in the same session", async () => {
+  it("key pair is reusable across multiple operations in the same session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace and agent with a session key pair
@@ -125,7 +125,7 @@ describe("DPoP key pair lifecycle", () => {
 // =============================================================================
 
 describe("Intent submission with DPoP thumbprint binding", () => {
-  it.skip("intent submitted with brain_action and thumbprint is accepted", async () => {
+  it("intent submitted with brain_action and thumbprint is accepted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a registered agent
@@ -150,20 +150,20 @@ describe("Intent submission with DPoP thumbprint binding", () => {
 
     // Then the intent is accepted
     expect(response.ok).toBe(true);
-    const result = (await response.json()) as { intentId: string; status: string };
-    expect(result.intentId).toBeTruthy();
+    const result = (await response.json()) as { intent_id: string; status: string };
+    expect(result.intent_id).toBeTruthy();
 
     // And the thumbprint is stored in the intent record
     const rows = (await surreal.query(
       `SELECT dpop_jwk_thumbprint, authorization_details FROM intent WHERE id = $intent;`,
-      { intent: new (await import("surrealdb")).RecordId("intent", result.intentId) },
+      { intent: new (await import("surrealdb")).RecordId("intent", result.intent_id) },
     )) as Array<Array<{ dpop_jwk_thumbprint: string; authorization_details: Array<{ type: string }> }>>;
 
     expect(rows[0]?.[0]?.dpop_jwk_thumbprint).toBe(keyPair.thumbprint);
     expect(rows[0]?.[0]?.authorization_details[0]?.type).toBe("brain_action");
   });
 
-  it.skip("intent submission without thumbprint is rejected", async () => {
+  it("intent submission without thumbprint is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace and agent
@@ -191,7 +191,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     expect(error.error).toContain("thumbprint");
   });
 
-  it.skip("intent submission without authorization_details is rejected", async () => {
+  it("intent submission without authorization_details is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace and agent with a key pair
@@ -218,7 +218,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     expect(response.status).toBe(400);
   });
 
-  it.skip("intent with authorization_details type other than brain_action is rejected", async () => {
+  it("intent with authorization_details type other than brain_action is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace and agent
@@ -245,7 +245,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     expect(response.status).toBe(400);
   });
 
-  it.skip("low-risk read intent auto-approves without human intervention", async () => {
+  it("low-risk read intent auto-approves without human intervention", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with an agent submitting a low-risk read operation
@@ -269,19 +269,19 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     );
 
     expect(response.ok).toBe(true);
-    const result = (await response.json()) as { intentId: string };
+    const result = (await response.json()) as { intent_id: string };
 
     // Then the intent is auto-approved without entering the veto window
     const finalStatus = await waitForIntentStatus(
       surreal,
-      result.intentId,
+      result.intent_id,
       ["authorized"],
       60_000,
     );
     expect(finalStatus).toBe("authorized");
   }, 120_000);
 
-  it.skip("intent submission preserves authorization_details with constraints", async () => {
+  it("intent submission preserves authorization_details with constraints", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an agent submitting an intent with specific constraints
@@ -303,11 +303,11 @@ describe("Intent submission with DPoP thumbprint binding", () => {
 
     // Then the constraints are preserved in the stored intent
     expect(response.ok).toBe(true);
-    const result = (await response.json()) as { intentId: string };
+    const result = (await response.json()) as { intent_id: string };
 
     const rows = (await surreal.query(
       `SELECT authorization_details FROM intent WHERE id = $intent;`,
-      { intent: new (await import("surrealdb")).RecordId("intent", result.intentId) },
+      { intent: new (await import("surrealdb")).RecordId("intent", result.intent_id) },
     )) as Array<Array<{ authorization_details: Array<{ constraints?: Record<string, unknown> }> }>>;
 
     expect(rows[0]?.[0]?.authorization_details[0]?.constraints?.task_id).toBe("task-123");

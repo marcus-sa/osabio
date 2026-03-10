@@ -171,7 +171,7 @@ describe("verifyOperationScope", () => {
     }
   });
 
-  test("non-numeric constraint followed by exceeding numeric constraint is caught", () => {
+  test("string constraint mismatch is caught before numeric constraint", () => {
     const requested = createBrainAction("read", "workspace", {
       format: "json",
       max_results: 200,
@@ -187,7 +187,7 @@ describe("verifyOperationScope", () => {
     expect(result.authorized).toBe(false);
     if (!result.authorized) {
       expect(result.code).toBe("authorization_params_exceeded");
-      expect(result.error).toContain("max_results");
+      expect(result.error).toContain("format");
     }
   });
 

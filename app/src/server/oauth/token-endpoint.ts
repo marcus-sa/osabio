@@ -10,6 +10,8 @@
  *
  * Step: 02-04
  */
+import { RecordId } from "surrealdb";
+import type { Surreal } from "surrealdb";
 import type { BrainAction } from "./types";
 import { findExceededConstraint } from "./rar-verifier";
 import type { IntentRecord } from "../intent/types";
@@ -21,6 +23,11 @@ import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { logAuditEvent, createAuditEvent } from "./audit";
 import { oauthErrorResponse } from "./oauth-errors";
+import {
+  checkIdentityAllowed,
+  type LookupIdentity,
+  type LookupManager,
+} from "./identity-lifecycle";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -252,6 +259,27 @@ export function createTokenEndpointHandler(
       );
     }
 
+    // 3b. Check identity lifecycle (revocation + manager status)
+    const requesterId = typeof intent.requester === "object" && intent.requester !== undefined
+      ? (intent.requester.id as string)
+      : String(intent.requester);
+
+    const lookupIdentity = createSurrealIdentityLookupForToken(surreal);
+    const lookupManager = createSurrealManagerLookupForToken(surreal);
+    const identityCheck = await checkIdentityAllowed(
+      requesterId,
+      lookupIdentity,
+      lookupManager,
+    );
+
+    if (!identityCheck.allowed) {
+      logInfo("token.endpoint.identity_blocked", "Token request blocked by identity check", {
+        intentId: data.intentId,
+        reason: identityCheck.reason,
+      });
+      return oauthErrorResponse("invalid_grant", identityCheck.reason, 403);
+    }
+
     // 4. Verify intent status and thumbprint match
     const intentVerification = verifyIntentForTokenIssuance(
       intent,
@@ -349,5 +377,56 @@ export function createTokenEndpointHandler(
       logError("token.endpoint.error", "Token issuance failed", error);
       return oauthErrorResponse("server_error", "Internal server error", 500);
     }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// SurrealDB Identity Lookups for Token Endpoint
+// ---------------------------------------------------------------------------
+
+import type { ResolvedIdentity, ResolvedManager } from "./identity-lifecycle";
+
+type SurrealIdentityRow = {
+  identityId: string;
+  identityType: string;
+  identityStatus?: string;
+  managedBy?: string;
+  revokedAt?: string;
+};
+
+function createSurrealIdentityLookupForToken(surreal: Surreal): LookupIdentity {
+  return async (identityId: string) => {
+    const rows = await surreal.query<[SurrealIdentityRow[]]>(
+      `SELECT meta::id(id) AS identityId, type AS identityType, identity_status AS identityStatus, managed_by AS managedBy, revoked_at AS revokedAt FROM $identity;`,
+      { identity: new RecordId("identity", identityId) },
+    );
+
+    const row = rows[0]?.[0];
+    if (!row) return undefined;
+
+    return {
+      identityId: row.identityId,
+      identityType: row.identityType as ResolvedIdentity["identityType"],
+      identityStatus: (row.identityStatus ?? "active") as ResolvedIdentity["identityStatus"],
+      managedBy: row.managedBy,
+      revokedAt: row.revokedAt ? new Date(row.revokedAt) : undefined,
+    };
+  };
+}
+
+function createSurrealManagerLookupForToken(surreal: Surreal): LookupManager {
+  return async (managerId: string) => {
+    const rows = await surreal.query<[Array<{ identityStatus?: string }>]>(
+      `SELECT identity_status AS identityStatus FROM identity WHERE meta::id(id) = $managerId LIMIT 1;`,
+      { managerId },
+    );
+
+    const row = rows[0]?.[0];
+    if (!row) return undefined;
+
+    return {
+      identityId: managerId,
+      identityStatus: (row.identityStatus ?? "active") as ResolvedManager["identityStatus"],
+    };
   };
 }

@@ -45,7 +45,7 @@ const getRuntime = setupOAuthSuite("oauth_m5_consent_identity");
 // =============================================================================
 
 describe("Consent display for pending intents", () => {
-  it.skip("brain_action is rendered in human-readable form for review", async () => {
+  it("brain_action is rendered in human-readable form for review", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a high-risk intent waiting in the veto window
@@ -116,7 +116,7 @@ describe("Consent display for pending intents", () => {
 });
 
 describe("Consent actions from human review", () => {
-  it.skip("human approves a pending intent from the consent display", async () => {
+  it("human approves a pending intent from the consent display", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a pending intent in the veto window
@@ -150,7 +150,7 @@ describe("Consent actions from human review", () => {
     expect(rows[0]?.[0]?.status).toBe("authorized");
   });
 
-  it.skip("human vetoes a pending intent with a reason", async () => {
+  it("human vetoes a pending intent with a reason", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a pending intent in the veto window
@@ -192,7 +192,7 @@ describe("Consent actions from human review", () => {
     expect(rows[0]?.[0]?.veto_reason).toContain("more context");
   });
 
-  it.skip("human constrains a pending intent to tighter bounds", async () => {
+  it("human constrains a pending intent to tighter bounds", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a pending intent with broad constraints
@@ -242,7 +242,7 @@ describe("Consent actions from human review", () => {
     expect(rows[0]?.[0]?.authorization_details[0]?.constraints?.max_changes).toBe(3);
   });
 
-  it.skip("constrain rejects looser bounds than original authorization", async () => {
+  it("constrain rejects looser bounds than original authorization", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a pending intent with specific constraints
@@ -291,7 +291,7 @@ describe("Consent actions from human review", () => {
 // =============================================================================
 
 describe("Managed agent identity lifecycle", () => {
-  it.skip("agent identity records managed_by relationship to human owner", async () => {
+  it("agent identity records managed_by relationship to human owner", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a human user who manages an agent
@@ -312,7 +312,7 @@ describe("Managed agent identity lifecycle", () => {
     expect(rows[0]?.[0]?.managed_by).toBe("user-123");
   });
 
-  it.skip("managed agent cannot acquire tokens when managing human is inactive", async () => {
+  it("managed agent cannot acquire tokens when managing human is inactive", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a managed agent whose human owner has been deactivated
@@ -343,7 +343,7 @@ describe("Managed agent identity lifecycle", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("revoked agent identity cannot submit new intents", async () => {
+  it("revoked agent identity cannot submit new intents", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a managed agent whose identity has been revoked
@@ -356,7 +356,7 @@ describe("Managed agent identity lifecycle", () => {
 
     // And the agent identity is revoked
     await surreal.query(
-      `UPDATE $identity SET status = "revoked", revoked_at = time::now();`,
+      `UPDATE $identity SET identity_status = "revoked", revoked_at = time::now();`,
       { identity: new RecordId("identity", agentId) },
     );
 
@@ -377,7 +377,7 @@ describe("Managed agent identity lifecycle", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("revoked agent tokens issued before revocation are rejected at Brain boundary", async () => {
+  it("revoked agent tokens issued before revocation are rejected at Brain boundary", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a managed agent that was previously authorized and received a token
@@ -405,7 +405,7 @@ describe("Managed agent identity lifecycle", () => {
 
     // When the agent identity is revoked after the token was issued
     await surreal.query(
-      `UPDATE $identity SET status = "revoked", revoked_at = time::now();`,
+      `UPDATE $identity SET identity_status = "revoked", revoked_at = time::now();`,
       { identity: new RecordId("identity", agentId) },
     );
 

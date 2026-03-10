@@ -6,6 +6,7 @@ import { resolveIntentContext, type IntentContextInput } from "./intent-context"
 import { authenticateAndAuthorize } from "./mcp-dpop-auth";
 import type { DPoPAuthResult } from "../oauth/types";
 import type { DPoPVerificationDeps, LookupWorkspace } from "../oauth/dpop-middleware";
+import type { LookupIdentity, LookupManager, ResolvedIdentity, ResolvedManager } from "../oauth/identity-lifecycle";
 import { checkAuthority, checkAuthorityOrError } from "../iam/authority";
 import type { AgentType } from "../chat/tools/types";
 import {
@@ -123,10 +124,47 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     return { name: workspace.name, identityId };
   };
 
+  const lookupIdentity: LookupIdentity = async (identityId: string) => {
+    const [rows] = await surreal.query<[Array<{
+      identityId: string;
+      identityType: string;
+      identityStatus?: string;
+      managedBy?: string;
+      revokedAt?: string;
+    }>]>(
+      `SELECT meta::id(id) AS identityId, type AS identityType, identity_status AS identityStatus, managed_by AS managedBy, revoked_at AS revokedAt FROM $identity;`,
+      { identity: new RecordId("identity", identityId) },
+    );
+    const row = rows[0];
+    if (!row) return undefined;
+    return {
+      identityId: row.identityId,
+      identityType: row.identityType as ResolvedIdentity["identityType"],
+      identityStatus: (row.identityStatus ?? "active") as ResolvedIdentity["identityStatus"],
+      managedBy: row.managedBy,
+      revokedAt: row.revokedAt ? new Date(row.revokedAt) : undefined,
+    };
+  };
+
+  const lookupManager: LookupManager = async (managerId: string) => {
+    const [rows] = await surreal.query<[Array<{ identityStatus?: string }>]>(
+      `SELECT identity_status AS identityStatus FROM identity WHERE meta::id(id) = $managerId LIMIT 1;`,
+      { managerId },
+    );
+    const row = rows[0];
+    if (!row) return undefined;
+    return {
+      identityId: managerId,
+      identityStatus: (row.identityStatus ?? "active") as ResolvedManager["identityStatus"],
+    };
+  };
+
   const dpopDeps: DPoPVerificationDeps = {
     asSigningKey: deps.asSigningKey,
     nonceCache: deps.nonceCache,
     lookupWorkspace,
+    lookupIdentity,
+    lookupManager,
   };
 
   // ---- Auth helper: DPoP + RAR verification ----

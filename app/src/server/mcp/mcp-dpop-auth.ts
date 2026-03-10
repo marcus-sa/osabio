@@ -15,7 +15,7 @@ import { jsonResponse } from "../http/response";
 import { authenticateDPoPRequest, type DPoPVerificationDeps } from "../oauth/dpop-middleware";
 import { deriveRequestedAction } from "../oauth/route-action-map";
 import { verifyOperationScope } from "../oauth/rar-verifier";
-import type { DPoPAuthResult } from "../oauth/types";
+import type { BrainAction, DPoPAuthResult } from "../oauth/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +26,56 @@ export type DPoPAuthenticator = (
   request: Request,
   deps: DPoPVerificationDeps,
 ) => Promise<DPoPAuthResult | Response>;
+
+// ---------------------------------------------------------------------------
+// Constraint extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract constraint-relevant fields from the request body.
+ *
+ * Finds the matching authorized action, reads its constraint keys,
+ * then extracts those same keys from the request body to build
+ * the requested constraints for scope verification.
+ */
+async function extractRequestConstraints(
+  request: Request,
+  requestedAction: BrainAction,
+  authorizedActions: BrainAction[],
+): Promise<Record<string, unknown> | undefined> {
+  // Find matching authorized action with constraints
+  const matchingAuth = authorizedActions.find(
+    (auth) =>
+      auth.type === requestedAction.type &&
+      auth.action === requestedAction.action &&
+      auth.resource === requestedAction.resource &&
+      auth.constraints !== undefined,
+  );
+
+  if (!matchingAuth?.constraints) return undefined;
+
+  // Read the request body to extract constraint-relevant fields
+  const constraintKeys = Object.keys(matchingAuth.constraints);
+  if (constraintKeys.length === 0) return undefined;
+
+  try {
+    const cloned = request.clone();
+    const body = await cloned.json() as Record<string, unknown>;
+    const requestedConstraints: Record<string, unknown> = {};
+    let hasConstraint = false;
+
+    for (const key of constraintKeys) {
+      if (key in body) {
+        requestedConstraints[key] = body[key];
+        hasConstraint = true;
+      }
+    }
+
+    return hasConstraint ? requestedConstraints : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Pipeline
@@ -59,7 +109,18 @@ export async function authenticateAndAuthorize(
     );
   }
 
-  // Step 3: Verify operation scope against token's authorization_details
+  // Step 3: Extract constraints from request body if token has constrained authorizations
+  const requestedConstraints = await extractRequestConstraints(
+    request,
+    requestedAction,
+    authResult.authorizationDetails,
+  );
+
+  if (requestedConstraints) {
+    requestedAction.constraints = requestedConstraints;
+  }
+
+  // Step 4: Verify operation scope against token's authorization_details
   const verification = verifyOperationScope(requestedAction, authResult.authorizationDetails);
 
   if (!verification.authorized) {

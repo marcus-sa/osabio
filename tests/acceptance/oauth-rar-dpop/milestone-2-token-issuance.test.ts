@@ -37,7 +37,7 @@ const getRuntime = setupOAuthSuite("oauth_m2_token_issuance");
 // =============================================================================
 
 describe("Token issuance for authorized intents", () => {
-  it.skip("authorized intent receives DPoP-bound access token", async () => {
+  it("authorized intent receives DPoP-bound access token", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with an agent that has an authorized intent
@@ -65,7 +65,7 @@ describe("Token issuance for authorized intents", () => {
     expect(result.expires_in).toBeLessThanOrEqual(300);
   });
 
-  it.skip("issued token contains sender binding and authorization details", async () => {
+  it("issued token contains sender binding and authorization details", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent
@@ -103,7 +103,7 @@ describe("Token issuance for authorized intents", () => {
     expect(intentClaim).toBe(intentId);
   });
 
-  it.skip("token has maximum TTL of 300 seconds", async () => {
+  it("token has maximum TTL of 300 seconds", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent
@@ -133,7 +133,7 @@ describe("Token issuance for authorized intents", () => {
 });
 
 describe("Token issuance rejection for invalid requests", () => {
-  it.skip("token rejected when intent is not in authorized status", async () => {
+  it("token rejected when intent is not in authorized status", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that is still pending authorization
@@ -159,7 +159,7 @@ describe("Token issuance rejection for invalid requests", () => {
     expect(error.error).toBeTruthy();
   });
 
-  it.skip("token rejected when intent has been vetoed", async () => {
+  it("token rejected when intent has been vetoed", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an intent that was vetoed by a human
@@ -183,7 +183,7 @@ describe("Token issuance rejection for invalid requests", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("token rejected when DPoP proof key does not match intent thumbprint", async () => {
+  it("token rejected when DPoP proof key does not match intent thumbprint", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent bound to one key pair
@@ -209,7 +209,7 @@ describe("Token issuance rejection for invalid requests", () => {
     expect(error.error).toBeTruthy();
   });
 
-  it.skip("token rejected when authorization_details do not match intent", async () => {
+  it("token rejected when authorization_details do not match intent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent for a read operation
@@ -233,7 +233,7 @@ describe("Token issuance rejection for invalid requests", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("token rejected for non-existent intent", async () => {
+  it("token rejected for non-existent intent", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a fabricated intent ID that does not exist
@@ -249,7 +249,7 @@ describe("Token issuance rejection for invalid requests", () => {
     expect(response.ok).toBe(false);
   });
 
-  it.skip("token rejected when DPoP proof is missing", async () => {
+  it("token rejected when DPoP proof is missing", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent
@@ -280,7 +280,7 @@ describe("Token issuance rejection for invalid requests", () => {
 });
 
 describe("Token re-issuance", () => {
-  it.skip("agent can request new token for same authorized intent after expiry", async () => {
+  it("agent can request new token for same authorized intent after expiry", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an authorized intent that has already been used to issue a token

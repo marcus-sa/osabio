@@ -49,7 +49,7 @@ export type BrainAction = {
 };
 
 export type IntentSubmissionResult = {
-  intentId: string;
+  intent_id: string;
   status: string;
 };
 
@@ -341,16 +341,15 @@ export async function makeDPoPProtectedRequest(
   const headers: Record<string, string> = {
     Authorization: `DPoP ${accessToken}`,
     DPoP: dpopProof,
+    "Content-Type": "application/json",
   };
 
-  if (options?.body) {
-    headers["Content-Type"] = "application/json";
-  }
+  const body = options?.body ?? {};
 
   return fetch(requestUri, {
     method,
     headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    body: JSON.stringify(body),
   });
 }
 
