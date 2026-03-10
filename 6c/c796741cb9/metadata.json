@@ -3,13 +3,16 @@
   "checkpoint_id": "6cc796741cb9",
   "strategy": "manual-commit",
   "branch": "marcus-sa/oauth-rar-dpop-server",
-  "checkpoints_count": 3,
+  "checkpoints_count": 8,
   "files_touched": [
     "AGENTS.md",
     "app/src/server/mcp/commit-check.ts",
+    "app/src/server/mcp/mcp-queries.ts",
+    "app/src/server/mcp/mcp-route.ts",
     "app/src/server/orchestrator/worktree-manager.ts",
     "tests/acceptance/coding-agent-orchestrator/orchestrator-test-kit.ts",
-    "tests/unit/coding-agent-orchestrator/worktree-manager.test.ts"
+    "tests/unit/coding-agent-orchestrator/worktree-manager.test.ts",
+    "tests/unit/task-status-ownership/commit-check-logic.test.ts"
   ],
   "sessions": [
     {
@@ -18,13 +21,20 @@
       "context": "/6c/c796741cb9/0/context.md",
       "content_hash": "/6c/c796741cb9/0/content_hash.txt",
       "prompt": "/6c/c796741cb9/0/prompt.txt"
+    },
+    {
+      "metadata": "/6c/c796741cb9/1/metadata.json",
+      "transcript": "/6c/c796741cb9/1/full.jsonl",
+      "context": "/6c/c796741cb9/1/context.md",
+      "content_hash": "/6c/c796741cb9/1/content_hash.txt",
+      "prompt": "/6c/c796741cb9/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 97,
-    "cache_creation_tokens": 264953,
-    "cache_read_tokens": 4184089,
-    "output_tokens": 12432,
-    "api_call_count": 46
+    "input_tokens": 196,
+    "cache_creation_tokens": 397681,
+    "cache_read_tokens": 6133512,
+    "output_tokens": 22289,
+    "api_call_count": 88
   }
 }
