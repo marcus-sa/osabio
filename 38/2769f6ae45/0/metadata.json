@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "382769f6ae45",
+  "session_id": "9a3e3528-2bae-44a9-ba1d-45ac4c351d00",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T11:11:56.223245Z",
+  "branch": "marcus-sa/oauth-rar-dpop-server",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/oauth/token-endpoint.ts",
+    "tests/unit/oauth/rar-verifier.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d4dd40adf0b8",
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 421653,
+    "cache_read_tokens": 6292456,
+    "output_tokens": 59317,
+    "api_call_count": 73
+  }
+}
