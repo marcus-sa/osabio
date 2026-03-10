@@ -3,7 +3,7 @@
   "checkpoint_id": "db22fcb03026",
   "strategy": "manual-commit",
   "branch": "marcus-sa/policy-node",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     ".nwave/des-config.json",
     ".nwave/des/deliver-session.json",
@@ -35,13 +35,20 @@
       "context": "/db/22fcb03026/0/context.md",
       "content_hash": "/db/22fcb03026/0/content_hash.txt",
       "prompt": "/db/22fcb03026/0/prompt.txt"
+    },
+    {
+      "metadata": "/db/22fcb03026/1/metadata.json",
+      "transcript": "/db/22fcb03026/1/full.jsonl",
+      "context": "/db/22fcb03026/1/context.md",
+      "content_hash": "/db/22fcb03026/1/content_hash.txt",
+      "prompt": "/db/22fcb03026/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 6,
-    "cache_creation_tokens": 31357,
-    "cache_read_tokens": 49131,
-    "output_tokens": 133,
-    "api_call_count": 2
+    "input_tokens": 40,
+    "cache_creation_tokens": 143229,
+    "cache_read_tokens": 1618559,
+    "output_tokens": 25715,
+    "api_call_count": 20
   }
 }

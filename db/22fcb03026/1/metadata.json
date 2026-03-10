@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "db22fcb03026",
+  "session_id": "a3f55bb4-088d-4748-ba1b-d9c55980191b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-10T19:10:31.710768Z",
+  "branch": "marcus-sa/policy-node",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "INTENT_SPEC.md",
+    "docs/plans/iam/README.md",
+    "docs/plans/iam/phase-1.md",
+    "docs/plans/iam/phase-2.md",
+    "docs/plans/iam/phase-3.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8cf5e415e5fa",
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 111872,
+    "cache_read_tokens": 1569428,
+    "output_tokens": 25582,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-10T19:10:31.414887Z",
+    "agent_lines": 1,
+    "human_added": 1830,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1831,
+    "agent_percentage": 0.05461496450027307
+  }
+}

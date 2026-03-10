@@ -1,0 +1,889 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:distill  policy-node
+
+---
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOP informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md | user-stories.md
+- docs/feature/{feature-name}/design/architecture-design.md | component-boundaries.md | technology-stack.md
+- docs/feature/{feature-name}/deliver/* (infrastructure design from DEVOP)
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-name}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw:distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-name}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-name}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
+
+
+ARGUMENTS: policy-node
+
+---
+
+<task-notification>
+<task-id>a9eae717268850326</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Review policy-node acceptance tests" completed</summary>
+<result>Perfect. Now I have all the information needed to conduct a comprehensive review. Let me produce the structured YAML review output.
+
+```yaml
+approval_status: "approved"
+
+review_date: "2026-01-30"
+review_scope: "Policy-node acceptance test suite (DISTILL wave output)"
+test_files_reviewed: 5
+test_scenarios: 24
+
+# ============================================================================
+# CRITERION 1: User Story Coverage (US-1 through US-10)
+# ============================================================================
+criterion_1_user_story_coverage:
+  status: "pass"
+  score: 10
+  findings:
+    - story: "US-1 (Create Policy Record)"
+      status: "covered"
+      tests:
+        - "milestone-1-schema-and-lifecycle.test.ts:35-68 (creates policy with all fields)"
+        - "milestone-1-schema-and-lifecycle.test.ts:74-110 (rejects invalid effect)"
+        - "milestone-1-schema-and-lifecycle.test.ts:116-147 (rejects invalid status)"
+      coverage: "3 scenarios"
+      
+    - story: "US-2 (Policy Lifecycle Management)"
+      status: "covered"
+      tests:
+        - "milestone-1-schema-and-lifecycle.test.ts:155-199 (draft -> active with edges)"
+        - "milestone-1-schema-and-lifecycle.test.ts:205-245 (active -> deprecated removes edges)"
+      coverage: "2 scenarios"
+      
+    - story: "US-3 (Graph Relations)"
+      status: "covered"
+      tests:
+        - "milestone-1-schema-and-lifecycle.test.ts:253-281 (governing edge with created_at)"
+        - "milestone-1-schema-and-lifecycle.test.ts:287-315 (protects edge with created_at)"
+      coverage: "2 scenarios"
+      
+    - story: "US-4 (Policy Gate Graph Traversal)"
+      status: "covered"
+      tests:
+        - "walking-skeleton.test.ts:45-123 (skeleton 1: deny blocks intent)"
+        - "milestone-2-policy-gate-evaluation.test.ts:40-79 (loads from identity + workspace edges)"
+        - "milestone-2-policy-gate-evaluation.test.ts:85-123 (excludes deprecated policies)"
+      coverage: "3 scenarios"
+      
+    - story: "US-5 (Rule Evaluation Engine)"
+      status: "covered"
+      tests:
+        - "walking-skeleton.test.ts:45-123 (skeleton 1: deny short-circuits)"
+        - "milestone-2-policy-gate-evaluation.test.ts:131-197 (deny at priority 100 short-circuits)"
+        - "milestone-2-policy-gate-evaluation.test.ts:203-247 (allow rules pass when no deny)"
+        - "milestone-2-policy-gate-evaluation.test.ts:253-299 (no match = pass)"
+      coverage: "4 scenarios"
+      
+    - story: "US-6 (Human Veto Gate)"
+      status: "covered"
+      tests:
+        - "milestone-2-policy-gate-evaluation.test.ts:307-365 (human_veto_required forces veto window)"
+      coverage: "1 scenario"
+      
+    - story: "US-7 (Policy Evaluation Trace)"
+      status: "covered"
+      tests:
+        - "walking-skeleton.test.ts:45-123 (skeleton 1 records trace)"
+        - "milestone-3-audit-and-authorization.test.ts:39-117 (trace with all rules)"
+        - "milestone-3-audit-and-authorization.test.ts:123-179 (trace IDs only, no titles)"
+      coverage: "3 scenarios"
+      
+    - story: "US-8 (Audit Event Extensions)"
+      status: "covered"
+      tests:
+        - "milestone-3-audit-and-authorization.test.ts:187-221 (lifecycle events produce audit_events)"
+      coverage: "1 scenario"
+      
+    - story: "US-9 (Backward Compatibility)"
+      status: "covered"
+      tests:
+        - "walking-skeleton.test.ts:131-178 (skeleton 2: empty policy set passes)"
+        - "milestone-2-policy-gate-evaluation.test.ts:373-409 (no policies = pass)"
+      coverage: "2 scenarios"
+      
+    - story: "US-10 (Policy Version Immutability)"
+      status: "covered"
+      tests:
+        - "milestone-1-schema-and-lifecycle.test.ts:323-379 (new version supersedes old)"
+      coverage: "1 scenario"
+
+  summary: "All 10 user stories covered with 24 acceptance test scenarios across 5 test files"
+
+# ============================================================================
+# CRITERION 2: Acceptance Criteria Coverage (AC-1 through AC-12)
+# ============================================================================
+criterion_2_acceptance_criteria_coverage:
+  status: "pass"
+  score: 10
+  findings:
+    - ac: "AC-1 (Create Policy Record)"
+      covered_by:
+        - "milestone-1-schema-and-lifecycle.test.ts:35-68 (happy path: all fields)"
+        - "milestone-1-schema-and-lifecycle.test.ts:74-110 (sad path: invalid effect ASSERT)"
+        - "milestone-1-schema-and-lifecycle.test.ts:116-147 (sad path: invalid status ASSERT)"
+      
+    - ac: "AC-2 (Policy Lifecycle Management)"
+      covered_by:
+        - "milestone-1-schema-and-lifecycle.test.ts:155-199 (draft -> active audit_event)"
+        - "milestone-1-schema-and-lifecycle.test.ts:205-245 (active -> deprecated removes edges)"
+      
+    - ac: "AC-3 (Graph Relations)"
+      covered_by:
+        - "milestone-1-schema-and-lifecycle.test.ts:253-281 (governing edge with created_at)"
+        - "milestone-1-schema-and-lifecycle.test.ts:287-315 (protects edge with created_at)"
+      
+    - ac: "AC-4 (Policy Gate Graph Traversal)"
+      covered_by:
+        - "milestone-2-policy-gate-evaluation.test.ts:40-79 (identity + workspace edges)"
+        - "milestone-2-policy-gate-evaluation.test.ts:85-123 (deprecated policies filtered)"
+      
+    - ac: "AC-5 (Rule Evaluation Engine)"
+      covered_by:
+        - "milestone-2-policy-gate-evaluation.test.ts:131-197 (deny short-circuit at priority 100)"
+        - "milestone-2-policy-gate-evaluation.test.ts:203-247 (allow rules pass)"
+        - "milestone-2-policy-gate-evaluation.test.ts:253-299 (no match = pass)"
+      
+    - ac: "AC-6 (Human Veto Gate)"
+      covered_by:
+        - "milestone-2-policy-gate-evaluation.test.ts:307-365 (forces veto_window)"
+      
+    - ac: "AC-7 (Policy Evaluation Trace)"
+      covered_by:
+        - "milestone-3-audit-and-authorization.test.ts:39-117 (entries for all rules)"
+        - "milestone-3-audit-and-authorization.test.ts:123-179 (IDs only, no denormalized titles)"
+      
+    - ac: "AC-8 (Audit Event Extensions)"
+      covered_by:
+        - "milestone-3-audit-and-authorization.test.ts:187-221 (policy_created, policy_activated with payload)"
+      
+    - ac: "AC-9 (Backward Compatibility)"
+      covered_by:
+        - "milestone-2-policy-gate-evaluation.test.ts:373-409 (empty set passes, trace empty)"
+      
+    - ac: "AC-10 (Policy Version Immutability)"
+      covered_by:
+        - "milestone-1-schema-and-lifecycle.test.ts:323-379 (old version superseded, rules unchanged)"
+      
+    - ac: "AC-11 (Rule Condition Error Handling)"
+      covered_by:
+        - "milestone-3-audit-and-authorization.test.ts:228-276 (missing field returns false, evaluation continues)"
+      
+    - ac: "AC-12 (Policy Authorization Model)"
+      covered_by:
+        - "milestone-3-audit-and-authorization.test.ts:283-307 (human identity can create policies)"
+        - "milestone-3-audit-and-authorization.test.ts:312-330 (agent identity type stored)"
+
+  summary: "All 12 acceptance criteria satisfied. 24 test scenarios map to AC-1 through AC-12"
+
+# ============================================================================
+# CRITERION 3: Hexagonal Boundary (Driving Ports, No Internal Component Imports)
+# ============================================================================
+criterion_3_hexagonal_boundary:
+  status: "pass"
+  score: 10
+  findings:
+    - analysis: "Test kit imports analysis"
+      file: "policy-test-kit.ts"
+      imports:
+        - "from surrealdb (SDK) -- driving port (database adapter)"
+        - "from ../intent-node/intent-test-kit (re-exported orchestrator test infrastructure)"
+      driving_ports_used:
+        - "Direct DB for policy CRUD via SurrealDB SDK"
+        - "Graph traversal queries for policy loading"
+        - "Intent evaluation pipeline via intent-test-kit"
+      assessment: "PASS - No internal component imports. Only driving ports (DB via SDK, orchestrator test helpers)"
+      
+    - analysis: "Walking skeleton test imports"
+      file: "walking-skeleton.test.ts"
+      imports:
+        - "from ./policy-test-kit (reusable kit layer)"
+      driving_ports_exercised:
+        - "Direct DB via createPolicy(), activatePolicy(), loadActivePoliciesForIdentity()"
+        - "Intent evaluation via createDraftIntent(), submitIntent()"
+        - "Policy gate simulation via simulatePolicyGateResult()"
+      assessment: "PASS - Tests use domain-language helpers from kit, not low-level DB code"
+      
+    - analysis: "Milestone 1 test imports"
+      file: "milestone-1-schema-and-lifecycle.test.ts"
+      imports:
+        - "from ./policy-test-kit"
+        - "from surrealdb (RecordId type)"
+      direct_db_queries:
+        - "Line 183-189: SELECT ->governing->policy FROM identity (graph traversal validation)"
+        - "Line 193-198: SELECT ->protects->workspace FROM policy (graph traversal validation)"
+      assessment: "PASS - Low-level queries used only for assertions, not test setup. Setup via kit helpers"
+      
+    - analysis: "Milestone 2 test imports"
+      file: "milestone-2-policy-gate-evaluation.test.ts"
+      imports:
+        - "from ./policy-test-kit"
+      assessment: "PASS - All setup via business-language kit helpers"
+      
+    - analysis: "Milestone 3 test imports"
+      file: "milestone-3-audit-and-authorization.test.ts"
+      imports:
+        - "from ./policy-test-kit"
+        - "from surrealdb (RecordId type)"
+      direct_db_query:
+        - "Line 323-326: SELECT type FROM identity (assertion query only)"
+      assessment: "PASS - Query used only for assertion, not setup"
+
+  architecture_alignment:
+    - "Tests reference driving ports: SurrealDB SDK (data adapter), HTTP orchestrator (intent routes), graph traversal"
+    - "Tests do NOT import internal implementation modules (policy-queries, predicate-evaluator, policy-gate pipeline)"
+    - "Component boundaries respected: policy-test-kit mediates between tests and DB, same as intent-test-kit pattern"
+    - "Policy gate pipeline will be tested internally via unit tests (predicate-evaluator is pure function)"
+
+  summary: "Zero internal component imports. All tests use driving ports (DB, orchestrator) via business-language kit"
+
+# ============================================================================
+# CRITERION 4: Walking Skeleton Minimality and Sufficiency
+# ============================================================================
+criterion_4_walking_skeleton:
+  status: "pass"
+  score: 9
+  findings:
+    - skeleton_1: "Policy deny blocks intent before LLM tier"
+      file: "walking-skeleton.test.ts:45-123"
+      test_name: "active deny policy blocks a deploy intent and records policy trace"
+      given:
+        - "Workspace with human admin"
+        - "Active policy with deny rule for action_spec.action == 'deploy'"
+        - "Agent identity"
+      when:
+        - "Agent submits intent with action == 'deploy'"
+        - "Policy gate evaluates"
+      then:
+        - "Policy loaded via graph traversal"
+        - "Deny rule matches, intent rejected (policy_only=true)"
+        - "Policy trace recorded with rule_id, effect, matched, priority"
+        - "LLM tier not called"
+      traces:
+        - "US-4 (Graph Traversal) -- loadActivePoliciesForIdentity() called"
+        - "US-5 (Rule Evaluation) -- deny rule matched and short-circuited"
+        - "US-7 (Policy Trace) -- trace array persisted on intent.evaluation"
+      sufficiency: "✓ Proves graph wiring, deny short-circuit, trace persistence in one end-to-end path"
+      
+    - skeleton_2: "Empty policy set preserves backward compatibility"
+      file: "walking-skeleton.test.ts:131-178"
+      test_name: "intent passes through policy gate when no active policies exist"
+      given:
+        - "Workspace with NO active policies"
+        - "Agent identity"
+      when:
+        - "Agent submits intent"
+      then:
+        - "Policy gate loads zero policies"
+        - "Intent passes through (empty set = pass)"
+        - "Proceeds to LLM evaluation (policy_only=false)"
+        - "Policy trace empty (not missing)"
+      traces:
+        - "US-9 (Backward Compatibility)"
+      sufficiency: "✓ Proves existing workspaces without policies continue unchanged"
+
+    - skeleton_count: "2 scenarios"
+    - scenario_count_total: "24 test scenarios across 5 files"
+    - minimal: "Walking skeleton is minimal (2 paths) but covers the essential E2E flow"
+    - sufficient: "Skeleton 1 validates core policy gate function (graph load -> deny eval -> reject); Skeleton 2 validates backward compat"
+    - integration_validated: "Skeleton tests use simulated policy gate (simulatePolicyGateResult) to decouple from implementation"
+
+  strength: "Walking skeleton follows the DISTILL wave mandate for minimal viable paths that prove end-to-end wiring"
+  minor_observation: "Skeletons use simulated evaluation; real policy gate pipeline integration tested in milestone-2 and milestone-3"
+
+  summary: "Walking skeleton is both minimal and sufficient. Proves critical paths: deny short-circuit, backward compat, trace persistence"
+
+# ============================================================================
+# CRITERION 5: GWT Format and Business Language
+# ============================================================================
+criterion_5_gwt_format_and_business_language:
+  status: "pass"
+  score: 9
+  findings:
+    - gwt_format:
+        analysis: "All 24 test scenarios follow Given-When-Then pattern"
+        pattern: "Confirmed in all test files via inline comments"
+        examples:
+          - file: "walking-skeleton.test.ts:45-123"
+            pattern: "// Given ... // When ... // Then ..."
+          - file: "milestone-1-schema-and-lifecycle.test.ts:35-68"
+            pattern: "// Given ... // When ... // Then ..."
+          - file: "milestone-2-policy-gate-evaluation.test.ts:40-79"
+            pattern: "// Given ... // When ... // Then ..."
+        
+    - single_when_validation:
+        analysis: "Each test has single When clause, multiple independent Then assertions"
+        status: "✓ Compliant"
+        note: "No tests branch on conditional logic; each scenario tests one behavior path"
+        
+    - business_language_purity:
+        analysis: "Feature files and test names use domain vocabulary"
+        examples:
+          - "active deny policy blocks a deploy intent" (business: deploy action, deny effect, blocking)"
+          - "intent passes through policy gate when no active policies exist" (business: gate, policy, pass-through)"
+          - "deprecating a policy removes all governing and protects edges" (business: policy lifecycle, graph edges)"
+          - "human_veto_required forces veto window even for low-risk intents" (business: veto, risk, approval flow)"
+        technical_terms_found: "None in scenario names or Given/When/Then comments"
+        assessment: "PASS - Pure business language"
+        
+    - test_kit_business_language:
+        file: "policy-test-kit.ts"
+        function_names:
+          - "createPolicy() -- clear domain action"
+          - "activatePolicy() -- lifecycle step"
+          - "deprecatePolicy() -- lifecycle step"
+          - "loadActivePoliciesForIdentity() -- mirrors production query name"
+          - "simulatePolicyGateResult() -- simulation for testing"
+          - "getAuditEventsForPolicy() -- query action"
+          - "createPolicyVersion() -- versioning action"
+        assessment: "✓ No jargon. All function names express domain intent"
+        
+    - comment_quality:
+        file: "milestone-1-schema-and-lifecycle.test.ts"
+        examples:
+          - "// Given a draft policy"
+          - "// When the admin activates the policy"
+          - "// Then the policy status is active"
+          - "// And the governing edge exists (identity -> policy)"
+          - "// And the protects edge exists (policy -> workspace)"
+        assessment: "Clear, concise, traces requirement"
+        
+    - no_implementation_leakage:
+        analysis: "Tests do NOT reference:"
+        check_list:
+          - "Internal query functions (policy-queries.ts) -- ✓ not referenced"
+          - "Predicate evaluator details -- ✓ not referenced"
+          - "SurrealQL syntax in test names -- ✓ not used"
+          - "RecordId internals -- ✓ abstracted via kit"
+        assessment: "PASS"
+
+  summary: "All scenarios follow GWT pattern. Business language pure throughout. No technical jargon in scenario names or comments"
+
+# ============================================================================
+# CRITERION 6: Test Kit Alignment with Intent-Node Pattern
+# ============================================================================
+criterion_6_test_kit_pattern_alignment:
+  status: "pass"
+  score: 10
+  findings:
+    - pattern_comparison:
+        intent_kit_structure: "/tests/acceptance/intent-node/intent-test-kit.ts"
+        policy_kit_structure: "/tests/acceptance/policy-node/policy-test-kit.ts"
+        
+    - re_export_strategy:
+        pattern: "policy-test-kit re-exports all intent-test-kit helpers"
+        example: |
+          export {
+            setupOrchestratorSuite,
+            createTestUser,
+            createTestWorkspace,
+            ...
+          } from "../intent-node/intent-test-kit";
+        assessment: "✓ Follows DRY principle. Composes intent infrastructure"
+        
+    - domain_specific_extensions:
+        pattern: "policy-test-kit adds policy-specific helpers only"
+        added_types:
+          - "RulePredicate, RuleCondition, PolicyRule, PolicySelector"
+          - "PolicyStatus, PolicyRecord, PolicyTraceEntry"
+          - "CreatePolicyOptions"
+        added_functions:
+          - "createPolicy(surreal, workspaceId, createdById, opts)"
+          - "activatePolicy(surreal, policyId, creatorId, workspaceId)"
+          - "deprecatePolicy(surreal, policyId)"
+          - "getPolicyRecord(surreal, policyId)"
+          - "loadActivePoliciesForIdentity(surreal, identityId, workspaceId)"
+          - "simulatePolicyGateResult(surreal, intentId, result, resultStatus)"
+          - "getAuditEventsForPolicy(surreal, policyId)"
+          - "createPolicyAuditEvent(surreal, eventType, actorId, workspaceId, policyId, version)"
+          - "createPolicyVersion(surreal, oldPolicyId, workspaceId, createdById, newRules)"
+        assessment: "✓ Cohesive set. No redundancy with intent kit"
+        
+    - business_language_consistency:
+        comparison: "Intent kit uses: createTestUser(), createTestWorkspace(), createDraftIntent(), getIntentStatus()"
+        policy_kit_uses: "createPolicy(), activatePolicy(), deprecatePolicy(), getPolicyRecord()"
+        consistency: "✓ Parallel naming: active verbs (create, get, activate) + domain noun"
+        
+    - driving_port_delegation:
+        pattern: "Both kits delegate to driving ports (SurrealDB, HTTP routes)"
+        intent_kit: "Uses SurrealDB SDK + HTTP in setupOrchestratorSuite"
+        policy_kit: "Uses SurrealDB SDK (same as intent kit)"
+        assessment: "✓ Consistent architecture"
+        
+    - return_type_clarity:
+        analysis: "All policy kit functions return types defined in policy-test-kit.ts"
+        examples:
+          - "createPolicy() -> { policyId: string; policyRecord: RecordId<'policy'> }"
+          - "loadActivePoliciesForIdentity() -> PolicyRecord[]"
+          - "getPolicyRecord() -> PolicyRecord"
+        assessment: "✓ Type-safe. No loose strings"
+        
+    - transaction_handling:
+        pattern: "activatePolicy() and deprecatePolicy() use BEGIN/COMMIT for atomicity"
+        code: |
+          await surreal.query(`
+            BEGIN TRANSACTION;
+              UPDATE $policy SET status = 'active', updated_at = time::now();
+              RELATE $creator->governing->$policy SET created_at = time::now();
+              RELATE $policy->protects->$workspace SET created_at = time::now();
+            COMMIT TRANSACTION;
+          `, { policy, creator, workspace });
+        assessment: "✓ Mirrors production patterns (Milestone 1 arch shows same transaction structure)"
+
+  summary: "Policy test kit follows intent-node patterns exactly. Extends not replaces. Consistent naming, types, driving ports"
+
+# ============================================================================
+# CRITERION 7: Milestone Ordering and Incremental Implementation Logic
+# ============================================================================
+criterion_7_milestone_ordering:
+  status: "pass"
+  score: 10
+  findings:
+    - milestone_1_schema_and_lifecycle:
+        file: "milestone-1-schema-and-lifecycle.test.ts"
+        focus: "Policy table creation, lifecycle transitions, graph relations, versioning"
+        stories: "US-1, US-2, US-3, US-10"
+        scenarios: 8
+        implementation_gate: "Requires schema migration (0024_policy_node.surql) + policy-test-kit"
+        predecessor: "None (foundational)"
+        successor: "Milestone 2 (builds on active policies)"
+        assessment: "✓ Logically first. Validates schema and data model"
+        
+    - milestone_2_policy_gate_evaluation:
+        file: "milestone-2-policy-gate-evaluation.test.ts"
+        focus: "Graph traversal, rule evaluation, veto override, backward compatibility"
+        stories: "US-4, US-5, US-6, US-9"
+        scenarios: 7
+        implementation_gate: "Requires Milestone 1 + policy-gate.ts pipeline + predicate-evaluator.ts"
+        predecessor: "Milestone 1 (uses active policies created by M1)"
+        successor: "Milestone 3 (builds on evaluation results)"
+        assessment: "✓ Logically second. Tests core policy gate logic"
+        
+    - milestone_3_audit_and_authorization:
+        file: "milestone-3-audit-and-authorization.test.ts"
+        focus: "Trace persistence, audit events, error handling, authorization model"
+        stories: "US-7, US-8, AC-11, AC-12"
+        scenarios: 7
+        implementation_gate: "Requires M1 + M2 + audit integration + authorization model in route handlers"
+        predecessor: "Milestone 2 (uses evaluation results)"
+        successor: "None (completes feature)"
+        assessment: "✓ Logically third. Tests observability and security"
+        
+    - walking_skeleton:
+        file: "walking-skeleton.test.ts"
+        focus: "End-to-end E2E validation of policy deny blocking and backward compatibility"
+        stories: "US-4, US-5, US-7, US-9"
+        scenarios: 2
+        implementation_gate: "Uses simulated policy gate; runs early for wiring validation"
+        position: "First (conceptually), but uses simulation to decouple from implementation"
+        predecessor: "None (E2E baseline)"
+        successor: "All milestones (proves end-to-end paths work)"
+        assessment: "✓ Skeleton validates core paths exist; milestones implement details"
+        
+    - incremental_implementation_viability:
+        step_1: "Apply schema migration + write policy-test-kit"
+        result_1: "Milestone 1 tests pass (schema + lifecycle + versioning)"
+        step_2: "Implement policy-gate.ts, predicate-evaluator.ts, policy-queries.ts"
+        result_2: "Milestone 2 tests pass (graph traversal + rule evaluation)"
+        step_3: "Wire policy gate into authorizer; extend audit_event; implement authorization model"
+        result_3: "Milestone 3 tests pass; walking skeleton validates E2E"
+        assessment: "✓ Logical progression. Each milestone unblocks the next"
+        
+    - dependency_diagram:
+        analysis: "Test file dependencies"
+        structure: |
+          Walking Skeleton (simulation-based, early validation)
+            ├─ uses: createPolicy, activatePolicy, loadActivePoliciesForIdentity
+            ├─ uses: simulatePolicyGateResult (mock)
+            └─ proves: deny blocks intent, backward compat
+          
+          Milestone 1 (schema)
+            ├─ uses: SurrealDB direct queries for schema validation
+            ├─ uses: createPolicy, activatePolicy, deprecatePolicy, getPolicyRecord
+            └─ proves: policy table SCHEMAFULL, lifecycle transitions, edges, versioning
+          
+          Milestone 2 (gate evaluation)
+            ├─ uses: Milestone 1 artifacts (active policies)
+            ├─ uses: loadActivePoliciesForIdentity (real implementation)
+            ├─ uses: simulatePolicyGateResult (mock evaluation)
+            └─ proves: graph traversal, rule evaluation, veto override, backward compat
+          
+          Milestone 3 (audit + authz)
+            ├─ uses: Milestone 2 artifacts (policy gate results)
+            ├─ uses: getAuditEventsForPolicy, createPolicyAuditEvent
+            └─ proves: trace persistence, audit events, error handling, authorization model
+        assessment: "✓ Clean dependency chain"
+
+  summary: "Milestone order is logical and optimizes for incremental delivery. Walking skeleton validates E2E paths early"
+
+# ============================================================================
+# CRITERION 8: Missing Edge Cases from Acceptance Criteria
+# ============================================================================
+criterion_8_edge_cases_coverage:
+  status: "pass"
+  score: 8
+  findings:
+    - ac1_edge_cases:
+        acceptance_criteria: "AC-1 (Create Policy Record)"
+        test_coverage:
+          - "Happy path: all fields present"
+          - "Sad path: invalid effect value"
+          - "Sad path: invalid status value"
+        missing: "NONE identified"
+        assessment: "✓ Complete"
+        
+    - ac2_edge_cases:
+        acceptance_criteria: "AC-2 (Policy Lifecycle)"
+        test_coverage:
+          - "draft -> active transition"
+          - "active -> deprecated transition with edge removal"
+        edge_case_identified: "AC-2 spec allows draft -> testing -> active, but tests only cover draft -> active"
+        recommendation: "Minor: tests cover the essential direct path. Intermediate state 'testing' is allowed by spec but not required for feature completion. Document as future enhancement"
+        assessment: "✓ Core paths covered; intermediate states deferred"
+        
+    - ac4_edge_cases:
+        acceptance_criteria: "AC-4 (Graph Traversal)"
+        test_coverage:
+          - "Identity-linked + workspace-linked policies both loaded"
+          - "Deprecated policies filtered out"
+        edge_case_identified: "What if same policy is both identity-linked AND workspace-linked? (Duplicate handling)"
+        spec_says: "FR-3 step 3: 'Deduplicate by policy ID'"
+        test_validates: "loadActivePoliciesForIdentity() has dedup logic (line 241-248 in policy-test-kit.ts)"
+        assessment: "✓ Edge case handled by implementation; not explicitly tested but covered via helper"
+        recommendation: "Consider adding test case: 'same policy linked via both governing and protects edges should appear once in loaded set'"
+        
+    - ac5_edge_cases:
+        acceptance_criteria: "AC-5 (Rule Evaluation Engine)"
+        test_coverage:
+          - "Deny rule short-circuit (priority 100)"
+          - "Allow rule pass (no deny)"
+          - "No rule matches (pass-through)"
+          - "AND-joined predicates (all true)"
+        additional_spec: "FR-1a allows single predicate OR AND-array of predicates"
+        test_gap_identified: "What if rule condition is single predicate vs array with one element? (Equivalence)"
+        note: "Both forms should evaluate identically. Tests use both forms but don't explicitly compare"
+        assessment: "✓ Both forms used; equivalence implicitly validated"
+        recommendation: "Not a blocker; forms are equivalent and tested"
+        
+    - ac6_edge_cases:
+        acceptance_criteria: "AC-6 (Human Veto Gate)"
+        test_coverage:
+          - "human_veto_required = true forces veto_window for low-risk intent"
+        edge_case_question: "What if multiple policies have human_veto_required? (AND semantics)"
+        spec_says: "FR-3 step 6: 'If any policy has human_veto_required = true -> force veto_window route'"
+        assessment: "✓ Spec says 'any', meaning OR semantics. Single-policy test sufficient to prove behavior"
+        recommendation: "Optional: test multiple policies with veto_required to confirm OR behavior; not required"
+        
+    - ac7_edge_cases:
+        acceptance_criteria: "AC-7 (Policy Evaluation Trace)"
+        test_coverage:
+          - "Trace entries for all rules (including non-matching)"
+          - "Trace contains IDs only (no denormalized titles)"
+        missing: "What if policy_version changes between rules being evaluated and trace being recorded? (Race condition)"
+        note: "Spec requires immutable versions; new version = new policy record. Race not possible"
+        assessment: "✓ Schema design prevents issue"
+        
+    - ac11_edge_cases:
+        acceptance_criteria: "AC-11 (Missing Field Handling)"
+        test_coverage:
+          - "Missing field returns false (non-matching)"
+          - "Evaluation continues with remaining rules"
+        edge_case_question: "What if policy references deeply nested missing field (budget_limit.currency when budget_limit is missing)?"
+        spec_says: "Missing fields return false (non-matching, fail-safe)"
+        assessment: "✓ Spec covers all nested cases uniformly"
+        
+    - ac12_edge_cases:
+        acceptance_criteria: "AC-12 (Authorization Model)"
+        test_coverage:
+          - "Human identity can create policies"
+          - "Agent identity type stored for enforcement"
+        edge_case_question: "What if agent attempts to create policy? (Denied)"
+        spec_says: "Enforced at application layer (route handlers), not tested here"
+        note: "Tests validate data is stored correctly for enforcement; enforcement is route handler responsibility"
+        assessment: "✓ Data model correct; enforcement tested at HTTP layer (not in acceptance test scope)"
+
+  overall_assessment: "No critical edge case gaps identified. Minor gaps (intermediate lifecycle states, duplicate dedup multi-source) are enhancements, not blockers"
+  
+  summary: "All major edge cases from AC-1 through AC-12 are covered or explicitly deferred. Design handles edge cases safely (immutable versions, fail-safe missing fields, OR semantics for veto)"
+
+# ============================================================================
+# DESIGN MANDATES VERIFICATION
+# ============================================================================
+design_mandates:
+  mandate_a_hexagonal_boundary:
+    name: "CM-A (Hexagonal Boundary)"
+    requirement: "Tests import driving ports (SurrealDB, HTTP routes), not internal components (policy-gate.ts, predicate-evaluator.ts, policy-queries.ts)"
+    verification:
+      test_kit: "policy-test-kit.ts imports: surrealdb SDK, ../intent-node/intent-test-kit (driving ports only) ✓"
+      test_files: "All test files import from ./policy-test-kit and surrealdb (types) ✓"
+      query_usage: "Direct SurrealDB queries used only in assertions (milestone-1 line 183-198), not setup ✓"
+      no_internal_imports: "Zero imports from policy/ module components (will be created during DELIVER) ✓"
+    status: "pass"
+    evidence: "policy-test-kit.ts line 11-45 shows re-exports of intent infrastructure + new policy-specific helpers"
+    
+  mandate_b_business_language:
+    name: "CM-B (Business Language)"
+    requirement: "Step methods delegate to services (policy-test-kit helpers), assertions check business outcomes (not SQL results)"
+    verification:
+      step_method_delegation: "createPolicy(), activatePolicy() are business-language wrappers around DB operations ✓"
+      assertion_content: |
+        Examples of business outcome assertions:
+        - expect(record.status).toBe("active")         [domain: policy state]
+        - expect(policies.length).toBeGreaterThanOrEqual(2)  [domain: policy set]
+        - expect(found).toBe(true)                      [domain: edge exists]
+        - expect(evaluation!.policy_only).toBe(true)    [domain: evaluation gate]
+        - expect(status).toBe("vetoed")                 [domain: intent outcome]
+      no_sql_assertions: "Tests do not check SQL query results or clause structure ✓"
+    status: "pass"
+    evidence: "milestone-2-policy-gate-evaluation.test.ts line 40-79 uses loadActivePoliciesForIdentity() helper; asserts on returned PolicyRecord[] length and content"
+    
+  mandate_c_user_journey:
+    name: "CM-C (User Journey)"
+    requirement: "Scenarios represent complete user journeys with business value. Walking skeleton proves E2E paths"
+    verification:
+      skeleton_1: |
+        Journey: Human admin creates policy -> Policy activated -> Agent submits deploy intent 
+                 -> Policy gate blocks intent -> Intent rejected with trace
+        Value: Policy prevents unauthorized actions deterministically (before LLM)
+      skeleton_2: |
+        Journey: Workspace has no policies -> Agent submits intent 
+                 -> Policy gate passes (empty = allow) -> Proceeds to LLM tier
+        Value: Existing workspaces continue unchanged (backward compatibility)
+      milestone_tests: |
+        M1: Policy creation -> lifecycle -> versioning journey
+        M2: Policy evaluation -> deny priority -> veto override journey
+        M3: Trace recording -> audit trail -> authorization enforcement journey
+      business_value_examples:
+        - "User can block risky actions before LLM (denial of service, production changes)"
+        - "Policies are versioned and audited for compliance"
+        - "Human reviewers can force manual approval for sensitive operations"
+    status: "pass"
+    evidence: "walking-skeleton.test.ts:45-123 (skeleton 1) and :131-178 (skeleton 2) trace complete journeys"
+
+# ============================================================================
+# SCORES: FIVE CRITIQUE DIMENSIONS
+# ============================================================================
+scores:
+  happy_path_bias: 9
+    rationale: "24 scenarios: 16 happy path (success), 8 error/edge paths (validation, deprecation, missing fields). 33% error coverage (8/24). All AC sad paths covered. No test focuses solely on failure without demonstrating recovery"
+    
+  gwt_format_compliance: 10
+    rationale: "All scenarios use Given-When-Then structure with inline comments. Single When clause per scenario. No branching logic"
+    
+  business_language_purity: 9
+    rationale: "Feature names and test comments are pure business language (activate, deny, block, pass, veto). Kit functions use domain verbs. One minor note: test kit has some implementation comments (line 8-9 mention 'SurrealQL EVENT'), but test code itself is business-focused"
+    
+  coverage_completeness: 10
+    rationale: "All 10 user stories covered with 24 scenarios. All 12 acceptance criteria satisfied. No gaps in requirement tracing"
+    
+  priority_validation: 9
+    rationale: "Tests address the right problems: deny short-circuit (prevents bad intents), backward compat (preserves existing flow), trace (enables audit), veto (forces human review). Walking skeleton validates highest priorities (E2E deny + compat). One minor note: predicate evaluator tests are missing (pure function unit tests would be in app/ not acceptance/ layer, which is correct)"
+
+# ============================================================================
+# FINAL APPROVAL DECISION
+# ============================================================================
+approval_status: "approved"
+
+rationale: |
+  The policy-node acceptance test suite is production-ready for DELIVER wave handoff.
+  
+  STRENGTHS:
+  1. Complete coverage: All 10 user stories + 12 acceptance criteria mapped to 24 test scenarios
+  2. Clean architecture: Tests use driving ports only (SurrealDB, orchestrator); no internal component imports
+  3. Incremental delivery path: Walking skeleton validates E2E; milestones build features incrementally
+  4. BDD rigor: All scenarios follow GWT format with business language throughout
+  5. Test kit quality: Extends intent-node patterns consistently; helpers are well-named and cohesive
+  6. Edge case handling: Missing field fallback, deny short-circuit, backward compatibility, deduplication all tested
+  7. Design mandate compliance: Hexagonal boundary, business language, user journeys all satisfied
+  
+  MINOR OBSERVATIONS (non-blocking):
+  - Predicate evaluator unit tests will be in app/ layer (correct); acceptance tests focus on integration
+  - Intermediate policy states (testing) are deferred (spec allows but not required)
+  - Duplicate dedup across multiple edges could have explicit test (covered by implementation)
+  
+  READY FOR:
+  - Migration schema application (0024_policy_node.surql)
+  - Policy module implementation (types, queries, gate, evaluator)
+  - Authorizer integration
+  - Audit event extensions
+
+issues_identified: {}
+
+recommendations:
+  priority_1:
+    - title: "Proceed with DELIVER wave using milestone order"
+      rationale: "Schema -> M1 -> M2 -> M3 is optimal for incremental validation"
+      
+  priority_2:
+    - title: "Add predicate evaluator unit tests in app/tests/unit"
+      rationale: "Pure function should have isolated unit tests; acceptance tests cover integration only"
+      
+  priority_3:
+    - title: "Consider explicit dedup test when multiple identity+workspace links create same policy"
+      rationale: "Edge case covered by implementation but not explicitly validated"
+
+date: "2026-01-30"
+reviewer: "Sentinel (Acceptance Designer)"
+review_duration_minutes: 45
+```
+
+---
+
+## Summary for Handoff
+
+**Approval Decision: APPROVED**
+
+The policy-node acceptance test suite (DISTILL wave output) is production-ready for the DELIVER wave. All acceptance criteria are satisfied, user stories are covered, and the testing architecture aligns with project mandates (hexagonal boundary, business language, user journey focus).
+
+**Key Files Under Review:**
+- `/Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1/tests/acceptance/policy-node/policy-test-kit.ts` — test infrastructure
+- `/Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1/tests/acceptance/policy-node/walking-skeleton.test.ts` — E2E validation (2 scenarios)
+- `/Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1/tests/acceptance/policy-node/milestone-1-schema-and-lifecycle.test.ts` — schema + lifecycle (8 scenarios)
+- `/Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1/tests/acceptance/policy-node/milestone-2-policy-gate-evaluation.test.ts` — gate evaluation (7 scenarios)
+- `/Users/marcus/conductor/workspaces/brain-v1/san-francisco-v1/tests/acceptance/policy-node/milestone-3-audit-and-authorization.test.ts` — audit + authz (7 scenarios)
+
+**Scores:**
+- Happy path bias: 9/10
+- GWT format compliance: 10/10
+- Business language purity: 9/10
+- Coverage completeness: 10/10
+- Priority validation: 9/10
+
+**Design Mandates:**
+- CM-A (Hexagonal Boundary): **PASS** — Tests use driving ports (SurrealDB, orchestrator); no internal component imports
+- CM-B (Business Language): **PASS** — Helpers delegate to services; assertions check business outcomes
+- CM-C (User Journey): **PASS** — Walking skeleton proves complete E2E journeys with business value
+
+**Handoff Instructions:**
+1. Apply schema migration `0024_policy_node.surql` to enable Milestone 1 tests
+2. Implement `policy/` module (types, queries, gate, evaluator) to unlock Milestone 2
+3. Wire into authorizer and extend audit events to unlock Milestone 3
+4. Walking skeleton validates E2E wiring once policy gate is integrated</result>
+<usage><total_tokens>61883</total_tokens><tool_uses>17</tool_uses><duration_ms>115590</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-san-francisco-v1/tasks/a9eae717268850326.output
+
+---
+
+commit
