@@ -1,5 +1,6 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { IntentRecord, IntentStatus, ActionSpec, BudgetLimit, EvaluationResult } from "./types";
+import type { BrainAction } from "../oauth/types";
 import { transitionStatus } from "./status-machine";
 
 // --- Query Result Types ---
@@ -14,6 +15,8 @@ type CreateIntentParams = {
   requester: RecordId<"identity", string>;
   workspace: RecordId<"workspace", string>;
   expiry?: Date;
+  authorization_details?: BrainAction[];
+  dpop_jwk_thumbprint?: string;
 };
 
 type StatusUpdateFields = {
@@ -55,6 +58,12 @@ export async function createIntent(
   }
   if (params.expiry) {
     content.expiry = params.expiry;
+  }
+  if (params.authorization_details) {
+    content.authorization_details = params.authorization_details;
+  }
+  if (params.dpop_jwk_thumbprint) {
+    content.dpop_jwk_thumbprint = params.dpop_jwk_thumbprint;
   }
 
   await surreal.query(

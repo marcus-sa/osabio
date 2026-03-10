@@ -29,6 +29,7 @@ import { createClientInfoHandler } from "../auth/client-info-route";
 import { createVetoManager } from "../intent/veto-manager";
 import { updateIntentStatus, queryExpiredVetoIntents } from "../intent/intent-queries";
 import { buildJwksResponse } from "../oauth/as-key-management";
+import { createIntentSubmissionHandler } from "../oauth/intent-submission";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -57,6 +58,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const chatRouteHandler = createChatRouteHandler(deps);
   const mcpHandlers = createMcpRouteHandlers(deps);
   const intentHandlers = createIntentRouteHandlers(deps);
+  const intentSubmissionHandler = createIntentSubmissionHandler(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -376,6 +378,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET /api/workspaces/:workspaceId/intents/pending",
           "GET",
           (request) => intentHandlers.handleListPending(request.params.workspaceId),
+        ),
+      },
+      // OAuth 2.1 RAR+DPoP — Intent submission with DPoP thumbprint binding
+      "/api/auth/intents": {
+        POST: withRequestLogging("POST /api/auth/intents", "POST", (request) =>
+          intentSubmissionHandler(request),
         ),
       },
       // AS JWKS endpoint — public keys for token verification

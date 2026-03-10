@@ -1,0 +1,262 @@
+/**
+ * Intent Submission with DPoP Thumbprint Binding
+ *
+ * OAuth 2.1 RAR+DPoP intent submission endpoint.
+ * Validates authorization_details with type "brain_action" and dpop_jwk_thumbprint,
+ * creates intent record, triggers evaluation pipeline.
+ *
+ * Pure validation functions + HTTP handler factory.
+ */
+
+import { RecordId } from "surrealdb";
+import type { BrainAction } from "./types";
+import type { ActionSpec } from "../intent/types";
+import type { ServerDependencies } from "../runtime/types";
+import { jsonError, jsonResponse } from "../http/response";
+import { logError, logInfo } from "../http/observability";
+import { createIntent, updateIntentStatus } from "../intent/intent-queries";
+import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
+import { routeByRisk } from "../intent/risk-router";
+
+// ---------------------------------------------------------------------------
+// Input Types
+// ---------------------------------------------------------------------------
+
+export type IntentSubmissionInput = {
+  workspace_id: string;
+  identity_id: string;
+  authorization_details: BrainAction[];
+  dpop_jwk_thumbprint: string;
+  goal: string;
+  reasoning: string;
+  priority?: number;
+};
+
+type ValidationResult =
+  | { valid: true; data: IntentSubmissionInput }
+  | { valid: false; error: string };
+
+// ---------------------------------------------------------------------------
+// Pure Validation
+// ---------------------------------------------------------------------------
+
+const LOW_RISK_ACTIONS = new Set(["read", "list", "get", "search", "query"]);
+
+export function validateIntentSubmission(input: unknown): ValidationResult {
+  if (!input || typeof input !== "object") {
+    return { valid: false, error: "Request body must be a non-null object" };
+  }
+
+  const body = input as Record<string, unknown>;
+
+  // Required string fields
+  const requiredStrings = ["workspace_id", "identity_id", "goal", "reasoning"] as const;
+  for (const field of requiredStrings) {
+    if (typeof body[field] !== "string" || (body[field] as string).trim().length === 0) {
+      return { valid: false, error: `${field} is required and must be a non-empty string` };
+    }
+  }
+
+  // dpop_jwk_thumbprint
+  if (typeof body.dpop_jwk_thumbprint !== "string" || (body.dpop_jwk_thumbprint as string).trim().length === 0) {
+    return { valid: false, error: "dpop_jwk_thumbprint is required and must be a non-empty string" };
+  }
+
+  // authorization_details
+  if (!Array.isArray(body.authorization_details)) {
+    return { valid: false, error: "authorization_details is required and must be an array" };
+  }
+
+  if (body.authorization_details.length === 0) {
+    return { valid: false, error: "authorization_details must contain at least one entry" };
+  }
+
+  for (let i = 0; i < body.authorization_details.length; i++) {
+    const entry = body.authorization_details[i] as Record<string, unknown>;
+    const validationError = validateBrainActionEntry(entry, i);
+    if (validationError) {
+      return { valid: false, error: validationError };
+    }
+  }
+
+  // Optional priority
+  const priority = typeof body.priority === "number" ? body.priority : undefined;
+
+  return {
+    valid: true,
+    data: {
+      workspace_id: (body.workspace_id as string).trim(),
+      identity_id: (body.identity_id as string).trim(),
+      authorization_details: body.authorization_details as BrainAction[],
+      dpop_jwk_thumbprint: (body.dpop_jwk_thumbprint as string).trim(),
+      goal: (body.goal as string).trim(),
+      reasoning: (body.reasoning as string).trim(),
+      ...(priority !== undefined ? { priority } : {}),
+    },
+  };
+}
+
+function validateBrainActionEntry(entry: Record<string, unknown>, index: number): string | undefined {
+  if (!entry || typeof entry !== "object") {
+    return `authorization_details[${index}] must be an object`;
+  }
+
+  if (entry.type !== "brain_action") {
+    return `authorization_details[${index}].type must be "brain_action"`;
+  }
+
+  if (typeof entry.action !== "string" || entry.action.trim().length === 0) {
+    return `authorization_details[${index}].action is required and must be a non-empty string`;
+  }
+
+  if (typeof entry.resource !== "string" || entry.resource.trim().length === 0) {
+    return `authorization_details[${index}].resource is required and must be a non-empty string`;
+  }
+
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Pure Transformations
+// ---------------------------------------------------------------------------
+
+/** Derive backward-compatible ActionSpec from first BrainAction */
+export function deriveActionSpec(actions: BrainAction[]): ActionSpec {
+  const first = actions[0];
+  return {
+    provider: "brain",
+    action: first.action,
+    params: { resource: first.resource },
+  };
+}
+
+/** Check if all actions are low-risk read operations */
+export function isLowRiskReadAction(actions: BrainAction[]): boolean {
+  return actions.every((a) => LOW_RISK_ACTIONS.has(a.action.toLowerCase()));
+}
+
+// ---------------------------------------------------------------------------
+// HTTP Handler Factory
+// ---------------------------------------------------------------------------
+
+export function createIntentSubmissionHandler(
+  deps: ServerDependencies,
+): (request: Request) => Promise<Response> {
+  const { surreal } = deps;
+  const llmEvaluator = createLlmEvaluator(deps.extractionModel);
+
+  return async (request: Request): Promise<Response> => {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return jsonError("Invalid JSON body", 400);
+    }
+
+    const validation = validateIntentSubmission(body);
+    if (!validation.valid) {
+      return jsonError(validation.error, 400);
+    }
+
+    const { data } = validation;
+    const traceId = crypto.randomUUID();
+
+    try {
+      const actionSpec = deriveActionSpec(data.authorization_details);
+
+      // Create intent record with new fields
+      const intentId = await createIntent(surreal, {
+        goal: data.goal,
+        reasoning: data.reasoning,
+        priority: data.priority ?? 0,
+        action_spec: actionSpec,
+        trace_id: traceId,
+        requester: new RecordId("identity", data.identity_id),
+        workspace: new RecordId("workspace", data.workspace_id),
+        authorization_details: data.authorization_details,
+        dpop_jwk_thumbprint: data.dpop_jwk_thumbprint,
+      });
+
+      logInfo("intent.submission.created", "Intent created via OAuth submission", {
+        intentId: intentId.id as string,
+        traceId,
+        workspaceId: data.workspace_id,
+      });
+
+      // Transition to pending_auth to trigger evaluation
+      const transitionResult = await updateIntentStatus(
+        surreal,
+        intentId.id as string,
+        "pending_auth",
+      );
+
+      if (!transitionResult.ok) {
+        logError(
+          "intent.submission.transition_failed",
+          "Failed to transition intent to pending_auth",
+          new Error(transitionResult.error),
+          { intentId: intentId.id as string },
+        );
+        return jsonError("Failed to submit intent for evaluation", 500);
+      }
+
+      // For low-risk read actions, trigger inline evaluation for auto-approve
+      if (isLowRiskReadAction(data.authorization_details)) {
+        try {
+          const evaluation = await evaluateIntent({
+            intent: {
+              goal: data.goal,
+              reasoning: data.reasoning,
+              action_spec: actionSpec,
+              requester: data.identity_id,
+            },
+            policy: {},
+            llmEvaluator,
+            timeoutMs: 10_000,
+          });
+
+          const routing = routeByRisk(evaluation);
+          const evaluationRecord = {
+            ...evaluation,
+            evaluated_at: new Date(),
+          };
+
+          if (routing.route === "auto_approve") {
+            await updateIntentStatus(surreal, intentId.id as string, "authorized", {
+              evaluation: evaluationRecord,
+            });
+
+            logInfo("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
+              intentId: intentId.id as string,
+            });
+
+            return jsonResponse({
+              intent_id: intentId.id as string,
+              status: "authorized",
+              trace_id: traceId,
+            }, 201);
+          }
+        } catch (error) {
+          logError(
+            "intent.submission.inline_eval_failed",
+            "Inline evaluation failed, falling back to async",
+            error,
+            { intentId: intentId.id as string },
+          );
+          // Fall through to pending_auth response
+        }
+      }
+
+      return jsonResponse({
+        intent_id: intentId.id as string,
+        status: "pending_auth",
+        trace_id: traceId,
+      }, 201);
+    } catch (error) {
+      logError("intent.submission.error", "Intent submission failed", error, {
+        traceId,
+      });
+      return jsonError("Internal server error", 500);
+    }
+  };
+}
