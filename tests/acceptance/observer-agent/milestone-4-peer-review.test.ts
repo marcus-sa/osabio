@@ -43,7 +43,7 @@ describe("Milestone 4: Decision Confirmation Verification (Story 9)", () => {
   // ---------------------------------------------------------------------------
   // S9-1: Decision confirmed -> implementations checked for alignment
   // ---------------------------------------------------------------------------
-  it.skip("observer verifies that implementations align with confirmed decision", async () => {
+  it("observer verifies that implementations align with confirmed decision", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a proposed decision about API architecture
@@ -52,12 +52,15 @@ describe("Milestone 4: Decision Confirmation Verification (Story 9)", () => {
     const decisionId = `dec-${crypto.randomUUID()}`;
     const decisionRecord = new RecordId("decision", decisionId);
 
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+
     await surreal.query(`CREATE $dec CONTENT $content;`, {
       dec: decisionRecord,
       content: {
         summary: "All new endpoints must use GraphQL instead of REST",
         rationale: "Reduce over-fetching and improve client flexibility",
         status: "proposed",
+        workspace: workspaceRecord,
         created_at: new Date(),
       },
     });
@@ -84,7 +87,7 @@ describe("Milestone 4: Decision Confirmation Verification (Story 9)", () => {
   // ---------------------------------------------------------------------------
   // S9-2: Decision superseded -> stale implementations flagged
   // ---------------------------------------------------------------------------
-  it.skip("observer flags stale implementations when a decision is superseded", async () => {
+  it("observer flags stale implementations when a decision is superseded", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a confirmed decision that has existing implementations
@@ -93,12 +96,15 @@ describe("Milestone 4: Decision Confirmation Verification (Story 9)", () => {
     const decisionId = `dec-${crypto.randomUUID()}`;
     const decisionRecord = new RecordId("decision", decisionId);
 
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+
     await surreal.query(`CREATE $dec CONTENT $content;`, {
       dec: decisionRecord,
       content: {
         summary: "Use JWT tokens for all service-to-service auth",
         rationale: "Standardize auth across microservices",
         status: "confirmed",
+        workspace: workspaceRecord,
         created_at: new Date(),
       },
     });
@@ -108,12 +114,6 @@ describe("Milestone 4: Decision Confirmation Verification (Story 9)", () => {
       title: "Implement JWT auth for billing service",
       status: "completed",
     });
-
-    // Link the task to the decision via implements edge (or belongs_to)
-    await surreal.query(
-      `RELATE $dec->belongs_to->$ws SET added_at = time::now();`,
-      { dec: decisionRecord, ws: new RecordId("workspace", workspaceId) },
-    );
 
     // When the decision is superseded (e.g., switching to mTLS)
     await triggerDecisionConfirmation(surreal, decisionId, "superseded");

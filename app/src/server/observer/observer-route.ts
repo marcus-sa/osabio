@@ -12,8 +12,8 @@ import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { createObservation } from "../observation/queries";
 import { gatherTaskSignals, checkCiStatus } from "./external-signals";
-import { compareTaskCompletion, compareIntentCompletion, compareCommitStatus } from "./verification-pipeline";
-import type { IntentSignals } from "./verification-pipeline";
+import { compareTaskCompletion, compareIntentCompletion, compareCommitStatus, compareDecisionConfirmation } from "./verification-pipeline";
+import type { IntentSignals, DecisionSignals } from "./verification-pipeline";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
@@ -68,8 +68,11 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
           break;
 
         case "decision":
+          await handleDecisionVerification(deps, id, body);
+          break;
+
         case "observation":
-          // Placeholder: future milestones will implement these
+          // Placeholder: future milestones will implement peer review
           logInfo("observer.event.skipped", "Observer event type not yet implemented", {
             table: supportedTable,
             id,
@@ -266,8 +269,84 @@ async function handleCommitVerification(
 }
 
 // ---------------------------------------------------------------------------
-// Workspace resolution
+// Decision verification pipeline (effect shell)
 // ---------------------------------------------------------------------------
+
+async function handleDecisionVerification(
+  deps: ServerDependencies,
+  decisionId: string,
+  body?: Record<string, unknown>,
+): Promise<void> {
+  const { surreal } = deps;
+
+  // Skip initial CREATE events -- only verify actual status transitions (UPDATEs).
+  // CREATE events have no updated_at field; UPDATE always sets updated_at via time::now().
+  if (!body?.updated_at) {
+    logInfo("observer.decision.skipped_create", "Skipping decision CREATE event (not a status transition)", { decisionId });
+    return;
+  }
+
+  const workspaceId = await resolveWorkspaceId(surreal, "decision", decisionId, body);
+  if (!workspaceId) {
+    logError("observer.decision.no_workspace", "Cannot determine workspace for decision", { decisionId });
+    return;
+  }
+
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const decisionRecord = new RecordId("decision", decisionId);
+
+  // Gather decision signals: status, summary, and completed task count
+  const decisionSignals = await gatherDecisionSignals(surreal, workspaceRecord, body);
+  const verificationResult = compareDecisionConfirmation(decisionSignals);
+
+  const now = new Date();
+
+  const observationRecord = await createObservation({
+    surreal,
+    workspaceRecord,
+    text: verificationResult.text,
+    severity: verificationResult.severity,
+    sourceAgent: "observer_agent",
+    observationType: "validation",
+    now,
+    relatedRecord: decisionRecord,
+  });
+
+  await surreal.query(
+    `UPDATE $obs SET verified = $verified, source = $source;`,
+    {
+      obs: observationRecord,
+      verified: verificationResult.verified,
+      source: verificationResult.source ?? "none",
+    },
+  );
+
+  logInfo("observer.decision.verified", "Decision verification complete", {
+    decisionId,
+    verdict: verificationResult.verdict,
+    severity: verificationResult.severity,
+    verified: verificationResult.verified,
+  });
+}
+
+async function gatherDecisionSignals(
+  surreal: import("surrealdb").Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  body?: Record<string, unknown>,
+): Promise<DecisionSignals> {
+  const status = (body?.status as string) ?? "unknown";
+  const summary = (body?.summary as string) ?? "Unknown decision";
+
+  // Count completed tasks in the workspace
+  const [taskRows] = await surreal.query<[Array<{ count: number }>]>(
+    `SELECT count() AS count FROM task WHERE workspace = $ws AND (status = "completed" OR status = "done") GROUP ALL;`,
+    { ws: workspaceRecord },
+  );
+
+  const completedTaskCount = taskRows?.[0]?.count ?? 0;
+
+  return { status, summary, completedTaskCount };
+}
 
 // ---------------------------------------------------------------------------
 // Graph scan route handler factory
@@ -307,14 +386,15 @@ async function resolveWorkspaceId(
     const ws = body.workspace;
     // Could be a RecordId-like object or a string
     if (typeof ws === "string") {
-      // Handle "workspace:uuid" format
-      return ws.includes(":") ? ws.split(":")[1] : ws;
+      // Handle "workspace:uuid" format and strip backticks
+      const cleaned = ws.replace(/`/g, "");
+      return cleaned.includes(":") ? cleaned.split(":")[1] : cleaned;
     }
     if (typeof ws === "object" && ws !== null) {
       const wsObj = ws as { id?: string | { String?: string } };
-      if (typeof wsObj.id === "string") return wsObj.id;
+      if (typeof wsObj.id === "string") return wsObj.id.replace(/`/g, "");
       if (wsObj.id && typeof (wsObj.id as { String?: string }).String === "string") {
-        return (wsObj.id as { String: string }).String;
+        return (wsObj.id as { String: string }).String.replace(/`/g, "");
       }
     }
   }

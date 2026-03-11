@@ -30,6 +30,14 @@ export type IntentSignals = {
   hasTrace: boolean;
 };
 
+export type DecisionStatus = "confirmed" | "superseded" | string;
+
+export type DecisionSignals = {
+  status: DecisionStatus;
+  summary: string;
+  completedTaskCount: number;
+};
+
 // ---------------------------------------------------------------------------
 // Pure comparison: claim vs reality for task completion
 // ---------------------------------------------------------------------------
@@ -143,6 +151,57 @@ export function compareIntentCompletion(
 // ---------------------------------------------------------------------------
 // Pure comparison: commit verification
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Pure comparison: decision confirmation/supersession verification
+// ---------------------------------------------------------------------------
+
+export function compareDecisionConfirmation(
+  signals: DecisionSignals,
+): VerificationResult {
+  if (signals.status === "confirmed") {
+    if (signals.completedTaskCount === 0) {
+      return {
+        verdict: "inconclusive",
+        severity: "info",
+        verified: false,
+        text: `Decision confirmed: "${signals.summary}". No completed tasks found in workspace to verify alignment.`,
+      };
+    }
+
+    return {
+      verdict: "match",
+      severity: "info",
+      verified: true,
+      text: `Decision confirmed: "${signals.summary}". Found ${signals.completedTaskCount} completed task(s) in workspace. Alignment check performed.`,
+    };
+  }
+
+  if (signals.status === "superseded") {
+    if (signals.completedTaskCount === 0) {
+      return {
+        verdict: "inconclusive",
+        severity: "info",
+        verified: false,
+        text: `Decision superseded: "${signals.summary}". No completed tasks found that may be affected.`,
+      };
+    }
+
+    return {
+      verdict: "mismatch",
+      severity: "warning",
+      verified: false,
+      text: `Decision superseded: "${signals.summary}". Found ${signals.completedTaskCount} completed task(s) that may now be based on an outdated decision. Review implementations for staleness.`,
+    };
+  }
+
+  return {
+    verdict: "inconclusive",
+    severity: "info",
+    verified: false,
+    text: `Decision in unexpected status '${signals.status}': "${signals.summary}"`,
+  };
+}
 
 export function compareCommitStatus(
   signalsResult: GatherSignalsResult,
