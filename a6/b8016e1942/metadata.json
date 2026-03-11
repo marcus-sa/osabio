@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a6b8016e1942",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/graph-view-policies",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/graph/graph-governance-visualization.test.ts",
+    "tests/acceptance/graph/graph-relationships.test.ts",
+    "tests/acceptance/orchestrator-ui/governance-feed-vetoed-intents.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a6/b8016e1942/0/metadata.json",
+      "transcript": "/a6/b8016e1942/0/full.jsonl",
+      "context": "/a6/b8016e1942/0/context.md",
+      "content_hash": "/a6/b8016e1942/0/content_hash.txt",
+      "prompt": "/a6/b8016e1942/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 97033,
+    "cache_read_tokens": 1881536,
+    "output_tokens": 17314,
+    "api_call_count": 23
+  }
+}

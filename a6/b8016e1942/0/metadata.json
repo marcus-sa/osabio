@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a6b8016e1942",
+  "session_id": "a87c3ed3-d59f-40b9-95f2-33ecf670b92c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-11T04:24:58.69994Z",
+  "branch": "marcus-sa/graph-view-policies",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/graph/graph-governance-visualization.test.ts",
+    "tests/acceptance/graph/graph-relationships.test.ts",
+    "tests/acceptance/orchestrator-ui/governance-feed-vetoed-intents.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0d9d04734d30",
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 97033,
+    "cache_read_tokens": 1881536,
+    "output_tokens": 17314,
+    "api_call_count": 23
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-11T04:24:58.327067Z",
+    "agent_lines": 1020,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1020,
+    "agent_percentage": 100
+  }
+}
