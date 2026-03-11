@@ -11,6 +11,8 @@ const FILTER_OPTIONS: Array<{ label: string; value: EntityKind | "all" }> = [
   { label: "Message", value: "message" },
   { label: "Person", value: "person" },
   { label: "Project", value: "project" },
+  { label: "Policy", value: "policy" },
+  { label: "Intent", value: "intent" },
 ];
 
 export function SearchFilters({

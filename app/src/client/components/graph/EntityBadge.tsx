@@ -11,6 +11,8 @@ const KIND_LABELS: Record<string, string> = {
   suggestion: "Suggestion",
   person: "Person",
   workspace: "Workspace",
+  intent: "Intent",
+  policy: "Policy",
 };
 
 export function EntityBadge({ kind }: { kind: EntityKind }) {

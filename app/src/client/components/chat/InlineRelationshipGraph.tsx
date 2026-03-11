@@ -16,6 +16,8 @@ function nodeColor(kind: string): string {
     case "suggestion": return "#06b6d4";
     case "person": return "#f97316";
     case "workspace": return "#3b82f6";
+    case "intent": return "#14b8a6";
+    case "policy": return "#f59e0b";
     default: return "#9fbfe4";
   }
 }
