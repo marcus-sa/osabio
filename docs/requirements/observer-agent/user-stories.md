@@ -158,21 +158,8 @@ And deduplicates against existing open observations on the same entities
 
 **Size:** L | **Priority:** Should-have
 
----
 
-## Story 8: Observer Endpoint Idempotency
 
-**Job:** Reality Verification
+## Deferred
 
-> As a **developer**, I want the Observer endpoint to be idempotent, so that duplicate EVENT deliveries (from RETRY) don't create duplicate observations.
-
-### Acceptance Criteria
-
-```gherkin
-Given a task that has already been verified by the Observer
-When the EVENT fires again for the same status transition
-Then no new observation is created
-And the endpoint returns 200 (not an error)
-```
-
-**Size:** S | **Priority:** Must-have
+- **Story 8: Observer Endpoint Idempotency** — tracked in [#134](https://github.com/marcus-sa/brain/issues/134)

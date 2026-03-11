@@ -72,21 +72,9 @@ Scenario: Observes edge accepts intent
   Then the relation is accepted by the schema
 ```
 
-## AC-4: Idempotency (Story 8)
+## AC-4: Idempotency (Story 8) — Deferred
 
-```gherkin
-Scenario: Duplicate EVENT delivery
-  Given a task transitions to "completed"
-  And the Observer has already created an observation for this transition
-  When the EVENT fires again (retry)
-  Then no new observation is created
-  And the endpoint returns HTTP 200
-
-Scenario: Different transitions are not deduplicated
-  Given a task transitions to "completed" and Observer creates an observation
-  When the task is later reopened and transitions to "completed" again
-  Then a new observation IS created (different transition instance)
-```
+Tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
 
 ## AC-5: Graph scan (Story 7)
 

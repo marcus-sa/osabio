@@ -11,7 +11,7 @@ The system MUST fire SurrealDB ASYNC EVENTs when task or intent status transitio
 - R1.1: `DEFINE EVENT task_completed ON task ASYNC RETRY 3` fires when `$after.status IN ["completed", "done"] AND $before.status NOT IN ["completed", "done"]`
 - R1.2: `DEFINE EVENT intent_completed ON intent ASYNC RETRY 3` fires when `$after.status IN ["completed", "failed"] AND $before.status NOT IN ["completed", "failed"]`
 - R1.3: EVENT webhook POSTs to `POST /api/observe/:table/:id` with the full `$after` record
-- R1.4: Observer endpoint is idempotent — duplicate EVENT deliveries produce at most one observation per (entity, transition) pair
+- R1.4: ~~Observer endpoint is idempotent~~ — deferred, tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
 
 ## R2: External Signal Gathering
 
