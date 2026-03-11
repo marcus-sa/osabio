@@ -71,3 +71,8 @@ Tool loaded.
 
 Tool loaded.
 
+### Prompt 14
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools for logging (create_provisional_decision, ask_question, log_observation, update_task_status, create_subtask, create_suggestion) are not available in this environment. Only standard Claude Code tools are available. Cannot fulfill brain logging requirements.
+
