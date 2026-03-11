@@ -516,30 +516,22 @@ export async function getObservationsForEntity(
   entityId: string,
 ): Promise<ObservationRecord[]> {
   const entityRecord = new RecordId(entityTable, entityId);
-  const rows = (await surreal.query(
-    `SELECT * FROM observation WHERE ->observes->(SELECT id FROM $entity) != [];`,
+
+  // Query via reverse traversal from the entity through observes edges
+  const reverseRows = (await surreal.query(
+    `SELECT <-observes<-observation AS obs FROM $entity;`,
     { entity: entityRecord },
+  )) as Array<Array<{ obs: RecordId[] }>>;
+
+  const obsIds = reverseRows[0]?.[0]?.obs ?? [];
+  if (obsIds.length === 0) return [];
+
+  const allObs = (await surreal.query(
+    `SELECT * FROM observation WHERE id IN $ids;`,
+    { ids: obsIds },
   )) as Array<ObservationRecord[]>;
 
-  // Fallback: query via reverse traversal
-  if (!rows[0]?.length) {
-    const reverseRows = (await surreal.query(
-      `SELECT <-observes<-observation AS obs FROM $entity;`,
-      { entity: entityRecord },
-    )) as Array<Array<{ obs: RecordId[] }>>;
-
-    const obsIds = reverseRows[0]?.[0]?.obs ?? [];
-    if (obsIds.length === 0) return [];
-
-    const allObs = (await surreal.query(
-      `SELECT * FROM observation WHERE id IN $ids;`,
-      { ids: obsIds },
-    )) as Array<ObservationRecord[]>;
-
-    return allObs[0] ?? [];
-  }
-
-  return rows[0] ?? [];
+  return allObs[0] ?? [];
 }
 
 /**

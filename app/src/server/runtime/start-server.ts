@@ -34,6 +34,7 @@ import { createTokenEndpointHandler } from "../oauth/token-endpoint";
 import { createNonceCache } from "../oauth/nonce-cache";
 import { createBridgeExchangeHandler } from "../oauth/bridge";
 import { RecordId } from "surrealdb";
+import { createObserverRouteHandler } from "../observer/observer-route";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -65,6 +66,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const intentSubmissionHandler = createIntentSubmissionHandler(deps);
   const tokenEndpointHandler = createTokenEndpointHandler(deps);
   const bridgeExchangeHandler = createBridgeExchangeHandler(deps);
+  const observerHandler = createObserverRouteHandler(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -361,6 +363,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/api/mcp/:workspaceId/intents/status": {
         POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/status", "POST", (request) =>
           mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
+        ),
+      },
+      // Observer — verification pipeline (called by SurrealQL EVENT via http::post)
+      "/api/observe/:table/:id": {
+        POST: withRequestLogging("POST /api/observe/:table/:id", "POST", (request) =>
+          observerHandler(request.params.table, request.params.id, request),
         ),
       },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)

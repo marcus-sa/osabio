@@ -46,70 +46,114 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
   // ---------------------------------------------------------------------------
   // S1-1: Task with passing CI -> observation severity info, verified true
   // ---------------------------------------------------------------------------
-  it.skip("task linked to passing CI produces a verified observation", async () => {
+  it("task linked to passing CI produces a verified observation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task linked to a commit with passing CI
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "verify-pass");
     const sha = `abc${crypto.randomUUID().replace(/-/g, "").slice(0, 37)}`;
 
-    const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
-      title: "Add rate limiting to API gateway",
-      status: "in_progress",
-      sha,
-      repository: "org/brain",
-    });
+    // Set up a mock GitHub server that reports success for this commit
+    const mockGitHub = createMockGitHubServer([
+      {
+        path: `/repos/org/brain/commits/${sha}/status`,
+        status: 200,
+        body: { state: "success", statuses: [], total_count: 1 },
+      },
+    ]);
 
-    // When the task is marked as completed
-    await triggerTaskCompletion(surreal, taskId);
+    // Point the observer at our mock GitHub
+    const originalUrl = process.env.GITHUB_API_URL;
+    process.env.GITHUB_API_URL = mockGitHub.url;
 
-    // Then the observer creates a verified observation
-    const observations = await waitForObservation(surreal, "task", taskId, 30_000);
-    expect(observations.length).toBeGreaterThanOrEqual(1);
+    try {
+      const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
+        title: "Add rate limiting to API gateway",
+        status: "in_progress",
+        sha,
+        repository: "org/brain",
+      });
 
-    const obs = observations[0];
-    expect(obs.severity).toBe("info");
-    expect(obs.verified).toBe(true);
-    expect(obs.source_agent).toBe("observer_agent");
-    // And the observation records the external signal source
-    expect(obs.source).toBeTruthy();
+      // When the task is marked as completed
+      await triggerTaskCompletion(surreal, taskId);
+
+      // Then the observer creates a verified observation
+      const observations = await waitForObservation(surreal, "task", taskId, 30_000);
+      expect(observations.length).toBeGreaterThanOrEqual(1);
+
+      const obs = observations[0];
+      expect(obs.severity).toBe("info");
+      expect(obs.verified).toBe(true);
+      expect(obs.source_agent).toBe("observer_agent");
+      // And the observation records the external signal source
+      expect(obs.source).toBeTruthy();
+    } finally {
+      mockGitHub.stop();
+      if (originalUrl !== undefined) {
+        process.env.GITHUB_API_URL = originalUrl;
+      } else {
+        delete process.env.GITHUB_API_URL;
+      }
+    }
   }, 120_000);
 
   // ---------------------------------------------------------------------------
   // S1-2: Task with failing CI -> observation severity conflict, verified false
   // ---------------------------------------------------------------------------
-  it.skip("task linked to failing CI produces a conflict observation", async () => {
+  it("task linked to failing CI produces a conflict observation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task linked to a commit with failing CI
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "verify-fail");
     const sha = `def${crypto.randomUUID().replace(/-/g, "").slice(0, 37)}`;
 
-    const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
-      title: "Refactor authentication middleware",
-      status: "in_progress",
-      sha,
-      repository: "org/brain",
-    });
+    // Set up a mock GitHub server that reports failure for this commit
+    const mockGitHub = createMockGitHubServer([
+      {
+        path: `/repos/org/brain/commits/${sha}/status`,
+        status: 200,
+        body: { state: "failure", statuses: [{ state: "failure" }], total_count: 1 },
+      },
+    ]);
 
-    // When the task is marked as completed despite failing CI
-    await triggerTaskCompletion(surreal, taskId);
+    // Point the observer at our mock GitHub
+    const originalUrl = process.env.GITHUB_API_URL;
+    process.env.GITHUB_API_URL = mockGitHub.url;
 
-    // Then the observer creates a conflict observation flagging the mismatch
-    const observations = await waitForObservation(surreal, "task", taskId, 30_000);
-    expect(observations.length).toBeGreaterThanOrEqual(1);
+    try {
+      const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
+        title: "Refactor authentication middleware",
+        status: "in_progress",
+        sha,
+        repository: "org/brain",
+      });
 
-    const obs = observations[0];
-    expect(obs.severity).toBe("conflict");
-    expect(obs.verified).toBe(false);
-    expect(obs.source_agent).toBe("observer_agent");
-    expect(obs.text).toBeTruthy();
+      // When the task is marked as completed despite failing CI
+      await triggerTaskCompletion(surreal, taskId);
+
+      // Then the observer creates a conflict observation flagging the mismatch
+      const observations = await waitForObservation(surreal, "task", taskId, 30_000);
+      expect(observations.length).toBeGreaterThanOrEqual(1);
+
+      const obs = observations[0];
+      expect(obs.severity).toBe("conflict");
+      expect(obs.verified).toBe(false);
+      expect(obs.source_agent).toBe("observer_agent");
+      expect(obs.text).toBeTruthy();
+    } finally {
+      mockGitHub.stop();
+      if (originalUrl !== undefined) {
+        process.env.GITHUB_API_URL = originalUrl;
+      } else {
+        delete process.env.GITHUB_API_URL;
+      }
+    }
   }, 120_000);
 
   // ---------------------------------------------------------------------------
   // S1-3: Task with no external signals -> inconclusive observation
   // ---------------------------------------------------------------------------
-  it.skip("task with no external signals produces an inconclusive observation", async () => {
+  it("task with no external signals produces an inconclusive observation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task that has no linked commits or PRs
