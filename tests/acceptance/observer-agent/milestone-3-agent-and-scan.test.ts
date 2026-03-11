@@ -198,7 +198,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // ---------------------------------------------------------------------------
   // S7-3: Graph scan deduplicates existing observations
   // ---------------------------------------------------------------------------
-  it.skip("graph scan does not create duplicate observations for known issues", async () => {
+  it("graph scan does not create duplicate observations for known issues", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a stale blocked task
@@ -244,7 +244,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // ---------------------------------------------------------------------------
   // S7-4: Graph scan detects status drift
   // ---------------------------------------------------------------------------
-  it.skip("graph scan detects task status that contradicts its dependencies", async () => {
+  it("graph scan detects task status that contradicts its dependencies", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with two tasks where one depends on the other
@@ -265,7 +265,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
 
     // Link dependency: child depends on parent
     await surreal.query(
-      `RELATE $child->depends_on->$parent SET added_at = time::now();`,
+      `RELATE $child->depends_on->$parent SET type = "needs", added_at = time::now();`,
       { child: childTask.taskRecord, parent: parentTask.taskRecord },
     );
 

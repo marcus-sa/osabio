@@ -38,9 +38,21 @@ export type StaleBlockedTask = {
   daysBlocked: number;
 };
 
+export type StatusDriftTask = {
+  id: RecordId<"task">;
+  title: string;
+  status: string;
+  dependency: {
+    id: RecordId<"task">;
+    title: string;
+    status: string;
+  };
+};
+
 export type GraphScanResult = {
   contradictions_found: number;
   stale_blocked_found: number;
+  status_drift_found: number;
   observations_created: number;
 };
 
@@ -109,6 +121,84 @@ async function queryStaleBlockedTasks(
     );
     return { ...row, daysBlocked };
   });
+}
+
+async function queryStatusDriftTasks(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<StatusDriftTask[]> {
+  // Two-step approach: first find completed tasks with dependencies,
+  // then filter for incomplete dependencies in application code
+  const [rows] = await surreal.query<[Array<{
+    id: RecordId<"task">;
+    title: string;
+    status: string;
+    dep_ids: RecordId<"task">[];
+    dep_titles: string[];
+    dep_statuses: string[];
+  }>]>(
+    `SELECT
+       id, title, status,
+       ->depends_on->task.id AS dep_ids,
+       ->depends_on->task.title AS dep_titles,
+       ->depends_on->task.status AS dep_statuses
+     FROM task
+     WHERE workspace = $ws
+       AND status IN ["completed", "done"]
+       AND array::len(->depends_on->task) > 0
+     LIMIT 50;`,
+    { ws: workspaceRecord },
+  );
+
+  return (rows ?? []).flatMap((row) => {
+    const depIds = row.dep_ids ?? [];
+    const depTitles = row.dep_titles ?? [];
+    const depStatuses = row.dep_statuses ?? [];
+
+    const drifts: StatusDriftTask[] = [];
+    for (let i = 0; i < depIds.length; i++) {
+      const depStatus = depStatuses[i];
+      if (depStatus !== "completed" && depStatus !== "done") {
+        drifts.push({
+          id: row.id,
+          title: row.title,
+          status: row.status,
+          dependency: {
+            id: depIds[i],
+            title: depTitles[i],
+            status: depStatus,
+          },
+        });
+      }
+    }
+    return drifts;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Entity-level deduplication query
+// ---------------------------------------------------------------------------
+
+/**
+ * Queries existing open observer observations linked to a specific entity.
+ * Used for entity-level dedup -- if the observer already has an open observation
+ * on this entity, we skip creating another.
+ */
+async function queryExistingObserverObservationsForEntity(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  entityRecord: RecordId<string, string>,
+): Promise<Array<{ text: string; severity: string; status: string }>> {
+  const [rows] = await surreal.query<[Array<{ text: string; severity: string; status: string }>]>(
+    `SELECT text, severity, status FROM observation
+     WHERE workspace = $ws
+       AND source_agent = "observer_agent"
+       AND status IN ["open", "acknowledged"]
+       AND ->observes->${entityRecord.table.name}.id CONTAINS $entity
+     LIMIT 20;`,
+    { ws: workspaceRecord, entity: entityRecord },
+  );
+  return rows ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +307,7 @@ export async function runGraphScan(
   const result: GraphScanResult = {
     contradictions_found: 0,
     stale_blocked_found: 0,
+    status_drift_found: 0,
     observations_created: 0,
   };
 
@@ -237,11 +328,17 @@ export async function runGraphScan(
   result.contradictions_found = contradictions.length;
 
   for (const { decision, task } of contradictions) {
+    // Entity-level dedup: check if observer already has an open observation on this decision
+    const existingForDecision = await queryExistingObserverObservationsForEntity(
+      surreal, workspaceRecord,
+      decision.id as RecordId<string, string>,
+    );
+
     const observationText =
       `Contradiction detected: Decision "${decision.summary}" conflicts with completed task "${task.title}". ` +
       `The task appears to implement an approach that contradicts the confirmed decision.`;
 
-    if (isAlreadyObserved(existingObservations, observationText)) {
+    if (existingForDecision.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
       logInfo("observer.scan.dedup", "Skipping duplicate contradiction observation", {
         decisionId: decision.id.id,
         taskId: task.id.id,
@@ -261,9 +358,6 @@ export async function runGraphScan(
       relatedRecord: decision.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
     });
 
-    // Also link to the task via a second observes edge
-    // (The createObservation already links to the decision)
-
     result.observations_created += 1;
   }
 
@@ -272,12 +366,18 @@ export async function runGraphScan(
   result.stale_blocked_found = staleBlocked.length;
 
   for (const task of staleBlocked) {
+    // Entity-level dedup: check if observer already has an open observation on this task
+    const existingForTask = await queryExistingObserverObservationsForEntity(
+      surreal, workspaceRecord,
+      task.id as RecordId<string, string>,
+    );
+
     const observationText =
       `Task blocked for ${task.daysBlocked} days: "${task.title}". ` +
       `This task has been blocked since ${new Date(task.updated_at).toISOString().slice(0, 10)} ` +
       `(exceeds the ${STALE_BLOCKED_THRESHOLD_DAYS}-day threshold).`;
 
-    if (isAlreadyObserved(existingObservations, observationText)) {
+    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
       logInfo("observer.scan.dedup", "Skipping duplicate stale-blocked observation", {
         taskId: task.id.id,
       });
@@ -294,6 +394,45 @@ export async function runGraphScan(
       observationType: "anomaly",
       now,
       relatedRecord: task.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+    });
+
+    result.observations_created += 1;
+  }
+
+  // 3. Detect status drift (completed tasks with incomplete dependencies)
+  const driftTasks = await queryStatusDriftTasks(surreal, workspaceRecord);
+  result.status_drift_found = driftTasks.length;
+
+  for (const drift of driftTasks) {
+    // Entity-level dedup
+    const existingForTask = await queryExistingObserverObservationsForEntity(
+      surreal, workspaceRecord,
+      drift.id as RecordId<string, string>,
+    );
+
+    const observationText =
+      `Status drift detected: Task "${drift.title}" is marked as ${drift.status}, ` +
+      `but its dependency "${drift.dependency.title}" is still ${drift.dependency.status}. ` +
+      `A task should not be completed before its dependencies.`;
+
+    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
+      logInfo("observer.scan.dedup", "Skipping duplicate status-drift observation", {
+        taskId: drift.id.id,
+        depTaskId: drift.dependency.id.id,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      observationType: "anomaly",
+      now,
+      relatedRecord: drift.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
     });
 
     result.observations_created += 1;
