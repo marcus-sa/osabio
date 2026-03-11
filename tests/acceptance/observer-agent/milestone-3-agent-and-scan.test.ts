@@ -117,7 +117,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // ---------------------------------------------------------------------------
   // S7-1: Graph scan detects decision-implementation contradiction
   // ---------------------------------------------------------------------------
-  it.skip("graph scan detects a contradiction between a confirmed decision and completed task", async () => {
+  it("graph scan detects a contradiction between a confirmed decision and completed task", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a confirmed decision to use tRPC for all endpoints
@@ -155,7 +155,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // ---------------------------------------------------------------------------
   // S7-2: Graph scan detects stale blocked task
   // ---------------------------------------------------------------------------
-  it.skip("graph scan detects a task blocked longer than the threshold", async () => {
+  it("graph scan detects a task blocked longer than the threshold", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task that has been blocked for over 14 days

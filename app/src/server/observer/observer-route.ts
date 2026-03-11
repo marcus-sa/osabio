@@ -16,6 +16,7 @@ import { compareTaskCompletion, compareIntentCompletion, compareCommitStatus } f
 import type { IntentSignals } from "./verification-pipeline";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
+import { runGraphScan } from "./graph-scan";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -262,6 +263,33 @@ async function handleCommitVerification(
     severity: verificationResult.severity,
     verified: verificationResult.verified,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Workspace resolution
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Graph scan route handler factory
+// ---------------------------------------------------------------------------
+
+export function createGraphScanRouteHandler(deps: ServerDependencies) {
+  return async (workspaceId: string, _request: Request): Promise<Response> => {
+    try {
+      logInfo("observer.scan.started", "Graph scan triggered", { workspaceId });
+
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const result = await runGraphScan(deps.surreal, workspaceRecord);
+
+      return jsonResponse({
+        status: "ok",
+        ...result,
+      }, 200);
+    } catch (error) {
+      logError("observer.scan.error", "Graph scan failed", error);
+      return jsonResponse({ status: "error", message: "scan failed" }, 500);
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------

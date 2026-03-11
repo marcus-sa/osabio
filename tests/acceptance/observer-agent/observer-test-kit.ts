@@ -421,16 +421,11 @@ export async function createConfirmedDecision(
       summary: opts.summary,
       rationale: opts.rationale ?? "Confirmed for testing",
       status: opts.status ?? "confirmed",
+      workspace: workspaceRecord,
       created_at: new Date(),
       updated_at: new Date(),
     },
   });
-
-  // Link to workspace via belongs_to
-  await surreal.query(
-    `RELATE $dec->belongs_to->$ws SET added_at = time::now();`,
-    { dec: decisionRecord, ws: workspaceRecord },
-  );
 
   return { decisionId };
 }
