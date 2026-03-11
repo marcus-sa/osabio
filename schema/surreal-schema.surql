@@ -824,7 +824,8 @@ DEFINE FUNCTION fn::entity_neighbors($entity: record) {
 DEFINE FUNCTION fn::entity_edges($entity: record, $lim: int) {
   RETURN SELECT id, `in`, out, kind, confidence
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
-         depends_on, owns, observes, suggests_for, subtask_of
+         depends_on, owns, observes, suggests_for, subtask_of,
+         governing, protects, triggered_by, gates
     WHERE `in` = $entity OR out = $entity
     LIMIT $lim;
 };
@@ -832,14 +833,16 @@ DEFINE FUNCTION fn::entity_edges($entity: record, $lim: int) {
 DEFINE FUNCTION fn::edges_between($ids: array) {
   RETURN SELECT id, `in`, out, kind, confidence
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
-         depends_on, owns, observes, suggests_for, subtask_of
+         depends_on, owns, observes, suggests_for, subtask_of,
+         governing, protects, triggered_by, gates
     WHERE `in` IN $ids AND out IN $ids;
 };
 
 DEFINE FUNCTION fn::graph_neighbors($ids: array) {
   RETURN SELECT `in`, out
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
-         depends_on, owns, observes, suggests_for, subtask_of
+         depends_on, owns, observes, suggests_for, subtask_of,
+         governing, protects, triggered_by, gates
     WHERE `in` IN $ids OR out IN $ids;
 };
 
@@ -859,10 +862,14 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
       )
     )
   );
+  LET $policies = (SELECT VALUE `in` FROM protects WHERE out = $ws AND `in`.status IN ['active', 'testing']);
+  LET $intents = (SELECT VALUE id FROM intent WHERE workspace = $ws AND status NOT IN ['completed', 'vetoed', 'failed']);
+  LET $agent_sessions = (SELECT VALUE out FROM gates WHERE `in` IN $intents);
   RETURN array::distinct(
-    $projects + $features + $tasks +
+    [$ws] + $projects + $features + $tasks +
     $belongs_project + $belongs_feature +
-    $identities + $provenance
+    $identities + $provenance +
+    $policies + $intents + $agent_sessions
   );
 };
 
@@ -881,10 +888,13 @@ DEFINE FUNCTION fn::project_entity_ids($ws: record<workspace>, $project: record<
       )
     )
   );
+  LET $all_tasks = array::distinct($tasks + $belongs_project + $belongs_feature);
+  LET $project_tasks = (SELECT VALUE id FROM task WHERE id IN $all_tasks);
+  LET $intents = (SELECT VALUE `in` FROM triggered_by WHERE out IN $project_tasks AND `in`.status NOT IN ['completed', 'vetoed', 'failed']);
   RETURN array::distinct(
     [$project] + $features + $tasks +
     $belongs_project + $belongs_feature +
-    $identities + $provenance
+    $identities + $provenance + $intents
   );
 };
 

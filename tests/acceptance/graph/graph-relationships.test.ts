@@ -35,6 +35,8 @@ let decisionRecord: RecordId<"decision", string>;
 let questionRecord: RecordId<"question", string>;
 let personRecord: RecordId<"person", string>;
 let identityRecord: RecordId<"identity", string>;
+let policyRecord: RecordId<"policy", string>;
+let intentRecord: RecordId<"intent", string>;
 
 beforeAll(async () => {
   const runId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -163,6 +165,60 @@ beforeAll(async () => {
     feature: featureRecord,
     now,
   });
+
+  // Create active policy linked to workspace via governing + protects
+  policyRecord = new RecordId("policy", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: policyRecord,
+    content: {
+      title: "Test Policy",
+      version: 1,
+      status: "active",
+      selector: {},
+      rules: [{ id: "r1", condition: { field: "action", operator: "eq", value: "deploy" }, effect: "deny", priority: 100 }],
+      human_veto_required: false,
+      created_by: identityRecord,
+      workspace: workspaceRecord,
+      created_at: now,
+    },
+  });
+  await surreal.query("RELATE $identity->governing->$policy SET created_at = $now;", {
+    identity: identityRecord,
+    policy: policyRecord,
+    now,
+  });
+  await surreal.query("RELATE $policy->protects->$workspace SET created_at = $now;", {
+    policy: policyRecord,
+    workspace: workspaceRecord,
+    now,
+  });
+
+  // Create executing intent linked to task via triggered_by
+  intentRecord = new RecordId("intent", randomUUID());
+  const traceRecord = new RecordId("trace", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: traceRecord,
+    content: { type: "intent_submission", actor: identityRecord, workspace: workspaceRecord, created_at: now },
+  });
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: intentRecord,
+    content: {
+      goal: "Test Intent",
+      reasoning: "test",
+      status: "executing",
+      priority: 50,
+      action_spec: { provider: "test", action: "deploy", params: {} },
+      trace_id: traceRecord,
+      requester: identityRecord,
+      workspace: workspaceRecord,
+      created_at: now,
+    },
+  });
+  await surreal.query("RELATE $intent->triggered_by->$task SET created_at = $now;", {
+    intent: intentRecord,
+    task: taskRecord,
+    now,
+  });
 }, 30_000);
 
 afterAll(async () => {
@@ -253,6 +309,48 @@ describe("RC1: entity detail shows structural relationships", () => {
     expect(depRel!.direction).toBe("outgoing");
   });
 
+  it("policy detail includes governing relationship from identity", async () => {
+    const detail = await getEntityDetail({
+      surreal,
+      workspaceRecord,
+      entityRecord: policyRecord as GraphEntityRecord,
+    });
+
+    const governingRel = detail.relationships.find(
+      (r) => r.kind === "identity" && r.relationKind === "governing",
+    );
+    expect(governingRel).toBeDefined();
+    expect(governingRel!.direction).toBe("incoming");
+  });
+
+  it("policy detail includes protects relationship to workspace", async () => {
+    const detail = await getEntityDetail({
+      surreal,
+      workspaceRecord,
+      entityRecord: policyRecord as GraphEntityRecord,
+    });
+
+    const protectsRel = detail.relationships.find(
+      (r) => r.kind === "workspace" && r.relationKind === "protects",
+    );
+    expect(protectsRel).toBeDefined();
+    expect(protectsRel!.direction).toBe("outgoing");
+  });
+
+  it("intent detail includes triggered_by relationship to task", async () => {
+    const detail = await getEntityDetail({
+      surreal,
+      workspaceRecord,
+      entityRecord: intentRecord as GraphEntityRecord,
+    });
+
+    const triggeredByRel = detail.relationships.find(
+      (r) => r.kind === "task" && r.relationKind === "triggered_by",
+    );
+    expect(triggeredByRel).toBeDefined();
+    expect(triggeredByRel!.direction).toBe("outgoing");
+  });
+
   it("listEntityNeighbors returns structural neighbors", async () => {
     const neighbors = await listEntityNeighbors({
       surreal,
@@ -302,6 +400,28 @@ describe("RC2: workspace graph overview includes all entity types", () => {
     expect(questionEntity!.name).toBe("Test Question?");
   });
 
+  it("workspace graph overview includes policies", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const policyEntity = graph.entities.find((e) => e.kind === "policy");
+    expect(policyEntity).toBeDefined();
+    expect(policyEntity!.name).toBe("Test Policy");
+  });
+
+  it("workspace graph overview includes intents", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const intentEntity = graph.entities.find((e) => e.kind === "intent");
+    expect(intentEntity).toBeDefined();
+    expect(intentEntity!.name).toBe("Test Intent");
+  });
+
   it("workspace graph overview includes identities", async () => {
     const graph = await getWorkspaceGraphOverview({
       surreal,
@@ -326,6 +446,36 @@ describe("RC3: graph edges include structural relationships", () => {
 
     const belongsToEdge = graph.edges.find((e) => e.kind === "belongs_to");
     expect(belongsToEdge).toBeDefined();
+  });
+
+  it("workspace graph overview includes governing edges", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const governingEdge = graph.edges.find((e) => e.kind === "governing");
+    expect(governingEdge).toBeDefined();
+  });
+
+  it("workspace graph overview includes protects edges", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const protectsEdge = graph.edges.find((e) => e.kind === "protects");
+    expect(protectsEdge).toBeDefined();
+  });
+
+  it("workspace graph overview includes triggered_by edges", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const triggeredByEdge = graph.edges.find((e) => e.kind === "triggered_by");
+    expect(triggeredByEdge).toBeDefined();
   });
 
   it("workspace graph overview includes has_feature edges", async () => {
@@ -372,6 +522,17 @@ describe("RC3: graph edges include structural relationships", () => {
     expect(depsEdge).toBeDefined();
   });
 
+  it("project graph view includes triggered_by edges from intents", async () => {
+    const graph = await getProjectGraphView({
+      surreal,
+      workspaceRecord,
+      projectRecord,
+    });
+
+    const triggeredByEdge = graph.edges.find((e) => e.kind === "triggered_by");
+    expect(triggeredByEdge).toBeDefined();
+  });
+
   it("focused graph view traverses structural edges", async () => {
     const graph = await getFocusedGraphView({
       surreal,
@@ -392,5 +553,30 @@ describe("RC3: graph edges include structural relationships", () => {
     const identityEntity = graph.entities.find((e) => e.kind === "identity");
     const personEntity = graph.entities.find((e) => e.kind === "person");
     expect(identityEntity ?? personEntity).toBeDefined();
+  });
+
+  it("focused graph view from intent reaches task via triggered_by", async () => {
+    const graph = await getFocusedGraphView({
+      surreal,
+      workspaceRecord,
+      centerEntityRecord: intentRecord as GraphEntityRecord,
+      depth: 1,
+    });
+
+    const taskEntity = graph.entities.find((e) => e.kind === "task");
+    expect(taskEntity).toBeDefined();
+    expect(taskEntity!.name).toBe("Test Task");
+  });
+
+  it("focused graph view from policy reaches identity via governing", async () => {
+    const graph = await getFocusedGraphView({
+      surreal,
+      workspaceRecord,
+      centerEntityRecord: policyRecord as GraphEntityRecord,
+      depth: 1,
+    });
+
+    const identityEntity = graph.entities.find((e) => e.kind === "identity");
+    expect(identityEntity).toBeDefined();
   });
 });

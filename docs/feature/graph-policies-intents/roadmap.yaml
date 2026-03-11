@@ -1,0 +1,130 @@
+roadmap:
+  project_id: graph-policies-intents
+  created_at: '2026-03-11T04:27:06Z'
+  total_steps: 6
+  phases: 2
+phases:
+- id: '01'
+  name: 'Server-side graph query extensions'
+  steps:
+  - id: 01-01
+    name: 'Shared contracts and graph query layer'
+    description: >
+      Add "policy" and "intent" to EntityKind union and GraphEntityTable type.
+      Extend getWorkspaceGraphOverview, getEntityDetail, and listEntityNeighbors
+      to include policy/intent tables with status filtering.
+    time_estimate: 2h
+    dependencies: []
+    criteria:
+      - 'EntityKind and GraphEntityTable include "policy" and "intent"'
+      - 'Workspace graph overview returns active/testing policies as nodes'
+      - 'Workspace graph overview returns non-terminal intents (executing, pending_veto) as nodes'
+      - 'Draft, deprecated, superseded policies excluded from overview'
+      - 'Completed, vetoed, failed intents excluded from overview'
+    implementation_scope:
+      - app/src/shared/contracts.ts
+      - app/src/server/graph/queries.ts
+  - id: 01-02
+    name: 'SurrealQL function migration for governance traversal'
+    description: >
+      Create migration 0026 to OVERWRITE fn::workspace_entity_ids (add policy
+      via protects edge, intent via workspace field), fn::edges_between and
+      fn::graph_neighbors (add governing, protects, triggered_by, gates,
+      vetoed_by to FROM clause).
+    time_estimate: 1.5h
+    dependencies: ['01-01']
+    criteria:
+      - 'fn::workspace_entity_ids returns policy and intent records for a workspace'
+      - 'fn::edges_between resolves governance edge tables (governing, protects, triggered_by, gates, vetoed_by)'
+      - 'fn::graph_neighbors traverses governance edges in both directions'
+      - 'Migration file uses zero-padded prefix 0026 and wraps in transaction'
+    implementation_scope:
+      - schema/migrations/0026_governance_graph_functions.surql
+  - id: 01-03
+    name: 'Graph transform and route extension'
+    description: >
+      Add policy/intent node color mapping in transform.ts. Extend entityTables
+      allowlist in graph-route.ts to accept "policy" and "intent" as center
+      entities for focused view.
+    time_estimate: 1h
+    dependencies: ['01-01']
+    criteria:
+      - 'Policy and intent entities mapped to distinct node colors in graph transform'
+      - 'Focused graph view accepts policy or intent as center entity'
+      - 'Governance edges (governing, protects, triggered_by, gates) appear with correct kind labels'
+    implementation_scope:
+      - app/src/server/graph/transform.ts
+      - app/src/server/graph/graph-route.ts
+  - id: 01-04
+    name: 'Feed queries for vetoed intents'
+    description: >
+      Add listRecentlyVetoedIntents query (status=vetoed, updated_at within 24h).
+      Wire into feed route Promise.all batch and map results to awareness tier
+      items with dedup against blocking tier.
+    time_estimate: 1.5h
+    dependencies: ['01-01']
+    criteria:
+      - 'Vetoed intents within 24h appear as awareness tier feed items'
+      - 'Vetoed intents older than 24h are excluded'
+      - 'Feed item entityKind is "intent" and entityName is the intent goal'
+      - 'Reason field includes "Vetoed" and the veto reason'
+      - 'Awareness items deduped against blocking tier (pending_veto intents)'
+    implementation_scope:
+      - app/src/server/feed/feed-queries.ts
+      - app/src/server/feed/feed-route.ts
+- id: '02'
+  name: 'Client-side visualization'
+  steps:
+  - id: 02-01
+    name: 'Graph theme colors for policy and intent'
+    description: >
+      Add policy color entry to entityColor and entityMutedColor switch
+      statements. Add governance edge styles (governing, protects, triggered_by,
+      gates, vetoed_by) to edgeStyle function.
+    time_estimate: 0.5h
+    dependencies: ['01-03']
+    criteria:
+      - 'Policy nodes render with a distinct color differentiable from existing entity kinds'
+      - 'Governance edges render with distinct stroke style from structural edges'
+    implementation_scope:
+      - app/src/client/components/graph/graph-theme.ts
+  - id: 02-02
+    name: 'Entity badge labels and exhaustive kind consumers'
+    description: >
+      Add "Policy" and "Intent" entries to KIND_LABELS in EntityBadge. Scan all
+      exhaustive EntityKind consumers (SearchResultCard, FeedItem,
+      DiscussEntityCard, RelationshipList, EntityDetailPanel) and add
+      policy/intent cases.
+    time_estimate: 1h
+    dependencies: ['01-01', '02-01']
+    criteria:
+      - 'EntityBadge displays "Policy" label for policy kind and "Intent" for intent kind'
+      - 'All exhaustive EntityKind switch/map consumers handle policy and intent without fallthrough'
+      - 'No TypeScript exhaustiveness errors on EntityKind after adding new variants'
+    implementation_scope:
+      - app/src/client/components/graph/EntityBadge.tsx
+      - app/src/client/components/graph/EntityDetailPanel.tsx
+      - app/src/client/components/graph/RelationshipList.tsx
+      - app/src/client/components/search/SearchResultCard.tsx
+      - app/src/client/components/chat/DiscussEntityCard.tsx
+      - app/src/client/components/feed/FeedItem.tsx
+implementation_scope:
+  source_directories:
+  - app/src/shared/
+  - app/src/server/graph/
+  - app/src/server/feed/
+  - app/src/client/components/graph/
+  - app/src/client/components/search/
+  - app/src/client/components/chat/
+  - app/src/client/components/feed/
+  - schema/migrations/
+  test_directories:
+  - tests/acceptance/graph/
+  - tests/acceptance/orchestrator-ui/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: orchestrator
+  approved_at: '2026-03-11T04:50:00Z'

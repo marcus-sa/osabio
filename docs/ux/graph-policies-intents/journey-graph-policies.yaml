@@ -1,0 +1,202 @@
+journey:
+  name: "Graph Policies & Intents"
+  goal: "Surface policy governance topology and intent authorization flow in the graph view and governance feed"
+  persona: "Workspace admin / team lead managing agent governance"
+
+  emotional_arc:
+    start: "Curious/uncertain -- needs to understand governance topology"
+    middle: "Alert/focused -- can see connections and spot issues"
+    end: "Confident/reassured -- governance is visible and working"
+
+steps:
+  - id: 1
+    name: "Graph loads with policy and intent nodes"
+    action: "Open workspace graph view"
+
+    shared_artifacts:
+      - name: "EntityKind"
+        source: "app/src/shared/contracts.ts"
+        displayed_as: "node kind label and color"
+        consumers:
+          - "graph-theme.ts (entityColor, entityMutedColor)"
+          - "EntityBadge.tsx (KIND_LABELS)"
+          - "graph-route.ts (entityTables allowlist)"
+          - "queries.ts (GraphEntityTable type)"
+
+      - name: "GraphEntityTable"
+        source: "app/src/server/graph/queries.ts"
+        displayed_as: "tables included in graph queries"
+        consumers:
+          - "graph-route.ts (focused view entity tables)"
+          - "queries.ts (all graph query functions)"
+
+    emotional_state:
+      entry: "Curious -- opening graph to understand governance"
+      exit: "Oriented -- sees new policy and intent node types"
+
+    integration_checkpoint: |
+      EntityKind includes "policy".
+      GraphEntityTable includes "intent" and "policy".
+      graph-theme.ts handles "policy" case (currently missing).
+
+    gherkin: |
+      Scenario: Policy nodes appear in workspace graph
+        Given Rena Okafor's workspace has an active policy "Agent Budget Guard"
+        And the policy governs identity "ci-agent"
+        When Rena opens the workspace graph view
+        Then a node labeled "Agent Budget Guard" appears with kind "policy"
+        And an edge labeled "governing" connects the policy to "ci-agent"
+
+      Scenario: Intent nodes appear in workspace graph
+        Given Carlos Medina's workspace has an intent "Deploy v2.1 to staging" in "executing" status
+        And the intent was triggered by task "Deploy to staging"
+        When Carlos opens the workspace graph view
+        Then a node labeled "Deploy v2.1 to staging" appears with kind "intent"
+        And an edge labeled "triggered_by" connects the intent to the task
+
+  - id: 2
+    name: "Policy nodes show governance topology"
+    action: "Click or hover on a policy node to see connections"
+
+    shared_artifacts:
+      - name: "policy.status"
+        source: "schema/surreal-schema.surql (policy table)"
+        displayed_as: "status badge on policy node detail"
+        consumers:
+          - "entity detail panel"
+          - "graph node tooltip"
+
+      - name: "governing edge"
+        source: "schema/surreal-schema.surql (governing relation)"
+        displayed_as: "edge from identity to policy"
+        consumers:
+          - "graph queries (edge traversal)"
+          - "entity detail relationships list"
+
+      - name: "protects edge"
+        source: "schema/surreal-schema.surql (protects relation)"
+        displayed_as: "edge from policy to workspace"
+        consumers:
+          - "graph queries (edge traversal)"
+          - "entity detail relationships list"
+
+    emotional_state:
+      entry: "Oriented -- sees policy nodes"
+      exit: "Confident -- understands governance topology"
+
+    integration_checkpoint: |
+      Entity detail panel renders policy fields (title, status, version).
+      Relationship list shows governing and protects edges.
+      Supersedes chain visible if policy has supersedes reference.
+
+    gherkin: |
+      Scenario: Policy detail shows governance relationships
+        Given Rena clicks on policy "Agent Budget Guard" in the graph
+        Then the entity detail panel shows title "Agent Budget Guard"
+        And the detail shows status "active" and version "3"
+        And the relationships list includes "governing -> ci-agent"
+        And the relationships list includes "protects -> Brain workspace"
+
+  - id: 3
+    name: "Intent nodes show authorization flow"
+    action: "View intent node with status and connected entities"
+
+    shared_artifacts:
+      - name: "intent.status"
+        source: "schema/surreal-schema.surql (intent table)"
+        displayed_as: "status badge on intent node"
+        consumers:
+          - "graph node label/tooltip"
+          - "feed item status field"
+          - "entity detail panel"
+
+      - name: "triggered_by edge"
+        source: "schema/surreal-schema.surql (triggered_by relation)"
+        displayed_as: "edge from intent to task"
+        consumers:
+          - "graph queries (edge traversal)"
+          - "entity detail relationships list"
+
+      - name: "gates edge"
+        source: "schema/surreal-schema.surql (gates relation)"
+        displayed_as: "edge from intent to agent_session"
+        consumers:
+          - "graph queries (edge traversal)"
+          - "entity detail relationships list"
+
+    emotional_state:
+      entry: "Alert -- monitoring agent activity"
+      exit: "In control -- can trace full authorization flow"
+
+    integration_checkpoint: |
+      Intent node shows current status.
+      triggered_by edge connects intent to originating task.
+      gates edge connects intent to gated agent session.
+      Graph query includes intent table and its relation tables.
+
+    gherkin: |
+      Scenario: Intent authorization flow visible in graph
+        Given Carlos views intent "Deploy v2.1 to staging" in the graph
+        Then the intent node shows status "executing"
+        And an edge "triggered_by" connects to task "Deploy to staging"
+        And an edge "gates" connects to the active agent session
+
+  - id: 4
+    name: "Vetoed intents appear in feed awareness tier"
+    action: "Check governance feed for recently-vetoed intents"
+
+    shared_artifacts:
+      - name: "GovernanceFeedItem"
+        source: "app/src/shared/contracts.ts"
+        displayed_as: "feed card in awareness tier"
+        consumers:
+          - "feed-route.ts (response builder)"
+          - "GovernanceFeed component (UI rendering)"
+
+      - name: "veto_expires_at"
+        source: "schema/surreal-schema.surql (intent table)"
+        displayed_as: "time context in feed item reason"
+        consumers:
+          - "feed-queries.ts (24h cutoff filter)"
+
+    emotional_state:
+      entry: "Uncertain -- did governance catch anything?"
+      exit: "Reassured -- vetoed intents are surfaced passively"
+
+    integration_checkpoint: |
+      Feed query selects vetoed intents from last 24 hours.
+      Feed item maps to awareness tier with "vetoed" status.
+      Feed item reason includes veto context.
+      Feed item offers "Discuss" action.
+
+    gherkin: |
+      Scenario: Recently vetoed intent appears in awareness tier
+        Given intent "Delete staging environment" was vetoed 6 hours ago
+        And the veto reason was "risk exceeded budget threshold"
+        When Amara Diallo opens the governance feed
+        Then the awareness tier includes an item for "Delete staging environment"
+        And the item shows status "vetoed"
+        And the item reason mentions "risk exceeded budget threshold"
+
+      Scenario: Vetoed intent older than 24 hours does not appear
+        Given intent "Drop production table" was vetoed 30 hours ago
+        When Amara opens the governance feed
+        Then the awareness tier does not include "Drop production table"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "EntityKind"
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "EntityKind union must include 'policy' in contracts.ts -- currently missing"
+
+    - artifact: "GraphEntityTable"
+      must_match_across: [1, 2, 3]
+      failure_message: "GraphEntityTable must include 'intent' and 'policy' in queries.ts"
+
+    - artifact: "intent.status"
+      must_match_across: [3, 4]
+      failure_message: "Intent status values used in graph (step 3) must match statuses queried in feed (step 4)"
+
+    - artifact: "GovernanceFeedItem"
+      must_match_across: [4]
+      failure_message: "Feed item structure must support intent entity kind and vetoed status"

@@ -93,6 +93,10 @@
 - Only introduce fallback behavior when explicitly requested, and document the reason in code comments.
 - Never silently ignore errors (e.g. empty `.catch(() => {})`). Always surface them via logging or re-throw.
 
+## Graph Node Types
+
+- Read @README.md § "Key Concepts" for graph node types and § "Architecture" for the layered architecture diagram.
+
 ## Schema Awareness
 
 - Always read `schema/surreal-schema.surql` before writing queries, seed data, or any code that creates/updates SurrealDB records. The schema defines required fields, types, and relations — guessing leads to silent `SCHEMAFULL` rejections.

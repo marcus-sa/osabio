@@ -24,10 +24,12 @@ import {
   listProvisionalDecisions,
   listRecentExtractions,
   listRecentlyCompletedItems,
+  listRecentlyVetoedIntents,
   listStaleTasks,
   listWorkspaceConflicts,
   mapAgentSessionToFeedItem,
   mapPendingIntentToFeedItem,
+  mapVetoedIntentToFeedItem,
 } from "./feed-queries";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -77,6 +79,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       recentExtractions,
       agentAttentionSessions,
       pendingVetoIntents,
+      recentlyVetoedIntents,
     ] = await Promise.all([
       listProvisionalDecisions(queryInput),
       listWorkspaceConflicts(queryInput),
@@ -90,6 +93,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       listRecentExtractions({ ...queryInput, cutoff: new Date(Date.now() - AWARENESS_RECENCY_DAYS * 24 * 60 * 60 * 1000) }),
       listAgentAttentionSessions(queryInput),
       listPendingVetoIntents(queryInput),
+      listRecentlyVetoedIntents(queryInput),
     ]);
 
     const blocking: GovernanceFeedItem[] = [];
@@ -280,6 +284,14 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
         createdAt: toIsoString(row.updated_at),
         actions: [],
       });
+    }
+
+    // Awareness: recently vetoed intents (dedup against blocking tier pending_veto intents)
+    const blockingEntityIds = new Set<string>(blocking.map((item) => item.entityId));
+    for (const row of recentlyVetoedIntents) {
+      const entityId = `intent:${row.id.id as string}`;
+      if (blockingEntityIds.has(entityId)) continue;
+      awareness.push(mapVetoedIntentToFeedItem(row));
     }
 
     // Awareness: recent extractions (skip entities already in higher tiers)

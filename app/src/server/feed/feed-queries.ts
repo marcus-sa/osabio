@@ -905,6 +905,87 @@ function intentActions(): GovernanceFeedAction[] {
   ];
 }
 
+// --- Awareness tier: recently vetoed intents ---
+
+export type VetoedIntentRow = {
+  id: RecordId<"intent", string>;
+  goal: string;
+  status: string;
+  veto_reason?: string;
+  evaluation_reason?: string;
+  updated_at: string | Date;
+};
+
+export async function listRecentlyVetoedIntents(
+  input: WorkspaceQueryInput & { cutoffHours?: number },
+): Promise<VetoedIntentRow[]> {
+  const hours = input.cutoffHours ?? 24;
+  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const [rows] = await input.surreal
+    .query<[
+      Array<{
+        id: RecordId<"intent", string>;
+        goal: string;
+        status: string;
+        veto_reason?: string;
+        evaluation?: { reason?: string };
+        updated_at: string | Date;
+      }>,
+    ]>(
+      [
+        "SELECT id, goal, status, veto_reason, evaluation, updated_at",
+        "FROM intent",
+        "WHERE status = 'vetoed'",
+        "AND updated_at > $cutoff",
+        `AND ${WORKSPACE_SCOPE_CLAUSE}`,
+        "ORDER BY updated_at DESC",
+        "LIMIT $limit;",
+      ].join(" "),
+      { workspace: input.workspaceRecord, cutoff, limit: input.limit },
+    )
+    .collect<[
+      Array<{
+        id: RecordId<"intent", string>;
+        goal: string;
+        status: string;
+        veto_reason?: string;
+        evaluation?: { reason?: string };
+        updated_at: string | Date;
+      }>,
+    ]>();
+
+  return rows.map((row) => ({
+    id: row.id,
+    goal: row.goal,
+    status: row.status,
+    ...(row.veto_reason ? { veto_reason: row.veto_reason } : {}),
+    ...(row.evaluation?.reason ? { evaluation_reason: row.evaluation.reason } : {}),
+    updated_at: row.updated_at,
+  }));
+}
+
+export function mapVetoedIntentToFeedItem(row: VetoedIntentRow): GovernanceFeedItem {
+  const rawId = row.id.id as string;
+  const evalReason = row.evaluation_reason ?? "";
+
+  return {
+    id: `intent:${rawId}:vetoed`,
+    tier: "awareness",
+    entityId: `intent:${rawId}`,
+    entityKind: "intent",
+    entityName: row.goal,
+    reason: `Vetoed: ${evalReason}`,
+    status: "vetoed",
+    createdAt: toIso(row.updated_at),
+    actions: vetoedIntentActions(),
+  };
+}
+
+function vetoedIntentActions(): GovernanceFeedAction[] {
+  return [{ action: "discuss", label: "Discuss" }];
+}
+
 // --- Shared helper ---
 
 async function readEntityNameByTable(
@@ -930,6 +1011,16 @@ async function readEntityNameByTable(
   if (table === "question") {
     const row = await surreal.select<{ text: string }>(record);
     return row?.text;
+  }
+
+  if (table === "policy") {
+    const row = await surreal.select<{ title: string }>(record);
+    return row?.title;
+  }
+
+  if (table === "intent") {
+    const row = await surreal.select<{ goal: string }>(record);
+    return row?.goal;
   }
 
   return undefined;
