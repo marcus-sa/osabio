@@ -47,7 +47,7 @@ describe("Milestone 3: Observer Agent Core (Story 5)", () => {
   // ---------------------------------------------------------------------------
   // S5-1: Observer Agent returns structured output
   // ---------------------------------------------------------------------------
-  it.skip("observer agent produces structured verification output for task completion", async () => {
+  it("observer agent produces structured verification output for task completion", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task linked to a source commit
@@ -72,16 +72,16 @@ describe("Milestone 3: Observer Agent Core (Story 5)", () => {
     expect(obs.severity).toBeDefined();
     // And the observation is linked to the task
     const edges = (await surreal.query(
-      `SELECT ->observes->task FROM $obs;`,
+      `SELECT ->observes->task AS targets FROM $obs;`,
       { obs: obs.id },
-    )) as Array<Array<Record<string, RecordId[]>>>;
-    expect(edges[0]?.[0]?.["->observes->task"]).toHaveLength(1);
+    )) as Array<Array<{ targets: RecordId[] }>>;
+    expect(edges[0]?.[0]?.targets).toHaveLength(1);
   }, 120_000);
 
   // ---------------------------------------------------------------------------
   // S5-2: Observer Agent uses workspace context
   // ---------------------------------------------------------------------------
-  it.skip("observer agent considers existing workspace observations in its analysis", async () => {
+  it("observer agent considers existing workspace observations in its analysis", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a pre-existing warning observation about stability

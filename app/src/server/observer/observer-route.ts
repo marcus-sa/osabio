@@ -15,6 +15,7 @@ import { gatherTaskSignals, checkCiStatus } from "./external-signals";
 import { compareTaskCompletion, compareIntentCompletion, compareCommitStatus } from "./verification-pipeline";
 import type { IntentSignals } from "./verification-pipeline";
 import type { ServerDependencies } from "../runtime/types";
+import { runObserverAgent } from "../agents/observer/agent";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,40 +104,21 @@ async function handleTaskVerification(
   }
 
   const workspaceRecord = new RecordId("workspace", workspaceId);
-  const taskRecord = new RecordId("task", taskId);
 
-  // Pipeline: gather signals -> compare -> persist
-  const signalsResult = await gatherTaskSignals(surreal, taskId);
-  const verificationResult = compareTaskCompletion(signalsResult);
-
-  const now = new Date();
-
-  const observationRecord = await createObservation({
+  // Delegate to observer agent
+  const agentOutput = await runObserverAgent({
     surreal,
     workspaceRecord,
-    text: verificationResult.text,
-    severity: verificationResult.severity,
-    sourceAgent: "observer_agent",
-    observationType: "validation",
-    now,
-    relatedRecord: taskRecord,
+    entityTable: "task",
+    entityId: taskId,
+    entityBody: body,
   });
-
-  // Set verified and source fields (not supported by createObservation directly)
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: verificationResult.verified,
-      source: verificationResult.source ?? "none",
-    },
-  );
 
   logInfo("observer.task.verified", "Task verification complete", {
     taskId,
-    verdict: verificationResult.verdict,
-    severity: verificationResult.severity,
-    verified: verificationResult.verified,
+    verdict: agentOutput.verdict,
+    observationsCreated: agentOutput.observations_created,
+    evidence: agentOutput.evidence,
   });
 }
 
