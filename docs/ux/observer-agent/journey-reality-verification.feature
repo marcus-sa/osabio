@@ -39,6 +39,33 @@ Feature: Reality Verification
     And the observation is linked to the task via an "observes" edge
     And the observation surfaces in the governance feed as a "review" tier item
 
+  Scenario: Commit verified by GitHub checks
+    Given a git_commit record is created with SHA "abc123" linked to task "Implement rate limiting"
+    And SHA "abc123" has all GitHub checks passing
+    When the SurrealDB EVENT fires
+    Then the Observer queries GitHub commit status API for SHA "abc123"
+    And the Observer creates an observation with:
+      | field            | value                                                |
+      | severity         | info                                                 |
+      | observation_type | validation                                           |
+      | verified         | true                                                 |
+      | source           | GitHub Checks                                        |
+      | text             | Verified: commit abc123 has all checks passing        |
+    And the observation is linked to the task via an "observes" edge
+
+  Scenario: Commit with failing checks
+    Given a git_commit record is created with SHA "def456" linked to task "Add auth middleware"
+    And SHA "def456" has failing GitHub checks
+    When the SurrealDB EVENT fires
+    Then the Observer creates an observation with:
+      | field            | value                                                    |
+      | severity         | conflict                                                 |
+      | observation_type | contradiction                                            |
+      | verified         | false                                                    |
+      | source           | GitHub Checks                                            |
+      | text             | Reality mismatch: commit def456 has failing checks        |
+    And the observation is linked to the task via an "observes" edge
+
   Scenario: Intent completion verified by action outcome
     Given an intent to "deploy service to staging" with action_spec provider "Vercel"
     When the intent status transitions to "completed"

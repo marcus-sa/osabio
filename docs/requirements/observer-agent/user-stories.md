@@ -48,6 +48,28 @@ And links the observation to the intent via "observes" edge
 
 ---
 
+## Story 2b: Event-Triggered Commit Verification
+
+**Job:** Reality Verification
+
+> As the **Brain system**, when a new commit is recorded, I want the Observer Agent to verify CI/check status for that commit SHA, so that commit quality is grounded in external signals before downstream tasks rely on it.
+
+### Acceptance Criteria
+
+```gherkin
+Given a git_commit record is created with a SHA linked to a GitHub repo
+When the SurrealDB EVENT fires
+Then the Observer endpoint receives the full commit record
+And queries the GitHub commit status API for the SHA
+And creates a verified observation if all checks pass
+Or creates a conflict observation if checks fail
+And links the observation to the commit's linked task (if any) via "observes" edge
+```
+
+**Size:** M | **Priority:** Must-have
+
+---
+
 ## Story 3: Graceful Degradation on External Failure
 
 **Job:** Reality Verification
@@ -117,7 +139,7 @@ And returns structured output: { observations_created, verdict, evidence }
 
 **Job:** Reality Verification
 
-> As a **developer**, I want SurrealDB EVENTs defined for task and intent terminal transitions, so that the Observer Agent is triggered automatically without polling.
+> As a **developer**, I want SurrealDB EVENTs defined for task/intent terminal transitions and new commits, so that the Observer Agent is triggered automatically without polling.
 
 ### Acceptance Criteria
 
@@ -130,6 +152,11 @@ And retries up to 3 times on failure
 Given the schema migration is applied
 When an intent status changes to "completed" or "failed" (and was not previously in that state)
 Then an ASYNC EVENT fires POSTing to /api/observe/intent/:intentId
+And retries up to 3 times on failure
+
+Given the schema migration is applied
+When a new git_commit record is created
+Then an ASYNC EVENT fires POSTing to /api/observe/git_commit/:commitId
 And retries up to 3 times on failure
 ```
 

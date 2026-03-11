@@ -1,6 +1,6 @@
 # Observer Agent — Acceptance Criteria (Consolidated)
 
-## AC-1: EVENT-triggered verification flow (Stories 1, 2, 6)
+## AC-1: EVENT-triggered verification flow (Stories 1, 2, 2b, 6)
 
 ```gherkin
 Scenario: Task completion triggers Observer via SurrealDB EVENT
@@ -14,6 +14,12 @@ Scenario: Intent completion triggers Observer via SurrealDB EVENT
   When the intent status is updated to "completed"
   Then the Observer endpoint receives a POST with the full intent record
   And the Observer creates exactly one observation linked to the intent
+
+Scenario: Commit creation triggers Observer via SurrealDB EVENT
+  Given a new git_commit record is created with a SHA
+  Then within 5 seconds, the Observer endpoint receives a POST with the full commit record
+  And the Observer queries GitHub commit status API for the SHA
+  And creates an observation linked to the commit's associated task (if any)
 
 Scenario: Non-terminal transitions do NOT trigger Observer
   Given a task with status "open"
