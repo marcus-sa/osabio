@@ -3,7 +3,7 @@
   "checkpoint_id": "4eab650b4229",
   "strategy": "manual-commit",
   "branch": "marcus-sa/graph-view-policies",
-  "checkpoints_count": 0,
+  "checkpoints_count": 3,
   "files_touched": [
     "AGENTS.md"
   ],
@@ -14,13 +14,20 @@
       "context": "/4e/ab650b4229/0/context.md",
       "content_hash": "/4e/ab650b4229/0/content_hash.txt",
       "prompt": "/4e/ab650b4229/0/prompt.txt"
+    },
+    {
+      "metadata": "/4e/ab650b4229/1/metadata.json",
+      "transcript": "/4e/ab650b4229/1/full.jsonl",
+      "context": "/4e/ab650b4229/1/context.md",
+      "content_hash": "/4e/ab650b4229/1/content_hash.txt",
+      "prompt": "/4e/ab650b4229/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 47,
+    "cache_creation_tokens": 143573,
+    "cache_read_tokens": 1128184,
+    "output_tokens": 5695,
+    "api_call_count": 22
   }
 }
