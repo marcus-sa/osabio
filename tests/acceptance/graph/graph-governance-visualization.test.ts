@@ -120,11 +120,11 @@ beforeAll(async () => {
   await surreal.query("CREATE $record CONTENT $content;", {
     record: agentSessionRecord,
     content: {
-      status: "running",
+      agent: "test-agent",
+      orchestrator_status: "active",
       workspace: workspaceRecord,
-      identity: identityRecord,
+      started_at: now,
       created_at: now,
-      updated_at: now,
     },
   });
 
@@ -251,9 +251,9 @@ beforeAll(async () => {
     now,
   });
   // gates: executing intent -> agent session
-  await surreal.query("RELATE $intent->gates->$session SET created_at = $now;", {
+  await surreal.query("RELATE $intent->gates->$agentSession SET created_at = $now;", {
     intent: executingIntentRecord,
-    session: agentSessionRecord,
+    agentSession: agentSessionRecord,
     now,
   });
 }, 30_000);

@@ -1,0 +1,24 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-11T04:33:51Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-11T04:33:52Z'
+- d: 'NOT_APPLICABLE: acceptance tests already cover all criteria for type additions
+    and query layer changes'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-11T04:33:56Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-11T04:36:48Z'
+project_id: graph-policies-intents
+schema_version: '3.0'

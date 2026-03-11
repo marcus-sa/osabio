@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion";
+export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
@@ -208,6 +208,21 @@ export async function readEntityName(
     return row?.summary;
   }
 
+  if (table === "policy") {
+    const row = await surreal.select<{ title: string }>(record as RecordId<"policy", string>);
+    return row?.title;
+  }
+
+  if (table === "intent") {
+    const row = await surreal.select<{ goal: string }>(record as RecordId<"intent", string>);
+    return row?.goal;
+  }
+
+  if (table === "agent_session") {
+    const row = await surreal.select<{ agent: string }>(record as RecordId<"agent_session", string>);
+    return row?.agent;
+  }
+
   const row = await surreal.select<{ text: string }>(record as RecordId<"question", string>);
   return row?.text;
 }
@@ -295,13 +310,24 @@ export async function isEntityInWorkspace(
     return rows.length > 0;
   }
 
-  if (table === "task" || table === "decision" || table === "question" || table === "suggestion") {
+  if (table === "task" || table === "decision" || table === "question" || table === "suggestion" || table === "intent" || table === "agent_session") {
     const [rows] = await surreal
-      .query<[Array<{ id: RecordId<"task" | "decision" | "question" | "suggestion", string> }>]>(
+      .query<[Array<{ id: RecordId<string, string> }>]>(
         `SELECT id FROM ${table} WHERE id = $entity AND workspace = $workspace;`,
         { workspace: workspaceRecord, entity: entityRecord },
       )
-      .collect<[Array<{ id: RecordId<"task" | "decision" | "question" | "suggestion", string> }>]>();
+      .collect<[Array<{ id: RecordId<string, string> }>]>();
+
+    return rows.length > 0;
+  }
+
+  if (table === "policy") {
+    const [rows] = await surreal
+      .query<[Array<{ id: RecordId<"protects", string> }>]>(
+        "SELECT id FROM protects WHERE `in` = $policy AND out = $workspace LIMIT 1;",
+        { workspace: workspaceRecord, policy: entityRecord },
+      )
+      .collect<[Array<{ id: RecordId<"protects", string> }>]>();
 
     return rows.length > 0;
   }
