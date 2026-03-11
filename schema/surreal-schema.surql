@@ -1061,7 +1061,8 @@ DEFINE INDEX as_signing_key_status ON as_signing_key FIELDS status;
 DEFINE EVENT task_completed ON task
   ASYNC
   RETRY 3
-  WHEN ($before.status != "completed" AND $before.status != "done")
+  WHEN $event = "UPDATE"
+    AND ($before.status != "completed" AND $before.status != "done")
     AND ($after.status = "completed" OR $after.status = "done")
   THEN {
     http::post("http://localhost:3000/api/observe/task/" + <string> meta::id($after.id), $after)
@@ -1071,7 +1072,8 @@ DEFINE EVENT task_completed ON task
 DEFINE EVENT intent_completed ON intent
   ASYNC
   RETRY 3
-  WHEN ($before.status != "completed" AND $before.status != "failed")
+  WHEN $event = "UPDATE"
+    AND ($before.status != "completed" AND $before.status != "failed")
     AND ($after.status = "completed" OR $after.status = "failed")
   THEN {
     http::post("http://localhost:3000/api/observe/intent/" + <string> meta::id($after.id), $after)
@@ -1090,7 +1092,8 @@ DEFINE EVENT commit_created ON git_commit
 DEFINE EVENT decision_confirmed ON decision
   ASYNC
   RETRY 3
-  WHEN $before.status != $after.status
+  WHEN $event = "UPDATE"
+    AND $before.status != $after.status
     AND ($after.status = "confirmed" OR $after.status = "superseded")
   THEN {
     http::post("http://localhost:3000/api/observe/decision/" + <string> meta::id($after.id), $after)
