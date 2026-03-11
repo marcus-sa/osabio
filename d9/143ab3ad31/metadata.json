@@ -3,7 +3,7 @@
   "checkpoint_id": "d9143ab3ad31",
   "strategy": "manual-commit",
   "branch": "marcus-sa/graph-view-policies",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/client/components/graph/graph-theme.ts",
     "app/src/client/styles.css"
@@ -15,13 +15,20 @@
       "context": "/d9/143ab3ad31/0/context.md",
       "content_hash": "/d9/143ab3ad31/0/content_hash.txt",
       "prompt": "/d9/143ab3ad31/0/prompt.txt"
+    },
+    {
+      "metadata": "/d9/143ab3ad31/1/metadata.json",
+      "transcript": "/d9/143ab3ad31/1/full.jsonl",
+      "context": "/d9/143ab3ad31/1/context.md",
+      "content_hash": "/d9/143ab3ad31/1/content_hash.txt",
+      "prompt": "/d9/143ab3ad31/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 15,
+    "cache_creation_tokens": 42557,
+    "cache_read_tokens": 239751,
+    "output_tokens": 1945,
+    "api_call_count": 6
   }
 }
