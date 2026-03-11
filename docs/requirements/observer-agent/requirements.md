@@ -2,7 +2,7 @@
 
 ## R1: Event-Triggered Observation Pipeline
 
-The system MUST fire SurrealDB ASYNC EVENTs when task or intent status transitions to terminal states, or when new commits are recorded, delivering the full record to an Observer endpoint.
+The system MUST fire SurrealDB ASYNC EVENTs when key graph state changes occur, delivering the full record to an Observer endpoint.
 
 **Traces to:** Job 1 (Reality Verification)
 
@@ -11,6 +11,8 @@ The system MUST fire SurrealDB ASYNC EVENTs when task or intent status transitio
 - R1.1: `DEFINE EVENT task_completed ON task ASYNC RETRY 3` fires when `$after.status IN ["completed", "done"] AND $before.status NOT IN ["completed", "done"]`
 - R1.2: `DEFINE EVENT intent_completed ON intent ASYNC RETRY 3` fires when `$after.status IN ["completed", "failed"] AND $before.status NOT IN ["completed", "failed"]`
 - R1.5: `DEFINE EVENT commit_created ON git_commit ASYNC RETRY 3` fires on CREATE — every new commit triggers Observer verification
+- R1.6: `DEFINE EVENT decision_confirmed ON decision ASYNC RETRY 3` fires when `$after.status IN ["confirmed", "superseded"] AND $before.status != $after.status` — verify implementations align with confirmed decisions, flag stale implementations when superseded
+- R1.7: `DEFINE EVENT observation_peer_review ON observation ASYNC RETRY 3` fires on CREATE when `$after.source_agent != "observer_agent"` — Observer cross-checks claims made by other agents
 - R1.3: EVENT webhook POSTs to `POST /api/observe/:table/:id` with the full `$after` record
 - R1.4: ~~Observer endpoint is idempotent~~ — deferred, tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
 
@@ -25,6 +27,8 @@ The Observer Agent MUST query external sources to gather reality signals for the
 - R2.1: For tasks linked to a `source_commit` or PR, query GitHub CI status
 - R2.2: For intents with `action_spec`, verify the action outcome matches the claimed status
 - R2.5: For commits, query GitHub commit status API for the SHA to verify CI/checks pass
+- R2.6: For decisions confirmed/superseded, query related tasks and implementations to verify alignment
+- R2.7: For observations by other agents, cross-reference the claim against graph state and external signals where applicable
 - R2.3: External API failures MUST NOT block the entity's status transition — fail open
 - R2.4: Each signal source is recorded in the observation's `source` field
 
@@ -54,7 +58,7 @@ The observation table MUST be extended to support verification metadata.
 - R4.2: Add `source: option<string>` field for external signal attribution
 - R4.3: Add `data: option<object>` field for raw metrics/evidence
 - R4.4: Extend `observation_type` enum with `validation` and `error`
-- R4.5: Extend `observes` OUT types to include `intent` and `git_commit`
+- R4.5: Extend `observes` OUT types to include `intent`, `git_commit`, and `observation` (for peer-review links)
 
 ## R5: Observer Agent Implementation
 

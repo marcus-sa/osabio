@@ -118,3 +118,35 @@ Feature: Reality Verification
       | observation_type | anomaly                                            |
       | text             | Task blocked for 14 days with no status update      |
     And the observation is linked to the task via an "observes" edge
+
+  # --- Decision & Observation Peer Review (Event-Triggered) ---
+
+  Scenario: Decision confirmed — Observer verifies implementation alignment
+    Given a decision "Standardize on tRPC for all APIs" transitions to "confirmed"
+    When the SurrealDB EVENT fires
+    Then the Observer loads all tasks in the decision's project
+    And checks whether completed tasks contradict the decision
+    And creates a conflict observation for each drifting task
+    Or creates an info observation if all implementations align
+
+  Scenario: Decision superseded — Observer flags stale implementations
+    Given a decision "Use MongoDB" is superseded by "Use SurrealDB"
+    When the SurrealDB EVENT fires
+    Then the Observer identifies tasks still referencing the old decision
+    And creates warning observations for each affected task
+
+  Scenario: PM agent observation peer-reviewed by Observer
+    Given the PM agent creates an observation "Feature X has no assigned tasks"
+    When the SurrealDB EVENT fires (source_agent != "observer_agent")
+    Then the Observer loads Feature X and its task relationships
+    And verifies the claim against the graph
+    And creates a peer-review observation with:
+      | field    | value                                                    |
+      | verified | true (if no tasks found) or false (if tasks exist)       |
+      | source   | Observer Agent (peer review)                             |
+    And links the peer-review observation to the original via "observes" edge
+
+  Scenario: Observer observation does NOT trigger peer review loop
+    Given the Observer agent creates an observation
+    Then the observation_peer_review EVENT does NOT fire
+    And no infinite observation chain is created

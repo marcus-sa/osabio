@@ -106,7 +106,7 @@ Then `verified` is a bool field defaulting to false
 And `source` is an optional string field
 And `data` is an optional object field
 And `observation_type` accepts "validation" and "error" in addition to existing values
-And the `observes` relation accepts `intent` as an OUT type
+And the `observes` relation accepts `intent`, `git_commit`, and `observation` as OUT types
 ```
 
 **Size:** S | **Priority:** Must-have
@@ -139,7 +139,7 @@ And returns structured output: { observations_created, verdict, evidence }
 
 **Job:** Reality Verification
 
-> As a **developer**, I want SurrealDB EVENTs defined for task/intent terminal transitions and new commits, so that the Observer Agent is triggered automatically without polling.
+> As a **developer**, I want SurrealDB EVENTs defined for all observable state changes, so that the Observer Agent is triggered automatically without polling.
 
 ### Acceptance Criteria
 
@@ -157,6 +157,16 @@ And retries up to 3 times on failure
 Given the schema migration is applied
 When a new git_commit record is created
 Then an ASYNC EVENT fires POSTing to /api/observe/git_commit/:commitId
+And retries up to 3 times on failure
+
+Given the schema migration is applied
+When a decision status changes to "confirmed" or "superseded"
+Then an ASYNC EVENT fires POSTing to /api/observe/decision/:decisionId
+And retries up to 3 times on failure
+
+Given the schema migration is applied
+When an observation is created with source_agent != "observer_agent"
+Then an ASYNC EVENT fires POSTing to /api/observe/observation/:observationId
 And retries up to 3 times on failure
 ```
 
@@ -185,7 +195,57 @@ And deduplicates against existing open observations on the same entities
 
 **Size:** L | **Priority:** Should-have
 
+---
 
+## Story 9: Decision Confirmation Verification
+
+**Job:** Cross-Agent Peer Review
+
+> As the **Brain system**, when a decision is confirmed or superseded, I want the Observer Agent to verify that existing implementations align with the decision, so that decision-implementation drift is caught immediately.
+
+### Acceptance Criteria
+
+```gherkin
+Given a decision "Standardize on tRPC" transitions to "confirmed"
+When the Observer EVENT fires
+Then the Observer loads tasks and commits related to the decision's project
+And checks whether implementations contradict the decision
+And creates a conflict observation if drift is detected
+And creates an info observation if implementations align
+
+Given a decision transitions to "superseded"
+When the Observer EVENT fires
+Then the Observer identifies tasks still implementing the old decision
+And creates warning observations for each affected task
+```
+
+**Size:** M | **Priority:** Should-have
+
+---
+
+## Story 10: Cross-Agent Observation Peer Review
+
+**Job:** Cross-Agent Peer Review
+
+> As the **Brain system**, when any non-Observer agent creates an observation, I want the Observer Agent to cross-check that claim against graph state and external signals, so that agent observations are independently verified.
+
+### Acceptance Criteria
+
+```gherkin
+Given the PM agent creates an observation "Task X is blocked by missing API key"
+When the Observer EVENT fires (source_agent != "observer_agent")
+Then the Observer loads the referenced task and its dependencies
+And verifies whether the blocking claim matches graph state
+And creates a peer-review observation linked to the original observation via "observes" edge
+With verified: true if the claim checks out, or severity: "conflict" if it doesn't
+
+Given the Observer agent creates an observation
+Then no peer-review EVENT fires (prevents infinite loops)
+```
+
+**Size:** M | **Priority:** Should-have
+
+---
 
 ## Deferred
 

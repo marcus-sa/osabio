@@ -33,7 +33,7 @@ Every `${variable}` used across journey/requirement artifacts has a single docum
 | `source_agent` | Yes | Set to `"observer_agent"` |
 | `severity` | Yes — `info`, `warning`, `conflict` | No changes needed |
 | `status` | Yes — `open`, `acknowledged`, `resolved` | No changes needed |
-| `observes` edge | Yes — `observation → project\|feature\|task\|decision\|question` | Add `intent` and `git_commit` to OUT types |
+| `observes` edge | Yes — `observation → project\|feature\|task\|decision\|question` | Add `intent`, `git_commit`, and `observation` to OUT types |
 
 ## SurrealDB EVENTs Required
 
@@ -42,3 +42,5 @@ Every `${variable}` used across journey/requirement artifacts has a single docum
 | `task_completed` | `task` | `status` transitions to `completed` or `done` | `POST /api/observe/task/:taskId` |
 | `intent_completed` | `intent` | `status` transitions to `completed` or `failed` | `POST /api/observe/intent/:intentId` |
 | `commit_created` | `git_commit` | New record created | `POST /api/observe/git_commit/:commitId` |
+| `decision_confirmed` | `decision` | `status` transitions to `confirmed` or `superseded` | `POST /api/observe/decision/:decisionId` |
+| `observation_peer_review` | `observation` | Created with `source_agent != "observer_agent"` | `POST /api/observe/observation/:observationId` |
