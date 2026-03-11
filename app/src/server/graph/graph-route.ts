@@ -42,7 +42,7 @@ async function handleGraphRoute(
 
   try {
     if (centerParam) {
-      const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "suggestion"];
+      const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "suggestion", "policy", "intent"];
       const centerRecord = parseRecordIdString(centerParam, entityTables);
       const raw = await getFocusedGraphView({
         surreal: deps.surreal,
