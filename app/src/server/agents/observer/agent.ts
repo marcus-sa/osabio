@@ -10,10 +10,8 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import { createObservation } from "../../observation/queries";
-import { listWorkspaceOpenObservations } from "../../observation/queries";
 import { gatherTaskSignals } from "../../observer/external-signals";
 import { compareTaskCompletion, type VerificationResult } from "../../observer/verification-pipeline";
-import { buildObserverSystemPrompt } from "./prompt";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,23 +40,10 @@ export type ObserverAgentInput = {
 export async function runObserverAgent(input: ObserverAgentInput): Promise<ObserverAgentOutput> {
   const { surreal, workspaceRecord, entityTable, entityId } = input;
 
-  // Load workspace context (satisfies S5-2: considers existing observations)
-  const _systemPrompt = await buildObserverSystemPrompt({
-    surreal,
-    workspaceRecord,
-  });
-
-  // Load existing observations to inform analysis
-  const existingObservations = await listWorkspaceOpenObservations({
-    surreal,
-    workspaceRecord,
-    limit: 30,
-  });
-
   // Dispatch to entity-specific verification
   switch (entityTable) {
     case "task":
-      return verifyTaskCompletion(surreal, workspaceRecord, entityId, existingObservations);
+      return verifyTaskCompletion(surreal, workspaceRecord, entityId);
     default:
       return {
         observations_created: 0,
@@ -76,7 +61,6 @@ async function verifyTaskCompletion(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   taskId: string,
-  _existingObservations: Awaited<ReturnType<typeof listWorkspaceOpenObservations>>,
 ): Promise<ObserverAgentOutput> {
   const taskRecord = new RecordId("task", taskId);
   const evidence: string[] = [];

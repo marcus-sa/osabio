@@ -7,13 +7,13 @@
  * Pipeline: receiveEvent -> gatherSignals -> compareClaimVsReality -> persistObservation
  */
 
-import { RecordId } from "surrealdb";
+import { RecordId, type Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { createObservation } from "../observation/queries";
-import { gatherTaskSignals, checkCiStatus } from "./external-signals";
-import { compareTaskCompletion, compareIntentCompletion, compareCommitStatus, compareDecisionConfirmation, compareObservationPeerReview } from "./verification-pipeline";
-import type { IntentSignals, DecisionSignals, ObservationPeerReviewSignals } from "./verification-pipeline";
+import { checkCiStatus } from "./external-signals";
+import { compareIntentCompletion, compareCommitStatus, compareDecisionConfirmation, compareObservationPeerReview } from "./verification-pipeline";
+import type { IntentSignals, DecisionSignals, ObservationPeerReviewSignals, VerificationResult } from "./verification-pipeline";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
@@ -31,6 +31,40 @@ const SUPPORTED_TABLES = new Set<string>([
   "decision",
   "observation",
 ]);
+
+// ---------------------------------------------------------------------------
+// Shared observation persistence
+// ---------------------------------------------------------------------------
+
+async function persistVerificationObservation(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  relatedRecord: RecordId,
+  verificationResult: VerificationResult,
+  defaultSource = "none",
+): Promise<void> {
+  const now = new Date();
+
+  const observationRecord = await createObservation({
+    surreal,
+    workspaceRecord,
+    text: verificationResult.text,
+    severity: verificationResult.severity,
+    sourceAgent: "observer_agent",
+    observationType: "validation",
+    now,
+    relatedRecord: relatedRecord as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+  });
+
+  await surreal.query(
+    `UPDATE $obs SET verified = $verified, source = $source;`,
+    {
+      obs: observationRecord,
+      verified: verificationResult.verified,
+      source: verificationResult.source ?? defaultSource,
+    },
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Route handler factory
@@ -146,27 +180,7 @@ async function handleIntentVerification(
   const intentSignals = await gatherIntentSignals(surreal, intentId, body);
   const verificationResult = compareIntentCompletion(intentSignals);
 
-  const now = new Date();
-
-  const observationRecord = await createObservation({
-    surreal,
-    workspaceRecord,
-    text: verificationResult.text,
-    severity: verificationResult.severity,
-    sourceAgent: "observer_agent",
-    observationType: "validation",
-    now,
-    relatedRecord: intentRecord,
-  });
-
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: verificationResult.verified,
-      source: verificationResult.source ?? "none",
-    },
-  );
+  await persistVerificationObservation(surreal, workspaceRecord, intentRecord, verificationResult);
 
   logInfo("observer.intent.verified", "Intent verification complete", {
     intentId,
@@ -177,7 +191,7 @@ async function handleIntentVerification(
 }
 
 async function gatherIntentSignals(
-  surreal: import("surrealdb").Surreal,
+  surreal: Surreal,
   intentId: string,
   body?: Record<string, unknown>,
 ): Promise<IntentSignals> {
@@ -234,27 +248,7 @@ async function handleCommitVerification(
 
   const verificationResult = compareCommitStatus(signalsResult);
 
-  const now = new Date();
-
-  const observationRecord = await createObservation({
-    surreal,
-    workspaceRecord,
-    text: verificationResult.text,
-    severity: verificationResult.severity,
-    sourceAgent: "observer_agent",
-    observationType: "validation",
-    now,
-    relatedRecord: commitRecord,
-  });
-
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: verificationResult.verified,
-      source: verificationResult.source ?? "none",
-    },
-  );
+  await persistVerificationObservation(surreal, workspaceRecord, commitRecord, verificationResult);
 
   logInfo("observer.commit.verified", "Commit verification complete", {
     commitId,
@@ -295,27 +289,7 @@ async function handleDecisionVerification(
   const decisionSignals = await gatherDecisionSignals(surreal, workspaceRecord, body);
   const verificationResult = compareDecisionConfirmation(decisionSignals);
 
-  const now = new Date();
-
-  const observationRecord = await createObservation({
-    surreal,
-    workspaceRecord,
-    text: verificationResult.text,
-    severity: verificationResult.severity,
-    sourceAgent: "observer_agent",
-    observationType: "validation",
-    now,
-    relatedRecord: decisionRecord,
-  });
-
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: verificationResult.verified,
-      source: verificationResult.source ?? "none",
-    },
-  );
+  await persistVerificationObservation(surreal, workspaceRecord, decisionRecord, verificationResult);
 
   logInfo("observer.decision.verified", "Decision verification complete", {
     decisionId,
@@ -349,27 +323,7 @@ async function handleObservationPeerReview(
   const peerReviewSignals = await gatherObservationPeerReviewSignals(surreal, workspaceRecord, body);
   const verificationResult = compareObservationPeerReview(peerReviewSignals);
 
-  const now = new Date();
-
-  const observationRecord = await createObservation({
-    surreal,
-    workspaceRecord,
-    text: verificationResult.text,
-    severity: verificationResult.severity,
-    sourceAgent: "observer_agent",
-    observationType: "validation",
-    now,
-    relatedRecord: originalObservationRecord,
-  });
-
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: verificationResult.verified,
-      source: verificationResult.source ?? "peer_review",
-    },
-  );
+  await persistVerificationObservation(surreal, workspaceRecord, originalObservationRecord, verificationResult, "peer_review");
 
   logInfo("observer.observation.peer_reviewed", "Observation peer review complete", {
     observationId,
@@ -379,7 +333,7 @@ async function handleObservationPeerReview(
 }
 
 async function gatherObservationPeerReviewSignals(
-  surreal: import("surrealdb").Surreal,
+  surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   body?: Record<string, unknown>,
 ): Promise<ObservationPeerReviewSignals> {
@@ -408,7 +362,7 @@ async function gatherObservationPeerReviewSignals(
 }
 
 async function gatherDecisionSignals(
-  surreal: import("surrealdb").Surreal,
+  surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   body?: Record<string, unknown>,
 ): Promise<DecisionSignals> {
@@ -454,7 +408,7 @@ export function createGraphScanRouteHandler(deps: ServerDependencies) {
 // ---------------------------------------------------------------------------
 
 async function resolveWorkspaceId(
-  surreal: import("surrealdb").Surreal,
+  surreal: Surreal,
   table: string,
   id: string,
   body?: Record<string, unknown>,

@@ -10,8 +10,7 @@
  */
 
 import { RecordId, type Surreal } from "surrealdb";
-import { createObservation } from "../observation/queries";
-import { listWorkspaceOpenObservations } from "../observation/queries";
+import { createObservation, listWorkspaceOpenObservations } from "../observation/queries";
 import { logInfo, logError } from "../http/observability";
 
 // ---------------------------------------------------------------------------
