@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fd5f2447d7db",
+  "session_id": "a19bae90-afdc-413b-aae0-a457e503d3b0",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-11T07:21:17.108141Z",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/observer-agent/distill/test-scenarios.md",
+    "docs/feature/observer-agent/distill/walking-skeleton.md",
+    "tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts",
+    "tests/acceptance/observer-agent/milestone-2-verification-pipeline.test.ts",
+    "tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts",
+    "tests/acceptance/observer-agent/milestone-4-peer-review.test.ts",
+    "tests/acceptance/observer-agent/observer-test-kit.ts",
+    "tests/acceptance/observer-agent/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7953e389f251",
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 64900,
+    "cache_read_tokens": 591908,
+    "output_tokens": 6755,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-11T07:21:16.843075Z",
+    "agent_lines": 2315,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2315,
+    "agent_percentage": 100
+  }
+}
