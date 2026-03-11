@@ -48,7 +48,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
   // ---------------------------------------------------------------------------
   // S4-1: verified field persists and defaults to false
   // ---------------------------------------------------------------------------
-  it.skip("observation verified field defaults to false when not provided", async () => {
+  it("observation verified field defaults to false when not provided", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace exists
@@ -83,7 +83,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
   // ---------------------------------------------------------------------------
   // S4-2: source field persists as optional string
   // ---------------------------------------------------------------------------
-  it.skip("observation source field persists when provided", async () => {
+  it("observation source field persists when provided", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace exists
@@ -119,7 +119,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
   // ---------------------------------------------------------------------------
   // S4-3: data field persists as optional object
   // ---------------------------------------------------------------------------
-  it.skip("observation data field stores raw evidence", async () => {
+  it("observation data field stores raw evidence", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace exists
@@ -162,7 +162,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
   // ---------------------------------------------------------------------------
   // S4-4: observation_type enum accepts "validation" and "error"
   // ---------------------------------------------------------------------------
-  it.skip("observation_type enum accepts validation and error values", async () => {
+  it("observation_type enum accepts validation and error values", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace exists

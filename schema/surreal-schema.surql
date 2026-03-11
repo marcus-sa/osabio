@@ -221,7 +221,10 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] OR $value IS NONE;
+DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
+DEFINE FIELD source ON observation TYPE option<string>;
+DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
 DEFINE FIELD source_agent ON observation TYPE string;
 DEFINE FIELD workspace ON observation TYPE record<workspace>;
 DEFINE FIELD source_message ON observation TYPE option<record<message>>;
