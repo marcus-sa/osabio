@@ -1,0 +1,167 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/houston-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+marcus@Marcuss-MacBook-Pro houston-v1 % bunx evalite run evals/observer-llm-reasoning.eval.ts
+
+ EVALITE running...
+
+ ⏳ evals/observer-llm-reasoning.eval.ts  (8 evals)
+stderr | evals/observer-llm-reasoning.eval.ts
+beforeAll setup failed: ResponseError: The query was not executed due to a failed transaction
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at setupEvalRuntime (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/eval-test-kit.ts:75:5)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:48:15 {
+  code: 0
+}
+
+ - evals/observer-llm-reasoning.eval.ts  (8 evals)
+
+      Score  -
+ Eval Files  1
+      Evals  8
+   Duration  0ms
+marcus@Marcuss-MacBook-Pro houston-v1 %
+
+---
+
+add this learning to AGENTS.md
+
+---
+
+✗ Failed: 0025_policy_condition_union_type.surql
+6377 |  handleRpcResponse({ id: id$1,...res }) {
+6378 |          if (typeof id$1 === "string") {
+6379 |                  try {
+6380 |                          const response = res;
+6381 |                          const { resolve, reject } = this.#calls.get(id$1) ?? {};
+6382 |                          if (response.error) reject?.(new ResponseError(response.error));
+                                        ^
+ResponseError: Parse error: FLEXIBLE must be specified after TYPE
+ --> [4:53]
+  |
+4 | ...ON policy FLEXIBLE TYPE object | array;
+  |              ^^^^^^^^
+
+ code: -32000,
+
+---
+
+✗ Failed: 0025_policy_condition_union_type.surql
+6377 |  handleRpcResponse({ id: id$1,...res }) {
+6378 |          if (typeof id$1 === "string") {
+6379 |                  try {
+6380 |                          const response = res;
+6381 |                          const { resolve, reject } = this.#calls.get(id$1) ?? {};
+6382 |                          if (response.error) reject?.(new ResponseError(response.error));
+                                        ^
+ResponseError: Parse error: FLEXIBLE can only be used with types containing object
+ --> [7:61]
+  |
+7 | ... TYPE any FLEXIBLE;
+  |              ^^^^^^^^
+
+---
+
+commit
+
+---
+
+still fails:
+
+marcus@Marcuss-MacBook-Pro houston-v1 % bunx evalite run evals/observer-llm-reasoning.eval.ts
+
+ EVALITE running...
+
+ ⏳ evals/observer-llm-reasoning.eval.ts  (8 evals)
+stderr | evals/observer-llm-reasoning.eval.ts
+beforeAll setup failed: ResponseError: The query was not executed due to a failed transaction
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at setupEvalRuntime (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/eval-test-kit.ts:75:5)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:48:15 {
+  code: 0
+}
+
+---
+
+marcus@Marcuss-MacBook-Pro houston-v1 % bunx evalite run evals/observer-llm-reasoning.eval.ts
+
+ EVALITE running...
+
+ ⏳ evals/observer-llm-reasoning.eval.ts  (8 evals)
+stderr | evals/observer-llm-reasoning.eval.ts
+✗ Failed: 0001_agent_session_and_subtask.surql ResponseError: The query was not executed due to a failed transaction
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at setupEvalRuntime (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/eval-test-kit.ts:75:5)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:48:15 {
+  code: 0
+}
+
+stderr | evals/observer-llm-reasoning.eval.ts
+beforeAll setup failed: ResponseError: The query was not executed due to a failed transaction
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at setupEvalRuntime (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/eval-test-kit.ts:75:5)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:48:15 {
+  code: 0
+}
+
+ - evals/observer-llm-reasoning.eval.ts  (8 evals)
+
+      Score  -
+ Eval Files  1
+      Evals  8
+   Duration  0ms
+marcus@Marcuss-MacBook-Pro houston-v1 %
+
+---
+
+Continue from where you left off.
+
+---
+
+why does evals use migrations. just import base schema like acceptance test kit
+
+---
+
+beforeAll setup failed: ResponseError: Couldn't coerce value for field `contact_email` of `person:`88372304-6284-19f4-39c7-22d1ac587fa0``: Expected `string` but found `NONE`
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at CreatePromise.dispatch (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:3262:20)
+    at seedObserverLlmTestData (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning-seed-data.ts:36:3)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:49:18 {
+  code: 0
+}
+
+ - evals/observer-llm-reasoning.eval.ts  (8 evals)
+
+      Score  -
+ Eval Files  1
+      Evals  8
+   Duration  0ms
+
+---
+
+please check schema for missing values...
+beforeAll setup failed: ResponseError: Couldn't coerce value for field `in` of `member_of:`b635964e-24f4-cedc-3f98-d67fba2359a4``: Expected `record<identity>` but found `person:`88372304-6284-19f4-39c7-22d1ac587fa0``
+    at Query.collect (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:2968:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at RelatePromise.dispatch (file:///Users/marcus/conductor/workspaces/brain-v1/houston-v1/node_modules/surrealdb/dist/surrealdb.mjs:3678:20)
+    at seedObserverLlmTestData (/Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning-seed-data.ts:42:3)
+    at /Users/marcus/conductor/workspaces/brain-v1/houston-v1/evals/observer-llm-reasoning.eval.ts:49:18 {
+  code: 0
+}
+
+---
+
+{"level":"error","time":"2026-03-12T15:52:37.490Z","service":"brain-server","env":"development","runtime":"bun","event":"observer.llm.error","err":{"error":{"name":"AI_APICallError","url":"https://openrouter.ai/api/v1/chat/completions","requestBodyValues":{"model":"openai/gpt-4.1-mini","response_format":{"type":"json_schema","json_schema":{"schema":{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"verdict":{"type":"string","enum":["match","mismatch","inconclusive"],"description":"match = entity aligns with decisions, mismatch = contradiction detected, inconclusive = insufficient evidence"},"confidence":{"type":"number","minimum":0,"maximum":1,"description":"Confidence in the verdict (0.0-1.0). Use <0.5 when evidence is ambiguous."},"reasoning":{"type":"string","description":"Natural language explanation of the verdict. Reference specific entities and decisions."},"evidence_refs":{"type":"array","items":{"type":"string"},"description":"Entity references in table:id format (e.g. decision:uuid, task:uuid) that support the verdict. Only include entities you were given in context."},"contradiction":{"description":"Present only when verdict is mismatch. Describes the specific contradiction.","type":"object","properties":{"claim":{"type":"string","description":"What the entity claims or implements"},"reality":{"type":"string","description":"What the decision or constraint requires"}},"required":["claim","reality"],"additionalProperties":false}},"required":["verdict","confidence","reasoning","evidence_refs"],"additionalProperties":false},"strict":true,"name":"response"}},"messages":[{"role":"user","content":"You are a verification agent analyzing whether an entity aligns with or contradicts confirmed decisions.\n\n## Entity Under Review\n- Type: task\n- ID: task:7cd5bf55-c38e-d8a5-c4af-e89532df954d\n- Title: Unknown\n\n\n\n## Related Decisions\nNo related decisions found.\n\n## Deterministic Check Result\n- Verdict: inconclusive\n- Text: Deterministic check: no external signals available.\n\n## Instructions\nAnalyze whether this entity contradicts, aligns with, or has an unclear relationship to the related decisions.\n- \"mismatch\" = clear contradiction between entity and a decision\n- \"match\" = entity aligns with all relevant decisions\n- \"inconclusive\" = insufficient evidence to determine\n\nFor evidence_refs, only reference entities listed above using their table:id format.\nIf you find a contradiction, fill in the contradiction field with specific claim vs reality.\nSet confidence based on how clear the evidence is (use <0.5 when ambiguous)."}],"plugins":[{"id":"response-healing"}]},"statusCode":400,"responseHeaders":{"access-control-allow-origin":"*","cf-ray":"9db3f78c1f3aa742-SIN","connection":"keep-alive","content-type":"application/json","date":"Thu, 12 Mar 2026 15:52:37 GMT","permissions-policy":"payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")","referrer-policy":"no-referrer, strict-origin-when-cross-origin","server":"cloudflare","transfer-encoding":"chunked","x-content-type-options":"nosniff"},"responseBody":"{\"error\":{\"message\":\"Provider returned error\",\"code\":400,\"metadata\":{\"raw\":\"{\\n  \\\"error\\\": {\\n    \\\"message\\\": \\\"Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'contradiction'.\\\",\\n    \\\"type\\\": \\\"invalid_request_error\\\",\\n    \\\"param\\\": \\\"text.format.schema\\\",\\n    \\\"code\\\": \\\"invalid_json_schema\\\"\\n  }\\n}\",\"provider_name\":\"Azure\",\"is_byok\":false}},\"user_id\":\"REDACTED\"}","isRetryable":false,"data":{"error":{"code":400,"message":"Provider returned error","type":null,"param":null,"metadata":{"raw":"{\n  \"error\": {\n    \"message\": \"Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'contradiction'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"text.format.schema\",\n    \"code\": \"invalid_json_schema\"\n  }\n}","provider_name":"Azure","is_byok":false}},"user_id":"REDACTED"}},"latencyMs":1343},"msg":"LLM verification verdict failed"}
