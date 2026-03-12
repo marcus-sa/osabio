@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "61c733b002c4",
+  "session_id": "1fe53d02-8330-41ac-9f7b-4aae602813ae",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T17:49:28.223608Z",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts",
+    "app/src/server/agents/observer/agent.ts",
+    "app/src/server/observer/graph-scan.ts",
+    "app/src/server/observer/llm-synthesis.ts",
+    "app/src/server/observer/observer-route.ts",
+    "app/src/server/observer/schemas.ts",
+    "evals/observer-llm-reasoning.eval.ts",
+    "evals/types.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7d29ab9270e1",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T17:49:28.206161Z",
+    "agent_lines": 438,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 438,
+    "agent_percentage": 100
+  }
+}
