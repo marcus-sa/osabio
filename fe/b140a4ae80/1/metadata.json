@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "feb140a4ae80",
+  "session_id": "60717a8e-36fc-4260-b15f-0eead71f58f7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T16:08:42.590751Z",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "app/src/server/observer/llm-reasoning.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "232a4983f3ce",
+  "token_usage": {
+    "input_tokens": 116,
+    "cache_creation_tokens": 145027,
+    "cache_read_tokens": 3565894,
+    "output_tokens": 11650,
+    "api_call_count": 53
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T16:08:42.309938Z",
+    "agent_lines": 22,
+    "human_added": 77,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 99,
+    "agent_percentage": 22.22222222222222
+  }
+}
