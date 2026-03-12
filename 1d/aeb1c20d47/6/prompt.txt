@@ -1,0 +1,64 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/houston-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+"questionable" peer review verdict silently mapped to "info" severity
+
+The severity ternary only distinguishes "unsupported" from everything else:
+
+const severity = llmVerdict.verdict === "unsupported" ? "warning" as const
+  : "info" as const;
+This means "sound" → "info" and "questionable" → "info" — the same severity. But the LLM prompt definition for "questionable" is "partial support, some claims go beyond the evidence", which is meaningfully different from "sound" and clearly warrants a "warning" to signal that human review is needed. As written, a peer-reviewed observation where the LLM found only partial support is indistinguishable from a fully validated one at the severity level.
+
+Suggested change
+          verified: llmVerdict.verdict === "sound",
+          text: llmVerdict.reasoning,
+          source: "llm",
+        const severity = llmVerdict.verdict === "unsupported" ? "warning" as const
+          : llmVerdict.verdict === "questionable" ? "warning" as const
+          : "info" as const;
+
+---
+
+Pattern synthesis receives anomalies with mismatched entity refs after dedup filtering
+
+The anomalies array fed to synthesizePatterns is built unconditionally from contradictions, staleBlocked, and driftTasks using the raw entity IDs. But for contradictions the entity ref format is decision.id.id / task.id.id (used directly as entityId), while in anomalyCandidates for the stale/drift path the ref is the full task:${id} string.
+
+In synthesizePatterns the format used to construct the prompt line is:
+
+`- [${a.entityTable}:${a.entityId}] (${a.type}) ${a.text}`
+For the contradiction path entityTable = "decision" and entityId = decision.id.id as string — so the prompt shows [decision:<raw-id>] without the decision: prefix that the LLM was instructed to use in detectContradictions. The LLM then returns contributing_entities in table:id format, but the contributing entities built for contradictions only have the raw ID, not the table:id string, making parseEntityRef unable to resolve them in the pattern result below.
+
+The mismatch between how entity refs are formatted for contradictions vs anomaly candidates means pattern observations for contradictions will silently have relatedRecords: [] (empty), breaking the graph linkage that pattern synthesis is supposed to provide.
+
+---
+
+creat gh issue for:
+"""
+Graph scan endpoint is unauthenticated and abusable
+
+The /api/observe/scan/:workspaceId route is wrapped in withRequestLogging but has no withAuth guard — unlike other workspace-scoped routes in this file which use the withAuth(…, deps) pattern.
+
+Because runGraphScan issues multiple LLM calls (detectContradictions, evaluateAnomalies, synthesizePatterns) for every invocation, any external party who discovers a workspace UUID can POST to this endpoint repeatedly, triggering unbounded LLM spend.
+
+The /api/observe/:table/:id endpoint is intentionally open (it is called from SurrealDB's internal http::post), but the graph scan is a user-initiated operation and should require authentication:
+
+"/api/observe/scan/:workspaceId": {
+  POST: withRequestLogging("POST /api/observe/scan/:workspaceId", "POST",
+    withAuth((request) =>
+      graphScanHandler(request.params.workspaceId, request),
+    deps)
+  ),
+},
+"""
+
+---
+
+Commit and push all changes
