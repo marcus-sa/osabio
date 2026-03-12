@@ -3,7 +3,7 @@
   "checkpoint_id": "169a69676385",
   "strategy": "manual-commit",
   "branch": "marcus-sa/observer-agent",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/server/agents/observer/agent.ts",
     "app/src/server/observer/graph-scan.ts"
@@ -22,13 +22,20 @@
       "context": "/16/9a69676385/1/context.md",
       "content_hash": "/16/9a69676385/1/content_hash.txt",
       "prompt": "/16/9a69676385/1/prompt.txt"
+    },
+    {
+      "metadata": "/16/9a69676385/2/metadata.json",
+      "transcript": "/16/9a69676385/2/full.jsonl",
+      "context": "/16/9a69676385/2/context.md",
+      "content_hash": "/16/9a69676385/2/content_hash.txt",
+      "prompt": "/16/9a69676385/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 22,
-    "cache_creation_tokens": 53756,
-    "cache_read_tokens": 637853,
-    "output_tokens": 3104,
-    "api_call_count": 12
+    "input_tokens": 24,
+    "cache_creation_tokens": 54178,
+    "cache_read_tokens": 797227,
+    "output_tokens": 3149,
+    "api_call_count": 14
   }
 }
