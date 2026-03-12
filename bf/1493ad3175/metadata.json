@@ -3,7 +3,7 @@
   "checkpoint_id": "bf1493ad3175",
   "strategy": "manual-commit",
   "branch": "marcus-sa/observer-agent",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     ".github/workflows/ci.yml"
   ],
@@ -28,13 +28,20 @@
       "context": "/bf/1493ad3175/2/context.md",
       "content_hash": "/bf/1493ad3175/2/content_hash.txt",
       "prompt": "/bf/1493ad3175/2/prompt.txt"
+    },
+    {
+      "metadata": "/bf/1493ad3175/3/metadata.json",
+      "transcript": "/bf/1493ad3175/3/full.jsonl",
+      "context": "/bf/1493ad3175/3/context.md",
+      "content_hash": "/bf/1493ad3175/3/content_hash.txt",
+      "prompt": "/bf/1493ad3175/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 32,
+    "cache_creation_tokens": 150488,
+    "cache_read_tokens": 1037047,
+    "output_tokens": 2565,
+    "api_call_count": 16
   }
 }
