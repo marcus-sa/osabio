@@ -8,10 +8,11 @@
 
 import { generateObject, type LanguageModel } from "ai";
 import { logError, logInfo } from "../http/observability";
-import { llmVerdictSchema, peerReviewVerdictSchema, type LlmVerdict, type PeerReviewVerdict } from "./schemas";
+import { llmVerdictSchema, parseLlmVerdict, peerReviewVerdictSchema, type LlmVerdict, type PeerReviewVerdict } from "./schemas";
 import { validateEvidenceRefs } from "./evidence-validator";
 import type { EntityContext } from "./context-loader";
 import type { VerificationResult } from "./verification-pipeline";
+import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
 
 // ---------------------------------------------------------------------------
 // Verification verdict (semantic verification)
@@ -33,8 +34,9 @@ export async function generateVerificationVerdict(
 
     const result = await generateObject({
       model,
+      system: OBSERVER_IDENTITY,
       schema: llmVerdictSchema,
-      prompt: `You are a verification agent analyzing whether an entity aligns with or contradicts confirmed decisions.
+      prompt: `Verify whether this entity aligns with or contradicts the confirmed decisions in its project.
 
 ## Entity Under Review
 - Type: ${context.entityTable}
@@ -43,7 +45,7 @@ export async function generateVerificationVerdict(
 ${context.entityDescription ? `- Description: ${context.entityDescription}` : ""}
 ${context.entityStatus ? `- Status: ${context.entityStatus}` : ""}
 
-## Related Decisions
+## Confirmed Decisions in Same Project
 ${decisionsText}
 
 ## Deterministic Check Result
@@ -51,14 +53,14 @@ ${decisionsText}
 - Text: ${deterministicVerdict.text}
 
 ## Instructions
-Analyze whether this entity contradicts, aligns with, or has an unclear relationship to the related decisions.
-- "mismatch" = clear contradiction between entity and a decision
-- "match" = entity aligns with all relevant decisions
-- "inconclusive" = insufficient evidence to determine
+Compare the entity's title and description against each decision's summary and rationale.
+- "mismatch" = the entity does something a decision explicitly forbids or rules out. Be specific about which decision.
+- "match" = the entity's approach is consistent with all decisions.
+- "inconclusive" = decisions don't address what the entity does, or evidence is genuinely ambiguous.
 
-For evidence_refs, only reference entities listed above using their table:id format.
-If you find a contradiction, fill in the contradiction field with specific claim vs reality.
-Set confidence based on how clear the evidence is (use <0.5 when ambiguous).`,
+In evidence_refs, list the table:id of every entity and decision relevant to your verdict.
+In contradiction.claim, state what the entity does. In contradiction.reality, state what the decision requires. Set both to "none" when verdict is not mismatch.
+Set confidence >= 0.7 when evidence clearly supports your verdict. Use < 0.5 only when genuinely ambiguous.`,
       abortSignal: AbortSignal.timeout(10_000),
     });
 
@@ -69,14 +71,16 @@ Set confidence based on how clear the evidence is (use <0.5 when ambiguous).`,
       confidence: result.object.confidence,
     });
 
+    const parsed = parseLlmVerdict(result.object);
+
     // Post-validate evidence refs
     const validatedRefs = validateEvidenceRefs(
-      result.object.evidence_refs,
+      parsed.evidence_refs,
       context.validEntityIds,
     );
 
     return {
-      ...result.object,
+      ...parsed,
       evidence_refs: validatedRefs,
     };
   } catch (error) {
@@ -111,8 +115,9 @@ export async function generatePeerReviewVerdict(
 
     const result = await generateObject({
       model,
+      system: OBSERVER_IDENTITY,
       schema: peerReviewVerdictSchema,
-      prompt: `You are a peer review agent evaluating whether an observation is well-grounded in evidence.
+      prompt: `Peer-review this observation from another agent. Evaluate whether its claims are grounded in the cited evidence.
 
 ## Observation Under Review
 - Text: "${originalText}"
@@ -123,12 +128,11 @@ export async function generatePeerReviewVerdict(
 ${entitiesText}
 
 ## Instructions
-Evaluate whether the observation's claims are supported by the linked entities.
-- "sound" = claims are well-grounded in the evidence (confidence >= 0.7)
-- "questionable" = partially supported, some claims lack evidence (confidence 0.4-0.7)
-- "unsupported" = claims lack evidence or contradict linked entities (confidence < 0.4)
+- "sound" (confidence >= 0.7) = linked entities directly support the claims.
+- "questionable" (confidence 0.4-0.7) = partial support, some claims go beyond the evidence.
+- "unsupported" (confidence < 0.4) = claims lack evidence or contradict linked entities.
 
-Base your verdict on whether the evidence actually supports the specific claims made.`,
+If no entities are linked, the observation has no cited evidence — verdict should be "unsupported" with low confidence.`,
       abortSignal: AbortSignal.timeout(10_000),
     });
 

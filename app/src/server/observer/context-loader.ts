@@ -50,7 +50,7 @@ export async function loadRelatedDecisions(
     `SELECT id, summary, status, rationale, updated_at FROM decision
      WHERE workspace = $ws
        AND status IN ["confirmed", "provisional"]
-       AND <-belongs_to<-project CONTAINS $project
+       AND ->belongs_to->project CONTAINS $project
      ORDER BY updated_at DESC
      LIMIT 20;`,
     { ws: workspaceRecord, project: projectRecord },
@@ -79,7 +79,7 @@ export async function resolveEntityProject(
   const [rows] = await surreal.query<[Array<{
     project: RecordId<"project">[];
   }>]>(
-    `SELECT <-belongs_to<-project AS project FROM $entity;`,
+    `SELECT ->belongs_to->project AS project FROM $entity;`,
     { entity: entityRecord },
   );
 
@@ -87,6 +87,25 @@ export async function resolveEntityProject(
   if (!projects || projects.length === 0) return undefined;
 
   return projects[0] as RecordId<"project", string>;
+}
+
+// ---------------------------------------------------------------------------
+// Load entity body from DB when not provided by caller
+// ---------------------------------------------------------------------------
+
+async function loadEntityBody(
+  surreal: Surreal,
+  entityTable: string,
+  entityId: string,
+): Promise<Record<string, unknown> | undefined> {
+  const entityRecord = new RecordId(entityTable, entityId);
+
+  const [rows] = await surreal.query<[Array<Record<string, unknown>>]>(
+    `SELECT title, summary, description, status FROM $entity;`,
+    { entity: entityRecord },
+  );
+
+  return rows?.[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -100,9 +119,11 @@ export async function buildEntityContext(
   entityId: string,
   entityBody?: Record<string, unknown>,
 ): Promise<EntityContext> {
-  const entityTitle = (entityBody?.title as string) ?? (entityBody?.summary as string) ?? "Unknown";
-  const entityDescription = entityBody?.description as string | undefined;
-  const entityStatus = entityBody?.status as string | undefined;
+  // Load entity from DB when body not provided by caller
+  const body = entityBody ?? await loadEntityBody(surreal, entityTable, entityId);
+  const entityTitle = (body?.title as string) ?? (body?.summary as string) ?? "Unknown";
+  const entityDescription = body?.description as string | undefined;
+  const entityStatus = body?.status as string | undefined;
 
   // Resolve project and load related decisions
   const projectRecord = await resolveEntityProject(surreal, entityTable, entityId);
