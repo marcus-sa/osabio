@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c8c63b60d659",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-023-observer-llm-reasoning-via-generate-object.md",
+    "docs/adrs/ADR-024-observer-deterministic-skip-optimization.md",
+    "docs/adrs/ADR-025-observer-model-optional-graceful-degradation.md",
+    "docs/evolution/2026-03-12-observer-llm-reasoning.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c8/c63b60d659/0/metadata.json",
+      "transcript": "/c8/c63b60d659/0/full.jsonl",
+      "context": "/c8/c63b60d659/0/context.md",
+      "content_hash": "/c8/c63b60d659/0/content_hash.txt",
+      "prompt": "/c8/c63b60d659/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
