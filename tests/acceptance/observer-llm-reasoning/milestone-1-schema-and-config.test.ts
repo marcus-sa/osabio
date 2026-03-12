@@ -32,7 +32,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
   // ---------------------------------------------------------------------------
   // confidence field persists as optional float
   // ---------------------------------------------------------------------------
-  it.skip("observation confidence field persists when provided", async () => {
+  it("observation confidence field persists when provided", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-conf");
     const wsRecord = new RecordId("workspace", workspaceId);
@@ -65,7 +65,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
   // ---------------------------------------------------------------------------
   // confidence field absent when not provided (optional)
   // ---------------------------------------------------------------------------
-  it.skip("observation confidence field is absent when not provided", async () => {
+  it("observation confidence field is absent when not provided", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-noconf");
     const wsRecord = new RecordId("workspace", workspaceId);
@@ -96,7 +96,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
   // ---------------------------------------------------------------------------
   // evidence_refs field persists as optional array of records
   // ---------------------------------------------------------------------------
-  it.skip("observation evidence_refs field persists record references", async () => {
+  it("observation evidence_refs field persists record references", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-evrefs");
     const wsRecord = new RecordId("workspace", workspaceId);
@@ -165,7 +165,7 @@ describe("Milestone 1: Workspace Observer Settings (Phase 01-01)", () => {
   // ---------------------------------------------------------------------------
   // settings.observer_skip_deterministic persists as optional bool
   // ---------------------------------------------------------------------------
-  it.skip("workspace settings.observer_skip_deterministic persists", async () => {
+  it("workspace settings.observer_skip_deterministic persists", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "settings-skip");
 
@@ -185,7 +185,7 @@ describe("Milestone 1: Workspace Observer Settings (Phase 01-01)", () => {
   // ---------------------------------------------------------------------------
   // settings.observer_skip_deterministic can be set to true
   // ---------------------------------------------------------------------------
-  it.skip("workspace settings.observer_skip_deterministic can be set to true", async () => {
+  it("workspace settings.observer_skip_deterministic can be set to true", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "settings-skip-true");
 
