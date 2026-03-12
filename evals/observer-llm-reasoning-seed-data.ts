@@ -261,6 +261,21 @@ export async function seedObserverLlmTestData(surreal: Surreal): Promise<Observe
     .output("after");
   tasks.set("grounded-warning", taskRateLimit);
 
+  // Provisional decision referenced by the grounded observation
+  const decApiQuota = new RecordId("decision", nextId()) as RecordId<"decision", string>;
+  await surreal.create(decApiQuota).content({
+    summary: "Enforce API quota limits per tenant to prevent abuse and ensure fair resource allocation",
+    rationale: "Multiple incidents of single tenants consuming excessive API resources",
+    status: "provisional",
+    workspace: workspaceRecord,
+    created_at: oneMonthAgo,
+    updated_at: oneMonthAgo,
+  });
+  await surreal
+    .relate(decApiQuota, new RecordId("belongs_to", nextId()), projectRecord, { added_at: oneMonthAgo })
+    .output("after");
+  decisions.set("grounded-warning-decision", decApiQuota);
+
   const obsGrounded = new RecordId("observation", nextId()) as RecordId<"observation", string>;
   await surreal.create(obsGrounded).content({
     text: "Task 'implement rate limiting' has been in_progress for 15 days with no linked commits. The related decision about API quota enforcement is still provisional after 30 days. This combination suggests the task may be blocked by an unresolved decision.",
@@ -273,6 +288,9 @@ export async function seedObserverLlmTestData(surreal: Surreal): Promise<Observe
   });
   await surreal
     .relate(obsGrounded, new RecordId("observes", nextId()), taskRateLimit, { added_at: now })
+    .output("after");
+  await surreal
+    .relate(obsGrounded, new RecordId("observes", nextId()), decApiQuota, { added_at: now })
     .output("after");
   observations.set("grounded-warning", obsGrounded);
 

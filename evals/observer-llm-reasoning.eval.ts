@@ -147,8 +147,8 @@ const cases: ObserverLlmTestCase[] = [
     expectedVerdict: "match",
     expectedConfidenceRange: [0.5, 1.0],
     expectedSeverity: "info",
-    expectedReasoningAnchors: ["rate limiting", "in_progress"],
-    expectedFacts: "The PM observation correctly identifies that a rate limiting task has been in progress for an extended period with no linked commits, and the related decision is still provisional.",
+    expectedReasoningAnchors: ["rate limiting", "in_progress", "provisional"],
+    expectedFacts: "The PM observation correctly identifies that a rate limiting task has been in progress for an extended period with no linked commits, and the related decision about API quota enforcement is still provisional.",
   },
 
   // --- Peer review: Ungrounded claim ---
@@ -157,10 +157,11 @@ const cases: ObserverLlmTestCase[] = [
     evalType: "peer_review",
     scenario: "PM observation makes sweeping claim with no evidence edges",
     seedCaseKey: "ungrounded-claim",
-    expectedVerdict: "inconclusive",
-    expectedConfidenceRange: [0.0, 0.5],
-    expectedSeverity: "info",
-    forbiddenReasoningPatterns: ["confirmed", "verified"],
+    expectedVerdict: "mismatch",
+    expectedConfidenceRange: [0.0, 0.4],
+    expectedSeverity: "warning",
+    forbiddenReasoningPatterns: ["clearly correct", "well-supported"],
+    expectedFacts: "The observation claims the entire authentication system is fundamentally broken, but no entities are linked as evidence. Without cited evidence, this sweeping claim is unsupported.",
   },
 ];
 
