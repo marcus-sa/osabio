@@ -54,7 +54,7 @@ beforeAll(async () => {
 // =============================================================================
 
 describe("Milestone 3: Decision Verification (AC-1.7)", () => {
-  it.skip("newly confirmed decision is checked against completed tasks in same project", async () => {
+  it("newly confirmed decision is checked against completed tasks in same project", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-dec-verify");
     const { projectId } = await createProject(surreal, workspaceId, "Decision Check Project");
@@ -94,7 +94,7 @@ describe("Milestone 3: Decision Verification (AC-1.7)", () => {
     expect(observerObs[0].text).toBeTruthy();
   }, 120_000);
 
-  it.skip("no LLM call when confirmed decision has no completed tasks in project", async () => {
+  it("no LLM call when confirmed decision has no completed tasks in project", async () => {
     const { baseUrl, surreal } = getRuntime();
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-dec-empty");
     const { projectId } = await createProject(surreal, workspaceId, "Empty Tasks Project");
@@ -127,7 +127,7 @@ describe("Milestone 3: Pattern Synthesis (AC-2.1 - AC-2.7)", () => {
   // ---------------------------------------------------------------------------
   // AC-2.5: Empty anomaly list skips LLM
   // ---------------------------------------------------------------------------
-  it.skip("scan with no anomalies returns empty result without LLM call", async () => {
+  it("scan with no anomalies returns empty result without LLM call", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUser(baseUrl, "scan-empty");
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-scan-empty");
@@ -149,7 +149,7 @@ describe("Milestone 3: Pattern Synthesis (AC-2.1 - AC-2.7)", () => {
   // ---------------------------------------------------------------------------
   // AC-2.1: Anomalies passed to LLM after deterministic scan
   // ---------------------------------------------------------------------------
-  it.skip("scan with anomalies triggers LLM synthesis and creates pattern observations", async () => {
+  it("scan with anomalies triggers LLM synthesis and creates pattern observations", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUser(baseUrl, "scan-anomalies");
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-scan-anoms");
@@ -171,11 +171,12 @@ describe("Milestone 3: Pattern Synthesis (AC-2.1 - AC-2.7)", () => {
         title,
         status: "in_progress",
       });
-      // Mark as blocked by the decision
+      // Mark as blocked and set stale date (>14 days) so the scan detects them
       const taskRecord = new RecordId("task", taskId);
+      const staleDate = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000); // 20 days ago
       await surreal.query(
-        `UPDATE $task SET status = "blocked", updated_at = time::now();`,
-        { task: taskRecord },
+        `UPDATE $task SET status = "blocked", updated_at = $date;`,
+        { task: taskRecord, date: staleDate },
       );
     }
 
@@ -194,7 +195,7 @@ describe("Milestone 3: Pattern Synthesis (AC-2.1 - AC-2.7)", () => {
   // ---------------------------------------------------------------------------
   // AC-2.3: Pattern observation links to contributing entities
   // ---------------------------------------------------------------------------
-  it.skip("pattern observation has observation_type=pattern", async () => {
+  it("pattern observation has observation_type=pattern", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUser(baseUrl, "scan-pattern-type");
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-scan-type");
@@ -240,7 +241,7 @@ describe("Milestone 3: Pattern Synthesis (AC-2.1 - AC-2.7)", () => {
   // ---------------------------------------------------------------------------
   // AC-2.4: Deduplication prevents repeated pattern observations
   // ---------------------------------------------------------------------------
-  it.skip("running scan twice does not create duplicate pattern observations", async () => {
+  it("running scan twice does not create duplicate pattern observations", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUser(baseUrl, "scan-dedup");
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-scan-dedup");
