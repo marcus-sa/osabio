@@ -208,20 +208,41 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
   await persistObservation(surreal, workspaceRecord, decisionRecord, deterministicResult);
   let observationsCreated = 1;
 
-  // LLM: when decision confirmed, check completed tasks against it
+  // LLM: when decision confirmed, check completed tasks against it (concurrent)
   if (observerModel && body?.status === "confirmed" && decisionSignals.completedTaskCount > 0) {
     const completedTasks = await queryCompletedTasks(surreal, workspaceRecord);
 
-    for (const task of completedTasks) {
-      const taskId = task.id.id as string;
-      const taskBody = { title: task.title, description: task.description, status: "completed" };
-      const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, taskBody);
-      const llmVerdict = await generateVerificationVerdict(observerModel, context, deterministicResult);
+    // Build contexts concurrently, then run LLM calls concurrently
+    const taskContexts = await Promise.all(
+      completedTasks.map(async (task) => {
+        const taskId = task.id.id as string;
+        const taskBody = { title: task.title, description: task.description, status: "completed" };
+        const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, taskBody);
+        return { task, taskId, context };
+      }),
+    );
 
+    const verdicts = await Promise.allSettled(
+      taskContexts.map(({ context }) =>
+        generateVerificationVerdict(observerModel, context, deterministicResult),
+      ),
+    );
+
+    for (let i = 0; i < verdicts.length; i++) {
+      const settled = verdicts[i];
+      if (settled.status === "rejected") {
+        logInfo("observer.llm.error", "LLM verification failed for task", {
+          taskId: taskContexts[i].taskId,
+          error: String(settled.reason),
+        });
+        continue;
+      }
+
+      const llmVerdict = settled.value;
       if (!llmVerdict || llmVerdict.verdict !== "mismatch") continue;
 
       const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
-      const taskRecord = new RecordId("task", taskId) as ObserveTargetRecord;
+      const taskRecord = new RecordId("task", taskContexts[i].taskId) as ObserveTargetRecord;
 
       await persistObservation(surreal, workspaceRecord, decisionRecord, finalVerdict, "none", [taskRecord]);
       observationsCreated += 1;

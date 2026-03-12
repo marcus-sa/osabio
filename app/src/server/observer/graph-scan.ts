@@ -13,7 +13,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord } from "../observation/queries";
 import { logInfo } from "../http/observability";
-import { synthesizePatterns, type Anomaly } from "./llm-synthesis";
+import { detectContradictions, synthesizePatterns, type Anomaly } from "./llm-synthesis";
 import { parseEntityRef } from "./evidence-validator";
 
 // ---------------------------------------------------------------------------
@@ -186,95 +186,37 @@ async function queryStatusDriftTasks(
  * Used for entity-level dedup -- if the observer already has an open observation
  * on this entity, we skip creating another.
  */
-const ALLOWED_OBSERVER_TABLES = ["project", "feature", "task", "decision", "question", "intent", "git_commit", "observation"];
+// Static query map: one pre-built query string per allowed table, eliminating
+// dynamic interpolation at the call site (prevents SurrealQL injection).
+const OBSERVER_DEDUP_QUERIES: Record<string, string> = Object.fromEntries(
+  ["project", "feature", "task", "decision", "question", "intent", "git_commit", "observation"].map(
+    (table) => [
+      table,
+      `SELECT text, severity, status FROM observation
+       WHERE workspace = $ws
+         AND source_agent = "observer_agent"
+         AND status IN ["open", "acknowledged"]
+         AND ->observes->${table}.id CONTAINS $entity
+       LIMIT 20;`,
+    ],
+  ),
+);
 
 async function queryExistingObserverObservationsForEntity(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   entityRecord: RecordId<string, string>,
 ): Promise<Array<{ text: string; severity: string; status: string }>> {
-  if (!ALLOWED_OBSERVER_TABLES.includes(entityRecord.table.name)) {
+  const query = OBSERVER_DEDUP_QUERIES[entityRecord.table.name];
+  if (!query) {
     throw new Error(`Invalid entity table for observer dedup query: ${entityRecord.table.name}`);
   }
 
   const [rows] = await surreal.query<[Array<{ text: string; severity: string; status: string }>]>(
-    `SELECT text, severity, status FROM observation
-     WHERE workspace = $ws
-       AND source_agent = "observer_agent"
-       AND status IN ["open", "acknowledged"]
-       AND ->observes->${entityRecord.table.name}.id CONTAINS $entity
-     LIMIT 20;`,
+    query,
     { ws: workspaceRecord, entity: entityRecord },
   );
   return rows ?? [];
-}
-
-// ---------------------------------------------------------------------------
-// Contradiction detection (deterministic heuristic)
-// ---------------------------------------------------------------------------
-
-/**
- * Simple keyword-based contradiction detection between decisions and tasks.
- * Looks for signals that a completed task contradicts a confirmed decision.
- *
- * Returns pairs of (decision, task) that appear contradictory.
- */
-function detectContradictions(
-  decisions: ConfirmedDecision[],
-  tasks: CompletedTask[],
-): Array<{ decision: ConfirmedDecision; task: CompletedTask }> {
-  const contradictions: Array<{ decision: ConfirmedDecision; task: CompletedTask }> = [];
-
-  for (const decision of decisions) {
-    const decisionText = decision.summary.toLowerCase();
-
-    for (const task of tasks) {
-      const taskText = `${task.title} ${task.description ?? ""}`.toLowerCase();
-
-      // Detect technology contradictions
-      // e.g., decision says "use tRPC" but task implements "REST" or "Express"
-      if (detectsTechnologyContradiction(decisionText, taskText)) {
-        contradictions.push({ decision, task });
-      }
-    }
-  }
-
-  return contradictions;
-}
-
-/**
- * Detects when a task uses a technology that contradicts a decision mandate.
- * Checks known technology pairs (e.g., tRPC vs REST, GraphQL vs REST).
- */
-function detectsTechnologyContradiction(
-  decisionText: string,
-  taskText: string,
-): boolean {
-  const technologyPairs: Array<{ mandated: string[]; contradicting: string[] }> = [
-    {
-      mandated: ["trpc"],
-      contradicting: ["rest", "express"],
-    },
-    {
-      mandated: ["graphql"],
-      contradicting: ["rest", "express"],
-    },
-    {
-      mandated: ["typescript"],
-      contradicting: ["javascript"],
-    },
-  ];
-
-  for (const pair of technologyPairs) {
-    const mandatesThis = pair.mandated.some((term) => decisionText.includes(term));
-    const taskUsesContradicting = pair.contradicting.some((term) => taskText.includes(term));
-
-    if (mandatesThis && taskUsesContradicting) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,16 +232,25 @@ type ExistingObservation = {
 function isAlreadyObserved(
   existingObservations: ExistingObservation[],
   newText: string,
+  entityId?: string,
 ): boolean {
   const normalizedNew = newText.toLowerCase();
 
   return existingObservations.some((obs) => {
     if (obs.status === "resolved") return false;
+
+    // When entity ID is available, require it to appear in the existing text
+    // so observations about different entities are never considered duplicates
+    if (entityId && !obs.text.toLowerCase().includes(entityId.toLowerCase())) {
+      return false;
+    }
+
     const normalizedExisting = obs.text.toLowerCase();
-    // Check if the core issue is already covered
+    // Check if the core issue is already covered using a meaningful prefix
+    const prefixLen = Math.min(80, normalizedNew.length);
     return (
-      normalizedExisting.includes(normalizedNew.slice(0, 40)) ||
-      normalizedNew.includes(normalizedExisting.slice(0, 40))
+      normalizedExisting.includes(normalizedNew.slice(0, prefixLen)) ||
+      normalizedNew.includes(normalizedExisting.slice(0, prefixLen))
     );
   });
 }
@@ -311,7 +262,7 @@ function isAlreadyObserved(
 export async function runGraphScan(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  observerModel?: LanguageModel,
+  observerModel: LanguageModel,
 ): Promise<GraphScanResult> {
   const result: GraphScanResult = {
     contradictions_found: 0,
@@ -327,13 +278,36 @@ export async function runGraphScan(
     limit: 100,
   });
 
-  // 1. Detect decision-implementation contradictions
+  // 1. Detect decision-implementation contradictions (LLM-based)
   const [decisions, completedTasks] = await Promise.all([
     queryConfirmedDecisions(surreal, workspaceRecord),
     queryCompletedTasks(surreal, workspaceRecord),
   ]);
 
-  const contradictions = detectContradictions(decisions, completedTasks);
+  type ContradictionPair = { decision: ConfirmedDecision; task: CompletedTask };
+  const contradictions: ContradictionPair[] = [];
+
+  if (decisions.length > 0 && completedTasks.length > 0) {
+    const decisionMap = new Map(decisions.map((d) => [d.id.id as string, d]));
+    const taskMap = new Map(completedTasks.map((t) => [t.id.id as string, t]));
+
+    const detected = await detectContradictions(
+      observerModel,
+      decisions.map((d) => ({ id: d.id.id as string, summary: d.summary, rationale: d.rationale })),
+      completedTasks.map((t) => ({ id: t.id.id as string, title: t.title, description: t.description })),
+    );
+
+    if (detected) {
+      for (const c of detected) {
+        const decisionId = parseEntityRef(c.decision_ref)?.id;
+        const taskId = parseEntityRef(c.task_ref)?.id;
+        const decision = decisionId ? decisionMap.get(decisionId) : undefined;
+        const task = taskId ? taskMap.get(taskId) : undefined;
+        if (decision && task) contradictions.push({ decision, task });
+      }
+    }
+  }
+
   result.contradictions_found = contradictions.length;
 
   for (const { decision, task } of contradictions) {
@@ -347,7 +321,7 @@ export async function runGraphScan(
       `Contradiction detected: Decision "${decision.summary}" conflicts with completed task "${task.title}". ` +
       `The task appears to implement an approach that contradicts the confirmed decision.`;
 
-    if (existingForDecision.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
+    if (existingForDecision.length > 0 || isAlreadyObserved(existingObservations, observationText, decision.id.id as string)) {
       logInfo("observer.scan.dedup", "Skipping duplicate contradiction observation", {
         decisionId: decision.id.id,
         taskId: task.id.id,
@@ -386,7 +360,7 @@ export async function runGraphScan(
       `This task has been blocked since ${new Date(task.updated_at).toISOString().slice(0, 10)} ` +
       `(exceeds the ${STALE_BLOCKED_THRESHOLD_DAYS}-day threshold).`;
 
-    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
+    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText, task.id.id as string)) {
       logInfo("observer.scan.dedup", "Skipping duplicate stale-blocked observation", {
         taskId: task.id.id,
       });
@@ -424,7 +398,7 @@ export async function runGraphScan(
       `but its dependency "${drift.dependency.title}" is still ${drift.dependency.status}. ` +
       `A task should not be completed before its dependencies.`;
 
-    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText)) {
+    if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText, drift.id.id as string)) {
       logInfo("observer.scan.dedup", "Skipping duplicate status-drift observation", {
         taskId: drift.id.id,
         depTaskId: drift.dependency.id.id,
@@ -447,81 +421,79 @@ export async function runGraphScan(
     result.observations_created += 1;
   }
 
-  // 4. LLM pattern synthesis (when model configured and anomalies exist)
-  if (observerModel) {
-    const anomalies: Anomaly[] = [];
+  // 4. LLM pattern synthesis
+  const anomalies: Anomaly[] = [];
 
-    for (const { decision, task } of contradictions) {
-      anomalies.push({
-        type: "contradiction",
-        text: `Decision "${decision.summary}" conflicts with task "${task.title}"`,
-        entityId: decision.id.id as string,
-        entityTable: "decision",
-      });
-    }
-    for (const task of staleBlocked) {
-      anomalies.push({
-        type: "stale_blocked",
-        text: `Task "${task.title}" blocked for ${task.daysBlocked} days`,
-        entityId: task.id.id as string,
-        entityTable: "task",
-      });
-    }
-    for (const drift of driftTasks) {
-      anomalies.push({
-        type: "status_drift",
-        text: `Task "${drift.title}" completed but dependency "${drift.dependency.title}" is ${drift.dependency.status}`,
-        entityId: drift.id.id as string,
-        entityTable: "task",
-      });
-    }
+  for (const { decision, task } of contradictions) {
+    anomalies.push({
+      type: "contradiction",
+      text: `Decision "${decision.summary}" conflicts with task "${task.title}"`,
+      entityId: decision.id.id as string,
+      entityTable: "decision",
+    });
+  }
+  for (const task of staleBlocked) {
+    anomalies.push({
+      type: "stale_blocked",
+      text: `Task "${task.title}" blocked for ${task.daysBlocked} days`,
+      entityId: task.id.id as string,
+      entityTable: "task",
+    });
+  }
+  for (const drift of driftTasks) {
+    anomalies.push({
+      type: "status_drift",
+      text: `Task "${drift.title}" completed but dependency "${drift.dependency.title}" is ${drift.dependency.status}`,
+      entityId: drift.id.id as string,
+      entityTable: "task",
+    });
+  }
 
-    if (anomalies.length > 0) {
-      const patterns = await synthesizePatterns(observerModel, anomalies);
+  if (anomalies.length > 0) {
+    const patterns = await synthesizePatterns(observerModel, anomalies);
 
-      if (patterns) {
-        for (const pattern of patterns) {
-          // Dedup: check if a similar pattern observation already exists
-          const patternText = `${pattern.pattern_name}: ${pattern.description}`;
-          if (isAlreadyObserved(existingObservations, patternText)) {
-            logInfo("observer.scan.synthesis_dedup", "Skipping duplicate pattern", {
-              pattern: pattern.pattern_name,
-            });
-            continue;
-          }
-
-          // Build related records from contributing entities
-          const relatedRecords: ObserveTargetRecord[] = [];
-          for (const ref of pattern.contributing_entities) {
-            const parsed = parseEntityRef(ref);
-            if (parsed) {
-              relatedRecords.push(new RecordId(parsed.table, parsed.id) as ObserveTargetRecord);
-            }
-          }
-
-          const now = new Date();
-          await createObservation({
-            surreal,
-            workspaceRecord,
-            text: patternText,
-            severity: pattern.severity,
-            sourceAgent: "observer_agent",
-            observationType: "pattern",
-            now,
-            relatedRecords: relatedRecords.length > 0 ? relatedRecords : undefined,
+    if (patterns) {
+      for (const pattern of patterns) {
+        // Dedup: check if a similar pattern observation already exists
+        const patternText = `${pattern.pattern_name}: ${pattern.description}`;
+        if (isAlreadyObserved(existingObservations, patternText)) {
+          logInfo("observer.scan.synthesis_dedup", "Skipping duplicate pattern", {
+            pattern: pattern.pattern_name,
           });
-
-          result.observations_created += 1;
+          continue;
         }
 
-        logInfo("observer.scan.synthesis", "Pattern synthesis completed", {
-          patternsFound: patterns.length,
+        // Build related records from contributing entities
+        const relatedRecords: ObserveTargetRecord[] = [];
+        for (const ref of pattern.contributing_entities) {
+          const parsed = parseEntityRef(ref);
+          if (parsed) {
+            relatedRecords.push(new RecordId(parsed.table, parsed.id) as ObserveTargetRecord);
+          }
+        }
+
+        const now = new Date();
+        await createObservation({
+          surreal,
+          workspaceRecord,
+          text: patternText,
+          severity: pattern.severity,
+          sourceAgent: "observer_agent",
+          observationType: "pattern",
+          now,
+          relatedRecords: relatedRecords.length > 0 ? relatedRecords : undefined,
         });
-      } else {
-        logInfo("observer.llm.fallback", "Pattern synthesis failed, anomalies reported individually", {
-          anomalyCount: anomalies.length,
-        });
+
+        result.observations_created += 1;
       }
+
+      logInfo("observer.scan.synthesis", "Pattern synthesis completed", {
+        patternsFound: patterns.length,
+      });
+    } else {
+      logInfo("observer.llm.fallback", "Pattern synthesis failed, anomalies reported individually", {
+        anomalyCount: anomalies.length,
+      });
     }
   }
 

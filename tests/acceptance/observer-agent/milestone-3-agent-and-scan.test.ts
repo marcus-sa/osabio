@@ -115,47 +115,31 @@ describe("Milestone 3: Observer Agent Core (Story 5)", () => {
 
 describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // ---------------------------------------------------------------------------
-  // S7-1: Graph scan detects decision-implementation contradiction
+  // S7-1: Graph scan requires OBSERVER_MODEL
   // ---------------------------------------------------------------------------
-  it("graph scan detects a contradiction between a confirmed decision and completed task", async () => {
-    const { baseUrl, surreal } = getRuntime();
+  it("graph scan returns 503 when OBSERVER_MODEL is not configured", async () => {
+    // Note: contradiction detection is now LLM-based. When no model is configured,
+    // the scan endpoint returns 503. Full contradiction tests are in
+    // observer-llm-reasoning/milestone-3-decision-and-synthesis.test.ts
+    const hasModel = !!process.env.OBSERVER_MODEL?.trim();
+    if (hasModel) {
+      // Skip this test when model IS configured (CI LLM matrix)
+      return;
+    }
 
-    // Given a workspace with a confirmed decision to use tRPC for all endpoints
-    const user = await createTestUser(baseUrl, "scan-contradiction");
+    const { baseUrl } = getRuntime();
+    const user = await createTestUser(baseUrl, "scan-no-model");
     const workspace = await createTestWorkspace(baseUrl, user);
 
-    const { decisionId } = await createConfirmedDecision(surreal, workspace.workspaceId, {
-      summary: "Use tRPC for all new API endpoints",
-      rationale: "Type safety and consistency across the codebase",
-    });
-
-    // And a completed task that implemented a REST endpoint instead
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
-      title: "Add billing API endpoint using Express REST",
-      description: "Implemented billing API as REST endpoint with Express router",
-      status: "completed",
-    });
-
-    // Link the task to the same project as the decision
-    // (both belong to the workspace, creating a detectable contradiction)
-
-    // When the periodic graph scan runs
     const scanResponse = await triggerGraphScan(baseUrl, workspace.workspaceId, user.headers);
-
-    // Then the scan detects the contradiction
-    expect(scanResponse.ok).toBe(true);
-
-    // And creates a conflict observation linking the decision and the task
-    await Bun.sleep(5_000); // Allow async observation creation
-    const observations = await getWorkspaceObservations(surreal, workspace.workspaceId, "observer_agent");
-    const contradictions = observations.filter((o) => o.severity === "conflict");
-    expect(contradictions.length).toBeGreaterThanOrEqual(1);
-  }, 120_000);
+    expect(scanResponse.status).toBe(503);
+  }, 30_000);
 
   // ---------------------------------------------------------------------------
   // S7-2: Graph scan detects stale blocked task
   // ---------------------------------------------------------------------------
   it("graph scan detects a task blocked longer than the threshold", async () => {
+
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task that has been blocked for over 14 days
@@ -199,6 +183,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // S7-3: Graph scan deduplicates existing observations
   // ---------------------------------------------------------------------------
   it("graph scan does not create duplicate observations for known issues", async () => {
+
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a stale blocked task
@@ -245,6 +230,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
   // S7-4: Graph scan detects status drift
   // ---------------------------------------------------------------------------
   it("graph scan detects task status that contradicts its dependencies", async () => {
+
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with two tasks where one depends on the other

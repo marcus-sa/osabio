@@ -82,10 +82,15 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
 export function createGraphScanRouteHandler(deps: ServerDependencies) {
   return async (workspaceId: string, _request: Request): Promise<Response> => {
     try {
+      const observerModel = deps.observerModel as LanguageModel | undefined;
+      if (!observerModel) {
+        return jsonResponse({ error: "observer_model_required", message: "OBSERVER_MODEL env var is required for graph scan" }, 503);
+      }
+
       logInfo("observer.scan.started", "Graph scan triggered", { workspaceId });
 
       const workspaceRecord = new RecordId("workspace", workspaceId);
-      const result = await runGraphScan(deps.surreal, workspaceRecord, deps.observerModel as LanguageModel | undefined);
+      const result = await runGraphScan(deps.surreal, workspaceRecord, observerModel);
 
       return jsonResponse({ status: "ok", ...result }, 200);
     } catch (error) {

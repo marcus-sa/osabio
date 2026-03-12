@@ -80,6 +80,30 @@ export const synthesisResultSchema = z.object({
 export type SynthesisResult = z.infer<typeof synthesisResultSchema>;
 
 // ---------------------------------------------------------------------------
+// Contradiction detection (graph scan pipeline)
+// ---------------------------------------------------------------------------
+
+export const detectedContradictionSchema = z.object({
+  decision_ref: z.string().describe(
+    "The contradicted decision in table:id format (e.g. decision:uuid). Must match an ID from the provided decisions.",
+  ),
+  task_ref: z.string().describe(
+    "The contradicting task in table:id format (e.g. task:uuid). Must match an ID from the provided tasks.",
+  ),
+  reasoning: z.string().describe(
+    "Concise explanation of why the task contradicts the decision.",
+  ),
+});
+
+export type DetectedContradiction = z.infer<typeof detectedContradictionSchema>;
+
+export const contradictionDetectionResultSchema = z.object({
+  contradictions: z.array(detectedContradictionSchema).describe(
+    "Pairs of (decision, task) where a completed task implements an approach that contradicts a confirmed decision. Only include clear contradictions, not minor differences.",
+  ),
+});
+
+// ---------------------------------------------------------------------------
 // Peer review verdict (peer review pipeline)
 // ---------------------------------------------------------------------------
 

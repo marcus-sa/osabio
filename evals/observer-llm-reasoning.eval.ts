@@ -32,6 +32,7 @@ import { reasoningQualityScorer } from "./scorers/reasoning-quality";
 import type { ObserverLlmTestCase, ObserverLlmEvalOutput } from "./types";
 import { buildEntityContext } from "../app/src/server/observer/context-loader";
 import { generateVerificationVerdict, generatePeerReviewVerdict } from "../app/src/server/observer/llm-reasoning";
+import { detectContradictions } from "../app/src/server/observer/llm-synthesis";
 import { applyLlmVerdict } from "../app/src/server/observer/verification-pipeline";
 
 const observerModelId = process.env.OBSERVER_MODEL;
@@ -163,6 +164,50 @@ const cases: ObserverLlmTestCase[] = [
     forbiddenReasoningPatterns: ["clearly correct", "well-supported"],
     expectedFacts: "The observation claims the entire authentication system is fundamentally broken, but no entities are linked as evidence. Without cited evidence, this sweeping claim is unsupported.",
   },
+
+  // --- Contradiction detection: finds clear contradictions ---
+  {
+    id: "detect-contradictions-trpc-vs-rest",
+    evalType: "contradiction_detection",
+    scenario: "Workspace with tRPC decision and REST task — should detect contradiction",
+    seedCaseKey: "detect-mixed",
+    expectedVerdict: "mismatch",
+    expectedConfidenceRange: [0.6, 1.0],
+    expectedSeverity: "conflict",
+    expectedContradictionCount: 1,
+    expectedContradictionPairs: [{ decisionKey: "api-contradiction", taskKey: "api-contradiction" }],
+    expectedFacts: "The LLM should detect that a REST billing API task contradicts a tRPC-only decision.",
+  },
+
+  // --- Contradiction detection: no false positives on matching pairs ---
+  {
+    id: "detect-contradictions-no-false-positive",
+    evalType: "contradiction_detection",
+    scenario: "Workspace with TypeScript decision and TypeScript task — should find zero contradictions",
+    seedCaseKey: "detect-clean",
+    expectedVerdict: "match",
+    expectedConfidenceRange: [0.6, 1.0],
+    expectedSeverity: "info",
+    expectedContradictionCount: 0,
+    expectedFacts: "The LLM should detect no contradictions when a TypeScript task aligns with a TypeScript-only decision.",
+  },
+
+  // --- Contradiction detection: multiple contradictions in one scan ---
+  {
+    id: "detect-contradictions-multiple",
+    evalType: "contradiction_detection",
+    scenario: "Multiple decisions with conflicting tasks — should detect all contradictions",
+    seedCaseKey: "detect-multi",
+    expectedVerdict: "mismatch",
+    expectedConfidenceRange: [0.6, 1.0],
+    expectedSeverity: "conflict",
+    expectedContradictionCount: 2,
+    expectedContradictionPairs: [
+      { decisionKey: "api-contradiction", taskKey: "api-contradiction" },
+      { decisionKey: "security-contradiction", taskKey: "security-contradiction" },
+    ],
+    expectedFacts: "The LLM should detect both the REST-vs-tRPC contradiction and the string-concat-vs-parameterized-queries contradiction.",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -173,6 +218,9 @@ async function runObserverLlmCase(testCase: ObserverLlmTestCase): Promise<Observ
   try {
     if (testCase.evalType === "verification") {
       return await runVerificationCase(testCase);
+    }
+    if (testCase.evalType === "contradiction_detection") {
+      return await runContradictionDetectionCase(testCase);
     }
     return await runPeerReviewCase(testCase);
   } catch (error) {
@@ -298,6 +346,109 @@ async function runPeerReviewCase(testCase: ObserverLlmTestCase): Promise<Observe
     reasoning: llmVerdict.reasoning,
     severity: llmVerdict.verdict === "unsupported" ? "warning" : "info",
     evidenceRefs: [],
+    success: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Contradiction detection case subsets (keyed by seedCaseKey)
+// ---------------------------------------------------------------------------
+
+const CONTRADICTION_DETECTION_SUBSETS: Record<string, {
+  decisionKeys: string[];
+  taskKeys: string[];
+}> = {
+  "detect-mixed": {
+    decisionKeys: ["api-contradiction"],
+    taskKeys: ["api-contradiction", "clear-match"],
+  },
+  "detect-clean": {
+    decisionKeys: ["clear-match"],
+    taskKeys: ["clear-match"],
+  },
+  "detect-multi": {
+    decisionKeys: ["api-contradiction", "security-contradiction", "clear-match"],
+    taskKeys: ["api-contradiction", "security-contradiction", "clear-match"],
+  },
+};
+
+async function runContradictionDetectionCase(testCase: ObserverLlmTestCase): Promise<ObserverLlmEvalOutput> {
+  const subset = CONTRADICTION_DETECTION_SUBSETS[testCase.seedCaseKey];
+  if (!subset) {
+    throw new Error(`No contradiction detection subset for case key: ${testCase.seedCaseKey}`);
+  }
+
+  const decisions = subset.decisionKeys.map((key) => {
+    const record = seedResult.decisions.get(key);
+    if (!record) throw new Error(`No seeded decision for key: ${key}`);
+    return record;
+  });
+
+  const tasks = subset.taskKeys.map((key) => {
+    const record = seedResult.tasks.get(key);
+    if (!record) throw new Error(`No seeded task for key: ${key}`);
+    return record;
+  });
+
+  // Load decision summaries and task titles from DB
+  const decisionInputs = await Promise.all(decisions.map(async (decRecord) => {
+    const [rows] = await runtime.surreal.query<[Array<{ summary: string; rationale?: string }>]>(
+      `SELECT summary, rationale FROM $record;`,
+      { record: decRecord },
+    );
+    return { id: decRecord.id as string, summary: rows[0].summary, rationale: rows[0].rationale };
+  }));
+
+  const taskInputs = await Promise.all(tasks.map(async (taskRecord) => {
+    const [rows] = await runtime.surreal.query<[Array<{ title: string; description?: string }>]>(
+      `SELECT title, description FROM $record;`,
+      { record: taskRecord },
+    );
+    return { id: taskRecord.id as string, title: rows[0].title, description: rows[0].description };
+  }));
+
+  const detected = await detectContradictions(observerModel, decisionInputs, taskInputs);
+
+  if (!detected) {
+    return {
+      caseId: testCase.id,
+      verdict: "inconclusive",
+      reasoning: "LLM contradiction detection failed (returned undefined)",
+      severity: "info",
+      evidenceRefs: [],
+      success: false,
+      error: "LLM returned undefined",
+    };
+  }
+
+  const contradictionCount = detected.length;
+  const expectedCount = testCase.expectedContradictionCount ?? 0;
+  const countMatches = contradictionCount === expectedCount;
+
+  // Check if expected pairs were found
+  let pairsMatch = true;
+  if (testCase.expectedContradictionPairs) {
+    for (const expected of testCase.expectedContradictionPairs) {
+      const expectedDecId = seedResult.decisions.get(expected.decisionKey)?.id as string;
+      const expectedTaskId = seedResult.tasks.get(expected.taskKey)?.id as string;
+      const found = detected.some((c) =>
+        c.decision_ref.includes(expectedDecId) && c.task_ref.includes(expectedTaskId),
+      );
+      if (!found) pairsMatch = false;
+    }
+  }
+
+  const reasoning = detected.map((c) => c.reasoning).join("; ") || "No contradictions found";
+
+  return {
+    caseId: testCase.id,
+    verdict: countMatches && pairsMatch
+      ? (contradictionCount > 0 ? "mismatch" : "match")
+      : "inconclusive",
+    confidence: countMatches && pairsMatch ? 0.9 : 0.3,
+    reasoning,
+    severity: contradictionCount > 0 ? "conflict" : "info",
+    evidenceRefs: detected.flatMap((c) => [c.decision_ref, c.task_ref]),
     success: true,
   };
 }

@@ -8,7 +8,7 @@
 
 import { generateObject, type LanguageModel } from "ai";
 import { logError, logInfo } from "../http/observability";
-import { synthesisResultSchema, type SynthesisPattern } from "./schemas";
+import { contradictionDetectionResultSchema, synthesisResultSchema, type DetectedContradiction, type SynthesisPattern } from "./schemas";
 
 export type Anomaly = {
   type: "contradiction" | "stale_blocked" | "status_drift";
@@ -72,6 +72,88 @@ Rules:
   } catch (error) {
     const latencyMs = Date.now() - start;
     logError("observer.llm.synthesis_error", "LLM pattern synthesis failed", {
+      error,
+      latencyMs,
+    });
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Contradiction detection (LLM-based)
+// ---------------------------------------------------------------------------
+
+export type DecisionInput = {
+  id: string;
+  summary: string;
+  rationale?: string;
+};
+
+export type TaskInput = {
+  id: string;
+  title: string;
+  description?: string;
+};
+
+/**
+ * Detects contradictions between confirmed decisions and completed tasks via LLM.
+ * Returns detected contradiction pairs, or undefined on failure.
+ */
+export async function detectContradictions(
+  model: LanguageModel,
+  decisions: DecisionInput[],
+  tasks: TaskInput[],
+): Promise<DetectedContradiction[] | undefined> {
+  if (decisions.length === 0 || tasks.length === 0) return [];
+
+  const start = Date.now();
+
+  try {
+    const decisionsText = decisions.map((d) =>
+      `- [decision:${d.id}] ${d.summary}${d.rationale ? ` (rationale: ${d.rationale})` : ""}`,
+    ).join("\n");
+
+    const tasksText = tasks.map((t) =>
+      `- [task:${t.id}] ${t.title}${t.description ? ` — ${t.description}` : ""}`,
+    ).join("\n");
+
+    const result = await generateObject({
+      model,
+      schema: contradictionDetectionResultSchema,
+      prompt: `You are an observer agent scanning a workspace knowledge graph for contradictions between confirmed decisions and completed tasks.
+
+## Confirmed Decisions
+${decisionsText}
+
+## Completed Tasks
+${tasksText}
+
+## Instructions
+Identify any completed task that contradicts a confirmed decision. A contradiction means the task implements an approach that directly conflicts with what the decision mandates.
+
+Examples of contradictions:
+- Decision mandates tRPC but task implements REST endpoints
+- Decision requires TypeScript but task delivers JavaScript
+- Decision specifies PostgreSQL but task sets up MongoDB
+- Decision requires feature flags but task ships without them
+
+Rules:
+- Only flag clear, direct contradictions — not minor implementation variations
+- Use the exact table:id format from the lists above for decision_ref and task_ref
+- If no contradictions exist, return an empty array`,
+      abortSignal: AbortSignal.timeout(10_000),
+    });
+
+    const latencyMs = Date.now() - start;
+    logInfo("observer.llm.contradiction_detection", "LLM contradiction detection completed", {
+      latencyMs,
+      contradictionCount: result.object.contradictions.length,
+    });
+
+    return result.object.contradictions;
+  } catch (error) {
+    const latencyMs = Date.now() - start;
+    logError("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
       error,
       latencyMs,
     });
