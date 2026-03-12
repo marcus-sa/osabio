@@ -32,7 +32,7 @@ import { reasoningQualityScorer } from "./scorers/reasoning-quality";
 import type { ObserverLlmTestCase, ObserverLlmEvalOutput } from "./types";
 import { buildEntityContext } from "../app/src/server/observer/context-loader";
 import { generateVerificationVerdict, generatePeerReviewVerdict } from "../app/src/server/observer/llm-reasoning";
-import { detectContradictions } from "../app/src/server/observer/llm-synthesis";
+import { detectContradictions, evaluateAnomalies, type AnomalyCandidate } from "../app/src/server/observer/llm-synthesis";
 import { applyLlmVerdict } from "../app/src/server/observer/verification-pipeline";
 
 const observerModelId = process.env.OBSERVER_MODEL;
@@ -208,6 +208,62 @@ const cases: ObserverLlmTestCase[] = [
     ],
     expectedFacts: "The LLM should detect both the REST-vs-tRPC contradiction and the string-concat-vs-parameterized-queries contradiction.",
   },
+
+  // --- Anomaly evaluation: genuinely stuck task ---
+  {
+    id: "anomaly-eval-genuinely-stuck",
+    evalType: "anomaly_evaluation",
+    scenario: "Task blocked 30 days with no clear external reason — should be marked relevant",
+    seedCaseKey: "anomaly-stuck",
+    expectedVerdict: "mismatch",
+    expectedConfidenceRange: [0.5, 1.0],
+    expectedSeverity: "warning",
+    expectedRelevant: true,
+    expectedReasoningAnchors: ["refactor", "blocked"],
+    expectedFacts: "The task has been blocked for 30 days with no clear external dependency or vendor wait. It appears genuinely forgotten or stalled.",
+  },
+
+  // --- Anomaly evaluation: expected external wait ---
+  {
+    id: "anomaly-eval-external-wait",
+    evalType: "anomaly_evaluation",
+    scenario: "Task blocked awaiting external vendor — should be marked not relevant",
+    seedCaseKey: "anomaly-external",
+    expectedVerdict: "match",
+    expectedConfidenceRange: [0.5, 1.0],
+    expectedSeverity: "info",
+    expectedRelevant: false,
+    expectedReasoningAnchors: ["vendor", "external"],
+    expectedFacts: "The task is waiting on an external vendor for SOC2 compliance review. This is an expected external dependency, not a forgotten task.",
+  },
+
+  // --- Anomaly evaluation: critical status drift ---
+  {
+    id: "anomaly-eval-critical-drift",
+    evalType: "anomaly_evaluation",
+    scenario: "Task completed before its prerequisite database schema — should be relevant",
+    seedCaseKey: "anomaly-drift-critical",
+    expectedVerdict: "mismatch",
+    expectedConfidenceRange: [0.5, 1.0],
+    expectedSeverity: "warning",
+    expectedRelevant: true,
+    expectedReasoningAnchors: ["schema", "depend"],
+    expectedFacts: "The CRUD operations task was completed before the database schema design, which is a prerequisite. This could mean the implementation is based on an unfinished or missing schema.",
+  },
+
+  // --- Anomaly evaluation: optional dependency drift ---
+  {
+    id: "anomaly-eval-optional-drift",
+    evalType: "anomaly_evaluation",
+    scenario: "Task completed before documentation dependency — may be filtered as not relevant",
+    seedCaseKey: "anomaly-drift-optional",
+    expectedVerdict: "match",
+    expectedConfidenceRange: [0.3, 1.0],
+    expectedSeverity: "info",
+    expectedRelevant: false,
+    expectedReasoningAnchors: ["documentation"],
+    expectedFacts: "The API was shipped before documentation was written. Documentation is typically not a hard prerequisite — it can be written after shipping.",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -221,6 +277,9 @@ async function runObserverLlmCase(testCase: ObserverLlmTestCase): Promise<Observ
     }
     if (testCase.evalType === "contradiction_detection") {
       return await runContradictionDetectionCase(testCase);
+    }
+    if (testCase.evalType === "anomaly_evaluation") {
+      return await runAnomalyEvaluationCase(testCase);
     }
     return await runPeerReviewCase(testCase);
   } catch (error) {
@@ -449,6 +508,86 @@ async function runContradictionDetectionCase(testCase: ObserverLlmTestCase): Pro
     reasoning,
     severity: contradictionCount > 0 ? "conflict" : "info",
     evidenceRefs: detected.flatMap((c) => [c.decision_ref, c.task_ref]),
+    success: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Anomaly evaluation cases (keyed by seedCaseKey)
+// ---------------------------------------------------------------------------
+
+const ANOMALY_EVAL_CANDIDATES: Record<string, AnomalyCandidate[]> = {
+  "anomaly-stuck": [
+    {
+      entityRef: "task:stuck-refactor",
+      type: "stale_blocked",
+      title: "Refactor authentication module",
+      description: "Needs refactoring but nobody has picked it up",
+      detail: "Blocked for 30 days since 2026-02-11",
+    },
+  ],
+  "anomaly-external": [
+    {
+      entityRef: "task:external-soc2",
+      type: "stale_blocked",
+      title: "Waiting on legal team to complete SOC2 compliance review",
+      description: "Blocked until legal provides signed compliance attestation from external auditor. Expected timeline: 4-6 weeks from submission date.",
+      detail: "Blocked for 20 days since 2026-02-21",
+    },
+  ],
+  "anomaly-drift-critical": [
+    {
+      entityRef: "task:crud-before-schema",
+      type: "status_drift",
+      title: "Implement user profile CRUD operations",
+      description: "Build CRUD endpoints for user profile management",
+      detail: 'Marked as completed but dependency "Design database schema for user profiles" is still in_progress',
+    },
+  ],
+  "anomaly-drift-optional": [
+    {
+      entityRef: "task:ship-before-docs",
+      type: "status_drift",
+      title: "Ship API endpoint to production",
+      description: "Deploy the new API endpoint for customer-facing feature",
+      detail: 'Marked as completed but dependency "Write documentation for API endpoints" is still in_progress',
+    },
+  ],
+};
+
+async function runAnomalyEvaluationCase(testCase: ObserverLlmTestCase): Promise<ObserverLlmEvalOutput> {
+  const candidates = ANOMALY_EVAL_CANDIDATES[testCase.seedCaseKey];
+  if (!candidates) {
+    throw new Error(`No anomaly eval candidates for case key: ${testCase.seedCaseKey}`);
+  }
+
+  const evaluations = await evaluateAnomalies(observerModel, candidates);
+
+  if (!evaluations || evaluations.length === 0) {
+    return {
+      caseId: testCase.id,
+      verdict: "inconclusive",
+      reasoning: "LLM anomaly evaluation failed (returned undefined or empty)",
+      severity: "info",
+      evidenceRefs: [],
+      success: false,
+      error: "LLM returned undefined",
+    };
+  }
+
+  const evaluation = evaluations[0];
+  const expectedRelevant = testCase.expectedRelevant ?? true;
+  const relevantMatches = evaluation.relevant === expectedRelevant;
+
+  return {
+    caseId: testCase.id,
+    verdict: relevantMatches
+      ? (evaluation.relevant ? "mismatch" : "match")
+      : "inconclusive",
+    confidence: relevantMatches ? 0.9 : 0.3,
+    reasoning: evaluation.reasoning,
+    severity: evaluation.suggested_severity,
+    evidenceRefs: [evaluation.entity_ref],
     success: true,
   };
 }

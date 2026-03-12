@@ -13,7 +13,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord } from "../observation/queries";
 import { logInfo } from "../http/observability";
-import { detectContradictions, synthesizePatterns, type Anomaly } from "./llm-synthesis";
+import { detectContradictions, evaluateAnomalies, synthesizePatterns, type Anomaly, type AnomalyCandidate } from "./llm-synthesis";
 import { parseEntityRef } from "./evidence-validator";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +56,7 @@ export type GraphScanResult = {
   stale_blocked_found: number;
   status_drift_found: number;
   observations_created: number;
+  llm_filtered_count: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -269,6 +270,7 @@ export async function runGraphScan(
     stale_blocked_found: 0,
     status_drift_found: 0,
     observations_created: 0,
+    llm_filtered_count: 0,
   };
 
   // Load existing observations for deduplication
@@ -344,21 +346,87 @@ export async function runGraphScan(
     result.observations_created += 1;
   }
 
-  // 2. Detect stale blocked tasks
-  const staleBlocked = await queryStaleBlockedTasks(surreal, workspaceRecord);
+  // 2. Detect stale blocked tasks and status drift (concurrent queries)
+  const [staleBlocked, driftTasks] = await Promise.all([
+    queryStaleBlockedTasks(surreal, workspaceRecord),
+    queryStatusDriftTasks(surreal, workspaceRecord),
+  ]);
   result.stale_blocked_found = staleBlocked.length;
+  result.status_drift_found = driftTasks.length;
+
+  // 3. LLM anomaly evaluation: filter false positives before creating observations
+  const anomalyCandidates: AnomalyCandidate[] = [];
 
   for (const task of staleBlocked) {
-    // Entity-level dedup: check if observer already has an open observation on this task
+    anomalyCandidates.push({
+      entityRef: `task:${task.id.id as string}`,
+      type: "stale_blocked",
+      title: task.title,
+      description: task.description,
+      detail: `Blocked for ${task.daysBlocked} days since ${new Date(task.updated_at).toISOString().slice(0, 10)}`,
+    });
+  }
+
+  for (const drift of driftTasks) {
+    anomalyCandidates.push({
+      entityRef: `task:${drift.id.id as string}`,
+      type: "status_drift",
+      title: drift.title,
+      description: undefined,
+      detail: `Marked as ${drift.status} but dependency "${drift.dependency.title}" is still ${drift.dependency.status}`,
+    });
+  }
+
+  // Build evaluation map: entityRef -> LLM verdict (fallback: all relevant with default severity)
+  const evaluationMap = new Map<string, { relevant: boolean; reasoning: string; severity: "info" | "warning" | "conflict" }>();
+
+  if (anomalyCandidates.length > 0) {
+    const evaluations = await evaluateAnomalies(observerModel, anomalyCandidates);
+
+    if (evaluations) {
+      for (const ev of evaluations) {
+        evaluationMap.set(ev.entity_ref, {
+          relevant: ev.relevant,
+          reasoning: ev.reasoning,
+          severity: ev.suggested_severity,
+        });
+      }
+    } else {
+      logInfo("observer.llm.fallback", "Anomaly evaluation failed, treating all as relevant", {
+        candidateCount: anomalyCandidates.length,
+      });
+    }
+  }
+
+  // Create observations for stale blocked tasks (LLM-filtered)
+  for (const task of staleBlocked) {
+    const entityRef = `task:${task.id.id as string}`;
+    const evaluation = evaluationMap.get(entityRef);
+
+    // When LLM evaluated and marked not relevant, skip
+    if (evaluation && !evaluation.relevant) {
+      logInfo("observer.scan.llm_filtered", "Stale-blocked task filtered by LLM as not relevant", {
+        taskId: task.id.id,
+        reasoning: evaluation.reasoning,
+      });
+      result.llm_filtered_count += 1;
+      continue;
+    }
+
+    // Entity-level dedup
     const existingForTask = await queryExistingObserverObservationsForEntity(
       surreal, workspaceRecord,
       task.id as RecordId<string, string>,
     );
 
-    const observationText =
-      `Task blocked for ${task.daysBlocked} days: "${task.title}". ` +
-      `This task has been blocked since ${new Date(task.updated_at).toISOString().slice(0, 10)} ` +
-      `(exceeds the ${STALE_BLOCKED_THRESHOLD_DAYS}-day threshold).`;
+    const llmReasoning = evaluation?.reasoning;
+    const severity = evaluation?.severity ?? "warning";
+
+    const observationText = llmReasoning
+      ? `Task blocked for ${task.daysBlocked} days: "${task.title}". ${llmReasoning}`
+      : `Task blocked for ${task.daysBlocked} days: "${task.title}". ` +
+        `This task has been blocked since ${new Date(task.updated_at).toISOString().slice(0, 10)} ` +
+        `(exceeds the ${STALE_BLOCKED_THRESHOLD_DAYS}-day threshold).`;
 
     if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText, task.id.id as string)) {
       logInfo("observer.scan.dedup", "Skipping duplicate stale-blocked observation", {
@@ -372,7 +440,7 @@ export async function runGraphScan(
       surreal,
       workspaceRecord,
       text: observationText,
-      severity: "warning",
+      severity,
       sourceAgent: "observer_agent",
       observationType: "anomaly",
       now,
@@ -382,21 +450,35 @@ export async function runGraphScan(
     result.observations_created += 1;
   }
 
-  // 3. Detect status drift (completed tasks with incomplete dependencies)
-  const driftTasks = await queryStatusDriftTasks(surreal, workspaceRecord);
-  result.status_drift_found = driftTasks.length;
-
+  // Create observations for status drift tasks (LLM-filtered)
   for (const drift of driftTasks) {
+    const entityRef = `task:${drift.id.id as string}`;
+    const evaluation = evaluationMap.get(entityRef);
+
+    // When LLM evaluated and marked not relevant, skip
+    if (evaluation && !evaluation.relevant) {
+      logInfo("observer.scan.llm_filtered", "Status-drift task filtered by LLM as not relevant", {
+        taskId: drift.id.id,
+        reasoning: evaluation.reasoning,
+      });
+      result.llm_filtered_count += 1;
+      continue;
+    }
+
     // Entity-level dedup
     const existingForTask = await queryExistingObserverObservationsForEntity(
       surreal, workspaceRecord,
       drift.id as RecordId<string, string>,
     );
 
-    const observationText =
-      `Status drift detected: Task "${drift.title}" is marked as ${drift.status}, ` +
-      `but its dependency "${drift.dependency.title}" is still ${drift.dependency.status}. ` +
-      `A task should not be completed before its dependencies.`;
+    const llmReasoning = evaluation?.reasoning;
+    const severity = evaluation?.severity ?? "warning";
+
+    const observationText = llmReasoning
+      ? `Status drift: Task "${drift.title}" is ${drift.status} but dependency "${drift.dependency.title}" is ${drift.dependency.status}. ${llmReasoning}`
+      : `Status drift detected: Task "${drift.title}" is marked as ${drift.status}, ` +
+        `but its dependency "${drift.dependency.title}" is still ${drift.dependency.status}. ` +
+        `A task should not be completed before its dependencies.`;
 
     if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, observationText, drift.id.id as string)) {
       logInfo("observer.scan.dedup", "Skipping duplicate status-drift observation", {
@@ -411,7 +493,7 @@ export async function runGraphScan(
       surreal,
       workspaceRecord,
       text: observationText,
-      severity: "warning",
+      severity,
       sourceAgent: "observer_agent",
       observationType: "anomaly",
       now,

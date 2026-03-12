@@ -120,3 +120,30 @@ export const peerReviewVerdictSchema = z.object({
 });
 
 export type PeerReviewVerdict = z.infer<typeof peerReviewVerdictSchema>;
+
+// ---------------------------------------------------------------------------
+// Anomaly evaluation verdict (stale/drift LLM reasoning)
+// ---------------------------------------------------------------------------
+
+export const anomalyEvaluationSchema = z.object({
+  entity_ref: z.string().describe(
+    "The entity in table:id format being evaluated. Must match an entity from the provided list.",
+  ),
+  relevant: z.boolean().describe(
+    "true if this anomaly is genuinely concerning and warrants human attention. false if it is likely expected state, a known external dependency, or otherwise a false positive.",
+  ),
+  reasoning: z.string().describe(
+    "Brief explanation of why this anomaly is or is not relevant. Reference the task title and any contextual clues from the description.",
+  ),
+  suggested_severity: z.enum(["info", "warning", "conflict"]).describe(
+    "info = low concern (expected wait, external dependency). warning = genuine staleness or drift needing review. conflict = actively blocking critical work or contradicting decisions.",
+  ),
+});
+
+export type AnomalyEvaluation = z.infer<typeof anomalyEvaluationSchema>;
+
+export const anomalyEvaluationResultSchema = z.object({
+  evaluations: z.array(anomalyEvaluationSchema),
+});
+
+export type AnomalyEvaluationResult = z.infer<typeof anomalyEvaluationResultSchema>;

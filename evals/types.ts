@@ -115,7 +115,7 @@ export type ChatAgentEvalOutput = {
 export type ObserverLlmTestCase = {
   id: string;
   /** What kind of LLM reasoning is being tested */
-  evalType: "verification" | "peer_review" | "contradiction_detection";
+  evalType: "verification" | "peer_review" | "contradiction_detection" | "anomaly_evaluation";
   /** Human description of the scenario */
   scenario: string;
   /** For verification: which seeded decision-task pair to use */
@@ -136,6 +136,8 @@ export type ObserverLlmTestCase = {
   expectedContradictionCount?: number;
   /** For contradiction_detection: expected decision-task pairs (decision seedKey -> task seedKey) */
   expectedContradictionPairs?: Array<{ decisionKey: string; taskKey: string }>;
+  /** For anomaly_evaluation: whether the anomaly should be marked relevant */
+  expectedRelevant?: boolean;
 };
 
 export type ObserverLlmEvalOutput = {

@@ -8,7 +8,8 @@
 
 import { generateObject, type LanguageModel } from "ai";
 import { logError, logInfo } from "../http/observability";
-import { contradictionDetectionResultSchema, synthesisResultSchema, type DetectedContradiction, type SynthesisPattern } from "./schemas";
+import { anomalyEvaluationResultSchema, contradictionDetectionResultSchema, synthesisResultSchema, type AnomalyEvaluation, type DetectedContradiction, type SynthesisPattern } from "./schemas";
+import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
 
 export type Anomaly = {
   type: "contradiction" | "stale_blocked" | "status_drift";
@@ -154,6 +155,82 @@ Rules:
   } catch (error) {
     const latencyMs = Date.now() - start;
     logError("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
+      error,
+      latencyMs,
+    });
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Anomaly evaluation (LLM-based relevance filtering for stale/drift)
+// ---------------------------------------------------------------------------
+
+export type AnomalyCandidate = {
+  entityRef: string;
+  type: "stale_blocked" | "status_drift";
+  title: string;
+  description?: string;
+  detail: string;
+};
+
+/**
+ * Evaluates stale/drift anomaly candidates via LLM to filter false positives.
+ * Returns per-entity evaluations with relevance verdict, reasoning, and severity.
+ * Returns undefined on failure (caller falls back to creating all observations).
+ */
+export async function evaluateAnomalies(
+  model: LanguageModel,
+  candidates: AnomalyCandidate[],
+): Promise<AnomalyEvaluation[] | undefined> {
+  if (candidates.length === 0) return [];
+
+  const start = Date.now();
+
+  try {
+    const candidatesText = candidates.map((c) =>
+      `- [${c.entityRef}] (${c.type}) "${c.title}"${c.description ? ` — ${c.description}` : ""}\n  Detail: ${c.detail}`,
+    ).join("\n");
+
+    const result = await generateObject({
+      model,
+      system: OBSERVER_IDENTITY,
+      schema: anomalyEvaluationResultSchema,
+      prompt: `You are evaluating workspace anomalies to determine which ones genuinely warrant human attention and which are likely false positives.
+
+## Anomaly Candidates
+${candidatesText}
+
+## Instructions
+For each anomaly, evaluate whether it is genuinely concerning:
+
+**stale_blocked** — A task has been in "blocked" status for over 14 days.
+- Mark as NOT relevant if the title/description suggests an expected external wait (e.g., "waiting on vendor", "pending legal review", "blocked by external API release").
+- Mark as relevant if the task appears to be forgotten, lacks clear reason for blockage, or suggests internal coordination failure.
+- Use "conflict" severity only when the blocked task is clearly critical or blocking other work.
+
+**status_drift** — A task is marked completed but has incomplete dependencies.
+- Mark as NOT relevant if the dependency is optional, informational, or the task could reasonably be done out of order.
+- Mark as relevant if the dependency is clearly prerequisite work that should have been done first.
+- Use "conflict" severity when the drift could mean the completed task is actually broken.
+
+Return an evaluation for EVERY candidate. Use the exact entity_ref from the list above.`,
+      abortSignal: AbortSignal.timeout(15_000),
+    });
+
+    const latencyMs = Date.now() - start;
+    const relevantCount = result.object.evaluations.filter((e) => e.relevant).length;
+    logInfo("observer.llm.anomaly_evaluation", "LLM anomaly evaluation completed", {
+      latencyMs,
+      candidateCount: candidates.length,
+      relevantCount,
+      filteredCount: candidates.length - relevantCount,
+    });
+
+    return result.object.evaluations;
+  } catch (error) {
+    const latencyMs = Date.now() - start;
+    logError("observer.llm.anomaly_evaluation_error", "LLM anomaly evaluation failed", {
       error,
       latencyMs,
     });
