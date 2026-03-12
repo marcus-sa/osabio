@@ -175,7 +175,7 @@ export function compareDecisionConfirmation(
         verdict: "inconclusive",
         severity: "info",
         verified: false,
-        text: `Decision confirmed: "${signals.summary}". No completed tasks found in workspace to verify alignment.`,
+        text: `Decision confirmed: "${signals.summary}". No completed tasks in workspace.`,
       };
     }
 
@@ -183,7 +183,7 @@ export function compareDecisionConfirmation(
       verdict: "match",
       severity: "info",
       verified: true,
-      text: `Decision confirmed: "${signals.summary}". Found ${signals.completedTaskCount} completed task(s) in workspace. Alignment check performed.`,
+      text: `Decision confirmed: "${signals.summary}". ${signals.completedTaskCount} completed task(s) in workspace available for alignment review.`,
     };
   }
 
@@ -201,7 +201,7 @@ export function compareDecisionConfirmation(
       verdict: "mismatch",
       severity: "warning",
       verified: false,
-      text: `Decision superseded: "${signals.summary}". Found ${signals.completedTaskCount} completed task(s) that may now be based on an outdated decision. Review implementations for staleness.`,
+      text: `Decision superseded: "${signals.summary}". ${signals.completedTaskCount} completed task(s) in workspace may reference an outdated decision. Review for staleness.`,
     };
   }
 

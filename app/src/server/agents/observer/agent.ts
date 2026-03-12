@@ -349,7 +349,7 @@ async function gatherDecisionSignals(
   const summary = (body?.summary as string) ?? "Unknown decision";
 
   const [taskRows] = await surreal.query<[Array<{ count: number }>]>(
-    `SELECT count() AS count FROM task WHERE workspace = $ws AND (status = "completed" OR status = "done") GROUP ALL;`,
+    `SELECT count() AS count FROM task WHERE workspace = $ws AND status IN ["completed", "done"] GROUP ALL;`,
     { ws: workspaceRecord },
   );
 
