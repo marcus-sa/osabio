@@ -1,0 +1,95 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/houston-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+app/src/server/observer/graph-scan.ts
+Comment on lines +296 to +310
+  return existingObservations.some((obs) => {
+    if (obs.status === "resolved") return false;
+    const normalizedExisting = obs.text.toLowerCase();
+    // Check if the core issue is already covered
+    return (
+      normalizedExisting.includes(normalizedNew.slice(0, 40)) ||
+      normalizedNew.includes(normalizedExisting.slice(0, 40))
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Scan orchestrator
+// ---------------------------------------------------------------------------
+
+@greptile-apps
+greptile-apps bot
+10 minutes ago
+Fragile 40-character prefix deduplication causes false positives
+
+isAlreadyObserved compares only the first 40 characters of each observation text to determine duplicates. This is prone to false positives: two observations that start with the same prefix but describe entirely different issues will be silently suppressed.
+
+For example, all stale-blocked task observations begin with "task blocked for" followed by a variable number of days, meaning an observation for a 14-day blocked task and a 21-day blocked task on different entities could be considered duplicates if their titles happen to share 40 characters.
+
+A safer approach is to include the entity ID in the deduplication key, or use a more specific check such as a minimum similarity threshold or entity-aware hashing.
+
+app/src/server/observer/graph-scan.ts
+Comment on lines +206 to +215
+     LIMIT 20;`,
+    { ws: workspaceRecord, entity: entityRecord },
+  );
+  return rows ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Contradiction detection (deterministic heuristic)
+// ---------------------------------------------------------------------------
+
+@greptile-apps
+greptile-apps bot
+10 minutes ago
+Dynamic SurrealQL query built via string interpolation
+
+entityRecord.table.name is interpolated directly into the query string:
+
+AND ->observes->${entityRecord.table.name}.id CONTAINS $entity
+While the ALLOWED_OBSERVER_TABLES whitelist check on line 202 mitigates the risk, SurrealQL injection is still possible if the whitelist is later extended with user-controlled values, or if this function is called in a context that bypasses the guard. The whitelist validation and the interpolation are not co-located, making it easy to miss the coupling.
+
+A safer pattern is to build the query string once per allowed table (e.g. a static map from table name → query string), eliminating any dynamic construction at the call site.
+
+app/src/server/agents/observer/agent.ts
+Comment on lines +216 to +232
+      const taskId = task.id.id as string;
+      const taskBody = { title: task.title, description: task.description, status: "completed" };
+      const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, taskBody);
+      const llmVerdict = await generateVerificationVerdict(observerModel, context, deterministicResult);
+
+      if (!llmVerdict || llmVerdict.verdict !== "mismatch") continue;
+
+      const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
+      const taskRecord = new RecordId("task", taskId) as ObserveTargetRecord;
+
+      await persistObservation(surreal, workspaceRecord, decisionRecord, finalVerdict, "none", [taskRecord]);
+      observationsCreated += 1;
+    }
+  }
+
+  return {
+    observations_created: observationsCreated,
+@greptile-apps
+greptile-apps bot
+10 minutes ago
+Sequential LLM calls per completed task — N+1 latency problem
+
+verifyDecision iterates over all completed tasks (up to 20 from queryCompletedTasks) and issues a separate, sequential generateVerificationVerdict LLM call for each one with no concurrency:
+
+for (const task of completedTasks) {
+  ...
+  const llmVerdict = await generateVerificationVerdict(observerModel, context, deterministicResult);
+  ...
+}
+With 20 tasks and a 30-second timeout per call, this path can block for up to 600 seconds. Even under normal latency (~2–5 s per call) a workspace with 20 completed tasks will stall the route handler for 40–100 seconds. Promise.allSettled should be used to run the LLM calls concurrently, or the tasks should be batched.
