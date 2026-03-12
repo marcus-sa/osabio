@@ -1,40 +1,39 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "61c733b002c4",
+  "session_id": "613dd8a4-a238-4837-8c7b-d00b176305f0",
   "strategy": "manual-commit",
+  "created_at": "2026-03-12T17:49:34.318658Z",
   "branch": "marcus-sa/observer-agent",
   "checkpoints_count": 0,
   "files_touched": [
+    "tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts",
     "app/src/server/agents/observer/agent.ts",
     "app/src/server/observer/graph-scan.ts",
     "app/src/server/observer/llm-synthesis.ts",
     "app/src/server/observer/observer-route.ts",
     "app/src/server/observer/schemas.ts",
     "evals/observer-llm-reasoning.eval.ts",
-    "evals/types.ts",
-    "tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts"
+    "evals/types.ts"
   ],
-  "sessions": [
-    {
-      "metadata": "/61/c733b002c4/0/metadata.json",
-      "transcript": "/61/c733b002c4/0/full.jsonl",
-      "context": "",
-      "content_hash": "/61/c733b002c4/0/content_hash.txt",
-      "prompt": ""
-    },
-    {
-      "metadata": "/61/c733b002c4/1/metadata.json",
-      "transcript": "/61/c733b002c4/1/full.jsonl",
-      "context": "/61/c733b002c4/1/context.md",
-      "content_hash": "/61/c733b002c4/1/content_hash.txt",
-      "prompt": "/61/c733b002c4/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "9cb6a3266a64",
+  "checkpoint_transcript_start": 18,
+  "transcript_lines_at_start": 18,
   "token_usage": {
     "input_tokens": 0,
     "cache_creation_tokens": 0,
     "cache_read_tokens": 0,
     "output_tokens": 0,
     "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T17:49:34.308821Z",
+    "agent_lines": 438,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 438,
+    "agent_percentage": 100
   }
 }
