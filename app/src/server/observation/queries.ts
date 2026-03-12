@@ -3,7 +3,7 @@ import { RecordId, Surreal } from "surrealdb";
 import type { EntityCategory, ObservationSeverity, ObservationStatus, ObservationSummary, ObservationType } from "../../shared/contracts";
 
 type ObservationRecord = RecordId<"observation", string>;
-type ObserveTargetRecord = RecordId<"project" | "feature" | "task" | "decision" | "question" | "observation", string>;
+export type ObserveTargetRecord = RecordId<"project" | "feature" | "task" | "decision" | "question" | "observation", string>;
 
 const SEVERITY_PRIORITY: Record<ObservationSeverity, number> = {
   conflict: 0,
@@ -23,7 +23,10 @@ export async function createObservation(input: {
   sourceMessageRecord?: RecordId<"message", string>;
   sourceSessionRecord?: RecordId<"agent_session", string>;
   relatedRecord?: ObserveTargetRecord;
+  relatedRecords?: ObserveTargetRecord[];
   embedding?: number[];
+  confidence?: number;
+  evidenceRefs?: RecordId[];
 }): Promise<ObservationRecord> {
   const observationRecord = new RecordId("observation", randomUUID());
 
@@ -38,13 +41,20 @@ export async function createObservation(input: {
     ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
     ...(input.sourceSessionRecord ? { source_session: input.sourceSessionRecord } : {}),
     ...(input.embedding ? { embedding: input.embedding } : {}),
+    ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
+    ...(input.evidenceRefs && input.evidenceRefs.length > 0 ? { evidence_refs: input.evidenceRefs } : {}),
     created_at: input.now,
     updated_at: input.now,
   });
 
-  if (input.relatedRecord) {
+  // Create observes edges — support single relatedRecord or multiple relatedRecords
+  const targets: ObserveTargetRecord[] = [];
+  if (input.relatedRecord) targets.push(input.relatedRecord);
+  if (input.relatedRecords) targets.push(...input.relatedRecords);
+
+  for (const target of targets) {
     await input.surreal
-      .relate(observationRecord, new RecordId("observes", randomUUID()), input.relatedRecord, {
+      .relate(observationRecord, new RecordId("observes", randomUUID()), target, {
         added_at: input.now,
       })
       .output("after");

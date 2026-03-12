@@ -6,7 +6,8 @@
  * All functions in this module are pure (no IO). The effect shell lives in observer-route.ts.
  */
 
-import type { ExternalSignal, GatherSignalsResult } from "./external-signals";
+import type { GatherSignalsResult } from "./external-signals";
+import type { LlmVerdict } from "./schemas";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,12 +15,17 @@ import type { ExternalSignal, GatherSignalsResult } from "./external-signals";
 
 export type Verdict = "match" | "mismatch" | "inconclusive";
 
+export type VerdictSource = "llm" | "deterministic_fallback" | "github" | "peer_review" | "none";
+
 export type VerificationResult = {
   verdict: Verdict;
   severity: "info" | "warning" | "conflict";
   verified: boolean;
   text: string;
   source?: string;
+  confidence?: number;
+  evidenceRefs?: string[];
+  observationType?: "contradiction" | "validation";
 };
 
 export type IntentStatus = "completed" | "failed" | string;
@@ -313,5 +319,102 @@ export function compareCommitStatus(
     verified: true,
     text: "Commit verified: all CI checks passing.",
     source: ciSignals[0]?.source,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// LLM verdict logic: skip optimization, confidence threshold, fallback
+// ---------------------------------------------------------------------------
+
+/**
+ * Determines whether the LLM should be invoked for verification.
+ *
+ * Skip conditions (all must be true):
+ *   - workspace.settings.observer_skip_deterministic is true (or absent = default true)
+ *   - deterministic verdict is "match"
+ *   - CI is passing (source includes "github" or verified is true)
+ */
+export function shouldSkipLlm(
+  deterministicVerdict: VerificationResult,
+  skipDeterministic?: boolean,
+): boolean {
+  // Default to true when absent
+  const skipEnabled = skipDeterministic ?? true;
+
+  if (!skipEnabled) return false;
+
+  return deterministicVerdict.verdict === "match" && deterministicVerdict.verified === true;
+}
+
+/**
+ * Applies confidence threshold and fallback to produce a final verification result.
+ *
+ * - LLM confidence < 0.5 → downgrade to inconclusive, severity=info
+ * - LLM verdict=mismatch + confidence >= 0.5 → severity=conflict, type=contradiction
+ * - LLM verdict=match + confidence >= 0.5 → severity=info, verified=true
+ * - LLM failure (undefined) → fallback to deterministic with source=deterministic_fallback
+ */
+export function applyLlmVerdict(
+  deterministicVerdict: VerificationResult,
+  llmVerdict: LlmVerdict | undefined,
+): VerificationResult {
+  // Fallback: LLM failed or was not called
+  if (!llmVerdict) {
+    return {
+      ...deterministicVerdict,
+      source: "deterministic_fallback",
+    };
+  }
+
+  // Low confidence → downgrade to inconclusive
+  if (llmVerdict.confidence < 0.5) {
+    return {
+      verdict: "inconclusive",
+      severity: "info",
+      verified: false,
+      text: llmVerdict.reasoning,
+      source: "llm",
+      confidence: llmVerdict.confidence,
+      evidenceRefs: llmVerdict.evidence_refs,
+    };
+  }
+
+  // Mismatch → contradiction
+  if (llmVerdict.verdict === "mismatch") {
+    return {
+      verdict: "mismatch",
+      severity: "conflict",
+      verified: false,
+      text: llmVerdict.reasoning,
+      source: "llm",
+      confidence: llmVerdict.confidence,
+      evidenceRefs: llmVerdict.evidence_refs,
+      observationType: "contradiction",
+    };
+  }
+
+  // Match → verified
+  if (llmVerdict.verdict === "match") {
+    return {
+      verdict: "match",
+      severity: "info",
+      verified: true,
+      text: llmVerdict.reasoning,
+      source: "llm",
+      confidence: llmVerdict.confidence,
+      evidenceRefs: llmVerdict.evidence_refs,
+      observationType: "validation",
+    };
+  }
+
+  // Inconclusive from LLM
+  return {
+    verdict: "inconclusive",
+    severity: "info",
+    verified: false,
+    text: llmVerdict.reasoning,
+    source: "llm",
+    confidence: llmVerdict.confidence,
+    evidenceRefs: llmVerdict.evidence_refs,
   };
 }

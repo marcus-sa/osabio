@@ -10,8 +10,11 @@
  */
 
 import { RecordId, type Surreal } from "surrealdb";
-import { createObservation, listWorkspaceOpenObservations } from "../observation/queries";
-import { logInfo, logError } from "../http/observability";
+import type { LanguageModel } from "ai";
+import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord } from "../observation/queries";
+import { logInfo } from "../http/observability";
+import { synthesizePatterns, type Anomaly } from "./llm-synthesis";
+import { parseEntityRef } from "./evidence-validator";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -308,6 +311,7 @@ function isAlreadyObserved(
 export async function runGraphScan(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
+  observerModel?: LanguageModel,
 ): Promise<GraphScanResult> {
   const result: GraphScanResult = {
     contradictions_found: 0,
@@ -441,6 +445,84 @@ export async function runGraphScan(
     });
 
     result.observations_created += 1;
+  }
+
+  // 4. LLM pattern synthesis (when model configured and anomalies exist)
+  if (observerModel) {
+    const anomalies: Anomaly[] = [];
+
+    for (const { decision, task } of contradictions) {
+      anomalies.push({
+        type: "contradiction",
+        text: `Decision "${decision.summary}" conflicts with task "${task.title}"`,
+        entityId: decision.id.id as string,
+        entityTable: "decision",
+      });
+    }
+    for (const task of staleBlocked) {
+      anomalies.push({
+        type: "stale_blocked",
+        text: `Task "${task.title}" blocked for ${task.daysBlocked} days`,
+        entityId: task.id.id as string,
+        entityTable: "task",
+      });
+    }
+    for (const drift of driftTasks) {
+      anomalies.push({
+        type: "status_drift",
+        text: `Task "${drift.title}" completed but dependency "${drift.dependency.title}" is ${drift.dependency.status}`,
+        entityId: drift.id.id as string,
+        entityTable: "task",
+      });
+    }
+
+    if (anomalies.length > 0) {
+      const patterns = await synthesizePatterns(observerModel, anomalies);
+
+      if (patterns) {
+        for (const pattern of patterns) {
+          // Dedup: check if a similar pattern observation already exists
+          const patternText = `${pattern.pattern_name}: ${pattern.description}`;
+          if (isAlreadyObserved(existingObservations, patternText)) {
+            logInfo("observer.scan.synthesis_dedup", "Skipping duplicate pattern", {
+              pattern: pattern.pattern_name,
+            });
+            continue;
+          }
+
+          // Build related records from contributing entities
+          const relatedRecords: ObserveTargetRecord[] = [];
+          for (const ref of pattern.contributing_entities) {
+            const parsed = parseEntityRef(ref);
+            if (parsed) {
+              relatedRecords.push(new RecordId(parsed.table, parsed.id) as ObserveTargetRecord);
+            }
+          }
+
+          const now = new Date();
+          await createObservation({
+            surreal,
+            workspaceRecord,
+            text: patternText,
+            severity: pattern.severity,
+            sourceAgent: "observer_agent",
+            observationType: "pattern",
+            now,
+            relatedRecords: relatedRecords.length > 0 ? relatedRecords : undefined,
+          });
+
+          result.observations_created += 1;
+        }
+
+        logInfo("observer.scan.synthesis", "Pattern synthesis completed", {
+          patternsFound: patterns.length,
+        });
+      } else {
+        logInfo("observer.llm.fallback", "Pattern synthesis failed, anomalies reported individually", {
+          anomalyCount: anomalies.length,
+        });
+      }
+    }
   }
 
   logInfo("observer.scan.completed", "Graph scan completed", {

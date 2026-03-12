@@ -8,15 +8,19 @@
  */
 
 import { RecordId, type Surreal } from "surrealdb";
+import type { LanguageModel } from "ai";
 import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
-import { createObservation } from "../observation/queries";
+import { createObservation, type ObserveTargetRecord } from "../observation/queries";
 import { checkCiStatus } from "./external-signals";
-import { compareIntentCompletion, compareCommitStatus, compareDecisionConfirmation, compareObservationPeerReview } from "./verification-pipeline";
+import { compareIntentCompletion, compareCommitStatus, compareDecisionConfirmation, compareObservationPeerReview, shouldSkipLlm, applyLlmVerdict } from "./verification-pipeline";
 import type { IntentSignals, DecisionSignals, ObservationPeerReviewSignals, VerificationResult } from "./verification-pipeline";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
+import { buildEntityContext } from "./context-loader";
+import { generateVerificationVerdict, generatePeerReviewVerdict } from "./llm-reasoning";
+import { parseEntityRef } from "./evidence-validator";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,8 +46,16 @@ async function persistVerificationObservation(
   relatedRecord: RecordId,
   verificationResult: VerificationResult,
   defaultSource = "none",
+  additionalRelatedRecords?: ObserveTargetRecord[],
 ): Promise<void> {
   const now = new Date();
+
+  // Convert evidence_refs strings to RecordId objects
+  const evidenceRefRecords: RecordId[] = [];
+  for (const ref of verificationResult.evidenceRefs ?? []) {
+    const parsed = parseEntityRef(ref);
+    if (parsed) evidenceRefRecords.push(new RecordId(parsed.table, parsed.id));
+  }
 
   const observationRecord = await createObservation({
     surreal,
@@ -51,9 +63,12 @@ async function persistVerificationObservation(
     text: verificationResult.text,
     severity: verificationResult.severity,
     sourceAgent: "observer_agent",
-    observationType: "validation",
+    observationType: verificationResult.observationType ?? "validation",
     now,
-    relatedRecord: relatedRecord as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+    relatedRecord: relatedRecord as ObserveTargetRecord,
+    relatedRecords: additionalRelatedRecords,
+    confidence: verificationResult.confidence,
+    evidenceRefs: evidenceRefRecords.length > 0 ? evidenceRefRecords : undefined,
   });
 
   await surreal.query(
@@ -139,7 +154,7 @@ async function handleTaskVerification(
 
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  // Delegate to observer agent
+  // Run deterministic verification via observer agent
   const agentOutput = await runObserverAgent({
     surreal,
     workspaceRecord,
@@ -147,6 +162,50 @@ async function handleTaskVerification(
     entityId: taskId,
     entityBody: body,
   });
+
+  // LLM reasoning path (when observer model is configured)
+  if (deps.observerModel) {
+    const taskRecord = new RecordId("task", taskId);
+
+    // Load workspace settings for skip optimization
+    const skipDeterministic = await loadWorkspaceSkipSetting(surreal, workspaceRecord);
+
+    // Build deterministic result from agent output for skip check
+    const deterministicResult: VerificationResult = {
+      verdict: agentOutput.verdict,
+      severity: agentOutput.verdict === "mismatch" ? "conflict" : "info",
+      verified: agentOutput.verdict === "match",
+      text: agentOutput.evidence.join("; ") || "Deterministic verification complete",
+    };
+
+    if (shouldSkipLlm(deterministicResult, skipDeterministic)) {
+      logInfo("observer.llm.skip", "LLM skipped: deterministic match + CI passing", { taskId });
+    } else {
+      const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, body);
+      const llmVerdict = await generateVerificationVerdict(
+        deps.observerModel as LanguageModel,
+        context,
+        deterministicResult,
+      );
+
+      const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
+
+      // Build related records: task + any contradicted decisions
+      const additionalRecords: ObserveTargetRecord[] = [];
+      if (llmVerdict?.verdict === "mismatch" && llmVerdict.evidence_refs) {
+        for (const ref of llmVerdict.evidence_refs) {
+          const parsed = parseEntityRef(ref);
+          if (parsed && parsed.table === "decision") {
+            additionalRecords.push(new RecordId("decision", parsed.id) as ObserveTargetRecord);
+          }
+        }
+      }
+
+      await persistVerificationObservation(
+        surreal, workspaceRecord, taskRecord, finalVerdict, "none", additionalRecords,
+      );
+    }
+  }
 
   logInfo("observer.task.verified", "Task verification complete", {
     taskId,
@@ -270,7 +329,6 @@ async function handleDecisionVerification(
   const { surreal } = deps;
 
   // Skip initial CREATE events -- only verify actual status transitions (UPDATEs).
-  // CREATE events have no updated_at field; UPDATE always sets updated_at via time::now().
   if (!body?.updated_at) {
     logInfo("observer.decision.skipped_create", "Skipping decision CREATE event (not a status transition)", { decisionId });
     return;
@@ -287,15 +345,40 @@ async function handleDecisionVerification(
 
   // Gather decision signals: status, summary, and completed task count
   const decisionSignals = await gatherDecisionSignals(surreal, workspaceRecord, body);
-  const verificationResult = compareDecisionConfirmation(decisionSignals);
+  const deterministicResult = compareDecisionConfirmation(decisionSignals);
 
-  await persistVerificationObservation(surreal, workspaceRecord, decisionRecord, verificationResult);
+  await persistVerificationObservation(surreal, workspaceRecord, decisionRecord, deterministicResult);
+
+  // LLM reasoning: when decision confirmed, check completed tasks against it
+  if (deps.observerModel && body?.status === "confirmed" && decisionSignals.completedTaskCount > 0) {
+    const completedTasks = await queryCompletedTasksForDecision(surreal, workspaceRecord);
+
+    for (const task of completedTasks) {
+      const taskId = task.id.id as string;
+      const taskBody = { title: task.title, description: task.description, status: "completed" };
+      const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, taskBody);
+      const llmVerdict = await generateVerificationVerdict(
+        deps.observerModel as LanguageModel,
+        context,
+        deterministicResult,
+      );
+
+      if (!llmVerdict || llmVerdict.verdict !== "mismatch") continue;
+
+      const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
+      const taskRecord = new RecordId("task", taskId) as ObserveTargetRecord;
+
+      await persistVerificationObservation(
+        surreal, workspaceRecord, decisionRecord, finalVerdict, "none", [taskRecord],
+      );
+    }
+  }
 
   logInfo("observer.decision.verified", "Decision verification complete", {
     decisionId,
-    verdict: verificationResult.verdict,
-    severity: verificationResult.severity,
-    verified: verificationResult.verified,
+    verdict: deterministicResult.verdict,
+    severity: deterministicResult.severity,
+    verified: deterministicResult.verified,
   });
 }
 
@@ -321,14 +404,66 @@ async function handleObservationPeerReview(
 
   // Gather peer review signals from the original observation and workspace context
   const peerReviewSignals = await gatherObservationPeerReviewSignals(surreal, workspaceRecord, body);
-  const verificationResult = compareObservationPeerReview(peerReviewSignals);
+  const deterministicResult = compareObservationPeerReview(peerReviewSignals);
 
-  await persistVerificationObservation(surreal, workspaceRecord, originalObservationRecord, verificationResult, "peer_review");
+  // LLM peer review: evaluate evidence quality when model configured and observation has linked entities
+  if (deps.observerModel) {
+    const linkedEntities = await loadObservationLinkedEntities(surreal, observationId);
+
+    if (linkedEntities.length > 0) {
+      const originalText = (body?.text as string) ?? "Unknown observation";
+      const originalSeverity = (body?.severity as string) ?? "info";
+      const sourceAgent = (body?.source_agent as string) ?? "unknown_agent";
+
+      const llmVerdict = await generatePeerReviewVerdict(
+        deps.observerModel as LanguageModel,
+        originalText,
+        originalSeverity,
+        sourceAgent,
+        linkedEntities,
+      );
+
+      if (llmVerdict) {
+        // Map peer review verdict to verification result
+        const severity = llmVerdict.verdict === "unsupported" ? "warning" as const
+          : llmVerdict.verdict === "questionable" ? "info" as const
+          : "info" as const;
+
+        const reviewResult: VerificationResult = {
+          verdict: llmVerdict.verdict === "sound" ? "match" : llmVerdict.verdict === "unsupported" ? "mismatch" : "inconclusive",
+          severity,
+          verified: llmVerdict.verdict === "sound",
+          text: llmVerdict.reasoning,
+          source: "llm",
+          confidence: llmVerdict.confidence,
+          observationType: "validation",
+        };
+
+        await persistVerificationObservation(
+          surreal, workspaceRecord, originalObservationRecord, reviewResult, "llm",
+        );
+
+        logInfo("observer.observation.llm_peer_reviewed", "LLM peer review complete", {
+          observationId,
+          verdict: llmVerdict.verdict,
+          confidence: llmVerdict.confidence,
+        });
+        return;
+      }
+      // LLM failed — fall through to deterministic
+      logInfo("observer.llm.fallback", "LLM peer review failed, using deterministic", { observationId });
+    } else {
+      logInfo("observer.llm.skip", "LLM peer review skipped: no linked entities", { observationId });
+    }
+  }
+
+  // Deterministic fallback
+  await persistVerificationObservation(surreal, workspaceRecord, originalObservationRecord, deterministicResult, "peer_review");
 
   logInfo("observer.observation.peer_reviewed", "Observation peer review complete", {
     observationId,
-    verdict: verificationResult.verdict,
-    severity: verificationResult.severity,
+    verdict: deterministicResult.verdict,
+    severity: deterministicResult.severity,
   });
 }
 
@@ -390,7 +525,7 @@ export function createGraphScanRouteHandler(deps: ServerDependencies) {
       logInfo("observer.scan.started", "Graph scan triggered", { workspaceId });
 
       const workspaceRecord = new RecordId("workspace", workspaceId);
-      const result = await runGraphScan(deps.surreal, workspaceRecord);
+      const result = await runGraphScan(deps.surreal, workspaceRecord, deps.observerModel as LanguageModel | undefined);
 
       return jsonResponse({
         status: "ok",
@@ -453,4 +588,90 @@ async function resolveWorkspaceId(
   }
 
   return wsId;
+}
+
+// ---------------------------------------------------------------------------
+// LLM helper: load workspace skip optimization setting
+// ---------------------------------------------------------------------------
+
+async function loadWorkspaceSkipSetting(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<boolean | undefined> {
+  const [rows] = await surreal.query<[Array<{ settings?: { observer_skip_deterministic?: boolean } }>]>(
+    `SELECT settings FROM $ws;`,
+    { ws: workspaceRecord },
+  );
+
+  return rows?.[0]?.settings?.observer_skip_deterministic;
+}
+
+// ---------------------------------------------------------------------------
+// LLM helper: load completed tasks for decision verification
+// ---------------------------------------------------------------------------
+
+async function queryCompletedTasksForDecision(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<Array<{ id: RecordId<"task">; title: string; description?: string }>> {
+  const [rows] = await surreal.query<[Array<{
+    id: RecordId<"task">;
+    title: string;
+    description?: string;
+  }>]>(
+    `SELECT id, title, description FROM task
+     WHERE workspace = $ws AND status IN ["completed", "done"]
+     ORDER BY updated_at DESC
+     LIMIT 20;`,
+    { ws: workspaceRecord },
+  );
+  return rows ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// LLM helper: load entities linked to an observation via observes edges
+// ---------------------------------------------------------------------------
+
+async function loadObservationLinkedEntities(
+  surreal: Surreal,
+  observationId: string,
+): Promise<Array<{ table: string; id: string; title: string; description?: string }>> {
+  const observationRecord = new RecordId("observation", observationId);
+
+  const [rows] = await surreal.query<[Array<{
+    out: RecordId;
+  }>]>(
+    `SELECT out FROM observes WHERE in = $obs;`,
+    { obs: observationRecord },
+  );
+
+  if (!rows || rows.length === 0) return [];
+
+  const entities: Array<{ table: string; id: string; title: string; description?: string }> = [];
+
+  for (const row of rows) {
+    const targetTable = row.out.table.name;
+    const targetId = row.out.id as string;
+    const targetRecord = new RecordId(targetTable, targetId);
+
+    const [details] = await surreal.query<[Array<{
+      title?: string;
+      summary?: string;
+      text?: string;
+      description?: string;
+    }>]>(
+      `SELECT title, summary, text, description FROM $record;`,
+      { record: targetRecord },
+    );
+
+    const detail = details?.[0];
+    entities.push({
+      table: targetTable,
+      id: targetId,
+      title: detail?.title ?? detail?.summary ?? detail?.text ?? "Unknown",
+      description: detail?.description,
+    });
+  }
+
+  return entities;
 }
