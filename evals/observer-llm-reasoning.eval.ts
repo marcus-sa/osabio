@@ -15,6 +15,7 @@
  *   factuality           — LLM judge: is reasoning factually consistent?
  */
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import type { LanguageModel } from "ai";
 import { evalite } from "evalite";
 import { Factuality } from "autoevals";
 import { afterAll, beforeAll } from "vitest";
@@ -29,7 +30,9 @@ import { verdictAccuracyScorer } from "./scorers/verdict-accuracy";
 import { confidenceCalibrationScorer } from "./scorers/confidence-calibration";
 import { reasoningQualityScorer } from "./scorers/reasoning-quality";
 import type { ObserverLlmTestCase, ObserverLlmEvalOutput } from "./types";
-import { runObserverAgent } from "../app/src/server/agents/observer/agent";
+import { buildEntityContext } from "../app/src/server/observer/context-loader";
+import { generateVerificationVerdict, generatePeerReviewVerdict } from "../app/src/server/observer/llm-reasoning";
+import { applyLlmVerdict } from "../app/src/server/observer/verification-pipeline";
 
 const observerModelId = process.env.OBSERVER_MODEL;
 if (!observerModelId) {
@@ -38,11 +41,17 @@ if (!observerModelId) {
 
 let runtime: EvalRuntime;
 let seedResult: ObserverLlmSeedResult;
+let observerModel: LanguageModel;
 
 beforeAll(async () => {
   try {
     runtime = await setupEvalRuntime("observer-llm");
     seedResult = await seedObserverLlmTestData(runtime.surreal);
+
+    const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY! });
+    observerModel = openrouter(observerModelId, {
+      plugins: [{ id: "response-healing" }],
+    });
   } catch (error) {
     console.error("beforeAll setup failed:", error);
     throw error;
@@ -184,19 +193,34 @@ async function runVerificationCase(testCase: ObserverLlmTestCase): Promise<Obser
     throw new Error(`No seeded task for case key: ${testCase.seedCaseKey}`);
   }
 
-  const result = await runObserverAgent({
-    surreal: runtime.surreal,
-    workspaceRecord: seedResult.workspaceRecord,
-    entityTable: "task",
-    entityId: taskRecord.id as string,
-  });
+  const taskId = taskRecord.id as string;
+
+  // Build entity context (loads related decisions from graph)
+  const context = await buildEntityContext(
+    runtime.surreal,
+    seedResult.workspaceRecord,
+    "task",
+    taskId,
+  );
+
+  // Provide a minimal deterministic result for the LLM to enhance
+  const deterministicResult = {
+    verdict: "inconclusive" as const,
+    severity: "info" as const,
+    verified: false,
+    text: "Deterministic check: no external signals available.",
+  };
+
+  const llmVerdict = await generateVerificationVerdict(observerModel, context, deterministicResult);
+  const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
 
   return {
     caseId: testCase.id,
-    verdict: result.verdict,
-    reasoning: result.evidence.join(" "),
-    severity: result.verdict === "mismatch" ? "conflict" : "info",
-    evidenceRefs: result.evidence,
+    verdict: finalVerdict.verdict,
+    confidence: finalVerdict.confidence,
+    reasoning: finalVerdict.text,
+    severity: finalVerdict.severity,
+    evidenceRefs: finalVerdict.evidenceRefs ?? [],
     success: true,
   };
 }
@@ -207,19 +231,72 @@ async function runPeerReviewCase(testCase: ObserverLlmTestCase): Promise<Observe
     throw new Error(`No seeded observation for case key: ${testCase.seedCaseKey}`);
   }
 
-  const result = await runObserverAgent({
-    surreal: runtime.surreal,
-    workspaceRecord: seedResult.workspaceRecord,
-    entityTable: "observation",
-    entityId: obsRecord.id as string,
-  });
+  const obsId = obsRecord.id as string;
+
+  // Load the observation details
+  const [obsRows] = await runtime.surreal.query<[Array<{
+    text: string;
+    severity: string;
+    source_agent: string;
+  }>]>(
+    `SELECT text, severity, source_agent FROM $obs;`,
+    { obs: new RecordId("observation", obsId) },
+  );
+  const obs = obsRows?.[0];
+  if (!obs) throw new Error(`Observation not found: ${obsId}`);
+
+  // Load linked entities via observes edges
+  const [edgeRows] = await runtime.surreal.query<[Array<{ out: RecordId }>]>(
+    `SELECT out FROM observes WHERE in = $obs;`,
+    { obs: new RecordId("observation", obsId) },
+  );
+
+  const linkedEntities: Array<{ table: string; id: string; title: string; description?: string }> = [];
+  for (const row of edgeRows ?? []) {
+    const targetTable = row.out.table.name;
+    const targetId = row.out.id as string;
+    const [details] = await runtime.surreal.query<[Array<{
+      title?: string; summary?: string; text?: string; description?: string;
+    }>]>(
+      `SELECT title, summary, text, description FROM $record;`,
+      { record: new RecordId(targetTable, targetId) },
+    );
+    const d = details?.[0];
+    linkedEntities.push({
+      table: targetTable,
+      id: targetId,
+      title: d?.title ?? d?.summary ?? d?.text ?? "Unknown",
+      description: d?.description,
+    });
+  }
+
+  const llmVerdict = await generatePeerReviewVerdict(
+    observerModel,
+    obs.text,
+    obs.severity,
+    obs.source_agent,
+    linkedEntities,
+  );
+
+  if (!llmVerdict) {
+    return {
+      caseId: testCase.id,
+      verdict: "inconclusive",
+      reasoning: "LLM peer review failed",
+      severity: "info",
+      evidenceRefs: [],
+      success: false,
+      error: "LLM returned undefined",
+    };
+  }
 
   return {
     caseId: testCase.id,
-    verdict: result.verdict,
-    reasoning: result.evidence.join(" "),
-    severity: result.verdict === "mismatch" ? "conflict" : "info",
-    evidenceRefs: result.evidence,
+    verdict: llmVerdict.verdict === "sound" ? "match" : llmVerdict.verdict === "unsupported" ? "mismatch" : "inconclusive",
+    confidence: llmVerdict.confidence,
+    reasoning: llmVerdict.reasoning,
+    severity: llmVerdict.verdict === "unsupported" ? "warning" : "info",
+    evidenceRefs: [],
     success: true,
   };
 }
