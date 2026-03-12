@@ -340,7 +340,10 @@ export async function runGraphScan(
       sourceAgent: "observer_agent",
       observationType: "contradiction",
       now,
-      relatedRecord: decision.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+      relatedRecords: [
+        decision.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+        task.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+      ],
     });
 
     result.observations_created += 1;
@@ -444,7 +447,7 @@ export async function runGraphScan(
       sourceAgent: "observer_agent",
       observationType: "anomaly",
       now,
-      relatedRecord: task.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+      relatedRecords: [task.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>],
     });
 
     result.observations_created += 1;
@@ -497,7 +500,7 @@ export async function runGraphScan(
       sourceAgent: "observer_agent",
       observationType: "anomaly",
       now,
-      relatedRecord: drift.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>,
+      relatedRecords: [drift.id as RecordId<"project" | "feature" | "task" | "decision" | "question", string>],
     });
 
     result.observations_created += 1;

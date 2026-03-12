@@ -3,7 +3,7 @@ import { RecordId, Surreal } from "surrealdb";
 import type { EntityCategory, ObservationSeverity, ObservationStatus, ObservationSummary, ObservationType } from "../../shared/contracts";
 
 type ObservationRecord = RecordId<"observation", string>;
-export type ObserveTargetRecord = RecordId<"project" | "feature" | "task" | "decision" | "question" | "observation", string>;
+export type ObserveTargetRecord = RecordId<"project" | "feature" | "task" | "decision" | "question" | "observation" | "intent" | "git_commit", string>;
 
 const SEVERITY_PRIORITY: Record<ObservationSeverity, number> = {
   conflict: 0,
@@ -22,7 +22,6 @@ export async function createObservation(input: {
   now: Date;
   sourceMessageRecord?: RecordId<"message", string>;
   sourceSessionRecord?: RecordId<"agent_session", string>;
-  relatedRecord?: ObserveTargetRecord;
   relatedRecords?: ObserveTargetRecord[];
   embedding?: number[];
   confidence?: number;
@@ -51,10 +50,8 @@ export async function createObservation(input: {
     updated_at: input.now,
   });
 
-  // Create observes edges — support single relatedRecord or multiple relatedRecords
-  const targets: ObserveTargetRecord[] = [];
-  if (input.relatedRecord) targets.push(input.relatedRecord);
-  if (input.relatedRecords) targets.push(...input.relatedRecords);
+  // Create observes edges to related entities
+  const targets: ObserveTargetRecord[] = input.relatedRecords ?? [];
 
   for (const target of targets) {
     await input.surreal

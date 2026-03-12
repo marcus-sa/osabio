@@ -111,7 +111,7 @@ async function verifyTask(input: ObserverAgentInput): Promise<ObserverAgentOutpu
       // the deterministic CI-based verdict should stand.
       if (context.relatedDecisions.length === 0) {
         logInfo("observer.llm.skip", "LLM skipped: no related decisions to verify against", { taskId });
-        await persistObservation(surreal, workspaceRecord, taskRecord, deterministicResult);
+        await persistObservation(surreal, workspaceRecord, [taskRecord as ObserveTargetRecord], deterministicResult);
         return {
           observations_created: 1,
           verdict: deterministicResult.verdict,
@@ -125,7 +125,7 @@ async function verifyTask(input: ObserverAgentInput): Promise<ObserverAgentOutpu
       // Link contradicted decisions via observes edges
       const additionalRecords = extractDecisionRecords(llmVerdict?.evidence_refs);
 
-      await persistObservation(surreal, workspaceRecord, taskRecord, finalVerdict, "none", additionalRecords);
+      await persistObservation(surreal, workspaceRecord, [taskRecord as ObserveTargetRecord, ...additionalRecords], finalVerdict);
 
       return {
         observations_created: 1,
@@ -136,7 +136,7 @@ async function verifyTask(input: ObserverAgentInput): Promise<ObserverAgentOutpu
   }
 
   // Deterministic-only path
-  await persistObservation(surreal, workspaceRecord, taskRecord, deterministicResult);
+  await persistObservation(surreal, workspaceRecord, [taskRecord as ObserveTargetRecord], deterministicResult);
 
   return {
     observations_created: 1,
@@ -156,7 +156,7 @@ async function verifyIntent(input: ObserverAgentInput): Promise<ObserverAgentOut
   const intentSignals = await gatherIntentSignals(surreal, intentId, body);
   const result = compareIntentCompletion(intentSignals);
 
-  await persistObservation(surreal, workspaceRecord, intentRecord, result);
+  await persistObservation(surreal, workspaceRecord, [intentRecord as ObserveTargetRecord], result);
 
   return {
     observations_created: 1,
@@ -179,7 +179,7 @@ async function verifyCommit(input: ObserverAgentInput): Promise<ObserverAgentOut
   const signal = await checkCiStatus({ id: commitRecord, sha, repository });
   const result = compareCommitStatus({ signals: [signal], hasCommits: true });
 
-  await persistObservation(surreal, workspaceRecord, commitRecord, result);
+  await persistObservation(surreal, workspaceRecord, [commitRecord as ObserveTargetRecord], result);
 
   return {
     observations_created: 1,
@@ -205,7 +205,7 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
   const decisionSignals = await gatherDecisionSignals(surreal, workspaceRecord, body);
   const deterministicResult = compareDecisionConfirmation(decisionSignals);
 
-  await persistObservation(surreal, workspaceRecord, decisionRecord, deterministicResult);
+  await persistObservation(surreal, workspaceRecord, [decisionRecord as ObserveTargetRecord], deterministicResult);
   let observationsCreated = 1;
 
   // LLM: when decision confirmed, check completed tasks against it (concurrent)
@@ -244,7 +244,7 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
       const finalVerdict = applyLlmVerdict(deterministicResult, llmVerdict);
       const taskRecord = new RecordId("task", taskContexts[i].taskId) as ObserveTargetRecord;
 
-      await persistObservation(surreal, workspaceRecord, decisionRecord, finalVerdict, "none", [taskRecord]);
+      await persistObservation(surreal, workspaceRecord, [decisionRecord as ObserveTargetRecord, taskRecord], finalVerdict);
       observationsCreated += 1;
     }
   }
@@ -294,7 +294,7 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
           observationType: "validation",
         };
 
-        await persistObservation(surreal, workspaceRecord, observationRecord, reviewResult, "llm");
+        await persistObservation(surreal, workspaceRecord, [observationRecord as ObserveTargetRecord], reviewResult, "llm");
 
         return {
           observations_created: 1,
@@ -310,7 +310,7 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
   }
 
   // Deterministic fallback
-  await persistObservation(surreal, workspaceRecord, observationRecord, deterministicResult, "peer_review");
+  await persistObservation(surreal, workspaceRecord, [observationRecord as ObserveTargetRecord], deterministicResult, "peer_review");
 
   return {
     observations_created: 1,
@@ -473,10 +473,9 @@ function extractDecisionRecords(evidenceRefs?: string[]): ObserveTargetRecord[] 
 async function persistObservation(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  relatedRecord: RecordId,
+  relatedRecords: ObserveTargetRecord[],
   result: VerificationResult,
   defaultSource = "none",
-  additionalRelatedRecords?: ObserveTargetRecord[],
 ): Promise<void> {
   const now = new Date();
 
@@ -495,8 +494,7 @@ async function persistObservation(
     sourceAgent: "observer_agent",
     observationType: result.observationType ?? "validation",
     now,
-    relatedRecord: relatedRecord as ObserveTargetRecord,
-    relatedRecords: additionalRelatedRecords,
+    relatedRecords,
     confidence: result.confidence,
     evidenceRefs: evidenceRefRecords.length > 0 ? evidenceRefRecords : undefined,
     verified: result.verified,
