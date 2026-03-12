@@ -107,3 +107,46 @@ export type ChatAgentEvalOutput = {
   success: boolean;
   error?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Observer LLM Reasoning Eval Types
+// ---------------------------------------------------------------------------
+
+export type ObserverLlmTestCase = {
+  id: string;
+  /** What kind of LLM reasoning is being tested */
+  evalType: "verification" | "peer_review" | "contradiction_detection" | "anomaly_evaluation";
+  /** Human description of the scenario */
+  scenario: string;
+  /** For verification: which seeded decision-task pair to use */
+  seedCaseKey: string;
+  /** Expected verdict from the LLM */
+  expectedVerdict: "match" | "mismatch" | "inconclusive";
+  /** Expected confidence range [min, max] */
+  expectedConfidenceRange: [number, number];
+  /** Expected severity of the resulting observation */
+  expectedSeverity: "info" | "warning" | "conflict";
+  /** Substrings expected in the LLM reasoning text */
+  expectedReasoningAnchors?: string[];
+  /** Substrings that must NOT appear in reasoning */
+  forbiddenReasoningPatterns?: string[];
+  /** Ground truth for factuality LLM judge */
+  expectedFacts?: string;
+  /** For contradiction_detection: expected number of contradictions found */
+  expectedContradictionCount?: number;
+  /** For contradiction_detection: expected decision-task pairs (decision seedKey -> task seedKey) */
+  expectedContradictionPairs?: Array<{ decisionKey: string; taskKey: string }>;
+  /** For anomaly_evaluation: whether the anomaly should be marked relevant */
+  expectedRelevant?: boolean;
+};
+
+export type ObserverLlmEvalOutput = {
+  caseId: string;
+  verdict: string;
+  confidence?: number;
+  reasoning: string;
+  severity: string;
+  evidenceRefs: string[];
+  success: boolean;
+  error?: string;
+};

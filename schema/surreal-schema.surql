@@ -53,6 +53,8 @@ DEFINE FIELD onboarding_completed_at ON workspace TYPE option<datetime>;
 DEFINE FIELD created_at ON workspace TYPE datetime;
 DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
 DEFINE FIELD repo_path ON workspace TYPE option<string>;
+DEFINE FIELD settings ON workspace TYPE option<object>;
+DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -221,7 +223,10 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] OR $value IS NONE;
+DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
+DEFINE FIELD source ON observation TYPE option<string>;
+DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
 DEFINE FIELD source_agent ON observation TYPE string;
 DEFINE FIELD workspace ON observation TYPE record<workspace>;
 DEFINE FIELD source_message ON observation TYPE option<record<message>>;
@@ -231,6 +236,8 @@ DEFINE FIELD resolved_by ON observation TYPE option<record<identity>>;
 DEFINE FIELD created_at ON observation TYPE datetime;
 DEFINE FIELD updated_at ON observation TYPE option<datetime>;
 DEFINE FIELD embedding ON observation TYPE option<array<float>>;
+DEFINE FIELD confidence ON observation TYPE option<float>;
+DEFINE FIELD evidence_refs ON observation TYPE option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>;
 DEFINE INDEX observation_workspace_status ON observation FIELDS workspace, status;
 DEFINE INDEX observation_severity ON observation FIELDS severity;
 DEFINE INDEX observation_created_at ON observation FIELDS created_at;
@@ -419,7 +426,7 @@ DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
 DEFINE TABLE belongs_to TYPE RELATION IN task | decision | question OUT feature | project SCHEMAFULL;
 DEFINE FIELD added_at ON belongs_to TYPE datetime;
 
-DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question SCHEMAFULL;
+DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation SCHEMAFULL;
 DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
@@ -1044,6 +1051,67 @@ DEFINE FIELD created_at ON as_signing_key TYPE datetime;
 DEFINE FIELD rotated_at ON as_signing_key TYPE option<datetime>;
 DEFINE INDEX as_signing_key_kid ON as_signing_key FIELDS kid UNIQUE;
 DEFINE INDEX as_signing_key_status ON as_signing_key FIELDS status;
+
+-- =============================================================================
+-- Observer Agent EVENTs
+-- =============================================================================
+-- These EVENTs fire http::post to the observer endpoint when relevant state
+-- transitions occur. In production the base URL is configured via migration.
+-- In tests, wireObserverEvents() overwrites these with the test server URL.
+-- SurrealDB silently swallows http::post failures, so a placeholder URL here
+-- is harmless until the actual observer route is deployed.
+
+-- EVENT 1: task_completed — fires when task status transitions to completed/done
+DEFINE EVENT task_completed ON task
+  ASYNC
+  RETRY 3
+  WHEN $event = "UPDATE"
+    AND ($before.status != "completed" AND $before.status != "done")
+    AND ($after.status = "completed" OR $after.status = "done")
+  THEN {
+    http::post("http://localhost:3000/api/observe/task/" + <string> meta::id($after.id), $after)
+  };
+
+-- EVENT 2: intent_completed — fires when intent status transitions to completed/failed
+DEFINE EVENT intent_completed ON intent
+  ASYNC
+  RETRY 3
+  WHEN $event = "UPDATE"
+    AND ($before.status != "completed" AND $before.status != "failed")
+    AND ($after.status = "completed" OR $after.status = "failed")
+  THEN {
+    http::post("http://localhost:3000/api/observe/intent/" + <string> meta::id($after.id), $after)
+  };
+
+-- EVENT 3: commit_created — fires when a new git_commit record is created
+DEFINE EVENT commit_created ON git_commit
+  ASYNC
+  RETRY 3
+  WHEN $event = "CREATE"
+  THEN {
+    http::post("http://localhost:3000/api/observe/git_commit/" + <string> meta::id($after.id), $after)
+  };
+
+-- EVENT 4: decision_confirmed — fires when decision status changes to confirmed/superseded
+DEFINE EVENT decision_confirmed ON decision
+  ASYNC
+  RETRY 3
+  WHEN $event = "UPDATE"
+    AND $before.status != $after.status
+    AND ($after.status = "confirmed" OR $after.status = "superseded")
+  THEN {
+    http::post("http://localhost:3000/api/observe/decision/" + <string> meta::id($after.id), $after)
+  };
+
+-- EVENT 5: observation_peer_review — fires when non-observer observation is created
+-- Observer's own observations are excluded to prevent infinite recursion loops.
+DEFINE EVENT observation_peer_review ON observation
+  ASYNC
+  RETRY 3
+  WHEN $event = "CREATE" AND $after.source_agent != "observer_agent"
+  THEN {
+    http::post("http://localhost:3000/api/observe/observation/" + <string> meta::id($after.id), $after)
+  };
 
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

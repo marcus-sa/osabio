@@ -24,6 +24,7 @@ export type ServerConfig = {
   surrealNamespace: string;
   surrealDatabase: string;
   port: number;
+  observerModelId?: string;
   githubWebhookSecret?: string;
   betterAuthSecret: string;
   betterAuthUrl: string;
@@ -64,6 +65,9 @@ export function loadServerConfig(): ServerConfig {
   const surrealDatabase = requireEnv("SURREAL_DATABASE");
 
   const port = parsePositiveInteger(requireEnv("PORT"), "PORT");
+  const observerModelId = Bun.env.OBSERVER_MODEL && Bun.env.OBSERVER_MODEL.trim().length > 0
+    ? Bun.env.OBSERVER_MODEL.trim()
+    : undefined;
   const githubWebhookSecret = Bun.env.GITHUB_WEBHOOK_SECRET?.trim() || undefined;
   const betterAuthSecret = requireEnv("BETTER_AUTH_SECRET");
   const betterAuthUrl = requireEnv("BETTER_AUTH_URL");
@@ -87,6 +91,7 @@ export function loadServerConfig(): ServerConfig {
     surrealNamespace,
     surrealDatabase,
     port,
+    ...(observerModelId ? { observerModelId } : {}),
     ...(githubWebhookSecret ? { githubWebhookSecret } : {}),
     betterAuthSecret,
     betterAuthUrl,

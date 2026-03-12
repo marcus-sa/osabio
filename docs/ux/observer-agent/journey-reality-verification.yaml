@@ -1,0 +1,80 @@
+journey:
+  name: reality-verification
+  actor: observer_agent
+  trigger: "SurrealDB EVENT on task.status → completed|done OR intent.status → completed"
+  jobs:
+    - job1-reality-verification
+
+  steps:
+    - id: event_fires
+      name: "EVENT webhook fires"
+      action: "SurrealDB ASYNC EVENT POSTs to /api/observe/:entityTable/:entityId"
+      input:
+        entity_table: "task | intent"
+        entity_id: "${record.id}"
+        before_status: "${$before.status}"
+        after_status: "${$after.status}"
+        workspace: "${record.workspace}"
+      output:
+        webhook_payload: "Full record with before/after state"
+      emotional_state: neutral
+
+    - id: gather_signals
+      name: "Gather external signals"
+      action: "Observer agent queries external sources based on entity type and workspace integrations"
+      input:
+        entity_table: "${webhook_payload.table}"
+        entity_record: "${webhook_payload}"
+        workspace_integrations: "GitHub, CI provider configured for workspace"
+      output:
+        external_signals: "Array of { source, signal_type, data, timestamp }"
+      emotional_state: building
+      error_path:
+        condition: "External API unreachable or no integrations configured"
+        action: "Create info/warning observation, proceed without verification"
+
+    - id: compare_claim_vs_reality
+      name: "Compare claim against signals"
+      action: "Observer agent evaluates whether external signals confirm or contradict the status transition"
+      input:
+        claimed_transition: "${before_status} → ${after_status}"
+        external_signals: "${external_signals}"
+      output:
+        verdict: "match | mismatch | inconclusive"
+        reasoning: "Natural language explanation"
+        evidence: "Array of signal references"
+      emotional_state: tension
+
+    - id: create_observation_match
+      name: "Create verified observation (match)"
+      condition: "verdict == match"
+      action: "Create observation with verified: true, type: validation, severity: info"
+      input:
+        text: "Verified: ${entity_table} ${entity_id} status transition confirmed by ${sources}"
+        severity: info
+        observation_type: validation
+        verified: true
+        source: "${primary_signal.source}"
+        related_entity: "${entity_table}:${entity_id}"
+      output:
+        observation_id: "${observation.id}"
+      emotional_state: trust
+
+    - id: create_observation_mismatch
+      name: "Create conflict observation (mismatch)"
+      condition: "verdict == mismatch"
+      action: "Create observation with severity: conflict, type: contradiction, link to entity"
+      input:
+        text: "Reality mismatch: ${entity_table} ${entity_id} claimed ${after_status} but ${signal_source} shows ${actual_state}"
+        severity: conflict
+        observation_type: contradiction
+        verified: false
+        source: "${primary_signal.source}"
+        data:
+          claimed: "${after_status}"
+          actual: "${actual_state}"
+          evidence: "${evidence}"
+        related_entity: "${entity_table}:${entity_id}"
+      output:
+        observation_id: "${observation.id}"
+      emotional_state: alert

@@ -1,0 +1,117 @@
+journey:
+  name: semantic-verification
+  jobs: [J1, J4]
+  description: Event-triggered LLM reasoning for semantic contradiction detection
+
+  actors:
+    - name: surrealdb_event
+      type: system
+    - name: observer_route
+      type: system
+    - name: verification_pipeline
+      type: system
+    - name: llm_reasoning
+      type: agent
+      model: haiku-class
+    - name: graph
+      type: datastore
+    - name: user
+      type: human
+
+  steps:
+    - id: state_transition
+      actor: surrealdb_event
+      action: Fires ASYNC EVENT on entity state change
+      produces: [entity_id, entity_table, entity_body]
+      emotion: null
+
+    - id: dispatch
+      actor: observer_route
+      action: Validates table allowlist + UUID, loads entity from DB
+      consumes: [entity_id, entity_table, entity_body]
+      produces: [entity_record]
+      error: Entity not found -> 404, skip
+
+    - id: gather_signals
+      actor: verification_pipeline
+      action: Load related decisions, constraints, commits, external signals
+      consumes: [entity_record]
+      produces: [related_decisions, constraints, external_signals, deterministic_verdict]
+      error: External signals unavailable -> proceed with graph-only context
+
+    - id: llm_reason
+      actor: llm_reasoning
+      action: Evaluate semantic contradiction with structured output
+      consumes: [entity_record, related_decisions, constraints, external_signals, deterministic_verdict]
+      produces: [llm_verdict, reasoning_text, confidence, evidence_refs]
+      decisions:
+        - condition: deterministic_verdict == match AND high_confidence
+          action: Skip LLM call, use deterministic result
+        - condition: llm_confidence < threshold
+          action: Downgrade to inconclusive
+      error: LLM failure -> fall back to deterministic verdict
+
+    - id: create_observation
+      actor: verification_pipeline
+      action: Persist observation with verdict, link via observes edge
+      consumes: [llm_verdict, reasoning_text, confidence, evidence_refs, entity_record]
+      produces: [observation_id]
+
+    - id: surface
+      actor: user
+      action: Reads observation in feed, chat context, or agent prompt
+      consumes: [observation_id]
+      emotion: confidence
+
+  shared_artifacts:
+    - name: entity_record
+      source: dispatch
+      consumers: [gather_signals, llm_reason, create_observation]
+    - name: related_decisions
+      source: gather_signals
+      consumers: [llm_reason]
+    - name: deterministic_verdict
+      source: gather_signals
+      consumers: [llm_reason]
+    - name: llm_verdict
+      source: llm_reason
+      consumers: [create_observation, surface]
+
+journey:
+  name: pattern-synthesis
+  jobs: [J3]
+  description: Graph-scan LLM synthesis of cross-signal patterns
+
+  steps:
+    - id: trigger_scan
+      actor: trigger
+      action: Manual or scheduled POST /api/observe/scan/:workspaceId
+
+    - id: collect_anomalies
+      actor: graph_scan
+      action: Run deterministic queries for contradictions, stale blockers, drift
+      produces: [anomalies]
+      error: No anomalies -> skip LLM, return empty
+
+    - id: synthesize_patterns
+      actor: llm_reasoning
+      action: Correlate anomalies into named patterns with evidence
+      consumes: [anomalies]
+      produces: [patterns]
+      constraints:
+        - min_signals_per_pattern: 2
+        - pattern_vocabulary: [bottleneck_decision, cascade_block, priority_drift, stale_cluster, contradiction_cluster]
+      error: LLM failure -> return anomalies without synthesis
+
+    - id: create_synthesis_observations
+      actor: graph_scan
+      action: Create observation per pattern, link to all contributing entities
+      consumes: [patterns]
+      produces: [synthesis_observation_ids]
+      dedup: Check existing open synthesis observations before creating
+
+    - id: surface
+      actor: user
+      action: Read synthesis observations in feed
+      consumes: [synthesis_observation_ids]
+      emotion: insight

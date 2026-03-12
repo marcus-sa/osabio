@@ -24,7 +24,7 @@
         "react-markdown": "^10.1.0",
         "reagraph": "^4.30.8",
         "reaviz": "^16.1.2",
-        "surrealdb": "2.0.0-alpha.18",
+        "surrealdb": "2.0.2",
         "zod": "^4.3.6",
         "zustand": "^5.0.11",
       },
@@ -1168,7 +1168,7 @@
 
     "style-to-object": ["style-to-object@1.0.14", "", { "dependencies": { "inline-style-parser": "0.2.7" } }, "sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw=="],
 
-    "surrealdb": ["surrealdb@2.0.0-alpha.18", "", { "dependencies": { "@surrealdb/cbor": "2.0.0-alpha.4", "uuidv7": "^1.0.1" }, "peerDependencies": { "tslib": "^2.6.3", "typescript": "^5.0.0" } }, "sha512-+A2G6pfTNpI47OxN0fg89SEjhZJIJ5soYUFbMua76O+euOF5vdht2NKyrPBqPJdlCZuLrnkpvvl6XoA+C/RWwA=="],
+    "surrealdb": ["surrealdb@2.0.2", "", { "dependencies": { "@surrealdb/cbor": "2.0.0-alpha.4", "uuidv7": "^1.0.1" }, "peerDependencies": { "tslib": "^2.6.3", "typescript": "^5.0.0" } }, "sha512-yKd4atWe1HdJEdACQhC8tsOSJxyxYs5/CqHoxweia4y8R8j8zP5aMzYeAx+lR/ZzhF29W276cxu/PbK1QDsWVA=="],
 
     "suspend-react": ["suspend-react@0.1.3", "", { "peerDependencies": { "react": ">=17.0" } }, "sha512-aqldKgX9aZqpoDp3e8/BZ8Dm7x1pJl+qI3ZKxDN0i/IQTWUwBx/ManmlVJ3wowqbno6c2bmiIfs+Um6LbsjJyQ=="],
 

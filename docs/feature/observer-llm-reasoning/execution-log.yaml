@@ -1,0 +1,321 @@
+schema_version: "2.0"
+project_id: observer-llm-reasoning
+events:
+  # =========================================================================
+  # Step 01-01: Observer model configuration and runtime wiring
+  # =========================================================================
+  - step_id: "01-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T19:45:00Z"
+  - step_id: "01-01"
+    phase: RED_ACCEPTANCE
+    status: SKIPPED
+    data: "Infrastructure step — no acceptance test entry point for config/schema changes"
+    timestamp: "2026-03-12T19:45:30Z"
+  - step_id: "01-01"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T19:46:00Z"
+  - step_id: "01-01"
+    phase: GREEN
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T19:48:00Z"
+  - step_id: "01-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T19:49:00Z"
+
+  # =========================================================================
+  # Step 01-02: Schema migration for observation LLM fields
+  # =========================================================================
+  - step_id: "01-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:00:00Z"
+  - step_id: "01-02"
+    phase: RED_ACCEPTANCE
+    status: SKIPPED
+    data: "Infrastructure step — schema migration verified via milestone-1 acceptance tests"
+    timestamp: "2026-03-12T20:00:30Z"
+  - step_id: "01-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:01:00Z"
+  - step_id: "01-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — migration 0029_observer_llm_fields.surql adds confidence (option<float>) and evidence_refs fields"
+    timestamp: "2026-03-12T20:03:00Z"
+  - step_id: "01-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:04:00Z"
+
+  # =========================================================================
+  # Step 01-03: Structured output schemas and evidence validator
+  # =========================================================================
+  - step_id: "01-03"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:10:00Z"
+  - step_id: "01-03"
+    phase: RED_ACCEPTANCE
+    status: SKIPPED
+    data: "Pure module — tested via unit tests and downstream acceptance tests"
+    timestamp: "2026-03-12T20:10:30Z"
+  - step_id: "01-03"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:11:00Z"
+  - step_id: "01-03"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — schemas.ts (llmVerdictSchema, synthesisPatternSchema, peerReviewVerdictSchema), evidence-validator.ts (parseEntityRef, validateEvidenceRefs)"
+    timestamp: "2026-03-12T20:15:00Z"
+  - step_id: "01-03"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:16:00Z"
+
+  # =========================================================================
+  # Step 02-01: Context loader for LLM reasoning
+  # =========================================================================
+  - step_id: "02-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:20:00Z"
+  - step_id: "02-01"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — context-loader exercised via milestone-2 and milestone-3 acceptance tests"
+    timestamp: "2026-03-12T20:20:30Z"
+  - step_id: "02-01"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:21:00Z"
+  - step_id: "02-01"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — context-loader.ts: loadRelatedDecisions (max 20, recency), resolveEntityProject, buildEntityContext"
+    timestamp: "2026-03-12T20:25:00Z"
+  - step_id: "02-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:26:00Z"
+
+  # =========================================================================
+  # Step 02-02: LLM reasoning effect boundary for verification
+  # =========================================================================
+  - step_id: "02-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:30:00Z"
+  - step_id: "02-02"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — LLM reasoning exercised via eval suite (observer-llm-reasoning.eval.ts)"
+    timestamp: "2026-03-12T20:30:30Z"
+  - step_id: "02-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:31:00Z"
+  - step_id: "02-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — llm-reasoning.ts: generateVerificationVerdict (10s timeout, evidence post-validation), generatePeerReviewVerdict"
+    timestamp: "2026-03-12T20:35:00Z"
+  - step_id: "02-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:36:00Z"
+
+  # =========================================================================
+  # Step 02-03: Verdict logic with skip optimization and fallback
+  # =========================================================================
+  - step_id: "02-03"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:40:00Z"
+  - step_id: "02-03"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — verdict logic exercised via milestone-2 task verification tests"
+    timestamp: "2026-03-12T20:40:30Z"
+  - step_id: "02-03"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:41:00Z"
+  - step_id: "02-03"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — verification-pipeline.ts: shouldSkipLlm (workspace skip setting), applyLlmVerdict (confidence threshold <0.5, fallback to deterministic_fallback)"
+    timestamp: "2026-03-12T20:45:00Z"
+  - step_id: "02-03"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:46:00Z"
+
+  # =========================================================================
+  # Step 02-04: Wire semantic verification into observer route for tasks
+  # =========================================================================
+  - step_id: "02-04"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:50:00Z"
+  - step_id: "02-04"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — milestone-2 tests: task with passing CI, failing CI, no signals, graceful degradation"
+    timestamp: "2026-03-12T20:50:30Z"
+  - step_id: "02-04"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:51:00Z"
+  - step_id: "02-04"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — observer-route.ts: handleTaskVerification integrates LLM path with skip optimization, multi-entity observes edges"
+    timestamp: "2026-03-12T20:55:00Z"
+  - step_id: "02-04"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T20:56:00Z"
+
+  # =========================================================================
+  # Step 03-01: Decision confirmation triggers LLM check against completed tasks
+  # =========================================================================
+  - step_id: "03-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:00:00Z"
+  - step_id: "03-01"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — milestone-4 tests: decision confirmed with implementations, decision superseded"
+    timestamp: "2026-03-12T21:00:30Z"
+  - step_id: "03-01"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:01:00Z"
+  - step_id: "03-01"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — observer-route.ts: handleDecisionVerification loads completed tasks (max 20), LLM evaluates each against decision, contradiction observations per misaligned task"
+    timestamp: "2026-03-12T21:05:00Z"
+  - step_id: "03-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:06:00Z"
+
+  # =========================================================================
+  # Step 03-02: LLM synthesis for pattern detection in graph scan
+  # =========================================================================
+  - step_id: "03-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:10:00Z"
+  - step_id: "03-02"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — milestone-3 tests: graph scan contradiction detection, stale blocked, dedup, status drift"
+    timestamp: "2026-03-12T21:10:30Z"
+  - step_id: "03-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:11:00Z"
+  - step_id: "03-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — graph-scan.ts: runGraphScan integrates LLM synthesis, llm-synthesis.ts: synthesizePatterns with partitioning (top 20 per type), min 2 entities, dedup against existing patterns"
+    timestamp: "2026-03-12T21:15:00Z"
+  - step_id: "03-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:16:00Z"
+
+  # =========================================================================
+  # Step 04-01: LLM peer review of non-observer observations
+  # =========================================================================
+  - step_id: "04-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:20:00Z"
+  - step_id: "04-01"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — milestone-4 tests: PM observation peer review, architect observation, no-loop guard, cascade prevention"
+    timestamp: "2026-03-12T21:20:30Z"
+  - step_id: "04-01"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:21:00Z"
+  - step_id: "04-01"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — observer-route.ts: handleObservationPeerReview with LLM path (linked entities loaded via observes edges), llm-reasoning.ts: generatePeerReviewVerdict, cascade prevention via source_agent guard"
+    timestamp: "2026-03-12T21:25:00Z"
+  - step_id: "04-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:26:00Z"
+
+  # =========================================================================
+  # Step 04-02: Observability logging for LLM reasoning
+  # =========================================================================
+  - step_id: "04-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:30:00Z"
+  - step_id: "04-02"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS — logging verified via test output: observer.llm.call, observer.llm.skip, observer.llm.error, observer.llm.fallback, observer.llm.synthesis, observer.llm.peer_review"
+    timestamp: "2026-03-12T21:30:30Z"
+  - step_id: "04-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:31:00Z"
+  - step_id: "04-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS — structured logInfo/logError calls with latency_ms, model ID, verdict, confidence across all pipelines (llm-reasoning.ts, llm-synthesis.ts, observer-route.ts)"
+    timestamp: "2026-03-12T21:35:00Z"
+  - step_id: "04-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-12T21:36:00Z"

@@ -1,0 +1,153 @@
+roadmap:
+  feature: observer-llm-reasoning
+  paradigm: functional
+  estimated_production_files: 8
+  # New: schemas.ts, llm-reasoning.ts, llm-synthesis.ts, context-loader.ts, evidence-validator.ts
+  # Modified: config.ts, dependencies.ts, types.ts, observer-route.ts, verification-pipeline.ts, graph-scan.ts, agent.ts, queries.ts
+  # Migration: 1 .surql file
+  # Ratio: 12 steps / 8 new+modified files = 1.5 (within 2.5 limit)
+
+phases:
+  "01":
+    title: "Infrastructure and schema foundation"
+    steps:
+      "01-01":
+        title: "Observer model configuration and runtime wiring"
+        description: "Add OBSERVER_MODEL to config. Add settings field to workspace schema. Create optional observer model client in dependencies. Extend ServerDependencies type."
+        acceptance_criteria:
+          - "OBSERVER_MODEL env var parsed; when unset, observerModel is undefined in deps"
+          - "workspace.settings.observer_skip_deterministic field defined in schema (option<bool>)"
+          - "Observer model client created via existing OpenRouter/Ollama provider when configured"
+        architectural_constraints:
+          - "Optional field on ServerDependencies — never required"
+          - "Reuse existing createOpenRouter + wrapLanguageModel pattern"
+          - "Skip optimization is per-workspace via settings field, not a global env var"
+
+      "01-02":
+        title: "Schema migration for observation LLM fields"
+        description: "Add confidence (option<float>) and evidence_refs (option<array<string>>) fields to observation table."
+        acceptance_criteria:
+          - "Migration applies cleanly via bun migrate"
+          - "Existing observations unaffected (new fields optional)"
+          - "INFO FOR TABLE observation shows both new fields"
+        architectural_constraints:
+          - "DEFINE FIELD OVERWRITE — idempotent migration"
+          - "Wrapped in transaction"
+
+      "01-03":
+        title: "Structured output schemas and evidence validator"
+        description: "Define Zod schemas for LLM verification verdict, synthesis pattern, and peer review verdict. Implement pure evidence_refs validator."
+        acceptance_criteria:
+          - "Verdict schema parses valid LLM output; rejects missing fields"
+          - "Evidence validator strips refs not in provided valid-entity set"
+          - "Pattern schema enforces controlled vocabulary enum"
+        architectural_constraints:
+          - "Pure module — no IO imports"
+          - "Schemas usable by both verification and synthesis paths"
+
+  "02":
+    title: "Semantic verification pipeline (J1)"
+    steps:
+      "02-01":
+        title: "Context loader for LLM reasoning"
+        description: "Extract graph queries into context-loader: load related decisions, constraints for entity's project. Max 20 decisions by recency."
+        acceptance_criteria:
+          - "Returns related decisions (confirmed/provisional) for task's project"
+          - "Returns empty array when no related decisions exist"
+          - "Respects max 20 limit ordered by updated_at DESC"
+        architectural_constraints:
+          - "Effect boundary — SurrealDB queries only"
+          - "Returns plain data objects, not RecordId references"
+
+      "02-02":
+        title: "LLM reasoning effect boundary for verification"
+        description: "Implement generateObject call with verification verdict schema. 10s timeout. Returns structured verdict or undefined on failure."
+        acceptance_criteria:
+          - "Calls generateObject with entity context + decisions + deterministic verdict"
+          - "Returns structured LlmVerdict on success"
+          - "Returns undefined on timeout, rate limit, or any LLM error"
+          - "Evidence refs post-validated before return"
+        architectural_constraints:
+          - "Effect boundary — generateObject + AbortSignal.timeout(10_000)"
+          - "Consumes observer model from deps; never called when model undefined"
+
+      "02-03":
+        title: "Verdict logic with skip optimization and fallback"
+        description: "Extend verification pipeline with pure verdict selection: skip/invoke LLM, confidence threshold, fallback to deterministic."
+        acceptance_criteria:
+          - "When OBSERVER_MODEL unset, returns deterministic verdict unchanged"
+          - "When workspace.settings.observer_skip_deterministic is true (or absent/default), skips LLM when deterministic=match AND CI=passing"
+          - "When workspace.settings.observer_skip_deterministic is false, always invokes LLM"
+          - "LLM confidence < 0.5 downgrades to inconclusive with severity=info"
+          - "LLM failure falls back to deterministic with source=deterministic_fallback"
+        architectural_constraints:
+          - "Pure functions for skip/threshold logic; effect calls via injected function"
+          - "Observation created with source=llm or source=deterministic_fallback"
+
+      "02-04":
+        title: "Wire semantic verification into observer route for tasks"
+        description: "Integrate LLM reasoning into handleTaskVerification. Create observations with multiple observes edges (entity + contradicted decision)."
+        acceptance_criteria:
+          - "Task completion triggers LLM reasoning when model configured"
+          - "Contradiction observation links to both task and decision via observes"
+          - "Observation text is LLM-generated reasoning, not template"
+          - "observation_type=contradiction for mismatches, validation for matches"
+        architectural_constraints:
+          - "Extend createObservation to support multiple relatedRecords"
+          - "Log LLM call/skip/fallback metrics"
+
+  "03":
+    title: "Decision verification and pattern synthesis (J1 + J3)"
+    steps:
+      "03-01":
+        title: "Decision confirmation triggers LLM check against completed tasks"
+        description: "When decision confirmed, load completed tasks in same project and evaluate each against decision via LLM."
+        acceptance_criteria:
+          - "Decision confirmation loads completed tasks in project (max 20)"
+          - "LLM evaluates each task against new decision"
+          - "Contradiction observation created per misaligned task"
+          - "No LLM call when no completed tasks exist"
+        architectural_constraints:
+          - "Reuse context-loader and llm-reasoning from 02-01/02-02"
+          - "Batch approach: one LLM call per task (not one call for all)"
+
+      "03-02":
+        title: "LLM synthesis for pattern detection in graph scan"
+        description: "After deterministic scan, pass anomalies to LLM for pattern synthesis. Enforce min 2 entities per pattern. Dedup against existing open patterns."
+        acceptance_criteria:
+          - "Anomalies passed to LLM synthesis when model configured and anomalies > 0"
+          - "Patterns with < 2 contributing entities discarded"
+          - "Synthesis observations have observation_type=pattern"
+          - "Duplicate patterns (same entities, same type) not recreated"
+          - "LLM failure returns anomalies as individual observations"
+        architectural_constraints:
+          - "Large workspace: partition by type, top 20 per type"
+          - "Dedup query checks existing open pattern observations"
+
+  "04":
+    title: "Peer review and observability (J2)"
+    steps:
+      "04-01":
+        title: "LLM peer review of non-observer observations"
+        description: "Extend handleObservationPeerReview to use LLM when model configured. Evaluate claim vs cited evidence. Produce review verdict."
+        acceptance_criteria:
+          - "Only reviews observations with observes edges (has cited evidence)"
+          - "LLM returns verdict: sound (>=0.7), questionable (0.4-0.7), unsupported (<0.4)"
+          - "Review observation links to reviewed observation via observes edge"
+          - "Original observation unchanged after review"
+          - "Observer's own observations do not trigger peer review"
+        architectural_constraints:
+          - "Reuse llm-reasoning effect boundary with peer review schema"
+          - "Cascade prevention guard unchanged (source_agent != observer_agent)"
+
+      "04-02":
+        title: "Observability logging for LLM reasoning"
+        description: "Add structured logging for LLM call count, skip count, latency, fallback rate, verdict distribution across all pipelines."
+        acceptance_criteria:
+          - "Each LLM call logged with latency_ms and model ID"
+          - "Each skip logged with reason (deterministic_match, no_model)"
+          - "Each fallback logged with error type"
+          - "Verdict distribution logged per scan"
+        architectural_constraints:
+          - "Use existing logInfo/logError from http/observability"
+          - "No new logging infrastructure"

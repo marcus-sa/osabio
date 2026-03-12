@@ -296,7 +296,7 @@ async function processCommit(input: {
         severity: "info",
         sourceAgent: "git_webhook",
         now: input.now,
-        relatedRecord: decisionRecord,
+        relatedRecords: [decisionRecord],
       });
 
       observationsCreated.push(observation.id as string);

@@ -63,3 +63,15 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
 - External processes (OpenCode spawn) — mock the handle, not the process
 - Everything else is real internal logic — no mocking internal modules at acceptance level
 - Unit tests may mock dependencies via dependency injection (function parameters)
+
+## `mock.module` Must Preserve Full Export Surface
+
+- Bun's `mock.module` replaces the entire module for all test files sharing the same worker. A partial mock (only exporting the overridden function) strips every other export, causing `SyntaxError: Export named '...' not found` in concurrent test files that import from the same module.
+- Always capture the real module **before** mocking, then spread its exports:
+  ```ts
+  const realModule = await import("../../path/to/module");
+  mock.module("../../path/to/module", () => ({
+    ...realModule,
+    targetFunction: mockFn,
+  }));
+  ```

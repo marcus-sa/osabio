@@ -1023,7 +1023,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       sourceAgent: "code-agent",
       now,
       ...(sourceSessionRecord ? { sourceSessionRecord } : {}),
-      ...(relatedRecord ? { relatedRecord } : {}),
+      ...(relatedRecord ? { relatedRecords: [relatedRecord] } : {}),
       ...(embedding ? { embedding } : {}),
     });
 

@@ -34,6 +34,7 @@ import { createTokenEndpointHandler } from "../oauth/token-endpoint";
 import { createNonceCache } from "../oauth/nonce-cache";
 import { createBridgeExchangeHandler } from "../oauth/bridge";
 import { RecordId } from "surrealdb";
+import { createObserverRouteHandler, createGraphScanRouteHandler } from "../observer/observer-route";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -65,6 +66,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const intentSubmissionHandler = createIntentSubmissionHandler(deps);
   const tokenEndpointHandler = createTokenEndpointHandler(deps);
   const bridgeExchangeHandler = createBridgeExchangeHandler(deps);
+  const observerHandler = createObserverRouteHandler(deps);
+  const graphScanHandler = createGraphScanRouteHandler(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -363,6 +366,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
         ),
       },
+      // Observer — periodic graph scan
+      "/api/observe/scan/:workspaceId": {
+        POST: withRequestLogging("POST /api/observe/scan/:workspaceId", "POST", (request) =>
+          graphScanHandler(request.params.workspaceId, request),
+        ),
+      },
+      // Observer — verification pipeline (called by SurrealQL EVENT via http::post)
+      "/api/observe/:table/:id": {
+        POST: withRequestLogging("POST /api/observe/:table/:id", "POST", (request) =>
+          observerHandler(request.params.table, request.params.id, request),
+        ),
+      },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)
       "/api/intents/:intentId/evaluate": {
         POST: withRequestLogging("POST /api/intents/:intentId/evaluate", "POST", (request) =>
@@ -491,6 +506,7 @@ export async function startServer(): Promise<void> {
     pmAgentModel: runtime.pmAgentModel,
     analyticsAgentModel: runtime.analyticsAgentModel,
     embeddingModel: runtime.embeddingModel,
+    ...(runtime.observerModel ? { observerModel: runtime.observerModel } : {}),
     sse: createSseRegistry(),
     inflight: createInflightTracker(),
     asSigningKey: runtime.asSigningKey,

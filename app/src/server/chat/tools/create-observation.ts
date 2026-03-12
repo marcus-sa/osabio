@@ -56,7 +56,7 @@ export function createCreateObservationTool(deps: ChatToolDeps) {
         sourceAgent: context.actor,
         now: new Date(),
         sourceMessageRecord: context.currentMessageRecord,
-        ...(relatedRecord ? { relatedRecord } : {}),
+        ...(relatedRecord ? { relatedRecords: [relatedRecord] } : {}),
         embedding,
       });
 

@@ -1,0 +1,307 @@
+roadmap:
+  project_id: observer-agent
+  created_at: '2026-03-11T07:23:38Z'
+  total_steps: 13
+  phases: 4
+phases:
+- id: '01'
+  name: 'Schema extensions and EVENT definitions'
+  steps:
+  - id: 01-01
+    name: 'Observation schema extensions'
+    description: >
+      Add verified (bool, default false), source (optional string), and data (optional object)
+      fields to observation table. Extend observation_type enum with "validation" and "error".
+    criteria:
+      - 'Observation created without verified field defaults to false (S4-1)'
+      - 'Observation with source field persists the attribution string (S4-2)'
+      - 'Observation with data field persists structured evidence object (S4-3)'
+      - 'observation_type accepts "validation" and "error" values (S4-4)'
+    test_file: tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts
+    scenario_ids: [S4-1, S4-2, S4-3, S4-4]
+    files_to_modify:
+      - schema/surreal-schema.surql
+      - schema/migrations/0027_observer_schema_extensions.surql
+    implementation_notes: >
+      DEFINE FIELD OVERWRITE for new fields. verified: TYPE bool DEFAULT false.
+      source: TYPE option<string>. data: TYPE option<object>.
+      Extend observation_type ASSERT to include "validation" and "error".
+      Wrap migration in BEGIN TRANSACTION / COMMIT TRANSACTION.
+
+  - id: 01-02
+    name: 'Extend observes relation OUT types'
+    description: >
+      Add intent, git_commit, and observation to the observes relation OUT type union
+      so observer can link verification observations to these entities.
+    criteria:
+      - 'observes edge links observation to intent target (S4-5)'
+      - 'observes edge links observation to git_commit target (S4-5)'
+      - 'observes edge links observation to observation target for peer review (S4-5)'
+    test_file: tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts
+    scenario_ids: [S4-5]
+    dependencies: [01-01]
+    files_to_modify:
+      - schema/surreal-schema.surql
+      - schema/migrations/0027_observer_schema_extensions.surql
+    implementation_notes: >
+      ALTER TABLE observes or DEFINE TABLE OVERWRITE to expand OUT union:
+      project | feature | task | decision | question | intent | git_commit | observation.
+      Can be in same migration as 01-01.
+
+  - id: 01-03
+    name: 'SurrealDB EVENT definitions for observer triggers'
+    description: >
+      Define ASYNC EVENTs on task, intent, git_commit, decision, and observation tables
+      that POST to /api/observe/:table/:id on relevant state transitions.
+      Observer's own observations must NOT trigger peer review EVENT.
+    criteria:
+      - 'Task status -> completed fires observer webhook (S6-1)'
+      - 'Task status -> in_progress does NOT fire (S6-2)'
+      - 'Intent status -> completed fires observer webhook (S6-3)'
+      - 'New git_commit creation fires observer webhook (S6-4)'
+      - 'Decision -> confirmed fires observer webhook (S6-5)'
+    test_file: tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts
+    scenario_ids: [S6-1, S6-2, S6-3, S6-4, S6-5, S6-6, S6-7]
+    dependencies: [01-01, 01-02]
+    files_to_modify:
+      - schema/surreal-schema.surql
+      - schema/migrations/0027_observer_schema_extensions.surql
+    implementation_notes: >
+      DEFINE EVENT ASYNC with RETRY 3 on each table. Use WHEN conditions:
+      task: $after.status = "completed" AND $before.status != "completed".
+      intent: $after.status IN ["completed", "failed"] AND $before.status NOT IN ["completed", "failed"].
+      git_commit: $event = "CREATE".
+      decision: $after.status IN ["confirmed", "superseded"] AND $before.status NOT IN ["confirmed", "superseded"].
+      observation: $event = "CREATE" AND $value.source_agent != "observer_agent" (prevents infinite loop).
+      wireObserverEvents in test kit dynamically defines these with the test server port.
+
+- id: '02'
+  name: 'Observer route and verification pipeline'
+  steps:
+  - id: 02-01
+    name: 'Observer HTTP route and task verification pipeline'
+    description: >
+      Create POST /api/observe/:table/:id route as EVENT callback target.
+      Implement task completion verification: gather linked commits, check external
+      CI status, compare claim vs reality, create observation with verdict.
+    criteria:
+      - 'Task with passing CI produces verified observation (severity info, verified true) (S1-1)'
+      - 'Task with failing CI produces conflict observation (verified false) (S1-2)'
+      - 'Task with no external signals produces inconclusive info observation (S1-3)'
+    test_file: tests/acceptance/observer-agent/milestone-2-verification-pipeline.test.ts
+    scenario_ids: [S1-1, S1-2, S1-3]
+    dependencies: [01-03]
+    files_to_modify:
+      - app/src/server/observer/observer-route.ts
+      - app/src/server/observer/verification-pipeline.ts
+      - app/src/server/observer/external-signals.ts
+      - app/src/server/runtime/start-server.ts
+    implementation_notes: >
+      Functional pipeline: receiveEvent -> gatherSignals -> compareClaimVsReality -> createObservation.
+      Pure core functions for comparison logic, effect shell at route boundary.
+      Reuse existing observation/queries.ts for DB writes.
+      Register route in start-server.ts alongside other route handlers.
+
+  - id: 02-02
+    name: 'Intent and commit verification pipelines'
+    description: >
+      Extend observer route to handle intent completion and git_commit creation events.
+      Intent: check outcome status, gather related traces. Commit: check CI/PR status.
+    criteria:
+      - 'Completed intent produces verification observation linked to intent (S2-1)'
+      - 'Failed intent produces warning/conflict observation (S2-2)'
+      - 'New commit triggers status verification and creates observation (S2b-1)'
+    test_file: tests/acceptance/observer-agent/milestone-2-verification-pipeline.test.ts
+    scenario_ids: [S2-1, S2-2, S2b-1]
+    dependencies: [02-01]
+    files_to_modify:
+      - app/src/server/observer/verification-pipeline.ts
+      - app/src/server/observer/observer-route.ts
+    implementation_notes: >
+      Add intent and git_commit branches to the route handler's table dispatch.
+      Compose verification functions per entity type using same pipeline pattern.
+      Intent verification checks status and related traces.
+      Commit verification checks repository CI status via external signals.
+
+  - id: 02-03
+    name: 'Graceful degradation on external failures'
+    description: >
+      Ensure observer never blocks the original workflow when external APIs fail.
+      Produce warning/info observation on failure. EVENT RETRY handles transient errors.
+    criteria:
+      - 'External API failure produces warning observation, task status unchanged (S3-1)'
+      - 'EVENT RETRY ensures observation is created despite transient failures (S3-2)'
+    test_file: tests/acceptance/observer-agent/milestone-2-verification-pipeline.test.ts
+    scenario_ids: [S3-1, S3-2]
+    dependencies: [02-01]
+    files_to_modify:
+      - app/src/server/observer/external-signals.ts
+      - app/src/server/observer/verification-pipeline.ts
+    implementation_notes: >
+      Wrap external HTTP calls in try/catch returning Result type (success | error).
+      On error, pipeline produces info/warning observation noting unavailable source.
+      Never throw from route handler -- always produce an observation or silently succeed.
+      RETRY 3 on EVENT definition (from 01-03) handles transient route failures.
+
+- id: '03'
+  name: 'Observer agent core and graph scan'
+  steps:
+  - id: 03-01
+    name: 'Observer agent with ToolLoopAgent pattern'
+    description: >
+      Implement observer agent following PM agent pattern (agents/pm/).
+      Uses ToolLoopAgent with tools: create_observation, get_entity_detail, search_entities.
+      Returns structured output with observations_created, verdict, evidence.
+    criteria:
+      - 'Observer agent produces structured verification output for task completion (S5-1)'
+      - 'Observation is linked to triggering entity via observes edge (S5-1)'
+      - 'Observer agent considers existing workspace observations in analysis (S5-2)'
+    test_file: tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts
+    scenario_ids: [S5-1, S5-2]
+    dependencies: [02-01]
+    files_to_modify:
+      - app/src/server/agents/observer/agent.ts
+      - app/src/server/agents/observer/prompt.ts
+      - app/src/server/agents/observer/tools.ts
+      - app/src/server/observer/verification-pipeline.ts
+    implementation_notes: >
+      Mirror agents/pm/ structure. Compose tools from existing chat/tools/ (create_observation,
+      get_entity_detail, search_entities). Build system prompt with workspace context
+      and existing observations. Wire agent into verification pipeline as the decision-maker.
+      source_agent always "observer_agent".
+
+  - id: 03-02
+    name: 'Graph scan route for contradiction detection'
+    description: >
+      Create POST /api/observe/scan/:workspaceId route. Scan workspace graph for
+      decision-implementation contradictions and stale blocked tasks (>14 days).
+    criteria:
+      - 'Graph scan detects contradiction between confirmed decision and completed task (S7-1)'
+      - 'Graph scan detects task blocked longer than 14-day threshold (S7-2)'
+    test_file: tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts
+    scenario_ids: [S7-1, S7-2]
+    dependencies: [03-01]
+    files_to_modify:
+      - app/src/server/observer/graph-scan.ts
+      - app/src/server/observer/observer-route.ts
+      - app/src/server/runtime/start-server.ts
+    implementation_notes: >
+      Graph scan queries: SELECT confirmed decisions + completed tasks in workspace,
+      feed pairs to observer agent for contradiction analysis.
+      Stale blocked: SELECT tasks WHERE status = "blocked" AND updated_at < time::now() - 14d.
+      Register scan route in start-server.ts.
+
+  - id: 03-03
+    name: 'Graph scan deduplication and status drift detection'
+    description: >
+      Prevent duplicate observations for already-flagged issues. Detect task status
+      drift where completed tasks depend on incomplete dependencies.
+    criteria:
+      - 'Graph scan does not create duplicate observation for known issues (S7-3)'
+      - 'Graph scan detects task completed before its dependency (S7-4)'
+    test_file: tests/acceptance/observer-agent/milestone-3-agent-and-scan.test.ts
+    scenario_ids: [S7-3, S7-4]
+    dependencies: [03-02]
+    files_to_modify:
+      - app/src/server/observer/graph-scan.ts
+    implementation_notes: >
+      Before creating observation, query existing open observer observations linked
+      to same entity. Skip if already flagged. For drift detection: traverse
+      ->depends_on-> edges, check if parent status contradicts child completion.
+
+  - id: 03-04
+    name: 'Walking skeleton integration'
+    description: >
+      Verify full E2E path: task completed -> EVENT fires -> observer route called ->
+      verification pipeline runs -> observation created. Also verify graceful degradation
+      path with no external signals.
+    criteria:
+      - 'Task completion triggers observer verification observation with verdict (S1-WS1)'
+      - 'Missing external signals produce inconclusive observation, task not reverted (S3-WS2)'
+    test_file: tests/acceptance/observer-agent/walking-skeleton.test.ts
+    scenario_ids: [S1-WS1, S3-WS2]
+    dependencies: [02-01]
+    files_to_modify: []
+    implementation_notes: >
+      Walking skeleton tests use non-skipped it() -- they should pass once pipeline
+      is wired end-to-end. No new production code expected; validates integration
+      of 01-03 + 02-01. Run as validation gate before agent wiring.
+
+- id: '04'
+  name: 'Decision verification and peer review'
+  steps:
+  - id: 04-01
+    name: 'Decision confirmation and supersession verification'
+    description: >
+      Handle decision confirmed/superseded EVENTs. Confirmed: check existing implementations
+      for alignment. Superseded: flag implementations that may be stale.
+    criteria:
+      - 'Observer verifies implementations align with confirmed decision (S9-1)'
+      - 'Observer flags stale implementations when decision is superseded (S9-2)'
+    test_file: tests/acceptance/observer-agent/milestone-4-peer-review.test.ts
+    scenario_ids: [S9-1, S9-2]
+    dependencies: [03-01]
+    files_to_modify:
+      - app/src/server/observer/verification-pipeline.ts
+      - app/src/server/observer/observer-route.ts
+    implementation_notes: >
+      Add decision branch to verification pipeline and route handler table dispatch.
+      For confirmed: query completed tasks in workspace, feed decision + tasks to
+      observer agent for alignment check. For superseded: query tasks that reference
+      the decision, flag as potentially stale.
+
+  - id: 04-02
+    name: 'Cross-agent peer review'
+    description: >
+      Handle observation creation EVENTs from non-observer agents. Observer cross-checks
+      the claim against graph state and creates peer review observation linked to original.
+    criteria:
+      - 'Observer cross-checks PM agent observation against graph state (S10-1)'
+      - 'Observer peer-reviews architect agent observation (S10-2)'
+      - "Observer's own observations do NOT trigger peer review (S10-3)"
+    test_file: tests/acceptance/observer-agent/milestone-4-peer-review.test.ts
+    scenario_ids: [S10-1, S10-2, S10-3]
+    dependencies: [03-01, 01-03]
+    files_to_modify:
+      - app/src/server/observer/verification-pipeline.ts
+      - app/src/server/observer/observer-route.ts
+    implementation_notes: >
+      Add observation branch to route handler. Load original observation, gather
+      workspace context, feed to observer agent for cross-check. Link peer review
+      observation to original via observes edge. EVENT WHERE clause from 01-03
+      already prevents observer_agent observations from triggering this path.
+
+  - id: 04-03
+    name: 'Cascade prevention and no-loop guarantee'
+    description: >
+      Verify that peer review observations from observer do not cascade into further
+      reviews. Validates the EVENT filter and end-to-end loop prevention.
+    criteria:
+      - 'Peer review observations do not cascade between agents (S10-4)'
+      - 'Observation peer review EVENT fires for pm_agent but not observer_agent (S6-6, S6-7)'
+    test_file: tests/acceptance/observer-agent/milestone-4-peer-review.test.ts
+    scenario_ids: [S10-4]
+    additional_test_file: tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts
+    additional_scenario_ids: [S6-6, S6-7]
+    dependencies: [04-02]
+    files_to_modify: []
+    implementation_notes: >
+      No new production code expected. This step validates the EVENT WHERE clause
+      (source_agent != "observer_agent") prevents infinite loops end-to-end.
+      Multiple non-observer agents creating observations each get exactly one
+      peer review; those peer reviews do not trigger further reviews.
+
+implementation_scope:
+  source_directories:
+  - app/src/server/observer/
+  - app/src/server/agents/observer/
+  - schema/migrations/
+  test_directories:
+  - tests/acceptance/observer-agent/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: software-crafter-reviewer
+  approved_at: '2026-03-11T07:45:00Z'

@@ -128,6 +128,7 @@ export function setupAcceptanceSuite(
       betterAuthUrl: baseUrl,
       githubClientId: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
       githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
+      ...(process.env.OBSERVER_MODEL?.trim() ? { observerModelId: process.env.OBSERVER_MODEL.trim() } : {}),
     };
 
     const deps = await createRuntimeDependencies(config);
@@ -145,6 +146,7 @@ export function setupAcceptanceSuite(
       pmAgentModel: deps.pmAgentModel,
       analyticsAgentModel: deps.analyticsAgentModel,
       embeddingModel: deps.embeddingModel,
+      ...(deps.observerModel ? { observerModel: deps.observerModel } : {}),
       sse: createSseRegistry(),
       inflight,
       asSigningKey: deps.asSigningKey,

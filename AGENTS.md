@@ -48,6 +48,7 @@
 - Do NOT apply migrations manually via `surreal import` or raw HTTP calls — always use `bun migrate`.
 - Wrap migration scripts in `BEGIN TRANSACTION; ... COMMIT TRANSACTION;` so they succeed or fail atomically.
 - `DEFINE ANALYZER` cannot run inside a transaction in SurrealDB v3.0. Place it before the `BEGIN TRANSACTION;` block.
+- In `DEFINE FIELD` statements, `FLEXIBLE` must come after `TYPE`: `DEFINE FIELD ... TYPE object | array FLEXIBLE;`. Using `FLEXIBLE` without a `TYPE` keyword (e.g. `ON policy FLEXIBLE;`) causes a SurrealDB parse error that silently fails eval/test setup via transaction rollback.
 - Prefer `DEFINE ... OVERWRITE` or `ALTER TABLE` / `ALTER FIELD` for schema evolution; reserve `IF NOT EXISTS` for bootstrap-only creation.
 - SurrealDB does NOT support `ALTER TABLE ... ADD FIELD`. To add fields to existing tables, use `DEFINE FIELD OVERWRITE <field> ON <table> TYPE <type>;`.
 - When removing fields, update schema and stored rows in the same migration (`REMOVE FIELD ...; UPDATE ... UNSET ...;`).

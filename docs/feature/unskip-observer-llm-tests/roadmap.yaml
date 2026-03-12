@@ -1,0 +1,104 @@
+roadmap:
+  project_id: unskip-observer-llm-tests
+  created_at: '2026-03-12T16:31:37Z'
+  total_steps: 4
+  phases: 4
+phases:
+- id: '01'
+  name: 'Milestone 1: Schema and Config (no LLM)'
+  steps:
+  - id: 01-01
+    name: 'Unskip milestone-1 schema validation tests'
+    criteria:
+    - 'All 5 tests in milestone-1-schema-and-config.test.ts pass'
+    - 'observation confidence field persists as optional float'
+    - 'observation evidence_refs field persists record references'
+    - 'workspace settings.observer_skip_deterministic persists (false and true)'
+    notes: >
+      Remove `.skip()` from all 5 `it.skip(` calls. Run tests. Fix any schema
+      migration or test-kit issues (migrations 0027-0029, llm-reasoning-test-kit).
+      No LLM dependency -- pure SurrealDB schema validation.
+    files:
+    - tests/acceptance/observer-llm-reasoning/milestone-1-schema-and-config.test.ts
+    - tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts
+    - schema/migrations/0027_observer_schema_extensions.surql
+    - schema/migrations/0028_workspace_observer_settings.surql
+    - schema/migrations/0029_observer_llm_fields.surql
+- id: '02'
+  name: 'Milestone 2: Semantic Verification (LLM)'
+  steps:
+  - id: 02-01
+    name: 'Unskip milestone-2 semantic verification tests'
+    criteria:
+    - 'All 7 tests in milestone-2-semantic-verification.test.ts pass'
+    - 'LLM detects contradiction when task conflicts with confirmed decision'
+    - 'Observes edges link observation to both task and decision'
+    - 'Match scenario produces info severity (not conflict)'
+    - 'Ambiguous scenario does not produce conflict severity'
+    notes: >
+      Remove `.skip()` from all 7 `it.skip(` calls. Run tests with OBSERVER_MODEL
+      configured. Fix failures in observer agent, verification pipeline, observer
+      route, or test assertions. Tests have 60-120s timeouts for LLM calls.
+    files:
+    - tests/acceptance/observer-llm-reasoning/milestone-2-semantic-verification.test.ts
+    - tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts
+    - app/src/server/observer/verification-pipeline.ts
+    - app/src/server/observer/llm-reasoning.ts
+    - app/src/server/observer/observer-route.ts
+    - app/src/server/observer/evidence-validator.ts
+    - app/src/server/agents/observer/agent.ts
+- id: '03'
+  name: 'Milestone 3: Decision Verification and Pattern Synthesis (LLM)'
+  steps:
+  - id: 03-01
+    name: 'Unskip milestone-3 decision and synthesis tests'
+    criteria:
+    - 'All 6 tests in milestone-3-decision-and-synthesis.test.ts pass'
+    - 'Decision confirmation triggers observer check against completed tasks'
+    - 'Empty anomaly scan completes without creating pattern observations'
+    - 'Scan with anomalies triggers LLM synthesis'
+    - 'Running scan twice does not create duplicate observations'
+    notes: >
+      Remove `.skip()` from all 6 `it.skip(` calls. Run tests. Fix failures in
+      graph-scan, llm-synthesis, observer route scan endpoint, or context-loader.
+      Tests use triggerDecisionConfirmation and triggerGraphScan helpers.
+    files:
+    - tests/acceptance/observer-llm-reasoning/milestone-3-decision-and-synthesis.test.ts
+    - tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts
+    - app/src/server/observer/graph-scan.ts
+    - app/src/server/observer/llm-synthesis.ts
+    - app/src/server/observer/context-loader.ts
+    - app/src/server/observer/observer-route.ts
+- id: '04'
+  name: 'Milestone 4: Peer Review and Cascade Prevention (LLM)'
+  steps:
+  - id: 04-01
+    name: 'Unskip milestone-4 peer review tests'
+    criteria:
+    - 'All 5 tests in milestone-4-peer-review.test.ts pass'
+    - 'PM agent observation with evidence edges triggers LLM peer review'
+    - 'Original observation is not modified by peer review'
+    - 'Observer own observations do not trigger recursive peer review'
+    - 'Observations without evidence edges handled gracefully'
+    notes: >
+      Remove `.skip()` from all 5 `it.skip(` calls. Run tests. Fix failures in
+      observer agent peer review path, SurrealDB EVENT wiring, or cascade
+      prevention logic. Tests use createObservationByAgent helper.
+    files:
+    - tests/acceptance/observer-llm-reasoning/milestone-4-peer-review.test.ts
+    - tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts
+    - app/src/server/agents/observer/agent.ts
+    - app/src/server/observer/observer-route.ts
+    - app/src/server/observer/verification-pipeline.ts
+implementation_scope:
+  source_directories:
+  - app/src/server/observer/
+  - app/src/server/agents/observer/
+  test_directories:
+  - tests/acceptance/observer-llm-reasoning/
+  excluded_patterns:
+  - walking-skeleton.test.ts
+validation:
+  status: approved
+  reviewer: orchestrator-quality-gate
+  approved_at: '2026-03-12T16:32:00Z'

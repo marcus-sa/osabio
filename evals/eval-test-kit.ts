@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
@@ -61,18 +61,6 @@ export async function setupEvalRuntime(suiteName: string): Promise<EvalRuntime> 
   const schemaStatements = splitSurqlStatements(schemaSql);
   for (const stmt of schemaStatements) {
     await surreal.query(stmt).catch((error) => {
-      if (!isAlreadyExistsError(error) && !isNoneSubtractionError(error)) throw error;
-    });
-  }
-
-  // Apply migrations for production parity
-  const migrationsDir = join(process.cwd(), "schema", "migrations");
-  const migrationFiles = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith(".surql"))
-    .sort();
-  for (const file of migrationFiles) {
-    const migrationSql = readFileSync(join(migrationsDir, file), "utf8");
-    await surreal.query(migrationSql).catch((error) => {
       if (!isAlreadyExistsError(error) && !isNoneSubtractionError(error)) throw error;
     });
   }
@@ -141,7 +129,7 @@ export async function seedWorkspace(surreal: Surreal, workspaceName?: string, ne
   const workspaceRecord = new RecordId("workspace", id());
   const projectRecord = new RecordId("project", id());
   const conversationRecord = new RecordId("conversation", id());
-  const ownerRecord = new RecordId("person", id());
+  const ownerRecord = new RecordId("identity", id());
 
   await surreal.create(workspaceRecord).content({
     name: resolvedWorkspaceName,
@@ -167,14 +155,16 @@ export async function seedWorkspace(surreal: Surreal, workspaceName?: string, ne
 
   await surreal.create(ownerRecord).content({
     name: "Marcus",
+    type: "human",
+    workspace: workspaceRecord,
+    identity_status: "active",
     created_at: now,
-    updated_at: now,
   });
 
-  await surreal.relate(ownerRecord, new RecordId("member_of", id()), workspaceRecord, {
-    role: "owner",
-    added_at: now,
-  }).output("after");
+  await surreal.query(
+    `RELATE $identity->member_of->$workspace SET role = 'owner', added_at = $now;`,
+    { identity: ownerRecord, workspace: workspaceRecord, now },
+  );
 
   await surreal.create(conversationRecord).content({
     createdAt: now,

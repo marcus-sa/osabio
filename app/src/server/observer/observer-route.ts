@@ -1,0 +1,148 @@
+/**
+ * Observer HTTP route: POST /api/observe/:table/:id
+ *
+ * Thin HTTP adapter. Parses request, resolves workspace, delegates to
+ * the observer agent for all verification logic (deterministic + LLM).
+ */
+
+import { RecordId, type Surreal } from "surrealdb";
+import type { LanguageModel } from "ai";
+import { jsonResponse } from "../http/response";
+import { logError, logInfo } from "../http/observability";
+import type { ServerDependencies } from "../runtime/types";
+import { runObserverAgent } from "../agents/observer/agent";
+import { runGraphScan } from "./graph-scan";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+const SUPPORTED_TABLES = new Set<string>([
+  "task",
+  "intent",
+  "git_commit",
+  "decision",
+  "observation",
+]);
+
+// ---------------------------------------------------------------------------
+// Route handler factory
+// ---------------------------------------------------------------------------
+
+export function createObserverRouteHandler(deps: ServerDependencies) {
+  return async (table: string, id: string, request: Request): Promise<Response> => {
+    if (!SUPPORTED_TABLES.has(table)) {
+      return jsonResponse({ error: "unsupported_table", table }, 400);
+    }
+
+    try {
+      const body = await request.json().catch(() => undefined);
+
+      logInfo("observer.event.received", "Observer event received", { table, id });
+
+      // Resolve workspace
+      const workspaceId = await resolveWorkspaceId(deps.surreal, table, id, body);
+      if (!workspaceId) {
+        logError("observer.event.no_workspace", "Cannot determine workspace", { table, id });
+        return jsonResponse({ status: "ok" }, 200);
+      }
+
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+
+      // Delegate to observer agent
+      const agentOutput = await runObserverAgent({
+        surreal: deps.surreal,
+        workspaceRecord,
+        entityTable: table,
+        entityId: id,
+        entityBody: body,
+        observerModel: deps.observerModel as LanguageModel | undefined,
+      });
+
+      logInfo(`observer.${table}.verified`, `${table} verification complete`, {
+        [`${table}Id`]: id,
+        verdict: agentOutput.verdict,
+        observationsCreated: agentOutput.observations_created,
+        evidence: agentOutput.evidence,
+      });
+
+      return jsonResponse({ status: "ok" }, 200);
+    } catch (error) {
+      logError("observer.event.error", "Observer event processing failed", error);
+      // Return 200 to prevent SurrealDB EVENT retries for non-transient errors
+      return jsonResponse({ status: "error", message: "processing failed" }, 200);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Graph scan route handler factory
+// ---------------------------------------------------------------------------
+
+export function createGraphScanRouteHandler(deps: ServerDependencies) {
+  return async (workspaceId: string, _request: Request): Promise<Response> => {
+    try {
+      const observerModel = deps.observerModel as LanguageModel | undefined;
+      if (!observerModel) {
+        return jsonResponse({ error: "observer_model_required", message: "OBSERVER_MODEL env var is required for graph scan" }, 503);
+      }
+
+      logInfo("observer.scan.started", "Graph scan triggered", { workspaceId });
+
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const result = await runGraphScan(deps.surreal, workspaceRecord, observerModel);
+
+      return jsonResponse({ status: "ok", ...result }, 200);
+    } catch (error) {
+      logError("observer.scan.error", "Graph scan failed", error);
+      return jsonResponse({ status: "error", message: "scan failed" }, 500);
+    }
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Workspace resolution
+// ---------------------------------------------------------------------------
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function resolveWorkspaceId(
+  surreal: Surreal,
+  table: string,
+  id: string,
+  body?: Record<string, unknown>,
+): Promise<string | undefined> {
+  let wsId: string | undefined;
+
+  if (body?.workspace) {
+    const ws = body.workspace;
+    if (typeof ws === "string") {
+      const cleaned = ws.replace(/`/g, "");
+      wsId = cleaned.includes(":") ? cleaned.split(":")[1] : cleaned;
+    } else if (typeof ws === "object" && ws !== null) {
+      const wsObj = ws as { id?: string | { String?: string } };
+      if (typeof wsObj.id === "string") wsId = wsObj.id.replace(/`/g, "");
+      else if (wsObj.id && typeof (wsObj.id as { String?: string }).String === "string") {
+        wsId = (wsObj.id as { String: string }).String.replace(/`/g, "");
+      }
+    }
+  }
+
+  // Fallback: query the DB
+  if (!wsId) {
+    const record = new RecordId(table, id);
+    const [rows] = await surreal.query<
+      [Array<{ workspace: RecordId<"workspace", string> }>]
+    >(
+      `SELECT workspace FROM $record;`,
+      { record },
+    );
+    wsId = rows?.[0]?.workspace ? (rows[0].workspace.id as string) : undefined;
+  }
+
+  if (wsId && !UUID_PATTERN.test(wsId)) {
+    throw new Error(`Invalid workspace ID format: ${wsId}`);
+  }
+
+  return wsId;
+}
