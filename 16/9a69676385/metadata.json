@@ -36,6 +36,13 @@
       "context": "/16/9a69676385/3/context.md",
       "content_hash": "/16/9a69676385/3/content_hash.txt",
       "prompt": "/16/9a69676385/3/prompt.txt"
+    },
+    {
+      "metadata": "/16/9a69676385/4/metadata.json",
+      "transcript": "/16/9a69676385/4/full.jsonl",
+      "context": "",
+      "content_hash": "/16/9a69676385/4/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
