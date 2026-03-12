@@ -264,13 +264,12 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
   const { surreal, workspaceRecord, entityId: observationId, entityBody: body, observerModel } = input;
   const observationRecord = new RecordId("observation", observationId);
 
-  const peerReviewSignals = await gatherPeerReviewSignals(surreal, workspaceRecord, body);
+  const linkedEntities = await loadObservationLinkedEntities(surreal, observationId);
+  const peerReviewSignals = gatherPeerReviewSignals(body, linkedEntities.length);
   const deterministicResult = compareObservationPeerReview(peerReviewSignals);
 
   // LLM peer review when model available and observation has linked entities
   if (observerModel) {
-    const linkedEntities = await loadObservationLinkedEntities(surreal, observationId);
-
     if (linkedEntities.length > 0) {
       const llmVerdict = await generatePeerReviewVerdict(
         observerModel,
@@ -356,30 +355,19 @@ async function gatherDecisionSignals(
   return { status, summary, completedTaskCount: taskRows?.[0]?.count ?? 0 };
 }
 
-async function gatherPeerReviewSignals(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
+function gatherPeerReviewSignals(
   body?: Record<string, unknown>,
-): Promise<ObservationPeerReviewSignals> {
+  linkedEntityCount = 0,
+): ObservationPeerReviewSignals {
   const originalText = (body?.text as string) ?? "Unknown observation";
   const originalSeverity = ((body?.severity as string) ?? "info") as "info" | "warning" | "conflict";
   const sourceAgent = (body?.source_agent as string) ?? "unknown_agent";
-
-  const [taskRows] = await surreal.query<[Array<{ count: number }>]>(
-    `SELECT count() AS count FROM task WHERE workspace = $ws GROUP ALL;`,
-    { ws: workspaceRecord },
-  );
-  const [decisionRows] = await surreal.query<[Array<{ count: number }>]>(
-    `SELECT count() AS count FROM decision WHERE workspace = $ws GROUP ALL;`,
-    { ws: workspaceRecord },
-  );
 
   return {
     originalText,
     originalSeverity,
     sourceAgent,
-    relatedTaskCount: taskRows?.[0]?.count ?? 0,
-    relatedDecisionCount: decisionRows?.[0]?.count ?? 0,
+    linkedEntityCount,
   };
 }
 
