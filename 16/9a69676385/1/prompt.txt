@@ -1,0 +1,62 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/houston-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+LLM mismatch observations created without deduplication
+
+When verifyDecision runs with an LLM model and finds task-decision mismatches, it calls persistObservation for each mismatch pair with no prior deduplication check. The deterministic observation (line 208) is created only once per event, but the LLM-generated mismatch observations can be written multiple times if the same decision_confirmed EVENT fires more than once — for example due to ASYNC RETRY (the event has RETRY 3), or if the decision is re-set to confirmed after being superseded.
+
+Each such re-firing would persist a fresh set of conflict observations for the same (decision, task) pairs, silently accumulating duplicates that are difficult to distinguish from genuine new findings.
+
+The entity-level deduplication used in runGraphScan (i.e. queryExistingObserverObservationsForEntity) should be applied here before calling persistObservation:
+
+for (let i = 0; i < verdicts.length; i++) {
+  // ...
+  const taskRecord = new RecordId("task", taskContexts[i].taskId) as ObserveTargetRecord;
+
+  // Check for existing observation on this (decision, task) pair before writing
+  const existing = await queryExistingObserverObservationsForEntity(
+    surreal, workspaceRecord, taskRecord as RecordId<string, string>,
+  );
+  if (existing.length > 0) continue;
+
+  await persistObservation(surreal, workspaceRecord, [decisionRecord as ObserveTargetRecord, taskRecord], finalVerdict);
+  observationsCreated += 1;
+}
+
+-------
+
+Pattern synthesis fed LLM-filtered-out anomalies
+
+The anomalies array built for synthesizePatterns includes every stale-blocked and status-drift task unconditionally — even tasks the evaluateAnomalies call already marked as not relevant (e.g. "expected external wait", false positive). Those tasks were explicitly excluded from observation creation above, yet they are still passed to the synthesis LLM, which can synthesise a stale_cluster or cascade_block pattern from them and write an observation anyway — bypassing the filtering.
+
+// Currently: all items, regardless of evaluationMap result
+for (const task of staleBlocked) {
+  anomalies.push({ ... });
+}
+for (const drift of driftTasks) {
+  anomalies.push({ ... });
+}
+The fix is to check evaluationMap before pushing each item, so that pattern synthesis only operates on anomalies that passed the relevance filter:
+
+for (const task of staleBlocked) {
+  const evaluation = evaluationMap.get(`task:${task.id.id as string}`);
+  if (evaluation && !evaluation.relevant) continue; // skip filtered anomalies
+  anomalies.push({ ... });
+}
+for (const drift of driftTasks) {
+  const evaluation = evaluationMap.get(`task:${drift.id.id as string}`);
+  if (evaluation && !evaluation.relevant) continue;
+  anomalies.push({ ... });
+}
+
+---
+
+Commit and push all changes
