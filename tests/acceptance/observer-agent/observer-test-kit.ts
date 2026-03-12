@@ -579,8 +579,8 @@ export async function triggerGraphScan(
  * Returns a cleanup function to stop the server.
  */
 export function createMockGitHubServer(
-  responses: MockGitHubResponse[],
-): { url: string; stop: () => void } {
+  responses: MockGitHubResponse[] = [],
+): { url: string; stop: () => void; addRoute: (r: MockGitHubResponse) => void } {
   const responseMap = new Map<string, { status: number; body: unknown }>();
   for (const r of responses) {
     responseMap.set(r.path, { status: r.status, body: r.body });
@@ -604,6 +604,7 @@ export function createMockGitHubServer(
   return {
     url: `http://127.0.0.1:${server.port}`,
     stop: () => server.stop(true),
+    addRoute: (r: MockGitHubResponse) => responseMap.set(r.path, { status: r.status, body: r.body }),
   };
 }
 

@@ -33,9 +33,27 @@ import {
 
 const getRuntime = setupObserverSuite("observer_m2_verification");
 
+let mockGitHub: ReturnType<typeof createMockGitHubServer>;
+let originalGitHubUrl: string | undefined;
+
 beforeAll(async () => {
   const { surreal, port } = getRuntime();
   await wireObserverEvents(surreal, port);
+
+  // Single file-level mock GitHub server — tests add routes dynamically.
+  // Prevents race conditions when SurrealDB ASYNC+RETRY events outlive per-test mocks.
+  mockGitHub = createMockGitHubServer();
+  originalGitHubUrl = process.env.GITHUB_API_URL;
+  process.env.GITHUB_API_URL = mockGitHub.url;
+});
+
+afterAll(() => {
+  mockGitHub?.stop();
+  if (originalGitHubUrl !== undefined) {
+    process.env.GITHUB_API_URL = originalGitHubUrl;
+  } else {
+    delete process.env.GITHUB_API_URL;
+  }
 });
 
 // =============================================================================
@@ -53,48 +71,33 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "verify-pass");
     const sha = `abc${crypto.randomUUID().replace(/-/g, "").slice(0, 37)}`;
 
-    // Set up a mock GitHub server that reports success for this commit
-    const mockGitHub = createMockGitHubServer([
-      {
-        path: `/repos/org/brain/commits/${sha}/status`,
-        status: 200,
-        body: { state: "success", statuses: [], total_count: 1 },
-      },
-    ]);
+    // Register success response for this commit's SHA
+    mockGitHub.addRoute({
+      path: `/repos/org/brain/commits/${sha}/status`,
+      status: 200,
+      body: { state: "success", statuses: [], total_count: 1 },
+    });
 
-    // Point the observer at our mock GitHub
-    const originalUrl = process.env.GITHUB_API_URL;
-    process.env.GITHUB_API_URL = mockGitHub.url;
+    const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
+      title: "Add rate limiting to API gateway",
+      status: "in_progress",
+      sha,
+      repository: "org/brain",
+    });
 
-    try {
-      const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
-        title: "Add rate limiting to API gateway",
-        status: "in_progress",
-        sha,
-        repository: "org/brain",
-      });
+    // When the task is marked as completed
+    await triggerTaskCompletion(surreal, taskId);
 
-      // When the task is marked as completed
-      await triggerTaskCompletion(surreal, taskId);
+    // Then the observer creates a verified observation
+    const observations = await waitForObservation(surreal, "task", taskId, 30_000);
+    expect(observations.length).toBeGreaterThanOrEqual(1);
 
-      // Then the observer creates a verified observation
-      const observations = await waitForObservation(surreal, "task", taskId, 30_000);
-      expect(observations.length).toBeGreaterThanOrEqual(1);
-
-      const obs = observations[0];
-      expect(obs.severity).toBe("info");
-      expect(obs.verified).toBe(true);
-      expect(obs.source_agent).toBe("observer_agent");
-      // And the observation records the external signal source
-      expect(obs.source).toBeTruthy();
-    } finally {
-      mockGitHub.stop();
-      if (originalUrl !== undefined) {
-        process.env.GITHUB_API_URL = originalUrl;
-      } else {
-        delete process.env.GITHUB_API_URL;
-      }
-    }
+    const obs = observations[0];
+    expect(obs.severity).toBe("info");
+    expect(obs.verified).toBe(true);
+    expect(obs.source_agent).toBe("observer_agent");
+    // And the observation records the external signal source
+    expect(obs.source).toBeTruthy();
   }, 120_000);
 
   // ---------------------------------------------------------------------------
@@ -107,47 +110,32 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "verify-fail");
     const sha = `def${crypto.randomUUID().replace(/-/g, "").slice(0, 37)}`;
 
-    // Set up a mock GitHub server that reports failure for this commit
-    const mockGitHub = createMockGitHubServer([
-      {
-        path: `/repos/org/brain/commits/${sha}/status`,
-        status: 200,
-        body: { state: "failure", statuses: [{ state: "failure" }], total_count: 1 },
-      },
-    ]);
+    // Register failure response for this commit's SHA
+    mockGitHub.addRoute({
+      path: `/repos/org/brain/commits/${sha}/status`,
+      status: 200,
+      body: { state: "failure", statuses: [{ state: "failure" }], total_count: 1 },
+    });
 
-    // Point the observer at our mock GitHub
-    const originalUrl = process.env.GITHUB_API_URL;
-    process.env.GITHUB_API_URL = mockGitHub.url;
+    const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
+      title: "Refactor authentication middleware",
+      status: "in_progress",
+      sha,
+      repository: "org/brain",
+    });
 
-    try {
-      const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
-        title: "Refactor authentication middleware",
-        status: "in_progress",
-        sha,
-        repository: "org/brain",
-      });
+    // When the task is marked as completed despite failing CI
+    await triggerTaskCompletion(surreal, taskId);
 
-      // When the task is marked as completed despite failing CI
-      await triggerTaskCompletion(surreal, taskId);
+    // Then the observer creates a conflict observation flagging the mismatch
+    const observations = await waitForObservation(surreal, "task", taskId, 30_000);
+    expect(observations.length).toBeGreaterThanOrEqual(1);
 
-      // Then the observer creates a conflict observation flagging the mismatch
-      const observations = await waitForObservation(surreal, "task", taskId, 30_000);
-      expect(observations.length).toBeGreaterThanOrEqual(1);
-
-      const obs = observations[0];
-      expect(obs.severity).toBe("conflict");
-      expect(obs.verified).toBe(false);
-      expect(obs.source_agent).toBe("observer_agent");
-      expect(obs.text).toBeTruthy();
-    } finally {
-      mockGitHub.stop();
-      if (originalUrl !== undefined) {
-        process.env.GITHUB_API_URL = originalUrl;
-      } else {
-        delete process.env.GITHUB_API_URL;
-      }
-    }
+    const obs = observations[0];
+    expect(obs.severity).toBe("conflict");
+    expect(obs.verified).toBe(false);
+    expect(obs.source_agent).toBe("observer_agent");
+    expect(obs.text).toBeTruthy();
   }, 120_000);
 
   // ---------------------------------------------------------------------------
