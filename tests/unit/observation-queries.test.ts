@@ -49,7 +49,7 @@ describe("observation queries", () => {
       sourceAgent: "chat_agent",
       now: new Date("2026-01-15T10:00:00.000Z"),
       sourceMessageRecord,
-      relatedRecord: taskRecord,
+      relatedRecords: [taskRecord],
       embedding: [0.1, 0.2, 0.3],
     });
 

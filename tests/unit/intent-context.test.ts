@@ -37,7 +37,12 @@ const WORKSPACE_OVERVIEW = {
 
 // ---------------------------------------------------------------------------
 // Module mocks — must precede dynamic import of module under test
+// Capture real modules BEFORE mocking so other test files sharing the bun
+// worker keep the full export surface.
 // ---------------------------------------------------------------------------
+
+const realQueries = await import("../../app/src/server/graph/queries");
+const realEmbeddings = await import("../../app/src/server/graph/embeddings");
 
 const mockBuildTaskContext = mock(() => Promise.resolve(TASK_CONTEXT));
 const mockBuildProjectContext = mock(() => Promise.resolve(PROJECT_CONTEXT));
@@ -52,10 +57,12 @@ mock.module("../../app/src/server/mcp/context-builder", () => ({
 }));
 
 mock.module("../../app/src/server/graph/queries", () => ({
+  ...realQueries,
   searchEntitiesByEmbedding: mockSearchEntitiesByEmbedding,
 }));
 
 mock.module("../../app/src/server/graph/embeddings", () => ({
+  ...realEmbeddings,
   createEmbeddingVector: mockCreateEmbeddingVector,
 }));
 
