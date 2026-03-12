@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3b6e8e838bcb",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/observer-llm-reasoning/distill/test-scenarios.md",
+    "docs/feature/observer-llm-reasoning/distill/walking-skeleton.md",
+    "tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-1-schema-and-config.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-2-semantic-verification.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-3-decision-and-synthesis.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-4-peer-review.test.ts",
+    "tests/acceptance/observer-llm-reasoning/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3b/6e8e838bcb/0/metadata.json",
+      "transcript": "/3b/6e8e838bcb/0/full.jsonl",
+      "context": "/3b/6e8e838bcb/0/context.md",
+      "content_hash": "/3b/6e8e838bcb/0/content_hash.txt",
+      "prompt": "/3b/6e8e838bcb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 378409,
+    "cache_read_tokens": 3201087,
+    "output_tokens": 35379,
+    "api_call_count": 39
+  }
+}

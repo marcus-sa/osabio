@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3b6e8e838bcb",
+  "session_id": "18bd5c42-9991-4ab1-8cca-66cac9329198",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T14:38:13.685428Z",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/observer-llm-reasoning/distill/test-scenarios.md",
+    "docs/feature/observer-llm-reasoning/distill/walking-skeleton.md",
+    "tests/acceptance/observer-llm-reasoning/llm-reasoning-test-kit.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-1-schema-and-config.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-2-semantic-verification.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-3-decision-and-synthesis.test.ts",
+    "tests/acceptance/observer-llm-reasoning/milestone-4-peer-review.test.ts",
+    "tests/acceptance/observer-llm-reasoning/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "106f3de1f9e5",
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 378409,
+    "cache_read_tokens": 3201087,
+    "output_tokens": 35379,
+    "api_call_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T14:38:13.330508Z",
+    "agent_lines": 1594,
+    "human_added": 765,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2359,
+    "agent_percentage": 67.57100466299279
+  }
+}
