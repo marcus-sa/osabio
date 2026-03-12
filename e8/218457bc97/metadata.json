@@ -5,7 +5,8 @@
   "branch": "marcus-sa/observer-agent",
   "checkpoints_count": 0,
   "files_touched": [
-    "docs/feature/unskip-observer-llm-tests/execution-log.yaml"
+    "docs/feature/unskip-observer-llm-tests/execution-log.yaml",
+    "tests/acceptance/observer-llm-reasoning/milestone-4-peer-review.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +15,13 @@
       "context": "/e8/218457bc97/0/context.md",
       "content_hash": "/e8/218457bc97/0/content_hash.txt",
       "prompt": "/e8/218457bc97/0/prompt.txt"
+    },
+    {
+      "metadata": "/e8/218457bc97/1/metadata.json",
+      "transcript": "/e8/218457bc97/1/full.jsonl",
+      "context": "/e8/218457bc97/1/context.md",
+      "content_hash": "/e8/218457bc97/1/content_hash.txt",
+      "prompt": "/e8/218457bc97/1/prompt.txt"
     }
   ],
   "token_usage": {
