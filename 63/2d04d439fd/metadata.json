@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "632d04d439fd",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/requirements/observer-llm-reasoning/acceptance-criteria.md",
+    "docs/requirements/observer-llm-reasoning/dor-checklist.md",
+    "docs/requirements/observer-llm-reasoning/requirements.md",
+    "docs/requirements/observer-llm-reasoning/user-stories.md",
+    "docs/ux/observer-llm-reasoning/journey-pattern-synthesis-visual.md",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification-visual.md",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification.feature",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification.yaml",
+    "docs/ux/observer-llm-reasoning/jtbd-four-forces.md",
+    "docs/ux/observer-llm-reasoning/jtbd-job-stories.md",
+    "docs/ux/observer-llm-reasoning/jtbd-opportunity-scores.md",
+    "docs/ux/observer-llm-reasoning/shared-artifacts-registry.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/63/2d04d439fd/0/metadata.json",
+      "transcript": "/63/2d04d439fd/0/full.jsonl",
+      "context": "/63/2d04d439fd/0/context.md",
+      "content_hash": "/63/2d04d439fd/0/content_hash.txt",
+      "prompt": "/63/2d04d439fd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1257,
+    "cache_creation_tokens": 177164,
+    "cache_read_tokens": 1089336,
+    "output_tokens": 26947,
+    "api_call_count": 20
+  }
+}

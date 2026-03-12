@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "632d04d439fd",
+  "session_id": "ef72fca5-3c40-4b27-8c4f-bde088970e07",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-12T01:43:16.258315Z",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/requirements/observer-llm-reasoning/acceptance-criteria.md",
+    "docs/requirements/observer-llm-reasoning/dor-checklist.md",
+    "docs/requirements/observer-llm-reasoning/requirements.md",
+    "docs/requirements/observer-llm-reasoning/user-stories.md",
+    "docs/ux/observer-llm-reasoning/journey-pattern-synthesis-visual.md",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification-visual.md",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification.feature",
+    "docs/ux/observer-llm-reasoning/journey-semantic-verification.yaml",
+    "docs/ux/observer-llm-reasoning/jtbd-four-forces.md",
+    "docs/ux/observer-llm-reasoning/jtbd-job-stories.md",
+    "docs/ux/observer-llm-reasoning/jtbd-opportunity-scores.md",
+    "docs/ux/observer-llm-reasoning/shared-artifacts-registry.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "08e921a716bf",
+  "token_usage": {
+    "input_tokens": 1257,
+    "cache_creation_tokens": 177164,
+    "cache_read_tokens": 1089336,
+    "output_tokens": 26947,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-12T01:43:15.980948Z",
+    "agent_lines": 1144,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1144,
+    "agent_percentage": 100
+  }
+}
