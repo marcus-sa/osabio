@@ -1,0 +1,32 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/houston-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+N+1 queries inside loadObservationLinkedEntities
+
+After fetching all linked entity IDs in a single query, the function enters a for loop and issues a separate SELECT … FROM $record DB call for each row. With N linked entities this becomes N+1 round-trips.
+
+A single batched SELECT title, summary, text, description, meta::tb(id) AS table_name FROM $records call (where $records is the array of RecordId values) would fetch all entity details in one query. Example:
+
+const targets = rows.map((r) => r.out);
+if (targets.length === 0) return [];
+
+const [details] = await surreal.query<[Array<{
+  id: RecordId;
+  title?: string; summary?: string; text?: string; description?: string;
+}>]>(
+  `SELECT id, title, summary, text, description FROM $records;`,
+  { records: targets },
+);
+Under heavy peer-review load (many linked entities) the current approach will serialize round-trips and significantly slow the observer pipeline.
+
+---
+
+Commit and push all changes
