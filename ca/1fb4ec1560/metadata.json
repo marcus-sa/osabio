@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ca1fb4ec1560",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/observer-agent",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/observer/schemas.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/1fb4ec1560/0/metadata.json",
+      "transcript": "/ca/1fb4ec1560/0/full.jsonl",
+      "context": "/ca/1fb4ec1560/0/context.md",
+      "content_hash": "/ca/1fb4ec1560/0/content_hash.txt",
+      "prompt": "/ca/1fb4ec1560/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 139,
+    "cache_creation_tokens": 665546,
+    "cache_read_tokens": 6687067,
+    "output_tokens": 35666,
+    "api_call_count": 65
+  }
+}
