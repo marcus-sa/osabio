@@ -487,7 +487,7 @@ async function persistObservation(
     if (parsed) evidenceRefRecords.push(new RecordId(parsed.table, parsed.id));
   }
 
-  const observationRecord = await createObservation({
+  await createObservation({
     surreal,
     workspaceRecord,
     text: result.text,
@@ -499,14 +499,7 @@ async function persistObservation(
     relatedRecords: additionalRelatedRecords,
     confidence: result.confidence,
     evidenceRefs: evidenceRefRecords.length > 0 ? evidenceRefRecords : undefined,
+    verified: result.verified,
+    source: result.source ?? defaultSource,
   });
-
-  await surreal.query(
-    `UPDATE $obs SET verified = $verified, source = $source;`,
-    {
-      obs: observationRecord,
-      verified: result.verified,
-      source: result.source ?? defaultSource,
-    },
-  );
 }

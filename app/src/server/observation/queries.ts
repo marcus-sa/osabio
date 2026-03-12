@@ -27,6 +27,8 @@ export async function createObservation(input: {
   embedding?: number[];
   confidence?: number;
   evidenceRefs?: RecordId[];
+  verified?: boolean;
+  source?: string;
 }): Promise<ObservationRecord> {
   const observationRecord = new RecordId("observation", randomUUID());
 
@@ -43,6 +45,8 @@ export async function createObservation(input: {
     ...(input.embedding ? { embedding: input.embedding } : {}),
     ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
     ...(input.evidenceRefs && input.evidenceRefs.length > 0 ? { evidence_refs: input.evidenceRefs } : {}),
+    ...(input.verified !== undefined ? { verified: input.verified } : {}),
+    ...(input.source ? { source: input.source } : {}),
     created_at: input.now,
     updated_at: input.now,
   });
