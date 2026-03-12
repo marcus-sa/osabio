@@ -50,6 +50,13 @@
       "context": "/81/a0c368bd22/5/context.md",
       "content_hash": "/81/a0c368bd22/5/content_hash.txt",
       "prompt": "/81/a0c368bd22/5/prompt.txt"
+    },
+    {
+      "metadata": "/81/a0c368bd22/6/metadata.json",
+      "transcript": "/81/a0c368bd22/6/full.jsonl",
+      "context": "/81/a0c368bd22/6/context.md",
+      "content_hash": "/81/a0c368bd22/6/content_hash.txt",
+      "prompt": "/81/a0c368bd22/6/prompt.txt"
     }
   ],
   "token_usage": {
