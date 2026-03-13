@@ -16,6 +16,7 @@ describe("chat context", () => {
         listWorkspaceOpenObservations: async () => [],
         listWorkspacePendingSuggestions: async () => [],
         loadOnboardingSummary: async () => "Projects: none\nPeople: none\nDecisions: none\nOpen questions: none",
+        loadActiveLearnings: async () => ({ learnings: [], constraintBudgetExceeded: false }),
       },
     });
 
@@ -86,6 +87,7 @@ describe("chat context", () => {
         ],
         listWorkspacePendingSuggestions: async () => [],
         loadOnboardingSummary: async () => "Projects: Brain\nPeople: none\nDecisions: none\nOpen questions: none",
+        loadActiveLearnings: async () => ({ learnings: [], constraintBudgetExceeded: false }),
       },
     });
 

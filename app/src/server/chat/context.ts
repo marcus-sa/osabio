@@ -50,6 +50,7 @@ type ChatContextLoaders = {
   listWorkspaceOpenObservations: typeof listWorkspaceOpenObservations;
   listWorkspacePendingSuggestions: typeof listWorkspacePendingSuggestions;
   loadOnboardingSummary: typeof loadOnboardingSummary;
+  loadActiveLearnings: typeof loadActiveLearnings;
 };
 
 export async function buildChatContext(input: {
@@ -70,6 +71,7 @@ export async function buildChatContext(input: {
     listWorkspaceOpenObservations,
     listWorkspacePendingSuggestions,
     loadOnboardingSummary,
+    loadActiveLearnings,
   };
 
   const [conversationEntities, projects, recentDecisions, openQuestions, openObservations, pendingSuggestions, onboardingSummary, learningsResult] = await Promise.all([
@@ -108,7 +110,7 @@ export async function buildChatContext(input: {
       limit: 10,
     }),
     loaders.loadOnboardingSummary(input.surreal, input.workspaceRecord),
-    loadActiveLearnings({
+    loaders.loadActiveLearnings({
       surreal: input.surreal,
       workspaceId: input.workspaceRecord.id as string,
       agentType: "chat_agent",
