@@ -52,3 +52,17 @@ Prompt hook condition was not met: MCP tools not available in hook context
 
 commit and /nw:design
 
+### Prompt 9
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-nam...
+
