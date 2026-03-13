@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "22780373e9d0",
+  "session_id": "d1e2269c-1f68-4792-acde-6f551aa0c292",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T17:26:14.55445Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "README.md",
+    "app/src/server/observer/graph-scan.ts",
+    "docs/feature/observer-learning-proposals/roadmap.yaml",
+    "app/src/server/learning/queries.ts",
+    "docs/feature/observer-learning-proposals/execution-log.yaml",
+    "tests/acceptance/observer-learning-proposals/milestone-2-root-cause-classification.test.ts",
+    ".nwave/des/des-task-active-observer-learning-proposals--",
+    ".nwave/des/des-task-active-observer-learning-proposals--01-02",
+    ".nwave/des/des-task-active-observer-learning-proposals--01-03",
+    "app/src/server/agents/observer/agent.ts",
+    "app/src/server/learning/detector.ts",
+    "app/src/server/observer/learning-diagnosis.ts",
+    "app/src/server/observer/observer-route.ts",
+    "index.html",
+    ".nwave/des-config.json",
+    ".nwave/des/des-task-active-observer-learning-proposals--refactor"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3099ce4b02f6",
+  "checkpoint_transcript_start": 19,
+  "transcript_lines_at_start": 19,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T17:26:14.551568Z",
+    "agent_lines": 188,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 188,
+    "agent_percentage": 100
+  }
+}
