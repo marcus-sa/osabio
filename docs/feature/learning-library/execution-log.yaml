@@ -72,5 +72,57 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-13T11:09:44Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-13T11:10:26Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-13T11:15:45Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-13T11:15:46Z'
+- d: 'NOT_APPLICABLE: updateLearningFields is exercised through acceptance tests via
+    the PUT endpoint; adding a separate unit test would mirror acceptance coverage
+    without testing additional behavior'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-13T11:15:46Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-13T11:15:46Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-13T11:15:46Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-13T11:18:33Z'
+- d: "NOT_APPLICABLE: UI component \u2014 pure logic tested at unit level"
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-13T11:18:35Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-13T11:18:35Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-13T11:18:36Z'
 project_id: learning-library
 schema_version: '3.0'
