@@ -151,3 +151,11 @@ Prompt hook condition was not met: This session performed substantial implementa
 
 **The DES pre-edit hook is blocking my file edits because it detects a deliver session is active (`deliver-session.json` exists) and I am not recognized as a DES-monitored ...
 
+### Prompt 18
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested a complete feature delivery for a "learning library" UI — a page where users can see all learnings for every agent type and potentially delete/update them. This was executed through the full nWave workflow: DISCUSS → DESIGN → DISTILL → DELIVER. The learning library provides a manag...
+
