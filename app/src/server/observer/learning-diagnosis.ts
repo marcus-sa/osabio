@@ -109,11 +109,9 @@ export async function queryRecentObservationsWithEmbeddings(
     text: row.text,
     severity: row.severity,
     embedding: row.embedding,
-    entityRefs: (row.entity_refs ?? []).map((ref) =>
-      typeof ref === "object" && ref !== null && "id" in ref
-        ? `task:${(ref as RecordId).id as string}`
-        : String(ref),
-    ),
+    entityRefs: (row.entity_refs ?? [])
+      .filter((ref): ref is RecordId => typeof ref === "object" && ref !== null && "id" in ref)
+      .map((ref) => `task:${ref.id as string}`),
   }));
 }
 
@@ -279,12 +277,14 @@ async function checkLearningCoverage(
         "vector::similarity::cosine(embedding, $embedding) AS similarity",
         "FROM learning WHERE embedding <|10, COSINE|> $embedding;",
         "SELECT text, similarity FROM $candidates",
-        `WHERE workspace = $ws AND status = "${learningStatus}" AND similarity > ${similarityThreshold}`,
+        "WHERE workspace = $ws AND status = $status AND similarity > $threshold",
         "ORDER BY similarity DESC LIMIT 1;",
       ].join("\n"),
       {
         embedding: clusterEmbedding,
         ws: workspaceRecord,
+        status: learningStatus,
+        threshold: similarityThreshold,
       },
     );
 
@@ -298,9 +298,9 @@ async function checkLearningCoverage(
   const [learnings] = await surreal.query<[Array<{ text: string; embedding: number[] }>]>(
     `SELECT text, embedding FROM learning
      WHERE workspace = $ws
-       AND status = "${learningStatus}"
+       AND status = $status
        AND embedding IS NOT NONE;`,
-    { ws: workspaceRecord },
+    { ws: workspaceRecord, status: learningStatus },
   );
 
   if (learningStatus === "active") {
@@ -517,7 +517,10 @@ async function processUncoveredCluster(
   const classification = await classifyRootCause(model, cluster, existingLearnings);
 
   if (!classification) {
-    // LLM call failed -- skip this cluster silently
+    logInfo("observer.learning.classification_skipped", "Skipping cluster due to failed LLM classification", {
+      clusterSize: cluster.clusterSize,
+      representativeText: cluster.representativeText.slice(0, 100),
+    });
     return { proposed: false };
   }
 

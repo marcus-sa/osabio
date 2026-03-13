@@ -603,6 +603,28 @@ export async function checkAndEscalate(
       return;
     }
 
+    // Dedup: skip if observer already has a pending learning proposal from last 24h.
+    // Graph scan may have already proposed a learning for this pattern.
+    const [recentPending] = await surreal.query<[Array<{ id: RecordId }>]>(
+      `SELECT id FROM learning
+       WHERE workspace = $ws
+         AND source = "agent"
+         AND suggested_by = "observer"
+         AND status = "pending_approval"
+         AND created_at > time::now() - 1d
+       LIMIT 1;`,
+      { ws: workspaceRecord },
+    );
+
+    if (recentPending && recentPending.length > 0) {
+      logInfo("observer.escalation.dedup_skip", "Skipping escalation — pending observer learning exists from last 24h", {
+        entityTable,
+        entityId,
+        pendingLearningId: recentPending[0].id.id,
+      });
+      return;
+    }
+
     // Run diagnostic pipeline -- clustering will naturally group
     // the entity's observations into a cluster
     await runDiagnosticClustering(
