@@ -1,0 +1,24 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-13T10:53:11Z'
+- d: 'NOT_APPLICABLE: acceptance tests already exist and pass; this step adds client-side
+    hooks/contracts tested via unit tests'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-13T10:53:29Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-13T10:54:32Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-13T10:56:07Z'
+project_id: learning-library
+schema_version: '3.0'

@@ -440,6 +440,15 @@ export type LearningStatus = (typeof LEARNING_STATUSES)[number];
 export const LEARNING_SOURCES = ["human", "agent"] as const;
 export type LearningSource = (typeof LEARNING_SOURCES)[number];
 
+export const KNOWN_LEARNING_TARGET_AGENTS = [
+  { value: "chat_agent", label: "Chat Agent" },
+  { value: "pm_agent", label: "PM Agent" },
+  { value: "observer_agent", label: "Observer Agent" },
+  { value: "mcp", label: "MCP (Coding Agents)" },
+] as const;
+
+export type KnownLearningTargetAgent = (typeof KNOWN_LEARNING_TARGET_AGENTS)[number]["value"];
+
 export type LearningSummary = {
   id: string;
   text: string;

@@ -10,6 +10,7 @@ import { ChatPage } from "./routes/chat-page";
 import { GraphPage } from "./routes/graph-page";
 import { HomePage } from "./routes/home-page";
 import { ReviewPage } from "./routes/review-page";
+import { LearningsPage } from "./routes/learnings-page";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 
@@ -157,10 +158,16 @@ const reviewRoute = createRoute({
   component: ReviewPage,
 });
 
+const learningsRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/learnings",
+  component: LearningsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute]),
 ]);
 
 export const router = createRouter({ routeTree });
