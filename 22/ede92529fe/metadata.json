@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "22ede92529fe",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/agents/observer/prompt.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/chat/chat-route.ts",
+    "app/src/server/chat/context.ts",
+    "app/src/server/learning/loader.ts",
+    "app/src/server/mcp/intent-context.ts",
+    "tests/acceptance/agent-learnings/milestone-3-prompt-injection.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/22/ede92529fe/0/metadata.json",
+      "transcript": "/22/ede92529fe/0/full.jsonl",
+      "context": "/22/ede92529fe/0/context.md",
+      "content_hash": "/22/ede92529fe/0/content_hash.txt",
+      "prompt": "/22/ede92529fe/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 133162,
+    "cache_read_tokens": 3293082,
+    "output_tokens": 23168,
+    "api_call_count": 44
+  }
+}
