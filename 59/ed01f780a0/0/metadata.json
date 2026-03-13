@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "59ed01f780a0",
+  "session_id": "b9498363-e182-404e-b6d5-d5cf12c3549b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:43:37.872647Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/observer-learning-proposals/distill/test-scenarios.md",
+    "docs/feature/observer-learning-proposals/distill/walking-skeleton.md",
+    "tests/acceptance/observer-learning-proposals/milestone-1-clustering-and-coverage.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-2-root-cause-classification.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-3-proposer-and-scan.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-4-event-escalation.test.ts",
+    "tests/acceptance/observer-learning-proposals/observer-learning-proposals-test-kit.ts",
+    "tests/acceptance/observer-learning-proposals/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2476d141ab33",
+  "checkpoint_transcript_start": 17,
+  "transcript_lines_at_start": 17,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 38617,
+    "cache_read_tokens": 680478,
+    "output_tokens": 6435,
+    "api_call_count": 11
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:43:37.528638Z",
+    "agent_lines": 1821,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1821,
+    "agent_percentage": 100
+  }
+}

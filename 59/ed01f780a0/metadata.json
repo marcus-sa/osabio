@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "59ed01f780a0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/observer-learning-proposals/distill/test-scenarios.md",
+    "docs/feature/observer-learning-proposals/distill/walking-skeleton.md",
+    "tests/acceptance/observer-learning-proposals/milestone-1-clustering-and-coverage.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-2-root-cause-classification.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-3-proposer-and-scan.test.ts",
+    "tests/acceptance/observer-learning-proposals/milestone-4-event-escalation.test.ts",
+    "tests/acceptance/observer-learning-proposals/observer-learning-proposals-test-kit.ts",
+    "tests/acceptance/observer-learning-proposals/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/59/ed01f780a0/0/metadata.json",
+      "transcript": "/59/ed01f780a0/0/full.jsonl",
+      "context": "/59/ed01f780a0/0/context.md",
+      "content_hash": "/59/ed01f780a0/0/content_hash.txt",
+      "prompt": "/59/ed01f780a0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 38617,
+    "cache_read_tokens": 680478,
+    "output_tokens": 6435,
+    "api_call_count": 11
+  }
+}
