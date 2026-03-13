@@ -1,0 +1,111 @@
+journey:
+  name: "Inline Pending Actions in Library"
+  goal: "Act on pending learnings without leaving the library"
+  persona: "Workspace owner browsing the learning library"
+  traces_to_jobs:
+    - "Job 4: Approval & Triage"
+    - "Job 1: Visibility & Audit"
+
+  design_decision: |
+    Feed = notification layer (push). Library = management layer (pull).
+    Both share the same approve/dismiss dialogs and API endpoints.
+    No dedicated Pending tab — pending is a status filter value.
+
+  emotional_arc:
+    start: "Browsing — reviewing all learnings in the library"
+    middle: "Noticing — a pending item stands out with action buttons"
+    end: "Acting — approved or dismissed without context-switching"
+
+steps:
+  - id: 1
+    name: "Encounter Pending Card in List"
+    action: "See pending learning card with action buttons while browsing"
+
+    shared_artifacts:
+      - name: pending_learning
+        source: "API: GET /api/workspaces/:workspaceId/learnings (status=pending_approval in results)"
+        displayed_as: "card with pending badge, text, source agent, confidence, action buttons"
+        consumers: ["library list", "approve dialog", "dismiss dialog"]
+
+    emotional_state:
+      entry: "Neutral — browsing the library"
+      exit: "Aware — this item needs a decision"
+
+    gherkin: |
+      Scenario: Pending cards show inline actions
+        Given the learning library shows learnings of mixed statuses
+        When a pending learning card appears in the list
+        Then it displays a "pending" status badge
+        And it shows "Approve" and "Dismiss" action buttons
+        And it shows the suggesting agent name and confidence score
+        And active/dismissed/deactivated cards do NOT show triage buttons
+
+  - id: 2
+    name: "Approve Learning Inline"
+    action: "Click Approve on pending card, optionally edit, confirm"
+
+    shared_artifacts:
+      - name: collision_results
+        source: "Server-side collision check during approve"
+        displayed_as: "inline warning in approve dialog"
+        consumers: ["approve dialog"]
+      - name: edited_text
+        source: "User input in approve dialog textarea"
+        consumers: ["API: new_text field in approve action"]
+
+    emotional_state:
+      entry: "Evaluating"
+      exit: "Confident — approved with understanding"
+
+    gherkin: |
+      Scenario: Approve pending learning from library
+        Given Marcus clicks "Approve" on a pending learning card
+        Then an approve dialog opens with editable text
+        When Marcus clicks "Approve as Active"
+        Then the learning status changes to "active"
+        And a success toast confirms activation
+        And the card's badge updates to "active" in place
+
+      Scenario: Approve with text edit
+        Given the approve dialog is open
+        When Marcus edits the text and clicks "Approve as Active"
+        Then the learning is saved with the edited text
+
+      Scenario: Collision warning in approve dialog
+        Given the pending learning is similar to an existing active learning
+        When Marcus opens the approve dialog
+        Then a collision warning shows the similar learning and similarity %
+
+  - id: 3
+    name: "Dismiss Learning Inline"
+    action: "Click Dismiss on pending card, provide reason, confirm"
+
+    shared_artifacts:
+      - name: dismiss_reason
+        source: "User input in dismiss dialog"
+        consumers: ["API: reason field in dismiss action"]
+
+    emotional_state:
+      entry: "Evaluating"
+      exit: "Deliberate — dismissed with documented reasoning"
+
+    gherkin: |
+      Scenario: Dismiss pending learning from library
+        Given Marcus clicks "Dismiss" on a pending learning card
+        Then a dismiss dialog opens with a required reason field
+        When Marcus enters a reason and clicks "Dismiss"
+        Then the learning status changes to "dismissed"
+        And a success toast confirms dismissal
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: pending_learning
+      must_match_across: [1, 2, 3]
+      failure_message: "Learning data in list cards must match data in approve/dismiss dialogs"
+  shared_components:
+    - component: "approve dialog"
+      shared_between: ["governance feed", "learning library"]
+      note: "Extract as shared component if not already"
+    - component: "dismiss dialog"
+      shared_between: ["governance feed", "learning library"]
+      note: "Extract as shared component if not already"

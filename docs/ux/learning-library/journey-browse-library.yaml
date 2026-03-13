@@ -1,0 +1,154 @@
+journey:
+  name: "Browse & Filter Learning Library"
+  goal: "See all learnings governing agent behavior, filtered by status, type, and target agent"
+  persona: "Workspace owner managing multiple AI agents"
+  traces_to_jobs:
+    - "Job 1: Visibility & Audit"
+    - "Job 4: Approval & Triage (entry point)"
+
+  emotional_arc:
+    start: "Uncertain -- 'What rules are my agents following?'"
+    middle: "Oriented -- 'I can see and filter everything'"
+    end: "Informed -- 'I know exactly what is active and what needs attention'"
+
+steps:
+  - id: 1
+    name: "Navigate to Learning Library"
+    action: "Click 'Learnings' in workspace sidebar"
+
+    shared_artifacts:
+      - name: workspace_id
+        source: "workspace-state store (client-side)"
+        displayed_as: "implicit (API calls use workspace context)"
+        consumers: ["API: GET /api/workspaces/:workspaceId/learnings"]
+      - name: pending_count
+        source: "API response: learnings list filtered by status=pending_approval"
+        displayed_as: "badge number on Pending tab"
+        consumers: ["sidebar badge", "Pending tab label"]
+
+    emotional_state:
+      entry: "Uncertain, curious"
+      exit: "Oriented -- tabs with counts give immediate overview"
+
+    integration_checkpoint: |
+      Sidebar must show 'Learnings' nav link.
+      Route /learnings must be registered in router.
+      Pending count must load on page mount.
+
+    gherkin: |
+      Scenario: Navigate to learning library
+        Given Marcus is logged into workspace "brain-v1"
+        When Marcus clicks "Learnings" in the sidebar
+        Then the learning library page loads
+        And the Active tab is selected by default
+        And each tab shows its count (Active: 12, Pending: 3, etc.)
+
+  - id: 2
+    name: "Browse Active Learnings"
+    action: "View default active learnings list"
+
+    shared_artifacts:
+      - name: learning_list
+        source: "API: GET /api/workspaces/:workspaceId/learnings?status=active"
+        displayed_as: "list of learning cards"
+        consumers: ["learning list view", "detail expansion"]
+      - name: learning_type
+        source: "learning record field: learning_type"
+        displayed_as: "badge on each card (constraint | instruction | precedent)"
+        consumers: ["card display", "type filter dropdown", "detail view"]
+      - name: target_agents
+        source: "learning record field: target_agents"
+        displayed_as: "agent chips on each card"
+        consumers: ["card display", "agent filter dropdown", "detail view"]
+
+    emotional_state:
+      entry: "Oriented"
+      exit: "Focused -- can scan key metadata at a glance"
+
+    gherkin: |
+      Scenario: Browse active learnings
+        Given Marcus is on the learning library page
+        And there are 12 active learnings in workspace "brain-v1"
+        When the Active tab is selected
+        Then 12 learning cards are displayed
+        And each card shows: text preview, type badge, priority, target agents, source
+
+  - id: 3
+    name: "Apply Filters"
+    action: "Select filters from type, agent, and source dropdowns"
+
+    shared_artifacts:
+      - name: filter_state
+        source: "URL query parameters (?type=constraint&agent=mcp)"
+        displayed_as: "selected values in filter dropdowns"
+        consumers: ["API query params", "URL for sharing/bookmarking"]
+
+    emotional_state:
+      entry: "Focused"
+      exit: "Precise -- seeing exactly the subset needed"
+
+    gherkin: |
+      Scenario: Filter learnings by type and agent
+        Given Marcus is viewing 12 active learnings
+        When Marcus selects type "constraint" from the Type filter
+        And Marcus selects agent "mcp" from the Agent filter
+        Then only learnings matching both filters are shown
+        And the URL updates to reflect filter state
+        And the result count updates
+
+  - id: 4
+    name: "Expand Learning Detail"
+    action: "Click a learning card to see full detail"
+
+    shared_artifacts:
+      - name: learning_detail
+        source: "learning record (already loaded in list)"
+        displayed_as: "expanded card with full text, metadata, and action buttons"
+        consumers: ["detail view", "edit flow", "deactivate flow"]
+
+    emotional_state:
+      entry: "Precise"
+      exit: "Informed -- full context including audit trail"
+
+    gherkin: |
+      Scenario: View learning detail
+        Given Marcus is viewing the active learnings list
+        When Marcus clicks the learning "Always use TypeScript strict mode"
+        Then the card expands to show full detail
+        And the detail includes: full text, type, priority, status, source, created date, target agents
+        And action buttons are shown: Edit, Deactivate
+
+  - id: 5
+    name: "Switch to Pending Tab"
+    action: "Click Pending tab to see learnings awaiting approval"
+
+    shared_artifacts:
+      - name: pending_list
+        source: "API: GET /api/workspaces/:workspaceId/learnings?status=pending_approval"
+        displayed_as: "list of pending learning cards with approve/dismiss actions"
+        consumers: ["pending list view", "approve flow", "dismiss flow"]
+
+    emotional_state:
+      entry: "Informed, curious about pending items"
+      exit: "Engaged -- ready to triage"
+
+    gherkin: |
+      Scenario: Switch to pending learnings
+        Given Marcus is viewing active learnings
+        And there are 3 pending learnings
+        When Marcus clicks the "Pending (3)" tab
+        Then 3 pending learning cards are displayed
+        And each card shows: text, source agent, confidence score
+        And each card has Approve and Dismiss action buttons
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: workspace_id
+      must_match_across: [1, 2, 3, 4, 5]
+      failure_message: "All API calls must use the same workspace context"
+    - artifact: learning_type
+      must_match_across: [2, 3]
+      failure_message: "Type values in cards must match type filter dropdown options"
+    - artifact: target_agents
+      must_match_across: [2, 3]
+      failure_message: "Agent values in cards must match agent filter dropdown options"

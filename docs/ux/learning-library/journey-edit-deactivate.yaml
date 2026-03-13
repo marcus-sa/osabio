@@ -1,0 +1,129 @@
+journey:
+  name: "Edit or Deactivate Active Learning"
+  goal: "Correct a learning's text/targeting or stop it from affecting agents"
+  persona: "Workspace owner who identified a problematic or outdated learning"
+  traces_to_jobs:
+    - "Job 2: Correction"
+    - "Job 3: Scoping & Targeting (edit agent targeting)"
+
+  emotional_arc:
+    start: "Concerned -- 'This learning is causing problems or is outdated'"
+    middle: "Surgical -- 'I can fix exactly what needs fixing'"
+    end: "Relieved -- 'Corrected without side effects, audit trail preserved'"
+
+steps:
+  - id: 1
+    name: "Locate the Learning"
+    action: "Use browse/filter to find the problematic learning"
+
+    shared_artifacts:
+      - name: learning_id
+        source: "learning record id from list"
+        displayed_as: "implicit (used in API calls)"
+        consumers: ["edit API call", "deactivate API call"]
+
+    emotional_state:
+      entry: "Concerned, motivated to fix"
+      exit: "Focused -- found the learning"
+
+    gherkin: |
+      Scenario: Find learning via filter
+        Given Marcus suspects a constraint learning is causing issues for coding agents
+        When Marcus navigates to the learning library
+        And filters by type "constraint" and agent "mcp"
+        Then the relevant learning appears in the filtered list
+
+  - id: 2
+    name: "Review Learning Detail"
+    action: "Expand the learning card to see full context"
+
+    shared_artifacts:
+      - name: learning_detail
+        source: "learning record from API"
+        displayed_as: "expanded card with all fields"
+        consumers: ["edit dialog pre-population", "deactivation confirmation"]
+
+    emotional_state:
+      entry: "Focused"
+      exit: "Assessing -- confirming this is the right learning to modify"
+
+    gherkin: |
+      Scenario: Confirm learning identity before action
+        Given Marcus is viewing the learning "Always use TypeScript strict mode"
+        When the card expands to show detail
+        Then Marcus can see: full text, type, priority, target agents, source, dates
+        And Marcus can confirm this is the learning causing the issue
+
+  - id: 3a
+    name: "Edit Learning"
+    action: "Click Edit, modify fields, save"
+
+    shared_artifacts:
+      - name: edited_fields
+        source: "user input in edit dialog"
+        displayed_as: "pre-populated form fields"
+        consumers: ["API: updateLearningText, update target_agents/priority"]
+
+    emotional_state:
+      entry: "Assessing"
+      exit: "Relieved -- learning updated with precision"
+
+    gherkin: |
+      Scenario: Edit learning text
+        Given Marcus has expanded the learning "Always use TypeScript strict mode"
+        When Marcus clicks "Edit"
+        Then an edit dialog opens with current text pre-populated
+        And type, priority, and target agents are editable
+
+      Scenario: Save edited learning
+        Given Marcus is editing a learning
+        When Marcus modifies the text to add clarification
+        And clicks "Save Changes"
+        Then the learning text is updated
+        And a success toast confirms "Learning updated successfully"
+        And the card reflects the new text immediately
+
+  - id: 3b
+    name: "Deactivate Learning"
+    action: "Click Deactivate, confirm in dialog"
+
+    shared_artifacts:
+      - name: deactivation_scope
+        source: "learning record field: target_agents"
+        displayed_as: "confirmation dialog showing affected agents"
+        consumers: ["deactivation confirmation dialog"]
+
+    emotional_state:
+      entry: "Assessing"
+      exit: "Relieved -- rule stopped, can be restored if needed"
+
+    gherkin: |
+      Scenario: Deactivate with confirmation
+        Given Marcus has expanded an active learning
+        When Marcus clicks "Deactivate"
+        Then a confirmation dialog appears
+        And the dialog shows which agents are affected
+        And the dialog explains deactivation is reversible
+
+      Scenario: Confirm deactivation
+        Given Marcus is viewing the deactivation confirmation
+        When Marcus clicks "Deactivate" in the dialog
+        Then the learning status changes to "deactivated"
+        And a success toast shows "Learning deactivated. Agents will no longer follow this rule."
+        And the learning moves to the Deactivated tab
+        And the Active tab count decrements
+
+      Scenario: Cancel deactivation
+        Given Marcus is viewing the deactivation confirmation
+        When Marcus clicks "Cancel"
+        Then the dialog closes
+        And the learning remains active
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: learning_detail
+      must_match_across: [2, "3a", "3b"]
+      failure_message: "Detail shown in card must match data pre-populated in edit/deactivation dialogs"
+    - artifact: learning_id
+      must_match_across: [1, 2, "3a", "3b"]
+      failure_message: "Learning identity must be consistent from list through to action"

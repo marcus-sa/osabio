@@ -1,0 +1,127 @@
+journey:
+  name: "Create Learning with Agent Targeting"
+  goal: "Teach agents a new behavioral rule with precise agent scoping"
+  persona: "Workspace owner who wants to codify a rule for agent behavior"
+  traces_to_jobs:
+    - "Job 3: Scoping & Targeting"
+    - "Job 1: Visibility & Audit (learning appears in library after creation)"
+
+  emotional_arc:
+    start: "Intentional -- 'I want to teach my agents a new rule'"
+    middle: "Precise -- 'Specifying exactly what and for whom'"
+    end: "Confident -- 'Rule is active and scoped correctly'"
+
+steps:
+  - id: 1
+    name: "Open Create Dialog"
+    action: "Click '+ New' button in library header"
+
+    shared_artifacts:
+      - name: workspace_id
+        source: "workspace-state store"
+        displayed_as: "implicit"
+        consumers: ["API: POST /api/workspaces/:workspaceId/learnings"]
+
+    emotional_state:
+      entry: "Intentional"
+      exit: "Focused -- clean form ready for input"
+
+    gherkin: |
+      Scenario: Open create dialog
+        Given Marcus is on the learning library page
+        When Marcus clicks the "+ New" button
+        Then a create learning dialog opens
+        And the text field is empty with placeholder guidance
+        And no type is pre-selected
+        And priority defaults to "medium"
+        And "All agents" is selected by default
+
+  - id: 2
+    name: "Fill Learning Details"
+    action: "Enter text, select type, set priority, choose agent targeting"
+
+    shared_artifacts:
+      - name: learning_text
+        source: "user input in dialog"
+        displayed_as: "textarea"
+        consumers: ["API: text field", "collision detection input"]
+      - name: learning_type
+        source: "user selection (radio buttons)"
+        displayed_as: "constraint | instruction | precedent with descriptions"
+        consumers: ["API: learning_type field", "card display after creation"]
+      - name: target_agents
+        source: "user selection (checkbox group)"
+        displayed_as: "All agents toggle or specific agent checkboxes"
+        consumers: ["API: target_agents field", "card display"]
+
+    emotional_state:
+      entry: "Focused"
+      exit: "Deliberate -- all fields specified intentionally"
+
+    gherkin: |
+      Scenario: Fill all required fields
+        Given Marcus has opened the create dialog
+        When Marcus enters text: "Never use `any` type in TypeScript"
+        And Marcus selects type: "instruction"
+        And Marcus sets priority: "high"
+        And Marcus selects "Specific agents" and checks "mcp"
+        Then the "Create Learning" button becomes enabled
+
+  - id: 3
+    name: "Handle Collision Detection"
+    action: "Review collision results from API response"
+
+    shared_artifacts:
+      - name: collision_results
+        source: "API response from POST /api/workspaces/:workspaceId/learnings"
+        displayed_as: "inline collision warning with existing learning details"
+        consumers: ["collision dialog"]
+
+    emotional_state:
+      entry: "Deliberate"
+      exit: "Cautious (if collision) or Confident (if no collision)"
+
+    gherkin: |
+      Scenario: No collision detected
+        Given Marcus submits a learning with unique text
+        When the API returns no collisions
+        Then the learning is created as active
+        And a success toast shows "Learning created and activated"
+
+      Scenario: Collision detected
+        Given Marcus submits a learning similar to an existing one
+        When the API returns collision results
+        Then a collision warning is displayed
+        And the warning shows the similar existing learning
+        And Marcus can choose to "Go Back and Edit" or "Create Anyway"
+
+  - id: 4
+    name: "Confirm Creation"
+    action: "Learning created, appears in library"
+
+    shared_artifacts:
+      - name: new_learning
+        source: "API response: created learning record"
+        displayed_as: "new card in active learnings list"
+        consumers: ["active tab count", "learning list"]
+
+    emotional_state:
+      entry: "Confident"
+      exit: "Satisfied -- learning visible in library"
+
+    gherkin: |
+      Scenario: Learning appears in library after creation
+        Given Marcus has successfully created a learning
+        When the create dialog closes
+        Then the new learning appears in the Active tab
+        And the Active tab count increments
+        And the card shows the text, type, priority, and target agents as entered
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: learning_text
+      must_match_across: [2, 3, 4]
+      failure_message: "Text entered in form must match text in collision check and final card"
+    - artifact: target_agents
+      must_match_across: [2, 4]
+      failure_message: "Agent targeting set in form must match what is displayed on the created card"
