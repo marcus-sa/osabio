@@ -9,10 +9,10 @@
  */
 
 import { RecordId, type Surreal } from "surrealdb";
-import type { LanguageModel } from "ai";
+import type { LanguageModel, embed } from "ai";
 import { createObservation, type ObserveTargetRecord } from "../../observation/queries";
 import { queryExistingObserverObservationsForEntity } from "../../observer/graph-scan";
-import { logInfo } from "../../http/observability";
+import { logInfo, logError } from "../../http/observability";
 import { gatherTaskSignals } from "../../observer/external-signals";
 import { checkCiStatus } from "../../observer/external-signals";
 import {
@@ -31,6 +31,9 @@ import {
 import { buildEntityContext } from "../../observer/context-loader";
 import { generateVerificationVerdict, generatePeerReviewVerdict } from "../../observer/llm-reasoning";
 import { parseEntityRef } from "../../observer/evidence-validator";
+import { runDiagnosticClustering } from "../../observer/learning-diagnosis";
+
+type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,6 +54,8 @@ export type ObserverAgentInput = {
   entityId: string;
   entityBody?: Record<string, unknown>;
   observerModel?: LanguageModel;
+  embeddingModel?: EmbeddingModel;
+  embeddingDimension?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -60,17 +65,24 @@ export type ObserverAgentInput = {
 export async function runObserverAgent(input: ObserverAgentInput): Promise<ObserverAgentOutput> {
   const { entityTable } = input;
 
+  let result: ObserverAgentOutput;
+
   switch (entityTable) {
     case "task":
-      return verifyTask(input);
+      result = await verifyTask(input);
+      break;
     case "intent":
-      return verifyIntent(input);
+      result = await verifyIntent(input);
+      break;
     case "git_commit":
-      return verifyCommit(input);
+      result = await verifyCommit(input);
+      break;
     case "decision":
-      return verifyDecision(input);
+      result = await verifyDecision(input);
+      break;
     case "observation":
-      return peerReviewObservation(input);
+      result = await peerReviewObservation(input);
+      break;
     default:
       return {
         observations_created: 0,
@@ -78,6 +90,23 @@ export async function runObserverAgent(input: ObserverAgentInput): Promise<Obser
         evidence: [`Entity type '${entityTable}' verification not yet implemented`],
       };
   }
+
+  // Event-driven escalation: check if this entity now has enough
+  // observations to trigger the diagnostic learning pipeline.
+  // Skip for observation peer reviews (avoid recursive escalation).
+  if (result.observations_created > 0 && entityTable !== "observation") {
+    await checkAndEscalate(
+      input.surreal,
+      input.workspaceRecord,
+      input.entityTable,
+      input.entityId,
+      input.observerModel,
+      input.embeddingModel,
+      input.embeddingDimension,
+    );
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -493,4 +522,171 @@ async function persistObservation(
     verified: result.verified,
     source: result.source ?? defaultSource,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Event-driven escalation: entity observation threshold -> diagnostic pipeline
+// ---------------------------------------------------------------------------
+
+const ESCALATION_THRESHOLD = 3;
+const DEDUP_SIMILARITY_THRESHOLD = 0.80;
+const DEDUP_WINDOW_HOURS = 24;
+
+/**
+ * Counts open observer observations linked to a specific entity.
+ * Uses two-step approach: graph traversal then filter.
+ */
+async function countEntityObserverObservations(
+  surreal: Surreal,
+  entityTable: string,
+  entityId: string,
+): Promise<number> {
+  const entityRecord = new RecordId(entityTable, entityId);
+
+  const [obsIds] = await surreal.query<[Array<{ obs_id: RecordId }>]>(
+    `SELECT in AS obs_id FROM observes WHERE out = $entity;`,
+    { entity: entityRecord },
+  );
+
+  if (!obsIds || obsIds.length === 0) return 0;
+
+  const obsRecords = obsIds.map((r) => r.obs_id);
+  const [countRows] = await surreal.query<[Array<{ count: number }>]>(
+    `SELECT count() AS count FROM $records
+     WHERE source_agent = "observer_agent"
+       AND status = "open"
+     GROUP ALL;`,
+    { records: obsRecords },
+  );
+
+  return countRows?.[0]?.count ?? 0;
+}
+
+/**
+ * Checks if a similar pending learning from the observer already exists
+ * within the dedup window. Uses brute-force cosine comparison against
+ * pending_approval learnings from the last 24 hours.
+ *
+ * Returns true if a similar learning already exists (should skip proposal).
+ */
+async function hasSimilarPendingLearning(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  proposedEmbedding: number[],
+): Promise<boolean> {
+  if (proposedEmbedding.length === 0) return false;
+
+  const cutoff = new Date(Date.now() - DEDUP_WINDOW_HOURS * 60 * 60 * 1000);
+
+  const [pendingLearnings] = await surreal.query<[Array<{ text: string; embedding: number[] }>]>(
+    `SELECT text, embedding FROM learning
+     WHERE workspace = $ws
+       AND source = "agent"
+       AND suggested_by = "observer"
+       AND status = "pending_approval"
+       AND created_at > $cutoff
+       AND embedding IS NOT NONE;`,
+    { ws: workspaceRecord, cutoff },
+  );
+
+  for (const learning of pendingLearnings ?? []) {
+    const similarity = cosineSimilarity(proposedEmbedding, learning.embedding);
+    if (similarity > DEDUP_SIMILARITY_THRESHOLD) {
+      logInfo("observer.escalation.dedup", "Similar pending learning already exists", {
+        similarity,
+        existingText: learning.text.slice(0, 80),
+      });
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Cosine similarity between two vectors.
+ * Pure function -- duplicated from learning-diagnosis.ts to avoid
+ * exporting internal utility.
+ */
+function cosineSimilarity(vectorA: number[], vectorB: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < vectorA.length; i++) {
+    dotProduct += vectorA[i] * vectorB[i];
+    normA += vectorA[i] * vectorA[i];
+    normB += vectorB[i] * vectorB[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) return 0;
+  return dotProduct / denominator;
+}
+
+/**
+ * Event-driven escalation: after persisting an observation, checks if the
+ * entity now has 3+ open observer observations. If so, runs the diagnostic
+ * pipeline on workspace observations (entity-scoped cluster will emerge
+ * naturally from the clustering algorithm).
+ *
+ * Gracefully skips when observer model is unavailable.
+ * Deduplicates against pending learnings from observer in last 24h.
+ */
+export async function checkAndEscalate(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  entityTable: string,
+  entityId: string,
+  observerModel?: LanguageModel,
+  embeddingModel?: EmbeddingModel,
+  embeddingDimension?: number,
+): Promise<void> {
+  try {
+    // Count observer observations for this entity
+    const observationCount = await countEntityObserverObservations(
+      surreal, entityTable, entityId,
+    );
+
+    if (observationCount < ESCALATION_THRESHOLD) {
+      return;
+    }
+
+    logInfo("observer.escalation.threshold_met", "Entity observation threshold met, triggering diagnostic pipeline", {
+      entityTable,
+      entityId,
+      observationCount,
+    });
+
+    // Graceful skip when observer model unavailable
+    if (!observerModel) {
+      logInfo("observer.escalation.skip", "Observer model unavailable, skipping diagnostic pipeline", {
+        entityTable,
+        entityId,
+      });
+      return;
+    }
+
+    // Run diagnostic pipeline -- clustering will naturally group
+    // the entity's observations into a cluster
+    await runDiagnosticClustering(
+      surreal,
+      workspaceRecord,
+      observerModel,
+      embeddingModel,
+      embeddingDimension,
+    );
+
+    logInfo("observer.escalation.completed", "Event-driven diagnostic pipeline completed", {
+      entityTable,
+      entityId,
+    });
+  } catch (error) {
+    // Graceful failure -- escalation is best-effort, never crashes the agent
+    logError("observer.escalation.error", "Event-driven escalation failed gracefully", {
+      entityTable,
+      entityId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

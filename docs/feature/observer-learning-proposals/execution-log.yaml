@@ -76,5 +76,26 @@ events:
   s: EXECUTED
   sid: 01-03
   t: '2026-03-13T14:34:56Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-13T14:37:42Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-13T14:39:03Z'
+- d: 'NOT_APPLICABLE: escalation logic composes existing unit-tested functions (clustering,
+    coverage, classification); no new pure domain logic to unit test'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-13T14:39:11Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-13T14:44:30Z'
 project_id: observer-learning-proposals
 schema_version: '3.0'

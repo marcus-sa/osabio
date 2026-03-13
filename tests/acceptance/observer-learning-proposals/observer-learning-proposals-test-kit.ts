@@ -448,15 +448,25 @@ export async function countObserverObservationsForEntity(
   entityId: string,
 ): Promise<number> {
   const entityRecord = new RecordId(entityTable, entityId);
-  const rows = (await surreal.query(
-    `SELECT count() AS count FROM observation
+  // Two-step approach: first get observation IDs via graph traversal,
+  // then count matching observations. Avoids SurrealDB subquery issues.
+  const [obsIds] = (await surreal.query(
+    `SELECT in AS obs_id FROM observes WHERE out = $entity;`,
+    { entity: entityRecord },
+  )) as [Array<{ obs_id: RecordId }>];
+
+  if (!obsIds || obsIds.length === 0) return 0;
+
+  const obsRecords = obsIds.map((r) => r.obs_id);
+  const [countRows] = (await surreal.query(
+    `SELECT count() AS count FROM $records
      WHERE source_agent = "observer_agent"
        AND status = "open"
-       AND id IN (SELECT in FROM observes WHERE out = $entity)
      GROUP ALL;`,
-    { entity: entityRecord },
-  )) as Array<Array<{ count: number }>>;
-  return rows[0]?.[0]?.count ?? 0;
+    { records: obsRecords },
+  )) as [Array<{ count: number }>];
+
+  return countRows?.[0]?.count ?? 0;
 }
 
 /**

@@ -47,7 +47,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
   // Escalation threshold: 3rd observation triggers diagnostic pipeline
   // -------------------------------------------------------------------------
 
-  it.skip("third observation on an entity triggers the diagnostic learning pipeline", async () => {
+  it("third observation on an entity triggers the diagnostic learning pipeline", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task entity
@@ -107,7 +107,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
   // Below threshold: 2nd observation does NOT trigger escalation
   // -------------------------------------------------------------------------
 
-  it.skip("second observation on an entity does not trigger the diagnostic pipeline", async () => {
+  it("second observation on an entity does not trigger the diagnostic pipeline", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task entity
@@ -158,7 +158,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
   // Dedup: pending learning from observer in last 24h skips re-proposal
   // -------------------------------------------------------------------------
 
-  it.skip("event-driven escalation skips proposal when a similar pending learning already exists", async () => {
+  it("event-driven escalation skips proposal when a similar pending learning already exists", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a pending learning about connection pooling
@@ -217,7 +217,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
   // No duplicate proposals from event-driven and graph scan paths
   // -------------------------------------------------------------------------
 
-  it.skip("event-driven and graph scan do not produce duplicate proposals for the same pattern", async () => {
+  it("event-driven and graph scan do not produce duplicate proposals for the same pattern", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task that has accumulated 3 observations (event-driven path)
@@ -274,7 +274,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
   // Graceful skip: observer model unavailable
   // -------------------------------------------------------------------------
 
-  it.skip("event-driven escalation completes gracefully when observer model is unavailable", async () => {
+  it("event-driven escalation completes gracefully when observer model is unavailable", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a task entity
