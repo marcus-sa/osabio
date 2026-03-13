@@ -91,7 +91,7 @@ export async function checkCollisions(input: {
   const collisions: CollisionResult[] = [];
 
   // Layer 1: Learning-vs-learning
-  const learningCandidates = await findSimilarLearnings(surreal, workspaceRecord, learningEmbedding);
+  const learningCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, LEARNING_SPEC);
   for (const candidate of learningCandidates) {
     if (candidate.similarity > LEARNING_DUPLICATE_THRESHOLD) {
       collisions.push({
@@ -119,7 +119,7 @@ export async function checkCollisions(input: {
   }
 
   // Layer 2: Learning-vs-policy (contradiction = hard block)
-  const policyCandidates = await findSimilarPolicies(surreal, workspaceRecord, learningEmbedding);
+  const policyCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, POLICY_SPEC);
   for (const candidate of policyCandidates) {
     const classification = await classifyWithLlm(model, learningText, candidate.text);
     const isContradiction = classification.classification === "contradicts";
@@ -137,7 +137,7 @@ export async function checkCollisions(input: {
   }
 
   // Layer 3: Learning-vs-decision (always informational)
-  const decisionCandidates = await findSimilarDecisions(surreal, workspaceRecord, learningEmbedding);
+  const decisionCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, DECISION_SPEC);
   for (const candidate of decisionCandidates) {
     const classification = await classifyWithLlm(model, learningText, candidate.text);
     if (classification.classification !== "unrelated") {
@@ -213,74 +213,63 @@ type SimilarityCandidate = {
   similarity: number;
 };
 
-async function findSimilarLearnings(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
-  embedding: number[],
-): Promise<SimilarityCandidate[]> {
-  const sql = `
-    LET $candidates = SELECT id, text, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity
-      FROM learning WHERE embedding <|20, COSINE|> $embedding;
-    SELECT id, text, similarity FROM $candidates
-      WHERE workspace = $ws AND status = "active" AND similarity > ${LEARNING_THRESHOLD}
-      ORDER BY similarity DESC LIMIT 10;
-  `;
-  const results = await surreal.query<[null, Array<{ id: RecordId; text: string; similarity: number }>]>(sql, {
-    embedding,
-    ws: workspaceRecord,
-  });
-  const rows = results[1] ?? [];
-  return rows.map((row) => ({
-    id: row.id.id as string,
-    text: row.text,
-    similarity: row.similarity,
-  }));
-}
+type KnnSearchSpec = {
+  table: string;
+  candidateFields: string;
+  filterFields: string;
+  textExtractor: (row: Record<string, unknown>) => string;
+  filterClause: string;
+  threshold: number;
+};
 
-async function findSimilarPolicies(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
-  embedding: number[],
-): Promise<SimilarityCandidate[]> {
-  const sql = `
-    LET $candidates = SELECT id, title, description, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity
-      FROM policy WHERE embedding <|20, COSINE|> $embedding;
-    SELECT id, title, description, similarity FROM $candidates
-      WHERE workspace = $ws AND status = "active" AND similarity > ${POLICY_THRESHOLD}
-      ORDER BY similarity DESC LIMIT 10;
-  `;
-  const results = await surreal.query<[null, Array<{ id: RecordId; title: string; description?: string; similarity: number }>]>(sql, {
-    embedding,
-    ws: workspaceRecord,
-  });
-  const rows = results[1] ?? [];
-  return rows.map((row) => ({
-    id: row.id.id as string,
-    text: row.description ?? row.title,
-    similarity: row.similarity,
-  }));
-}
+const LEARNING_SPEC: KnnSearchSpec = {
+  table: "learning",
+  candidateFields: "id, text, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity",
+  filterFields: "id, text, similarity",
+  textExtractor: (row) => row.text as string,
+  filterClause: 'workspace = $ws AND status = "active"',
+  threshold: LEARNING_THRESHOLD,
+};
 
-async function findSimilarDecisions(
+const POLICY_SPEC: KnnSearchSpec = {
+  table: "policy",
+  candidateFields: "id, title, description, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity",
+  filterFields: "id, title, description, similarity",
+  textExtractor: (row) => (row.description as string | undefined) ?? (row.title as string),
+  filterClause: 'workspace = $ws AND status = "active"',
+  threshold: POLICY_THRESHOLD,
+};
+
+const DECISION_SPEC: KnnSearchSpec = {
+  table: "decision",
+  candidateFields: "id, summary, workspace, vector::similarity::cosine(embedding, $embedding) AS similarity",
+  filterFields: "id, summary, similarity",
+  textExtractor: (row) => row.summary as string,
+  filterClause: "workspace = $ws",
+  threshold: DECISION_THRESHOLD,
+};
+
+async function findSimilarRecords(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   embedding: number[],
+  spec: KnnSearchSpec,
 ): Promise<SimilarityCandidate[]> {
   const sql = `
-    LET $candidates = SELECT id, summary, workspace, vector::similarity::cosine(embedding, $embedding) AS similarity
-      FROM decision WHERE embedding <|20, COSINE|> $embedding;
-    SELECT id, summary, similarity FROM $candidates
-      WHERE workspace = $ws AND similarity > ${DECISION_THRESHOLD}
+    LET $candidates = SELECT ${spec.candidateFields}
+      FROM ${spec.table} WHERE embedding <|20, COSINE|> $embedding;
+    SELECT ${spec.filterFields} FROM $candidates
+      WHERE ${spec.filterClause} AND similarity > ${spec.threshold}
       ORDER BY similarity DESC LIMIT 10;
   `;
-  const results = await surreal.query<[null, Array<{ id: RecordId; summary: string; similarity: number }>]>(sql, {
+  const results = await surreal.query<[null, Array<Record<string, unknown> & { id: RecordId; similarity: number }>]>(sql, {
     embedding,
     ws: workspaceRecord,
   });
   const rows = results[1] ?? [];
   return rows.map((row) => ({
     id: row.id.id as string,
-    text: row.summary,
+    text: spec.textExtractor(row),
     similarity: row.similarity,
   }));
 }

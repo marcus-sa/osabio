@@ -17,6 +17,8 @@ import { listWorkspaceOpenObservations } from "../observation/queries";
 import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import { loadOnboardingSummary } from "../onboarding/onboarding-state";
 import type { GraphEntityRecord } from "../extraction/types";
+import { loadActiveLearnings } from "../learning/loader";
+import { formatLearningsSection } from "../learning/formatter";
 
 export type DiscussedEntityContext = {
   kind: string;
@@ -70,7 +72,7 @@ export async function buildChatContext(input: {
     loadOnboardingSummary,
   };
 
-  const [conversationEntities, projects, recentDecisions, openQuestions, openObservations, pendingSuggestions, onboardingSummary] = await Promise.all([
+  const [conversationEntities, projects, recentDecisions, openQuestions, openObservations, pendingSuggestions, onboardingSummary, learningsResult] = await Promise.all([
     loaders.listConversationEntities({
       surreal: input.surreal,
       conversationRecord: input.conversationRecord,
@@ -106,6 +108,12 @@ export async function buildChatContext(input: {
       limit: 10,
     }),
     loaders.loadOnboardingSummary(input.surreal, input.workspaceRecord),
+    loadActiveLearnings({
+      surreal: input.surreal,
+      workspaceId: input.workspaceRecord.id as string,
+      agentType: "chat_agent",
+      ...(input.workspaceDescription ? { contextEmbedding: undefined } : {}),
+    }),
   ]);
 
   // Cross-conversation entity enrichment: find workspace entities relevant to the user's message
@@ -141,6 +149,8 @@ export async function buildChatContext(input: {
     }
   }
 
+  const learningsSection = formatLearningsSection(learningsResult.learnings);
+
   return {
     conversationEntities,
     relevantEntities,
@@ -154,6 +164,7 @@ export async function buildChatContext(input: {
     },
     onboardingSummary,
     discussedEntity,
+    ...(learningsSection ? { learningsSection } : {}),
   };
 }
 
