@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "27d02cd37966",
+  "session_id": "ca935cf1-0af8-4137-a645-78f91d5d37a5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T11:41:22.074238Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/learning-library/execution-log.yaml",
+    "tests/unit/learning-library/edit-dialog-logic.test.ts",
+    "tests/unit/learning-library/page-dialog-logic.test.ts",
+    "app/src/client/components/learning/DeactivateDialog.tsx",
+    "app/src/client/components/learning/EditDialog.tsx",
+    "app/src/client/components/learning/edit-dialog-logic.ts",
+    "app/src/client/components/learning/page-dialog-logic.ts",
+    "app/src/client/routes/learnings-page.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "88b3fefccdf4",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T11:41:22.071892Z",
+    "agent_lines": 0,
+    "human_added": 482,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 487,
+    "agent_percentage": 0
+  }
+}

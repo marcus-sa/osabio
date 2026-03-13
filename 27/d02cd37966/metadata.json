@@ -5,7 +5,14 @@
   "branch": "marcus-sa/agent-learnings",
   "checkpoints_count": 1,
   "files_touched": [
-    "docs/feature/learning-library/execution-log.yaml"
+    "app/src/client/components/learning/DeactivateDialog.tsx",
+    "app/src/client/components/learning/EditDialog.tsx",
+    "app/src/client/components/learning/edit-dialog-logic.ts",
+    "app/src/client/components/learning/page-dialog-logic.ts",
+    "app/src/client/routes/learnings-page.tsx",
+    "docs/feature/learning-library/execution-log.yaml",
+    "tests/unit/learning-library/edit-dialog-logic.test.ts",
+    "tests/unit/learning-library/page-dialog-logic.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +21,13 @@
       "context": "/27/d02cd37966/0/context.md",
       "content_hash": "/27/d02cd37966/0/content_hash.txt",
       "prompt": "/27/d02cd37966/0/prompt.txt"
+    },
+    {
+      "metadata": "/27/d02cd37966/1/metadata.json",
+      "transcript": "/27/d02cd37966/1/full.jsonl",
+      "context": "",
+      "content_hash": "/27/d02cd37966/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
