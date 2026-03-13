@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "aeb8aa119d70",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/observer/agent.ts",
+    "docs/feature/observer-learning-proposals/execution-log.yaml",
+    "tests/acceptance/observer-learning-proposals/milestone-4-event-escalation.test.ts",
+    "tests/acceptance/observer-learning-proposals/observer-learning-proposals-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ae/b8aa119d70/0/metadata.json",
+      "transcript": "/ae/b8aa119d70/0/full.jsonl",
+      "context": "",
+      "content_hash": "/ae/b8aa119d70/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
