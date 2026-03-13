@@ -36,6 +36,38 @@ const VALID_ACTIONS = ["approve", "dismiss", "deactivate", "supersede"] as const
 type LearningAction = (typeof VALID_ACTIONS)[number];
 
 // ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+async function parseJsonBody<T>(request: Request): Promise<T | Response> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return jsonError("invalid JSON body", 400);
+  }
+}
+
+async function resolveWorkspace(
+  deps: ServerDependencies,
+  workspaceId: string,
+  logEvent: string,
+): Promise<RecordId<"workspace", string> | Response> {
+  try {
+    return await resolveWorkspaceRecord(deps.surreal, workspaceId);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+    logError(logEvent, "Failed to resolve workspace", error, { workspaceId });
+    return jsonError("failed to resolve workspace", 500);
+  }
+}
+
+function isResponse(value: unknown): value is Response {
+  return value instanceof Response;
+}
+
+// ---------------------------------------------------------------------------
 // Route handler factory
 // ---------------------------------------------------------------------------
 
@@ -68,12 +100,9 @@ async function handleCreateLearning(
   workspaceId: string,
   request: Request,
 ): Promise<Response> {
-  let body: CreateBody;
-  try {
-    body = (await request.json()) as CreateBody;
-  } catch {
-    return jsonError("invalid JSON body", 400);
-  }
+  const bodyOrError = await parseJsonBody<CreateBody>(request);
+  if (isResponse(bodyOrError)) return bodyOrError;
+  const body = bodyOrError;
 
   // Validate required fields
   if (!body.text || typeof body.text !== "string" || body.text.trim().length === 0) {
@@ -86,16 +115,9 @@ async function handleCreateLearning(
     );
   }
 
-  let workspaceRecord: RecordId<"workspace", string>;
-  try {
-    workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return jsonError(error.message, error.status);
-    }
-    logError("learning.create.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
-    return jsonError("failed to resolve workspace", 500);
-  }
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "learning.create.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
 
   try {
     const now = new Date();
@@ -175,16 +197,9 @@ async function handleListLearnings(
   workspaceId: string,
   request: Request,
 ): Promise<Response> {
-  let workspaceRecord: RecordId<"workspace", string>;
-  try {
-    workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return jsonError(error.message, error.status);
-    }
-    logError("learning.list.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
-    return jsonError("failed to resolve workspace", 500);
-  }
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "learning.list.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
 
   try {
     const url = new URL(request.url);
@@ -241,12 +256,9 @@ async function handleLearningAction(
   learningId: string,
   request: Request,
 ): Promise<Response> {
-  let body: ActionBody;
-  try {
-    body = (await request.json()) as ActionBody;
-  } catch {
-    return jsonError("invalid JSON body", 400);
-  }
+  const bodyOrError = await parseJsonBody<ActionBody>(request);
+  if (isResponse(bodyOrError)) return bodyOrError;
+  const body = bodyOrError;
 
   if (!body.action || !(VALID_ACTIONS as readonly string[]).includes(body.action)) {
     return jsonError(
@@ -257,16 +269,9 @@ async function handleLearningAction(
 
   const action = body.action as LearningAction;
 
-  let workspaceRecord: RecordId<"workspace", string>;
-  try {
-    workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return jsonError(error.message, error.status);
-    }
-    logError("learning.action.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
-    return jsonError("failed to resolve workspace", 500);
-  }
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "learning.action.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
 
   // Look up the learning
   const learningRecord = new RecordId("learning", learningId) as LearningRecord;
@@ -356,12 +361,9 @@ async function handleEditLearning(
   learningId: string,
   request: Request,
 ): Promise<Response> {
-  let body: EditBody;
-  try {
-    body = (await request.json()) as EditBody;
-  } catch {
-    return jsonError("invalid JSON body", 400);
-  }
+  const bodyOrError = await parseJsonBody<EditBody>(request);
+  if (isResponse(bodyOrError)) return bodyOrError;
+  const body = bodyOrError;
 
   // Validate text if provided: must not be empty or whitespace-only
   if (body.text !== undefined) {
@@ -370,16 +372,9 @@ async function handleEditLearning(
     }
   }
 
-  let workspaceRecord: RecordId<"workspace", string>;
-  try {
-    workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return jsonError(error.message, error.status);
-    }
-    logError("learning.edit.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
-    return jsonError("failed to resolve workspace", 500);
-  }
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "learning.edit.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
 
   const learningRecord = new RecordId("learning", learningId) as LearningRecord;
   const now = new Date();

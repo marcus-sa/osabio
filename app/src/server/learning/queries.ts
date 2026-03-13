@@ -181,7 +181,7 @@ export async function listWorkspaceActiveLearnings(input: {
     })
     .collect<[LearningRow[]]>();
 
-  return rows.map(toLearnings);
+  return rows.map(toLearning);
 }
 
 export async function listWorkspacePendingLearnings(input: {
@@ -208,7 +208,7 @@ export async function listWorkspacePendingLearnings(input: {
     )
     .collect<[LearningRow[]]>();
 
-  return rows.map(toLearnings);
+  return rows.map(toLearning);
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ type LearningRow = {
   deactivated_at?: string | Date;
 };
 
-function toLearnings(row: LearningRow): LearningSummary {
+function toLearning(row: LearningRow): LearningSummary {
   return {
     id: row.id.id as string,
     text: row.text,
@@ -324,7 +324,7 @@ export async function listWorkspaceLearnings(input: {
     .query<[LearningRow[]]>(sql, vars)
     .collect<[LearningRow[]]>();
 
-  return rows.map(toLearnings);
+  return rows.map(toLearning);
 }
 
 // ---------------------------------------------------------------------------
