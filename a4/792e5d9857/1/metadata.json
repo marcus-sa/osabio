@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a4792e5d9857",
+  "session_id": "ca935cf1-0af8-4137-a645-78f91d5d37a5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T10:45:12.199681Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/learning-library/design/component-boundaries.md",
+    "tests/acceptance/learning-library/milestone-1-browse-filter.test.ts",
+    "tests/acceptance/learning-library/milestone-2-edit-learning.test.ts",
+    "tests/acceptance/learning-library/milestone-3-full-lifecycle.test.ts",
+    "docs/feature/learning-library/design/adr-002-filter-state-management.md",
+    "docs/feature/learning-library/design/adr-003-backend-edit-endpoint.md",
+    "docs/feature/learning-library/design/architecture.md",
+    "docs/feature/learning-library/design/review-proof.md",
+    "docs/feature/learning-library/distill/test-scenarios.md",
+    "tests/acceptance/learning-library/walking-skeleton.test.ts",
+    "docs/feature/learning-library/design/adr-001-dialog-extraction-vs-duplication.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "88b3fefccdf4",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T10:45:12.198094Z",
+    "agent_lines": 1990,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1990,
+    "agent_percentage": 100
+  }
+}
