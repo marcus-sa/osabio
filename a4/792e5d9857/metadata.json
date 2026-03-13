@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a4792e5d9857",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/feature/learning-library/design/adr-001-dialog-extraction-vs-duplication.md",
+    "docs/feature/learning-library/design/adr-002-filter-state-management.md",
+    "docs/feature/learning-library/design/adr-003-backend-edit-endpoint.md",
+    "docs/feature/learning-library/design/architecture.md",
+    "docs/feature/learning-library/design/component-boundaries.md",
+    "docs/feature/learning-library/design/review-proof.md",
+    "docs/feature/learning-library/distill/test-scenarios.md",
+    "tests/acceptance/learning-library/milestone-1-browse-filter.test.ts",
+    "tests/acceptance/learning-library/milestone-2-edit-learning.test.ts",
+    "tests/acceptance/learning-library/milestone-3-full-lifecycle.test.ts",
+    "tests/acceptance/learning-library/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a4/792e5d9857/0/metadata.json",
+      "transcript": "/a4/792e5d9857/0/full.jsonl",
+      "context": "/a4/792e5d9857/0/context.md",
+      "content_hash": "/a4/792e5d9857/0/content_hash.txt",
+      "prompt": "/a4/792e5d9857/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4125,
+    "cache_creation_tokens": 99726,
+    "cache_read_tokens": 619782,
+    "output_tokens": 5803,
+    "api_call_count": 10
+  }
+}
