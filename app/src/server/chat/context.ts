@@ -37,6 +37,7 @@ export type ChatContext = {
   };
   onboardingSummary?: string;
   discussedEntity?: DiscussedEntityContext;
+  learningsSection?: string;
 };
 
 type ChatContextLoaders = {
@@ -411,6 +412,10 @@ export function buildSystemPrompt(context: ChatContext, options?: SystemPromptOp
       "Acknowledge this entity in your first response and help the user with their question about it.",
       "",
     );
+  }
+
+  if (context.learningsSection) {
+    sections.push(context.learningsSection, "");
   }
 
   sections.push(

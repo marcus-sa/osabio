@@ -37,7 +37,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
   // US-AL-003: MCP context packet includes learnings
   // -------------------------------------------------------------------------
 
-  it.skip("MCP context packet includes active learnings for the workspace", async () => {
+  it("MCP context packet includes active learnings for the workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with active learnings
@@ -94,7 +94,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
   // US-AL-003: No section when zero learnings
   // -------------------------------------------------------------------------
 
-  it.skip("MCP context packet omits learnings when workspace has none", async () => {
+  it("MCP context packet omits learnings when workspace has none", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with no learnings
@@ -130,7 +130,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
   // US-AL-003: Agent-type scoping for prompt injection
   // -------------------------------------------------------------------------
 
-  it.skip("learnings targeted to coding agents are excluded from MCP context for chat agent", async () => {
+  it("learnings targeted to coding agents are excluded from MCP context for chat agent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a learning targeted only to coding agents
@@ -181,7 +181,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
   // US-AL-003: Observer receives only constraints and instructions
   // -------------------------------------------------------------------------
 
-  it.skip("observer agent context excludes precedent learnings", async () => {
+  it("observer agent context excludes precedent learnings", async () => {
     const { surreal } = getRuntime();
 
     // Given a workspace with constraint, instruction, and precedent learnings
@@ -230,7 +230,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
   // Error paths
   // -------------------------------------------------------------------------
 
-  it.skip("deactivated learnings are not injected into any agent prompt", async () => {
+  it("deactivated learnings are not injected into any agent prompt", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with only deactivated learnings
@@ -268,7 +268,7 @@ describe("Milestone 3: Prompt Injection into Agent Systems", () => {
     }
   }, 120_000);
 
-  it.skip("pending approval learnings are not injected into agent prompts", async () => {
+  it("pending approval learnings are not injected into agent prompts", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with only pending learnings

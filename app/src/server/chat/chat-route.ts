@@ -11,6 +11,8 @@ import { parseRecordIdString, getWorkspaceOwnerRecord } from "../graph/queries";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { deriveMessageTitle, refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../workspace/conversation-sidebar";
 import { buildChatContext, buildSystemPrompt } from "./context";
+import { loadActiveLearnings } from "../learning/loader";
+import { formatLearningsSection } from "../learning/formatter";
 import { createChatAgentTools } from "./tools";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
@@ -176,6 +178,17 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
       ...(existingConversation?.discusses ? { discussesRecord: existingConversation.discusses } : {}),
     });
+
+    // Load workspace learnings for chat agent prompt injection
+    const learningsResult = await loadActiveLearnings({
+      surreal: deps.surreal,
+      workspaceId: workspaceRecord.id as string,
+      agentType: "chat_agent",
+    });
+    const learningsSection = formatLearningsSection(learningsResult.learnings);
+    if (learningsSection) {
+      context.learningsSection = learningsSection;
+    }
 
     const system = buildSystemPrompt(context, {
       isOnboarding: onboardingAfter !== "complete",

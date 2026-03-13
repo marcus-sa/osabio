@@ -10,6 +10,8 @@
 
 import { RecordId, Surreal } from "surrealdb";
 import { listWorkspaceOpenObservations } from "../../observation/queries";
+import { loadActiveLearnings } from "../../learning/loader";
+import { formatLearningsSection } from "../../learning/formatter";
 
 // ---------------------------------------------------------------------------
 // Static identity — imported by llm-reasoning.ts for generateObject system prompt
@@ -69,15 +71,26 @@ export async function buildObserverSystemPrompt(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
 }): Promise<string> {
-  const observations = await listWorkspaceOpenObservations({
-    surreal: input.surreal,
-    workspaceRecord: input.workspaceRecord,
-    limit: 30,
-  });
+  const [observations, learningsResult] = await Promise.all([
+    listWorkspaceOpenObservations({
+      surreal: input.surreal,
+      workspaceRecord: input.workspaceRecord,
+      limit: 30,
+    }),
+    // Observer gets constraints + instructions only (no contextEmbedding = no precedents)
+    loadActiveLearnings({
+      surreal: input.surreal,
+      workspaceId: input.workspaceRecord.id as string,
+      agentType: "observer_agent",
+    }),
+  ]);
+
+  const learningsSection = formatLearningsSection(learningsResult.learnings);
 
   return [
     OBSERVER_IDENTITY,
     "",
+    ...(learningsSection ? [learningsSection, ""] : []),
     "## Existing Workspace Observations",
     formatObservations(observations),
   ].join("\n");

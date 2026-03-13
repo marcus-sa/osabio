@@ -3,6 +3,7 @@ import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from ".
 import { searchEntitiesByEmbedding, type SearchEntityKind } from "../graph/queries";
 import { createEmbeddingVector } from "../graph/embeddings";
 import type { ContextPacket, TaskContextPacket, WorkspaceOverview } from "./types";
+import { loadActiveLearnings } from "../learning/loader";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,10 +15,17 @@ export type IntentContextInput = {
   paths?: string[];
 };
 
+export type LearningContext = {
+  text: string;
+  learning_type: string;
+  priority: string;
+  source: string;
+};
+
 export type IntentContextResult =
-  | { level: "task"; data: TaskContextPacket }
-  | { level: "project"; data: ContextPacket }
-  | { level: "workspace"; data: WorkspaceOverview };
+  | { level: "task"; data: TaskContextPacket; learnings?: LearningContext[] }
+  | { level: "project"; data: ContextPacket; learnings?: LearningContext[] }
+  | { level: "workspace"; data: WorkspaceOverview; learnings?: LearningContext[] };
 
 type ProjectRow = {
   id: RecordId<"project", string>;
@@ -40,6 +48,45 @@ export async function resolveIntentContext(input: {
   cwd?: string;
   paths?: string[];
 }): Promise<IntentContextResult> {
+  const { surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent } = input;
+
+  const contextResult = await resolveContextLevel({
+    surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent,
+    cwd: input.cwd, paths: input.paths,
+  });
+
+  // Load learnings for MCP agent type (no contextEmbedding — precedents excluded)
+  const workspaceId = workspaceRecord.id as string;
+  const learningsResult = await loadActiveLearnings({
+    surreal,
+    workspaceId,
+    agentType: "mcp",
+  });
+
+  const learnings: LearningContext[] = learningsResult.learnings.map((l) => ({
+    text: l.text,
+    learning_type: l.learningType,
+    priority: l.priority,
+    source: l.source,
+  }));
+
+  return {
+    ...contextResult,
+    ...(learnings.length > 0 ? { learnings } : {}),
+  };
+}
+
+/** Resolves intent to the appropriate context level (task/project/workspace) */
+async function resolveContextLevel(input: {
+  surreal: Surreal;
+  embeddingModel: Parameters<typeof createEmbeddingVector>[0];
+  embeddingDimension: number;
+  workspaceRecord: RecordId<"workspace", string>;
+  workspaceName: string;
+  intent: string;
+  cwd?: string;
+  paths?: string[];
+}): Promise<{ level: "task"; data: TaskContextPacket } | { level: "project"; data: ContextPacket } | { level: "workspace"; data: WorkspaceOverview }> {
   const { surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent } = input;
 
   // Step 1: Explicit entity references in intent text
@@ -77,7 +124,12 @@ export async function resolveIntentContext(input: {
   }
 
   // Step 3: Vector search — embed intent, match against all entities
-  const queryEmbedding = await createEmbeddingVector(embeddingModel, intent, embeddingDimension);
+  let queryEmbedding: number[] | undefined;
+  try {
+    queryEmbedding = await createEmbeddingVector(embeddingModel, intent, embeddingDimension);
+  } catch {
+    // Embedding model unavailable — fall through to path/workspace fallbacks
+  }
   if (queryEmbedding) {
     const results = await searchEntitiesByEmbedding({
       surreal,

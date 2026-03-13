@@ -3,6 +3,8 @@ import type { SuggestionSummary } from "../../../shared/contracts";
 import { listWorkspaceProjectSummaries } from "../../graph/queries";
 import { listWorkspaceOpenObservations } from "../../observation/queries";
 import { listWorkspacePendingSuggestions } from "../../suggestion/queries";
+import { loadActiveLearnings } from "../../learning/loader";
+import { formatLearningsSection } from "../../learning/formatter";
 
 function formatProjects(rows: Awaited<ReturnType<typeof listWorkspaceProjectSummaries>>): string {
   if (rows.length === 0) {
@@ -44,7 +46,7 @@ export async function buildPmSystemPrompt(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
 }): Promise<string> {
-  const [workspace, projects, observations, suggestions] = await Promise.all([
+  const [workspace, projects, observations, suggestions, learningsResult] = await Promise.all([
     input.surreal.select<{ name: string }>(input.workspaceRecord),
     listWorkspaceProjectSummaries({
       surreal: input.surreal,
@@ -60,6 +62,11 @@ export async function buildPmSystemPrompt(input: {
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
       limit: 20,
+    }),
+    loadActiveLearnings({
+      surreal: input.surreal,
+      workspaceId: input.workspaceRecord.id as string,
+      agentType: "pm_agent",
     }),
   ]);
 
@@ -103,6 +110,10 @@ export async function buildPmSystemPrompt(input: {
     "- Hypotheticals (\"what if we did X?\")",
     "- Descriptive verbs in system overviews (\"the system will ingest, render, process\")",
     "",
+    ...(() => {
+      const section = formatLearningsSection(learningsResult.learnings);
+      return section ? [section, ""] : [];
+    })(),
     "## Workspace Projects",
     formatProjects(projects),
     "",
