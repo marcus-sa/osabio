@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "22780373e9d0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/des-task-active-observer-learning-proposals--",
+    ".nwave/des/des-task-active-observer-learning-proposals--01-02",
+    ".nwave/des/des-task-active-observer-learning-proposals--01-03",
+    ".nwave/des/des-task-active-observer-learning-proposals--refactor",
+    "README.md",
+    "app/src/server/agents/observer/agent.ts",
+    "app/src/server/learning/detector.ts",
+    "app/src/server/learning/queries.ts",
+    "app/src/server/observer/graph-scan.ts",
+    "app/src/server/observer/learning-diagnosis.ts",
+    "app/src/server/observer/observer-route.ts",
+    "docs/feature/observer-learning-proposals/execution-log.yaml",
+    "docs/feature/observer-learning-proposals/roadmap.yaml",
+    "index.html",
+    "tests/acceptance/observer-learning-proposals/milestone-2-root-cause-classification.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/22/780373e9d0/0/metadata.json",
+      "transcript": "/22/780373e9d0/0/full.jsonl",
+      "context": "/22/780373e9d0/0/context.md",
+      "content_hash": "/22/780373e9d0/0/content_hash.txt",
+      "prompt": "/22/780373e9d0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 36317,
+    "cache_read_tokens": 155719,
+    "output_tokens": 929,
+    "api_call_count": 4
+  }
+}
