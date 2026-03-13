@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a811c21952cb",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/learning-library/execution-log.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a8/11c21952cb/0/metadata.json",
+      "transcript": "/a8/11c21952cb/0/full.jsonl",
+      "context": "/a8/11c21952cb/0/context.md",
+      "content_hash": "/a8/11c21952cb/0/content_hash.txt",
+      "prompt": "/a8/11c21952cb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4404,
+    "cache_creation_tokens": 280493,
+    "cache_read_tokens": 6898777,
+    "output_tokens": 41537,
+    "api_call_count": 72
+  }
+}
