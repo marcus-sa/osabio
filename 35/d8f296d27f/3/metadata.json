@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "35d8f296d27f",
+  "session_id": "fe045379-be19-4e43-8dbe-9de4e77feb32",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:01:46.636213Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/chat/context.ts",
+    "tests/unit/chat-context.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "794c5d752c5b",
+  "checkpoint_transcript_start": 177,
+  "transcript_lines_at_start": 177,
+  "token_usage": {
+    "input_tokens": 9,
+    "cache_creation_tokens": 110198,
+    "cache_read_tokens": 79455,
+    "output_tokens": 898,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:01:46.489959Z",
+    "agent_lines": 5,
+    "human_added": 5738,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5743,
+    "agent_percentage": 0.08706251088281386
+  }
+}
