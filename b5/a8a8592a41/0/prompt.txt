@@ -816,3 +816,141 @@ I cannot complete the TDD phases (RED_ACCEPTANCE through COMMIT) without being a
 <usage><total_tokens>64547</total_tokens><tool_uses>13</tool_uses><duration_ms>81228</duration_ms></usage>
 </task-notification>
 Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-karachi/tasks/a9fc1684320d1bfbd.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user requested a complete feature delivery for a "learning library" UI — a page where users can see all learnings for every agent type and potentially delete/update them. This was executed through the full nWave workflow: DISCUSS → DESIGN → DISTILL → DELIVER. The learning library provides a management interface for agent behavioral rules (learnings) that are injected into agent prompts at runtime.
+
+2. Key Technical Concepts:
+   - **Learnings**: Behavioral rules injected into AI agent prompts at runtime (types: constraint, instruction, precedent)
+   - **Feed vs Library**: Feed = notification/push layer for pending learnings; Library = management/pull layer for all CRUD operations
+   - **JTBD Analysis**: 4 jobs identified (Visibility/Audit, Correction, Approval/Triage, Scoping/Targeting)
+   - **TanStack React Router** with explicit route tree under `authLayout`
+   - **Zustand** for state management (but NO new store for this feature — hook-local state)
+   - **Vanilla CSS with BEM naming** — no UI component library
+   - **Data hooks pattern**: useState + useEffect + fetch (no React Query)
+   - **Functional paradigm** — pure functions extracted for all logic, React components are pure/props-driven
+   - **DES (Developer Experience System)** — TDD monitoring with PREPARE/RED_ACCEPTANCE/RED_UNIT/GREEN/COMMIT phases
+   - **SurrealDB** with RecordId objects, SCHEMAFULL tables
+   - **PUT /learnings/:id** — new backend endpoint for editing active learnings (the only backend gap)
+   - **KNOWN_LEARNING_TARGET_AGENTS** — shared constant for agent type display labels
+
+3. Files and Code Sections:
+
+   **DISCUSS Wave Artifacts** (committed as `87508e8d`):
+   - `docs/ux/learning-library/jtbd-analysis.md` — 4 jobs with opportunity scores
+   - `docs/ux/learning-library/journey-*` — 4 journey maps (browse, triage, edit, create) in visual/YAML/Gherkin
+   - `docs/requirements/learning-library/US-LL-01-browse-filter-library.md` — Browse & Filter story
+   - `docs/requirements/learning-library/US-LL-02-triage-pending-learnings.md` — Simplified to inline pending actions
+   - `docs/requirements/learning-library/US-LL-03-edit-deactivate-learning.md` — Edit/Deactivate story
+   - `docs/requirements/learning-library/US-LL-04-create-learning.md` — Create Learning story
+   - `docs/requirements/learning-library/dor-validation.md` — All 4 stories pass DoR
+
+   **DESIGN Wave Artifacts** (committed as `f97b8c30`):
+   - `docs/feature/learning-library/design/architecture.md` — C4 L1/L2/L3 diagrams, integration patterns
+   - `docs/feature/learning-library/design/component-boundaries.md` — 13 new + 5 modified files manifest
+   - `docs/feature/learning-library/design/adr-001-dialog-extraction-vs-duplication.md` — Create fresh dialogs
+   - `docs/feature/learning-library/design/adr-002-filter-state-management.md` — Hook-local state
+   - `docs/feature/learning-library/design/adr-003-backend-edit-endpoint.md` — New PUT endpoint
+
+   **DISTILL Wave Artifacts** (committed with DESIGN):
+   - `tests/acceptance/learning-library/walking-skeleton.test.ts` — Single E2E path
+   - `tests/acceptance/learning-library/milestone-1-browse-filter.test.ts` — 8 filter scenarios
+   - `tests/acceptance/learning-library/milestone-2-edit-learning.test.ts` — 12 PUT scenarios (were it.skip, now unskipped)
+   - `tests/acceptance/learning-library/milestone-3-full-lifecycle.test.ts` — 7 lifecycle scenarios
+   - `docs/feature/learning-library/distill/test-scenarios.md` — Test strategy + traceability
+
+   **DELIVER Wave — Roadmap**:
+   - `docs/feature/learning-library/roadmap.yaml` — 4 phases, 10 steps, validated and approved
+   - `docs/feature/learning-library/execution-log.yaml` — All 10 steps with 5 TDD phases each
+
+   **DELIVER Wave — Production Code (10 commits)**:
+   - `app/src/shared/contracts.ts` — Added `KNOWN_LEARNING_TARGET_AGENTS` constant
+   - `app/src/client/router.tsx` — Added `/learnings` route under authLayout
+   - `app/src/client/hooks/use-learnings.ts` — Data fetching hook with filter state
+   - `app/src/client/hooks/use-learning-actions.ts` — Mutation hook (approve, dismiss, edit, deactivate, create)
+   - `app/src/client/hooks/use-pending-learning-count.ts` — 60s polling hook for sidebar badge
+   - `app/src/client/components/layout/WorkspaceSidebar.tsx` — Added Learnings nav link + badge
+   - `app/src/client/routes/learnings-page.tsx` — Full page with StatusTabs, Filters, List, dialog state management
+   - `app/src/client/components/learning/StatusTabs.tsx` — Tab bar with counts
+   - `app/src/client/components/learning/LearningFilters.tsx` — Type + agent dropdowns
+   - `app/src/client/components/learning/LearningList.tsx` — Card list container with empty state
+   - `app/src/client/components/learning/LearningCard.tsx` — Expandable card with status-aware actions
+   - `app/src/client/components/learning/AgentChips.tsx` — Agent badge chips
+   - `app/src/client/components/learning/learning-card-logic.ts` — Pure functions for card logic
+   - `app/src/client/components/learning/ApproveDialog.tsx` — Approve with text edit
+   - `app/src/client/components/learning/DismissDialog.tsx` — Dismiss with required reason
+   - `app/src/client/components/learning/dialog-logic.ts` — Pure validation for approve/dismiss
+   - `app/src/client/components/learning/CreateDialog.tsx` — Create form with collision feedback
+   - `app/src/client/components/learning/create-dialog-logic.ts` — Pure validation for create
+   - `app/src/client/components/learning/EditDialog.tsx` — Edit text/priority/agents
+   - `app/src/client/components/learning/edit-dialog-logic.ts` — Pure validation for edit (dirty-checking)
+   - `app/src/client/components/learning/DeactivateDialog.tsx` — Deactivation confirmation
+   - `app/src/client/components/learning/page-dialog-logic.ts` — Dialog state management (DialogState union type)
+   - `app/src/server/learning/learning-route.ts` — Added handleEditLearning (PUT handler)
+   - `app/src/server/learning/queries.ts` — Added updateLearningFields with LearningNotFoundError, LearningNotActiveError
+   - `app/src/server/runtime/start-server.ts` — Registered PUT route
+   - `app/src/client/styles.css` — BEM styles for all new components
+
+   **Unit Tests Created** (~100 tests):
+   - `tests/unit/learning-library/contracts.test.ts` (3 tests)
+   - `tests/unit/learning-library/use-learnings.test.ts` (7 tests)
+   - `tests/unit/learning-library/use-learning-actions.test.ts` (7 tests)
+   - `tests/unit/learning-library/use-pending-learning-count.test.ts` (6 tests)
+   - `tests/unit/learning-library/status-tabs.test.ts` (7 tests)
+   - `tests/unit/learning-library/learning-filters.test.ts` (8 tests)
+   - `tests/unit/learning-library/learning-card-logic.test.ts` (16 tests)
+   - `tests/unit/learning-library/dialog-logic.test.ts` (13 tests)
+   - `tests/unit/learning-library/create-dialog-logic.test.ts` (12 tests)
+   - `tests/unit/learning-library/page-dialog-logic.test.ts` (6+2 tests)
+   - `tests/unit/learning-library/edit-dialog-logic.test.ts` (13 tests)
+
+4. Errors and Fixes:
+   - **DES hook blocking background agents**: When dispatching steps 01-02, 02-01, 04-01 in parallel background, all three were blocked by DES pre-write hooks that couldn't identify them as DES-monitored subagents. Error: "Source/test files must be written by a DES-monitored software-crafter subagent, not directly by the orchestrator." Fix: Dispatched all agents in foreground sequentially instead of parallel background.
+   - **DES MISSING RECORDING_INTEGRITY section**: First attempt at dispatching 01-01 was blocked by DES hook with "MISSING: Mandatory section 'RECORDING_INTEGRITY' not found". Fix: Added `# RECORDING_INTEGRITY` section to the DES template.
+   - **DES markers missing error**: Roadmap architect dispatch was blocked with "DES_MARKERS_MISSING: Task prompt contains step-id pattern but lacks DES markers." Fix: Added `<!-- DES-ENFORCEMENT : exempt -->` marker for non-step-execution tasks.
+   - **Roadmap reviewer REJECTED**: 4 findings (missing queries.ts in 01-01, backend endpoint ordering, polling criteria incomplete, file coverage gap). Fix: Added polling criterion to 01-02, added `depends_on: [01-01]` to 04-01, noted queries.ts is already in 04-01 files_to_modify (reviewer error on D4).
+
+5. Problem Solving:
+   - Resolved feed vs library overlap by establishing clear responsibility: feed = push notifications, library = pull management
+   - Simplified US-LL-02 from dedicated triage workflow to inline pending actions (reduced from 2 days to 1 day)
+   - All pure logic extracted to separate `*-logic.ts` files for testability without DOM testing library
+   - Background agent DES hook issue resolved by using foreground sequential dispatch
+
+6. All User Messages:
+   - "yes" (confirming decision points for DISCUSS wave)
+   - "'Approve/Dismiss Pending Learnings' is already a part of the governance feed. what do we do here? only show in feed? only show in library? show in both?"
+   - "sounds ideal" (confirming feed=notification, library=management approach)
+   - "yes this sounds good" (confirming US-LL-02 simplification approach with quoted rationale)
+   - "commit and /nw:design" (requesting commit of DISCUSS artifacts + launching DESIGN wave)
+   - "commit" (requesting commit of DESIGN+DISTILL artifacts)
+   - "/nw:distill learning-library" (launching DISTILL wave)
+   - "commit" (requesting commit)
+   - "/nw:deliver learning-library" (launching DELIVER wave)
+   - Stop hook feedback about MCP tools not available (ignored as instructed)
+
+7. Pending Tasks:
+   - **Phase 3 — L1-L4 Refactoring**: Collect modified files, run refactoring pass (unless rigor.refactor_pass = false — not set, so should run)
+   - **Phase 4 — Adversarial Review**: Review all modified files (rigor.review_enabled = true)
+   - **Phase 5 — Mutation Testing**: Per-feature strategy, gate ≥80% kill rate
+   - **Phase 6 — Deliver Integrity Verification**: Run DES CLI verify
+   - **Phase 7 — Finalize**: Archive to docs/evolution/, commit, clean up session files
+   - **Phase 8 — Retrospective**: Conditional (note DES hook issues)
+   - **Phase 9 — Report Completion**: Display summary
+
+8. Current Work:
+   All 10 roadmap steps have been executed and committed. The execution log shows all steps (01-01, 01-02, 02-01, 02-02, 02-03, 03-01, 03-02, 03-03, 04-01, 04-02) with COMMIT/PASS status. Git log shows 10 feat commits from `eb8699fe` through `2bd289d6`. 100 unit tests pass across all learning-library test suites. The DELIVER wave Phase 2 (Execute All Steps) is complete. I just verified the execution log and git log showing all 10 steps committed successfully.
+
+9. Optional Next Step:
+   Continue the DELIVER wave orchestration flow. Per the `/nw:deliver` command specification, after Phase 2 (Execute All Steps) completes, the next phases are:
+   - **Phase 3 — Complete Refactoring (L1-L4)**: Collect modified files via `git diff --name-only {base-commit}..HEAD`, split into production and test files, run refactoring pass
+   - Then Phase 4 (Adversarial Review), Phase 5 (Mutation Testing), Phase 6 (Integrity Verification), Phase 7 (Finalize)
+   
+   The rigor config has `review_enabled: true` and no `refactor_pass: false`, so all phases should run.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-conductor-workspaces-brain-v1-karachi/1edd90b0-2d8c-4727-b842-43d39b691d9c.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
