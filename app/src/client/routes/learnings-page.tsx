@@ -1,7 +1,10 @@
 import { useCallback } from "react";
 import { StatusTabs, computeStatusCounts } from "../components/learning/StatusTabs";
 import { LearningFilters } from "../components/learning/LearningFilters";
+import { LearningList } from "../components/learning/LearningList";
+import { filterLearningsByStatus } from "../components/learning/learning-card-logic";
 import { useLearnings } from "../hooks/use-learnings";
+import type { LearningCardAction } from "../components/learning/LearningCard";
 import type { LearningStatus, LearningType } from "../../shared/contracts";
 
 export function LearningsPage() {
@@ -9,6 +12,14 @@ export function LearningsPage() {
 
   const activeStatus: LearningStatus = filters.status ?? "active";
   const counts = computeStatusCounts(learnings);
+  const filteredLearnings = filterLearningsByStatus(learnings, activeStatus);
+
+  const handleCardAction = useCallback(
+    (_action: LearningCardAction) => {
+      // Action dialog wiring is step 03-03
+    },
+    [],
+  );
 
   const handleStatusChange = useCallback(
     (status: LearningStatus) => {
@@ -45,8 +56,12 @@ export function LearningsPage() {
         onTypeChange={handleTypeChange}
         onAgentChange={handleAgentChange}
       />
-      {isLoading && <p className="learnings-page__loading">Loading learnings...</p>}
       {error && <p className="learnings-page__error">{error}</p>}
+      <LearningList
+        learnings={filteredLearnings}
+        isLoading={isLoading}
+        onAction={handleCardAction}
+      />
     </section>
   );
 }

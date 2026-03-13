@@ -1255,6 +1255,202 @@ body {
   color: var(--destructive, #ef4444);
 }
 
+/* Learning list */
+
+.learning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.learning-list__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+/* Learning card */
+
+.learning-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  padding: 0.75rem 1rem;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.learning-card:hover {
+  border-color: var(--hover);
+}
+
+.learning-card--pending_approval {
+  border-left: 3px solid var(--tier-review, #f59e0b);
+}
+
+.learning-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.learning-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.learning-card__type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: var(--ring);
+  color: var(--background);
+}
+
+.learning-card__type-badge--constraint {
+  background: var(--destructive, #ef4444);
+}
+
+.learning-card__type-badge--instruction {
+  background: var(--ring);
+}
+
+.learning-card__type-badge--precedent {
+  background: var(--tier-awareness, #6366f1);
+}
+
+.learning-card__priority {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: var(--border);
+  color: var(--foreground);
+}
+
+.learning-card__priority--critical {
+  background: var(--destructive, #ef4444);
+  color: var(--background);
+}
+
+.learning-card__priority--high {
+  background: var(--tier-review, #f59e0b);
+  color: var(--background);
+}
+
+.learning-card__source {
+  font-size: 0.6rem;
+  color: var(--muted-foreground);
+}
+
+.learning-card__timestamp {
+  font-size: 0.67rem;
+  color: var(--muted-foreground);
+}
+
+.learning-card__body {
+  margin-bottom: 0.4rem;
+}
+
+.learning-card__text {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--foreground);
+  white-space: pre-wrap;
+}
+
+.learning-card__expand-btn {
+  background: none;
+  border: none;
+  color: var(--ring);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.2rem;
+}
+
+.learning-card__expand-btn:hover {
+  text-decoration: underline;
+}
+
+.learning-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+.learning-card__suggested-by,
+.learning-card__confidence,
+.learning-card__dismissed-info,
+.learning-card__deactivated-info {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+.learning-card__actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.learning-card__action-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.learning-card__action-btn:hover {
+  background: var(--hover);
+}
+
+.learning-card__action-btn--approve {
+  border-color: var(--ring);
+  color: var(--ring);
+}
+
+.learning-card__action-btn--dismiss {
+  border-color: var(--destructive, #ef4444);
+  color: var(--destructive, #ef4444);
+}
+
+.learning-card__action-btn--deactivate {
+  border-color: var(--muted-foreground);
+  color: var(--muted-foreground);
+}
+
+/* Agent chips */
+
+.agent-chips {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.agent-chips__chip {
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: var(--border);
+  color: var(--foreground);
+}
+
 /* Graph icon on entity card */
 
 .entity-card-graph-link {
