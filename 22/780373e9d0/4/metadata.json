@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "22780373e9d0",
+  "session_id": "f35e98e1-a565-4339-962e-874e82bf4d29",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T17:26:16.477483Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "README.md",
+    "index.html"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bbdd3ff761fd",
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 56872,
+    "cache_read_tokens": 1224462,
+    "output_tokens": 7131,
+    "api_call_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T17:26:16.118365Z",
+    "agent_lines": 43,
+    "human_added": 997,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1040,
+    "agent_percentage": 4.134615384615384
+  }
+}

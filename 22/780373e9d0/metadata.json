@@ -3,7 +3,7 @@
   "checkpoint_id": "22780373e9d0",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-learnings",
-  "checkpoints_count": 9,
+  "checkpoints_count": 10,
   "files_touched": [
     ".nwave/des-config.json",
     ".nwave/des/des-task-active-observer-learning-proposals--",
@@ -50,13 +50,20 @@
       "context": "/22/780373e9d0/3/context.md",
       "content_hash": "/22/780373e9d0/3/content_hash.txt",
       "prompt": "/22/780373e9d0/3/prompt.txt"
+    },
+    {
+      "metadata": "/22/780373e9d0/4/metadata.json",
+      "transcript": "/22/780373e9d0/4/full.jsonl",
+      "context": "/22/780373e9d0/4/context.md",
+      "content_hash": "/22/780373e9d0/4/content_hash.txt",
+      "prompt": "/22/780373e9d0/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 229,
-    "cache_creation_tokens": 463534,
-    "cache_read_tokens": 11693327,
-    "output_tokens": 43554,
-    "api_call_count": 127
+    "input_tokens": 260,
+    "cache_creation_tokens": 520406,
+    "cache_read_tokens": 12917789,
+    "output_tokens": 50685,
+    "api_call_count": 148
   }
 }
