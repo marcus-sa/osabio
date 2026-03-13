@@ -5,7 +5,11 @@
   "branch": "marcus-sa/agent-learnings",
   "checkpoints_count": 1,
   "files_touched": [
-    "docs/feature/learning-library/execution-log.yaml"
+    "app/src/client/components/learning/LearningFilters.tsx",
+    "app/src/client/routes/learnings-page.tsx",
+    "app/src/client/styles.css",
+    "docs/feature/learning-library/execution-log.yaml",
+    "tests/unit/learning-library/learning-filters.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +18,13 @@
       "context": "/4a/b763ff9a0b/0/context.md",
       "content_hash": "/4a/b763ff9a0b/0/content_hash.txt",
       "prompt": "/4a/b763ff9a0b/0/prompt.txt"
+    },
+    {
+      "metadata": "/4a/b763ff9a0b/1/metadata.json",
+      "transcript": "/4a/b763ff9a0b/1/full.jsonl",
+      "context": "",
+      "content_hash": "/4a/b763ff9a0b/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {

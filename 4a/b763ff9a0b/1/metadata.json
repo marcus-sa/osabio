@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4ab763ff9a0b",
+  "session_id": "ca935cf1-0af8-4137-a645-78f91d5d37a5",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T11:19:03.389905Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/learning/LearningFilters.tsx",
+    "app/src/client/routes/learnings-page.tsx",
+    "app/src/client/styles.css",
+    "docs/feature/learning-library/execution-log.yaml",
+    "tests/unit/learning-library/learning-filters.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "88b3fefccdf4",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T11:19:03.387788Z",
+    "agent_lines": 31,
+    "human_added": 216,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 248,
+    "agent_percentage": 12.5
+  }
+}
