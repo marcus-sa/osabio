@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "60fce10e9f98",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-031-root-cause-trace-for-observer-learning-proposals.md",
+    "docs/feature/observer-learning-proposals/design/architecture-design.md",
+    "docs/feature/observer-learning-proposals/design/component-boundaries.md",
+    "docs/feature/observer-learning-proposals/design/technology-stack.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/60/fce10e9f98/0/metadata.json",
+      "transcript": "/60/fce10e9f98/0/full.jsonl",
+      "context": "/60/fce10e9f98/0/context.md",
+      "content_hash": "/60/fce10e9f98/0/content_hash.txt",
+      "prompt": "/60/fce10e9f98/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 31750,
+    "cache_read_tokens": 10751,
+    "output_tokens": 78,
+    "api_call_count": 1
+  }
+}
