@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2744d800f753",
+  "session_id": "fe045379-be19-4e43-8dbe-9de4e77feb32",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T08:07:12.167916Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/ux/learning-library/journey-browse-library.feature",
+    "docs/ux/learning-library/journey-browse-library.yaml",
+    "docs/ux/learning-library/journey-triage-pending.feature",
+    "docs/ux/learning-library/journey-triage-pending.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b966a4962681",
+  "token_usage": {
+    "input_tokens": 1803,
+    "cache_creation_tokens": 51797,
+    "cache_read_tokens": 304393,
+    "output_tokens": 2926,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T08:07:12.090775Z",
+    "agent_lines": 280,
+    "human_added": 1937,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2217,
+    "agent_percentage": 12.629679747406405
+  }
+}
