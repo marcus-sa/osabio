@@ -3,7 +3,7 @@
   "checkpoint_id": "bc35c4c73fb4",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-learnings",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/server/observer/graph-scan.ts",
     "app/src/server/observer/learning-diagnosis.ts",
@@ -24,13 +24,20 @@
       "context": "/bc/35c4c73fb4/1/context.md",
       "content_hash": "/bc/35c4c73fb4/1/content_hash.txt",
       "prompt": "/bc/35c4c73fb4/1/prompt.txt"
+    },
+    {
+      "metadata": "/bc/35c4c73fb4/2/metadata.json",
+      "transcript": "/bc/35c4c73fb4/2/full.jsonl",
+      "context": "/bc/35c4c73fb4/2/context.md",
+      "content_hash": "/bc/35c4c73fb4/2/content_hash.txt",
+      "prompt": "/bc/35c4c73fb4/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 88,
+    "cache_creation_tokens": 124435,
+    "cache_read_tokens": 5154967,
+    "output_tokens": 25762,
+    "api_call_count": 54
   }
 }
