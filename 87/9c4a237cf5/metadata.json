@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "879c4a237cf5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 5,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "OBJECTIVE_BEHAVIOR.md",
+    "docs/adrs/ADR-032-embedding-similarity-for-intent-objective-alignment.md",
+    "docs/adrs/ADR-033-per-session-behavior-records-over-aggregation.md",
+    "docs/adrs/ADR-034-behavior-policy-via-context-enrichment.md",
+    "docs/feature/objective-behavior/design/architecture-design.md",
+    "docs/feature/objective-behavior/design/component-boundaries.md",
+    "docs/feature/objective-behavior/design/data-models.md",
+    "docs/feature/objective-behavior/design/technology-stack.md",
+    "docs/feature/objective-behavior/distill/test-scenarios.md",
+    "docs/feature/objective-behavior/distill/walking-skeleton.md",
+    "docs/requirements/objective-behavior/acceptance-criteria.md",
+    "docs/requirements/objective-behavior/dor-checklist.md",
+    "docs/requirements/objective-behavior/requirements.md",
+    "docs/requirements/objective-behavior/user-stories.md",
+    "docs/ux/objective-behavior/journey-behavioral-governance-visual.md",
+    "docs/ux/objective-behavior/journey-behavioral-governance.feature",
+    "docs/ux/objective-behavior/journey-behavioral-governance.yaml",
+    "docs/ux/objective-behavior/journey-strategic-alignment-visual.md",
+    "docs/ux/objective-behavior/journey-strategic-alignment.feature",
+    "docs/ux/objective-behavior/journey-strategic-alignment.yaml",
+    "docs/ux/objective-behavior/jtbd-four-forces.md",
+    "docs/ux/objective-behavior/jtbd-job-stories.md",
+    "docs/ux/objective-behavior/jtbd-opportunity-scores.md",
+    "docs/ux/objective-behavior/shared-artifacts-registry.md",
+    "tests/acceptance/objective-behavior/behavior-learning.test.ts",
+    "tests/acceptance/objective-behavior/behavior-policy.test.ts",
+    "tests/acceptance/objective-behavior/behavior-telemetry.test.ts",
+    "tests/acceptance/objective-behavior/coherence-auditor.test.ts",
+    "tests/acceptance/objective-behavior/intent-alignment.test.ts",
+    "tests/acceptance/objective-behavior/objective-behavior-test-kit.ts",
+    "tests/acceptance/objective-behavior/objective-crud.test.ts",
+    "tests/acceptance/objective-behavior/objective-progress.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/9c4a237cf5/0/metadata.json",
+      "transcript": "/87/9c4a237cf5/0/full.jsonl",
+      "context": "/87/9c4a237cf5/0/context.md",
+      "content_hash": "/87/9c4a237cf5/0/content_hash.txt",
+      "prompt": "/87/9c4a237cf5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 271179,
+    "cache_read_tokens": 1162712,
+    "output_tokens": 15805,
+    "api_call_count": 25
+  }
+}
