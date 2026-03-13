@@ -3,7 +3,7 @@
   "checkpoint_id": "60fce10e9f98",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-learnings",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "docs/adrs/ADR-031-root-cause-trace-for-observer-learning-proposals.md",
     "docs/feature/observer-learning-proposals/design/architecture-design.md",
@@ -31,13 +31,20 @@
       "context": "/60/fce10e9f98/2/context.md",
       "content_hash": "/60/fce10e9f98/2/content_hash.txt",
       "prompt": "/60/fce10e9f98/2/prompt.txt"
+    },
+    {
+      "metadata": "/60/fce10e9f98/3/metadata.json",
+      "transcript": "/60/fce10e9f98/3/full.jsonl",
+      "context": "/60/fce10e9f98/3/context.md",
+      "content_hash": "/60/fce10e9f98/3/content_hash.txt",
+      "prompt": "/60/fce10e9f98/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3,
-    "cache_creation_tokens": 31750,
-    "cache_read_tokens": 10751,
-    "output_tokens": 78,
-    "api_call_count": 1
+    "input_tokens": 58,
+    "cache_creation_tokens": 106986,
+    "cache_read_tokens": 4733998,
+    "output_tokens": 18962,
+    "api_call_count": 38
   }
 }

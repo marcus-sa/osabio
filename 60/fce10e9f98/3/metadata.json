@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "60fce10e9f98",
+  "session_id": "fe045379-be19-4e43-8dbe-9de4e77feb32",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T13:18:35.590451Z",
+  "branch": "marcus-sa/agent-learnings",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-031-root-cause-trace-for-observer-learning-proposals.md",
+    "docs/feature/observer-learning-proposals/design/architecture-design.md",
+    "docs/feature/observer-learning-proposals/design/component-boundaries.md",
+    "docs/feature/observer-learning-proposals/design/technology-stack.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a97f87dbe865",
+  "checkpoint_transcript_start": 210,
+  "transcript_lines_at_start": 210,
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 75236,
+    "cache_read_tokens": 4723247,
+    "output_tokens": 18884,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T13:18:35.169857Z",
+    "agent_lines": 629,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 629,
+    "agent_percentage": 100
+  }
+}
