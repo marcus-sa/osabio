@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ac492272a7a0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/graph/EntityBadge.tsx",
+    "app/src/client/components/graph/graph-theme.ts",
+    "app/src/client/styles.css",
+    "app/src/server/entities/entity-detail-route.ts",
+    "app/src/server/graph/graph-route.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/graph/transform.ts",
+    "app/src/shared/contracts.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ac/492272a7a0/0/metadata.json",
+      "transcript": "/ac/492272a7a0/0/full.jsonl",
+      "context": "/ac/492272a7a0/0/context.md",
+      "content_hash": "/ac/492272a7a0/0/content_hash.txt",
+      "prompt": "/ac/492272a7a0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 301173,
+    "cache_read_tokens": 874190,
+    "output_tokens": 4502,
+    "api_call_count": 12
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ac492272a7a0",
+  "session_id": "2b42bc37-9e94-424f-b5ef-9dde3d28f5c3",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-13T19:11:30.484067Z",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/graph/EntityBadge.tsx",
+    "app/src/client/components/graph/graph-theme.ts",
+    "app/src/client/styles.css",
+    "app/src/server/entities/entity-detail-route.ts",
+    "app/src/server/graph/graph-route.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/graph/transform.ts",
+    "app/src/shared/contracts.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d6457e4d75c3",
+  "checkpoint_transcript_start": 719,
+  "transcript_lines_at_start": 719,
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 301173,
+    "cache_read_tokens": 874190,
+    "output_tokens": 4502,
+    "api_call_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-13T19:11:29.304605Z",
+    "agent_lines": 23,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 23,
+    "agent_percentage": 100
+  }
+}
