@@ -253,6 +253,15 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/policies/:policyId/versions": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/policies/:policyId/versions",
+          "GET",
+          (request) => policyHandlers.handleVersionHistory(
+            request.params.workspaceId,
+            request.params.policyId,
+            request,
+          ),
+        ),
         POST: withRequestLogging(
           "POST /api/workspaces/:workspaceId/policies/:policyId/versions",
           "POST",

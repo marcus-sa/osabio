@@ -158,7 +158,7 @@ describe("Milestone 5: Supersede Atomicity (US-PCUI-05)", () => {
   // Activating new version supersedes the old version atomically
   // AC: Old version -> superseded, new version -> active, edges moved
   // ---------------------------------------------------------------------------
-  it.skip("activating new version supersedes the old version atomically", async () => {
+  it("activating new version supersedes the old version atomically", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given v1 active and v2 created as draft from v1
@@ -218,7 +218,7 @@ describe("Milestone 5: Version History (US-PCUI-07)", () => {
   // Version history returns all versions ordered by version number
   // AC: GET /versions returns complete chain
   // ---------------------------------------------------------------------------
-  it.skip("version history returns all versions in the chain", async () => {
+  it("version history returns all versions in the chain", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given v1 active, v2 created and activated (v1 superseded)
@@ -266,7 +266,7 @@ describe("Milestone 5: Version History (US-PCUI-07)", () => {
   // ---------------------------------------------------------------------------
   // Version history for non-existent policy returns 404
   // ---------------------------------------------------------------------------
-  it.skip("version history for non-existent policy returns 404", async () => {
+  it("version history for non-existent policy returns 404", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a workspace with no matching policy

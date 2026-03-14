@@ -42,7 +42,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
   // Walking Skeleton: Intent evaluation persists policy trace
   // AC: Reviewer can see which rules matched and why on the intent record
   // ---------------------------------------------------------------------------
-  it.skip("intent evaluation includes policy trace with matching rules", async () => {
+  it("intent evaluation includes policy trace with matching rules", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an active policy with a deny rule
@@ -106,7 +106,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
   // Policy trace captures both matched and unmatched rules
   // AC: Trace shows full picture of rule evaluation
   // ---------------------------------------------------------------------------
-  it.skip("policy trace captures both matched and unmatched rules", async () => {
+  it("policy trace captures both matched and unmatched rules", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given two active policies with rules that partially match
@@ -181,7 +181,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
   // Policy trace links back to policy detail
   // AC: Each trace entry's policy_id resolves to a valid policy detail
   // ---------------------------------------------------------------------------
-  it.skip("policy trace entries link to retrievable policy details", async () => {
+  it("policy trace entries link to retrievable policy details", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an evaluated intent with a policy trace
@@ -245,7 +245,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
   // Empty policy trace when no policies are active
   // AC: Intent evaluated with no active policies has empty trace
   // ---------------------------------------------------------------------------
-  it.skip("intent evaluated with no active policies has empty policy trace", async () => {
+  it("intent evaluated with no active policies has empty policy trace", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with no active policies

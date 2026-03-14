@@ -4,7 +4,7 @@ import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import { activatePolicy, buildVersionChain, createPolicy, deprecatePolicy, getPolicyById, getPolicyEdges, listWorkspacePolicies } from "./policy-queries";
+import { activatePolicy, buildVersionChain, createPolicy, deprecatePolicy, getPolicyById, getPolicyEdges, getVersionChain, listWorkspacePolicies } from "./policy-queries";
 import { validatePolicyCreateBody } from "./policy-validation";
 import type { PolicyRecord, PolicyRule, PolicySelector, PolicyStatus } from "./types";
 
@@ -99,6 +99,8 @@ export function createPolicyRouteHandlers(deps: ServerDependencies) {
       handleDeprecatePolicy(deps, workspaceId, policyId, request),
     handleCreateVersion: (workspaceId: string, policyId: string, request: Request) =>
       handleCreatePolicyVersion(deps, workspaceId, policyId, request),
+    handleVersionHistory: (workspaceId: string, policyId: string, request: Request) =>
+      handleGetVersionHistory(deps, workspaceId, policyId, request),
   };
 }
 
@@ -171,7 +173,7 @@ async function handlePolicyDetail(
     }
 
     const edges = await getPolicyEdges(deps.surreal, policyId);
-    const versionChain = buildVersionChain(policy);
+    const versionChain = await buildVersionChain(deps.surreal, policy);
 
     return jsonResponse({
       policy: {
@@ -392,5 +394,32 @@ async function handleCreatePolicyVersion(
   } catch (error) {
     logError("policy.version.failed", "Failed to create policy version", error, { workspaceId, policyId });
     return jsonError("failed to create policy version", 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/workspaces/:workspaceId/policies/:policyId/versions
+// ---------------------------------------------------------------------------
+
+async function handleGetVersionHistory(
+  deps: ServerDependencies,
+  workspaceId: string,
+  policyId: string,
+  _request: Request,
+): Promise<Response> {
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "policy.versions.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
+
+  try {
+    const versions = await getVersionChain(deps.surreal, policyId, workspaceRecord);
+    if (!versions) {
+      return jsonError("policy not found", 404);
+    }
+
+    return jsonResponse({ versions }, 200);
+  } catch (error) {
+    logError("policy.versions.failed", "Failed to get version history", error, { workspaceId, policyId });
+    return jsonError("failed to get version history", 500);
   }
 }

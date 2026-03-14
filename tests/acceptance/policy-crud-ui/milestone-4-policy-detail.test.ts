@@ -172,7 +172,7 @@ describe("Milestone 4: Version History in Detail (US-PCUI-07)", () => {
   // Policy with supersedes chain shows version history
   // AC: Version chain traverses supersedes references
   // ---------------------------------------------------------------------------
-  it.skip("policy detail includes version chain from supersedes references", async () => {
+  it("policy detail includes version chain from supersedes references", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given v1 active, then v2 created from v1 (v1 becomes superseded)
@@ -219,7 +219,7 @@ describe("Milestone 4: Version History in Detail (US-PCUI-07)", () => {
   // Single version policy has one-element version chain
   // AC: No supersedes means version chain is just this policy
   // ---------------------------------------------------------------------------
-  it.skip("single version policy shows only itself in version chain", async () => {
+  it("single version policy shows only itself in version chain", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a standalone policy with no supersedes
