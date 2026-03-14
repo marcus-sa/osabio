@@ -1,0 +1,24 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-14T03:52:26Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-14T03:54:43Z'
+- d: 'NOT_APPLICABLE: identity guard is a trivial predicate (identityType === ''agent''),
+    fully covered by 6 acceptance scenarios through the driving port'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-14T03:54:51Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-14T03:56:50Z'
+project_id: policy-crud-ui
+schema_version: '3.0'

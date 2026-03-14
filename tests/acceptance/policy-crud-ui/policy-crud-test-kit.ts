@@ -322,6 +322,45 @@ export async function createAgentIdentityInWorkspace(
 }
 
 // ---------------------------------------------------------------------------
+// Identity Linkage Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolves the person record for a session user by calling the auth session
+ * endpoint, then replaces the identity_person edge so the user resolves to
+ * the given identity. Used to make a session user appear as an agent identity.
+ */
+export async function linkUserToIdentity(
+  baseUrl: string,
+  surreal: Surreal,
+  user: { headers: Record<string, string> },
+  identityId: string,
+): Promise<void> {
+  // Resolve person ID from session
+  const sessionResponse = await fetch(`${baseUrl}/api/auth/get-session`, {
+    headers: user.headers,
+  });
+  const session = (await sessionResponse.json()) as { user?: { id?: string } };
+  const personId = session?.user?.id;
+  if (!personId) throw new Error("Could not resolve person ID from session");
+
+  const personRecord = new RecordId("person", personId);
+  const identityRecord = new RecordId("identity", identityId);
+
+  // Remove existing identity_person edges for this person
+  await surreal.query(
+    `DELETE identity_person WHERE out = $person;`,
+    { person: personRecord },
+  );
+
+  // Create new edge from target identity to person
+  await surreal.query(
+    `RELATE $identity->identity_person->$person SET added_at = time::now();`,
+    { identity: identityRecord, person: personRecord },
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Common Test Data Builders
 // ---------------------------------------------------------------------------
 

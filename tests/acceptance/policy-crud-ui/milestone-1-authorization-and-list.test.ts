@@ -30,6 +30,7 @@ import {
   getPolicyDetail,
   buildPolicyBody,
   buildMinimalRule,
+  linkUserToIdentity,
   type PolicyListResponse,
 } from "./policy-crud-test-kit";
 
@@ -45,13 +46,14 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity is denied policy creation
   // AC: Agent identities receive 403 on POST /policies
   // ---------------------------------------------------------------------------
-  it.skip("agent identity is denied when attempting to create a policy", async () => {
+  it("agent identity is denied when attempting to create a policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given an agent identity in a workspace
+    // Given an agent identity linked to the session user
     const user = await createTestUser(baseUrl, "m1-agent-create");
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent attempts to create a policy
     const response = await createPolicyViaApi(
@@ -71,10 +73,10 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity is denied policy activation
   // AC: Agent identities receive 403 on PATCH /policies/:id/activate
   // ---------------------------------------------------------------------------
-  it.skip("agent identity is denied when attempting to activate a policy", async () => {
+  it("agent identity is denied when attempting to activate a policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given a draft policy in the workspace
+    // Given a draft policy in the workspace and an agent-linked session user
     const user = await createTestUser(baseUrl, "m1-agent-activate");
     const workspace = await createTestWorkspace(baseUrl, user);
     const adminId = await createTestIdentity(surreal, "admin", "human", workspace.workspaceId);
@@ -82,6 +84,8 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
       title: "Draft Policy",
       rules: [{ id: "r1", condition: { field: "action_spec.action", operator: "eq", value: "deploy" }, effect: "deny", priority: 100 }],
     });
+    const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent attempts to activate the policy
     const response = await activatePolicyViaApi(
@@ -99,10 +103,10 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity is denied policy deprecation
   // AC: Agent identities receive 403 on PATCH /policies/:id/deprecate
   // ---------------------------------------------------------------------------
-  it.skip("agent identity is denied when attempting to deprecate a policy", async () => {
+  it("agent identity is denied when attempting to deprecate a policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given an active policy in the workspace
+    // Given an active policy in the workspace and an agent-linked session user
     const user = await createTestUser(baseUrl, "m1-agent-deprecate");
     const workspace = await createTestWorkspace(baseUrl, user);
     const adminId = await createTestIdentity(surreal, "admin", "human", workspace.workspaceId);
@@ -111,6 +115,8 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
       rules: [{ id: "r1", condition: { field: "action_spec.action", operator: "eq", value: "read" }, effect: "allow", priority: 10 }],
     });
     await activatePolicy(surreal, policyId, adminId, workspace.workspaceId);
+    const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent attempts to deprecate the policy
     const response = await deprecatePolicyViaApi(
@@ -128,10 +134,10 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity is denied version creation
   // AC: Agent identities receive 403 on POST /policies/:id/versions
   // ---------------------------------------------------------------------------
-  it.skip("agent identity is denied when attempting to create a policy version", async () => {
+  it("agent identity is denied when attempting to create a policy version", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given an active policy in the workspace
+    // Given an active policy in the workspace and an agent-linked session user
     const user = await createTestUser(baseUrl, "m1-agent-version");
     const workspace = await createTestWorkspace(baseUrl, user);
     const adminId = await createTestIdentity(surreal, "admin", "human", workspace.workspaceId);
@@ -140,6 +146,8 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
       rules: [{ id: "r1", condition: { field: "action_spec.action", operator: "eq", value: "deploy" }, effect: "deny", priority: 100 }],
     });
     await activatePolicy(surreal, policyId, adminId, workspace.workspaceId);
+    const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent attempts to create a new version
     const response = await createPolicyVersionViaApi(
@@ -157,10 +165,10 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity can read the policy list
   // AC: Agent identities receive 200 on GET /policies
   // ---------------------------------------------------------------------------
-  it.skip("agent identity can read the policy list", async () => {
+  it("agent identity can read the policy list", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given a workspace with an active policy
+    // Given a workspace with a policy and an agent-linked session user
     const user = await createTestUser(baseUrl, "m1-agent-read-list");
     const workspace = await createTestWorkspace(baseUrl, user);
     const adminId = await createTestIdentity(surreal, "admin", "human", workspace.workspaceId);
@@ -168,6 +176,8 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
       title: "Readable Policy",
       rules: [{ id: "r1", condition: { field: "action_spec.action", operator: "eq", value: "read" }, effect: "allow", priority: 10 }],
     });
+    const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent requests the policy list
     const response = await listPolicies(baseUrl, user.headers, workspace.workspaceId);
@@ -182,10 +192,10 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
   // Agent identity can read policy details
   // AC: Agent identities receive 200 on GET /policies/:id
   // ---------------------------------------------------------------------------
-  it.skip("agent identity can read policy details", async () => {
+  it("agent identity can read policy details", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given a draft policy in the workspace
+    // Given a draft policy in the workspace and an agent-linked session user
     const user = await createTestUser(baseUrl, "m1-agent-read-detail");
     const workspace = await createTestWorkspace(baseUrl, user);
     const adminId = await createTestIdentity(surreal, "admin", "human", workspace.workspaceId);
@@ -193,6 +203,8 @@ describe("Milestone 1: Agent Authorization Gate (US-PCUI-08)", () => {
       title: "Detail Readable Policy",
       rules: [{ id: "r1", condition: { field: "action_spec.action", operator: "eq", value: "deploy" }, effect: "deny", priority: 100 }],
     });
+    const agentId = await createTestIdentity(surreal, "coding-agent", "agent", workspace.workspaceId);
+    await linkUserToIdentity(baseUrl, surreal, user, agentId);
 
     // When the agent requests policy details
     const response = await getPolicyDetail(baseUrl, user.headers, workspace.workspaceId, policyId);
