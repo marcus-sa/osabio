@@ -1,0 +1,126 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/hangzhou-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 4 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: 
+Line: undefined
+User comment: "<h3>Confidence Score: 3/5</h3>
+
+- Safe to merge with caution — the core authorization and concurrency fixes are in place, but the `description` type mismatch and unvalidated status filter should be resolved before relying on this in production.
+- Score of 3 reflects that the majority of previously flagged critical issues (TOCTOU races, unauthenticated reads, missing rule validation) have been addressed in this revision. The remaining concerns are a lingering TypeScript/DB schema mismatch on `description` (which can cause silent `undefined` propagation in version copies), an unvalidated status query parameter, and an unvalidated rule copy path in version creation. None are blocking for initial use but should be resolved before the feature is depended on broadly.
+- `app/src/server/policy/types.ts` (description field mismatch with DB schema) and `app/src/server/policy/policy-route.ts` (unvalidated status filter and unvalidated version-copy rules).
+
+<!-- greptile_other_comments_section -->
+
+<sub>Last reviewed commit: e5df907</sub>"
+
+Comment metadata:
+This comment was left on a file.
+This comment was left on GitHub by @greptile-apps.
+
+
+Comment #2:
+
+File: app/src/server/policy/policy-route.ts
+Line: 403
+User comment: "**Version creation ignores request body — rules can never differ from source**
+
+`handleCreatePolicyVersion` never reads `request.body`. It always creates an exact byte-for-byte copy of the source policy's `title`, `description`, `selector`, `rules`, `human_veto_required`, and `max_ttl`. Because there is also no `PATCH`/`PUT` endpoint for updating a draft policy anywhere in `createPolicyRouteHandlers`, a user who creates a new version through this endpoint has no API surface to modify its rules before activating it.
+
+The typical versioning workflow is: create draft → **edit draft** → activate. The "edit draft" step is missing — callers are stuck with an immutable copy.
+
+Consider parsing an optional request body and merging the provided fields:
+
+```typescript
+let overrides: Partial<{ title: string; description: string; rules: PolicyRule[] }> = {};
+try {
+  const raw = await request.json().catch(() => ({}));
+  if (raw && typeof raw === "object") overrides = raw as typeof overrides;
+} catch { /* ignore */ }
+
+const { policyId: newPolicyId, version } = await createPolicy(deps.surreal, {
+  title: overrides.title ?? sourcePolicy.title,
+  description: overrides.description ?? sourcePolicy.description,
+  rules: overrides.rules ?? sourcePolicy.rules,
+  ...
+});
+```
+
+Or add a separate `PATCH /policies/:policyId` endpoint, but either way the gap should be closed before this feature is considered complete."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50VOsU. 
+
+
+Comment #3:
+
+File: app/src/server/policy/types.ts
+Line: 51
+User comment: "**TypeScript type contradicts the SurrealDB schema — `description` is `option<string>` in the DB**
+
+The SurrealDB schema defines:
+```surql
+DEFINE FIELD description ON policy TYPE option<string>;
+```
+
+But this PR changes `PolicyRecord.description` from `?: string` to `: string` (non-optional). Pre-existing records in the database that were created before this PR (when `description` was nullable) will have `undefined` here at runtime, even though TypeScript now considers it a guaranteed `string`.
+
+The most concrete impact is in `handleCreatePolicyVersion` (policy-route.ts:388):
+```typescript
+description: sourcePolicy.description,  // typed string, runtime may be undefined
+```
+This silently propagates `undefined` as the description of the new draft version, bypassing the `validatePolicyCreateBody` check that would otherwise require a non-empty string.
+
+Either revert to `description?: string` to match the DB schema, or add a `DEFAULT ""` to the SurrealDB field definition and a data migration to backfill existing records.
+
+```suggestion
+  description?: string;
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50VOsc. 
+
+
+Comment #4:
+
+File: app/src/server/orchestrator/worktree-manager.ts
+Line: 110
+User comment: "**`git worktree prune` and `git worktree add` are not atomic — race condition under concurrent use**
+
+`git worktree prune` modifies the shared `.git/worktrees/` directory for the entire repository. If two `createWorktree` calls run concurrently on the same repo root (which is realistic given that multiple orchestrator sessions can start in parallel):
+
+1. Session A: calls `git worktree prune` — removes any stale metadata
+2. Session B: calls `git worktree prune` — also fine so far
+3. Session A: calls `git worktree add -b agent/slug-A ...` — creates `.git/worktrees/agent-slug-A/`
+4. **Session B**: calls `git worktree prune` again (on the next request) — could prune session A's newly-created but not-yet-fully-initialised worktree entry if it appears stale, causing session A's subsequent git operations to fail
+
+The prune is also unnecessary in the common case where no stale entries exist. Consider making prune a separate, explicitly-invoked maintenance operation, or use a per-repo lock around the `prune` + `add` sequence to make it atomic."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50VOsh. 
+
+</system-instruction>
+
+---
+
+Commit and push all changes
