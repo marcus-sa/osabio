@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "afb632c35dc9",
+  "session_id": "b777d98d-69cc-40fc-a115-4e159956e94b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T10:57:14.155482Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/runtime/config.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/runtime/types.ts",
+    "evals/eval-test-kit.ts",
+    "app/src/server/agents/observer/agent.ts",
+    "app/src/server/observer/observer-route.ts",
+    "app/src/server/runtime/dependencies.ts",
+    "tests/unit/runtime/observer-config.test.ts",
+    "bun.lock",
+    "tests/AGENTS.md",
+    "tests/acceptance/workspace/intent-context.test.ts",
+    ".env.example",
+    ".github/workflows/ci.yml",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "package.json",
+    ".env.ollama.example",
+    "README.md",
+    "app/src/server/behavior/scorer-dispatcher.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "437c1cc37cda",
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 31686,
+    "cache_read_tokens": 25322,
+    "output_tokens": 503,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T10:57:14.14042Z",
+    "agent_lines": 0,
+    "human_added": 83,
+    "human_modified": 88,
+    "human_removed": 0,
+    "total_committed": 83,
+    "agent_percentage": 0
+  }
+}
