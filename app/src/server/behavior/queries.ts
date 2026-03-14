@@ -7,6 +7,12 @@
  */
 import { RecordId, type Surreal } from "surrealdb";
 import type { IntentEvaluationContext } from "../policy/types";
+import type {
+  BehaviorDefinitionRecord,
+  CreateBehaviorDefinitionInput,
+  UpdateBehaviorDefinitionInput,
+  DefinitionStatus,
+} from "./definition-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -179,4 +185,190 @@ export async function listWorkspaceBehaviors(
     : `SELECT * FROM behavior WHERE workspace = $ws ORDER BY created_at DESC LIMIT $limit;`;
   const rows = (await surreal.query(query, { ws: workspaceRecord, mt: metricType, limit })) as Array<BehaviorRow[]>;
   return rows[0] ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Status Transition Validation (pure function)
+// ---------------------------------------------------------------------------
+
+const VALID_STATUS_TRANSITIONS: Record<DefinitionStatus, DefinitionStatus[]> = {
+  draft: ["active", "archived"],
+  active: ["archived"],
+  archived: [],
+};
+
+/**
+ * Validates a status transition for a behavior definition.
+ * Valid transitions: draft->active, draft->archived, active->archived.
+ * Returns an error message if invalid, undefined if valid.
+ */
+export function validateStatusTransition(
+  currentStatus: DefinitionStatus,
+  newStatus: DefinitionStatus,
+): string | undefined {
+  if (currentStatus === newStatus) return undefined;
+  const allowed = VALID_STATUS_TRANSITIONS[currentStatus];
+  if (!allowed.includes(newStatus)) {
+    return `Invalid status transition: ${currentStatus} -> ${newStatus}`;
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Behavior Definition CRUD
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a behavior definition in the database.
+ * Definitions start in "draft" status at version 1 with "warn_only" enforcement.
+ */
+export async function createBehaviorDefinition(
+  surreal: Surreal,
+  workspaceId: string,
+  createdById: string,
+  input: CreateBehaviorDefinitionInput,
+): Promise<{ definitionId: string }> {
+  const definitionId = `def-${crypto.randomUUID()}`;
+  const definitionRecord = new RecordId("behavior_definition", definitionId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const createdByRecord = new RecordId("identity", createdById);
+
+  const content: Record<string, unknown> = {
+    title: input.title,
+    goal: input.goal,
+    scoring_logic: input.scoring_logic,
+    scoring_mode: input.scoring_mode,
+    telemetry_types: input.telemetry_types,
+    status: "draft",
+    version: 1,
+    enforcement_mode: "warn_only",
+    workspace: workspaceRecord,
+    created_by: createdByRecord,
+    created_at: new Date(),
+  };
+
+  if (input.category !== undefined) content.category = input.category;
+
+  await surreal.query(`CREATE $definition CONTENT $content;`, {
+    definition: definitionRecord,
+    content,
+  });
+
+  return { definitionId };
+}
+
+/**
+ * Retrieves a behavior definition by ID.
+ * Returns undefined if not found.
+ */
+export async function getBehaviorDefinition(
+  surreal: Surreal,
+  definitionId: string,
+): Promise<BehaviorDefinitionRecord | undefined> {
+  const definitionRecord = new RecordId("behavior_definition", definitionId);
+  const rows = (await surreal.query(
+    `SELECT * FROM $definition;`,
+    { definition: definitionRecord },
+  )) as Array<BehaviorDefinitionRecord[]>;
+  return rows[0]?.[0];
+}
+
+/**
+ * Lists behavior definitions for a workspace, optionally filtered by status.
+ * Returns records ordered by created_at DESC.
+ */
+export async function listBehaviorDefinitions(
+  surreal: Surreal,
+  workspaceId: string,
+  status?: DefinitionStatus,
+): Promise<BehaviorDefinitionRecord[]> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  if (status) {
+    const rows = (await surreal.query(
+      `SELECT * FROM behavior_definition WHERE workspace = $ws AND status = $status ORDER BY created_at DESC;`,
+      { ws: workspaceRecord, status },
+    )) as Array<BehaviorDefinitionRecord[]>;
+    return rows[0] ?? [];
+  }
+
+  const rows = (await surreal.query(
+    `SELECT * FROM behavior_definition WHERE workspace = $ws ORDER BY created_at DESC;`,
+    { ws: workspaceRecord },
+  )) as Array<BehaviorDefinitionRecord[]>;
+  return rows[0] ?? [];
+}
+
+/**
+ * Updates a behavior definition.
+ * - Validates status transitions (draft->active, active->archived, draft->archived only).
+ * - Increments version when updating an active definition.
+ * - Draft edits do not increment version.
+ * Returns the updated record or throws on invalid transition.
+ */
+export async function updateBehaviorDefinition(
+  surreal: Surreal,
+  definitionId: string,
+  input: UpdateBehaviorDefinitionInput,
+): Promise<BehaviorDefinitionRecord> {
+  const existing = await getBehaviorDefinition(surreal, definitionId);
+  if (!existing) {
+    throw new Error(`Behavior definition not found: ${definitionId}`);
+  }
+
+  // Validate status transition if status is being changed
+  if (input.status && input.status !== existing.status) {
+    const error = validateStatusTransition(existing.status, input.status);
+    if (error) throw new Error(error);
+  }
+
+  const definitionRecord = new RecordId("behavior_definition", definitionId);
+
+  // Determine whether to increment version:
+  // Only increment when the definition is active and content fields are being updated
+  const isActive = existing.status === "active";
+  const isContentUpdate = input.goal !== undefined
+    || input.scoring_logic !== undefined
+    || input.telemetry_types !== undefined
+    || input.category !== undefined;
+  const shouldIncrementVersion = isActive && isContentUpdate;
+
+  const setClauses: string[] = ["updated_at = time::now()"];
+  const params: Record<string, unknown> = { def: definitionRecord };
+
+  if (input.goal !== undefined) {
+    setClauses.push("goal = $goal");
+    params.goal = input.goal;
+  }
+  if (input.scoring_logic !== undefined) {
+    setClauses.push("scoring_logic = $scoring_logic");
+    params.scoring_logic = input.scoring_logic;
+  }
+  if (input.telemetry_types !== undefined) {
+    setClauses.push("telemetry_types = $telemetry_types");
+    params.telemetry_types = input.telemetry_types;
+  }
+  if (input.category !== undefined) {
+    setClauses.push("category = $category");
+    params.category = input.category;
+  }
+  if (input.status !== undefined) {
+    setClauses.push("status = $status");
+    params.status = input.status;
+  }
+  if (input.enforcement_mode !== undefined) {
+    setClauses.push("enforcement_mode = $enforcement_mode");
+    params.enforcement_mode = input.enforcement_mode;
+  }
+  if (input.enforcement_threshold !== undefined) {
+    setClauses.push("enforcement_threshold = $enforcement_threshold");
+    params.enforcement_threshold = input.enforcement_threshold;
+  }
+  if (shouldIncrementVersion) {
+    setClauses.push("version = version + 1");
+  }
+
+  const query = `UPDATE $def SET ${setClauses.join(", ")};`;
+  const rows = (await surreal.query(query, params)) as Array<BehaviorDefinitionRecord[]>;
+  return rows[0][0];
 }

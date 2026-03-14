@@ -20,5 +20,31 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-14T07:53:52Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-14T07:54:41Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-14T07:56:11Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-14T07:56:15Z'
+- d: 'NOT_APPLICABLE: status transition error tests are skipped in acceptance suite;
+    pure validation function tested implicitly through acceptance tests'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-02
+  t: '2026-03-14T07:56:23Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-14T07:57:16Z'
 project_id: dynamic-behaviors
 schema_version: '3.0'
