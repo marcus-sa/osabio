@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "eeb099f81271",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/behavior/definition-types.ts",
+    "app/src/server/behavior/queries.ts",
+    "docs/feature/dynamic-behaviors/execution-log.yaml",
+    "schema/migrations/0037_behavior_definition.surql",
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/b099f81271/0/metadata.json",
+      "transcript": "/ee/b099f81271/0/full.jsonl",
+      "context": "/ee/b099f81271/0/context.md",
+      "content_hash": "/ee/b099f81271/0/content_hash.txt",
+      "prompt": "/ee/b099f81271/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
