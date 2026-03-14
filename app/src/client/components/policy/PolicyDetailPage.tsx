@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useWorkspaceState } from "../../stores/workspace-state";
 import type { PolicyStatus } from "../../hooks/use-policies";
+import { VersionDiffView } from "./VersionDiffView";
 
 // ---------------------------------------------------------------------------
 // API response types (mirroring server shape)
@@ -313,9 +314,11 @@ function GovernanceEdgesSection({ edges }: { edges: PolicyEdgeInfo }) {
 function VersionHistorySection({
   versionChain,
   currentPolicyId,
+  onCompare,
 }: {
   versionChain: VersionChainItem[];
   currentPolicyId: string;
+  onCompare?: (oldVersionId: string, newVersionId: string) => void;
 }) {
   if (versionChain.length === 0) {
     return (
@@ -330,8 +333,12 @@ function VersionHistorySection({
     <div className="policy-detail__section">
       <h3 className="policy-detail__section-title">Version History</h3>
       <ul className="policy-detail__version-list">
-        {versionChain.map((version) => {
+        {versionChain.map((version, index) => {
           const isCurrent = version.id === currentPolicyId;
+          const nextVersion =
+            index < versionChain.length - 1
+              ? versionChain[index + 1]
+              : undefined;
           return (
             <li
               key={version.id}
@@ -358,9 +365,21 @@ function VersionHistorySection({
                     version.status}
                 </span>
               </div>
-              <span className="policy-detail__version-date">
-                {formatDate(version.created_at)}
-              </span>
+              <div className="policy-detail__version-actions">
+                {nextVersion && onCompare && (
+                  <button
+                    type="button"
+                    className="policy-detail__diff-btn"
+                    onClick={() => onCompare(nextVersion.id, version.id)}
+                    title={`Compare v${nextVersion.version} with v${version.version}`}
+                  >
+                    Diff v{nextVersion.version}
+                  </button>
+                )}
+                <span className="policy-detail__version-date">
+                  {formatDate(version.created_at)}
+                </span>
+              </div>
             </li>
           );
         })}
@@ -491,6 +510,10 @@ export function PolicyDetailPage() {
   >();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>();
+  const [diffPair, setDiffPair] = useState<
+    { oldPolicy: PolicyDetail; newPolicy: PolicyDetail } | undefined
+  >();
+  const [isDiffLoading, setIsDiffLoading] = useState(false);
 
   const fetchPolicy = useCallback(async () => {
     if (!workspaceId) return;
@@ -598,6 +621,35 @@ export function PolicyDetailPage() {
     }
   }, [workspaceId, policyId, confirmAction, fetchPolicy, navigate]);
 
+  const handleCompareVersions = useCallback(
+    async (oldVersionId: string, newVersionId: string) => {
+      if (!workspaceId) return;
+      setIsDiffLoading(true);
+      try {
+        const [oldRes, newRes] = await Promise.all([
+          fetch(buildPolicyDetailUrl(workspaceId, oldVersionId)),
+          fetch(buildPolicyDetailUrl(workspaceId, newVersionId)),
+        ]);
+        if (!oldRes.ok || !newRes.ok) {
+          throw new Error("Failed to fetch version details for comparison");
+        }
+        const oldData = (await oldRes.json()) as PolicyDetailResponse;
+        const newData = (await newRes.json()) as PolicyDetailResponse;
+        setDiffPair({
+          oldPolicy: oldData.policy,
+          newPolicy: newData.policy,
+        });
+      } catch (err) {
+        setActionError(
+          err instanceof Error ? err.message : "Failed to load diff",
+        );
+      } finally {
+        setIsDiffLoading(false);
+      }
+    },
+    [workspaceId],
+  );
+
   // Confirmation dialog config per action type
   const confirmConfig: Record<
     LifecycleAction,
@@ -660,7 +712,20 @@ export function PolicyDetailPage() {
           <VersionHistorySection
             versionChain={data.version_chain}
             currentPolicyId={data.policy.id}
+            onCompare={handleCompareVersions}
           />
+
+          {isDiffLoading && (
+            <p className="policy-detail__loading">Loading diff...</p>
+          )}
+
+          {diffPair && (
+            <VersionDiffView
+              oldPolicy={diffPair.oldPolicy}
+              newPolicy={diffPair.newPolicy}
+              onClose={() => setDiffPair(undefined)}
+            />
+          )}
 
           {confirmAction && (
             <ConfirmDialog
