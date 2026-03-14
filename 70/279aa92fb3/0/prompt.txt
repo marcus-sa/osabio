@@ -294,3 +294,7 @@ Continue from where you left off.
 ---
 
 continue
+
+---
+
+Tool loaded.
