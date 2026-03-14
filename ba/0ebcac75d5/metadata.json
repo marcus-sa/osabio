@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ba0ebcac75d5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/policy-crud-ui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/policy/policy-queries.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ba/0ebcac75d5/0/metadata.json",
+      "transcript": "/ba/0ebcac75d5/0/full.jsonl",
+      "context": "/ba/0ebcac75d5/0/context.md",
+      "content_hash": "/ba/0ebcac75d5/0/content_hash.txt",
+      "prompt": "/ba/0ebcac75d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 342,
+    "cache_creation_tokens": 331338,
+    "cache_read_tokens": 12252488,
+    "output_tokens": 54712,
+    "api_call_count": 144
+  }
+}
