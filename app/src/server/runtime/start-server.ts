@@ -36,6 +36,8 @@ import { createBridgeExchangeHandler } from "../oauth/bridge";
 import { RecordId } from "surrealdb";
 import { createObserverRouteHandler, createGraphScanRouteHandler } from "../observer/observer-route";
 import { createLearningRouteHandlers } from "../learning/learning-route";
+import { createObjectiveRouteHandlers } from "../objective/objective-route";
+import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -70,6 +72,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const observerHandler = createObserverRouteHandler(deps);
   const graphScanHandler = createGraphScanRouteHandler(deps);
   const learningHandlers = createLearningRouteHandlers(deps);
+  const objectiveHandlers = createObjectiveRouteHandlers(deps);
+  const behaviorHandlers = createBehaviorRouteHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -203,6 +207,37 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
             request.params.learningId,
             request,
           ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/objectives": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/objectives",
+          "POST",
+          (request) => objectiveHandlers.handleCreate(request.params.workspaceId, request),
+        ),
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/objectives",
+          "GET",
+          (request) => objectiveHandlers.handleList(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/objectives/:objectiveId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/objectives/:objectiveId",
+          "GET",
+          (request) => objectiveHandlers.handleGet(request.params.workspaceId, request.params.objectiveId),
+        ),
+        PUT: withRequestLogging(
+          "PUT /api/workspaces/:workspaceId/objectives/:objectiveId",
+          "PUT",
+          (request) => objectiveHandlers.handleUpdate(request.params.workspaceId, request.params.objectiveId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/behaviors": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/behaviors",
+          "GET",
+          (request) => behaviorHandlers.handleList(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/feed": {

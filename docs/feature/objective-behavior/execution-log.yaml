@@ -20,5 +20,56 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-13T19:25:56Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-13T19:26:24Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-13T19:32:07Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-13T19:32:13Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-13T19:32:13Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-13T19:32:13Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-13T19:32:13Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-14T03:40:50Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-14T03:42:03Z'
+- d: 'NOT_APPLICABLE: route handlers are thin composition of existing query functions
+    with HTTP boundary -- no pure domain logic to unit test'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-03
+  t: '2026-03-14T03:42:25Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-14T03:44:15Z'
 project_id: objective-behavior
 schema_version: '3.0'

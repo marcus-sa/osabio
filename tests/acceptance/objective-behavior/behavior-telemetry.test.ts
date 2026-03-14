@@ -217,6 +217,111 @@ describe("Boundary: New agent with no behavior data (US-OB-03)", () => {
   }, 60_000);
 });
 
+// =============================================================================
+// HTTP Endpoint Tests: Behavior trend + workspace-scoped queries (US-OB-03 #3, #8)
+// =============================================================================
+describe("HTTP: Behavior trend visible across 5 sessions (US-OB-03 #3)", () => {
+  it("GET /api/workspaces/:wsId/behaviors returns workspace-scoped behavior records", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    // Given two workspaces with behavior records
+    const { workspaceId: wsA } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-beh-http-a-${crypto.randomUUID()}`,
+    );
+    const { identityId: agentA } = await createAgentIdentity(surreal, wsA, "Agent-A");
+
+    const { workspaceId: wsB } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-beh-http-b-${crypto.randomUUID()}`,
+    );
+    const { identityId: agentB } = await createAgentIdentity(surreal, wsB, "Agent-B");
+
+    // Create records in both workspaces
+    await createBehaviorTrend(surreal, wsA, agentA, "TDD_Adherence", [0.40, 0.45, 0.50, 0.55, 0.60]);
+    await createBehaviorRecord(surreal, wsB, agentB, {
+      metric_type: "TDD_Adherence",
+      score: 0.99,
+    });
+
+    // When querying behaviors via HTTP for workspace A
+    const response = await fetch(`${baseUrl}/api/workspaces/${wsA}/behaviors`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { behaviors: Array<{ metric_type: string; score: number }> };
+
+    // Then only workspace A behaviors are returned (5 records)
+    expect(body.behaviors).toHaveLength(5);
+
+    // And workspace B records are not leaked
+    const scores = body.behaviors.map((b) => b.score);
+    expect(scores).not.toContain(0.99);
+  }, 60_000);
+
+  it("GET /api/workspaces/:wsId/behaviors?metric_type=TDD_Adherence filters by metric", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-beh-http-filter-${crypto.randomUUID()}`,
+    );
+    const { identityId: agentId } = await createAgentIdentity(surreal, workspaceId, "Agent-Filter");
+
+    await createBehaviorRecord(surreal, workspaceId, agentId, {
+      metric_type: "TDD_Adherence",
+      score: 0.50,
+    });
+    await createBehaviorRecord(surreal, workspaceId, agentId, {
+      metric_type: "Security_First",
+      score: 0.80,
+    });
+
+    // When filtering by metric_type
+    const response = await fetch(
+      `${baseUrl}/api/workspaces/${workspaceId}/behaviors?metric_type=TDD_Adherence`,
+    );
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { behaviors: Array<{ metric_type: string }> };
+    expect(body.behaviors).toHaveLength(1);
+    expect(body.behaviors[0].metric_type).toBe("TDD_Adherence");
+  }, 60_000);
+
+  it("GET /api/workspaces/:wsId/behaviors?identity_id=:id queries by identity", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-beh-http-identity-${crypto.randomUUID()}`,
+    );
+    const { identityId: agent1 } = await createAgentIdentity(surreal, workspaceId, "Agent-1");
+    const { identityId: agent2 } = await createAgentIdentity(surreal, workspaceId, "Agent-2");
+
+    await createBehaviorRecord(surreal, workspaceId, agent1, {
+      metric_type: "TDD_Adherence",
+      score: 0.42,
+    });
+    await createBehaviorRecord(surreal, workspaceId, agent2, {
+      metric_type: "TDD_Adherence",
+      score: 0.88,
+    });
+
+    // When querying by identity_id
+    const response = await fetch(
+      `${baseUrl}/api/workspaces/${workspaceId}/behaviors?identity_id=${agent1}`,
+    );
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { behaviors: Array<{ score: number }> };
+    expect(body.behaviors).toHaveLength(1);
+    expect(body.behaviors[0].score).toBe(0.42);
+  }, 60_000);
+});
+
 describe("Error Path: Behavior score validation (US-OB-03)", () => {
   it("behavior score is within valid range 0.0 to 1.0", async () => {
     const { surreal } = getRuntime();

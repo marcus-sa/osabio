@@ -191,6 +191,151 @@ describe("Boundary: Objective workspace isolation (US-OB-01)", () => {
     expect(objectivesA).toHaveLength(1);
   }, 60_000);
 
+  it("GET /api/workspaces/:wsId/objectives returns workspace-scoped objective list", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    // Given two workspaces, each with objectives
+    const { workspaceId: wsA } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-list-a-${crypto.randomUUID()}`,
+    );
+    const { workspaceId: wsB } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-list-b-${crypto.randomUUID()}`,
+    );
+
+    await createObjective(surreal, wsA, { title: "Objective A1", status: "active" });
+    await createObjective(surreal, wsA, { title: "Objective A2", status: "draft" });
+    await createObjective(surreal, wsB, { title: "Objective B1", status: "active" });
+
+    // When listing objectives via HTTP for workspace A
+    const response = await fetch(`${baseUrl}/api/workspaces/${wsA}/objectives`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { objectives: Array<{ title: string; status: string; workspace_id: string }> };
+
+    // Then only workspace A objectives are returned
+    expect(body.objectives).toHaveLength(2);
+    const titles = body.objectives.map((o) => o.title);
+    expect(titles).toContain("Objective A1");
+    expect(titles).toContain("Objective A2");
+
+    // And workspace B objectives are not leaked
+    expect(titles).not.toContain("Objective B1");
+  }, 60_000);
+
+  it("GET /api/workspaces/:wsId/objectives?status=active filters by status", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-filter-${crypto.randomUUID()}`,
+    );
+
+    await createObjective(surreal, workspaceId, { title: "Active One", status: "active" });
+    await createObjective(surreal, workspaceId, { title: "Draft One", status: "draft" });
+
+    // When filtering by status=active
+    const response = await fetch(`${baseUrl}/api/workspaces/${workspaceId}/objectives?status=active`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { objectives: Array<{ title: string }> };
+    expect(body.objectives).toHaveLength(1);
+    expect(body.objectives[0].title).toBe("Active One");
+  }, 60_000);
+
+  it("POST /api/workspaces/:wsId/objectives creates an objective", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-create-${crypto.randomUUID()}`,
+    );
+
+    // When creating via HTTP POST
+    const response = await fetch(`${baseUrl}/api/workspaces/${workspaceId}/objectives`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "HTTP Created Objective",
+        description: "Created via REST endpoint",
+        priority: "high",
+        status: "active",
+        success_criteria: [
+          { metric_name: "api_coverage", target_value: 80, current_value: 0, unit: "percent" },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { objectiveId: string };
+    expect(body.objectiveId).toBeDefined();
+
+    // Then the objective is persisted
+    const objective = await getObjective(surreal, body.objectiveId);
+    expect(objective).toBeDefined();
+    expect(objective!.title).toBe("HTTP Created Objective");
+    expect(objective!.priority).toBe("high");
+    expect(objective!.workspace.id).toBe(workspaceId);
+  }, 60_000);
+
+  it("GET /api/workspaces/:wsId/objectives/:id returns single objective", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-detail-${crypto.randomUUID()}`,
+    );
+
+    const { objectiveId } = await createObjective(surreal, workspaceId, {
+      title: "Detail Objective",
+      status: "active",
+      priority: "critical",
+    });
+
+    // When fetching by ID via HTTP
+    const response = await fetch(`${baseUrl}/api/workspaces/${workspaceId}/objectives/${objectiveId}`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as { objective: { title: string; status: string; priority: string } };
+    expect(body.objective.title).toBe("Detail Objective");
+    expect(body.objective.status).toBe("active");
+    expect(body.objective.priority).toBe("critical");
+  }, 60_000);
+
+  it("PUT /api/workspaces/:wsId/objectives/:id updates objective status", async () => {
+    const { surreal, baseUrl } = getRuntime();
+
+    const { workspaceId } = await setupObjectiveWorkspace(
+      baseUrl,
+      surreal,
+      `ws-http-update-${crypto.randomUUID()}`,
+    );
+
+    const { objectiveId } = await createObjective(surreal, workspaceId, {
+      title: "Status Update Objective",
+      status: "active",
+    });
+
+    // When updating status via HTTP PUT
+    const response = await fetch(`${baseUrl}/api/workspaces/${workspaceId}/objectives/${objectiveId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "completed" }),
+    });
+
+    expect(response.status).toBe(200);
+
+    // Then the status is updated in DB
+    const objective = await getObjective(surreal, objectiveId);
+    expect(objective!.status).toBe("completed");
+  }, 60_000);
+
   it.skip("duplicate objective is detected by semantic similarity above 0.95", async () => {
     // Requires embedding generation pipeline integration
     // Given objective "Launch MCP Marketplace" exists with embedding
