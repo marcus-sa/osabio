@@ -5,6 +5,7 @@
   "branch": "marcus-sa/objective-behavior-nodes",
   "checkpoints_count": 1,
   "files_touched": [
+    "docs/evolution/dynamic-behaviors-evolution.md",
     "docs/feature/dynamic-behaviors/.develop-progress.json",
     "docs/feature/dynamic-behaviors/roadmap.yaml"
   ],
@@ -15,6 +16,13 @@
       "context": "/a8/c3ae2b880b/0/context.md",
       "content_hash": "/a8/c3ae2b880b/0/content_hash.txt",
       "prompt": "/a8/c3ae2b880b/0/prompt.txt"
+    },
+    {
+      "metadata": "/a8/c3ae2b880b/1/metadata.json",
+      "transcript": "/a8/c3ae2b880b/1/full.jsonl",
+      "context": "/a8/c3ae2b880b/1/context.md",
+      "content_hash": "/a8/c3ae2b880b/1/content_hash.txt",
+      "prompt": "/a8/c3ae2b880b/1/prompt.txt"
     }
   ],
   "token_usage": {
