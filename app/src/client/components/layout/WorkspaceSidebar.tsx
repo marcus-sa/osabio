@@ -21,6 +21,7 @@ export function WorkspaceSidebar({
   const isHome = matchRoute({ to: "/" });
   const isGraph = matchRoute({ to: "/graph" });
   const isLearnings = matchRoute({ to: "/learnings" });
+  const isPolicies = matchRoute({ to: "/policies" });
   const { pendingCount } = usePendingLearningCount();
 
   function renderConversationItem(conv: ConversationSidebarItem, depth: number = 0) {
@@ -57,6 +58,9 @@ export function WorkspaceSidebar({
         {pendingCount > 0 ? (
           <span className="sidebar-badge">{pendingCount}</span>
         ) : undefined}
+      </Link>
+      <Link to="/policies" className={`sidebar-item sidebar-nav-item${isPolicies ? " sidebar-item--active" : ""}`}>
+        Policies
       </Link>
 
       <div className="sidebar-divider" />

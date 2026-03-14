@@ -11,6 +11,7 @@ import { GraphPage } from "./routes/graph-page";
 import { HomePage } from "./routes/home-page";
 import { ReviewPage } from "./routes/review-page";
 import { LearningsPage } from "./routes/learnings-page";
+import { PoliciesPage } from "./components/policy/PoliciesPage";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 
@@ -164,10 +165,22 @@ const learningsRoute = createRoute({
   component: LearningsPage,
 });
 
+const policiesRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/policies",
+  component: PoliciesPage,
+});
+
+const policyDetailRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/policies/$policyId",
+  component: () => null, // Placeholder for detail page (step 04-02)
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute]),
 ]);
 
 export const router = createRouter({ routeTree });
