@@ -18,6 +18,7 @@
     "docs/adrs/ADR-037-deterministic-llm-scorer-coexistence.md",
     "docs/adrs/ADR-038-remove-deterministic-scoring.md",
     "schema/migrations/0038_remove_scoring_mode.surql",
+    "schema/migrations/0039_observation_type_alignment.surql",
     "schema/surreal-schema.surql",
     "tests/acceptance/dynamic-behaviors/authorizer-integration.test.ts",
     "tests/acceptance/dynamic-behaviors/definition-crud.test.ts",
@@ -37,6 +38,13 @@
       "context": "/b1/14e674d46c/0/context.md",
       "content_hash": "/b1/14e674d46c/0/content_hash.txt",
       "prompt": "/b1/14e674d46c/0/prompt.txt"
+    },
+    {
+      "metadata": "/b1/14e674d46c/1/metadata.json",
+      "transcript": "/b1/14e674d46c/1/full.jsonl",
+      "context": "/b1/14e674d46c/1/context.md",
+      "content_hash": "/b1/14e674d46c/1/content_hash.txt",
+      "prompt": "/b1/14e674d46c/1/prompt.txt"
     }
   ],
   "token_usage": {
