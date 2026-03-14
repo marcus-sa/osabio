@@ -36,7 +36,7 @@ describe("Milestone 2: Policy Creation (US-PCUI-02)", () => {
   // Walking Skeleton: Admin creates a draft policy with valid rules
   // AC: POST returns 201 with policy_id, policy has draft status and version 1
   // ---------------------------------------------------------------------------
-  it.skip("admin creates a draft policy with one deny rule", async () => {
+  it("admin creates a draft policy with one deny rule", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an admin in a workspace
@@ -87,7 +87,7 @@ describe("Milestone 2: Policy Creation (US-PCUI-02)", () => {
   // Admin creates policy with multiple rules
   // AC: Policy with multiple rules is created and all rules persisted
   // ---------------------------------------------------------------------------
-  it.skip("admin creates a policy with multiple rules at different priorities", async () => {
+  it("admin creates a policy with multiple rules at different priorities", async () => {
     const { baseUrl } = getRuntime();
 
     // Given an admin in a workspace
@@ -137,7 +137,7 @@ describe("Milestone 2: Policy Creation (US-PCUI-02)", () => {
   // Policy with selector is created correctly
   // AC: Selector fields are persisted
   // ---------------------------------------------------------------------------
-  it.skip("admin creates a policy with agent role selector", async () => {
+  it("admin creates a policy with agent role selector", async () => {
     const { baseUrl } = getRuntime();
 
     // Given an admin in a workspace

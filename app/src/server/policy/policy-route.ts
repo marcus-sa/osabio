@@ -4,9 +4,9 @@ import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import { listWorkspacePolicies } from "./policy-queries";
+import { createPolicy, listWorkspacePolicies } from "./policy-queries";
 import { validatePolicyCreateBody } from "./policy-validation";
-import type { PolicyRecord, PolicyStatus } from "./types";
+import type { PolicyRecord, PolicyRule, PolicySelector, PolicyStatus } from "./types";
 
 // ---------------------------------------------------------------------------
 // Pure identity guard
@@ -223,11 +223,15 @@ async function handlePolicyDetail(
 
 async function handleCreatePolicy(
   deps: ServerDependencies,
-  _workspaceId: string,
+  workspaceId: string,
   request: Request,
 ): Promise<Response> {
   const guardResult = await requireHumanIdentity(deps, request);
   if (isResponse(guardResult)) return guardResult;
+
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "policy.create.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
 
   let body: unknown;
   try {
@@ -241,7 +245,25 @@ async function handleCreatePolicy(
     return jsonError(validation.errors[0], 400);
   }
 
-  return jsonError("not implemented", 501);
+  const parsed = body as Record<string, unknown>;
+
+  try {
+    const { policyId } = await createPolicy(deps.surreal, {
+      title: parsed.title as string,
+      description: parsed.description as string | undefined,
+      selector: parsed.selector as PolicySelector | undefined,
+      rules: parsed.rules as PolicyRule[],
+      human_veto_required: parsed.human_veto_required as boolean | undefined,
+      max_ttl: parsed.max_ttl as string | undefined,
+      createdBy: guardResult.identityRecord,
+      workspace: workspaceRecord,
+    });
+
+    return jsonResponse({ policy_id: policyId }, 201);
+  } catch (error) {
+    logError("policy.create.failed", "Failed to create policy", error, { workspaceId });
+    return jsonError("failed to create policy", 500);
+  }
 }
 
 // ---------------------------------------------------------------------------

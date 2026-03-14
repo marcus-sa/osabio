@@ -71,5 +71,31 @@ events:
   s: EXECUTED
   sid: 01-03
   t: '2026-03-14T04:06:58Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-14T04:07:27Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-14T04:27:54Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-14T04:27:54Z'
+- d: 'NOT_APPLICABLE: create handler is thin adapter delegating to existing createPolicy
+    query function; no new domain logic requiring unit properties'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-14T04:27:59Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-14T04:28:00Z'
 project_id: policy-crud-ui
 schema_version: '3.0'
