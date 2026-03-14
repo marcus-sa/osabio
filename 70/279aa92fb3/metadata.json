@@ -23,6 +23,13 @@
       "context": "/70/279aa92fb3/1/context.md",
       "content_hash": "/70/279aa92fb3/1/content_hash.txt",
       "prompt": "/70/279aa92fb3/1/prompt.txt"
+    },
+    {
+      "metadata": "/70/279aa92fb3/2/metadata.json",
+      "transcript": "/70/279aa92fb3/2/full.jsonl",
+      "context": "/70/279aa92fb3/2/context.md",
+      "content_hash": "/70/279aa92fb3/2/content_hash.txt",
+      "prompt": "/70/279aa92fb3/2/prompt.txt"
     }
   ],
   "token_usage": {
