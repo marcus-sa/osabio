@@ -1,0 +1,100 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/hangzhou-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 2 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: app/src/server/policy/policy-validation.ts
+Line: 95
+User comment: "**`priority` field not validated**
+
+`validateRule` checks `id`, `effect`, and `condition` but never validates `priority`. The `PolicyRule` type in `types.ts` declares `priority: number` as required, and the policy gate (`loadActivePolicies`) relies on it to order rule evaluation correctly.
+
+A rule submitted without `priority` (or with a non-numeric value) passes validation and is persisted to the database. The policy gate then gets `undefined` for `priority`, breaking the ordering guarantees that determine which `deny` rule wins when multiple rules match the same intent.
+
+Add a `priority` check alongside the existing `id` check:
+
+```suggestion
+function validateRule(rule: unknown, index: number): string[] {
+  if (!isPlainObject(rule)) {
+    return [`rule[${index}]: must be an object`];
+  }
+
+  const errors: string[] = [];
+
+  // ID
+  if (typeof rule.id !== "string" || (rule.id as string).trim() === "") {
+    errors.push(`rule[${index}]: id must be a non-empty string`);
+  }
+
+  // Priority
+  if (typeof rule.priority !== "number" || !Number.isFinite(rule.priority)) {
+    errors.push(`rule[${index}]: priority must be a finite number`);
+  }
+
+  // Effect
+  if (!VALID_EFFECTS.has(rule.effect as string)) {
+    errors.push(`rule[${index}]: effect must be "allow" or "deny"`);
+  }
+
+  // Condition
+  errors.push(...validateCondition(rule.condition, index));
+
+  return errors;
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50VG8M. 
+
+
+Comment #2:
+
+File: app/src/server/policy/policy-route.ts
+Line: 299
+User comment: "**Status check is outside the activation transaction — duplicate edges under concurrency**
+
+The status guard at line 287 (`ACTIVATABLE_STATUSES.has(policy.status)`) reads the policy's current status **before** the `activatePolicy` SurrealDB transaction begins. The transaction itself does not re-assert the status, so two concurrent `PATCH .../activate` requests for the same draft policy can both pass the status check and both commit:
+
+- Both reads return `status = "draft"` → both pass the guard
+- Both transactions run `RELATE $creator->governing->$policy` and `RELATE $policy->protects->$workspace`
+- SurrealDB `RELATE` always creates a new edge record — the result is two duplicate `governing` and two duplicate `protects` edges pointing to the now-active policy
+
+`loadActivePolicies` (policy-queries.ts line 63) then traverses these edges and returns the same policy twice, which can produce duplicate entries in the active-policy list used by the policy gate.
+
+The fix is to add a status assertion inside the `activatePolicy` transaction (similar to how the version monotonicity check was already moved inside the transaction to fix the TOCTOU noted in the earlier design review):
+
+```typescript
+// Inside activatePolicy, add at the top of both SurrealQL transaction blocks:
+LET $currentStatus = (SELECT VALUE status FROM $policy)[0];
+IF $currentStatus NOT IN ['draft', 'testing'] {
+  THROW string::concat("policy must be in draft or testing status to activate (current: ", <string> $currentStatus, ")");
+};
+```
+
+The same pattern applies to `handleDeprecatePolicy` (line 336): the `DEPRECATABLE_STATUSES` check is similarly outside the `deprecatePolicy` transaction. For deprecation the double-write is idempotent (`UPDATE … SET status = 'deprecated'` and the `DELETE` statements are all no-ops on the second run), so the risk is lower — but making it atomic would be consistent with the rest of the guard pattern."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50VG8a. 
+
+</system-instruction>
+
+---
+
+Commit and push all changes
