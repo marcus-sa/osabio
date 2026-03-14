@@ -224,7 +224,7 @@ describe("Milestone 1: Policy List View (US-PCUI-01)", () => {
   // Walking Skeleton: Admin lists workspace policies
   // AC: Human identity sees all policies in the workspace
   // ---------------------------------------------------------------------------
-  it.skip("admin sees all policies in the workspace", async () => {
+  it("admin sees all policies in the workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with draft and active policies
@@ -269,7 +269,7 @@ describe("Milestone 1: Policy List View (US-PCUI-01)", () => {
   // Status filter returns only matching policies
   // AC: ?status=active returns only active policies
   // ---------------------------------------------------------------------------
-  it.skip("status filter returns only matching policies", async () => {
+  it("status filter returns only matching policies", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with one draft and one active policy
@@ -303,7 +303,7 @@ describe("Milestone 1: Policy List View (US-PCUI-01)", () => {
   // Empty workspace returns empty policy list
   // AC: New workspace with no policies returns empty array
   // ---------------------------------------------------------------------------
-  it.skip("empty workspace returns empty policy list", async () => {
+  it("empty workspace returns empty policy list", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a workspace with no policies
@@ -323,7 +323,7 @@ describe("Milestone 1: Policy List View (US-PCUI-01)", () => {
   // Status filter with no matches returns empty list
   // AC: Filtering by a status with no matching policies returns empty array
   // ---------------------------------------------------------------------------
-  it.skip("status filter with no matches returns empty list", async () => {
+  it("status filter with no matches returns empty list", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with only draft policies

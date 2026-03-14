@@ -1,5 +1,34 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { PolicyRecord, PolicyRule, PolicySelector } from "./types";
+import type { PolicyRecord, PolicyRule, PolicySelector, PolicyStatus } from "./types";
+
+// --- List Response Types ---
+
+export type PolicyListItem = {
+  id: string;
+  title: string;
+  status: string;
+  version: number;
+  rules_count: number;
+  human_veto_required: boolean;
+  created_at: string;
+  updated_at?: string;
+};
+
+// --- Pure Mapping ---
+
+const formatTimestamp = (value: Date | string): string =>
+  value instanceof Date ? value.toISOString() : String(value);
+
+const toPolicyListItem = (record: PolicyRecord): PolicyListItem => ({
+  id: record.id.id as string,
+  title: record.title,
+  status: record.status,
+  version: record.version,
+  rules_count: record.rules?.length ?? 0,
+  human_veto_required: record.human_veto_required ?? false,
+  created_at: formatTimestamp(record.created_at),
+  ...(record.updated_at ? { updated_at: formatTimestamp(record.updated_at) } : {}),
+});
 
 // --- Parameter Types ---
 
@@ -49,6 +78,23 @@ export async function loadActivePolicies(
     }
   }
   return result;
+}
+
+export async function listWorkspacePolicies(
+  surreal: Surreal,
+  workspace: RecordId<"workspace">,
+  statusFilter?: PolicyStatus,
+): Promise<PolicyListItem[]> {
+  const query = statusFilter
+    ? "SELECT * FROM policy WHERE workspace = $ws AND status = $status ORDER BY created_at DESC;"
+    : "SELECT * FROM policy WHERE workspace = $ws ORDER BY created_at DESC;";
+
+  const params: Record<string, unknown> = { ws: workspace };
+  if (statusFilter) params.status = statusFilter;
+
+  const [rows] = await surreal.query<[PolicyRecord[]]>(query, params);
+
+  return (rows ?? []).map(toPolicyListItem);
 }
 
 export async function createPolicy(

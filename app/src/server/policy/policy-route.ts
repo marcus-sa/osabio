@@ -4,7 +4,8 @@ import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import type { PolicyRecord } from "./types";
+import { listWorkspacePolicies } from "./policy-queries";
+import type { PolicyRecord, PolicyStatus } from "./types";
 
 // ---------------------------------------------------------------------------
 // Pure identity guard
@@ -133,29 +134,13 @@ async function handleListPolicies(
 
   try {
     const url = new URL(request.url);
-    const statusFilter = url.searchParams.get("status") ?? undefined;
+    const statusFilter = url.searchParams.get("status") as PolicyStatus | undefined;
 
-    const query = statusFilter
-      ? "SELECT * FROM policy WHERE workspace = $ws AND status = $status ORDER BY created_at DESC;"
-      : "SELECT * FROM policy WHERE workspace = $ws ORDER BY created_at DESC;";
-
-    const params: Record<string, unknown> = { ws: workspaceRecord };
-    if (statusFilter) params.status = statusFilter;
-
-    const [rows] = await deps.surreal.query<[PolicyRecord[]]>(query, params);
-
-    const policies = (rows ?? []).map((p) => ({
-      id: p.id.id as string,
-      title: p.title,
-      status: p.status,
-      version: p.version,
-      rules_count: p.rules?.length ?? 0,
-      human_veto_required: p.human_veto_required ?? false,
-      created_at: p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at),
-      ...(p.updated_at ? {
-        updated_at: p.updated_at instanceof Date ? p.updated_at.toISOString() : String(p.updated_at),
-      } : {}),
-    }));
+    const policies = await listWorkspacePolicies(
+      deps.surreal,
+      workspaceRecord,
+      statusFilter || undefined,
+    );
 
     return jsonResponse({ policies }, 200);
   } catch (error) {
