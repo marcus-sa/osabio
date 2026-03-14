@@ -48,3 +48,8 @@ Prompt hook condition was not met: Brain MCP tools (claude-supermemory) are not 
 
 continue
 
+### Prompt 9
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools (claude-supermemory) are not available in this environment. Cannot log decisions, questions, observations, tasks, or suggestions to the knowledge graph. The session involved substantial DELIVER wave implementation work (roadmap creation/approval + execution of 6 TDD steps) that requires proper logging, but the Brain MCP interface is unavailable.
+
