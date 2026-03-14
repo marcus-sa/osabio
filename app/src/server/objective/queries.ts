@@ -178,7 +178,7 @@ export async function getObjectiveProgress(
 ): Promise<ObjectiveProgress | undefined> {
   const objectiveRecord = new RecordId("objective", objectiveId);
 
-  // Single query: fetch objective + count supporting intents via graph traversal
+  // Single query: fetch objective + count supporting intents + expiration check
   const rows = (await surreal.query(
     `SELECT
        id,
@@ -186,7 +186,8 @@ export async function getObjectiveProgress(
        status,
        success_criteria,
        target_date,
-       count(<-supports<-intent) AS supporting_intent_count
+       count(<-supports<-intent) AS supporting_intent_count,
+       (target_date != NONE AND <datetime>target_date < time::now()) AS is_expired
      FROM $objective;`,
     { objective: objectiveRecord },
   )) as Array<Array<{
@@ -196,15 +197,11 @@ export async function getObjectiveProgress(
     success_criteria: SuccessCriterion[];
     target_date?: string;
     supporting_intent_count: number;
+    is_expired: boolean;
   }>>;
 
   const row = rows[0]?.[0];
   if (!row) return undefined;
-
-  const now = new Date();
-  const isExpired = row.target_date !== undefined
-    ? new Date(row.target_date).getTime() < now.getTime()
-    : false;
 
   return {
     objective_id: row.id.id as string,
@@ -213,7 +210,7 @@ export async function getObjectiveProgress(
     supporting_intent_count: row.supporting_intent_count,
     success_criteria: row.success_criteria,
     target_date: row.target_date,
-    is_expired: isExpired,
+    is_expired: row.is_expired,
     is_unsupported: row.supporting_intent_count === 0,
   };
 }

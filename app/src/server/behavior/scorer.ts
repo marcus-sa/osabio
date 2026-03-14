@@ -111,9 +111,10 @@ export function validateTelemetryShape(
   const requiredFields = REQUIRED_FIELDS[metricType];
 
   if (!requiredFields) {
+    const sanitizedType = String(metricType).slice(0, 100).replace(/[^\w_-]/g, "_");
     return {
       valid: false,
-      reason: `Unknown metric type: ${metricType}. Known types: ${Object.keys(REQUIRED_FIELDS).join(", ")}`,
+      reason: `Unknown metric type: ${sanitizedType}. Known types: ${Object.keys(REQUIRED_FIELDS).join(", ")}`,
     };
   }
 
@@ -125,6 +126,17 @@ export function validateTelemetryShape(
     return {
       valid: false,
       reason: `Missing required fields for ${metricType}: ${missingFields.join(", ")}`,
+    };
+  }
+
+  const nonNumericFields = requiredFields.filter(
+    (field) => typeof telemetry[field] !== "number",
+  );
+
+  if (nonNumericFields.length > 0) {
+    return {
+      valid: false,
+      reason: `Non-numeric values for ${metricType}: ${nonNumericFields.join(", ")}`,
     };
   }
 
@@ -163,6 +175,6 @@ export function scoreTelemetry(
         cve_advisories_addressed: telemetry.cve_advisories_addressed as number,
       });
     default:
-      return { success: false, reason: `No scorer implemented for metric type: ${metricType}` };
+      return { success: false, reason: `No scorer implemented for metric type: ${String(metricType).slice(0, 100).replace(/[^\w_-]/g, "_")}` };
   }
 }

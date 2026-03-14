@@ -10,6 +10,7 @@ import { describe, expect, it } from "bun:test";
 import {
   scoreTddAdherence,
   scoreSecurityFirst,
+  scoreTelemetry,
   validateTelemetryShape,
   type TddTelemetry,
   type SecurityTelemetry,
@@ -139,9 +140,35 @@ describe("validateTelemetryShape", () => {
     expect(result.reason).toContain("cve_advisories_addressed");
   });
 
-  it("rejects unknown metric type", () => {
+  it("rejects unknown metric type with sanitized name", () => {
     const result = validateTelemetryShape("unknown_metric", {});
     expect(result.valid).toBe(false);
     expect(result.reason).toContain("unknown_metric");
+  });
+
+  it("sanitizes special characters in unknown metric type", () => {
+    const result = validateTelemetryShape("<script>alert('xss')</script>", {});
+    expect(result.valid).toBe(false);
+    expect(result.reason).not.toContain("<script>");
+    expect(result.reason).toContain("Known types:");
+  });
+
+  it("rejects non-numeric values in required fields", () => {
+    const result = validateTelemetryShape("TDD_Adherence", {
+      files_changed: "not_a_number",
+      test_files_changed: 3,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("Non-numeric");
+    expect(result.reason).toContain("files_changed");
+  });
+
+  it("rejects boolean values in numeric fields", () => {
+    const result = validateTelemetryShape("Security_First", {
+      cve_advisories_in_context: true,
+      cve_advisories_addressed: 1,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("Non-numeric");
   });
 });
