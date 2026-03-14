@@ -3,7 +3,7 @@
   "checkpoint_id": "ca3fa31a7b13",
   "strategy": "manual-commit",
   "branch": "marcus-sa/objective-behavior-nodes",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     "docs/feature/objective-behavior/execution-log.yaml",
     "docs/feature/objective-behavior/roadmap.yaml"
@@ -15,13 +15,20 @@
       "context": "/ca/3fa31a7b13/0/context.md",
       "content_hash": "/ca/3fa31a7b13/0/content_hash.txt",
       "prompt": "/ca/3fa31a7b13/0/prompt.txt"
+    },
+    {
+      "metadata": "/ca/3fa31a7b13/1/metadata.json",
+      "transcript": "/ca/3fa31a7b13/1/full.jsonl",
+      "context": "/ca/3fa31a7b13/1/context.md",
+      "content_hash": "/ca/3fa31a7b13/1/content_hash.txt",
+      "prompt": "/ca/3fa31a7b13/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 44,
-    "cache_creation_tokens": 56259,
-    "cache_read_tokens": 218101,
-    "output_tokens": 1005,
-    "api_call_count": 5
+    "input_tokens": 124,
+    "cache_creation_tokens": 323305,
+    "cache_read_tokens": 3333932,
+    "output_tokens": 33715,
+    "api_call_count": 46
   }
 }
