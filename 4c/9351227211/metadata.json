@@ -3,7 +3,7 @@
   "checkpoint_id": "4c9351227211",
   "strategy": "manual-commit",
   "branch": "marcus-sa/policy-crud-ui",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "README.md",
     "index.html"
@@ -15,13 +15,20 @@
       "context": "/4c/9351227211/0/context.md",
       "content_hash": "/4c/9351227211/0/content_hash.txt",
       "prompt": "/4c/9351227211/0/prompt.txt"
+    },
+    {
+      "metadata": "/4c/9351227211/1/metadata.json",
+      "transcript": "/4c/9351227211/1/full.jsonl",
+      "context": "/4c/9351227211/1/context.md",
+      "content_hash": "/4c/9351227211/1/content_hash.txt",
+      "prompt": "/4c/9351227211/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 22,
+    "cache_creation_tokens": 86793,
+    "cache_read_tokens": 848561,
+    "output_tokens": 3935,
+    "api_call_count": 14
   }
 }

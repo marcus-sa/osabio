@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4c9351227211",
+  "session_id": "ed188c21-512a-4b1f-affd-5143602edf26",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T09:43:45.137207Z",
+  "branch": "marcus-sa/policy-crud-ui",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "index.html"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "be8c1e8a0b8c",
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 86793,
+    "cache_read_tokens": 848561,
+    "output_tokens": 3935,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T09:43:44.856244Z",
+    "agent_lines": 15,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 100
+  }
+}
