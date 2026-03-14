@@ -48,7 +48,7 @@ export type PolicyStatus =
 export type PolicyRecord = {
   id: RecordId<"policy">;
   title: string;
-  description: string;
+  description?: string;
   version: number;
   status: PolicyStatus;
   selector: PolicySelector;

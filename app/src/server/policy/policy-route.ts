@@ -140,7 +140,11 @@ async function handleListPolicies(
 
   try {
     const url = new URL(request.url);
-    const statusFilter = url.searchParams.get("status") as PolicyStatus | undefined;
+    const VALID_STATUSES: ReadonlySet<string> = new Set(["draft", "testing", "active", "deprecated", "superseded"]);
+    const rawStatus = url.searchParams.get("status");
+    const statusFilter = rawStatus && VALID_STATUSES.has(rawStatus)
+      ? (rawStatus as PolicyStatus)
+      : undefined;
 
     const policies = await listWorkspacePolicies(
       deps.surreal,
@@ -382,14 +386,43 @@ async function handleCreatePolicyVersion(
       );
     }
 
+    // Parse optional overrides from request body — callers can customise the
+    // new draft instead of getting an exact copy of the source policy.
+    let overrides: Partial<{
+      title: string;
+      description: string;
+      selector: PolicySelector;
+      rules: PolicyRule[];
+      human_veto_required: boolean;
+      max_ttl: string;
+    }> = {};
+    try {
+      const raw = await request.json();
+      if (raw && typeof raw === "object") overrides = raw as typeof overrides;
+    } catch {
+      // No body or invalid JSON — use source values only.
+    }
+
+    // When overrides include rules, validate them through the same path as create.
+    if (overrides.rules !== undefined) {
+      const validation = validatePolicyCreateBody({
+        title: overrides.title ?? sourcePolicy.title,
+        description: overrides.description ?? sourcePolicy.description ?? "",
+        rules: overrides.rules,
+      });
+      if (!validation.valid) {
+        return jsonError(validation.errors[0], 400);
+      }
+    }
+
     const sourcePolicyRecord = new RecordId("policy", policyId);
     const { policyId: newPolicyId, version } = await createPolicy(deps.surreal, {
-      title: sourcePolicy.title,
-      description: sourcePolicy.description,
-      selector: sourcePolicy.selector,
-      rules: sourcePolicy.rules,
-      human_veto_required: sourcePolicy.human_veto_required,
-      max_ttl: sourcePolicy.max_ttl,
+      title: overrides.title ?? sourcePolicy.title,
+      description: overrides.description ?? sourcePolicy.description,
+      selector: overrides.selector ?? sourcePolicy.selector,
+      rules: overrides.rules ?? sourcePolicy.rules,
+      human_veto_required: overrides.human_veto_required ?? sourcePolicy.human_veto_required,
+      max_ttl: overrides.max_ttl ?? sourcePolicy.max_ttl,
       createdBy: guardResult.identityRecord,
       workspace: workspaceRecord,
       supersedes: sourcePolicyRecord,

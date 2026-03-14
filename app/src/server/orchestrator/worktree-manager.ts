@@ -105,10 +105,6 @@ export async function createWorktree(
   const branchName = buildBranchName(taskSlug);
   const relativePath = worktreeRelativePath(taskSlug);
 
-  // Prune stale worktree entries to prevent failures when .git/worktrees/
-  // contains references to worktrees that no longer exist on disk.
-  await exec("git", ["worktree", "prune"], repoRoot);
-
   const result = await exec(
     "git",
     ["worktree", "add", "-b", branchName, relativePath],
@@ -119,7 +115,31 @@ export async function createWorktree(
     if (result.stderr.includes("already exists")) {
       return worktreeExists(result.stderr);
     }
-    return gitError(result.stderr);
+
+    // If the add failed for a non-"already exists" reason, a stale worktree
+    // entry may be the cause. Prune once and retry rather than pruning
+    // unconditionally on every call (which races with concurrent creates).
+    await exec("git", ["worktree", "prune"], repoRoot);
+
+    const retry = await exec(
+      "git",
+      ["worktree", "add", "-b", branchName, relativePath],
+      repoRoot,
+    );
+    if (retry.exitCode !== 0) {
+      if (retry.stderr.includes("already exists")) {
+        return worktreeExists(retry.stderr);
+      }
+      return gitError(retry.stderr);
+    }
+
+    return {
+      ok: true,
+      value: {
+        worktreePath: buildWorktreePath(repoRoot, taskSlug),
+        branchName,
+      },
+    };
   }
 
   return {

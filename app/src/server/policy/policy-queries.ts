@@ -48,7 +48,7 @@ const toPolicyListItem = (record: PolicyRecord): PolicyListItem => ({
 
 type CreatePolicyParams = {
   title: string;
-  description: string;
+  description?: string;
   selector?: PolicySelector;
   rules: PolicyRule[];
   human_veto_required?: boolean;
