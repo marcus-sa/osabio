@@ -5,6 +5,8 @@
   "branch": "marcus-sa/objective-behavior-nodes",
   "checkpoints_count": 1,
   "files_touched": [
+    "app/src/server/behavior/behavior-route.ts",
+    "app/src/server/runtime/start-server.ts",
     "docs/feature/dynamic-behaviors/execution-log.yaml"
   ],
   "sessions": [
@@ -14,6 +16,13 @@
       "context": "/55/920f054114/0/context.md",
       "content_hash": "/55/920f054114/0/content_hash.txt",
       "prompt": "/55/920f054114/0/prompt.txt"
+    },
+    {
+      "metadata": "/55/920f054114/1/metadata.json",
+      "transcript": "/55/920f054114/1/full.jsonl",
+      "context": "/55/920f054114/1/context.md",
+      "content_hash": "/55/920f054114/1/content_hash.txt",
+      "prompt": "/55/920f054114/1/prompt.txt"
     }
   ],
   "token_usage": {
