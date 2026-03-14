@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b8e1cbc1e607",
+  "session_id": "9da94212-222a-43e2-ba07-50d19a9adae3",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T04:01:11.090681Z",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/objective-behavior/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bc8827dece67",
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 243255,
+    "cache_read_tokens": 1421548,
+    "output_tokens": 20667,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T04:01:10.772728Z",
+    "agent_lines": 5,
+    "human_added": 206,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 211,
+    "agent_percentage": 2.3696682464454977
+  }
+}
