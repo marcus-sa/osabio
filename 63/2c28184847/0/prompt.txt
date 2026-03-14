@@ -1,0 +1,19 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/hangzhou-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+Rule id field not validated server-side
+
+validateRule checks effect and condition but never validates the presence of id. The PolicyRule type in types.ts declares id: string as required, and VersionDiffView.diffRules builds lookup maps keyed on r.id:
+
+const oldById = new Map(oldRules.map((r) => [r.id, r]));
+Any rule stored without an id (possible via direct API calls — the UI's RuleBuilder always generates one, but nothing enforces this server-side) would map to key undefined. Multiple id-less rules would collapse onto the same slot, silently producing incorrect diff output.
+
+Add an id check to validateRule:
