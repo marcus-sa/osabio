@@ -351,7 +351,7 @@ export async function createOrchestratorSession(
   }
 
   const { validation } = assignmentResult;
-  const taskSlug = `${slugFromTitle(validation.title)}-${Date.now()}`;
+  const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
   const repoRoot = validation.repoPath;
 
   // 2. Create worktree
