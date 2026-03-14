@@ -147,5 +147,30 @@ events:
   s: EXECUTED
   sid: 02-03
   t: '2026-03-14T09:06:55Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-14T09:07:44Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-14T09:10:20Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-14T09:10:35Z'
+- d: 'NOT_APPLICABLE: verification step, no new production code'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-01
+  t: '2026-03-14T09:10:40Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-14T09:10:49Z'
 project_id: dynamic-behaviors
 schema_version: '3.0'
