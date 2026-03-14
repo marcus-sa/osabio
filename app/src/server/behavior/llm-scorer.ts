@@ -94,9 +94,8 @@ export async function scoreTelemetryWithLlm(
 
     return result.object;
   } catch (error) {
-    logError("behavior.scorer.llm", "LLM scoring failed", {
+    logError("behavior.scorer.llm", "LLM scoring failed", error, {
       definition_title: definition.title,
-      error: error instanceof Error ? error.message : String(error),
     });
     return undefined;
   }

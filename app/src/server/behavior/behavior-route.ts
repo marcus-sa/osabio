@@ -258,9 +258,9 @@ async function handleListDefinitions(
 ): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const status = url.searchParams.get("status") as "draft" | "active" | "archived" | undefined ?? undefined;
+    const status = url.searchParams.get("status") as "draft" | "active" | "archived" | undefined;
 
-    const records = await listBehaviorDefinitions(deps.surreal, workspaceId, status ?? undefined);
+    const records = await listBehaviorDefinitions(deps.surreal, workspaceId, status);
 
     return jsonResponse({
       definitions: records.map(serializeDefinition),

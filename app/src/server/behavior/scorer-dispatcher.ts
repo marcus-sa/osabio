@@ -14,7 +14,7 @@ import type { BehaviorDefinitionRecord, LlmScorerResult } from "./definition-typ
 import { scoreTelemetry, type ScorerResult } from "./scorer";
 import { scoreTelemetryWithLlm } from "./llm-scorer";
 import { createBehavior, type BehaviorInput } from "./queries";
-import { logInfo, logError } from "../http/observability";
+import { logInfo } from "../http/observability";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,7 +113,7 @@ async function scoreOneDefinition(
 
   // LLM scoring
   if (!deps.scorerModel) {
-    logError("behavior.dispatcher", "LLM scorer model not configured, skipping LLM scoring", {
+    logInfo("behavior.dispatcher", "LLM scorer model not configured, skipping LLM scoring", {
       definition_title: definition.title,
     });
     return undefined;

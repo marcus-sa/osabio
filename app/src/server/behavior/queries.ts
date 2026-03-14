@@ -294,18 +294,10 @@ export async function listBehaviorDefinitions(
 ): Promise<BehaviorDefinitionRecord[]> {
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  if (status) {
-    const rows = (await surreal.query(
-      `SELECT * FROM behavior_definition WHERE workspace = $ws AND status = $status ORDER BY created_at DESC;`,
-      { ws: workspaceRecord, status },
-    )) as Array<BehaviorDefinitionRecord[]>;
-    return rows[0] ?? [];
-  }
-
-  const rows = (await surreal.query(
-    `SELECT * FROM behavior_definition WHERE workspace = $ws ORDER BY created_at DESC;`,
-    { ws: workspaceRecord },
-  )) as Array<BehaviorDefinitionRecord[]>;
+  const query = status
+    ? `SELECT * FROM behavior_definition WHERE workspace = $ws AND status = $status ORDER BY created_at DESC;`
+    : `SELECT * FROM behavior_definition WHERE workspace = $ws ORDER BY created_at DESC;`;
+  const rows = (await surreal.query(query, { ws: workspaceRecord, status })) as Array<BehaviorDefinitionRecord[]>;
   return rows[0] ?? [];
 }
 

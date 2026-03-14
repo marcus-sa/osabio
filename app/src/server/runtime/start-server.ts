@@ -623,6 +623,7 @@ export async function startServer(): Promise<void> {
     analyticsAgentModel: runtime.analyticsAgentModel,
     embeddingModel: runtime.embeddingModel,
     ...(runtime.observerModel ? { observerModel: runtime.observerModel } : {}),
+    ...(runtime.scorerModel ? { scorerModel: runtime.scorerModel } : {}),
     sse: createSseRegistry(),
     inflight: createInflightTracker(),
     asSigningKey: runtime.asSigningKey,

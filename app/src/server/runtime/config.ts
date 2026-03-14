@@ -25,7 +25,7 @@ export type ServerConfig = {
   surrealDatabase: string;
   port: number;
   observerModelId?: string;
-  scorerModelId?: string;
+  scorerModelId: string;
   githubWebhookSecret?: string;
   betterAuthSecret: string;
   betterAuthUrl: string;
