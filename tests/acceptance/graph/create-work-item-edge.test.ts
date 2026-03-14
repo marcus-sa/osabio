@@ -101,7 +101,7 @@ afterAll(async () => {
 const stubEmbeddingModel = {
   modelId: "stub-embedding",
   provider: "stub",
-  specificationVersion: "v1",
+  specificationVersion: "v2",
   maxEmbeddingsPerCall: 1,
   supportsParallelCalls: false,
   doEmbed: async ({ values }: { values: string[] }) => ({
