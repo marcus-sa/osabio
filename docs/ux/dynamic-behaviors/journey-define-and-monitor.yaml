@@ -1,0 +1,232 @@
+journey:
+  name: "Define and Monitor Behavioral Standards"
+  goal: "Workspace admin creates a behavior definition in plain language, activates it, reviews real-time scores, and adjusts based on results"
+  persona: "Elena Vasquez -- Workspace Admin, non-engineer, product management background"
+  jobs_served:
+    - "Job 1: Define Behavioral Standards"
+    - "Job 2: Real-time Behavioral Auditing"
+
+  emotional_arc:
+    start: "Curious + Slightly Overwhelmed"
+    middle: "Guided + Gaining Confidence -> Anticipatory + Hopeful"
+    end: "Validated + Satisfied -> Empowered + In Control"
+
+steps:
+  - id: 1
+    name: "Browse Behavior Library"
+    action: "Navigate to Behavior Library page from main navigation"
+
+    shared_artifacts:
+      - name: "active_definition_count"
+        source: "behavior_definition table WHERE status = 'active' AND workspace = $ws"
+        displayed_as: "${active_definition_count}"
+        consumers: ["Library page header", "Navigation badge"]
+      - name: "community_template_list"
+        source: "behavior_definition_template table (system-level, no workspace filter)"
+        displayed_as: "${community_template_list}"
+        consumers: ["Library page template section"]
+
+    emotional_state:
+      entry: "Curious -- Elena wants to see what is available"
+      exit: "Oriented -- Elena knows where things are and sees a template that matches her need"
+
+    integration_checkpoint: |
+      Verify: Library page loads existing deterministic scorers (TDD_Adherence, Security_First)
+      alongside any user-created definitions. Community templates are distinct from workspace definitions.
+
+    gherkin: |
+      Scenario: Browse existing definitions and templates
+        Given Elena has a workspace with 2 active deterministic behavior definitions
+        And 4 community behavior definition templates are available
+        When Elena navigates to the Behavior Library page
+        Then she sees her 2 active definitions with current average scores and trend indicators
+        And she sees 4 community templates with descriptions and "Use Template" buttons
+        And each definition card shows its scoring mode (Deterministic or LLM-scored)
+
+  - id: 2
+    name: "Create Behavior Definition"
+    action: "Click Use Template, customize goal and scoring logic, preview validation"
+
+    shared_artifacts:
+      - name: "definition_title"
+        source: "User input in definition creation form"
+        displayed_as: "${definition_title}"
+        consumers: ["Definition card", "Score detail view", "Trend dashboard", "Feed items"]
+      - name: "definition_goal"
+        source: "User input in definition creation form"
+        displayed_as: "${definition_goal}"
+        consumers: ["Definition detail page", "Scorer Agent context"]
+      - name: "scoring_logic"
+        source: "User input in definition creation form"
+        displayed_as: "${scoring_logic}"
+        consumers: ["Definition detail page", "Scorer Agent context", "Score rationale"]
+      - name: "scoring_mode"
+        source: "User selection (LLM-scored or Deterministic)"
+        displayed_as: "${scoring_mode}"
+        consumers: ["Definition card badge", "Scorer dispatch logic"]
+      - name: "telemetry_types"
+        source: "User checkbox selection in definition creation form"
+        displayed_as: "${telemetry_types}"
+        consumers: ["Definition detail page", "Telemetry matching logic", "No-match warning"]
+
+    emotional_state:
+      entry: "Slightly overwhelmed -- Elena is expressing a value she has never formalized before"
+      exit: "Confident -- The template helped, the validation preview confirmed her definition is parseable"
+
+    integration_checkpoint: |
+      Verify: definition is persisted with status 'draft'. Validation preview runs synchronously
+      and reports detected rubric levels, applicable telemetry types, and any warnings.
+
+    gherkin: |
+      Scenario: Create a behavior definition from a community template
+        Given Elena is on the Behavior Library page
+        When she clicks "Use Template" on the "Evidence-Based Reasoning" template
+        Then the definition form opens pre-filled with the template's goal and scoring logic
+        And Elena can edit the title, goal, scoring logic, and telemetry type selections
+        When Elena edits the scoring logic to add a rubric with 4 score levels
+        Then the validation preview shows "4 levels detected" and lists the applicable telemetry types
+        When Elena clicks "Save as Draft"
+        Then the definition appears in her library with status "Draft"
+
+  - id: 3
+    name: "Activate Definition"
+    action: "Click Activate on a draft definition, confirm activation"
+
+    shared_artifacts:
+      - name: "definition_status"
+        source: "behavior_definition table, status field"
+        displayed_as: "${definition_status}"
+        consumers: ["Definition card badge", "Scorer matching logic", "Library filter"]
+
+    emotional_state:
+      entry: "Anticipatory -- Elena is about to turn on something new"
+      exit: "Hopeful -- Activation was smooth, she understands what happens next"
+
+    integration_checkpoint: |
+      Verify: status transitions from 'draft' to 'active'. Scorer Agent begins matching
+      telemetry events to this definition. Confirmation dialog clearly states enforcement
+      mode (scoring only vs. automatic restriction).
+
+    gherkin: |
+      Scenario: Activate a draft behavior definition
+        Given Elena has a draft behavior definition titled "Evidence-Based Reasoning"
+        When she clicks "Activate" on the definition card
+        Then a confirmation dialog appears explaining that the Scorer Agent will begin evaluating matching telemetry
+        And the dialog states the enforcement mode is "Scoring only (no automatic restrictions)"
+        When Elena confirms activation
+        Then the definition status changes to "Active"
+        And the definition appears in the active definitions section of the library
+
+  - id: 4
+    name: "Review Scores"
+    action: "Return to library, view scores produced by the new definition"
+
+    shared_artifacts:
+      - name: "score_value"
+        source: "behavior table, score field (produced by Scorer Agent)"
+        displayed_as: "${score_value}"
+        consumers: ["Score timeline chart", "Score detail card", "Trend analysis", "Policy predicates"]
+      - name: "score_rationale"
+        source: "behavior table, source_telemetry.rationale field (produced by Scorer Agent)"
+        displayed_as: "${score_rationale}"
+        consumers: ["Score detail card", "Score detail modal"]
+      - name: "acting_identity"
+        source: "identity table, traversed via exhibits edge from behavior record"
+        displayed_as: "${acting_identity}"
+        consumers: ["Score detail card", "Trend per-agent view"]
+      - name: "action_type"
+        source: "behavior table, source_telemetry.telemetry_type field"
+        displayed_as: "${action_type}"
+        consumers: ["Score detail card"]
+      - name: "score_timestamp"
+        source: "behavior table, created_at field"
+        displayed_as: "${score_timestamp}"
+        consumers: ["Score timeline chart", "Score detail card"]
+
+    emotional_state:
+      entry: "Eager -- Elena is checking if the scores make sense"
+      exit: "Validated and satisfied -- Scores are arriving, rationale is transparent, results are understandable"
+
+    integration_checkpoint: |
+      Verify: scores are linked to the correct definition via a new edge or field.
+      Score rationale is persisted in source_telemetry. Timeline chart reflects actual score history.
+      Per-agent breakdown is available.
+
+    gherkin: |
+      Scenario: Review scores for an active behavior definition
+        Given the "Evidence-Based Reasoning" definition has been active for 1 hour
+        And 3 agent actions have been scored against it
+        When Elena opens the definition detail page
+        Then she sees a score timeline chart with 3 data points
+        And each score card shows the acting identity, action type, score value, and timestamp
+        And each score card has a "Details" button that reveals the Scorer Agent's rationale
+        When Elena clicks "Details" on the lowest-scoring entry
+        Then she sees the full rationale explaining why the score was assigned
+
+  - id: 5
+    name: "Adjust Definition"
+    action: "Edit the scoring logic based on observed results, save changes"
+
+    shared_artifacts:
+      - name: "definition_version"
+        source: "behavior_definition table, version field (incremented on edit)"
+        displayed_as: "${definition_version}"
+        consumers: ["Definition detail page", "Score provenance (which version scored this)"]
+
+    emotional_state:
+      entry: "Reflective -- Elena sees room for improvement in her definition"
+      exit: "Empowered and in control -- She refined the standard based on real evidence"
+
+    integration_checkpoint: |
+      Verify: editing an active definition increments version. Existing scores are preserved
+      (append-only). New scoring uses the updated definition. Change summary is clear.
+
+    gherkin: |
+      Scenario: Adjust scoring logic of an active definition
+        Given Elena is viewing the "Evidence-Based Reasoning" definition with 3 existing scores
+        When she clicks "Edit" and modifies the scoring logic
+        Then a change summary shows what was modified
+        And a notice states "Existing scores are preserved. New scoring uses the updated definition."
+        When Elena saves the changes
+        Then the definition version increments
+        And subsequent agent actions are scored against the updated definition
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "definition_title"
+      must_match_across: [1, 2, 4, 5]
+      failure_message: "Definition title must be consistent across library card, creation form, score view, and edit form"
+    - artifact: "definition_status"
+      must_match_across: [1, 2, 3]
+      failure_message: "Definition status must reflect actual state: draft after creation, active after activation"
+    - artifact: "score_value"
+      must_match_across: [4]
+      failure_message: "Score values on timeline chart must match individual score cards"
+    - artifact: "scoring_logic"
+      must_match_across: [2, 4, 5]
+      failure_message: "Scoring logic shown in Scorer rationale must reference the version active when the score was produced"
+
+error_paths:
+  - id: "E1"
+    name: "Ambiguous Definition"
+    trigger: "Goal text too vague for consistent scoring"
+    user_sees: "Validation warning with specific improvement suggestions"
+    recovery: "User edits goal text to be more specific"
+
+  - id: "E2"
+    name: "No Matching Telemetry"
+    trigger: "Definition active 24h with no matching events"
+    user_sees: "Notification suggesting telemetry type review with recent workspace activity summary"
+    recovery: "User adjusts telemetry type selections"
+
+  - id: "E3"
+    name: "Scorer Agent Failure"
+    trigger: "LLM timeout or malformed response during scoring"
+    user_sees: "Event queued for retry notice, no score recorded, no impact on existing scores"
+    recovery: "Automatic retry; admin can view retry status"
+
+  - id: "E4"
+    name: "Conflicting Definitions"
+    trigger: "New definition overlaps telemetry types and scoring criteria with existing definition"
+    user_sees: "Conflict warning identifying the overlapping definition and shared telemetry types"
+    recovery: "User can proceed, edit to differentiate, or cancel"

@@ -18,6 +18,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   analyticsAgentModel: any;
   embeddingModel: any;
   observerModel?: any;
+  scorerModel?: any;
   asSigningKey: AsSigningKey;
 }> {
   const surreal = new Surreal();
@@ -60,6 +61,12 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
       }))
     : undefined;
 
+  const scorerModel = config.scorerModelId
+    ? wrap(openrouter(config.scorerModelId, {
+        plugins: [{ id: "response-healing" }],
+      }))
+    : undefined;
+
   const auth = createAuth(surreal, {
     betterAuthSecret: config.betterAuthSecret,
     betterAuthUrl: config.betterAuthUrl,
@@ -79,6 +86,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     analyticsAgentModel,
     embeddingModel,
     ...(observerModel ? { observerModel } : {}),
+    ...(scorerModel ? { scorerModel } : {}),
     asSigningKey,
   };
 }

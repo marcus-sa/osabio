@@ -34,7 +34,7 @@ Agent Layer
 Graph Layer
   → Projects / Decisions / Tasks / Observations / Features / Questions
   → Suggestions / Conversations / Commits / Intents / Learnings
-  → Traces / Policies
+  → Objectives / Behaviors / Traces / Policies
 
 Auth Layer
   → OAuth 2.1 / RAR (RFC 9396) / DPoP (RFC 9449) / Better Auth IdP
@@ -86,6 +86,8 @@ No agent messages another agent. They write structured signals to the knowledge 
 - **Intents** — Every agent action starts as an intent — a structured request in the graph. Intents carry the full authorization context and are evaluated against authority scopes before execution.
 - **Authority Scopes** — Control what each agent can do without asking. Start restrictive. Expand trust over time.
 - **Learnings** — Behavioral rules injected into agent prompts at runtime via JIT loading with token budgets. Learnings follow a lifecycle (`proposed` → `active` → `deactivated`) and can be created by humans, suggested by agents, or proposed by the Observer from root cause analysis. Three-layer collision detection prevents duplicates. Pattern detection identifies recurring issues and suggests learnings automatically. The Learning Library UI lets you browse, filter, approve, edit, and deactivate learnings across all agents.
+- **Objectives** — Strategic goals that give agent work direction. Objectives link to projects, features, and tasks — providing alignment context for every intent. Progress is computed by graph-traversing linked intents. The Observer audits for orphaned decisions and stale objectives via coherence scans.
+- **Behaviors** — Measurable behavioral expectations attached to objectives. Each behavior has a scoring function (LLM-evaluated or definition-matched), trend analysis (drift, improvement, flat-line detection), and a bridge to the learning system that proposes corrective learnings when scores decline. Behaviors feed into policy enforcement — the Authorizer checks behavior scores before granting intent authorization. Workspace admins define behavior definitions with configurable scoring criteria, thresholds, and remediation guidance.
 - **Identity** — One person across all tools. Your Slack, GitHub, and terminal sessions all resolve to the same identity.
 - **Agent Sessions** — Every session is remembered. The next agent knows what the last one did.
 - **Traces** — Every agent execution is a graph-native call tree. Subagent spawns, tool calls, and decisions form a hierarchical trace you can traverse, query, and audit. Forensic debugging is a graph query, not grep.
@@ -181,6 +183,7 @@ EXTRACTION_MODEL=<extraction-model-id>
 ANALYTICS_MODEL=<analytics-model-id>
 PM_AGENT_MODEL=<pm-model-id>
 OBSERVER_MODEL=<observer-model-id>
+BEHAVIOR_SCORER_MODEL=<behavior-scorer-model-id>
 OPENROUTER_EMBEDDING_MODEL=<embedding-model-id>
 EMBEDDING_DIMENSION=1536
 EXTRACTION_STORE_THRESHOLD=0.6
@@ -203,6 +206,7 @@ EXTRACTION_MODEL=<ollama-extraction-model>
 ANALYTICS_MODEL=<ollama-analytics-model>
 PM_AGENT_MODEL=<ollama-pm-model>
 OBSERVER_MODEL=<ollama-observer-model>
+BEHAVIOR_SCORER_MODEL=<ollama-behavior-scorer-model>
 EMBEDDING_MODEL=<ollama-embedding-model>
 EMBEDDING_DIMENSION=1536
 EXTRACTION_STORE_THRESHOLD=0.6
@@ -246,6 +250,21 @@ Open `http://localhost:3000`.
 - `POST /api/workspaces/:workspaceId/learnings/:id/approve` approve a proposed learning
 - `POST /api/workspaces/:workspaceId/learnings/:id/dismiss` dismiss a proposed learning
 - `POST /api/workspaces/:workspaceId/learnings/:id/deactivate` deactivate an active learning
+- `POST /api/workspaces/:workspaceId/objectives` create an objective
+- `GET /api/workspaces/:workspaceId/objectives` list objectives
+- `GET /api/workspaces/:workspaceId/objectives/:id` get objective detail
+- `PUT /api/workspaces/:workspaceId/objectives/:id` update an objective
+- `DELETE /api/workspaces/:workspaceId/objectives/:id` delete an objective
+- `GET /api/workspaces/:workspaceId/objectives/:id/progress` get objective progress
+- `POST /api/workspaces/:workspaceId/behaviors` create a behavior
+- `GET /api/workspaces/:workspaceId/behaviors` list behaviors
+- `PUT /api/workspaces/:workspaceId/behaviors/:id` update a behavior
+- `DELETE /api/workspaces/:workspaceId/behaviors/:id` delete a behavior
+- `POST /api/workspaces/:workspaceId/behaviors/score` score a behavior
+- `POST /api/workspaces/:workspaceId/behaviors/definitions` create a behavior definition
+- `GET /api/workspaces/:workspaceId/behaviors/definitions` list behavior definitions
+- `PUT /api/workspaces/:workspaceId/behaviors/definitions/:id` update a behavior definition
+- `DELETE /api/workspaces/:workspaceId/behaviors/definitions/:id` delete a behavior definition
 
 ## MCP + CLI
 
@@ -300,6 +319,8 @@ app/
     observer/                   # graph scanning, LLM verification, peer review, synthesis
     agents/observer/            # observer agent orchestration + prompt
     learning/                   # learning CRUD, collision detection, pattern detection
+    objective/                  # objective CRUD, alignment evaluator, progress tracking
+    behavior/                   # behavior telemetry, scorer, definitions, trend analysis
     chat/                       # chat agent, tools, context
     extraction/                 # extraction pipeline
 cli/                            # brain CLI + MCP server

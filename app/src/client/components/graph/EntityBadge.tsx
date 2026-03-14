@@ -13,6 +13,8 @@ const KIND_LABELS: Record<string, string> = {
   workspace: "Workspace",
   intent: "Intent",
   policy: "Policy",
+  objective: "Objective",
+  behavior: "Behavior",
 };
 
 export function EntityBadge({ kind }: { kind: EntityKind }) {

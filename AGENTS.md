@@ -86,6 +86,12 @@
 - If a webhook path must do DB follow-up without `ASYNC`, wait briefly for the triggering transition to commit before applying routing/state transitions.
 - If async follow-up work is needed in route handlers, track it with `deps.inflight.track(...)`.
 
+## Agentic Design: No Hardcoded Modes
+
+- Do NOT introduce hardcoded processing modes (e.g. `"deterministic" | "llm"`) when behavior should be workspace-configurable via data.
+- This is an agentic system — capabilities are defined by workspace admins through definitions, not by code branches. If something can be expressed as a definition with configurable logic, it should be.
+- Avoid dual-path dispatchers that route between "built-in" and "dynamic" implementations. One path, driven by data. See ADR-038 for the precedent.
+
 ## Failure Handling
 
 - Do NOT add fallback logic that masks invalid state, malformed payloads, or contract violations.

@@ -1,0 +1,175 @@
+project_id: "dynamic-behaviors"
+goal: "Enable non-technical admins to define behavioral standards as data, score agent telemetry against them via LLM or deterministic pipelines, and enforce via existing policy gate and observer loops"
+paradigm: "functional"
+created_at: "2026-03-14"
+validation:
+  status: "approved"
+  step_count: 8
+  production_files: 13
+  decomposition_ratio: 0.62  # 8/13
+  enabled_scenarios: 33
+  skipped_scenarios: 11
+  scope_note: "Backend only. Frontend (Behavior Library UI) is a separate roadmap."
+
+steps:
+  # ── Group 01: Schema + Walking Skeleton Foundation ──
+
+  - step_id: "01-01"
+    name: "Schema migration and type definitions"
+    description: "Create behavior_definition table, extend behavior table with definition + definition_version fields, define TypeScript types"
+    acceptance_criteria:
+      - "behavior_definition table accepts records with title, goal, scoring_logic, scoring_mode, telemetry_types, status, version, workspace"
+      - "behavior table accepts definition (record reference) and definition_version (int) fields"
+      - "metric_type field on behavior accepts arbitrary strings (enum ASSERT removed)"
+    test_file: "tests/acceptance/dynamic-behaviors/walking-skeleton.test.ts"
+    files_to_modify:
+      - "schema/surreal-schema.surql"
+      - "schema/migrations/0037_behavior_definition.surql"
+      - "app/src/server/behavior/definition-types.ts"
+    dependencies: []
+    estimated_hours: 2
+    deliverables:
+      - "Migration script 0037_behavior_definition.surql"
+      - "TypeScript types in definition-types.ts"
+      - "Base schema updated"
+
+  - step_id: "01-02"
+    name: "Definition CRUD queries"
+    description: "Implement create, get, list, and update queries for behavior_definition table with workspace scoping"
+    acceptance_criteria:
+      - "Definition created with all required fields returns persisted record with generated ID"
+      - "List returns only definitions belonging to the requested workspace"
+      - "Update to active definition increments version; update to draft does not"
+      - "Status transitions enforce draft->active, active->archived, draft->archived only"
+    test_file: "tests/acceptance/dynamic-behaviors/definition-crud.test.ts"
+    files_to_modify:
+      - "app/src/server/behavior/queries.ts"
+    dependencies: ["01-01"]
+    estimated_hours: 3
+    deliverables:
+      - "createBehaviorDefinition(), getBehaviorDefinition(), listBehaviorDefinitions(), updateBehaviorDefinition() in queries.ts"
+
+  - step_id: "01-03"
+    name: "Definition HTTP routes and walking skeleton"
+    description: "Add definition CRUD endpoints, register routes, extend createBehavior() for definition fields. Walking skeleton test passes."
+    acceptance_criteria:
+      - "POST /behavior-definitions creates definition and returns record"
+      - "GET /behavior-definitions lists workspace definitions with optional status filter"
+      - "GET /behavior-definitions/:id returns single definition"
+      - "PUT /behavior-definitions/:id updates definition fields and status"
+      - "Walking skeleton: definition created, behavior scored, record persisted with definition reference"
+    test_file: "tests/acceptance/dynamic-behaviors/walking-skeleton.test.ts"
+    files_to_modify:
+      - "app/src/server/behavior/behavior-route.ts"
+      - "app/src/server/behavior/queries.ts"
+      - "app/src/server/runtime/start-server.ts"
+    dependencies: ["01-02"]
+    estimated_hours: 3
+    deliverables:
+      - "Definition CRUD HTTP endpoints"
+      - "Extended createBehavior() with definition + definition_version"
+      - "Route registration in start-server.ts"
+
+  # ── Group 02: Scoring Pipeline ──
+
+  - step_id: "02-01"
+    name: "Definition matcher"
+    description: "Pure function that filters active definitions by telemetry_type match"
+    acceptance_criteria:
+      - "Returns only active definitions whose telemetry_types include the submitted type"
+      - "Draft and archived definitions excluded from matches"
+      - "Empty result when no definitions match the telemetry type"
+    test_file: "tests/acceptance/dynamic-behaviors/scorer-agent.test.ts"
+    files_to_modify:
+      - "app/src/server/behavior/definition-matcher.ts"
+    dependencies: ["01-01"]
+    estimated_hours: 1
+    deliverables:
+      - "definition-matcher.ts with pure matching function"
+
+  - step_id: "02-02"
+    name: "LLM scorer and scorer dispatcher"
+    description: "LLM scorer uses AI SDK generateObject for scoring, including context assembler that queries graph for evidence referenced in telemetry claims. Dispatcher routes to deterministic or LLM scorer based on scoring_mode."
+    acceptance_criteria:
+      - "LLM scorer returns score (0-1), rationale, and evidence_checked from structured LLM output"
+      - "Dispatcher routes scoring_mode=deterministic to existing scorer, scoring_mode=llm to LLM scorer"
+      - "Multiple definitions matching same telemetry each produce independent scores"
+      - "Behavior record persisted with definition reference and version for each score"
+    test_file: "tests/acceptance/dynamic-behaviors/scorer-agent.test.ts"
+    files_to_modify:
+      - "app/src/server/behavior/llm-scorer.ts"
+      - "app/src/server/behavior/scorer-dispatcher.ts"
+      - "app/src/server/runtime/config.ts"
+      - "app/src/server/runtime/types.ts"
+      - "app/src/server/runtime/dependencies.ts"
+    dependencies: ["02-01", "01-03"]
+    estimated_hours: 4
+    deliverables:
+      - "llm-scorer.ts with generateObject integration"
+      - "scorer-dispatcher.ts with mode-based routing"
+      - "SCORER_MODEL config + dependency wiring"
+
+  - step_id: "02-03"
+    name: "Scoring HTTP endpoint"
+    description: "POST /behaviors/score endpoint accepts telemetry, matches definitions, dispatches scoring, persists results"
+    acceptance_criteria:
+      - "Telemetry submission scores against all matching active definitions"
+      - "Response includes scored behavior records with definition references"
+      - "Append-only: behavior records never updated, only created"
+      - "Definition version tracked per score for audit trail"
+    test_file: "tests/acceptance/dynamic-behaviors/scorer-agent.test.ts"
+    files_to_modify:
+      - "app/src/server/behavior/behavior-route.ts"
+      - "app/src/server/runtime/start-server.ts"
+    dependencies: ["02-02"]
+    estimated_hours: 2
+    deliverables:
+      - "Scoring endpoint registered and functional"
+
+  # ── Group 03: Integration ──
+
+  - step_id: "03-01"
+    name: "Authorizer integration verification (test-only)"
+    description: "Verify that enrichBehaviorScores already returns dynamic metric names and the policy gate already evaluates them via existing resolveDotPath. No production code changes expected — this step writes and runs acceptance tests only."
+    acceptance_criteria:
+      - "enrichBehaviorScores returns scores keyed by definition title (e.g. behavior_scores.Honesty)"
+      - "Policy gate denies intent when dynamic behavior score below threshold"
+      - "Policy gate allows intent when score above threshold"
+      - "Missing score (no behaviors recorded) does not deny intent"
+      - "Multiple scores: single failure causes denial"
+    test_file: "tests/acceptance/dynamic-behaviors/authorizer-integration.test.ts"
+    files_to_modify: []
+    dependencies: ["01-03"]
+    estimated_hours: 1
+    deliverables:
+      - "Authorizer acceptance tests passing with zero production code changes"
+
+  - step_id: "03-02"
+    name: "Observer integration with definition context"
+    description: "Extend observer learning pipeline to include definition goal in trend analysis and learning proposals"
+    acceptance_criteria:
+      - "queryWorkspaceBehaviorTrends returns trends for dynamic metric types"
+      - "Drift pattern detected triggers learning proposal with definition context"
+      - "Improving scores classified correctly as positive trend"
+      - "Archived definitions excluded from trend analysis"
+      - "Rate limit blocks learning proposal when threshold reached"
+    test_file: "tests/acceptance/dynamic-behaviors/observer-integration.test.ts"
+    files_to_modify:
+      - "app/src/server/observer/learning-diagnosis.ts"
+    dependencies: ["01-03"]
+    estimated_hours: 3
+    deliverables:
+      - "Definition-enriched learning proposals"
+      - "Dynamic metric types in workspace trends"
+
+# ── Test File to Step Mapping ──
+test_mapping:
+  "walking-skeleton.test.ts": ["01-01", "01-02", "01-03"]
+  "definition-crud.test.ts": ["01-02", "01-03"]
+  "scorer-agent.test.ts": ["02-01", "02-02", "02-03"]
+  "authorizer-integration.test.ts": ["03-01"]
+  "observer-integration.test.ts": ["03-02"]
+
+# ── Execution Order ──
+# Critical path: 01-01 -> 01-02 -> 01-03 -> 02-02 -> 02-03
+# Parallel: 02-01 can start after 01-01; 03-01 and 03-02 can start after 01-03

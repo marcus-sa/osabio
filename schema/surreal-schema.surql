@@ -223,7 +223,7 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment"] OR $value IS NONE;
 DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
 DEFINE FIELD source ON observation TYPE option<string>;
 DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
@@ -426,7 +426,7 @@ DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
 DEFINE TABLE belongs_to TYPE RELATION IN task | decision | question OUT feature | project SCHEMAFULL;
 DEFINE FIELD added_at ON belongs_to TYPE datetime;
 
-DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation SCHEMAFULL;
+DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior SCHEMAFULL;
 DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
@@ -550,7 +550,9 @@ DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> 
 DEFINE FIELD dpop_jwk_thumbprint ON intent TYPE option<string>;
 DEFINE FIELD token_issued_at ON intent TYPE option<datetime>;
 DEFINE FIELD token_expires_at ON intent TYPE option<datetime>;
+DEFINE FIELD embedding ON intent TYPE option<array<float>>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
+DEFINE INDEX idx_intent_embedding ON intent FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
 DEFINE INDEX intent_veto_expires ON intent FIELDS veto_expires_at;
@@ -834,7 +836,8 @@ DEFINE FUNCTION fn::entity_edges($entity: record, $lim: int) {
   RETURN SELECT id, `in`, out, kind, confidence
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
          depends_on, owns, observes, suggests_for, subtask_of,
-         governing, protects, triggered_by, gates
+         governing, protects, triggered_by, gates,
+         supports, exhibits, has_objective
     WHERE `in` = $entity OR out = $entity
     LIMIT $lim;
 };
@@ -843,7 +846,8 @@ DEFINE FUNCTION fn::edges_between($ids: array) {
   RETURN SELECT id, `in`, out, kind, confidence
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
          depends_on, owns, observes, suggests_for, subtask_of,
-         governing, protects, triggered_by, gates
+         governing, protects, triggered_by, gates,
+         supports, exhibits, has_objective
     WHERE `in` IN $ids AND out IN $ids;
 };
 
@@ -851,7 +855,8 @@ DEFINE FUNCTION fn::graph_neighbors($ids: array) {
   RETURN SELECT `in`, out
     FROM entity_relation, belongs_to, has_feature, has_task, has_project,
          depends_on, owns, observes, suggests_for, subtask_of,
-         governing, protects, triggered_by, gates
+         governing, protects, triggered_by, gates,
+         supports, exhibits, has_objective
     WHERE `in` IN $ids OR out IN $ids;
 };
 
@@ -874,11 +879,14 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
   LET $policies = (SELECT VALUE `in` FROM protects WHERE out = $ws AND `in`.status IN ['active', 'testing']);
   LET $intents = (SELECT VALUE id FROM intent WHERE workspace = $ws AND status NOT IN ['completed', 'vetoed', 'failed']);
   LET $agent_sessions = (SELECT VALUE out FROM gates WHERE `in` IN $intents);
+  LET $objectives = (SELECT VALUE out FROM has_objective WHERE `in` = $ws OR `in` IN $projects);
+  LET $behaviors = (SELECT VALUE id FROM behavior WHERE workspace = $ws);
   RETURN array::distinct(
     [$ws] + $projects + $features + $tasks +
     $belongs_project + $belongs_feature +
     $identities + $provenance +
-    $policies + $intents + $agent_sessions
+    $policies + $intents + $agent_sessions +
+    $objectives + $behaviors
   );
 };
 
@@ -900,10 +908,12 @@ DEFINE FUNCTION fn::project_entity_ids($ws: record<workspace>, $project: record<
   LET $all_tasks = array::distinct($tasks + $belongs_project + $belongs_feature);
   LET $project_tasks = (SELECT VALUE id FROM task WHERE id IN $all_tasks);
   LET $intents = (SELECT VALUE `in` FROM triggered_by WHERE out IN $project_tasks AND `in`.status NOT IN ['completed', 'vetoed', 'failed']);
+  LET $objectives = (SELECT VALUE out FROM has_objective WHERE `in` = $project);
   RETURN array::distinct(
     [$project] + $features + $tasks +
     $belongs_project + $belongs_feature +
-    $identities + $provenance + $intents
+    $identities + $provenance + $intents +
+    $objectives
   );
 };
 
@@ -1150,13 +1160,93 @@ DEFINE INDEX idx_learning_workspace_status ON learning FIELDS workspace, status;
 DEFINE INDEX idx_learning_embedding ON learning FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 -- Evidence relation: links a learning to source entities
-DEFINE TABLE learning_evidence TYPE RELATION IN learning OUT message | trace | observation | agent_session SCHEMAFULL;
+DEFINE TABLE learning_evidence TYPE RELATION IN learning OUT message | trace | observation | agent_session | behavior SCHEMAFULL;
 DEFINE FIELD added_at ON learning_evidence TYPE option<datetime>;
 
 -- Supersession relation: tracks when one learning replaces another
 DEFINE TABLE supersedes TYPE RELATION IN learning OUT learning SCHEMAFULL;
 DEFINE FIELD superseded_at ON supersedes TYPE datetime;
 DEFINE FIELD reason ON supersedes TYPE option<string>;
+
+-- Objective: strategic goal node
+DEFINE TABLE objective SCHEMAFULL;
+DEFINE FIELD title ON objective TYPE string;
+DEFINE FIELD description ON objective TYPE option<string>;
+DEFINE FIELD target_date ON objective TYPE option<string>;
+DEFINE FIELD priority ON objective TYPE string
+  ASSERT $value IN ["low", "medium", "high", "critical"];
+DEFINE FIELD status ON objective TYPE string
+  ASSERT $value IN ["draft", "active", "completed", "archived", "expired"];
+DEFINE FIELD success_criteria ON objective TYPE option<array<object>>;
+DEFINE FIELD success_criteria[*].metric_name ON objective TYPE string;
+DEFINE FIELD success_criteria[*].target_value ON objective TYPE float;
+DEFINE FIELD success_criteria[*].current_value ON objective TYPE float;
+DEFINE FIELD success_criteria[*].unit ON objective TYPE string;
+DEFINE FIELD workspace ON objective TYPE record<workspace>;
+DEFINE FIELD source_message ON objective TYPE option<record<message>>;
+DEFINE FIELD created_by ON objective TYPE option<record<identity>>;
+DEFINE FIELD created_at ON objective TYPE datetime;
+DEFINE FIELD updated_at ON objective TYPE option<datetime>;
+DEFINE FIELD embedding ON objective TYPE option<array<float>>;
+DEFINE INDEX objective_workspace_status ON objective FIELDS workspace, status;
+DEFINE INDEX objective_target_date ON objective FIELDS target_date;
+DEFINE INDEX idx_objective_embedding ON objective FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+
+-- has_objective: links project or workspace to its objectives
+DEFINE TABLE has_objective TYPE RELATION IN project | workspace OUT objective SCHEMAFULL;
+DEFINE FIELD added_at ON has_objective TYPE datetime;
+
+-- supports: links intent to strategic objective
+DEFINE TABLE supports TYPE RELATION IN intent OUT objective SCHEMAFULL;
+DEFINE FIELD alignment_score ON supports TYPE float
+  ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD alignment_method ON supports TYPE string
+  ASSERT $value IN ["embedding", "manual", "rule"];
+DEFINE FIELD reasoning ON supports TYPE option<string>;
+DEFINE FIELD added_at ON supports TYPE option<datetime>;
+DEFINE INDEX supports_out ON supports FIELDS out;
+
+-- Behavior Definition: admin-defined behavioral standard
+DEFINE TABLE behavior_definition SCHEMAFULL;
+DEFINE FIELD title ON behavior_definition TYPE string;
+DEFINE FIELD goal ON behavior_definition TYPE string;
+DEFINE FIELD scoring_logic ON behavior_definition TYPE string;
+DEFINE FIELD telemetry_types ON behavior_definition TYPE array<string>;
+DEFINE FIELD category ON behavior_definition TYPE option<string>;
+DEFINE FIELD status ON behavior_definition TYPE string
+  ASSERT $value IN ["draft", "active", "archived"];
+DEFINE FIELD version ON behavior_definition TYPE int ASSERT $value > 0;
+DEFINE FIELD enforcement_mode ON behavior_definition TYPE string
+  ASSERT $value IN ["warn_only", "automatic"]
+  DEFAULT "warn_only";
+DEFINE FIELD enforcement_threshold ON behavior_definition TYPE option<float>
+  ASSERT $value = NONE OR ($value >= 0.0 AND $value <= 1.0);
+DEFINE FIELD workspace ON behavior_definition TYPE record<workspace>;
+DEFINE FIELD created_by ON behavior_definition TYPE option<record<identity>>;
+DEFINE FIELD created_at ON behavior_definition TYPE datetime;
+DEFINE FIELD updated_at ON behavior_definition TYPE option<datetime>;
+DEFINE INDEX idx_behaviordef_workspace ON behavior_definition FIELDS workspace;
+DEFINE INDEX idx_behaviordef_ws_status ON behavior_definition FIELDS workspace, status;
+
+-- Behavior: agent craftsmanship metric record (append-only)
+DEFINE TABLE behavior SCHEMAFULL;
+DEFINE FIELD metric_type ON behavior TYPE string;
+DEFINE FIELD score ON behavior TYPE float
+  ASSERT $value >= 0.0 AND $value <= 1.0;
+DEFINE FIELD source_telemetry ON behavior TYPE object FLEXIBLE;
+DEFINE FIELD definition ON behavior TYPE record<behavior_definition>;
+DEFINE FIELD definition_version ON behavior TYPE int ASSERT $value > 0;
+DEFINE FIELD workspace ON behavior TYPE record<workspace>;
+DEFINE FIELD session ON behavior TYPE option<record<agent_session>>;
+DEFINE FIELD created_at ON behavior TYPE datetime;
+DEFINE INDEX behavior_workspace_metric ON behavior FIELDS workspace, metric_type;
+DEFINE INDEX behavior_session ON behavior FIELDS session;
+DEFINE INDEX behavior_created_at ON behavior FIELDS created_at;
+
+-- exhibits: links an agent identity to a behavior record
+DEFINE TABLE exhibits TYPE RELATION IN identity OUT behavior SCHEMAFULL;
+DEFINE FIELD created_at ON exhibits TYPE option<datetime>;
+DEFINE FIELD added_at ON exhibits TYPE option<datetime>;
 
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

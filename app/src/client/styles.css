@@ -39,6 +39,8 @@
   --entity-question: #a78bfa;
   --entity-person: #d66a8a;
   --entity-policy: #f59e0b;
+  --entity-objective: #10b981;
+  --entity-behavior: #8b5cf6;
 
   /* Entity foregrounds — light tints for text on accent backgrounds */
   --entity-project-fg: #c4d8f8;
@@ -48,6 +50,8 @@
   --entity-question-fg: #d8c8f8;
   --entity-person-fg: #f0c0d0;
   --entity-policy-fg: #fde68a;
+  --entity-objective-fg: #a7f3d0;
+  --entity-behavior-fg: #ddd6fe;
 
   /* Entity muted variants — dark subtle backgrounds */
   --entity-project-muted: #161c2a;
@@ -57,6 +61,8 @@
   --entity-question-muted: #1c162a;
   --entity-person-muted: #2a1620;
   --entity-policy-muted: #2a2010;
+  --entity-objective-muted: #142420;
+  --entity-behavior-muted: #1e1a2e;
 
   /* Governance tiers */
   --tier-blocking: #d66a8a;

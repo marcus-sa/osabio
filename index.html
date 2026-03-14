@@ -384,7 +384,7 @@ footer .right a:hover { color: var(--text-dim); }
     <div class="d-arrow">↕</div>
     <div class="d-row"><div class="d-tag">Agents</div><div class="d-boxes"><div class="d-box a">Architect</div><div class="d-box a">Strategist</div><div class="d-box a">Management</div><div class="d-box a">Coding · MCP</div><div class="d-box a">Observer</div></div></div>
     <div class="d-arrow">↕</div>
-    <div class="d-row"><div class="d-tag">Graph</div><div class="d-boxes"><div class="d-box g">Projects</div><div class="d-box g">Decisions</div><div class="d-box g">Tasks</div><div class="d-box g">Observations</div><div class="d-box g">Features</div><div class="d-box g">Questions</div><div class="d-box g">Suggestions</div><div class="d-box g">Conversations</div><div class="d-box g">Commits</div><div class="d-box g">Intents</div><div class="d-box g">Learnings</div><div class="d-box g">Traces</div><div class="d-box g">Policies</div></div></div>
+    <div class="d-row"><div class="d-tag">Graph</div><div class="d-boxes"><div class="d-box g">Projects</div><div class="d-box g">Decisions</div><div class="d-box g">Tasks</div><div class="d-box g">Observations</div><div class="d-box g">Features</div><div class="d-box g">Questions</div><div class="d-box g">Suggestions</div><div class="d-box g">Conversations</div><div class="d-box g">Commits</div><div class="d-box g">Intents</div><div class="d-box g">Learnings</div><div class="d-box g">Objectives</div><div class="d-box g">Behaviors</div><div class="d-box g">Traces</div><div class="d-box g">Policies</div></div></div>
     <div class="d-arrow">↕</div>
     <div class="d-row"><div class="d-tag">Auth</div><div class="d-boxes"><div class="d-box i">OAuth 2.1</div><div class="d-box i">RAR (RFC 9396)</div><div class="d-box i">DPoP (RFC 9449)</div><div class="d-box i">Better Auth IdP</div></div></div>
     <div class="d-arrow">↕</div>
@@ -596,6 +596,14 @@ footer .right a:hover { color: var(--text-dim); }
     <div class="concept">
       <h3>🧠 Learnings</h3>
       <p>Agents that repeat mistakes are useless. Learnings are behavioral rules injected into agent prompts at runtime via JIT loading with token budgets. They follow a lifecycle — proposed by agents or the Observer's root cause analysis, approved by humans, deactivated when outdated. Three-layer collision detection prevents duplicates. The Learning Library lets you browse, filter, approve, and manage learnings across all agents.</p>
+    </div>
+    <div class="concept">
+      <h3>◎ Objectives</h3>
+      <p>Strategic goals that give agent work direction. Objectives link to projects, features, and tasks — providing alignment context for every intent. Progress is graph-traversed, not manually updated. The Observer audits for orphaned decisions and stale objectives.</p>
+    </div>
+    <div class="concept">
+      <h3>⟟ Behaviors</h3>
+      <p>Measurable behavioral expectations attached to objectives. Each behavior has an LLM-evaluated scoring function, trend analysis for drift detection, and a bridge to the learning system. When scores decline, corrective learnings are proposed automatically. Behavior scores feed into policy enforcement before intent authorization.</p>
     </div>
     <div class="concept">
       <h3>◇ Living Descriptions</h3>
