@@ -1,0 +1,294 @@
+roadmap:
+  project_id: objective-behavior
+  created_at: '2026-03-13T19:13:05Z'
+  total_steps: 10
+  phases: 4
+phases:
+- id: '01'
+  name: 'Graph Layer Foundation'
+  steps:
+  - id: 01-01
+    name: 'Objective schema + CRUD queries'
+    description: >
+      Create SurrealDB migrations for objective table, has_objective relation, supports relation,
+      and observes OUT extension. Implement objective CRUD query functions (create, get, list, update status).
+      Objective creation includes embedding generation via existing pipeline (graph/embeddings.ts).
+    time_estimate: 4h
+    dependencies: []
+    criteria:
+      - 'US-OB-01 #1: Objective created with title, priority, status, workspace scope and persisted to DB'
+      - 'US-OB-01 #2: Objective stores multiple success criteria as key result objects'
+      - 'US-OB-01 #4: Objective without target_date persists with field omitted (not null)'
+      - 'US-OB-01 #5: Objectives scoped to workspace -- query for workspace A returns zero results from workspace B'
+      - 'US-OB-01 #3: List query returns all active objectives within a workspace'
+      - 'Objective embedding generated on creation using existing embedding pipeline'
+    architectural_constraints:
+      - 'Migration 0032 wrapped in BEGIN/COMMIT TRANSACTION'
+      - 'All fields use option<T> for absence, never null'
+      - 'Query functions accept Surreal + RecordId params, return typed results'
+      - 'HNSW index on embedding field (DIMENSION 1536, DIST COSINE)'
+      - 'Objectives created via CRUD queries call existing generateEmbedding() and store result in embedding field'
+    implementation_scope:
+      new_files:
+        - schema/migrations/0032_objective_table.surql
+        - app/src/server/objective/queries.ts
+      modified_files:
+        - schema/surreal-schema.surql
+        - app/src/server/graph/embeddings.ts
+      test_files:
+        - tests/acceptance/objective-behavior/objective-crud.test.ts
+
+  - id: 01-02
+    name: 'Behavior telemetry collection + scorer'
+    description: >
+      Create behavior table migration with exhibits relation and learning_evidence OUT extension.
+      Implement behavior CRUD queries, pure scorer functions for metric normalization, and exhibits edge writer.
+    time_estimate: 4h
+    dependencies: []
+    criteria:
+      - 'US-OB-03 #1: Behavior record created with metric_type, score (0-1), source_telemetry; exhibits edge links identity to behavior'
+      - 'US-OB-03 #2: Multiple metric types per agent (tdd_adherence + security_first) each produce separate records'
+      - 'US-OB-03 #4: New session creates new behavior record (append-only, no UPDATE)'
+      - 'US-OB-03 #5: Agent with no sessions returns empty behavior array'
+      - 'US-OB-03 #6: Score boundary values 0.0 and 1.0 accepted by ASSERT constraint'
+      - 'Scorer validates telemetry shape per metric_type before scoring'
+    architectural_constraints:
+      - 'Migration 0033 wrapped in BEGIN/COMMIT TRANSACTION'
+      - 'scorer.ts is pure -- zero IO imports, maps telemetry to 0-1 float'
+      - 'source_telemetry uses TYPE object FLEXIBLE for metric-specific shapes'
+      - 'Behavior records are append-only at application layer'
+      - 'scorer.ts defines discriminated union types per metric_type (TddTelemetry, SecurityTelemetry) with runtime validation. FLEXIBLE schema intentional; type safety at app layer.'
+    implementation_scope:
+      new_files:
+        - schema/migrations/0033_behavior_table.surql
+        - app/src/server/behavior/queries.ts
+        - app/src/server/behavior/scorer.ts
+      modified_files:
+        - schema/surreal-schema.surql
+      test_files:
+        - tests/acceptance/objective-behavior/behavior-telemetry.test.ts
+
+  - id: 01-03
+    name: 'Objective + behavior HTTP routes'
+    description: >
+      Expose objective CRUD and behavior score/trend queries via REST endpoints.
+      Register routes in start-server.ts. Create fulltext search index migration for objective title.
+    time_estimate: 4h
+    dependencies: [01-01, 01-02]
+    criteria:
+      - 'US-OB-01 #3: GET /api/workspaces/:wsId/objectives returns workspace-scoped objective list'
+      - 'US-OB-03 #3: Behavior trend visible across 5 sessions via GET endpoint'
+      - 'US-OB-03 #8: Behavior records returned are workspace-scoped'
+      - 'POST creates objective, GET retrieves by ID, PUT updates status'
+      - 'Behavior scores queryable by identity and metric_type'
+    architectural_constraints:
+      - 'Migration 0034 for fulltext index uses existing entity_search analyzer with BM25(1.2, 0.75)'
+      - 'Route modules compose queries + pure logic at boundary only'
+      - 'Routes registered in start-server.ts following existing pattern'
+    implementation_scope:
+      new_files:
+        - schema/migrations/0034_objective_fulltext.surql
+        - app/src/server/objective/objective-route.ts
+        - app/src/server/behavior/behavior-route.ts
+      modified_files:
+        - app/src/server/runtime/start-server.ts
+      test_files:
+        - tests/acceptance/objective-behavior/objective-crud.test.ts
+        - tests/acceptance/objective-behavior/behavior-telemetry.test.ts
+
+- id: '02'
+  name: 'Alignment and Policy'
+  steps:
+  - id: 02-01
+    name: 'Intent-objective alignment evaluator'
+    description: >
+      Pure cosine similarity function classifying alignment result (matched/ambiguous/none).
+      Supports edge writer creates intent->supports->objective edges. Integrate into authorizer
+      after policy gate pass.
+    time_estimate: 4h
+    dependencies: [01-01]
+    criteria:
+      - 'US-OB-02 #1: Supports edge created with alignment_score when intent cosine similarity >= 0.7 to an active objective'
+      - 'US-OB-02 #3: Manual supports edge records alignment_method as "manual"'
+      - 'US-OB-02 #6: Multiple intents can support the same objective via separate supports edges'
+      - 'Alignment failure does not block intent authorization (warning mode fallback)'
+      - 'Two-step KNN pattern used for HNSW+workspace filter'
+    architectural_constraints:
+      - 'alignment.ts is pure -- receives embeddings, returns AlignmentResult'
+      - 'Supports edges are immutable once created'
+      - 'KNN query uses two-step pattern per SurrealDB HNSW+WHERE bug'
+      - 'Alignment step added after policy gate in authorizer pipeline'
+    implementation_scope:
+      new_files:
+        - app/src/server/objective/alignment.ts
+      modified_files:
+        - app/src/server/intent/authorizer.ts
+      test_files:
+        - tests/acceptance/objective-behavior/intent-alignment.test.ts
+
+  - id: 02-02
+    name: 'Behavior-based policy enforcement'
+    description: >
+      Enrich IntentEvaluationContext with behavior_scores before policy rule evaluation.
+      Query latest score per identity+metric_type. Existing predicate evaluator resolves
+      dot-path fields (behavior_scores.tdd_adherence) without schema changes.
+    time_estimate: 3h
+    dependencies: [01-02]
+    criteria:
+      - 'US-OB-04 #1: Intent vetoed when behavior score below policy threshold (e.g., tdd_adherence < 0.6)'
+      - 'US-OB-04 #2: Intent proceeds when all behavior scores above respective thresholds'
+      - 'US-OB-04 #3: Testing-mode policy logs veto reason without blocking authorization'
+      - 'US-OB-04 #5: Agent with no behavior data passes policy (no score = no veto)'
+    architectural_constraints:
+      - 'No policy schema changes -- existing RulePredicate with dot-path resolution handles behavior_scores.*'
+      - 'Behavior score lookup indexed on workspace + metric_type, ORDER BY created_at DESC LIMIT 1'
+      - 'Context enrichment happens before policy gate evaluation, not inside it'
+    implementation_scope:
+      new_files: []
+      modified_files:
+        - app/src/server/policy/types.ts
+        - app/src/server/behavior/queries.ts
+      test_files:
+        - tests/acceptance/objective-behavior/behavior-policy.test.ts
+
+- id: '03'
+  name: 'Visibility and Auditing'
+  steps:
+  - id: 03-01
+    name: 'Objective progress visibility'
+    description: >
+      Compute supporting intent count per objective via supports edges.
+      Track success criteria current_value vs target_value. Detect expired objectives by target_date.
+    time_estimate: 3h
+    dependencies: [02-01]
+    criteria:
+      - 'US-OB-05 #1: Objective progress shows correct count of supporting intents'
+      - 'US-OB-05 #2: Success criteria display current_value and target_value per KPI'
+      - 'US-OB-05 #3: Objective with zero supporting intents identifiable as unsupported'
+      - 'US-OB-05 #4: Objective past target_date detected as expired'
+    architectural_constraints:
+      - 'Progress computed via graph traversal (count <-supports<-intent), not denormalized counter'
+      - 'Expiration is query-time check, not background job'
+    implementation_scope:
+      new_files: []
+      modified_files:
+        - app/src/server/objective/queries.ts
+        - app/src/server/objective/objective-route.ts
+      test_files:
+        - tests/acceptance/objective-behavior/objective-progress.test.ts
+
+  - id: 03-02
+    name: 'Coherence auditor scans'
+    description: >
+      Extend observer graph-scan with coherence detection: orphaned decisions (confirmed, no implementing
+      task/commit after 14d), stale objectives (active, no supports edges after 14d). Create observations
+      for disconnected patterns.
+    time_estimate: 3h
+    dependencies: [01-01]
+    criteria:
+      - 'US-OB-06 #1: Orphaned decision (confirmed, 14d+ old, no implementing task) detected and observation created'
+      - 'US-OB-06 #2: Stale objective (active, 14d+ old, no supports edges) detected and observation created'
+      - 'US-OB-06 #3: Connected objective with supports edges not flagged as stale'
+      - 'US-OB-06 #5: Recently created decision (< 14d) not flagged as orphan regardless of implementation status'
+    architectural_constraints:
+      - 'Coherence queries are pure SurrealQL with LIMIT 50 per entity type'
+      - 'New scan types added as functions called from existing runGraphScan orchestrator'
+      - 'Observations use existing observes relation (extended OUT includes objective)'
+      - 'Orphan/stale age threshold extracted as named constant (COHERENCE_AGE_THRESHOLD_DAYS = 14), not hardcoded in queries'
+    implementation_scope:
+      new_files: []
+      modified_files:
+        - app/src/server/observer/graph-scan.ts
+      test_files:
+        - tests/acceptance/objective-behavior/coherence-auditor.test.ts
+
+  - id: 03-03
+    name: 'Behavior trend computation'
+    description: >
+      Pure trend analysis functions: detect consecutive below-threshold streaks, improvement
+      after learning injection, flat-line patterns. Operates on behavior record arrays with no DB access.
+    time_estimate: 2h
+    dependencies: [01-02]
+    criteria:
+      - 'US-OB-07 #1: 3+ consecutive below-threshold scores detected as drift pattern'
+      - 'US-OB-07 #2: Improving scores after learning injection detectable as positive trend'
+      - 'US-OB-07 #4: Flat scores after learning detected as ineffective'
+      - 'US-OB-07 #6: Single session score does not trigger drift detection (requires 3+ data points)'
+    architectural_constraints:
+      - 'trends.ts is pure -- zero IO imports, receives score arrays, returns trend classification'
+      - 'Threshold and streak length are parameters, not hardcoded'
+    implementation_scope:
+      new_files:
+        - app/src/server/behavior/trends.ts
+      test_files:
+        - tests/acceptance/objective-behavior/behavior-learning.test.ts
+
+- id: '04'
+  name: 'Learning Loop'
+  steps:
+  - id: 04-01
+    name: 'Behavior learning bridge'
+    description: >
+      Feed behavior trend signals into existing learning proposal pipeline. Observer queries
+      recent behavior records, runs trend analysis, proposes learnings with behavior evidence.
+      Rate limiting via COUNT query on recent learning proposals per identity before proposing.
+    time_estimate: 3h
+    dependencies: [03-03]
+    criteria:
+      - 'US-OB-07 #3: Learning proposal contains correct observer metadata (source_agent, metric_type, evidence links)'
+      - 'US-OB-07 #5: Rate limit prevents more than 5 proposals per agent identity per 7 days'
+      - 'Learning proposals use existing suggestLearning() with collision detection'
+      - 'Behavior records linked as learning_evidence (via extended relation OUT)'
+    architectural_constraints:
+      - 'Uses existing learning API and collision detection -- no new learning creation path'
+      - 'Behavior trend input alongside observation clusters in learning-diagnosis pipeline'
+      - 'Fire-and-forget via inflight tracker -- failure does not block observer scan'
+      - 'Rate limit is a COUNT query on learning table filtered by source_agent + created_at > time::now() - 7d; returns early if >= 5. Implemented as guard in learning-diagnosis.ts.'
+    implementation_scope:
+      new_files: []
+      modified_files:
+        - app/src/server/observer/graph-scan.ts
+        - app/src/server/observer/learning-diagnosis.ts
+      test_files:
+        - tests/acceptance/objective-behavior/behavior-learning.test.ts
+
+  - id: 04-02
+    name: 'Graph UI visualization for objective + behavior nodes'
+    description: >
+      Commit f71e3c00 added objective and behavior node TYPE definitions to the graph query endpoint.
+      This step extends React graph components to render these new node types with styling, and adds
+      supports/exhibits/has_objective edges to the graph data fetch query.
+    time_estimate: 3h
+    dependencies: [01-03]
+    criteria:
+      - 'Objective nodes render in graph view with title, status, priority'
+      - 'Behavior nodes render with metric_type and score'
+      - 'Supports edges visible between intent and objective nodes'
+      - 'Exhibits edges visible between identity and behavior nodes'
+    architectural_constraints:
+      - 'No new visualization libraries. Extend existing Reagraph node/edge type maps.'
+      - 'Node type colors/shapes follow existing graph UI conventions'
+      - 'Graph data fetched from existing GET /api/graph/:workspaceId endpoint (extended)'
+    implementation_scope:
+      new_files: []
+      modified_files:
+        - app/src/client/routes/graph-page.tsx
+        - app/src/client/components/graph/graph-theme.ts
+        - app/src/server/graph/queries.ts
+        - app/src/server/graph/transform.ts
+      test_files: []
+
+implementation_scope:
+  source_directories:
+    - app/src/server/objective/
+    - app/src/server/behavior/
+    - app/src/client/
+  test_directories:
+    - tests/acceptance/objective-behavior/
+  excluded_patterns:
+    - node_modules/**
+    - dist/**
+validation:
+  status: approved
+  reviewer: solution-architect-reviewer
+  approved_at: '2026-03-14T00:00:00Z'
