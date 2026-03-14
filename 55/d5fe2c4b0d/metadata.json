@@ -3,7 +3,7 @@
   "checkpoint_id": "55d5fe2c4b0d",
   "strategy": "manual-commit",
   "branch": "marcus-sa/objective-behavior-nodes",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "README.md",
     "index.html"
@@ -15,13 +15,20 @@
       "context": "/55/d5fe2c4b0d/0/context.md",
       "content_hash": "/55/d5fe2c4b0d/0/content_hash.txt",
       "prompt": "/55/d5fe2c4b0d/0/prompt.txt"
+    },
+    {
+      "metadata": "/55/d5fe2c4b0d/1/metadata.json",
+      "transcript": "/55/d5fe2c4b0d/1/full.jsonl",
+      "context": "/55/d5fe2c4b0d/1/context.md",
+      "content_hash": "/55/d5fe2c4b0d/1/content_hash.txt",
+      "prompt": "/55/d5fe2c4b0d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 1,
+    "cache_creation_tokens": 438,
+    "cache_read_tokens": 104845,
+    "output_tokens": 206,
+    "api_call_count": 1
   }
 }
