@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b114e674d46c",
+  "session_id": "bebf7a33-819b-4cc0-b5c7-d6fdfe1628b8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T09:37:42.818005Z",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/behavior/behavior-route.ts",
+    "app/src/server/behavior/definition-types.ts",
+    "app/src/server/behavior/queries.ts",
+    "app/src/server/behavior/scorer-dispatcher.ts",
+    "app/src/server/behavior/scorer.ts",
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/intent/types.ts",
+    "app/src/server/objective/alignment-adapter.ts",
+    "docs/adrs/ADR-037-deterministic-llm-scorer-coexistence.md",
+    "docs/adrs/ADR-038-remove-deterministic-scoring.md",
+    "schema/migrations/0039_observation_type_alignment.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/dynamic-behaviors/authorizer-integration.test.ts",
+    "tests/acceptance/dynamic-behaviors/definition-crud.test.ts",
+    "tests/acceptance/dynamic-behaviors/dynamic-behaviors-test-kit.ts",
+    "tests/acceptance/dynamic-behaviors/observer-integration.test.ts",
+    "tests/acceptance/dynamic-behaviors/scorer-agent.test.ts",
+    "tests/acceptance/dynamic-behaviors/walking-skeleton.test.ts",
+    "tests/acceptance/objective-behavior/intent-alignment.test.ts",
+    "tests/acceptance/objective-behavior/objective-behavior-test-kit.ts",
+    "tests/unit/behavior-scorer.test.ts",
+    "tests/unit/behavior/definition-matcher.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "61909e2395e7",
+  "token_usage": {
+    "input_tokens": 59,
+    "cache_creation_tokens": 90421,
+    "cache_read_tokens": 3028624,
+    "output_tokens": 15742,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T09:37:42.572065Z",
+    "agent_lines": 83,
+    "human_added": 0,
+    "human_modified": 10,
+    "human_removed": 351,
+    "total_committed": 93,
+    "agent_percentage": 89.24731182795699
+  }
+}
