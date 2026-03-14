@@ -5,6 +5,11 @@ import { updateIntentStatus, listPendingIntents, getIntentById } from "./intent-
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import { routeByRisk } from "./risk-router";
 import { renderConsentDisplay, validateTighterBounds } from "../oauth/consent-renderer";
+import {
+  findAlignedObjectivesSurreal,
+  createSupportsEdgeSurreal,
+  createAlignmentWarningObservation,
+} from "../objective/alignment-adapter";
 import type { ServerDependencies } from "../runtime/types";
 import type { IntentRecord, RoutingDecision } from "./types";
 import type { BrainAction } from "../oauth/types";
@@ -138,6 +143,8 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       )) as Array<Array<{ type?: string; role?: string }>>;
       const identityInfo = identityRows[0]?.[0];
 
+      const intentRecord = new RecordId("intent", intentId);
+
       const evaluation = await evaluateIntent({
         intent: {
           goal: body.goal,
@@ -152,6 +159,12 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
         requesterType: identityInfo?.type ?? "agent",
         requesterRole: identityInfo?.role,
         llmEvaluator,
+        intentId: intentRecord,
+        intentEmbedding: body.embedding,
+        findAlignedObjectives: findAlignedObjectivesSurreal(surreal),
+        createSupportsEdge: createSupportsEdgeSurreal(surreal),
+        createAlignmentWarning: (ws, iId, score) =>
+          createAlignmentWarningObservation(surreal, ws, iId, score),
       });
 
       const routing = routeByRisk(evaluation, {

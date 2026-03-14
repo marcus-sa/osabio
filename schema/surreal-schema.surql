@@ -223,7 +223,7 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment"] OR $value IS NONE;
 DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
 DEFINE FIELD source ON observation TYPE option<string>;
 DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
@@ -1211,8 +1211,6 @@ DEFINE TABLE behavior_definition SCHEMAFULL;
 DEFINE FIELD title ON behavior_definition TYPE string;
 DEFINE FIELD goal ON behavior_definition TYPE string;
 DEFINE FIELD scoring_logic ON behavior_definition TYPE string;
-DEFINE FIELD scoring_mode ON behavior_definition TYPE string
-  ASSERT $value IN ["llm", "deterministic"];
 DEFINE FIELD telemetry_types ON behavior_definition TYPE array<string>;
 DEFINE FIELD category ON behavior_definition TYPE option<string>;
 DEFINE FIELD status ON behavior_definition TYPE string

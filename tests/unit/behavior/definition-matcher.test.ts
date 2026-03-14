@@ -34,7 +34,6 @@ function buildDefinition(
     title: "Test Definition",
     goal: "Test goal",
     scoring_logic: "Test logic",
-    scoring_mode: "llm",
     telemetry_types: ["chat_response"],
     status: "active",
     version: 1,

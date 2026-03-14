@@ -518,6 +518,82 @@ export async function createAgentSession(
 }
 
 // ---------------------------------------------------------------------------
+// Alignment Adapter Helpers (for automatic alignment tests)
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a deterministic 1536-dim test embedding vector.
+ *
+ * Vectors with the same primaryDim share high cosine similarity.
+ * Vectors with different primaryDims are near-orthogonal.
+ */
+export function makeTestEmbedding(primaryDim: number, secondaryDim?: number): number[] {
+  const vec = new Array(1536).fill(0);
+  vec[primaryDim % 1536] = 1.0;
+  if (secondaryDim !== undefined) vec[secondaryDim % 1536] = 0.3;
+  const mag = Math.sqrt(vec.reduce((s, v) => s + v * v, 0));
+  return vec.map((v) => v / mag);
+}
+
+/**
+ * Runs the alignment adapter to find objectives matching an intent embedding.
+ * Direct call to the SurrealDB KNN adapter — no authorizer pipeline.
+ */
+export async function findAlignedObjectives(
+  surreal: Surreal,
+  intentEmbedding: number[],
+  workspaceId: string,
+): Promise<Array<{ objectiveId: string; title: string; score: number }>> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const rows = (await surreal.query(
+    `LET $candidates = SELECT id, title, workspace, status,
+        vector::similarity::cosine(embedding, $vec) AS score
+      FROM objective WHERE embedding <|20, COSINE|> $vec;
+     SELECT id, title, score FROM $candidates
+      WHERE workspace = $ws AND status = 'active'
+      ORDER BY score DESC LIMIT 10;`,
+    { vec: intentEmbedding, ws: workspaceRecord },
+  )) as [null, Array<{ id: RecordId<"objective">; title: string; score: number }>];
+
+  const candidates = rows[1] ?? [];
+  return candidates.map((row) => ({
+    objectiveId: row.id.id as string,
+    title: row.title,
+    score: row.score,
+  }));
+}
+
+/**
+ * Creates a warning observation for unaligned intent.
+ */
+export async function createAlignmentWarningObservation(
+  surreal: Surreal,
+  workspaceId: string,
+  intentId: string,
+  bestScore: number,
+): Promise<void> {
+  const observationId = `obs-${crypto.randomUUID()}`;
+  const observationRecord = new RecordId("observation", observationId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const intentRecord = new RecordId("intent", intentId);
+
+  await surreal.query(`CREATE $obs CONTENT $content;`, {
+    obs: observationRecord,
+    content: {
+      text: `Intent has no supporting objective (best alignment score: ${bestScore.toFixed(2)}). Agent work may not align with organizational goals.`,
+      severity: "warning",
+      status: "open",
+      observation_type: "alignment",
+      source_agent: "authorizer",
+      workspace: workspaceRecord,
+      verified: false,
+      evidence_refs: [intentRecord],
+      created_at: new Date(),
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Then Helpers -- Verify outcomes
 // ---------------------------------------------------------------------------
 

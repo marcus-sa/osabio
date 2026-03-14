@@ -56,7 +56,6 @@ export function setupDynamicBehaviorsSuite(
 // Types
 // ---------------------------------------------------------------------------
 
-export type ScoringMode = "llm" | "deterministic";
 export type DefinitionStatus = "draft" | "active" | "archived";
 export type EnforcementMode = "warn_only" | "automatic";
 
@@ -65,7 +64,6 @@ export type BehaviorDefinitionRecord = {
   title: string;
   goal: string;
   scoring_logic: string;
-  scoring_mode: ScoringMode;
   telemetry_types: string[];
   category?: string;
   status: DefinitionStatus;
@@ -193,7 +191,6 @@ export async function createBehaviorDefinition(
     title: string;
     goal: string;
     scoring_logic: string;
-    scoring_mode: ScoringMode;
     telemetry_types: string[];
     category?: string;
     status?: DefinitionStatus;
@@ -211,7 +208,6 @@ export async function createBehaviorDefinition(
     title: opts.title,
     goal: opts.goal,
     scoring_logic: opts.scoring_logic,
-    scoring_mode: opts.scoring_mode,
     telemetry_types: opts.telemetry_types,
     status: opts.status ?? "draft",
     version: opts.version ?? 1,
@@ -483,32 +479,3 @@ export async function getWorkspaceObservations(
   return rows[0] ?? [];
 }
 
-/**
- * Seeds a deterministic behavior definition (TDD Adherence or Security First).
- * These represent the existing hardcoded metric types as behavior_definition records.
- */
-export async function seedDeterministicDefinition(
-  surreal: Surreal,
-  workspaceId: string,
-  adminId: string,
-  metricType: "TDD Adherence" | "Security First",
-): Promise<{ definitionId: string }> {
-  const goals: Record<string, string> = {
-    "TDD Adherence": "Agents must write tests alongside production code. Test file ratio reflects discipline.",
-    "Security First": "Agents must address known CVE advisories when present in the working context.",
-  };
-
-  const scoringLogic: Record<string, string> = {
-    "TDD Adherence": "Score = test_files_changed / files_changed. Higher ratio indicates better TDD practice.",
-    "Security First": "Score = cve_advisories_addressed / cve_advisories_in_context. Address all known vulnerabilities.",
-  };
-
-  return createBehaviorDefinition(surreal, workspaceId, adminId, {
-    title: metricType,
-    goal: goals[metricType],
-    scoring_logic: scoringLogic[metricType],
-    scoring_mode: "deterministic",
-    telemetry_types: ["agent_session"],
-    status: "active",
-  });
-}

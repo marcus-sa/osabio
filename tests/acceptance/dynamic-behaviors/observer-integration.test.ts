@@ -60,7 +60,6 @@ describe("Happy Path: Observer detects critical Honesty score pattern (US-DB-004
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Verify claims against graph data.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -112,7 +111,6 @@ describe("Happy Path: Observer proposes learning from Honesty drift (US-DB-004)"
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Verify all assertions against graph data.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -193,7 +191,6 @@ describe("Happy Path: Improving dynamic behavior scores do not trigger learning 
       title: "Evidence-Based Reasoning",
       goal: "Cite supporting evidence from the knowledge graph.",
       scoring_logic: "Score based on citation count.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal"],
       status: "active",
     });
@@ -245,7 +242,6 @@ describe("Happy Path: Workspace trends include dynamic metric types (US-DB-004)"
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -254,7 +250,6 @@ describe("Happy Path: Workspace trends include dynamic metric types (US-DB-004)"
       title: "Evidence-Based Reasoning",
       goal: "Cite evidence.",
       scoring_logic: "Count citations.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal"],
       status: "active",
     });
@@ -307,7 +302,6 @@ describe("Error Path: Rate limit blocks learning proposal when 5 already exist (
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -394,7 +388,6 @@ describe("Error Path: Observer ignores scores for archived definitions (US-DB-00
       title: "Conciseness",
       goal: "Be concise.",
       scoring_logic: "Signal-to-noise ratio.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "archived",
     });
@@ -441,7 +434,6 @@ describe("Boundary: Single low score does not trigger learning proposal (US-DB-0
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -490,7 +482,6 @@ describe("Boundary: Flat scores after learning indicate ineffective intervention
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -542,7 +533,6 @@ describe("Error Path: Observer detects drift in Evidence-Based Reasoning scores 
       title: "Evidence-Based Reasoning",
       goal: "Cite evidence.",
       scoring_logic: "Count citations.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal"],
       status: "active",
     });

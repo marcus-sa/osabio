@@ -2,8 +2,8 @@
  * Scorer Agent Acceptance Tests (US-DB-002)
  *
  * Validates that telemetry events are matched to active behavior definitions
- * and scored by either the LLM Scorer Agent or existing deterministic scorers,
- * producing behavior records with scores, rationale, and definition references.
+ * and scored by the LLM Scorer Agent, producing behavior records with scores,
+ * rationale, and definition references.
  *
  * Driving ports:
  *   POST /api/workspaces/:workspaceId/behaviors/score  (telemetry scoring)
@@ -16,11 +16,9 @@ import {
   createAgentIdentity,
   createBehaviorDefinition,
   createScoredBehaviorRecord,
-  getBehaviorDefinition,
   getBehaviorRecords,
   getLatestBehaviorScore,
   listBehaviorDefinitions,
-  seedDeterministicDefinition,
 } from "./dynamic-behaviors-test-kit";
 
 const getRuntime = setupDynamicBehaviorsSuite("scorer_agent");
@@ -47,7 +45,6 @@ describe("Happy Path: Scorer evaluates telemetry against active definition (US-D
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Score 0.0-0.2: Fabricated claims. Score 0.9-1.0: All verifiable.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response", "decision_proposal"],
       status: "active",
     });
@@ -100,7 +97,6 @@ describe("Happy Path: Scorer evaluates telemetry against active definition (US-D
       title: "Evidence-Based Reasoning",
       goal: "Recommendations must cite supporting evidence from the knowledge graph.",
       scoring_logic: "Score based on citation count, accuracy, and trade-off analysis.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal"],
       status: "active",
     });
@@ -153,7 +149,6 @@ describe("Happy Path: Multiple definitions score the same telemetry event (US-DB
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -162,7 +157,6 @@ describe("Happy Path: Multiple definitions score the same telemetry event (US-DB
       title: "Evidence-Based Reasoning",
       goal: "Cite evidence.",
       scoring_logic: "Count citations.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -199,10 +193,10 @@ describe("Happy Path: Multiple definitions score the same telemetry event (US-DB
 });
 
 // =============================================================================
-// Happy Path: Deterministic scorer compatibility (AC-002.7)
+// Happy Path: Multiple definitions coexist (AC-002.7)
 // =============================================================================
-describe("Happy Path: Deterministic scorers continue to function alongside LLM (US-DB-002)", () => {
-  it("TDD Adherence scored via deterministic mode coexists with LLM-scored definitions", async () => {
+describe("Happy Path: Multiple definitions coexist with independent scores (US-DB-002)", () => {
+  it("TDD Adherence and Honesty definitions produce independent scores", async () => {
     const { surreal } = getRuntime();
 
     const { workspaceId, adminId } = await setupBehaviorWorkspace(
@@ -211,19 +205,19 @@ describe("Happy Path: Deterministic scorers continue to function alongside LLM (
       `ws-coexist-${crypto.randomUUID()}`,
     );
 
-    // Given a deterministic TDD definition and an LLM Honesty definition
-    const { definitionId: tddDefId } = await seedDeterministicDefinition(
-      surreal,
-      workspaceId,
-      adminId,
-      "TDD Adherence",
-    );
+    // Given two definitions for different telemetry types
+    const { definitionId: tddDefId } = await createBehaviorDefinition(surreal, workspaceId, adminId, {
+      title: "TDD Adherence",
+      goal: "Agents must write tests alongside production code.",
+      scoring_logic: "Score = test_files_changed / files_changed.",
+      telemetry_types: ["agent_session"],
+      status: "active",
+    });
 
     const { definitionId: honestyDefId } = await createBehaviorDefinition(surreal, workspaceId, adminId, {
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -234,12 +228,12 @@ describe("Happy Path: Deterministic scorers continue to function alongside LLM (
       "coding-agent-alpha",
     );
 
-    // When both types of scoring produce records
+    // When both definitions produce scored records
     await createScoredBehaviorRecord(surreal, workspaceId, agentId, {
       metric_type: "TDD Adherence",
       score: 0.80,
       definitionId: tddDefId,
-      source_telemetry: { files_changed: 10, test_files_changed: 8 },
+      source_telemetry: { rationale: "Good test coverage ratio." },
     });
 
     await createScoredBehaviorRecord(surreal, workspaceId, agentId, {
@@ -255,10 +249,6 @@ describe("Happy Path: Deterministic scorers continue to function alongside LLM (
 
     const honestyScore = await getLatestBehaviorScore(surreal, agentId, "Honesty");
     expect(honestyScore).toBe(0.92);
-
-    // And the TDD record references a deterministic definition
-    const tddDef = await getBehaviorDefinition(surreal, tddDefId);
-    expect(tddDef!.scoring_mode).toBe("deterministic");
   }, 60_000);
 });
 
@@ -280,7 +270,6 @@ describe("Error Path: No scoring when no definitions match telemetry type (US-DB
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -316,7 +305,6 @@ describe("Error Path: Draft and archived definitions are not matched (US-DB-002)
       title: "Collaboration",
       goal: "Coordinate with team.",
       scoring_logic: "Coordination signals.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "draft",
     });
@@ -368,7 +356,6 @@ describe("Boundary: Behavior records are never modified after creation (US-DB-00
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -418,7 +405,6 @@ describe("Boundary: Behavior records track definition version for auditability (
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
       version: 1,

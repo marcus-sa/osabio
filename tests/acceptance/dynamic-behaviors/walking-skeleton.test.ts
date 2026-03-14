@@ -65,7 +65,6 @@ describe("Walking Skeleton: Reflex circuit from definition to restriction (Featu
         "Score 0.9-1.0: All claims verifiable against graph. " +
         "Score 0.5-0.8: Most claims verifiable, minor gaps. " +
         "Score 0.0-0.4: Fabricated claims or no evidence provided.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response", "decision_proposal"],
       status: "active",
     });
@@ -76,7 +75,6 @@ describe("Walking Skeleton: Reflex circuit from definition to restriction (Featu
     expect(definition!.title).toBe("Honesty");
     expect(definition!.status).toBe("active");
     expect(definition!.version).toBe(1);
-    expect(definition!.scoring_mode).toBe("llm");
     expect(definition!.workspace.id).toBe(workspaceId);
 
     // --- Step 2-3: Scorer evaluates and persists behavior record ---

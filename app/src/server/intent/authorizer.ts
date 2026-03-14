@@ -69,6 +69,12 @@ export type EvaluateIntentInput = {
   findAlignedObjectives?: FindAlignedObjectives;
   /** Optional: port to create supports edge */
   createSupportsEdge?: CreateSupportsEdge;
+  /** Optional: port to create warning observation for unaligned intents */
+  createAlignmentWarning?: (
+    workspaceId: RecordId<"workspace">,
+    intentId: RecordId<"intent">,
+    bestScore: number,
+  ) => Promise<void>;
 };
 
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
@@ -129,6 +135,20 @@ export async function evaluateIntent(
           alignmentResult.objectiveId,
           alignmentResult.score,
           "embedding",
+        );
+      }
+
+      // Create warning observation when no objective matches (warning mode)
+      if (
+        alignmentResult.classification === "none" &&
+        candidates.length > 0 &&
+        input.intentId &&
+        input.createAlignmentWarning
+      ) {
+        await input.createAlignmentWarning(
+          input.workspaceId,
+          input.intentId,
+          alignmentResult.score,
         );
       }
     } catch {

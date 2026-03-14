@@ -77,7 +77,6 @@ describe("Happy Path: Intent denied when dynamic Honesty score below threshold (
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -163,7 +162,6 @@ describe("Happy Path: Intent allowed when dynamic Honesty score above threshold 
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -310,7 +308,6 @@ describe("Error Path: Multiple behavior scores evaluated together (US-DB-003)", 
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -319,7 +316,6 @@ describe("Error Path: Multiple behavior scores evaluated together (US-DB-003)", 
       title: "Evidence_Based",
       goal: "Cite evidence.",
       scoring_logic: "Count citations.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -414,7 +410,6 @@ describe("Happy Path: Recovery threshold is symmetric with restriction (US-DB-00
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });

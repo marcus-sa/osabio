@@ -48,7 +48,6 @@ function serializeDefinition(record: BehaviorDefinitionRecord) {
     title: record.title,
     goal: record.goal,
     scoring_logic: record.scoring_logic,
-    scoring_mode: record.scoring_mode,
     telemetry_types: record.telemetry_types,
     ...(record.category !== undefined ? { category: record.category } : {}),
     status: record.status,
@@ -129,7 +128,6 @@ function serializeScoredResult(result: ScoredResult) {
     score: result.score,
     definitionId: result.definitionId,
     definitionVersion: result.definitionVersion,
-    scoringMode: result.scoringMode,
     ...(result.rationale ? { rationale: result.rationale } : {}),
     ...(result.evidenceChecked ? { evidenceChecked: result.evidenceChecked } : {}),
   };
@@ -209,7 +207,6 @@ async function handleCreateDefinition(
     const title = body.title as string | undefined;
     const goal = body.goal as string | undefined;
     const scoringLogic = body.scoring_logic as string | undefined;
-    const scoringMode = body.scoring_mode as string | undefined;
     const telemetryTypes = body.telemetry_types as string[] | undefined;
     const category = body.category as string | undefined;
     const createdById = body.created_by_id as string | undefined;
@@ -217,7 +214,6 @@ async function handleCreateDefinition(
     if (!title || title.trim().length === 0) return jsonError("title is required", 400);
     if (!goal || goal.trim().length === 0) return jsonError("goal is required", 400);
     if (!scoringLogic || scoringLogic.trim().length === 0) return jsonError("scoring_logic is required", 400);
-    if (!scoringMode || !["llm", "deterministic"].includes(scoringMode)) return jsonError("scoring_mode must be 'llm' or 'deterministic'", 400);
     if (!telemetryTypes || !Array.isArray(telemetryTypes) || telemetryTypes.length === 0) return jsonError("telemetry_types must be a non-empty array", 400);
     if (!createdById || createdById.trim().length === 0) return jsonError("created_by_id is required", 400);
 
@@ -225,7 +221,6 @@ async function handleCreateDefinition(
       title: title.trim(),
       goal: goal.trim(),
       scoring_logic: scoringLogic.trim(),
-      scoring_mode: scoringMode as "llm" | "deterministic",
       telemetry_types: telemetryTypes,
       ...(category !== undefined ? { category } : {}),
     };

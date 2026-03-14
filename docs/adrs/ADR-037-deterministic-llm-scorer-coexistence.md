@@ -1,7 +1,7 @@
 # ADR-037: Deterministic and LLM Scorer Coexistence
 
 ## Status
-Accepted
+Superseded by [ADR-038](ADR-038-remove-deterministic-scoring.md)
 
 ## Context
 

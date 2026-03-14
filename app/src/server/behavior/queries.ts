@@ -247,7 +247,6 @@ export async function createBehaviorDefinition(
     title: input.title,
     goal: input.goal,
     scoring_logic: input.scoring_logic,
-    scoring_mode: input.scoring_mode,
     telemetry_types: input.telemetry_types,
     status: "draft",
     version: 1,

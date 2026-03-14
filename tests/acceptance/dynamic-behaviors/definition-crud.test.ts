@@ -48,7 +48,6 @@ describe("Happy Path: Admin creates a behavior definition (US-DB-001)", () => {
         "Score 0.9-1.0: All claims verifiable. " +
         "Score 0.5-0.8: Most claims verifiable. " +
         "Score 0.0-0.4: Fabricated claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response", "decision_proposal"],
       category: "integrity",
     });
@@ -58,7 +57,6 @@ describe("Happy Path: Admin creates a behavior definition (US-DB-001)", () => {
     expect(definition).toBeDefined();
     expect(definition!.title).toBe("Honesty");
     expect(definition!.goal).toContain("fabricate claims");
-    expect(definition!.scoring_mode).toBe("llm");
     expect(definition!.telemetry_types).toEqual(["chat_response", "decision_proposal"]);
     expect(definition!.category).toBe("integrity");
     expect(definition!.status).toBe("draft");
@@ -84,7 +82,6 @@ describe("Happy Path: Admin creates a behavior definition (US-DB-001)", () => {
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Verify claims against graph data.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
     });
 
@@ -92,7 +89,6 @@ describe("Happy Path: Admin creates a behavior definition (US-DB-001)", () => {
       title: "Evidence-Based Reasoning",
       goal: "Recommendations must cite supporting evidence from the knowledge graph.",
       scoring_logic: "Score based on citation count and accuracy.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal", "observation_creation"],
     });
 
@@ -123,7 +119,6 @@ describe("Happy Path: Definition status lifecycle (US-DB-001)", () => {
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Verify all assertions.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "draft",
     });
@@ -153,7 +148,6 @@ describe("Happy Path: Definition status lifecycle (US-DB-001)", () => {
       title: "Conciseness",
       goal: "Agents should communicate concisely without unnecessary verbosity.",
       scoring_logic: "Score based on signal-to-noise ratio.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -182,7 +176,6 @@ describe("Happy Path: Definition status lifecycle (US-DB-001)", () => {
       title: "Collaboration",
       goal: "Agents should coordinate with team members on shared tasks.",
       scoring_logic: "Score based on cross-agent coordination signals.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "draft",
     });
@@ -217,7 +210,6 @@ describe("Happy Path: Editing active definition increments version (US-DB-001)",
       title: "Honesty",
       goal: "Agents must not fabricate claims.",
       scoring_logic: "Verify every claim against graph data.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
       version: 1,
@@ -253,7 +245,6 @@ describe("Happy Path: Editing active definition increments version (US-DB-001)",
       title: "Thoroughness",
       goal: "Agents should explore all reasonable alternatives.",
       scoring_logic: "Score based on alternatives considered.",
-      scoring_mode: "llm",
       telemetry_types: ["decision_proposal"],
       status: "draft",
       version: 1,
@@ -288,19 +279,17 @@ describe("Happy Path: Deterministic scorers represented as behavior definitions 
       `ws-deterministic-${crypto.randomUUID()}`,
     );
 
-    // When the workspace is seeded with a deterministic TDD definition
+    // When the workspace is seeded with a TDD definition
     const { definitionId } = await createBehaviorDefinition(surreal, workspaceId, adminId, {
       title: "TDD Adherence",
       goal: "Agents must write tests alongside production code.",
       scoring_logic: "Score = test_files_changed / files_changed.",
-      scoring_mode: "deterministic",
       telemetry_types: ["agent_session"],
       status: "active",
     });
 
-    // Then the definition has scoring_mode "deterministic"
+    // Then the definition is active with correct telemetry types
     const definition = await getBehaviorDefinition(surreal, definitionId);
-    expect(definition!.scoring_mode).toBe("deterministic");
     expect(definition!.status).toBe("active");
     expect(definition!.telemetry_types).toEqual(["agent_session"]);
   }, 60_000);
@@ -324,7 +313,6 @@ describe("Happy Path: Definitions listed and filtered by status (US-DB-001)", ()
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
@@ -333,7 +321,6 @@ describe("Happy Path: Definitions listed and filtered by status (US-DB-001)", ()
       title: "Collaboration",
       goal: "Coordinate with team.",
       scoring_logic: "Cross-agent coordination.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "draft",
     });
@@ -342,7 +329,6 @@ describe("Happy Path: Definitions listed and filtered by status (US-DB-001)", ()
       title: "Conciseness",
       goal: "Be concise.",
       scoring_logic: "Signal-to-noise ratio.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "archived",
     });
@@ -427,7 +413,6 @@ describe("Boundary: Definitions are workspace-scoped (US-DB-001)", () => {
       title: "Honesty",
       goal: "No fabrication.",
       scoring_logic: "Verify claims.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
     });
 
@@ -459,7 +444,6 @@ describe("Boundary: Archiving a definition preserves existing behavior records (
       title: "Conciseness",
       goal: "Be concise.",
       scoring_logic: "Signal-to-noise ratio.",
-      scoring_mode: "llm",
       telemetry_types: ["chat_response"],
       status: "active",
     });
