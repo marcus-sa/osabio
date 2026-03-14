@@ -3,7 +3,7 @@
   "checkpoint_id": "b114e674d46c",
   "strategy": "manual-commit",
   "branch": "marcus-sa/objective-behavior-nodes",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "AGENTS.md",
     "app/src/server/behavior/behavior-route.ts",
@@ -45,13 +45,20 @@
       "context": "/b1/14e674d46c/1/context.md",
       "content_hash": "/b1/14e674d46c/1/content_hash.txt",
       "prompt": "/b1/14e674d46c/1/prompt.txt"
+    },
+    {
+      "metadata": "/b1/14e674d46c/2/metadata.json",
+      "transcript": "/b1/14e674d46c/2/full.jsonl",
+      "context": "/b1/14e674d46c/2/context.md",
+      "content_hash": "/b1/14e674d46c/2/content_hash.txt",
+      "prompt": "/b1/14e674d46c/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 571,
-    "cache_creation_tokens": 459092,
-    "cache_read_tokens": 11800010,
-    "output_tokens": 50845,
-    "api_call_count": 114
+    "input_tokens": 656,
+    "cache_creation_tokens": 949097,
+    "cache_read_tokens": 14937343,
+    "output_tokens": 84391,
+    "api_call_count": 159
   }
 }
