@@ -1,0 +1,25 @@
+title: "Add AUTHORIZER_MODEL env var for independent authorizer model configuration"
+description: "## Problem
+
+Currently in `app/src/server/intent/intent-routes.ts` line 88, the LLM evaluator (intent authorizer) is created using the same model as the extraction model (deps.extractionModel). This creates a coupling where both the extraction and authorization workflows must use the same model.
+
+## Proposed Solution
+
+Add support for a separate `AUTHORIZER_MODEL` environment variable to allow independent configuration of the authorizer model. This would enable:
+
+- **Flexibility**: Different models can be optimized for extraction vs authorization tasks
+- **Cost optimization**: Use a smaller/faster model for authorization if extraction requires a larger model
+- **Quality tuning**: Authorization quality can be independently tuned from extraction quality
+- **Scalability**: Models can be selected based on different latency/throughput requirements
+
+## Implementation Notes
+
+- Add `AUTHORIZER_MODEL` env var to config (e.g., `app/src/server/config.ts`)
+- Default to `deps.extractionModel` if not specified (backwards compatible)
+- Update `createLlmEvaluator` in `authorizer.ts` to accept model parameter
+- Update `intent-routes.ts` line 88 to use the new model configuration
+
+## References
+
+- File: `app/src/server/intent/intent-routes.ts` line 88
+- Related: `app/src/server/intent/authorizer.ts` - `createLlmEvaluator` function"
