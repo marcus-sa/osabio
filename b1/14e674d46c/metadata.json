@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b114e674d46c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/objective-behavior-nodes",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/behavior/behavior-route.ts",
+    "app/src/server/behavior/definition-types.ts",
+    "app/src/server/behavior/queries.ts",
+    "app/src/server/behavior/scorer-dispatcher.ts",
+    "app/src/server/behavior/scorer.ts",
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/intent/types.ts",
+    "app/src/server/objective/alignment-adapter.ts",
+    "docs/adrs/ADR-037-deterministic-llm-scorer-coexistence.md",
+    "docs/adrs/ADR-038-remove-deterministic-scoring.md",
+    "schema/migrations/0038_remove_scoring_mode.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/dynamic-behaviors/authorizer-integration.test.ts",
+    "tests/acceptance/dynamic-behaviors/definition-crud.test.ts",
+    "tests/acceptance/dynamic-behaviors/dynamic-behaviors-test-kit.ts",
+    "tests/acceptance/dynamic-behaviors/observer-integration.test.ts",
+    "tests/acceptance/dynamic-behaviors/scorer-agent.test.ts",
+    "tests/acceptance/dynamic-behaviors/walking-skeleton.test.ts",
+    "tests/acceptance/objective-behavior/intent-alignment.test.ts",
+    "tests/acceptance/objective-behavior/objective-behavior-test-kit.ts",
+    "tests/unit/behavior-scorer.test.ts",
+    "tests/unit/behavior/definition-matcher.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b1/14e674d46c/0/metadata.json",
+      "transcript": "/b1/14e674d46c/0/full.jsonl",
+      "context": "/b1/14e674d46c/0/context.md",
+      "content_hash": "/b1/14e674d46c/0/content_hash.txt",
+      "prompt": "/b1/14e674d46c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 571,
+    "cache_creation_tokens": 459092,
+    "cache_read_tokens": 11800010,
+    "output_tokens": 50845,
+    "api_call_count": 114
+  }
+}
