@@ -23,6 +23,10 @@ import {
   getLatestBehaviorScore,
   getWorkspaceObservations,
 } from "./objective-behavior-test-kit";
+import {
+  analyzeTrend,
+  type ScorePoint,
+} from "../../../app/src/server/behavior/trends";
 
 const getRuntime = setupObjectiveBehaviorSuite("behavior_learning");
 
@@ -55,22 +59,18 @@ describe("Walking Skeleton: Observer proposes learning from behavior pattern (US
       [0.62, 0.65, 0.60],
     );
 
-    // When querying behavior records for trend analysis
+    // When querying behavior records and analyzing the trend
     const records = await getBehaviorRecords(surreal, agentId, "Security_First");
+    const scorePoints: ScorePoint[] = records
+      .map((r) => ({ score: r.score, timestamp: r.created_at }))
+      .reverse(); // oldest first for trend analysis
 
-    // Then 3 consecutive records are below the 0.80 threshold
-    expect(records).toHaveLength(3);
-    const allBelowThreshold = records.every((r) => r.score < 0.80);
-    expect(allBelowThreshold).toBe(true);
+    const trend = analyzeTrend(scorePoints, { threshold: 0.80, minStreakLength: 3 });
 
-    // And the pattern qualifies as behavioral_drift (3+ consecutive below-threshold)
-    expect(records.length).toBeGreaterThanOrEqual(3);
-
-    // Note: In production, the Observer would:
-    // 1. Cluster these behavior records
-    // 2. Classify root cause as "behavioral_drift"
-    // 3. Propose a learning via POST /api/workspaces/:workspaceId/learnings
-    // 4. Learning would have: status "pending_approval", source "agent", suggested_by "observer"
+    // Then the trend is classified as behavioral drift
+    expect(trend.pattern).toBe("drift");
+    expect(trend.streakLength).toBeGreaterThanOrEqual(3);
+    expect(trend.belowThreshold).toBe(true);
   }, 60_000);
 });
 
@@ -101,16 +101,15 @@ describe("Happy Path: Effective learning detected by Observer (US-OB-07)", () =>
 
     // When the Observer evaluates the behavior trend
     const records = await getBehaviorRecords(surreal, agentId, "Security_First");
-    const scores = records.map((r) => r.score).reverse(); // oldest to newest
+    const scorePoints: ScorePoint[] = records
+      .map((r) => ({ score: r.score, timestamp: r.created_at }))
+      .reverse(); // oldest first
 
-    // Then the trend shows consistent improvement
-    expect(scores).toEqual([0.70, 0.75, 0.82, 0.85, 0.88]);
+    const trend = analyzeTrend(scorePoints, { threshold: 0.80 });
 
-    // And the latest score exceeds the threshold
-    const latest = await getLatestBehaviorScore(surreal, agentId, "Security_First");
-    expect(latest!).toBeGreaterThanOrEqual(0.80);
-
-    // Note: In production, the Observer would create an observation noting the improvement
+    // Then the trend is classified as improving
+    expect(trend.pattern).toBe("improving");
+    expect(trend.belowThreshold).toBe(false);
   }, 60_000);
 });
 
@@ -198,19 +197,15 @@ describe("Error Path: Ineffective learning surfaced for review (US-OB-07)", () =
 
     // When the Observer evaluates the trend
     const records = await getBehaviorRecords(surreal, agentId, "TDD_Adherence");
-    const scores = records.map((r) => r.score);
+    const scorePoints: ScorePoint[] = records
+      .map((r) => ({ score: r.score, timestamp: r.created_at }))
+      .reverse(); // oldest first
 
-    // Then all scores remain below the threshold
-    const allBelow = scores.every((s) => s < 0.70);
-    expect(allBelow).toBe(true);
+    const trend = analyzeTrend(scorePoints, { threshold: 0.70 });
 
-    // And the variance is minimal (flat trend, no improvement)
-    const min = Math.min(...scores);
-    const max = Math.max(...scores);
-    expect(max - min).toBeLessThan(0.10);
-
-    // Note: In production, the Observer would create a warning observation
-    // and surface the learning for human review/deactivation
+    // Then the trend is classified as flat (ineffective learning)
+    expect(trend.pattern).toBe("flat");
+    expect(trend.belowThreshold).toBe(true);
   }, 60_000);
 });
 
@@ -296,14 +291,18 @@ describe("Boundary: Single below-threshold session does not trigger learning (US
       score: 0.35,
     });
 
-    // When checking consecutive below-threshold count
+    // When analyzing the trend with insufficient data
     const records = await getBehaviorRecords(surreal, agentId, "TDD_Adherence");
+    const scorePoints: ScorePoint[] = records
+      .map((r) => ({ score: r.score, timestamp: r.created_at }))
+      .reverse();
 
-    // Then only 1 record exists (below 3 threshold for learning proposal)
-    expect(records).toHaveLength(1);
-    expect(records.length).toBeLessThan(3);
+    const trend = analyzeTrend(scorePoints, { threshold: 0.70, minStreakLength: 3 });
 
-    // And no learning should be proposed (single snapshot, not a trend)
+    // Then the pattern is insufficient_data (not enough points for trend detection)
+    expect(trend.pattern).toBe("insufficient_data");
+    // And no drift is reported despite the low score
+    expect(trend.belowThreshold).toBe(false);
   }, 60_000);
 });
 
