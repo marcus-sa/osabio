@@ -248,7 +248,51 @@ export async function linkObjectiveToProject(
 }
 
 /**
+ * Creates a behavior_definition record (required by behavior records).
+ */
+export async function createBehaviorDefinition(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: {
+    title: string;
+    goal?: string;
+    scoring_logic?: string;
+    telemetry_types?: string[];
+    status?: "draft" | "active" | "archived";
+    version?: number;
+    created_by?: string;
+  },
+): Promise<{ definitionId: string }> {
+  const definitionId = `bdef-${crypto.randomUUID()}`;
+  const definitionRecord = new RecordId("behavior_definition", definitionId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const content: Record<string, unknown> = {
+    title: opts.title,
+    goal: opts.goal ?? `Measure ${opts.title}`,
+    scoring_logic: opts.scoring_logic ?? "LLM evaluation of session telemetry",
+    telemetry_types: opts.telemetry_types ?? ["files_changed", "test_files_changed"],
+    status: opts.status ?? "active",
+    version: opts.version ?? 1,
+    enforcement_mode: "warn_only",
+    workspace: workspaceRecord,
+    created_at: new Date(),
+  };
+  if (opts.created_by) {
+    content.created_by = new RecordId("identity", opts.created_by);
+  }
+
+  await surreal.query(`CREATE $def CONTENT $content;`, {
+    def: definitionRecord,
+    content,
+  });
+
+  return { definitionId };
+}
+
+/**
  * Creates a behavior record for an agent.
+ * Auto-creates a behavior_definition if definitionId is not provided.
  */
 export async function createBehaviorRecord(
   surreal: Surreal,
@@ -259,12 +303,21 @@ export async function createBehaviorRecord(
     score: number;
     source_telemetry?: Record<string, unknown>;
     created_at?: Date;
+    definitionId?: string;
+    definition_version?: number;
   },
-): Promise<{ behaviorId: string }> {
+): Promise<{ behaviorId: string; definitionId: string }> {
+  // Auto-create a behavior_definition if not provided
+  const definitionId = opts.definitionId
+    ?? (await createBehaviorDefinition(surreal, workspaceId, {
+        title: opts.metric_type,
+      })).definitionId;
+
   const behaviorId = `beh-${crypto.randomUUID()}`;
   const behaviorRecord = new RecordId("behavior", behaviorId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const identityRecord = new RecordId("identity", identityId);
+  const definitionRecord = new RecordId("behavior_definition", definitionId);
 
   await surreal.query(`CREATE $behavior CONTENT $content;`, {
     behavior: behaviorRecord,
@@ -272,6 +325,8 @@ export async function createBehaviorRecord(
       metric_type: opts.metric_type,
       score: opts.score,
       source_telemetry: opts.source_telemetry ?? {},
+      definition: definitionRecord,
+      definition_version: opts.definition_version ?? 1,
       workspace: workspaceRecord,
       created_at: opts.created_at ?? new Date(),
     },
@@ -283,7 +338,7 @@ export async function createBehaviorRecord(
     { identity: identityRecord, behavior: behaviorRecord },
   );
 
-  return { behaviorId };
+  return { behaviorId, definitionId };
 }
 
 /**
@@ -296,9 +351,14 @@ export async function createBehaviorTrend(
   identityId: string,
   metricType: string,
   scores: number[],
-): Promise<{ behaviorIds: string[] }> {
+): Promise<{ behaviorIds: string[]; definitionId: string }> {
   const behaviorIds: string[] = [];
   const now = Date.now();
+
+  // Create one shared definition for the whole trend
+  const { definitionId } = await createBehaviorDefinition(surreal, workspaceId, {
+    title: metricType,
+  });
 
   for (let i = 0; i < scores.length; i++) {
     // Each record 1 day apart, oldest first
@@ -308,11 +368,12 @@ export async function createBehaviorTrend(
       score: scores[i],
       source_telemetry: { session_index: i },
       created_at,
+      definitionId,
     });
     behaviorIds.push(behaviorId);
   }
 
-  return { behaviorIds };
+  return { behaviorIds, definitionId };
 }
 
 /**
