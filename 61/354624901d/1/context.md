@@ -48,3 +48,15 @@ add unit regression test
 
 ❯ update AGENTS.md and add an instruction to always create regression tests for bug fixes
 
+### Prompt 9
+
+that's not a unit test... you've created an acceptance test u idiot
+
+### Prompt 10
+
+[Request interrupted by user]
+
+### Prompt 11
+
+I ALREADY TOLD YOU TO MOCK THE `generateObject` / generateText fns so that we can verify that the text does NOT include duplicated anomaolies
+

@@ -3,30 +3,31 @@
   "checkpoint_id": "61354624901d",
   "session_id": "b777d98d-69cc-40fc-a115-4e159956e94b",
   "strategy": "manual-commit",
-  "created_at": "2026-03-14T11:09:38.1983Z",
+  "created_at": "2026-03-14T11:57:15.271753Z",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
-    "app/src/server/observer/graph-scan.ts"
+    "app/src/server/observer/graph-scan.ts",
+    "tests/unit/observer/graph-scan-dedup-synthesis.test.ts"
   ],
   "agent": "Claude Code",
-  "turn_id": "b437ea564b7a",
-  "checkpoint_transcript_start": 35,
-  "transcript_lines_at_start": 35,
+  "turn_id": "98d1b6e4de08",
+  "checkpoint_transcript_start": 723,
+  "transcript_lines_at_start": 723,
   "token_usage": {
-    "input_tokens": 97,
-    "cache_creation_tokens": 64419,
-    "cache_read_tokens": 5049090,
-    "output_tokens": 15918,
-    "api_call_count": 54
+    "input_tokens": 27,
+    "cache_creation_tokens": 13806,
+    "cache_read_tokens": 1913932,
+    "output_tokens": 7835,
+    "api_call_count": 15
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-14T11:09:37.921241Z",
-    "agent_lines": 9,
-    "human_added": 116,
-    "human_modified": 6,
+    "calculated_at": "2026-03-14T11:57:14.964021Z",
+    "agent_lines": 99,
+    "human_added": 0,
+    "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 131,
-    "agent_percentage": 6.870229007633588
+    "total_committed": 99,
+    "agent_percentage": 100
   }
 }

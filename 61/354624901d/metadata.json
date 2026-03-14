@@ -3,7 +3,7 @@
   "checkpoint_id": "61354624901d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 0,
   "files_touched": [
     "AGENTS.md",
     "app/src/server/observer/graph-scan.ts",
@@ -26,10 +26,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 97,
-    "cache_creation_tokens": 64419,
-    "cache_read_tokens": 5049090,
-    "output_tokens": 15918,
-    "api_call_count": 54
+    "input_tokens": 27,
+    "cache_creation_tokens": 13806,
+    "cache_read_tokens": 1913932,
+    "output_tokens": 7835,
+    "api_call_count": 15
   }
 }
