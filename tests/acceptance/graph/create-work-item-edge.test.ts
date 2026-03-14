@@ -106,6 +106,7 @@ const stubEmbeddingModel = {
   supportsParallelCalls: false,
   doEmbed: async ({ values }: { values: string[] }) => ({
     embeddings: values.map(() => new Array(testAI.embeddingDimension).fill(0)),
+    warnings: [],
   }),
 };
 
