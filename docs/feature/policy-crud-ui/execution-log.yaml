@@ -274,5 +274,30 @@ events:
   s: EXECUTED
   sid: 04-02
   t: '2026-03-14T05:08:18Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-14T05:08:52Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-14T05:13:20Z'
+- d: 'NOT_APPLICABLE: UI-only step'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 04-03
+  t: '2026-03-14T05:13:21Z'
+- d: 'NOT_APPLICABLE: UI component'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-03
+  t: '2026-03-14T05:13:22Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-14T05:13:23Z'
 project_id: policy-crud-ui
 schema_version: '3.0'

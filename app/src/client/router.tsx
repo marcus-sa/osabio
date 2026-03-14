@@ -12,6 +12,7 @@ import { HomePage } from "./routes/home-page";
 import { ReviewPage } from "./routes/review-page";
 import { LearningsPage } from "./routes/learnings-page";
 import { PoliciesPage } from "./components/policy/PoliciesPage";
+import { PolicyDetailPage } from "./components/policy/PolicyDetailPage";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 
@@ -174,7 +175,7 @@ const policiesRoute = createRoute({
 const policyDetailRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/policies/$policyId",
-  component: () => null, // Placeholder for detail page (step 04-02)
+  component: PolicyDetailPage,
 });
 
 const routeTree = rootRoute.addChildren([
