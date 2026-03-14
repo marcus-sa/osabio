@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8e7e537e10be",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/graph/embeddings.ts",
+    "app/src/server/learning/collision.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8e/7e537e10be/0/metadata.json",
+      "transcript": "/8e/7e537e10be/0/full.jsonl",
+      "context": "/8e/7e537e10be/0/context.md",
+      "content_hash": "/8e/7e537e10be/0/content_hash.txt",
+      "prompt": "/8e/7e537e10be/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 137465,
+    "cache_read_tokens": 961911,
+    "output_tokens": 7819,
+    "api_call_count": 13
+  }
+}

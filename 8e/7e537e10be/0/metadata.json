@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8e7e537e10be",
+  "session_id": "2287cdd1-3702-49d0-b7ad-3f033eb5c878",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-14T10:28:02.94955Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/graph/embeddings.ts",
+    "app/src/server/learning/collision.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2cf5a290e5b8",
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 137465,
+    "cache_read_tokens": 961911,
+    "output_tokens": 7819,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-14T10:28:02.868741Z",
+    "agent_lines": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 100
+  }
+}

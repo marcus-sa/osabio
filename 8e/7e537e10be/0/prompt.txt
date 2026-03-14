@@ -1,0 +1,27 @@
+Run bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/learning-library/
+bun test v1.3.10 (30e609e0)
+
+tests/acceptance/learning-library/milestone-3-full-lifecycle.test.ts:
+
+tests/acceptance/learning-library/milestone-2-edit-learning.test.ts:
+
+tests/acceptance/learning-library/walking-skeleton.test.ts:
+
+tests/acceptance/learning-library/milestone-1-browse-filter.test.ts:
+
+2 tests failed:
+(fail) Milestone 3: Full Learning Lifecycle > deactivated learning disappears from active filtered views [120001.27ms]
+  ^ this test timed out after 120000ms.
+(fail) (unnamed) [20000.71ms]
+  ^ a beforeEach/afterEach hook timed out for this test.
+
+ 27 pass
+ 2 fail
+ 1 error
+ 108 expect() calls
+Ran 29 tests across 4 files. [146.41s]
+Error: Process completed with exit code 1.
+
+---
+
+commit and push
