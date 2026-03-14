@@ -55,6 +55,8 @@ type CreatePolicyParams = {
   max_ttl?: string;
   createdBy: RecordId<"identity">;
   workspace: RecordId<"workspace">;
+  version?: number;
+  supersedes?: RecordId<"policy">;
 };
 
 // --- Query Functions ---
@@ -120,7 +122,7 @@ export async function createPolicy(
 
   const content: Record<string, unknown> = {
     title: params.title,
-    version: 1,
+    version: params.version ?? 1,
     status: "draft",
     selector: params.selector ?? {},
     rules: params.rules,
@@ -132,6 +134,7 @@ export async function createPolicy(
 
   if (params.description) content.description = params.description;
   if (params.max_ttl) content.max_ttl = params.max_ttl;
+  if (params.supersedes) content.supersedes = params.supersedes;
 
   await surreal.query("CREATE $policy CONTENT $content;", {
     policy: policyRecord,

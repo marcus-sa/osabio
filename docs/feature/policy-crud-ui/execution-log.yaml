@@ -174,5 +174,30 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-14T04:42:30Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-14T04:42:51Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-14T04:44:23Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-14T04:44:49Z'
+- d: 'NOT_APPLICABLE: status guard and field copy tested through acceptance tests'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-14T04:44:56Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-14T04:45:47Z'
 project_id: policy-crud-ui
 schema_version: '3.0'

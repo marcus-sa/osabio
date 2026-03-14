@@ -345,14 +345,52 @@ async function handleDeprecatePolicy(
 // POST /api/workspaces/:workspaceId/policies/:policyId/versions (stub - guarded)
 // ---------------------------------------------------------------------------
 
+/** Only active policies can spawn new versions. */
+const VERSIONABLE_STATUSES: ReadonlySet<PolicyStatus> = new Set<PolicyStatus>(["active"]);
+
 async function handleCreatePolicyVersion(
   deps: ServerDependencies,
-  _workspaceId: string,
-  _policyId: string,
+  workspaceId: string,
+  policyId: string,
   request: Request,
 ): Promise<Response> {
   const guardResult = await requireHumanIdentity(deps, request);
   if (isResponse(guardResult)) return guardResult;
 
-  return jsonError("not implemented", 501);
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "policy.version.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+  const workspaceRecord = workspaceOrError;
+
+  try {
+    const sourcePolicy = await getPolicyById(deps.surreal, policyId, workspaceRecord);
+    if (!sourcePolicy) {
+      return jsonError("policy not found", 404);
+    }
+
+    if (!VERSIONABLE_STATUSES.has(sourcePolicy.status)) {
+      return jsonError(
+        `policy must be in active status to create a new version (current: ${sourcePolicy.status})`,
+        409,
+      );
+    }
+
+    const sourcePolicyRecord = new RecordId("policy", policyId);
+    const { policyId: newPolicyId } = await createPolicy(deps.surreal, {
+      title: sourcePolicy.title,
+      description: sourcePolicy.description,
+      selector: sourcePolicy.selector,
+      rules: sourcePolicy.rules,
+      human_veto_required: sourcePolicy.human_veto_required,
+      max_ttl: sourcePolicy.max_ttl,
+      createdBy: guardResult.identityRecord,
+      workspace: workspaceRecord,
+      version: sourcePolicy.version + 1,
+      supersedes: sourcePolicyRecord,
+    });
+
+    return jsonResponse({ policy_id: newPolicyId, version: sourcePolicy.version + 1 }, 201);
+  } catch (error) {
+    logError("policy.version.failed", "Failed to create policy version", error, { workspaceId, policyId });
+    return jsonError("failed to create policy version", 500);
+  }
 }

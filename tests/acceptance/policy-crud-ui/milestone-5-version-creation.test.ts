@@ -41,7 +41,7 @@ describe("Milestone 5: Version Creation (US-PCUI-05)", () => {
   // Walking Skeleton: Admin creates a new version from active policy
   // AC: New draft version created with incremented version, supersedes reference
   // ---------------------------------------------------------------------------
-  it.skip("admin creates a new version from an active policy", async () => {
+  it("admin creates a new version from an active policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an active policy at version 1
@@ -95,7 +95,7 @@ describe("Milestone 5: Version Creation (US-PCUI-05)", () => {
   // Cannot create version from a draft policy
   // AC: POST /versions on draft returns 409
   // ---------------------------------------------------------------------------
-  it.skip("cannot create a version from a draft policy", async () => {
+  it("cannot create a version from a draft policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a draft policy
@@ -123,7 +123,7 @@ describe("Milestone 5: Version Creation (US-PCUI-05)", () => {
   // Cannot create version from a deprecated policy
   // AC: POST /versions on deprecated returns 409
   // ---------------------------------------------------------------------------
-  it.skip("cannot create a version from a deprecated policy", async () => {
+  it("cannot create a version from a deprecated policy", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a deprecated policy
