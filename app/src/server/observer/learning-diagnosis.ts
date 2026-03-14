@@ -17,9 +17,10 @@ import { generateObject, type LanguageModel } from "ai";
 import { logError, logInfo } from "../http/observability";
 import { rootCauseSchema, type RootCauseClassification } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
-import { suggestLearning } from "../learning/detector";
+import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
 import { cosineSimilarity, createEmbeddingVector } from "../graph/embeddings";
+import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
 import type { embed } from "ai";
 
@@ -499,6 +500,199 @@ async function queryActiveLearningTexts(
     { ws: workspaceRecord },
   );
   return (rows ?? []).map((r) => r.text);
+}
+
+// ---------------------------------------------------------------------------
+// Behavior Learning Bridge
+// ---------------------------------------------------------------------------
+
+export type BehaviorTrendEntry = {
+  identityId: string;
+  metricType: string;
+  trend: TrendResult;
+  behaviorIds: string[];
+  scorePoints: ScorePoint[];
+};
+
+export type ProposeBehaviorLearningInput = {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  identityId: string;
+  metricType: string;
+  behaviorIds: string[];
+  trendPattern: TrendPattern;
+  now: Date;
+};
+
+export type ProposeBehaviorLearningResult =
+  | { created: true; learningRecord: RecordId<"learning", string> }
+  | { created: false; reason: "rate_limited"; count: number }
+  | { created: false; reason: "dismissed_similarity"; matchedText: string };
+
+/**
+ * Queries all behavior records in a workspace, groups by identity + metric type,
+ * and analyzes trends for each group.
+ *
+ * Returns only groups with enough data points for trend analysis.
+ */
+export async function queryWorkspaceBehaviorTrends(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<BehaviorTrendEntry[]> {
+  // Query all behavior records with their identity via exhibits edges
+  const [rows] = await surreal.query<[Array<{
+    id: RecordId<"behavior">;
+    metric_type: string;
+    score: number;
+    created_at: string;
+    identity_id: RecordId<"identity">[];
+  }>]>(
+    `SELECT id, metric_type, score, created_at,
+            <-exhibits<-identity.id AS identity_id
+     FROM behavior
+     WHERE workspace = $ws
+     ORDER BY created_at ASC;`,
+    { ws: workspaceRecord },
+  );
+
+  if (!rows || rows.length === 0) return [];
+
+  // Group by identity + metric_type
+  const groups = new Map<string, {
+    identityId: string;
+    metricType: string;
+    points: ScorePoint[];
+    behaviorIds: string[];
+  }>();
+
+  for (const row of rows) {
+    const identityIds = row.identity_id ?? [];
+    if (identityIds.length === 0) continue;
+
+    const identityId = identityIds[0].id as string;
+    const key = `${identityId}::${row.metric_type}`;
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        identityId,
+        metricType: row.metric_type,
+        points: [],
+        behaviorIds: [],
+      });
+    }
+
+    const group = groups.get(key)!;
+    group.points.push({ score: row.score, timestamp: row.created_at });
+    group.behaviorIds.push(row.id.id as string);
+  }
+
+  // Analyze trend for each group
+  const entries: BehaviorTrendEntry[] = [];
+  for (const group of groups.values()) {
+    const trend = analyzeTrend(group.points);
+    entries.push({
+      identityId: group.identityId,
+      metricType: group.metricType,
+      trend,
+      behaviorIds: group.behaviorIds,
+      scorePoints: group.points,
+    });
+  }
+
+  return entries;
+}
+
+/**
+ * Rate limit guard for behavior-sourced learning proposals.
+ * Returns early if >= 5 observer proposals exist in the past 7 days.
+ */
+export async function checkBehaviorLearningRateLimit(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+}): Promise<{ blocked: boolean; count: number }> {
+  return checkRateLimit({
+    surreal: input.surreal,
+    workspaceRecord: input.workspaceRecord,
+    agentType: "observer",
+  });
+}
+
+/**
+ * Composes a learning proposal from behavior trend data and submits it
+ * via the existing suggestLearning pipeline (with rate limit + collision detection).
+ *
+ * Behavior records are linked as learning_evidence via the extended relation OUT.
+ */
+export async function proposeBehaviorLearning(
+  input: ProposeBehaviorLearningInput,
+): Promise<ProposeBehaviorLearningResult> {
+  const learningText = buildBehaviorLearningText(
+    input.identityId,
+    input.metricType,
+    input.trendPattern,
+  );
+
+  const learningInput: CreateLearningInput = {
+    text: learningText,
+    learningType: "constraint",
+    source: "agent",
+    suggestedBy: "observer",
+    patternConfidence: 0.80,
+    targetAgents: [input.identityId],
+    evidenceIds: input.behaviorIds.map((id) => ({
+      table: "behavior" as const,
+      id,
+    })),
+  };
+
+  const result = await suggestLearning({
+    surreal: input.surreal,
+    workspaceRecord: input.workspaceRecord,
+    learning: learningInput,
+    now: input.now,
+  });
+
+  if (result.created) {
+    logInfo("observer.behavior.learning_proposed", "Learning proposed from behavior trend", {
+      identityId: input.identityId,
+      metricType: input.metricType,
+      trendPattern: input.trendPattern,
+      learningId: result.learningRecord.id,
+    });
+    return { created: true, learningRecord: result.learningRecord };
+  }
+
+  logInfo("observer.behavior.learning_blocked", "Behavior learning proposal blocked", {
+    identityId: input.identityId,
+    metricType: input.metricType,
+    reason: result.reason,
+  });
+
+  return result;
+}
+
+/**
+ * Builds a descriptive learning text from behavior trend data.
+ * Pure function -- no IO.
+ */
+function buildBehaviorLearningText(
+  identityId: string,
+  metricType: string,
+  trendPattern: TrendPattern,
+): string {
+  const metricLabel = metricType.replace(/_/g, " ");
+
+  switch (trendPattern) {
+    case "drift":
+      return `Agent ${identityId} shows sustained decline in ${metricLabel}. ` +
+        `Enforce ${metricLabel} standards before proceeding with other work.`;
+    case "flat":
+      return `Agent ${identityId} shows persistent stagnation in ${metricLabel} below threshold. ` +
+        `Current learning interventions for ${metricLabel} are ineffective -- consider revising approach.`;
+    default:
+      return `Agent ${identityId} shows concerning ${trendPattern} pattern in ${metricLabel}. ` +
+        `Review ${metricLabel} compliance and reinforce expected behavior.`;
+  }
 }
 
 // ---------------------------------------------------------------------------

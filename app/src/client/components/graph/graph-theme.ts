@@ -17,6 +17,8 @@ export function entityColor(kind: EntityKind): string {
     case "intent": return "var(--entity-feature)";
     case "policy": return "var(--entity-policy)";
     case "learning": return "var(--entity-decision)";
+    case "objective": return "var(--entity-objective)";
+    case "behavior": return "var(--entity-behavior)";
   }
 }
 
@@ -37,6 +39,8 @@ export function entityMutedColor(kind: EntityKind): string {
     case "intent": return "var(--entity-feature-muted)";
     case "policy": return "var(--entity-policy-muted)";
     case "learning": return "var(--entity-decision-muted)";
+    case "objective": return "var(--entity-objective-muted)";
+    case "behavior": return "var(--entity-behavior-muted)";
   }
 }
 
@@ -63,6 +67,11 @@ export function edgeStyle(type: string): EdgeStyleResult {
     case "gates":
     case "vetoed_by":
       return { stroke: "#f59e0b", strokeDasharray: "6 3", opacity: 0.7 };
+    case "supports":
+    case "has_objective":
+      return { stroke: "#10b981", strokeDasharray: "none", opacity: 0.6 };
+    case "exhibits":
+      return { stroke: "#8b5cf6", strokeDasharray: "4 2", opacity: 0.6 };
     default:
       return { stroke: "#5b8dee", strokeDasharray: "none", opacity: 0.5 };
   }

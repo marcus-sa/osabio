@@ -122,4 +122,8 @@ export type IntentEvaluationContext = {
   }>;
   requester_type: string;
   requester_role?: string;
+  /** Behavior scores keyed by metric_type (e.g. Security_First, TDD_Adherence).
+   *  Populated by enrichBehaviorScores before policy gate evaluation.
+   *  Empty object when no behavior data exists for the agent. */
+  behavior_scores?: Record<string, number>;
 };

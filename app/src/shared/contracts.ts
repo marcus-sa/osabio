@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning";
+export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 

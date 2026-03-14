@@ -37,6 +37,8 @@ import { RecordId } from "surrealdb";
 import { createObserverRouteHandler, createGraphScanRouteHandler } from "../observer/observer-route";
 import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
+import { createObjectiveRouteHandlers } from "../objective/objective-route";
+import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -72,6 +74,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const graphScanHandler = createGraphScanRouteHandler(deps);
   const learningHandlers = createLearningRouteHandlers(deps);
   const policyHandlers = createPolicyRouteHandlers(deps);
+  const objectiveHandlers = createObjectiveRouteHandlers(deps);
+  const behaviorHandlers = createBehaviorRouteHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -270,6 +274,75 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
             request.params.policyId,
             request,
           ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/objectives": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/objectives",
+          "POST",
+          (request) => objectiveHandlers.handleCreate(request.params.workspaceId, request),
+        ),
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/objectives",
+          "GET",
+          (request) => objectiveHandlers.handleList(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/objectives/:objectiveId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/objectives/:objectiveId",
+          "GET",
+          (request) => objectiveHandlers.handleGet(request.params.workspaceId, request.params.objectiveId),
+        ),
+        PUT: withRequestLogging(
+          "PUT /api/workspaces/:workspaceId/objectives/:objectiveId",
+          "PUT",
+          (request) => objectiveHandlers.handleUpdate(request.params.workspaceId, request.params.objectiveId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/objectives/:objectiveId/progress": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/objectives/:objectiveId/progress",
+          "GET",
+          (request) => objectiveHandlers.handleProgress(request.params.workspaceId, request.params.objectiveId),
+        ),
+      },
+      "/api/workspaces/:workspaceId/behaviors": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/behaviors",
+          "GET",
+          (request) => behaviorHandlers.handleList(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/behaviors/score": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/behaviors/score",
+          "POST",
+          (request) => behaviorHandlers.handleScore(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/behavior-definitions": {
+        POST: withRequestLogging(
+          "POST /api/workspaces/:workspaceId/behavior-definitions",
+          "POST",
+          (request) => behaviorHandlers.handleCreateDefinition(request.params.workspaceId, request),
+        ),
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/behavior-definitions",
+          "GET",
+          (request) => behaviorHandlers.handleListDefinitions(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/behavior-definitions/:definitionId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/behavior-definitions/:definitionId",
+          "GET",
+          (request) => behaviorHandlers.handleGetDefinition(request.params.workspaceId, request.params.definitionId),
+        ),
+        PUT: withRequestLogging(
+          "PUT /api/workspaces/:workspaceId/behavior-definitions/:definitionId",
+          "PUT",
+          (request) => behaviorHandlers.handleUpdateDefinition(request.params.workspaceId, request.params.definitionId, request),
         ),
       },
       "/api/workspaces/:workspaceId/feed": {
@@ -594,6 +667,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   });
 }
 
+function detectTransport(url: string): string {
+  if (url.startsWith("wss://")) return "wss";
+  if (url.startsWith("ws://")) return "ws";
+  if (url.startsWith("https://")) return "https";
+  return "http";
+}
+
 export async function startServer(): Promise<void> {
   const config = loadServerConfig();
   const runtime = await createRuntimeDependencies(config);
@@ -610,6 +690,7 @@ export async function startServer(): Promise<void> {
     analyticsAgentModel: runtime.analyticsAgentModel,
     embeddingModel: runtime.embeddingModel,
     ...(runtime.observerModel ? { observerModel: runtime.observerModel } : {}),
+    ...(runtime.scorerModel ? { scorerModel: runtime.scorerModel } : {}),
     sse: createSseRegistry(),
     inflight: createInflightTracker(),
     asSigningKey: runtime.asSigningKey,
@@ -640,13 +721,7 @@ export async function startServer(): Promise<void> {
     embeddingDimension: config.embeddingDimension,
     extractionStoreThreshold: config.extractionStoreThreshold,
     extractionDisplayThreshold: config.extractionDisplayThreshold,
-    surrealTransport: config.surrealUrl.startsWith("wss://")
-      ? "wss"
-      : config.surrealUrl.startsWith("ws://")
-        ? "ws"
-        : config.surrealUrl.startsWith("https://")
-          ? "https"
-          : "http",
+    surrealTransport: detectTransport(config.surrealUrl),
     surrealNamespace: config.surrealNamespace,
     surrealDatabase: config.surrealDatabase,
     openRouterReasoningEnabled: config.openRouterReasoning !== undefined,

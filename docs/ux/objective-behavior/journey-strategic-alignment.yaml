@@ -1,0 +1,146 @@
+journey:
+  name: "Strategic Alignment Governance"
+  goal: "Ensure every agent intent traces to an active business objective, preventing organizational waste"
+  persona: "Elena Vasquez, Engineering Lead managing 4 coding agents and 2 management agents"
+  jobs_served:
+    - "J1: Strategic Alignment Governance"
+    - "J4: Objective-Driven Cost Governance"
+
+  emotional_arc:
+    start: "Anxious -- cannot tell if agents work toward business goals"
+    middle: "Focused -- system connects agent work to objectives automatically"
+    end: "Confident -- strategic alignment visible, reportable, governed"
+
+steps:
+  - id: 1
+    name: "Define Strategic Context"
+    action: "Elena reviews existing projects and identifies need for objective tracking"
+    emotional_state:
+      entry: "Anxious -- agents executing without strategic traceability"
+      exit: "Uncertain -- recognizes the gap, ready to address it"
+    shared_artifacts:
+      - name: "project_count"
+        source: "project table (workspace-scoped query)"
+        displayed_as: "${project_count}"
+        consumers: ["strategic context view", "alignment report"]
+    integration_checkpoint: |
+      Workspace has at least 1 project. Identity has workspace membership.
+
+  - id: 2
+    name: "Create Objectives"
+    action: "Elena describes objective in chat; extraction pipeline creates objective node"
+    emotional_state:
+      entry: "Uncertain -- will the system understand my strategic intent?"
+      exit: "Curious -- extraction captured title, target_date, success_criteria automatically"
+    shared_artifacts:
+      - name: "objective_id"
+        source: "objective table (SurrealDB record)"
+        displayed_as: "${objective_id}"
+        consumers: ["supports edge", "progress view", "alignment report", "feed cards"]
+      - name: "objective_title"
+        source: "objective.title field"
+        displayed_as: "${objective_title}"
+        consumers: ["feed cards", "progress view", "chat responses", "alignment report"]
+      - name: "objective_target_date"
+        source: "objective.target_date field"
+        displayed_as: "${objective_target_date}"
+        consumers: ["progress view", "coherence auditor (staleness check)"]
+      - name: "objective_success_criteria"
+        source: "objective.success_criteria field (array of KPI strings)"
+        displayed_as: "${objective_success_criteria}"
+        consumers: ["progress view", "alignment report"]
+    integration_checkpoint: |
+      Objective record created in SurrealDB with all required fields.
+      Objective has workspace relation. Embedding generated for semantic matching.
+
+  - id: 3
+    name: "Link Intents to Objectives"
+    action: "Authorizer evaluates incoming intents against active objectives via semantic similarity"
+    emotional_state:
+      entry: "Curious -- will the matching work?"
+      exit: "Focused -- system correctly linked intent to matching objective"
+    shared_artifacts:
+      - name: "alignment_score"
+        source: "Computed: vector similarity between intent.goal embedding and objective embeddings"
+        displayed_as: "${alignment_score}"
+        consumers: ["authorizer evaluation", "feed warning cards", "alignment report"]
+      - name: "supports_edge"
+        source: "supports relation table (intent -> objective)"
+        displayed_as: "RELATE intent ->supports-> objective"
+        consumers: ["progress view", "alignment report", "coherence auditor"]
+    integration_checkpoint: |
+      Intent has embedding. Active objectives have embeddings. Similarity computed.
+      Supports edge created when score exceeds threshold. Observation created when below.
+
+  - id: 4
+    name: "Authorizer Flags Unaligned Work"
+    action: "Intent with no matching objective triggers warning observation and feed card"
+    emotional_state:
+      entry: "Focused -- watching the governance system work"
+      exit: "Focused -- caught drift without blocking agent, advisory mode working"
+    shared_artifacts:
+      - name: "alignment_warning"
+        source: "observation table (severity=warning, category=alignment)"
+        displayed_as: "Feed card with intent details and closest objective"
+        consumers: ["governance feed", "alignment report (unaligned count)"]
+    integration_checkpoint: |
+      Observation created with correct severity and category.
+      Feed card rendered with action buttons (Link, Dismiss, Create Objective).
+      Intent not blocked (warning mode).
+
+  - id: 5
+    name: "Monitor Objective Progress"
+    action: "Elena views objective progress dashboard showing KPI tracking and supporting intents"
+    emotional_state:
+      entry: "Focused -- checking on strategic progress"
+      exit: "Confident -- clear visibility into objective advancement"
+    shared_artifacts:
+      - name: "objective_progress"
+        source: "Computed: aggregation of supporting intents, related tasks, key result completion"
+        displayed_as: "${objective_progress}%"
+        consumers: ["progress view", "alignment report"]
+    integration_checkpoint: |
+      Progress computation includes all supports edges for this objective.
+      Key result tracking reflects actual task/feature completion.
+
+  - id: 6
+    name: "Review Strategic Alignment Report"
+    action: "Monthly report showing compute allocation across objectives"
+    emotional_state:
+      entry: "Confident -- expecting useful data"
+      exit: "Confident -- can explain AI spend to board"
+    shared_artifacts:
+      - name: "alignment_report"
+        source: "Computed: aggregation across all objectives and intents for period"
+        displayed_as: "Report with per-objective compute percentage"
+        consumers: ["board presentation", "objective prioritization decisions"]
+    integration_checkpoint: |
+      All active objectives included. Unaligned intents categorized.
+      Percentages sum to 100%. Report covers complete time period.
+
+  - id: 7
+    name: "Coherence Check"
+    action: "X-Ray auditor surfaces stale objectives, orphaned decisions, missing outcomes"
+    emotional_state:
+      entry: "Confident -- trusting the system to find issues"
+      exit: "Satisfied -- nothing falling through the cracks"
+    shared_artifacts:
+      - name: "coherence_score"
+        source: "Computed: ratio of properly-connected nodes to total nodes"
+        displayed_as: "${coherence_score}"
+        consumers: ["coherence audit feed card", "weekly trend"]
+    integration_checkpoint: |
+      Audit queries cover objective, decision, task, and observation tables.
+      Staleness thresholds configurable. False positive rate acceptable.
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "objective_id"
+      must_match_across: [2, 3, 4, 5, 6, 7]
+      failure_message: "Objective ID must be consistent from creation through all downstream views"
+    - artifact: "objective_title"
+      must_match_across: [2, 4, 5, 6]
+      failure_message: "Objective title displayed in feed cards must match the source record"
+    - artifact: "alignment_score"
+      must_match_across: [3, 4]
+      failure_message: "Alignment score in authorizer evaluation must match feed card display"

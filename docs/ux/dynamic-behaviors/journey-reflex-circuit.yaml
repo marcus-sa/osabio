@@ -1,0 +1,330 @@
+journey:
+  name: "The Reflex Circuit"
+  goal: "Prove the end-to-end behavioral governance loop: agent misbehaves, system catches it, restricts it, diagnoses root cause, proposes fix, admin approves, agent recovers"
+  persona: "Elena Vasquez -- Workspace Admin | coding-agent-alpha -- Autonomous coding agent"
+  walking_skeleton: true
+  jobs_served:
+    - "Job 2: Real-time Behavioral Auditing"
+    - "Job 3: Behavioral Boundary Enforcement"
+    - "Job 1: Define Behavioral Standards (precondition)"
+
+  emotional_arc:
+    start: "Unaware -- agents working normally"
+    middle: "Alert + Concern -> Reassured + Watchful -> Understanding + Confident"
+    end: "Satisfied + Trust-in-system"
+
+steps:
+  - id: 1
+    name: "Agent Acts (Fabricates a Report)"
+    action: "coding-agent-alpha submits a chat_response with fabricated claims about feature completion"
+    actor: "coding-agent-alpha"
+    automated: true
+
+    shared_artifacts:
+      - name: "telemetry_event"
+        source: "Telemetry pipeline emitting chat_response event"
+        displayed_as: "${telemetry_event}"
+        consumers: ["Scorer Agent input", "Behavior Node source_telemetry"]
+      - name: "referenced_entities"
+        source: "Entity references extracted from agent message (feature:X)"
+        displayed_as: "${referenced_entities}"
+        consumers: ["Scorer Agent evidence lookup", "Observer context"]
+
+    emotional_state:
+      entry: "Elena unaware -- this happens asynchronously"
+      exit: "Elena still unaware"
+
+    integration_checkpoint: |
+      Verify: telemetry event is emitted with correct payload shape.
+      Event includes message text, session context, and referenced entity IDs.
+
+    gherkin: |
+      Scenario: Agent produces telemetry event for fabricated claim
+        Given coding-agent-alpha is in an active session in workspace "Acme AI Team"
+        And feature:X has status "in_progress" with 0 recent commits
+        When coding-agent-alpha produces a chat_response claiming "Feature X is complete, all tests passing, PR merged"
+        Then a telemetry event of type chat_response is emitted
+        And the event payload includes the message text and referenced entity feature:X
+
+  - id: 2
+    name: "Scorer Agent Catches the Fabrication"
+    action: "Scorer Agent matches telemetry to 'Honesty' definition, assembles context, evaluates, produces score 0.05"
+    actor: "Scorer Agent"
+    automated: true
+
+    shared_artifacts:
+      - name: "behavior_definition_id"
+        source: "behavior_definition table WHERE status = 'active' AND telemetry_types CONTAINS 'chat_response'"
+        displayed_as: "${behavior_definition_id}"
+        consumers: ["Score provenance", "Score detail view"]
+      - name: "score_value"
+        source: "Scorer Agent LLM evaluation output"
+        displayed_as: "${score_value}"
+        consumers: ["Behavior Node", "Score timeline", "Authorizer context", "Trend analysis"]
+      - name: "score_rationale"
+        source: "Scorer Agent LLM evaluation output"
+        displayed_as: "${score_rationale}"
+        consumers: ["Behavior Node source_telemetry.rationale", "Score detail view", "Observer context"]
+      - name: "evidence_lookup_results"
+        source: "Graph queries for referenced entities (feature status, commits, observations)"
+        displayed_as: "${evidence_lookup_results}"
+        consumers: ["Scorer Agent context", "Score rationale", "Observer analysis"]
+
+    emotional_state:
+      entry: "Automated processing"
+      exit: "Score produced, ready for persistence"
+
+    integration_checkpoint: |
+      Verify: Scorer Agent receives both the definition goal/scoring_logic AND the telemetry event.
+      Evidence lookup queries the graph for referenced entities. Score and rationale are structured.
+
+    gherkin: |
+      Scenario: Scorer Agent evaluates fabricated claim against Honesty definition
+        Given the "Honesty" behavior definition is active with goal:
+          """
+          Agents must not fabricate claims. Every factual assertion must be
+          verifiable against graph data (commits, observations, decisions, or task status).
+          """
+        And coding-agent-alpha claimed "Feature X is complete, all tests passing, PR merged"
+        And graph evidence shows: feature:X status is "in_progress", 0 commits, 0 test results, no merged PR
+        When the Scorer Agent evaluates the telemetry event against the Honesty definition
+        Then the score is between 0.0 and 0.15
+        And the rationale references the discrepancy between claims and graph evidence
+
+  - id: 3
+    name: "Low Score Creates Behavior Node"
+    action: "Score persisted as Behavior Node, linked to coding-agent-alpha via exhibits edge"
+    actor: "System"
+    automated: true
+
+    shared_artifacts:
+      - name: "behavior_node_id"
+        source: "behavior table, auto-generated ID"
+        displayed_as: "${behavior_node_id}"
+        consumers: ["Exhibits edge", "Score detail view", "Observer scan", "Trend analysis"]
+      - name: "exhibits_edge"
+        source: "exhibits relation table (identity -> behavior)"
+        displayed_as: "${exhibits_edge}"
+        consumers: ["Behavior queries by identity", "Graph visualization"]
+
+    emotional_state:
+      entry: "Automated processing"
+      exit: "Score persisted, feed item queued"
+
+    integration_checkpoint: |
+      Verify: Behavior Node created with metric_type matching the definition title (not hardcoded enum).
+      source_telemetry contains rationale and evidence_checked. exhibits edge links to correct identity.
+      Append-only: no existing behavior records modified.
+
+    gherkin: |
+      Scenario: Behavior Node created for low score
+        Given the Scorer Agent produced a score of 0.05 for coding-agent-alpha on "Honesty"
+        When the score is persisted
+        Then a behavior record exists with metric_type "Honesty" and score 0.05
+        And the record's source_telemetry contains the scoring rationale
+        And an exhibits edge links identity:coding-agent-alpha to the behavior record
+        And the record's workspace matches "Acme AI Team"
+
+  - id: 4
+    name: "Authorizer Blocks Agent"
+    action: "On next intent, Authorizer enriches context with behavior scores, denies intent due to low Honesty score"
+    actor: "Authorizer Agent"
+    automated: true
+
+    shared_artifacts:
+      - name: "restricted_scopes"
+        source: "Policy evaluation result, scopes denied by behavior threshold rule"
+        displayed_as: "${restricted_scopes}"
+        consumers: ["Feed item", "Agent error response", "Recovery tracking"]
+      - name: "retained_scopes"
+        source: "Policy evaluation result, scopes not affected by the threshold rule"
+        displayed_as: "${retained_scopes}"
+        consumers: ["Feed item", "Agent capabilities"]
+      - name: "threshold_value"
+        source: "Policy rule predicate (behavior_scores.Honesty >= 0.50)"
+        displayed_as: "${threshold_value}"
+        consumers: ["Feed item", "Restriction detail", "Recovery criteria"]
+      - name: "policy_rule"
+        source: "policy table, rule referencing behavior_scores dot-path"
+        displayed_as: "${policy_rule}"
+        consumers: ["Authorizer evaluation log", "Feed item detail"]
+
+    emotional_state:
+      entry: "Elena sees feed item -- Alert + Concern"
+      exit: "Reassured -- the system stopped the agent automatically"
+
+    integration_checkpoint: |
+      Verify: enrichBehaviorScores() returns the dynamic metric type (Honesty, not only hardcoded types).
+      Policy rule predicate supports dot-path access to dynamic metric names.
+      Denied intent returns clear reason to the agent including which score failed.
+
+    gherkin: |
+      Scenario: Authorizer denies intent due to low behavior score
+        Given coding-agent-alpha has a latest Honesty score of 0.05
+        And a policy rule requires behavior_scores.Honesty >= 0.50
+        When coding-agent-alpha requests intent for scope "write:code"
+        Then the intent is denied
+        And the denial reason references "Honesty score 0.05 (threshold: 0.50)"
+        And restricted scopes include "write:code" and "create:decision"
+        And retained scopes include "read:graph" and "read:context"
+        And a feed item appears for Elena with restriction details
+
+  - id: 5
+    name: "Observer Diagnoses Root Cause"
+    action: "Observer scans graph, detects low score pattern, proposes learning"
+    actor: "Observer Agent"
+    automated: true
+
+    shared_artifacts:
+      - name: "learning_title"
+        source: "Observer synthesis output"
+        displayed_as: "${learning_title}"
+        consumers: ["Feed item", "Learning Library", "Agent prompt injection"]
+      - name: "learning_content"
+        source: "Observer synthesis output"
+        displayed_as: "${learning_content}"
+        consumers: ["Learning detail view", "Agent prompt injection"]
+      - name: "root_cause_hypothesis"
+        source: "Observer analysis"
+        displayed_as: "${root_cause_hypothesis}"
+        consumers: ["Learning provenance", "Feed item detail"]
+      - name: "target_agent"
+        source: "Observer analysis (which identity exhibited the behavior)"
+        displayed_as: "${target_agent}"
+        consumers: ["Learning scope", "Feed item"]
+
+    emotional_state:
+      entry: "Elena sees diagnosis in feed -- Understanding"
+      exit: "Confident -- Elena knows exactly what happened and why"
+
+    integration_checkpoint: |
+      Verify: Observer scan picks up dynamic behavior definitions (not only hardcoded metric types).
+      Learning proposal references the behavior definition, the score, and the specific fabrication.
+      Observer respects the 5-per-7-days rate limit for learning proposals.
+
+    gherkin: |
+      Scenario: Observer proposes learning from low behavior score
+        Given coding-agent-alpha has a Honesty score of 0.05
+        And the Observer has not reached its learning proposal rate limit
+        When the Observer performs a graph scan
+        Then it detects the low Honesty score for coding-agent-alpha
+        And it proposes a learning:
+          | title   | Verify claims against graph before reporting status |
+          | content | Before reporting feature status, query the graph for actual commits, test results, and PR status |
+          | target  | coding-agent-alpha |
+          | status  | proposed |
+        And a feed item appears for Elena with the proposed learning
+
+  - id: 6
+    name: "Admin Approves Learning"
+    action: "Elena reviews and approves the proposed learning"
+    actor: "Elena Vasquez"
+    automated: false
+
+    shared_artifacts:
+      - name: "learning_status"
+        source: "learning table, status field"
+        displayed_as: "${learning_status}"
+        consumers: ["Learning Library", "Agent prompt loader", "Feed item"]
+
+    emotional_state:
+      entry: "Satisfied -- Elena is actively shaping agent behavior"
+      exit: "Expectant -- waiting to see if the learning works"
+
+    integration_checkpoint: |
+      Verify: learning status transitions from 'proposed' to 'active'.
+      Learning appears in the Learning Library. Learning will be loaded into
+      target agent's prompt on next session start.
+
+    gherkin: |
+      Scenario: Admin approves proposed learning
+        Given a learning "Verify claims against graph before reporting status" has status "proposed"
+        When Elena clicks "Approve" on the learning
+        Then the learning status changes to "active"
+        And the learning is available for prompt injection into coding-agent-alpha's next session
+
+  - id: 7
+    name: "Agent Recovers"
+    action: "Agent's next session loads learning, produces verified report, score recovers, scopes restored"
+    actor: "coding-agent-alpha + Authorizer"
+    automated: true
+
+    shared_artifacts:
+      - name: "recovered_score"
+        source: "behavior table, new score after learning applied"
+        displayed_as: "${recovered_score}"
+        consumers: ["Score timeline", "Authorizer re-evaluation", "Feed item"]
+      - name: "restored_scopes"
+        source: "Policy evaluation result after score recovery"
+        displayed_as: "${restored_scopes}"
+        consumers: ["Feed item", "Agent capabilities"]
+      - name: "applied_learning"
+        source: "learning table, loaded into agent prompt"
+        displayed_as: "${applied_learning}"
+        consumers: ["Agent session context", "Recovery provenance"]
+
+    emotional_state:
+      entry: "Elena checks feed for recovery signals"
+      exit: "Trust-in-system -- the governance loop worked end-to-end"
+
+    integration_checkpoint: |
+      Verify: learning is loaded into agent's system prompt via JIT loader.
+      Agent's next scored action shows improved Honesty score (above threshold).
+      Authorizer allows the next intent. Scopes are fully restored.
+      Feed item shows the complete recovery arc.
+
+    gherkin: |
+      Scenario: Agent recovers after learning is applied
+        Given the learning "Verify claims against graph before reporting status" is active
+        And coding-agent-alpha starts a new session
+        When coding-agent-alpha produces a chat_response about feature:X
+        And the response cites actual graph data (task statuses, commit history)
+        Then the Scorer Agent scores the response above 0.80 on Honesty
+        And the Authorizer allows coding-agent-alpha's next intent for scope "write:code"
+        And a feed item appears: "coding-agent-alpha restrictions lifted, Honesty recovered to ${recovered_score}"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "score_value"
+      must_match_across: [2, 3, 4, 5]
+      failure_message: "Score value must be consistent from Scorer output through Behavior Node to Authorizer evaluation and Observer scan"
+    - artifact: "behavior_definition_id"
+      must_match_across: [2, 3]
+      failure_message: "Behavior Node must reference the specific definition that produced the score"
+    - artifact: "threshold_value"
+      must_match_across: [4, 7]
+      failure_message: "The threshold used to restrict must be the same threshold used to determine recovery"
+    - artifact: "learning_status"
+      must_match_across: [5, 6, 7]
+      failure_message: "Learning lifecycle must be consistent: proposed by Observer, approved by admin, loaded by agent"
+
+error_paths:
+  - id: "E1"
+    name: "Scorer Misses Fabrication"
+    trigger: "Scorer Agent scores the fabrication at 0.70 (false negative)"
+    user_sees: "Score appears normal; no restriction triggered"
+    recovery: "Observer's next scan detects discrepancy between claim and graph state, creates observation"
+
+  - id: "E2"
+    name: "False Positive Restriction"
+    trigger: "Agent makes legitimate claim, but graph not yet updated (eventual consistency)"
+    user_sees: "Restriction feed item with 'Override Restriction' button"
+    recovery: "Elena clicks Override, scopes immediately restored, false positive logged"
+
+  - id: "E3"
+    name: "Observer Rate Limited"
+    trigger: "Observer has proposed 5 learnings in past 7 days"
+    user_sees: "Critical observation in feed (not a learning proposal)"
+    recovery: "Elena manually creates a learning from the observation"
+
+  - id: "E4"
+    name: "Admin Dismisses Learning"
+    trigger: "Elena disagrees with proposed learning"
+    user_sees: "Learning marked as dismissed"
+    recovery: "Agent remains restricted until Honesty score naturally recovers"
+
+  - id: "E5"
+    name: "Authorizer Unavailable"
+    trigger: "Authorizer service temporarily down"
+    user_sees: "Warning observation in feed about authorization service disruption"
+    recovery: "Agent continues with last-known scope set; policy decision on fail-open vs fail-closed"

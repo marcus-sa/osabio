@@ -19,6 +19,8 @@ export function entityColor(kind: EntityKind): string {
     case "intent": return "#14b8a6";
     case "policy": return "#f59e0b";   // amber-500 — governance gold
     case "learning": return "#eab308"; // decision-yellow — behavioral rules
+    case "objective": return "#10b981"; // emerald — strategic goals
+    case "behavior": return "#8b5cf6"; // violet — craftsmanship metrics
   }
 }
 

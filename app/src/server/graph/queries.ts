@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session";
+export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session" | "objective" | "behavior";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
@@ -221,6 +221,16 @@ export async function readEntityName(
   if (table === "agent_session") {
     const row = await surreal.select<{ agent: string }>(record as RecordId<"agent_session", string>);
     return row?.agent;
+  }
+
+  if (table === "objective") {
+    const row = await surreal.select<{ title: string }>(record as RecordId<"objective", string>);
+    return row?.title;
+  }
+
+  if (table === "behavior") {
+    const row = await surreal.select<{ metric_type: string; score: number }>(record as RecordId<"behavior", string>);
+    return row ? `${row.metric_type} (${row.score.toFixed(2)})` : undefined;
   }
 
   const row = await surreal.select<{ text: string }>(record as RecordId<"question", string>);

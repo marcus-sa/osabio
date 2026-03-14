@@ -12,6 +12,8 @@ describe("entityColor", () => {
     expect(entityColor("observation")).toBe("#ef4444");
     expect(entityColor("person")).toBe("#f97316");
     expect(entityColor("workspace")).toBe("#3b82f6");
+    expect(entityColor("objective")).toBe("#10b981");
+    expect(entityColor("behavior")).toBe("#8b5cf6");
   });
 });
 
@@ -132,6 +134,70 @@ describe("transformToReagraph", () => {
     expect(countByNode.get("a")).toBe(22); // 2 edges + project kindBoost 20
     expect(countByNode.get("b")).toBe(12); // 2 edges + feature kindBoost 10
     expect(countByNode.get("c")).toBe(2);  // 2 edges + task kindBoost 0
+  });
+
+  it("maps objective nodes with emerald color", () => {
+    const raw: GraphViewRawResult = {
+      entities: [
+        { id: "obj1", kind: "objective", name: "Increase test coverage" },
+      ],
+      edges: [],
+    };
+
+    const result = transformToReagraph(raw);
+    expect(result.nodes[0]).toEqual({
+      id: "obj1",
+      label: "Increase test coverage",
+      fill: "#10b981",
+      data: {
+        kind: "objective",
+        connectionCount: 0,
+        status: undefined,
+      },
+    });
+  });
+
+  it("maps behavior nodes with violet color", () => {
+    const raw: GraphViewRawResult = {
+      entities: [
+        { id: "beh1", kind: "behavior", name: "TDD_Adherence" },
+      ],
+      edges: [],
+    };
+
+    const result = transformToReagraph(raw);
+    expect(result.nodes[0]).toEqual({
+      id: "beh1",
+      label: "TDD_Adherence",
+      fill: "#8b5cf6",
+      data: {
+        kind: "behavior",
+        connectionCount: 0,
+        status: undefined,
+      },
+    });
+  });
+
+  it("maps supports and exhibits edges with title-cased labels", () => {
+    const raw: GraphViewRawResult = {
+      entities: [
+        { id: "int1", kind: "intent", name: "Deploy service" },
+        { id: "obj1", kind: "objective", name: "Reliability target" },
+        { id: "id1", kind: "identity", name: "Agent A" },
+        { id: "beh1", kind: "behavior", name: "Security_First" },
+      ],
+      edges: [
+        { id: "e1", fromId: "int1", toId: "obj1", kind: "supports", confidence: 0.85 },
+        { id: "e2", fromId: "id1", toId: "beh1", kind: "exhibits", confidence: 1.0 },
+      ],
+    };
+
+    const result = transformToReagraph(raw);
+    expect(result.edges).toHaveLength(2);
+    expect(result.edges[0].label).toBe("Supports");
+    expect(result.edges[0].data.type).toBe("supports");
+    expect(result.edges[1].label).toBe("Exhibits");
+    expect(result.edges[1].data.type).toBe("exhibits");
   });
 
   it("handles edges referencing same entity in both source and target", () => {

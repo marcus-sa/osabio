@@ -1,0 +1,176 @@
+journey:
+  name: "Behavioral Quality Governance"
+  goal: "Track and enforce quality standards on agent process quality through behavioral metrics and policy enforcement"
+  persona: "Tomasz Kowalski, Senior Platform Engineer managing 6 coding agents"
+  jobs_served:
+    - "J2: Behavioral Quality Governance"
+    - "J3: Organizational Coherence Auditing"
+
+  emotional_arc:
+    start: "Frustrated -- quality issues discovered by accident, no systematic tracking"
+    middle: "Focused -- behavior data flowing, patterns visible, policies defined"
+    end: "Satisfied -- system enforces quality and teaches agents to improve"
+
+steps:
+  - id: 1
+    name: "Discover Quality Gap"
+    action: "Tomasz notices declining test quality in agent PRs through manual review"
+    emotional_state:
+      entry: "Frustrated -- caught quality issue by accident"
+      exit: "Frustrated -- no way to track this systematically"
+    shared_artifacts:
+      - name: "quality_incident"
+        source: "Manual observation (PR review)"
+        displayed_as: "Observation text"
+        consumers: ["motivation for behavior tracking setup"]
+    integration_checkpoint: |
+      Existing observation system can flag contradictions but lacks behavioral vocabulary.
+      This step is the trigger -- no system integration needed yet.
+
+  - id: 2
+    name: "Define Behavior Metrics"
+    action: "Tomasz defines metric types via chat; Brain creates behavior metric definitions"
+    emotional_state:
+      entry: "Frustrated -- knows what to measure but has no mechanism"
+      exit: "Hopeful -- behavioral vocabulary established"
+    shared_artifacts:
+      - name: "metric_type"
+        source: "behavior.metric_type field (enum: TDD_Adherence, Security_First, Review_Responsiveness, etc.)"
+        displayed_as: "${metric_type}"
+        consumers: ["behavior dashboard columns", "policy conditions", "learning target_agents", "observer agent"]
+    integration_checkpoint: |
+      Metric types are registered and available for Observer Agent to write against.
+      Each metric type has description, applicable agent roles, and score range.
+
+  - id: 3
+    name: "Collect Behavioral Telemetry"
+    action: "Observer Agent watches agent sessions and writes behavior nodes with scores"
+    emotional_state:
+      entry: "Hopeful -- waiting for data"
+      exit: "Curious -- data flowing, patterns emerging"
+    shared_artifacts:
+      - name: "behavior_id"
+        source: "behavior table (SurrealDB record)"
+        displayed_as: "${behavior_id}"
+        consumers: ["exhibits edge", "dashboard", "policy evaluation", "observer behavior extension"]
+      - name: "behavior_score"
+        source: "behavior.score field"
+        displayed_as: "${behavior_score}"
+        consumers: ["dashboard cells", "policy evaluation", "trend computation"]
+      - name: "source_telemetry"
+        source: "behavior.source_telemetry field (object with session-specific data)"
+        displayed_as: "Expandable detail in dashboard"
+        consumers: ["dashboard detail view", "learning evidence context", "observer behavior extension reasoning"]
+      - name: "exhibits_edge"
+        source: "exhibits relation (identity -> behavior)"
+        displayed_as: "RELATE identity ->exhibits-> behavior"
+        consumers: ["dashboard query", "policy evaluation join"]
+    integration_checkpoint: |
+      Observer Agent writes behavior records after each agent session.
+      Exhibits edge links identity to behavior with correct cardinality (1:many).
+      Source telemetry includes session reference for traceability.
+
+  - id: 4
+    name: "Review Behavior Scores"
+    action: "Tomasz views behavior dashboard showing per-agent scores, trends, and threshold violations"
+    emotional_state:
+      entry: "Curious -- what does the data show?"
+      exit: "Focused -- problem agents identified at a glance"
+    shared_artifacts:
+      - name: "behavior_trend"
+        source: "Computed from behavior.score history per identity per metric_type"
+        displayed_as: "UP / DOWN / FLAT arrow"
+        consumers: ["dashboard trend column", "observer behavior extension input"]
+      - name: "identity_name"
+        source: "identity.name field"
+        displayed_as: "${identity_name}"
+        consumers: ["dashboard rows", "feed cards", "learning nodes"]
+    integration_checkpoint: |
+      Dashboard queries behavior table joined with identity.
+      Trends computed from last N behavior records per identity+metric_type.
+      Threshold violations highlighted (below policy-defined minimum).
+
+  - id: 5
+    name: "Create Policy Rules for Behavior"
+    action: "Tomasz creates policy node with behavior-based conditions"
+    emotional_state:
+      entry: "Focused -- ready to set guardrails"
+      exit: "Focused -- policy defined in testing mode for calibration"
+    shared_artifacts:
+      - name: "policy_id"
+        source: "policy table (SurrealDB record)"
+        displayed_as: "${policy_id}"
+        consumers: ["authorizer evaluation", "feed cards", "policy management view"]
+      - name: "policy_threshold"
+        source: "policy.rules[*].condition (behavior metric threshold)"
+        displayed_as: "${policy_threshold}"
+        consumers: ["dashboard threshold markers", "policy evaluation", "override reasoning"]
+    integration_checkpoint: |
+      Policy node created with status "testing" (observe-only).
+      Policy selector matches agent_role and resource correctly.
+      Policy rules reference behavior metric_type and threshold.
+
+  - id: 6
+    name: "Policy Enforcement Triggered"
+    action: "Authorizer vetoes intent from agent with below-threshold behavior score"
+    emotional_state:
+      entry: "Focused -- policy is active, watching for enforcement"
+      exit: "Confident -- system enforced policy with clear reasoning"
+    shared_artifacts:
+      - name: "veto_reason"
+        source: "intent.evaluation (decision=REJECT, reason=behavior policy)"
+        displayed_as: "Feed card with policy name, agent name, score vs threshold"
+        consumers: ["governance feed", "agent session context", "learning creation trigger"]
+    integration_checkpoint: |
+      Authorizer queries active policies matching intent's agent role and resource.
+      Authorizer queries latest behavior score for the agent+metric_type.
+      Intent evaluation includes behavior policy reason if vetoed.
+      Feed card includes override action for human escalation.
+
+  - id: 7
+    name: "Observer Proposes Behavior Learning"
+    action: "Observer Agent detects behavioral_drift from behavior telemetry and proposes targeted learning via existing learning pipeline (PR #145)"
+    emotional_state:
+      entry: "Confident -- enforcement is working"
+      exit: "Satisfied -- system teaches agents, creating improvement loop"
+    shared_artifacts:
+      - name: "learning_text"
+        source: "learning.text field"
+        displayed_as: "Text loaded via JIT prompt injection (500-token budget)"
+        consumers: ["agent session system prompt (JIT injection)", "Learning Library UI"]
+      - name: "learning_type"
+        source: "learning.learning_type field (constraint | instruction | precedent)"
+        displayed_as: "Type badge in Learning Library"
+        consumers: ["collision detection (three-layer)", "JIT loading priority", "Learning Library filter"]
+      - name: "learning_status"
+        source: "learning.status field (pending_approval | active | dismissed | deactivated | superseded)"
+        displayed_as: "Status badge in Learning Library"
+        consumers: ["prompt injection filter (active only)", "Learning Library lifecycle"]
+      - name: "learning_evidence_edge"
+        source: "learning_evidence relation (learning -> behavior record)"
+        displayed_as: "Evidence links in Learning Library detail view"
+        consumers: ["learning provenance", "effectiveness tracking"]
+    integration_checkpoint: |
+      Observer clusters behavior records by embedding similarity (not single score).
+      Observer classifies root cause as behavioral_drift (vs policy_failure, context_failure).
+      Learning proposed via POST /api/workspaces/:workspaceId/learnings with source "agent", suggested_by "observer".
+      Three-layer collision detection: learning vs learning (0.90), vs policy (0.40, hard block), vs decision (0.55).
+      Dual-gate safety: rate limit (5 per agent per 7 days) + dismissed similarity check (0.85).
+      Learning created with status "pending_approval" -- Tomasz approves in Learning Library.
+      After approval, JIT prompt injection loads learning into agent system prompt (500-token budget).
+      Learning effectiveness tracked by comparing behavior scores before/after via learning_evidence edges.
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "metric_type"
+      must_match_across: [2, 3, 4, 5]
+      failure_message: "Metric type name must be consistent from definition through policy rules"
+    - artifact: "behavior_score"
+      must_match_across: [3, 4, 6]
+      failure_message: "Score in behavior record must match dashboard display and policy evaluation input"
+    - artifact: "identity_name"
+      must_match_across: [3, 4, 6, 7]
+      failure_message: "Agent identity name must be consistent across all views and feed cards"
+    - artifact: "policy_threshold"
+      must_match_across: [5, 6]
+      failure_message: "Threshold in policy rule must match the value used in authorizer evaluation"

@@ -11,6 +11,8 @@ describe("entityColor", () => {
     expect(entityColor("observation")).toBe("var(--entity-decision)");
     expect(entityColor("person")).toBe("var(--entity-person)");
     expect(entityColor("workspace")).toBe("var(--entity-project)");
+    expect(entityColor("objective")).toBe("var(--entity-objective)");
+    expect(entityColor("behavior")).toBe("var(--entity-behavior)");
   });
 });
 
@@ -24,6 +26,8 @@ describe("entityMutedColor", () => {
     expect(entityMutedColor("observation")).toBe("var(--entity-decision-muted)");
     expect(entityMutedColor("person")).toBe("var(--entity-person-muted)");
     expect(entityMutedColor("workspace")).toBe("var(--entity-project-muted)");
+    expect(entityMutedColor("objective")).toBe("var(--entity-objective-muted)");
+    expect(entityMutedColor("behavior")).toBe("var(--entity-behavior-muted)");
   });
 });
 
@@ -46,6 +50,22 @@ describe("edgeStyle", () => {
       expect(style.opacity).toBe(0.3);
       expect(style.strokeDasharray).toBe("none");
     }
+  });
+
+  it("returns green style for supports and has_objective edges", () => {
+    for (const type of ["supports", "has_objective"]) {
+      const style = edgeStyle(type);
+      expect(style.stroke).toBe("#10b981");
+      expect(style.opacity).toBe(0.6);
+      expect(style.strokeDasharray).toBe("none");
+    }
+  });
+
+  it("returns violet dashed style for exhibits edges", () => {
+    const style = edgeStyle("exhibits");
+    expect(style.stroke).toBe("#8b5cf6");
+    expect(style.strokeDasharray).toBe("4 2");
+    expect(style.opacity).toBe(0.6);
   });
 
   it("returns default style for unknown types", () => {
