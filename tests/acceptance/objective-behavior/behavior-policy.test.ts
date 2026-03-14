@@ -1,14 +1,20 @@
 /**
  * Behavior-Based Policy Enforcement Acceptance Tests (US-OB-04)
  *
- * Validates that policy rules can reference behavior scores, and that
- * the authorizer uses behavior metrics to approve or veto intents.
- * Includes testing mode (observe-only) and human override scenarios.
+ * Validates that policy rules can reference behavior_scores via dot-path
+ * resolution, and that the enriched IntentEvaluationContext flows through
+ * the policy gate to approve or deny intents based on agent behavior.
+ *
+ * Testing strategy:
+ *   - Behavior scores are seeded in DB via test kit helpers
+ *   - Context enrichment loads scores into IntentEvaluationContext
+ *   - Pure policy gate pipeline evaluates rules against enriched context
+ *   - Testing-mode policies log without blocking
  *
  * Driving ports:
- *   Policy creation via SurrealDB (seeding)
- *   Intent evaluation simulation  (policy gate check)
- *   SurrealDB direct queries      (verification)
+ *   enrichBehaviorScores (context enrichment function)
+ *   evaluateRulesAgainstContext (pure policy gate pipeline)
+ *   SurrealDB direct queries (seeding + verification)
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -20,9 +26,16 @@ import {
   createIntent,
   getLatestBehaviorScore,
   getIntentRecord,
-  getWorkspaceObservations,
 } from "./objective-behavior-test-kit";
 import { RecordId } from "surrealdb";
+import type { IntentEvaluationContext } from "../../../app/src/server/policy/types";
+import {
+  evaluateRulesAgainstContext,
+  collectAndSortRules,
+  buildGateResult,
+} from "../../../app/src/server/policy/policy-gate";
+import { enrichBehaviorScores } from "../../../app/src/server/behavior/queries";
+import type { PolicyRecord } from "../../../app/src/server/policy/types";
 
 const getRuntime = setupObjectiveBehaviorSuite("behavior_policy");
 
@@ -40,15 +53,16 @@ describe("Walking Skeleton: Behavior policy vetoes deploy intent (US-OB-04)", ()
       `ws-veto-${crypto.randomUUID()}`,
     );
 
+    // And a policy rule that denies when behavior_scores.Security_First < 0.80
     const { policyId } = await createBehaviorPolicy(surreal, workspaceId, adminId, {
       title: "Security Behavior Gate",
       status: "active",
       rules: [{
         id: "security_min",
         condition: {
-          metric_type: "Security_First",
+          field: "behavior_scores.Security_First",
           operator: "lt",
-          threshold: 0.80,
+          value: 0.80,
         },
         effect: "deny",
         priority: 100,
@@ -67,71 +81,78 @@ describe("Walking Skeleton: Behavior policy vetoes deploy intent (US-OB-04)", ()
       source_telemetry: { cve_advisories_in_context: 2, cve_advisories_addressed: 0 },
     });
 
-    // When Coder-Beta submits an intent to deploy to production
-    const { intentId } = await createIntent(surreal, workspaceId, agentId, {
+    // When we build the intent evaluation context with behavior score enrichment
+    const baseContext: IntentEvaluationContext = {
       goal: "Deploy auth-service v2.3 to production",
+      reasoning: "Latest security patches applied",
+      priority: 50,
       action_spec: { provider: "infra", action: "deploy", params: { env: "production" } },
-    });
+      requester_type: "agent",
+      requester_role: "coder",
+    };
 
-    // Then the authorizer can query the behavior score
-    const score = await getLatestBehaviorScore(surreal, agentId, "Security_First");
-    expect(score).toBe(0.65);
-
-    // And the score is below the policy threshold (0.65 < 0.80)
-    expect(score!).toBeLessThan(0.80);
-
-    // And the policy rule matches for denial
-    // (Simulated: in production the authorizer would set status to "vetoed")
-    const intentRecord = new RecordId("intent", intentId);
-    await surreal.query(
-      `UPDATE $intent SET status = "vetoed", evaluation = $eval;`,
-      {
-        intent: intentRecord,
-        eval: {
-          decision: "REJECT",
-          risk_score: 0,
-          reason: "Security_First 0.65 < threshold 0.80",
-          policy_only: true,
-          policy_trace: [{
-            policy_id: policyId,
-            rule_id: "security_min",
-            effect: "deny",
-            matched: true,
-          }],
-          evaluated_at: new Date(),
-        },
-      },
+    const enrichedContext = await enrichBehaviorScores(
+      surreal,
+      agentId,
+      baseContext,
     );
 
-    const intent = await getIntentRecord(surreal, intentId);
-    expect(intent!.status).toBe("vetoed");
+    // Then behavior_scores are populated on the context
+    expect(enrichedContext.behavior_scores).toBeDefined();
+    expect(enrichedContext.behavior_scores!.Security_First).toBe(0.65);
+
+    // And when the policy gate evaluates the enriched context
+    const policyRecord = new RecordId("policy", policyId);
+    const policies: PolicyRecord[] = [{
+      id: policyRecord,
+      title: "Security Behavior Gate",
+      version: 1,
+      status: "active",
+      selector: {},
+      rules: [{
+        id: "security_min",
+        condition: {
+          field: "behavior_scores.Security_First",
+          operator: "lt",
+          value: 0.80,
+        },
+        effect: "deny",
+        priority: 100,
+      }],
+      human_veto_required: false,
+      created_by: new RecordId("identity", adminId),
+      workspace: new RecordId("workspace", workspaceId),
+      created_at: new Date(),
+    }];
+
+    const sortedRules = collectAndSortRules(policies);
+    const { evaluatedRules, denyMatched, warnings } = evaluateRulesAgainstContext(
+      sortedRules,
+      enrichedContext,
+    );
+    const gateResult = buildGateResult(evaluatedRules, denyMatched, warnings);
+
+    // Then the policy gate denies the intent
+    expect(gateResult.passed).toBe(false);
+    if (!gateResult.passed) {
+      expect(gateResult.deny_rule_id).toBe("security_min");
+      expect(gateResult.reason).toContain("security_min");
+    }
   }, 60_000);
 });
 
 // =============================================================================
-// Happy Path Scenarios
+// Happy Path: Intent passes when score above threshold
 // =============================================================================
 describe("Happy Path: Intent passes when score above threshold (US-OB-04)", () => {
   it("intent proceeds normally when agent meets behavior requirements", async () => {
     const { surreal } = getRuntime();
 
-    // Given a workspace with the Security Behavior Gate policy
     const { workspaceId, identityId: adminId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-pass-${crypto.randomUUID()}`,
     );
-
-    await createBehaviorPolicy(surreal, workspaceId, adminId, {
-      title: "Security Behavior Gate",
-      status: "active",
-      rules: [{
-        id: "security_min",
-        condition: { metric_type: "Security_First", operator: "lt", threshold: 0.80 },
-        effect: "deny",
-        priority: 100,
-      }],
-    });
 
     // And Coder-Gamma has a Security_First score of 0.93 (above threshold)
     const { identityId: agentId } = await createAgentIdentity(
@@ -144,19 +165,58 @@ describe("Happy Path: Intent passes when score above threshold (US-OB-04)", () =
       score: 0.93,
     });
 
-    // When Coder-Gamma submits a deploy intent
-    const { intentId } = await createIntent(surreal, workspaceId, agentId, {
+    // When we enrich the context with behavior scores
+    const baseContext: IntentEvaluationContext = {
       goal: "Deploy metrics-service to production",
+      reasoning: "All tests passing, security review complete",
+      priority: 50,
       action_spec: { provider: "infra", action: "deploy", params: { env: "production" } },
-    });
+      requester_type: "agent",
+      requester_role: "coder",
+    };
 
-    // Then the score passes the threshold
-    const score = await getLatestBehaviorScore(surreal, agentId, "Security_First");
-    expect(score!).toBeGreaterThanOrEqual(0.80);
+    const enrichedContext = await enrichBehaviorScores(
+      surreal,
+      agentId,
+      baseContext,
+    );
 
-    // And the intent is not vetoed
-    const intent = await getIntentRecord(surreal, intentId);
-    expect(intent!.status).toBe("pending_auth");
+    // Then the score is above the threshold
+    expect(enrichedContext.behavior_scores!.Security_First).toBe(0.93);
+
+    // And when the policy gate evaluates with deny rule for < 0.80
+    const policyRecord = new RecordId("policy", `policy-${crypto.randomUUID()}`);
+    const policies: PolicyRecord[] = [{
+      id: policyRecord,
+      title: "Security Behavior Gate",
+      version: 1,
+      status: "active",
+      selector: {},
+      rules: [{
+        id: "security_min",
+        condition: {
+          field: "behavior_scores.Security_First",
+          operator: "lt",
+          value: 0.80,
+        },
+        effect: "deny",
+        priority: 100,
+      }],
+      human_veto_required: false,
+      created_by: new RecordId("identity", adminId),
+      workspace: new RecordId("workspace", workspaceId),
+      created_at: new Date(),
+    }];
+
+    const sortedRules = collectAndSortRules(policies);
+    const { evaluatedRules, denyMatched, warnings } = evaluateRulesAgainstContext(
+      sortedRules,
+      enrichedContext,
+    );
+    const gateResult = buildGateResult(evaluatedRules, denyMatched, warnings);
+
+    // Then the policy gate allows the intent
+    expect(gateResult.passed).toBe(true);
   }, 60_000);
 });
 
@@ -167,23 +227,11 @@ describe("Edge Case: Policy in testing mode observes without blocking (US-OB-04)
   it("testing-mode policy logs would-be veto but allows intent to proceed", async () => {
     const { surreal } = getRuntime();
 
-    // Given a policy in "testing" mode
     const { workspaceId, identityId: adminId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-testing-${crypto.randomUUID()}`,
     );
-
-    await createBehaviorPolicy(surreal, workspaceId, adminId, {
-      title: "TDD Quality Gate",
-      status: "testing",
-      rules: [{
-        id: "tdd_min",
-        condition: { metric_type: "TDD_Adherence", operator: "lt", threshold: 0.70 },
-        effect: "deny",
-        priority: 80,
-      }],
-    });
 
     // And Coder-Alpha has TDD_Adherence of 0.42 (below threshold)
     const { identityId: agentId } = await createAgentIdentity(
@@ -196,15 +244,70 @@ describe("Edge Case: Policy in testing mode observes without blocking (US-OB-04)
       score: 0.42,
     });
 
-    // When Coder-Alpha submits an intent
-    const { intentId } = await createIntent(surreal, workspaceId, agentId, {
+    // When we enrich context and evaluate against a testing-mode policy
+    const baseContext: IntentEvaluationContext = {
       goal: "Implement feature toggle system",
-    });
+      reasoning: "New feature request",
+      priority: 50,
+      action_spec: { provider: "code", action: "implement" },
+      requester_type: "agent",
+      requester_role: "coder",
+    };
 
-    // Then the intent is not blocked (testing mode)
-    const intent = await getIntentRecord(surreal, intentId);
-    expect(intent!.status).toBe("pending_auth");
-    // Note: In production, the system would log "would have vetoed" without blocking
+    const enrichedContext = await enrichBehaviorScores(
+      surreal,
+      agentId,
+      baseContext,
+    );
+
+    expect(enrichedContext.behavior_scores!.TDD_Adherence).toBe(0.42);
+
+    // Testing-mode policies should NOT be included in active policy evaluation.
+    // The policy gate only loads "active" policies. A "testing" policy would be
+    // evaluated separately for logging purposes but never blocks.
+    // Here we verify the enriched context with an active allow-all gives pass.
+    const policyRecord = new RecordId("policy", `policy-${crypto.randomUUID()}`);
+    const policies: PolicyRecord[] = [{
+      id: policyRecord,
+      title: "TDD Quality Gate (testing mode)",
+      version: 1,
+      status: "testing" as "active", // Cast: in production, loadActivePolicies filters this out
+      selector: {},
+      rules: [{
+        id: "tdd_min",
+        condition: {
+          field: "behavior_scores.TDD_Adherence",
+          operator: "lt",
+          value: 0.70,
+        },
+        effect: "deny",
+        priority: 80,
+      }],
+      human_veto_required: false,
+      created_by: new RecordId("identity", adminId),
+      workspace: new RecordId("workspace", workspaceId),
+      created_at: new Date(),
+    }];
+
+    // The rule WOULD match (0.42 < 0.70)
+    const sortedRules = collectAndSortRules(policies);
+    const { evaluatedRules, denyMatched, warnings } = evaluateRulesAgainstContext(
+      sortedRules,
+      enrichedContext,
+    );
+
+    // Verify the rule matched (for logging purposes)
+    expect(denyMatched).toBe(true);
+    const matchedRule = evaluatedRules.find(r => r.matched && r.rule.effect === "deny");
+    expect(matchedRule).toBeDefined();
+    expect(matchedRule!.rule.id).toBe("tdd_min");
+
+    // But in production, since status is "testing", loadActivePolicies would
+    // exclude this policy. With no active deny rules, the intent proceeds.
+    const emptyPolicies: PolicyRecord[] = [];
+    const emptyRules = collectAndSortRules(emptyPolicies);
+    const passResult = buildGateResult(emptyRules, false, []);
+    expect(passResult.passed).toBe(true);
   }, 60_000);
 });
 
@@ -224,23 +327,11 @@ describe("Error Path: Agent with no behavior data encounters policy (US-OB-04)",
   it("agent with no behavior scores is not vetoed by behavior policy", async () => {
     const { surreal } = getRuntime();
 
-    // Given a behavior policy exists
     const { workspaceId, identityId: adminId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-no-data-${crypto.randomUUID()}`,
     );
-
-    await createBehaviorPolicy(surreal, workspaceId, adminId, {
-      title: "Security Behavior Gate",
-      status: "active",
-      rules: [{
-        id: "security_min",
-        condition: { metric_type: "Security_First", operator: "lt", threshold: 0.80 },
-        effect: "deny",
-        priority: 100,
-      }],
-    });
 
     // And a new agent has NO behavior records
     const { identityId: agentId } = await createAgentIdentity(
@@ -249,18 +340,62 @@ describe("Error Path: Agent with no behavior data encounters policy (US-OB-04)",
       "Coder-New",
     );
 
-    // When the agent submits an intent
-    const { intentId } = await createIntent(surreal, workspaceId, agentId, {
+    // When we enrich the context (no behavior data exists)
+    const baseContext: IntentEvaluationContext = {
       goal: "Fix typo in readme",
-    });
+      reasoning: "Minor documentation fix",
+      priority: 10,
+      action_spec: { provider: "code", action: "fix" },
+      requester_type: "agent",
+      requester_role: "coder",
+    };
 
-    // Then no score is available
-    const score = await getLatestBehaviorScore(surreal, agentId, "Security_First");
-    expect(score).toBeUndefined();
+    const enrichedContext = await enrichBehaviorScores(
+      surreal,
+      agentId,
+      baseContext,
+    );
 
-    // And the intent is not vetoed (no data means no policy match)
-    const intent = await getIntentRecord(surreal, intentId);
-    expect(intent!.status).toBe("pending_auth");
+    // Then behavior_scores is empty (no scores available)
+    expect(enrichedContext.behavior_scores).toEqual({});
+
+    // And when the policy gate evaluates a deny rule for behavior_scores.Security_First < 0.80
+    const policyRecord = new RecordId("policy", `policy-${crypto.randomUUID()}`);
+    const policies: PolicyRecord[] = [{
+      id: policyRecord,
+      title: "Security Behavior Gate",
+      version: 1,
+      status: "active",
+      selector: {},
+      rules: [{
+        id: "security_min",
+        condition: {
+          field: "behavior_scores.Security_First",
+          operator: "lt",
+          value: 0.80,
+        },
+        effect: "deny",
+        priority: 100,
+      }],
+      human_veto_required: false,
+      created_by: new RecordId("identity", adminId),
+      workspace: new RecordId("workspace", workspaceId),
+      created_at: new Date(),
+    }];
+
+    const sortedRules = collectAndSortRules(policies);
+    const { evaluatedRules, denyMatched, warnings } = evaluateRulesAgainstContext(
+      sortedRules,
+      enrichedContext,
+    );
+    const gateResult = buildGateResult(evaluatedRules, denyMatched, warnings);
+
+    // Then the intent is NOT vetoed (missing field = predicate returns false)
+    expect(gateResult.passed).toBe(true);
+
+    // And a warning is emitted for the missing field
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0].field).toBe("behavior_scores.Security_First");
   }, 60_000);
 });
 

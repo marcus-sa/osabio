@@ -412,6 +412,10 @@ export async function createBehaviorPolicy(
     rules: Array<{
       id: string;
       condition: {
+        field: string;
+        operator: string;
+        value: string | number | boolean | string[];
+      } | {
         metric_type: string;
         operator: string;
         threshold: number;
@@ -434,7 +438,7 @@ export async function createBehaviorPolicy(
       status: opts.status ?? "active",
       version: 1,
       rules: opts.rules,
-      scope: { workspace: workspaceRecord },
+      selector: {},
       created_by: creatorRecord,
       workspace: workspaceRecord,
       created_at: new Date(),

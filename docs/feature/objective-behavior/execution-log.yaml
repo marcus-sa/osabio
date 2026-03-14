@@ -96,5 +96,31 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-14T03:50:59Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-14T03:51:36Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T03:53:41Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T03:55:06Z'
+- d: 'NOT_APPLICABLE: enrichBehaviorScores is an integration composition function
+    tested via acceptance tests; predicate evaluator already has unit coverage'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-14T03:55:15Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T03:56:28Z'
 project_id: objective-behavior
 schema_version: '3.0'

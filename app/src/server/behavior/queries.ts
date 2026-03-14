@@ -6,6 +6,7 @@
  * Behavior records are append-only -- no UPDATE queries.
  */
 import { RecordId, type Surreal } from "surrealdb";
+import type { IntentEvaluationContext } from "../policy/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,6 +130,43 @@ export async function getLatestScore(
 ): Promise<number | undefined> {
   const records = await listBehaviors(surreal, identityId, metricType);
   return records[0]?.score;
+}
+
+/**
+ * Gets the latest score per unique metric_type for an identity.
+ * Returns a map of metric_type -> score, using the most recent record per metric.
+ * Used for context enrichment before policy gate evaluation.
+ */
+export async function getLatestBehaviorScores(
+  surreal: Surreal,
+  identityId: string,
+): Promise<Record<string, number>> {
+  const allRecords = await listBehaviors(surreal, identityId);
+
+  // Records are already sorted by created_at DESC from listBehaviors.
+  // Take the first (most recent) score per metric_type.
+  const scores: Record<string, number> = {};
+  for (const record of allRecords) {
+    if (!(record.metric_type in scores)) {
+      scores[record.metric_type] = record.score;
+    }
+  }
+
+  return scores;
+}
+
+/**
+ * Enriches an IntentEvaluationContext with behavior scores for an identity.
+ * Context enrichment happens before policy gate evaluation, not inside it.
+ * Returns a new context object (immutable -- does not mutate the input).
+ */
+export async function enrichBehaviorScores(
+  surreal: Surreal,
+  identityId: string,
+  context: IntentEvaluationContext,
+): Promise<IntentEvaluationContext> {
+  const scores = await getLatestBehaviorScores(surreal, identityId);
+  return { ...context, behavior_scores: scores };
 }
 
 /**
