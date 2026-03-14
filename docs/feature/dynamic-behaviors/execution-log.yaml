@@ -96,5 +96,31 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-14T08:58:50Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-14T08:59:33Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T09:01:23Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T09:01:31Z'
+- d: 'NOT_APPLICABLE: dispatcher is thin routing function covered by acceptance tests;
+    LLM scorer is IO boundary tested through integration'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-14T09:01:38Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-14T09:03:42Z'
 project_id: dynamic-behaviors
 schema_version: '3.0'
