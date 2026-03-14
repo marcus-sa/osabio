@@ -1,0 +1,82 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/hangzhou-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+{"level":"info","time":"2026-03-14T07:37:34.054Z","service":"brain-server","env":"test","runtime":"bun","requestId":"9212172d-9718-4107-90aa-4e55055749ea","method":"POST","route":"orchestrator.assign","path":"/api/orchestrator/5b105c8e-b109-4598-9c8f-8f61680f2573/assign","event":"http.request.completed","statusCode":500,"durationMs":30.8,"msg":"HTTP request completed"}
+  303 | 
+  304 | export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  305 |   const response = await fetch(url, init);
+  306 |   if (!response.ok) {
+  307 |     const body = await response.text();
+  308 |     throw new Error(`Request failed (${response.status}) ${url}: ${body}`);
+                      ^
+  error: Request failed (500) http://127.0.0.1:43557/api/orchestrator/5b105c8e-b109-4598-9c8f-8f61680f2573/assign: {"error":"Git command failed: Preparing worktree (new branch 'agent/migrate-legacy-database-3e00e721-7963-4806-9467-89c335d9594d')\nfatal: failed to read .git/worktrees/agent-implement-search-filters-b481b8af-66c8-4f1b-b730-9272ce419793/commondir: Success\n"}
+        at fetchJson (/home/runner/work/brain/brain/tests/acceptance/acceptance-test-kit.ts:308:15)
+  
+  Error: 
+        at fetchJson (/home/runner/work/brain/brain/tests/acceptance/acceptance-test-kit.ts:308:15)
+  (fail) Event Bridge: Agent activity streamed to user > agent errors are forwarded to the event stream [800.03ms]
+
+---
+
+Commit and push all changes
+
+---
+
+<system-instruction>
+The user has added 1 comment to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: app/src/server/policy/policy-validation.ts
+Line: 90
+User comment: "**Rule `id` field not validated server-side**
+
+`validateRule` checks `effect` and `condition` but never validates the presence of `id`. The `PolicyRule` type in `types.ts` declares `id: string` as required, and `VersionDiffView.diffRules` builds lookup maps keyed on `r.id`:
+
+```typescript
+const oldById = new Map(oldRules.map((r) => [r.id, r]));
+```
+
+Any rule stored without an `id` (possible via direct API calls — the UI's `RuleBuilder` always generates one, but nothing enforces this server-side) would map to key `undefined`. Multiple id-less rules would collapse onto the same slot, silently producing incorrect diff output.
+
+Add an `id` check to `validateRule`:
+
+```suggestion
+function validateRule(rule: unknown, index: number): string[] {
+  if (!isPlainObject(rule)) {
+    return [`rule[${index}]: must be an object`];
+  }
+
+  const errors: string[] = [];
+
+  // ID
+  if (typeof rule.id !== "string" || (rule.id as string).trim() === "") {
+    errors.push(`rule[${index}]: id must be a non-empty string`);
+  }
+
+  // Effect
+  if (!VALID_EFFECTS.has(rule.effect as string)) {
+    errors.push(`rule[${index}]: effect must be "allow" or "deny"`);
+  }
+
+  // Condition
+  errors.push(...validateCondition(rule.condition, index));
+
+  return errors;
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50UyFO. 
+
+</system-instruction>
