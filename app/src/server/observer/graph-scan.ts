@@ -7,6 +7,8 @@
  * Scan types:
  *   1. Decision-implementation contradictions: confirmed decisions vs completed tasks
  *   2. Stale blocked tasks: tasks blocked longer than threshold (14 days)
+ *   3. Coherence: orphaned decisions (confirmed, no implementing task/commit after threshold)
+ *   4. Coherence: stale objectives (active, no supports edges after threshold)
  */
 
 import { RecordId, type Surreal } from "surrealdb";
@@ -54,10 +56,30 @@ export type StatusDriftTask = {
   };
 };
 
+export type OrphanedDecision = {
+  id: RecordId<"decision">;
+  summary: string;
+  created_at: string | Date;
+};
+
+export type StaleObjective = {
+  id: RecordId<"objective">;
+  title: string;
+  created_at: string | Date;
+};
+
+export type CoherenceScanResult = {
+  orphaned_decisions_found: number;
+  stale_objectives_found: number;
+  observations_created: number;
+};
+
 export type GraphScanResult = {
   contradictions_found: number;
   stale_blocked_found: number;
   status_drift_found: number;
+  orphaned_decisions_found: number;
+  stale_objectives_found: number;
   observations_created: number;
   llm_filtered_count: number;
   learning_proposals_created: number;
@@ -70,6 +92,7 @@ export type GraphScanResult = {
 // ---------------------------------------------------------------------------
 
 const STALE_BLOCKED_THRESHOLD_DAYS = 14;
+export const COHERENCE_AGE_THRESHOLD_DAYS = 14;
 
 // ---------------------------------------------------------------------------
 // Graph queries (pure data gathering)
@@ -196,7 +219,7 @@ async function queryStatusDriftTasks(
 // Static query map: one pre-built query string per allowed table, eliminating
 // dynamic interpolation at the call site (prevents SurrealQL injection).
 const OBSERVER_DEDUP_QUERIES: Record<string, string> = Object.fromEntries(
-  ["project", "feature", "task", "decision", "question", "intent", "git_commit", "observation"].map(
+  ["project", "feature", "task", "decision", "question", "intent", "git_commit", "observation", "objective"].map(
     (table) => [
       table,
       `SELECT text, severity, status FROM observation
@@ -263,6 +286,176 @@ function isAlreadyObserved(
 }
 
 // ---------------------------------------------------------------------------
+// Coherence queries (deterministic, no LLM needed)
+// ---------------------------------------------------------------------------
+
+/**
+ * Finds confirmed decisions older than the coherence threshold with no
+ * implementing task or commit (via implemented_by edges).
+ */
+export async function queryOrphanedDecisions(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<OrphanedDecision[]> {
+  const thresholdDate = new Date(
+    Date.now() - COHERENCE_AGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  const [rows] = await surreal.query<[OrphanedDecision[]]>(
+    `SELECT id, summary, created_at FROM decision
+     WHERE workspace = $ws
+       AND status = "confirmed"
+       AND created_at < $threshold
+       AND array::len(<-implemented_by<-git_commit) = 0
+       AND array::len(<-implemented_by<-pull_request) = 0
+     ORDER BY created_at ASC
+     LIMIT 50;`,
+    { ws: workspaceRecord, threshold: thresholdDate },
+  );
+  return rows ?? [];
+}
+
+/**
+ * Finds active objectives older than the coherence threshold with no
+ * supporting intents (via supports edges).
+ */
+export async function queryStaleObjectives(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<StaleObjective[]> {
+  const thresholdDate = new Date(
+    Date.now() - COHERENCE_AGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  const [rows] = await surreal.query<[StaleObjective[]]>(
+    `SELECT id, title, created_at FROM objective
+     WHERE workspace = $ws
+       AND status = "active"
+       AND created_at < $threshold
+       AND array::len(<-supports<-intent) = 0
+     ORDER BY created_at ASC
+     LIMIT 50;`,
+    { ws: workspaceRecord, threshold: thresholdDate },
+  );
+  return rows ?? [];
+}
+
+/**
+ * Runs coherence scans: detects orphaned decisions and stale objectives,
+ * creates observations for disconnected patterns.
+ *
+ * Deterministic -- no LLM filtering needed.
+ */
+export async function runCoherenceScans(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<CoherenceScanResult> {
+  const result: CoherenceScanResult = {
+    orphaned_decisions_found: 0,
+    stale_objectives_found: 0,
+    observations_created: 0,
+  };
+
+  // Load existing observations for deduplication
+  const existingObservations = await listWorkspaceOpenObservations({
+    surreal,
+    workspaceRecord,
+    limit: 100,
+  });
+
+  const [orphanedDecisions, staleObjectives] = await Promise.all([
+    queryOrphanedDecisions(surreal, workspaceRecord),
+    queryStaleObjectives(surreal, workspaceRecord),
+  ]);
+
+  result.orphaned_decisions_found = orphanedDecisions.length;
+  result.stale_objectives_found = staleObjectives.length;
+
+  // Create observations for orphaned decisions
+  for (const decision of orphanedDecisions) {
+    const existingForDecision = await queryExistingObserverObservationsForEntity(
+      surreal,
+      workspaceRecord,
+      decision.id as RecordId<string, string>,
+    );
+
+    const observationText =
+      `Orphaned decision: "${decision.summary}" was confirmed but has no implementing task or commit ` +
+      `after ${COHERENCE_AGE_THRESHOLD_DAYS} days. Consider creating implementation tasks or revisiting this decision.`;
+
+    if (
+      existingForDecision.length > 0 ||
+      isAlreadyObserved(existingObservations, observationText, decision.id.id as string)
+    ) {
+      logInfo("observer.coherence.dedup", "Skipping duplicate orphaned decision observation", {
+        decisionId: decision.id.id,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      observationType: "anomaly",
+      now,
+      relatedRecords: [
+        decision.id as ObserveTargetRecord,
+      ],
+    });
+    result.observations_created += 1;
+  }
+
+  // Create observations for stale objectives
+  for (const objective of staleObjectives) {
+    const existingForObjective = await queryExistingObserverObservationsForEntity(
+      surreal,
+      workspaceRecord,
+      objective.id as RecordId<string, string>,
+    );
+
+    const observationText =
+      `Stale objective: "${objective.title}" has been active for over ${COHERENCE_AGE_THRESHOLD_DAYS} days ` +
+      `with no supporting intents. Consider aligning work to this objective or archiving it.`;
+
+    if (
+      existingForObjective.length > 0 ||
+      isAlreadyObserved(existingObservations, observationText, objective.id.id as string)
+    ) {
+      logInfo("observer.coherence.dedup", "Skipping duplicate stale objective observation", {
+        objectiveId: objective.id.id,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      observationType: "anomaly",
+      now,
+      relatedRecords: [
+        objective.id as ObserveTargetRecord,
+      ],
+    });
+    result.observations_created += 1;
+  }
+
+  logInfo("observer.coherence.completed", "Coherence scan completed", {
+    workspaceId: workspaceRecord.id,
+    ...result,
+  });
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Scan orchestrator
 // ---------------------------------------------------------------------------
 
@@ -277,6 +470,8 @@ export async function runGraphScan(
     contradictions_found: 0,
     stale_blocked_found: 0,
     status_drift_found: 0,
+    orphaned_decisions_found: 0,
+    stale_objectives_found: 0,
     observations_created: 0,
     llm_filtered_count: 0,
     learning_proposals_created: 0,
@@ -577,7 +772,13 @@ export async function runGraphScan(
     }
   }
 
-  // 5. Diagnostic learning proposals: cluster observations and check coverage
+  // 5. Coherence scans (deterministic, no LLM)
+  const coherenceResult = await runCoherenceScans(surreal, workspaceRecord);
+  result.orphaned_decisions_found = coherenceResult.orphaned_decisions_found;
+  result.stale_objectives_found = coherenceResult.stale_objectives_found;
+  result.observations_created += coherenceResult.observations_created;
+
+  // 6. Diagnostic learning proposals: cluster observations and check coverage
   try {
     const diagnostic = await runDiagnosticClustering(surreal, workspaceRecord, observerModel, embeddingModel, embeddingDimension);
     result.clusters_found = diagnostic.result.clusters_found;

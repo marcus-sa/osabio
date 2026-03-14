@@ -2,12 +2,14 @@
  * Coherence Auditor Acceptance Tests (US-OB-06)
  *
  * Validates that the coherence auditor detects disconnected graph patterns:
- * objectives with no supporting intents, decisions with no implementing tasks,
- * and info-severity observations excluded from orphan detection.
+ * - Orphaned decisions: confirmed, 14d+ old, no implementing task/commit
+ * - Stale objectives: active, 14d+ old, no supports edges
+ * - Connected objectives not flagged
+ * - Recently created decisions not flagged
  *
  * Driving ports:
- *   POST /api/observe/scan/:workspaceId  (coherence audit via graph scan)
- *   SurrealDB direct queries              (verification of observations)
+ *   runCoherenceScans()  (coherence audit function from graph-scan)
+ *   SurrealDB direct queries (verification of observations)
  */
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
@@ -20,217 +22,202 @@ import {
   createSupportsEdge,
   getWorkspaceObservations,
 } from "./objective-behavior-test-kit";
+import {
+  runCoherenceScans,
+  queryOrphanedDecisions,
+  queryStaleObjectives,
+} from "../../../app/src/server/observer/graph-scan";
 
 const getRuntime = setupObjectiveBehaviorSuite("coherence_auditor");
 
 // =============================================================================
-// Walking Skeleton: Auditor detects orphaned decision
+// US-OB-06 #1: Orphaned decision detected and observation created
 // =============================================================================
-describe("Walking Skeleton: Coherence auditor detects disconnected patterns (US-OB-06)", () => {
-  it("orphaned decision with no implementing task is detectable", async () => {
+describe("US-OB-06 #1: Orphaned decision detection", () => {
+  it("orphaned decision (confirmed, 14d+ old, no implementing task) detected and observation created", async () => {
     const { surreal } = getRuntime();
 
-    // Given decision "Standardize on tRPC" was created 27 days ago
     const { workspaceId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-orphan-${crypto.randomUUID()}`,
     );
 
+    // Given a confirmed decision created 27 days ago
     const pastDate = new Date(Date.now() - 27 * 24 * 60 * 60 * 1000);
-    const { decisionId } = await createDecision(surreal, workspaceId, {
+    await createDecision(surreal, workspaceId, {
       summary: "Standardize on tRPC",
       status: "confirmed",
       created_at: pastDate,
     });
 
-    // And no task references this decision
-    // (no belongs_to or depends_on edges created)
+    const workspaceRecord = new RecordId("workspace", workspaceId);
 
-    // When the coherence auditor queries for orphaned decisions
-    const decisionRecord = new RecordId("decision", decisionId);
-    const [taskEdges] = (await surreal.query(
-      `SELECT * FROM belongs_to WHERE in = $dec;`,
-      { dec: decisionRecord },
-    )) as [Array<unknown>];
+    // When the coherence auditor runs
+    const result = await runCoherenceScans(surreal, workspaceRecord);
 
-    // Then the decision has no implementing task edges
-    expect(taskEdges).toHaveLength(0);
+    // Then an orphaned decision is detected
+    expect(result.orphaned_decisions_found).toBeGreaterThanOrEqual(1);
+    expect(result.observations_created).toBeGreaterThanOrEqual(1);
 
-    // And the decision is older than the 14-day threshold
-    const daysSinceCreation = (Date.now() - pastDate.getTime()) / (24 * 60 * 60 * 1000);
-    expect(daysSinceCreation).toBeGreaterThan(14);
+    // And an observation is created for the orphaned decision
+    const observations = await getWorkspaceObservations(surreal, workspaceId, {
+      sourceAgent: "observer_agent",
+    });
+    const orphanObs = observations.filter((o) =>
+      o.text.includes("Standardize on tRPC"),
+    );
+    expect(orphanObs.length).toBeGreaterThanOrEqual(1);
+    expect(orphanObs[0].severity).toBe("warning");
   }, 60_000);
 });
 
 // =============================================================================
-// Happy Path: Stale objective detection
+// US-OB-06 #2: Stale objective detected and observation created
 // =============================================================================
-describe("Happy Path: Stale objective with no supporting intents (US-OB-06)", () => {
-  it("objective with zero supporting intents over threshold period is detectable", async () => {
+describe("US-OB-06 #2: Stale objective detection", () => {
+  it("stale objective (active, 14d+ old, no supports edges) detected and observation created", async () => {
     const { surreal } = getRuntime();
 
-    // Given objective "Improve Infrastructure Reliability" exists
     const { workspaceId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-stale-${crypto.randomUUID()}`,
     );
 
-    const { objectiveId } = await createObjective(surreal, workspaceId, {
-      title: "Improve Infrastructure Reliability",
-      status: "active",
+    // Given an active objective created 20 days ago with no supports edges
+    const pastDate = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
+    // Create objective with backdated created_at
+    const objectiveId = `obj-${crypto.randomUUID()}`;
+    const objectiveRecord = new RecordId("objective", objectiveId);
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+
+    await surreal.query(`CREATE $objective CONTENT $content;`, {
+      objective: objectiveRecord,
+      content: {
+        title: "Improve Infrastructure Reliability",
+        description: "Improve Infrastructure Reliability",
+        status: "active",
+        priority: "high",
+        success_criteria: [],
+        workspace: workspaceRecord,
+        created_at: pastDate,
+        updated_at: pastDate,
+      },
     });
 
-    // And no intents support this objective (zero supports edges)
-    const objectiveRecord = new RecordId("objective", objectiveId);
-    const [supportsEdges] = (await surreal.query(
-      `SELECT * FROM supports WHERE out = $obj;`,
-      { obj: objectiveRecord },
-    )) as [Array<unknown>];
+    // When the coherence auditor runs
+    const result = await runCoherenceScans(surreal, workspaceRecord);
 
-    // Then the objective has no supporting intents
-    expect(supportsEdges).toHaveLength(0);
+    // Then a stale objective is detected
+    expect(result.stale_objectives_found).toBeGreaterThanOrEqual(1);
+    expect(result.observations_created).toBeGreaterThanOrEqual(1);
 
-    // Note: In production, the coherence auditor would create an observation
-    // flagging "Objective has no supporting intents in 14 days"
+    // And an observation is created for the stale objective
+    const observations = await getWorkspaceObservations(surreal, workspaceId, {
+      sourceAgent: "observer_agent",
+    });
+    const staleObs = observations.filter((o) =>
+      o.text.includes("Improve Infrastructure Reliability"),
+    );
+    expect(staleObs.length).toBeGreaterThanOrEqual(1);
+    expect(staleObs[0].severity).toBe("warning");
   }, 60_000);
+});
 
-  it("connected objective is not flagged as stale", async () => {
+// =============================================================================
+// US-OB-06 #3: Connected objective with supports edges not flagged
+// =============================================================================
+describe("US-OB-06 #3: Connected objective not flagged as stale", () => {
+  it("connected objective with supports edges is not flagged as stale", async () => {
     const { surreal } = getRuntime();
 
-    // Given an objective with supporting intents
-    const { workspaceId } = await setupObjectiveWorkspace(
+    const { workspaceId, identityId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-connected-${crypto.randomUUID()}`,
     );
 
-    const { objectiveId } = await createObjective(surreal, workspaceId, {
-      title: "Launch MCP Marketplace",
-      status: "active",
-    });
-
-    const identityId = `id-${crypto.randomUUID()}`;
-    const identityRecord = new RecordId("identity", identityId);
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-    await surreal.query(`CREATE $identity CONTENT $content;`, {
-      identity: identityRecord,
-      content: { name: "Agent", type: "agent", identity_status: "active", workspace: workspaceRecord, created_at: new Date() },
-    });
-
-    const { intentId } = await createIntent(surreal, workspaceId, identityId, {
-      goal: "Build MCP integration page",
-    });
-    await createSupportsEdge(surreal, intentId, objectiveId, { alignment_score: 0.85 });
-
-    // When checking for supports edges
+    // Given an old active objective
+    const pastDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const objectiveId = `obj-${crypto.randomUUID()}`;
     const objectiveRecord = new RecordId("objective", objectiveId);
-    const [supportsEdges] = (await surreal.query(
-      `SELECT * FROM supports WHERE out = $obj;`,
-      { obj: objectiveRecord },
-    )) as [Array<unknown>];
-
-    // Then the objective has supporting intents and would NOT be flagged
-    expect(supportsEdges.length).toBeGreaterThan(0);
-  }, 60_000);
-});
-
-// =============================================================================
-// Edge Cases
-// =============================================================================
-describe("Edge Case: Info-severity observations excluded from orphan detection (US-OB-06)", () => {
-  it("info observations with no follow-up task are not flagged as orphans", async () => {
-    const { surreal } = getRuntime();
-
-    // Given an info-severity observation exists with no follow-up task
-    const { workspaceId } = await setupObjectiveWorkspace(
-      getRuntime().baseUrl,
-      surreal,
-      `ws-info-obs-${crypto.randomUUID()}`,
-    );
-
-    const obsId = `obs-${crypto.randomUUID()}`;
-    const obsRecord = new RecordId("observation", obsId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
-    await surreal.query(`CREATE $obs CONTENT $content;`, {
-      obs: obsRecord,
+    await surreal.query(`CREATE $objective CONTENT $content;`, {
+      objective: objectiveRecord,
       content: {
-        text: "Interesting market trend observed in competitor analysis",
-        severity: "info",
-        status: "open",
-        source_agent: "strategist",
+        title: "Launch MCP Marketplace",
+        description: "Launch MCP Marketplace",
+        status: "active",
+        priority: "high",
+        success_criteria: [],
         workspace: workspaceRecord,
-        created_at: new Date(),
+        created_at: pastDate,
+        updated_at: pastDate,
       },
     });
 
-    // When checking if this observation has follow-up tasks
-    const [taskEdges] = (await surreal.query(
-      `SELECT * FROM belongs_to WHERE in = $obs;`,
-      { obs: obsRecord },
-    )) as [Array<unknown>];
+    // And it has a supporting intent
+    const { intentId } = await createIntent(surreal, workspaceId, identityId, {
+      goal: "Build MCP integration page",
+    });
+    await createSupportsEdge(surreal, intentId, objectiveId, {
+      alignment_score: 0.85,
+    });
 
-    // Then no follow-up tasks exist (expected for info observations)
-    expect(taskEdges).toHaveLength(0);
+    // When the coherence auditor runs
+    const result = await runCoherenceScans(surreal, workspaceRecord);
 
-    // And the observation severity is "info" (excluded from orphan detection)
-    const [obsRows] = (await surreal.query(
-      `SELECT severity FROM $obs;`,
-      { obs: obsRecord },
-    )) as [Array<{ severity: string }>];
-    expect(obsRows[0].severity).toBe("info");
+    // Then no stale objectives are detected (only orphaned decisions may be found)
+    expect(result.stale_objectives_found).toBe(0);
+
+    // And no observation is created about this objective
+    const observations = await getWorkspaceObservations(surreal, workspaceId, {
+      sourceAgent: "observer_agent",
+    });
+    const marketplaceObs = observations.filter((o) =>
+      o.text.includes("Launch MCP Marketplace"),
+    );
+    expect(marketplaceObs).toHaveLength(0);
   }, 60_000);
 });
 
 // =============================================================================
-// Error / Boundary Scenarios
+// US-OB-06 #5: Recently created decision not flagged as orphan
 // =============================================================================
-describe("Boundary: Coherence score computation (US-OB-06)", () => {
-  it.skip("coherence score is computed as connected nodes divided by total nodes", async () => {
-    // Given the workspace has 100 graph nodes
-    // And 12 nodes are flagged as disconnected by the auditor
-    // When the coherence score is computed
-    // Then the score is 0.88
-  });
-
-  it.skip("coherence auditor completes within 30 seconds for large graph", async () => {
-    // @property
-    // Given a workspace with up to 5,000 nodes
-    // When the coherence auditor runs
-    // Then it completes within 30 seconds
-  });
-});
-
-describe("Error Path: Recently created decision not flagged as orphan (US-OB-06)", () => {
+describe("US-OB-06 #5: Recently created decision not flagged", () => {
   it("decision created within threshold period is not considered orphaned", async () => {
     const { surreal } = getRuntime();
 
-    // Given a decision was just created (within the 14-day threshold)
     const { workspaceId } = await setupObjectiveWorkspace(
       getRuntime().baseUrl,
       surreal,
       `ws-recent-${crypto.randomUUID()}`,
     );
 
-    const { decisionId } = await createDecision(surreal, workspaceId, {
+    // Given a confirmed decision created just now (within 14-day threshold)
+    await createDecision(surreal, workspaceId, {
       summary: "Use WebSocket for real-time updates",
       status: "confirmed",
-      created_at: new Date(), // just now
+      created_at: new Date(),
     });
 
-    // When checking the age of the decision
-    const decisionRecord = new RecordId("decision", decisionId);
-    const [rows] = (await surreal.query(
-      `SELECT created_at FROM $dec;`,
-      { dec: decisionRecord },
-    )) as [Array<{ created_at: string }>];
+    const workspaceRecord = new RecordId("workspace", workspaceId);
 
-    const createdAt = new Date(rows[0].created_at);
-    const daysSince = (Date.now() - createdAt.getTime()) / (24 * 60 * 60 * 1000);
+    // When the coherence auditor runs
+    const result = await runCoherenceScans(surreal, workspaceRecord);
 
-    // Then it is within the 14-day threshold and should NOT be flagged
-    expect(daysSince).toBeLessThan(14);
+    // Then no orphaned decisions are found
+    expect(result.orphaned_decisions_found).toBe(0);
+
+    // And no observation is created about this decision
+    const observations = await getWorkspaceObservations(surreal, workspaceId, {
+      sourceAgent: "observer_agent",
+    });
+    const wsObs = observations.filter((o) =>
+      o.text.includes("WebSocket"),
+    );
+    expect(wsObs).toHaveLength(0);
   }, 60_000);
 });
