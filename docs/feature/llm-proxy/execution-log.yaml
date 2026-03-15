@@ -20,5 +20,30 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-15T17:46:56Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-15T17:47:29Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-15T17:49:25Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-15T17:50:44Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-15T17:51:28Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-15T17:53:53Z'
 project_id: llm-proxy
 schema_version: '3.0'

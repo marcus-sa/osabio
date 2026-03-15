@@ -1,5 +1,24 @@
-import { logInfo, logError, elapsedMs } from "../http/observability";
-import { jsonError } from "../http/response";
+/**
+ * Anthropic LLM Proxy Route
+ *
+ * Transparent proxy that forwards requests to Anthropic's Messages API
+ * with identity resolution, session tracking, and workspace validation.
+ *
+ * Pipeline execution order:
+ * 1. Identity resolution (from metadata + headers)
+ * 2. Session ID resolution (header priority over metadata)
+ * 3. Conversation hash [future 03-01]
+ * 4. Policy evaluation [future 02-01]
+ * 5. Context injection [future 03-02]
+ * 6. Request forwarding
+ * 7. Async trace capture [future 01-03]
+ */
+import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
+import { jsonResponse } from "../http/response";
+import { resolveIdentity } from "./identity-resolver";
+import { resolveSessionId } from "./session-id-resolver";
+import type { ServerDependencies } from "../runtime/types";
+import { RecordId } from "surrealdb";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com";
 
@@ -9,152 +28,88 @@ const FORWARDED_HEADERS = [
   "content-type",
 ] as const;
 
-export function createAnthropicProxyHandler(): (request: Request) => Promise<Response> {
-  return (request: Request) => proxyToAnthropic(request);
+// ---------------------------------------------------------------------------
+// Workspace Validation (cached)
+// ---------------------------------------------------------------------------
+
+type WorkspaceCache = Map<string, { valid: boolean; checkedAt: number }>;
+
+const WORKSPACE_CACHE_TTL_MS = 60_000; // 1 minute
+
+async function validateWorkspace(
+  surreal: ServerDependencies["surreal"],
+  workspaceId: string,
+  cache: WorkspaceCache,
+): Promise<boolean> {
+  const cached = cache.get(workspaceId);
+  if (cached && Date.now() - cached.checkedAt < WORKSPACE_CACHE_TTL_MS) {
+    return cached.valid;
+  }
+
+  try {
+    const results = await surreal.query<[Array<{ id: RecordId }>]>(
+      `SELECT id FROM $ws;`,
+      { ws: new RecordId("workspace", workspaceId) },
+    );
+    const valid = (results[0]?.length ?? 0) > 0;
+    cache.set(workspaceId, { valid, checkedAt: Date.now() });
+    return valid;
+  } catch {
+    cache.set(workspaceId, { valid: false, checkedAt: Date.now() });
+    return false;
+  }
 }
 
-async function proxyToAnthropic(request: Request): Promise<Response> {
-  const startedAt = performance.now();
-  const url = new URL(request.url);
-  const upstreamPath = url.pathname.replace(/^\/proxy\/llm\/anthropic/, "");
-  const upstreamUrl = `${ANTHROPIC_API_URL}${upstreamPath}`;
+// ---------------------------------------------------------------------------
+// Header Forwarding
+// ---------------------------------------------------------------------------
 
-  // Forward auth and protocol headers from the client
+function buildUpstreamHeaders(request: Request): Headers {
   const headers = new Headers();
+
   for (const name of FORWARDED_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  // Forward client's API key — Claude Code sends its own
+
   const xApiKey = request.headers.get("x-api-key");
   const authHeader = request.headers.get("authorization");
   if (xApiKey) headers.set("x-api-key", xApiKey);
   if (authHeader) headers.set("authorization", authHeader);
 
-  const body = await request.text();
-  let parsed: { model?: string; stream?: boolean; max_tokens?: number; metadata?: { user_id?: string } } | undefined;
+  return headers;
+}
+
+// ---------------------------------------------------------------------------
+// Request Body Parsing
+// ---------------------------------------------------------------------------
+
+type ParsedBody = {
+  model?: string;
+  stream?: boolean;
+  max_tokens?: number;
+  metadata?: { user_id?: string };
+};
+
+function tryParseRequestBody(body: string): ParsedBody | undefined {
   try {
-    parsed = JSON.parse(body);
+    return JSON.parse(body) as ParsedBody;
   } catch {
-    // not JSON — forward as-is
+    return undefined;
   }
-
-  const isStreaming = parsed?.stream === true;
-  const identity = parseMetadataUserId(parsed?.metadata?.user_id);
-
-  logInfo("proxy.anthropic.request", "Forwarding to Anthropic", {
-    method: request.method,
-    url: upstreamUrl,
-    headers: Object.fromEntries(request.headers.entries()),
-    body: parsed ?? body,
-    ...identity,
-  });
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(upstreamUrl, {
-      method: request.method,
-      headers,
-      body: request.method !== "GET" ? body : undefined,
-    });
-  } catch (error) {
-    logError("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
-    return jsonError("upstream unreachable", 502);
-  }
-
-  if (!isStreaming) {
-    const responseBody = await upstream.text();
-    let responseData: unknown;
-    try {
-      responseData = JSON.parse(responseBody);
-    } catch {
-      // non-JSON response — forward as-is
-    }
-
-    logInfo("proxy.anthropic.response", "Anthropic response", {
-      status: upstream.status,
-      headers: Object.fromEntries(upstream.headers.entries()),
-      body: responseData ?? responseBody,
-      latency_ms: elapsedMs(startedAt),
-      ...identity,
-    });
-
-    return new Response(responseBody, {
-      status: upstream.status,
-      headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
-  }
-
-  // Streaming: pipe SSE events through, inspecting for usage data
-  const { readable, writable } = new TransformStream<Uint8Array>();
-  const writer = writable.getWriter();
-  const reader = upstream.body!.getReader();
-  const decoder = new TextDecoder();
-
-  const streamContext = {
-    model: parsed?.model,
-    inputTokens: 0,
-    outputTokens: 0,
-    stopReason: undefined as string | undefined,
-  };
-
-  (async () => {
-    try {
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        // Forward raw bytes immediately
-        await writer.write(value);
-
-        // Inspect for usage data (non-blocking parse)
-        buffer += decoder.decode(value, { stream: true });
-        buffer = extractSSEUsage(buffer, streamContext);
-      }
-    } catch (error) {
-      logError("proxy.anthropic.stream_error", "SSE relay error", error);
-    } finally {
-      await writer.close();
-
-      logInfo("proxy.anthropic.response", "Anthropic stream complete", {
-        model: streamContext.model,
-        input_tokens: streamContext.inputTokens,
-        output_tokens: streamContext.outputTokens,
-        stop_reason: streamContext.stopReason,
-        latency_ms: elapsedMs(startedAt),
-        ...identity,
-      });
-    }
-  })();
-
-  return new Response(readable, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": "*",
-    },
-  });
 }
 
-// Parses Claude Code's metadata.user_id format:
-// "user_<hash>_account_<uuid>_session_<uuid>"
-function parseMetadataUserId(userId?: string): { user_hash?: string; account_id?: string; session_id?: string } {
-  if (!userId) return {};
-  const match = userId.match(/^user_([a-f0-9]+)_account_([a-f0-9-]+)_session_([a-f0-9-]+)$/);
-  if (!match) return { user_hash: userId };
-  return {
-    user_hash: match[1],
-    account_id: match[2],
-    session_id: match[3],
-  };
+// ---------------------------------------------------------------------------
+// Path Detection
+// ---------------------------------------------------------------------------
+
+function isCountTokensRequest(pathname: string): boolean {
+  return pathname.endsWith("/count_tokens");
 }
+
+// ---------------------------------------------------------------------------
+// SSE Usage Extraction
+// ---------------------------------------------------------------------------
 
 type StreamContext = {
   model?: string;
@@ -165,7 +120,6 @@ type StreamContext = {
 
 function extractSSEUsage(buffer: string, ctx: StreamContext): string {
   const lines = buffer.split("\n");
-  // Keep the last incomplete line in the buffer
   const remainder = lines.pop() ?? "";
 
   for (const line of lines) {
@@ -176,13 +130,11 @@ function extractSSEUsage(buffer: string, ctx: StreamContext): string {
     try {
       const event = JSON.parse(data);
 
-      // message_start contains input token count
       if (event.type === "message_start" && event.message?.usage) {
         ctx.inputTokens = event.message.usage.input_tokens ?? 0;
         ctx.model = event.message.model ?? ctx.model;
       }
 
-      // message_delta contains output token count and stop reason
       if (event.type === "message_delta") {
         if (event.usage?.output_tokens) {
           ctx.outputTokens = event.usage.output_tokens;
@@ -197,4 +149,155 @@ function extractSSEUsage(buffer: string, ctx: StreamContext): string {
   }
 
   return remainder;
+}
+
+// ---------------------------------------------------------------------------
+// Handler Factory
+// ---------------------------------------------------------------------------
+
+export function createAnthropicProxyHandler(
+  deps: ServerDependencies,
+): (request: Request) => Promise<Response> {
+  const workspaceCache: WorkspaceCache = new Map();
+
+  return async (request: Request): Promise<Response> => {
+    const startedAt = performance.now();
+    const url = new URL(request.url);
+    const upstreamPath = url.pathname.replace(/^\/proxy\/llm\/anthropic/, "");
+    const upstreamUrl = `${ANTHROPIC_API_URL}${upstreamPath}`;
+    const isCountTokens = isCountTokensRequest(url.pathname);
+
+    // --- Step 1: Parse request body (malformed body forwarded as-is) ---
+    const body = await request.text();
+    const parsed = tryParseRequestBody(body);
+    const isStreaming = parsed?.stream === true;
+
+    // --- Step 2: Identity resolution ---
+    const identitySignals = resolveIdentity({
+      metadataUserId: parsed?.metadata?.user_id,
+      workspaceHeader: request.headers.get("X-Brain-Workspace") ?? undefined,
+      taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
+      agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
+      sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
+    });
+
+    // --- Step 3: Session ID resolution ---
+    const effectiveSessionId = resolveSessionId(identitySignals);
+
+    // --- Workspace validation (non-blocking) ---
+    if (identitySignals.workspaceId) {
+      const isValid = await validateWorkspace(
+        deps.surreal,
+        identitySignals.workspaceId,
+        workspaceCache,
+      );
+      if (!isValid) {
+        logWarn("proxy.anthropic.invalid_workspace", "Workspace not found in database", {
+          workspaceId: identitySignals.workspaceId,
+        });
+      }
+    }
+
+    // --- Build identity context for logging ---
+    const identityContext = {
+      user_hash: identitySignals.userHash,
+      account_id: identitySignals.accountId,
+      session_id: effectiveSessionId,
+      workspace_id: identitySignals.workspaceId,
+      task_id: identitySignals.taskId,
+      agent_type: identitySignals.agentType,
+      is_count_tokens: isCountTokens || undefined,
+    };
+
+    logInfo("proxy.anthropic.request", "Forwarding to Anthropic", {
+      method: request.method,
+      url: upstreamUrl,
+      ...identityContext,
+    });
+
+    // --- Step 6: Request forwarding ---
+    const upstreamHeaders = buildUpstreamHeaders(request);
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(upstreamUrl, {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: request.method !== "GET" ? body : undefined,
+      });
+    } catch (error) {
+      logError("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
+      return jsonResponse({ error: "upstream_unreachable", source: "proxy" }, 502);
+    }
+
+    // --- Non-streaming response ---
+    if (!isStreaming) {
+      const responseBody = await upstream.text();
+      logInfo("proxy.anthropic.response", "Anthropic response", {
+        status: upstream.status,
+        latency_ms: elapsedMs(startedAt),
+        ...identityContext,
+      });
+
+      return new Response(responseBody, {
+        status: upstream.status,
+        headers: {
+          "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
+    // --- Streaming: pipe SSE events through ---
+    const { readable, writable } = new TransformStream<Uint8Array>();
+    const writer = writable.getWriter();
+    const reader = upstream.body!.getReader();
+    const decoder = new TextDecoder();
+
+    const streamContext: StreamContext = {
+      model: parsed?.model,
+      inputTokens: 0,
+      outputTokens: 0,
+      stopReason: undefined,
+    };
+
+    (async () => {
+      try {
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          await writer.write(value);
+
+          buffer += decoder.decode(value, { stream: true });
+          buffer = extractSSEUsage(buffer, streamContext);
+        }
+      } catch (error) {
+        logError("proxy.anthropic.stream_error", "SSE relay error", error);
+      } finally {
+        await writer.close();
+
+        logInfo("proxy.anthropic.response", "Anthropic stream complete", {
+          model: streamContext.model,
+          input_tokens: streamContext.inputTokens,
+          output_tokens: streamContext.outputTokens,
+          stop_reason: streamContext.stopReason,
+          latency_ms: elapsedMs(startedAt),
+          ...identityContext,
+        });
+      }
+    })();
+
+    return new Response(readable, {
+      status: upstream.status,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  };
 }

@@ -77,7 +77,7 @@ describe("Full identity resolved from Claude Code metadata and headers", () => {
 // ---------------------------------------------------------------------------
 
 describe("Graceful degradation without task header", () => {
-  it.skip("resolves workspace and session, creates trace without task attribution", async () => {
+  it("resolves workspace and session, creates trace without task attribution", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-notask-${crypto.randomUUID()}`;
@@ -106,7 +106,7 @@ describe("Graceful degradation without task header", () => {
 });
 
 describe("Graceful degradation without any metadata", () => {
-  it.skip("resolves workspace from header only when no metadata.user_id present", async () => {
+  it("resolves workspace from header only when no metadata.user_id present", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-nometa-${crypto.randomUUID()}`;
@@ -129,7 +129,7 @@ describe("Graceful degradation without any metadata", () => {
 });
 
 describe("Invalid workspace produces warning but does not block", () => {
-  it.skip("forwards request and creates warning observation for unresolved workspace", async () => {
+  it("forwards request and creates warning observation for unresolved workspace", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a request with a non-existent workspace
@@ -150,7 +150,7 @@ describe("Invalid workspace produces warning but does not block", () => {
 });
 
 describe("Malformed metadata.user_id parsed as opaque identifier", () => {
-  it.skip("accepts non-standard metadata format without breaking the request", async () => {
+  it("accepts non-standard metadata format without breaking the request", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-malform-${crypto.randomUUID()}`;

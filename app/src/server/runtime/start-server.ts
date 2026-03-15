@@ -77,7 +77,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const policyHandlers = createPolicyRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
-  const anthropicProxyHandler = createAnthropicProxyHandler();
+  const anthropicProxyHandler = createAnthropicProxyHandler(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
