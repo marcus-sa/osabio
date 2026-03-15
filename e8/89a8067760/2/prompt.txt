@@ -1,0 +1,708 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/seoul-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately, before using any skills or any other tools:
+
+Rename the branch using `git branch -m`. Do not check the current branch name.
+
+Only do this once per session. If the branch has already been renamed, leave it.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+/nw:research  gh issue Brain LLM Proxy: automatic trace capture, policy enforcement, and cost attribution #127 - read all comments as well
+
+how do we make a proxy for e.g local claude code? is there a way to specify an api url?
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+
+ARGUMENTS: Research GitHub issue #127 "Brain LLM Proxy: automatic trace capture, policy enforcement, and cost attribution" from the current repository. Read the full issue body and ALL comments. Also research how Claude Code (Anthropic's CLI coding agent) can be configured to use a custom/proxy API URL - specifically the ANTHROPIC_BASE_URL or similar environment variable. Also research how other LLM API proxies work (e.g. LiteLLM proxy, OpenAI-compatible proxy patterns) to understand the technical approach for building an LLM proxy that can intercept requests, capture traces, enforce policies, and attribute costs.
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: This hook is intended for end-of-session review. Brain knowledge graph MCP tools are required but not available in this context. The session contains substantive research and architectural analysis that should be logged, but the logging tools are unavailable. Approve this session manually via Conductor UI or ensure MCP tools are available before retrying.
+
+---
+
+what is "Fast mode"?
+
+---
+
+out of curiosity, is "POST /v1/messages" the same request/response structure as openapi (the inudstry standard)?
+
+---
+
+build a basic proxy endpoint for anthropic that simply logs the request and response to console
+
+---
+
+i was thinking something like `/proxy/llm/anthropic`
+
+---
+
+log the full request, not just:
+logInfo("proxy.anthropic.request", "Forwarding to Anthropic", {
+    method: request.method,
+    path: upstreamPath,
+    model: parsed?.model,
+    stream: isStreaming,
+    max_tokens: parsed?.max_tokens,
+  });
+
+---
+
+that doesnt log the rull request?? hello??? what about headers???
+
+---
+
+how to test
+
+---
+
+"503 {"error":"ANTHROPIC_API_KEY not configured on proxy"}" this shouldnt be required for local claude code?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/pasted_text_2026-03-15_17-17-41.txt (121.9 KB)
+</system_instruction>
+
+
+
+what are the received headers here ?
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/pasted_text_2026-03-15_17-20-04.txt (110.4 KB)
+</system_instruction>
+
+
+
+i assume this is one fo the messages:
+
+---
+
+derive the request / response structures
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. This session involved substantive implementation work (building an Anthropic LLM proxy with logging, researching issue #127, analyzing request/response structures) that should be logged, but the logging infrastructure is unavailable. Please run this review in an environment with MCP tools enabled, or manually log the work items: (1) Decision: transparent client auth forwarding vs proxy-held keys, (2) Observations: Claude Code uses ephemeral prompt caching + structured output, (3) Subtask: extend proxy with cost attribution and policy enforcement per issue #127, (4) Files changed: anthropic-proxy-route.ts created, start-server.ts modified.
+
+---
+
+hmm, i kinda assumed that when u open a claude instance, that it would create a conversation id or similar and include it in requests
+
+---
+
+we dont want to rely on "brain start"
+
+---
+
+yeah, sure, lets extract user id and session id
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+
+ARGUMENTS:    how do coding agents (in particular claude code) actually work?
+
+---
+
+what request/response structure does openrouter and ollama use?
+
+---
+
+the question is, what do we do do with the proxy? i know that we want to authorize intents, but how exactly do we do that? and do we run the extraction pipeline on every call? what do we do with duplicated messages? we're using a llm that supports prompt caching in extraction pipeline, and we can relate every call by the conversation id
+
+---
+
+what do u think we can use this for?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. The session contains substantive architectural decisions and design patterns that require logging but the logging infrastructure is unavailable. Please ensure MCP tools are enabled before retrying this hook, or manually log the following via the Brain UI: (1) Decision: structured parsing + session-end summary approach vs full extraction pipeline per call, (2) Observations: Claude Code sends full conversation history on every call (deduplication via session_id + message index needed), (3) Observations: Anthropic proxy captures unique telemetry inaccessible elsewhere (tool calls, reasoning, cost, effectiveness signals), (4) Subtasks: Implement tool call structured parsing in proxy, Implement session-end summary LLM extraction, Implement cost tracking from usage fields, Implement session-to-task auto-linking in graph
+
+---
+
+it wouldn't just be coding agents tho, it would be all agents..
+
+---
+
+the goal is: an operating system
+for autonomous organizations
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/pasted_text_2026-03-15_19-04-03.txt (8.7 KB)
+</system_instruction>
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. This session contains substantial implementation work and architectural decisions that must be logged: (1) Decision: transparent client auth forwarding (proxy-native, no proxy-held keys required), (2) Decision: structured parsing + session-end summary approach vs full extraction pipeline per call, (3) Observation: Claude Code sends full conversation history on every call (deduplication via session_id + message index needed), (4) Observation: Anthropic proxy captures unique telemetry inaccessible elsewhere (tool calls, reasoning, cost, effectiveness signals), (5) Observation: Proxy is universal agent gateway (not coding-agent-specific), applies to all agent types, (6) Files changed: app/src/server/proxy/anthropic-proxy-route.ts (created), app/src/server/runtime/start-server.ts (modified). Cannot proceed without MCP availability.
+
+---
+
+how important is the proxY?
+
+---
+
+isn't the idea also that brain automatically injects relevant context and detects if a llm does something that contradicts a decision etc?
+
+---
+
+but then we still need to put a llm pipeline infront of it
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. Cannot log decisions, observations, subtasks, or suggestions without knowledge graph access. Session contains 6 substantial items requiring logging: (1) Decision: transparent client auth forwarding vs proxy-held keys, (2) Decision: structured parsing + session-end summary vs full extraction pipeline per call, (3) Decision: two-tier contradiction detection (embedding-based + selective Haiku checks) vs monolithic LLM pipeline, (4) Observation: Claude Code metadata format enables automatic session attribution without brain start, (5) Observation: proxy is universal agent gateway infrastructure, not coding-agent-specific, (6) Subtasks: implement context injection via embedding search, implement async contradiction detection, implement credential vault integration. Please enable MCP tools or manually log via Brain UI before approving session.
+
+---
+
+# NW-DISCUSS: Jobs-to-be-Done Analysis, UX Journey Design, and Requirements Gathering
+
+**Wave**: DISCUSS (wave 2 of 6) | **Agent**: Luna (nw-product-owner) | **Command**: `/nw:discuss`
+
+## Overview
+
+Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journey discovery|emotional arc design|shared artifact tracking|requirements gathering|user story creation|acceptance criteria definition. Luna uncovers jobs users accomplish, maps to journeys and requirements, handles complete lifecycle from user motivations through DoR-validated stories ready for DESIGN. Establishes ATDD foundation.
+
+For greenfield projects (no src/ code, no docs/feature/ history), Luna proposes Walking Skeleton as Feature 0.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Type
+**Question**: What type of feature is this?
+**Options**:
+1. User-facing -- UI/UX functionality visible to end users
+2. Backend -- APIs, services, data processing
+3. Infrastructure -- DevOps, CI/CD, tooling
+4. Cross-cutting -- Spans multiple layers (auth, logging, etc.)
+5. Other -- user provides custom input
+
+### Decision 2: Walking Skeleton
+**Question**: Should we start with a walking skeleton?
+**Options**:
+1. Yes -- recommended for greenfield projects
+2. Depends -- brownfield; Luna evaluates existing structure first
+3. No -- feature is isolated enough to skip
+
+### Decision 3: UX Research Depth
+**Question**: Priority for UX research depth?
+**Options**:
+1. Lightweight -- quick journey map, focus on happy path
+2. Comprehensive -- full experience mapping with emotional arcs
+3. Deep-dive -- extensive user research, multiple personas, edge cases
+
+### Decision 4: Number of User Jobs
+**Question**: How many distinct jobs are your users trying to accomplish with this feature?
+**Options**:
+1. Single job -- one primary job to focus on
+2. Multiple jobs (2-4) -- several related jobs, will need opportunity scoring
+3. Unclear -- Luna will help discover and define the jobs through interview
+
+## Context Files Required
+
+- docs/project-brief.md | docs/stakeholders.yaml | docs/architecture/constraints.md
+
+## Previous Artifacts (Wave Handoff)
+
+- docs/discovery/problem-validation.md | opportunity-tree.md | lean-canvas.md — From DISCOVER
+
+## Agent Invocation
+
+@nw-product-owner
+
+Execute *jtbd-analysis for {feature-name}, then *journey informed by JTBD artifacts, then *gather-requirements informed by both.
+
+Context files: see Context Files Required and Previous Artifacts above.
+
+**Configuration:**
+- format: visual | yaml | gherkin | all (default: all)
+- research_depth: {Decision 3} | interactive: high | output_format: markdown
+- elicitation_depth: comprehensive | feature_type: {Decision 1}
+- walking_skeleton: {Decision 2} | job_count: {Decision 4}
+- output_directory: docs/ux/{epic}/ (JTBD + journeys), docs/requirements/ (stories)
+
+**Phase 1 -- Jobs-to-be-Done Analysis (REQUIRED):**
+
+Grounds all subsequent artifacts in real user motivations.
+
+1. **Job Discovery**: Ask user what users are trying to accomplish. Capture in job story format: "When [situation], I want to [motivation], so I can [outcome]."
+2. **Job Dimensions**: For each job — functional (practical task)|emotional (desired feeling)|social (desired perception)
+3. **Four Forces Analysis**: For each primary job:
+   - **Push** (current frustration): "What frustrated users enough to request this?"
+   - **Pull** (desired future): "What could they do that they cannot now?"
+   - **Anxiety** (adoption concerns): "What concerns about adopting this?"
+   - **Habit** (current behavior): "What behavior must change?"
+   If interview transcripts|support tickets|analytics exist, extract forces from those instead of relying solely on user description.
+4. **Opportunity Scoring** (multiple jobs): Rank by importance vs. satisfaction gap. High importance + low satisfaction = strongest opportunities. Produce scored table.
+5. **JTBD-to-Story Bridge**: Each job story feeds into user stories and acceptance criteria in Phase 3. Every user story must trace to at least one job.
+
+| Artifact | Path |
+|----------|------|
+| Job Stories | `docs/ux/{epic}/jtbd-job-stories.md` |
+| Four Forces | `docs/ux/{epic}/jtbd-four-forces.md` |
+| Opportunity Scores | `docs/ux/{epic}/jtbd-opportunity-scores.md` (when multiple jobs) |
+
+**Phase 2 -- Journey Design:**
+
+Luna runs deep discovery (mental model|emotional arc|shared artifacts|error paths) informed by JTBD, produces visual journey + YAML schema + Gherkin scenarios. Each journey maps to one or more identified jobs.
+
+| Artifact | Path |
+|----------|------|
+| Visual Journey | `docs/ux/{epic}/journey-{name}-visual.md` |
+| Journey Schema | `docs/ux/{epic}/journey-{name}.yaml` |
+| Gherkin Scenarios | `docs/ux/{epic}/journey-{name}.feature` |
+| Artifact Registry | `docs/ux/{epic}/shared-artifacts-registry.md` |
+
+**Phase 3 -- Requirements and User Stories:**
+
+Luna crafts LeanUX stories informed by JTBD + journey artifacts. Every story traces to at least one job story. Validates against DoR, invokes peer review, prepares handoff.
+
+| Artifact | Path |
+|----------|------|
+| Requirements | `docs/requirements/requirements.md` |
+| User Stories | `docs/requirements/user-stories.md` |
+| Acceptance Criteria | `docs/requirements/acceptance-criteria.md` |
+| DoR Checklist | `docs/requirements/dor-checklist.md` |
+
+## Success Criteria
+
+- [ ] JTBD analysis complete: all jobs in job story format
+- [ ] Job dimensions identified: functional|emotional|social per job
+- [ ] Four Forces mapped per job (push|pull|anxiety|habit)
+- [ ] Opportunity scores produced (when multiple jobs)
+- [ ] UX journey map with emotional arcs and shared artifacts
+- [ ] Every journey maps to at least one job
+- [ ] Discovery complete: user mental model understood, no vague steps
+- [ ] Happy path defined: all steps start-to-goal with expected outputs
+- [ ] Emotional arc coherent: confidence builds progressively
+- [ ] Shared artifacts tracked: every ${variable} has single documented source
+- [ ] Requirements completeness score > 0.95
+- [ ] Every user story traces to at least one job story
+- [ ] All acceptance criteria testable
+- [ ] DoR passed: all 8 items validated with evidence
+- [ ] Peer review approved
+- [ ] Handoff accepted by nw-solution-architect (DESIGN wave)
+
+## Next Wave
+
+**Handoff To**: nw-solution-architect (DESIGN wave)
+**Deliverables**: JTBD artifacts (job stories|four forces|opportunity scores) + journey artifacts (visual|YAML|Gherkin|artifact registry) + requirements (stories|acceptance criteria|DoR validation|peer review)
+
+## Expected Outputs
+
+```
+docs/ux/{epic}/
+  jtbd-job-stories.md
+  jtbd-four-forces.md
+  jtbd-opportunity-scores.md    (when multiple jobs)
+  journey-{name}-visual.md
+  journey-{name}.yaml
+  journey-{name}.feature
+  shared-artifacts-registry.md
+
+docs/requirements/
+  requirements.md
+  user-stories.md               (each story traces to a job)
+  acceptance-criteria.md
+  dor-checklist.md
+```
+
+## Examples
+
+### Example 1: User-facing feature with comprehensive UX research
+```
+/nw:discuss first-time-setup
+```
+Orchestrator asks Decision 1-4. User selects "User-facing", "No skeleton", "Comprehensive", "Multiple jobs". Luna starts with JTBD analysis: discovers jobs like "When I first open the app, I want to feel productive immediately, so I can justify the purchase." Maps four forces for each job. Scores opportunities. Then runs journey discovery informed by JTBD, produces visual journey + YAML + Gherkin. Finally crafts stories where each traces to a job, validates DoR, and prepares handoff.
+
+### Example 2: JTBD-only invocation
+```
+/nw:discuss --phase=jtbd onboarding-flow
+```
+Runs only Luna's JTBD analysis phase (job discovery + dimensions + four forces + opportunity scoring). Produces JTBD artifacts without proceeding to journey design or requirements. Useful for early discovery when you need to understand user motivations before committing to UX design.
+
+### Example 3: Journey-only invocation
+```
+/nw:discuss --phase=journey release-nwave
+```
+Runs only Luna's journey design phases (discovery + visualization + coherence validation). Produces journey artifacts without proceeding to requirements crafting. Useful when JTBD is already done and journey design needs standalone iteration.
+
+### Example 4: Requirements-only invocation
+```
+/nw:discuss --phase=requirements new-plugin-system
+```
+Runs only Luna's requirements phases (gathering + crafting + DoR validation). Assumes JTBD and journey artifacts already exist or are not needed (e.g., backend feature).
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools not available to log decisions, observations, and subtasks
+
+---
+
+what about the context injection, Contradiction detection, etc?
+
+---
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md
+- docs/feature/{feature-name}/discuss/user-stories.md
+- docs/feature/{feature-name}/discuss/domain-model.md
+- docs/feature/{feature-name}/discuss/ux-journey.md
+- docs/feature/{feature-name}/discuss/jtbd-job-stories.md — Job stories (JTBD Phase 1)
+- docs/feature/{feature-name}/discuss/jtbd-four-forces.md — Four Forces analysis
+- docs/feature/{feature-name}/discuss/jtbd-opportunity-scores.md — Opportunity scores (if multiple jobs)
+- docs/feature/{feature-name}/design/constraints.md — Technical and business constraints
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-name}.
+
+Context files: see Context Files Required above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOP wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOP wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Expected Outputs
+
+```
+docs/feature/{feature-name}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) not available in this context. Cannot create decisions, observations, subtasks, or suggestions without graph access. Session contains substantial architectural work (LLM proxy design with 6 ADRs, C4 diagrams, data models, implementation roadmap) that requires logging. Please enable MCP tools or manually log via Brain UI. Items to log: (1) 6 architectural decisions (ADR-040-045), (2) Context injection + prompt caching design (append-only system blocks), (3) Multi-provider abstraction (separate routes, no format translation), (4) Two-tier contradiction detection (embedding + async Haiku), (5) Async trace capture via inflight tracker, (6) Session-end summary approach for extraction, (7) Subtask: implement context injector component, (8) Subtask: implement identity resolver + metadata parsing, (9) Files: docs/architecture/llm-proxy-architecture.md, 6x docs/adrs/ADR-040-045-*.md, anthropic-proxy-route.ts (modified)
+
+---
+
+we already have a trace table..
+
+---
+
+update ADR-042 to reflect this
+
+---
+
+it also needs to upsert an agent session based on the extracted session id, no?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: This was a substantive session requiring MCP tool logging. Cannot proceed with review without Brain knowledge graph access. Session contains: (1) 6 architectural decisions (ADR-040-045), (2) decision to extend existing trace table vs new llm_trace table, (3) schema discovery showing agent_session structure, (4) identified blocking issue: proxy handler needs ServerDependencies for DB writes. MCP tools required to log these items properly.
+
+---
+
+still in design mode, add this.
+opencode_session_id should be renamed to "external_session_id" and linked to the claude session id
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: This was a substantive multi-wave session (RESEARCH → DISCUSS → DESIGN) with multiple architectural decisions, design artifacts, and schema changes that require logging. MCP tools (Brain knowledge graph) are not available in this context. Cannot proceed with session review without graph access. Items requiring logging: (1) 6 architectural decisions (ADR-040-045), (2) Decision to extend existing trace table vs new llm_trace table, (3) Decision to rename opencode_session_id to external_session_id for agent_session, (4) Observations about Claude Code's metadata format enabling automatic session attribution, (5) Observations about prompt caching constraints on context injection, (6) Subtasks: implement context injector component, implement identity resolver with session upsert, implement cost calculator, implement trace writer, implement contradiction detection pipeline, (7) Files created/modified: docs/architecture/llm-proxy-architecture.md, 6x docs/adrs/ADR-040-045-*.md, anthropic-proxy-route.ts modified, ADR-042 updated. Please enable MCP tools or manually log via Brain UI before approving session.
+
+---
+
+LLM Proxy Review — 3 Expert Perspectives
+
+1. Architecture & ADRs — CONDITIONALLY_APPROVED
+3 Blocking issues:
+
+Table naming conflict: ADR-042 says extend trace table, but architecture doc defines a separate llm_trace table. Must reconcile.
+Identity cache missing: ADR-042 specifies in-memory session cache for latency compliance, but code doesn’t implement it.
+Rate limiter unimplemented: Architecture specifies it; code and ADRs don’t deliver it. Clarify scope or defer explicitly.
+Strengths: ADR quality is excellent (clear alternatives, quantified trade-offs). Research grounding is strong — all 8 findings map to decisions. SSE passthrough approach is validated in the walking skeleton.
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. Cannot create decisions, questions, observations, tasks, subtasks, or suggestions without graph access. Please enable MCP tools or manually log via Brain UI.
+
+---
+
+there are no design artifacts for the context injection?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. Cannot log decisions, observations, questions, subtasks, or suggestions without graph access. Session contains substantial multi-wave work (RESEARCH → DISCUSS → DESIGN) with 6 ADRs, architecture document, proxy implementation, and schema design that require logging. Please enable MCP tools or manually log via Brain UI before session approval.
+
+---
+
+yes, obviously, design context injection and Contradiction detection
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP tools (Brain knowledge graph) are not available in this context. Cannot log decisions, questions, observations, tasks, subtasks, or suggestions without graph access. This was a substantial multi-wave session (RESEARCH → DISCUSS → DESIGN) with 10+ architectural decisions, multiple design documents, and schema changes requiring formal logging. Please enable MCP tools or manually log via Brain UI. Items to log: (1) 10 architectural decisions (6 ADRs + 2 new intelligence ADRs + context injection + contradiction detection choices), (2) Decision to extend trace table vs new llm_trace, (3) Decision to rename opencode_session_id to external_session_id, (4) Observations about Claude Code metadata format, prompt caching constraints, SurrealDB KNN+WHERE bug workaround, (5) Subtasks: implement context injector, identity resolver with session upsert, cost calculator, trace writer, contradiction detection pipeline, secret scanner, (6) Files created/modified: 8 docs/adrs/ADR-*.md, 2 docs/architecture/*.md, anthropic-proxy-route.ts modified
