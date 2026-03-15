@@ -1,0 +1,421 @@
+# LLM Proxy Intelligence — Implementation Roadmap
+#
+# Builds on existing walking skeleton (anthropic-proxy-route.ts) which provides
+# basic SSE passthrough with metadata parsing. This roadmap adds: full identity
+# resolution, trace capture, cost attribution, policy enforcement, spend/audit
+# APIs, context injection, conversation correlation, and Observer intelligence.
+#
+# Design artifacts:
+#   - docs/architecture/llm-proxy-architecture.md (base proxy)
+#   - docs/architecture/llm-proxy-intelligence-design.md (intelligence capabilities)
+#   - docs/feature/llm-proxy/design/ (architecture, components, data models, tech stack)
+#   - docs/feature/llm-proxy/distill/ (82 acceptance scenarios across 13 milestones)
+#   - docs/adrs/ADR-050 (conversation hash UUIDv5)
+#   - docs/adrs/ADR-051 (Observer-owned detection, no proxy response analyzer)
+#
+# Paradigm: Functional (TypeScript)
+# Rigor: inherit model, review enabled, mutation disabled
+
+project_id: llm-proxy
+title: "LLM Proxy — Transparent Passthrough with Intelligence Layer"
+paradigm: functional
+
+validation:
+  status: pending_review
+
+phases:
+  - id: "01"
+    title: "Foundation — Schema, Passthrough, Identity, Trace, Cost"
+    description: >
+      Extend the walking skeleton into a production proxy: schema migrations for
+      llm_call trace type, identity resolution from Claude Code metadata + headers,
+      async trace capture with graph edges, and cost computation from pricing tables.
+    steps:
+      - step_id: "01-01"
+        title: "Schema migrations for LLM proxy"
+        description: >
+          Three migrations extending the schema for LLM proxy capabilities:
+          (1) Add 'llm_call' to trace type ASSERT, add LLM-specific optional fields
+          (model, provider, input_tokens, output_tokens, cache_creation_tokens,
+          cache_read_tokens, cost_usd, stop_reason, request_id).
+          (2) Rename opencode_session_id to external_session_id on agent_session
+          with composite index for session lookup.
+          (3) Create proxy_intelligence_config SCHEMAFULL table with workspace-scoped
+          settings for context injection and contradiction detection.
+          Update surreal-schema.surql with all new definitions.
+        acceptance_criteria:
+          - "trace type ASSERT includes 'llm_call' alongside existing types"
+          - "LLM fields (model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, provider, stop_reason, request_id) defined as option<> on trace"
+          - "agent_session.external_session_id replaces opencode_session_id with composite index on (external_session_id, workspace)"
+          - "proxy_intelligence_config table exists with workspace, context_injection_enabled, context_injection_token_budget, context_injection_cache_ttl_seconds, context_injection_tier, contradiction_detection_enabled, contradiction_tier1_threshold, contradiction_tier2_confidence_min fields"
+          - "surreal-schema.surql updated with all new definitions"
+          - "bun migrate applies all three migrations successfully"
+        files_to_modify:
+          - "schema/migrations/0040_trace_llm_call_fields.surql"
+          - "schema/migrations/0041_proxy_session_id.surql"
+          - "schema/migrations/0042_proxy_intelligence_config.surql"
+          - "schema/surreal-schema.surql"
+        depends_on: []
+
+      - step_id: "01-02"
+        title: "Proxy handler refactor with identity + session resolution"
+        description: >
+          Refactor the walking skeleton anthropic-proxy-route to accept
+          ServerDependencies (surreal, inflight tracker, config). Extract identity
+          resolution into a pure function that parses metadata.user_id (Claude Code
+          format) + X-Brain-Workspace + X-Brain-Task + X-Brain-Agent-Type headers.
+          Extract session ID resolution into a pure function that reads session ID
+          from metadata.user_id (session_{uuid} pattern) or X-Brain-Session header.
+          Add workspace validation (verify workspace exists in DB, cached). Ensure
+          full header forwarding (anthropic-version, anthropic-beta, x-api-key,
+          authorization, content-type). Upstream failure returns 502 with
+          source:proxy distinction. Malformed request body forwarded as-is.
+        acceptance_criteria:
+          - "Proxy handler receives ServerDependencies for SurrealDB and inflight access"
+          - "Identity resolved from metadata.user_id + X-Brain-Workspace + X-Brain-Task + X-Brain-Agent-Type"
+          - "Session ID extracted from metadata.user_id session_{uuid} pattern OR X-Brain-Session header"
+          - "Missing identity signals degrade gracefully (workspace-only or no attribution)"
+          - "Invalid workspace logged as warning but does not block request forwarding"
+          - "Upstream failure returns 502 with {error: 'upstream_unreachable', source: 'proxy'}"
+          - "Malformed/non-JSON request body forwarded without proxy validation errors"
+          - "All required headers forwarded: anthropic-version, anthropic-beta, x-api-key, authorization, content-type"
+          - "count_tokens requests forwarded without triggering trace capture"
+        files_to_modify:
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "app/src/server/proxy/identity-resolver.ts"
+          - "app/src/server/proxy/session-id-resolver.ts"
+          - "app/src/server/runtime/start-server.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-identity.test.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts"
+        depends_on:
+          - "01-01"
+
+      - step_id: "01-03"
+        title: "Async trace capture with cost computation"
+        description: >
+          Trace writer module that creates llm_call trace nodes in SurrealDB after
+          stream/response completion. Async via deps.inflight.track(). Creates
+          RELATE edges: session->invoked->trace, trace->scoped_to->workspace,
+          trace->attributed_to->task (when task resolved). Cost calculator computes
+          per-call cost from a static pricing table (TypeScript config object) using
+          model-specific rates for input, output, cache_creation, and cache_read
+          tokens. SSE usage extraction extended to capture cache_creation_tokens and
+          cache_read_tokens from message_start events. Non-streaming usage extracted
+          from response body. Graph write failure retried 3x with exponential
+          backoff, fallback to structured log output.
+        acceptance_criteria:
+          - "llm_call trace node created for every forwarded LLM call with model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, latency_ms, stop_reason"
+          - "RELATE edges created: session->invoked->trace (when session resolved), trace->scoped_to->workspace (always), trace->attributed_to->task (when task resolved)"
+          - "Cost computed from model-specific pricing: (uncached_input * input_rate + cache_read * cache_rate + output * output_rate) / 1_000_000"
+          - "Trace capture does not block response delivery — all work via deps.inflight.track()"
+          - "Graph write failure retried 3x with exponential backoff, then logged as structured output"
+          - "Non-streaming responses extract usage from JSON response body"
+          - "Cache tokens (cache_creation_tokens, cache_read_tokens) captured from SSE message_start event"
+          - "count_tokens requests do NOT create traces"
+        files_to_modify:
+          - "app/src/server/proxy/trace-writer.ts"
+          - "app/src/server/proxy/cost-calculator.ts"
+          - "app/src/server/proxy/pricing-table.ts"
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-trace.test.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-cost.test.ts"
+        depends_on:
+          - "01-01"
+          - "01-02"
+
+  - id: "02"
+    title: "Value — Policy Enforcement, Spend API, Audit"
+    description: >
+      Pre-request policy enforcement (model access, budget, rate limiting),
+      spend monitoring API endpoints for dashboard consumption, and audit
+      provenance chain with compliance verification.
+    steps:
+      - step_id: "02-01"
+        title: "Policy enforcement at proxy boundary"
+        description: >
+          Pre-request policy evaluation using the existing evaluatePolicyGate()
+          pipeline with llm_call context. Model access checks use policy rules
+          matching agent_type to allowed_models. Budget enforcement reads today's
+          spend from trace aggregation, compares against workspace daily_budget.
+          Rate limiting uses in-memory sliding window counter per workspace
+          (too frequent for DB queries). Policy violation responses include
+          policy reference and remediation guidance. No policies configured
+          defaults to permissive with warning observation. Policy decisions
+          logged for audit trail.
+        acceptance_criteria:
+          - "Model access violation returns 403 with policy_ref, violated policy description, and model suggestion"
+          - "Budget exceeded returns 429 with current_spend, daily_limit, and remediation"
+          - "Rate limit exceeded returns 429 with Retry-After header and rate limit description"
+          - "Policy check completes under 10ms at p99 (in-memory rate limit + cached spend)"
+          - "No policies configured defaults to permissive — request forwarded with warning observation"
+          - "Policy decision (pass/fail, policy_ref, timestamp) logged on every request"
+          - "governed_by edge created linking trace to evaluated policy"
+        files_to_modify:
+          - "app/src/server/proxy/policy-evaluator.ts"
+          - "app/src/server/proxy/rate-limiter.ts"
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-policy.test.ts"
+        depends_on:
+          - "01-02"
+          - "01-03"
+
+      - step_id: "02-02"
+        title: "Spend monitoring and dashboard API"
+        description: >
+          REST API endpoints for spend monitoring dashboard: workspace spend
+          overview with budget progress, per-project breakdown (today + MTD +
+          call count), per-session cost breakdown (cost, primary model, duration).
+          Anomaly detection creates observations for sessions exceeding 2x average
+          call rate. Budget threshold alerts fire at workspace-configured percentage
+          (default 80%). Spend aggregation cached with short TTL (10s) for
+          dashboard reads.
+        acceptance_criteria:
+          - "GET /api/workspaces/:wsId/proxy/spend returns workspace total spend, budget progress percentage, and daily limit"
+          - "Spend response includes per-project breakdown with today_spend, mtd_spend, and call_count sorted by today_spend DESC"
+          - "GET /api/workspaces/:wsId/proxy/sessions returns per-session cost, primary model, call count, and duration sorted by cost DESC"
+          - "Anomaly observation created for sessions exceeding 2x average call rate"
+          - "Budget threshold alert observation created when daily spend reaches configured percentage"
+          - "Unattributed costs visible as separate category in project breakdown"
+          - "All spend queries respond within 2 seconds"
+        files_to_modify:
+          - "app/src/server/proxy/spend-api.ts"
+          - "app/src/server/runtime/start-server.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-cost.test.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-dashboard.test.ts"
+        depends_on:
+          - "01-03"
+
+      - step_id: "02-03"
+        title: "Audit provenance chain and compliance"
+        description: >
+          REST API endpoints for audit trail: trace detail with full provenance
+          chain (linked session, workspace, task, policy), date-range queries by
+          project, authorization compliance check verifying policy edges on all
+          traces in period, and JSON export. Traces without governed_by policy
+          edge flagged as "unverified" in compliance report.
+        acceptance_criteria:
+          - "GET /api/workspaces/:wsId/proxy/traces/:traceId returns usage data plus linked session, workspace, task, and policy entities"
+          - "Provenance chain exportable as structured JSON"
+          - "GET /api/workspaces/:wsId/proxy/traces?project=X&start=Y&end=Z returns results within 2 seconds"
+          - "GET /api/workspaces/:wsId/proxy/compliance?start=X&end=Y verifies governed_by edges on all traces"
+          - "Traces without policy authorization flagged as 'unverified' with time period and reason"
+          - "Compliance summary shows authorized_count and unverified_count separately"
+        files_to_modify:
+          - "app/src/server/proxy/audit-api.ts"
+          - "app/src/server/runtime/start-server.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-audit.test.ts"
+        depends_on:
+          - "02-01"
+
+  - id: "03"
+    title: "Intelligence — Proxy-Owned Capabilities"
+    description: >
+      Conversation hash correlation (UUIDv5 content-derived grouping for all
+      clients), context injection (workspace decisions/learnings/observations
+      injected into system prompt), and trace content capture for Observer analysis.
+    steps:
+      - step_id: "03-01"
+        title: "Conversation hash correlation via UUIDv5"
+        description: >
+          Per ADR-050: derive deterministic conversation ID from request content
+          using UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
+          Conversation hash resolver is a pure function (no DB, no side effects).
+          Conversation upserter performs idempotent CREATE conversation:<uuidv5>
+          with workspace, title (truncated first user message), and source="proxy".
+          UUIDv5 will not collide with UUIDv4 used by web UI. Pipeline position:
+          after session resolution, before context injection. Conversation link
+          stored in trace input FLEXIBLE field. Failure never blocks forwarding.
+        acceptance_criteria:
+          - "Identical requests (same system prompt + first user message) produce the same conversation ID across calls"
+          - "Different system prompts or different first user messages produce different conversation IDs"
+          - "Conversation record created with workspace, title (first user message truncated ~100 chars), source='proxy', createdAt, updatedAt"
+          - "Second request with same content reuses existing conversation record (idempotent CREATE)"
+          - "Trace input FLEXIBLE field contains conversation reference when hash resolved"
+          - "Missing system prompt or missing first user message — trace created without conversation link"
+          - "Conversation upsert failure does not block request forwarding"
+        files_to_modify:
+          - "app/src/server/proxy/conversation-hash-resolver.ts"
+          - "app/src/server/proxy/conversation-upserter.ts"
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-conversation-hash.test.ts"
+        depends_on:
+          - "01-02"
+          - "01-03"
+
+      - step_id: "03-02"
+        title: "Context injection with intelligence config"
+        description: >
+          Pre-forward request enrichment with workspace knowledge graph context.
+          Intelligence config loader reads proxy_intelligence_config per workspace
+          with env-var fallbacks. Context cache (in-memory Map with TTL) stores
+          workspace candidate pools (confirmed decisions, active learnings, open
+          conflict/warning observations with embeddings). Per-turn ranking: embed
+          last user message, compute weighted cosine similarity (decisions 1.0,
+          learnings 0.8, observations 0.7), select top N within token budget.
+          Inject as <brain-context> XML block appended to system field (normalize
+          string|array, preserve existing blocks + cache_control). Fail-open on
+          any error. Trace writer extended to capture response content in FLEXIBLE
+          output field and intelligence metadata in input field.
+        acceptance_criteria:
+          - "Workspace decisions, learnings, and observations injected into system prompt as <brain-context> XML block"
+          - "Original system prompt content preserved — brain-context appended at end"
+          - "Array-form system prompt preserved with brain-context as additional text block with cache_control: ephemeral"
+          - "Token budget respected — candidates ranked by weighted cosine similarity, top N selected within budget"
+          - "Context injection disabled via config — request forwarded without modification"
+          - "Context injection failure — request forwarded without modification (fail-open), warning logged"
+          - "Session cache hit — no DB query on repeated request within TTL"
+          - "Empty workspace (no decisions/learnings/observations) — no brain-context block appended"
+          - "Trace input FLEXIBLE field contains brain_context_injected, brain_context_decisions, brain_context_learnings, brain_context_observations, brain_context_tokens_est"
+          - "Trace output FLEXIBLE field contains response text blocks and tool inputs for Observer analysis"
+        files_to_modify:
+          - "app/src/server/proxy/intelligence-config.ts"
+          - "app/src/server/proxy/context-cache.ts"
+          - "app/src/server/proxy/context-injector.ts"
+          - "app/src/server/proxy/trace-writer.ts"
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-context-injection.test.ts"
+        depends_on:
+          - "01-03"
+          - "03-01"
+
+  - id: "04"
+    title: "Intelligence — Observer Extensions"
+    description: >
+      Per ADR-051: all detection and analysis logic lives in the Observer system,
+      triggered by SurrealDB EVENTs. The proxy performs NO analysis. New Observer
+      capabilities: per-trace response analysis (contradiction + missing decision
+      detection), cross-trace pattern synthesis on session end, and reverse
+      coherence scan for implementations without decisions.
+    steps:
+      - step_id: "04-01"
+        title: "Observer per-trace analysis via SurrealDB EVENT"
+        description: >
+          New Observer capability triggered by trace creation EVENT. Migration
+          creates trace_llm_call_created EVENT (ASYNC, RETRY 3) that fires on
+          CREATE when type='llm_call', posting to /api/observe/trace/:id.
+          Observer route gains 'trace' in SUPPORTED_TABLES. Observer agent
+          dispatch gains trace case delegating to new Trace Response Analyzer.
+          Analyzer: (1) check stop_reason — skip tool_use, (2) extract text
+          blocks + tool inputs from output FLEXIBLE field, (3) Contradiction
+          detection: Tier 1 embed response → two-step KNN against confirmed
+          decisions (SurrealDB v3.0 workaround) → Tier 2 Haiku verification
+          on flagged candidates → create conflict observations, (4) Missing
+          decision detection: extract decision signals → embed → KNN against
+          existing decisions → no match = unrecorded → Tier 2 verification →
+          create info observations. Both pipelines use existing verification
+          pipeline for confidence scoring.
+        acceptance_criteria:
+          - "SurrealDB EVENT trace_llm_call_created fires on trace creation with type='llm_call' (ASYNC, RETRY 3)"
+          - "Observer route handles trace entity type — dispatches to trace response analyzer"
+          - "Contradiction detected when trace response conflicts with confirmed decision (conflict observation created)"
+          - "Missing decision detected when trace contains unrecorded approach choice (info/validation observation created)"
+          - "Tool-use stop_reason — trace analysis skipped (intermediate loop step)"
+          - "No contradiction when response aligns with all workspace decisions"
+          - "Low-confidence contradiction discarded by Tier 2 verification (confidence < 0.6)"
+          - "Multiple contradictions in single trace — separate observations per decision"
+          - "Observer analysis failure — trace still exists, no observations created (fail-skip)"
+          - "Observations created with sourceAgent='observer_agent', not 'llm_proxy'"
+        files_to_modify:
+          - "schema/migrations/0043_trace_llm_call_event.surql"
+          - "schema/surreal-schema.surql"
+          - "app/src/server/observer/trace-response-analyzer.ts"
+          - "app/src/server/observer/observer-route.ts"
+          - "app/src/server/agents/observer/agent.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-observer-trace.test.ts"
+        depends_on:
+          - "03-02"
+
+      - step_id: "04-02"
+        title: "Observer session-end analysis + reverse coherence scan"
+        description: >
+          Two new Observer capabilities. (1) Session-end cross-trace pattern
+          synthesis: migration creates session_ended EVENT (ASYNC, RETRY 3) that
+          fires when agent_session.ended_at transitions from NONE to a value.
+          Observer route gains 'agent_session' in SUPPORTED_TABLES. Session Trace
+          Analyzer loads all traces for the session, delegates to OBSERVER_MODEL
+          for cross-trace pattern analysis (approach drift, accumulated
+          contradictions, decision evolution), applies confidence gate + peer
+          review pipeline, creates conflict observations for verified patterns.
+          (2) Reverse coherence scan: new phase in runCoherenceScans() that
+          queries completed tasks and git commits with no linked decision records
+          (no implemented_by or belongs_to edges). Deterministic graph query, no
+          LLM needed. Creates info observations for implementations without
+          decisions. Deduplicates against existing observations.
+        acceptance_criteria:
+          - "SurrealDB EVENT session_ended fires when agent_session.ended_at transitions from NONE to value (ASYNC, RETRY 3)"
+          - "Observer route handles agent_session entity type — dispatches to session trace analyzer"
+          - "Approach drift detected when early trace picks approach A but later trace implements approach B"
+          - "Consistent traces across session — no cross-trace observations created"
+          - "Single trace in session — no cross-trace patterns possible, analysis skipped"
+          - "Session-end analysis failure — session still ends normally (ASYNC EVENT, fail-skip)"
+          - "Accumulated contradiction across multiple traces creates conflict observation"
+          - "Completed tasks (>14 days, status=completed) without decision links flagged as implementation-without-decision"
+          - "Tasks WITH decision links — no observation created"
+          - "Recent tasks (under 14-day age threshold) — not flagged"
+          - "Duplicate coherence scan — no duplicate observations created"
+        files_to_modify:
+          - "schema/migrations/0044_session_ended_event.surql"
+          - "schema/surreal-schema.surql"
+          - "app/src/server/observer/session-trace-analyzer.ts"
+          - "app/src/server/observer/graph-scan.ts"
+          - "app/src/server/observer/observer-route.ts"
+          - "app/src/server/agents/observer/agent.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-observer-session-end.test.ts"
+          - "tests/acceptance/llm-proxy/llm-proxy-observer-coherence.test.ts"
+        depends_on:
+          - "04-01"
+
+# --- Dependency Graph ---
+#
+#   01-01 (schema)
+#     |
+#     v
+#   01-02 (identity + session) ----+
+#     |                            |
+#     v                            v
+#   01-03 (trace + cost) -------> 02-01 (policy)
+#     |         |                    |
+#     v         v                    v
+#   03-01    02-02 (spend)        02-03 (audit)
+#   (conv)
+#     |
+#     v
+#   03-02 (context injection)
+#     |
+#     v
+#   04-01 (observer trace)
+#     |
+#     v
+#   04-02 (observer session + coherence)
+#
+# Critical path: 01-01 → 01-02 → 01-03 → 03-01 → 03-02 → 04-01 → 04-02
+# Parallel track: 01-03 → 02-01 → 02-03 (policy + audit)
+# Parallel track: 01-03 → 02-02 (spend dashboard)
+
+# --- Metrics ---
+#
+# Total steps: 10
+# Total acceptance criteria: 78
+# Avg AC per step: 7.8
+# New production files: ~18
+# Modified production files: ~8
+# Migration files: 4
+# Test files: 12 (all pre-existing from distill phase)
+# Step/file ratio: 10/22 = 0.45 (well under 2.5)
+#
+# Scenario coverage:
+#   M1  Passthrough (8):     01-02
+#   M2  Identity (5):        01-02
+#   M3  Trace (7):           01-03
+#   M4  Cost (7):            01-03 + 02-02
+#   M5  Policy (7):          02-01
+#   M6  Dashboard (5):       02-02
+#   M7  Audit (4):           02-03
+#   M8  Context Injection (8): 03-02
+#   M9  Conversation Hash (6): 03-01
+#   M10 Session Resolution (5): 01-02
+#   M11 Observer Trace (7):  04-01
+#   M12 Observer Session (5): 04-02
+#   M13 Reverse Coherence (5): 04-02
+#   Total: 82 scenarios across 10 steps
