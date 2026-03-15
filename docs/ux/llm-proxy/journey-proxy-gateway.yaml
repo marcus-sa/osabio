@@ -1,0 +1,238 @@
+journey:
+  name: "LLM Proxy Gateway"
+  goal: "Every LLM call made by any agent flows through Brain's proxy, producing cost attribution, policy enforcement, and graph-native traces transparently"
+  personas:
+    - ref: "Marcus Olsson"
+      role: "Workspace Admin"
+      steps: [1, 7, 8]
+    - ref: "Priya Chandrasekaran"
+      role: "Developer"
+      steps: [2, 5]
+    - ref: "Brain Observer Agent"
+      role: "Autonomous Agent"
+      steps: [3, 4, 5, 6]
+    - ref: "Elena Vasquez"
+      role: "Compliance Auditor"
+      steps: [8]
+
+  emotional_arc:
+    start: "Focused/Expectant -- deliberately setting up governance and connecting agents"
+    middle: "Transparent/Invisible -- proxy operates without being noticed during productive work"
+    end: "Informed/Assured -- admin and auditor see complete cost picture and provenance chain"
+
+steps:
+  - id: 1
+    name: "Configure Proxy + Policies"
+    actor: "Marcus (Admin)"
+    action: "Set budget limits, model access policies, and proxy configuration in Brain dashboard"
+    shared_artifacts:
+      - name: "proxy_url"
+        source: "workspace settings"
+        displayed_as: "${PROXY_URL}"
+        consumers: ["brain init", "agent env vars", "dashboard status"]
+      - name: "budget_thresholds"
+        source: "workspace settings"
+        displayed_as: "daily/monthly limits per scope"
+        consumers: ["authorization step", "monitoring dashboard", "anomaly detection"]
+      - name: "model_access_policies"
+        source: "policy graph"
+        displayed_as: "agent-type -> allowed-models mapping"
+        consumers: ["authorization step"]
+    emotional_state:
+      entry: "Cautious -- setting up governance correctly"
+      exit: "Confident -- policies are configured and active"
+    integration_checkpoint: |
+      Proxy configuration persisted to workspace settings.
+      Policies written to policy graph with active lifecycle status.
+      Proxy health endpoint returns 200.
+
+  - id: 2
+    name: "Connect Agent"
+    actor: "Priya (Developer)"
+    action: "Run brain init or manually set ANTHROPIC_BASE_URL to route Claude Code through proxy"
+    shared_artifacts:
+      - name: "anthropic_base_url"
+        source: "derived from proxy_url"
+        displayed_as: "${PROXY_URL}/anthropic"
+        consumers: ["Claude Code config", "ANTHROPIC_BASE_URL env var"]
+      - name: "workspace_id"
+        source: "workspace record"
+        displayed_as: "X-Brain-Workspace header"
+        consumers: ["authentication step", "trace edges", "spend counters"]
+      - name: "task_id"
+        source: "brain start command (optional)"
+        displayed_as: "X-Brain-Task header"
+        consumers: ["trace edges", "task cost rollup"]
+    emotional_state:
+      entry: "Expectant -- will this break my workflow?"
+      exit: "Relieved -- that was easy, nothing changed in my workflow"
+    integration_checkpoint: |
+      ANTHROPIC_BASE_URL set in agent environment.
+      Proxy reachable from agent process.
+      Test request succeeds through proxy to upstream.
+
+  - id: 3
+    name: "Authenticate"
+    actor: "Proxy (invisible)"
+    action: "Extract identity from request headers and metadata.user_id"
+    shared_artifacts:
+      - name: "session_id"
+        source: "metadata.user_id (Claude Code format: user_{hash}_account_{uuid}_session_{uuid})"
+        displayed_as: "${SESSION_ID}"
+        consumers: ["trace edges", "session cost aggregation", "anomaly detection"]
+      - name: "account_id"
+        source: "metadata.user_id"
+        displayed_as: "${ACCOUNT_ID}"
+        consumers: ["identity resolution"]
+      - name: "user_hash"
+        source: "metadata.user_id"
+        displayed_as: "${USER_HASH}"
+        consumers: ["identity resolution"]
+    emotional_state:
+      entry: "Invisible"
+      exit: "Invisible"
+    integration_checkpoint: |
+      Identity resolved from headers + metadata.
+      Workspace validated as active.
+      If identity cannot be resolved, request proceeds with limited attribution (workspace-only).
+
+  - id: 4
+    name: "Authorize"
+    actor: "Proxy (invisible unless blocked)"
+    action: "Check policies, budget, and rate limits before forwarding"
+    shared_artifacts:
+      - name: "model_id"
+        source: "request body .model field"
+        displayed_as: "${MODEL_ID}"
+        consumers: ["policy check", "cost calculation", "trace record"]
+      - name: "budget_remaining"
+        source: "spend counters (workspace/project/task)"
+        displayed_as: "${BUDGET_REMAINING}"
+        consumers: ["budget enforcement", "monitoring dashboard"]
+      - name: "authorization_result"
+        source: "policy evaluation"
+        displayed_as: "AUTHORIZED or policy_violation error"
+        consumers: ["forward decision", "trace record", "audit trail"]
+    emotional_state:
+      entry: "Invisible on pass"
+      exit: "Invisible on pass; Blocked with clear guidance on violation"
+    integration_checkpoint: |
+      Policy graph queried for agent type + model combination.
+      Budget counters checked against configured limits.
+      Rate limit verified.
+      Decision logged (pass or fail with policy reference).
+
+  - id: 5
+    name: "Forward to Upstream"
+    actor: "Proxy (invisible)"
+    action: "Relay request to Anthropic API with passthrough headers; pipe SSE stream back"
+    shared_artifacts:
+      - name: "request_id"
+        source: "Anthropic response header (request-id)"
+        displayed_as: "${REQUEST_ID}"
+        consumers: ["trace record", "debugging"]
+      - name: "upstream_response"
+        source: "Anthropic API"
+        displayed_as: "SSE event stream"
+        consumers: ["client (Claude Code)", "usage extraction (async)"]
+    emotional_state:
+      entry: "Invisible"
+      exit: "Invisible -- developer experiences normal Claude Code latency"
+    integration_checkpoint: |
+      Upstream reachable and responding.
+      SSE stream relayed without corruption or added latency.
+      All Anthropic features work (streaming, tool use, extended thinking).
+
+  - id: 6
+    name: "Capture Trace + Cost"
+    actor: "Proxy (async, non-blocking)"
+    action: "Extract usage from SSE events, compute cost, write graph trace, update spend counters"
+    shared_artifacts:
+      - name: "trace_id"
+        source: "generated by proxy"
+        displayed_as: "${TRACE_ID}"
+        consumers: ["provenance chain", "audit queries", "session aggregation"]
+      - name: "input_tokens"
+        source: "message_start SSE event -> usage.input_tokens"
+        displayed_as: "${INPUT_TOKENS}"
+        consumers: ["cost calculation", "trace record", "analytics"]
+      - name: "output_tokens"
+        source: "message_delta SSE event -> usage.output_tokens"
+        displayed_as: "${OUTPUT_TOKENS}"
+        consumers: ["cost calculation", "trace record", "analytics"]
+      - name: "cache_tokens"
+        source: "message_start SSE event -> usage.cache_creation_input_tokens, cache_read_input_tokens"
+        displayed_as: "${CACHE_CREATE_TOKENS}, ${CACHE_READ_TOKENS}"
+        consumers: ["cost calculation", "cache efficiency metrics"]
+      - name: "call_cost"
+        source: "computed from usage + pricing table"
+        displayed_as: "${CALL_COST}"
+        consumers: ["spend counters", "dashboard", "audit", "anomaly detection"]
+    emotional_state:
+      entry: "Invisible (developer has already received full response)"
+      exit: "Invisible"
+    integration_checkpoint: |
+      Trace node created in graph with all usage data.
+      Edges created: session -> invoked -> trace; trace -> attributed_to -> task; trace -> scoped_to -> workspace.
+      Spend counters updated atomically.
+      Anomaly check triggered if spend rate exceeds threshold.
+
+  - id: 7
+    name: "Monitor Spend + Anomalies"
+    actor: "Marcus (Admin)"
+    action: "Review spend dashboard, investigate anomalies, adjust budgets"
+    shared_artifacts:
+      - name: "spend_aggregates"
+        source: "aggregated from llm_trace nodes per workspace/project/task"
+        displayed_as: "daily/MTD spend tables"
+        consumers: ["dashboard", "budget enforcement", "alerts"]
+      - name: "session_costs"
+        source: "aggregated from llm_trace nodes per agent_session"
+        displayed_as: "session cost table"
+        consumers: ["dashboard", "anomaly detection"]
+      - name: "anomaly_alerts"
+        source: "anomaly detection rules (spend rate, call volume)"
+        displayed_as: "alert cards with [Investigate] [Dismiss] actions"
+        consumers: ["dashboard", "observation system"]
+    emotional_state:
+      entry: "Checking in -- curious about spending patterns"
+      exit: "Informed -- clear picture of where money goes"
+    integration_checkpoint: |
+      Spend aggregates match sum of individual trace costs.
+      Anomaly alerts fire within 1 minute of threshold breach.
+      Budget adjustments take effect immediately for subsequent calls.
+
+  - id: 8
+    name: "Audit Provenance"
+    actor: "Elena (Auditor) or Marcus (Admin)"
+    action: "Query graph for LLM trace provenance chain; export audit artifacts"
+    shared_artifacts:
+      - name: "provenance_chain"
+        source: "graph traversal: intent -> policy -> session -> trace -> task -> workspace"
+        displayed_as: "visual provenance chain with linked entities"
+        consumers: ["audit report", "compliance verification", "incident investigation"]
+    emotional_state:
+      entry: "Investigative -- need to verify what happened"
+      exit: "Assured -- complete chain verified, every call traceable"
+    integration_checkpoint: |
+      Every llm_trace has edges to session, workspace (required) and task (optional).
+      Provenance chain traversable in a single graph query.
+      Export produces complete chain per trace in JSON format.
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "proxy_url"
+      must_match_across: [1, 2]
+      failure_message: "Proxy URL in workspace settings must match what brain init configures for the agent"
+    - artifact: "workspace_id"
+      must_match_across: [2, 3, 6, 7, 8]
+      failure_message: "Workspace ID from headers must match trace edges and spend counter scope"
+    - artifact: "session_id"
+      must_match_across: [3, 6, 7]
+      failure_message: "Session ID from metadata must match trace edges and session cost aggregation"
+    - artifact: "model_id"
+      must_match_across: [4, 5, 6]
+      failure_message: "Model from request body must match policy check, upstream forward, and trace record"
+    - artifact: "call_cost"
+      must_match_across: [6, 7, 8]
+      failure_message: "Cost in trace record must match spend aggregates and audit data"
