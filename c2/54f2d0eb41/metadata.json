@@ -5,6 +5,9 @@
   "branch": "marcus-sa/llm-proxy-research",
   "checkpoints_count": 0,
   "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/conversation-upserter.ts",
+    "app/src/server/proxy/spend-api.ts",
     "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts",
     "tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts",
     "tests/acceptance/llm-proxy/llm-proxy-trace.test.ts",
@@ -17,13 +20,20 @@
       "context": "/c2/54f2d0eb41/0/context.md",
       "content_hash": "/c2/54f2d0eb41/0/content_hash.txt",
       "prompt": "/c2/54f2d0eb41/0/prompt.txt"
+    },
+    {
+      "metadata": "/c2/54f2d0eb41/1/metadata.json",
+      "transcript": "/c2/54f2d0eb41/1/full.jsonl",
+      "context": "/c2/54f2d0eb41/1/context.md",
+      "content_hash": "/c2/54f2d0eb41/1/content_hash.txt",
+      "prompt": "/c2/54f2d0eb41/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 20,
-    "cache_creation_tokens": 44609,
-    "cache_read_tokens": 511133,
-    "output_tokens": 2234,
-    "api_call_count": 10
+    "input_tokens": 188,
+    "cache_creation_tokens": 186784,
+    "cache_read_tokens": 7712137,
+    "output_tokens": 27256,
+    "api_call_count": 74
   }
 }
