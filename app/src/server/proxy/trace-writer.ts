@@ -31,6 +31,12 @@ export type TraceData = {
   readonly sessionId?: string;
   readonly taskId?: string;
   readonly requestId?: string;
+  readonly policyDecision?: {
+    readonly decision: "pass" | "deny";
+    readonly policy_refs: string[];
+    readonly reason?: string;
+    readonly timestamp: string;
+  };
 };
 
 type TraceDependencies = {
@@ -104,6 +110,10 @@ async function createTraceNode(
     content.request_id = data.requestId;
   }
 
+  if (data.policyDecision) {
+    content.policy_decision = data.policyDecision;
+  }
+
   await surreal.query(`CREATE $trace CONTENT $content;`, {
     trace: traceRecord,
     content,
@@ -146,6 +156,21 @@ async function createTraceEdges(
       `RELATE $trace->attributed_to->$task SET created_at = time::now();`,
       { trace: traceRecord, task: taskRecord },
     );
+  }
+
+  // Create governed_by edges for policy audit trail
+  if (data.policyDecision) {
+    for (const policyId of data.policyDecision.policy_refs) {
+      const policyRecord = new RecordId("policy", policyId);
+      await surreal.query(
+        `RELATE $trace->governed_by->$policy SET created_at = time::now(), decision = $decision;`,
+        {
+          trace: traceRecord,
+          policy: policyRecord,
+          decision: data.policyDecision.decision,
+        },
+      );
+    }
   }
 }
 

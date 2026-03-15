@@ -18,6 +18,17 @@ import { jsonResponse } from "../http/response";
 import { resolveIdentity } from "./identity-resolver";
 import { resolveSessionId } from "./session-id-resolver";
 import { captureTrace, type TraceData } from "./trace-writer";
+import {
+  evaluateProxyPolicy,
+  type ProxyPolicyDependencies,
+  type ProxyPolicyResult,
+  type PolicyDecisionLog,
+  type SpendCache,
+} from "./policy-evaluator";
+import {
+  createRateLimiterState,
+  type RateLimiterState,
+} from "./rate-limiter";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
@@ -177,6 +188,7 @@ function extractNonStreamingUsage(
   latencyMs: number,
   identity: { workspaceId?: string; taskId?: string },
   sessionId?: string,
+  policyDecision?: PolicyDecisionLog,
 ): TraceData | undefined {
   try {
     const parsed = JSON.parse(responseBody) as NonStreamingResponse;
@@ -193,6 +205,7 @@ function extractNonStreamingUsage(
       workspaceId: identity.workspaceId,
       sessionId,
       taskId: identity.taskId,
+      policyDecision,
     };
   } catch {
     return undefined;
@@ -207,6 +220,8 @@ export function createAnthropicProxyHandler(
   deps: ServerDependencies,
 ): (request: Request) => Promise<Response> {
   const workspaceCache: WorkspaceCache = new Map();
+  const rateLimiterState: RateLimiterState = createRateLimiterState();
+  const spendCache: SpendCache = new Map();
 
   return async (request: Request): Promise<Response> => {
     const startedAt = performance.now();
@@ -246,6 +261,43 @@ export function createAnthropicProxyHandler(
       }
     }
 
+    // --- Step 4: Policy evaluation ---
+    let policyResult: ProxyPolicyResult | undefined;
+    if (parsed?.model && !isCountTokens) {
+      const policyDeps: ProxyPolicyDependencies = {
+        surreal: deps.surreal,
+        inflight: deps.inflight,
+        rateLimiterState,
+        spendCache,
+      };
+
+      policyResult = await evaluateProxyPolicy(
+        {
+          workspaceId: identitySignals.workspaceId ?? "",
+          agentType: identitySignals.agentType,
+          model: parsed.model,
+        },
+        policyDeps,
+      );
+
+      if (policyResult.decision === "deny_model") {
+        return jsonResponse(policyResult.body, policyResult.status);
+      }
+      if (policyResult.decision === "deny_budget") {
+        return jsonResponse(policyResult.body, policyResult.status);
+      }
+      if (policyResult.decision === "deny_rate_limit") {
+        return new Response(JSON.stringify(policyResult.body), {
+          status: policyResult.status,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(policyResult.retryAfterSeconds),
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+    }
+
     // --- Build identity context for logging ---
     const identityContext = {
       user_hash: identitySignals.userHash,
@@ -262,6 +314,15 @@ export function createAnthropicProxyHandler(
       url: upstreamUrl,
       ...identityContext,
     });
+
+    // --- Build policy decision for audit trail ---
+    const policyDecision: PolicyDecisionLog | undefined = policyResult
+      ? {
+          decision: "pass",
+          policy_refs: policyResult.decision === "allow" ? policyResult.policyIds : [],
+          timestamp: new Date().toISOString(),
+        }
+      : undefined;
 
     // --- Step 6: Request forwarding ---
     const upstreamHeaders = buildUpstreamHeaders(request);
@@ -291,7 +352,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -366,6 +427,7 @@ export function createAnthropicProxyHandler(
             workspaceId: identitySignals.workspaceId,
             sessionId: effectiveSessionId,
             taskId: identitySignals.taskId,
+            policyDecision,
           };
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),

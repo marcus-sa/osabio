@@ -55,6 +55,7 @@ DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
 DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
+DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -506,12 +507,17 @@ DEFINE FIELD cost_usd ON trace TYPE option<float>;
 DEFINE FIELD stop_reason ON trace TYPE option<string>;
 DEFINE FIELD request_id ON trace TYPE option<string>;
 DEFINE FIELD latency_ms ON trace TYPE option<int>;
+DEFINE FIELD policy_decision ON trace TYPE option<object> FLEXIBLE;
 DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
 DEFINE INDEX trace_created_at ON trace FIELDS created_at;
 
 DEFINE TABLE spawns TYPE RELATION IN message OUT trace SCHEMAFULL;
+
+DEFINE TABLE governed_by TYPE RELATION IN trace OUT policy SCHEMAFULL;
+DEFINE FIELD created_at ON governed_by TYPE datetime;
+DEFINE FIELD decision ON governed_by TYPE string ASSERT $value IN ['pass', 'deny'];
 
 -- Intent governance
 DEFINE TABLE intent SCHEMAFULL;
