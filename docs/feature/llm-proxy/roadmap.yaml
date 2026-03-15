@@ -21,17 +21,23 @@ title: "LLM Proxy — Transparent Passthrough with Intelligence Layer"
 paradigm: functional
 
 validation:
-  status: revised
+  status: approved
   reviewed_at: "2026-03-16"
-  reviewer: nw-solution-architect-reviewer
+  reviewer: nw-software-crafter-reviewer
+  iteration: 2
+  verdict: APPROVED
   revision_summary: >
-    Addressed 4 critical, 4 high, 5 medium issues from architecture review.
-    Critical fixes: (1) explicit 3-step data migration for field rename,
-    (2) proxy_intelligence_config assigned to migration 0042,
-    (3) response capture clarified as opaque per ADR-051,
-    (4) conversation hash degradation specified.
-    High fixes: test file mapping added, spend cache invalidation strategy,
-    EVENT webhook prerequisite noted, reverse coherence query specified.
+    Revision 2: Addressed all 6 blocking + 5 high issues from iteration 1 crafter review.
+    D2: Fixed CREATE idempotency semantics (catch error, not no-op).
+    D3: Added webhook error handling contract for Observer EVENT reliability.
+    D4: Specified trace output FLEXIBLE field JSON shape.
+    D5: Added route registration verification AC for spend/audit endpoints.
+    D6: Made Observer prerequisites explicit (file paths, patterns to verify).
+    H1: Added parametrized test requirement to pre-implementation gate.
+    H2: Specified exact budget enforcement SurrealDB query.
+    H3: Added KNN two-step workaround pattern to Observer AC.
+    H4: Specified proxy pipeline hook execution order.
+    H5: Specified exact SurrealDB queries for context candidate pool.
 
 phases:
   - id: "01"
@@ -91,6 +97,7 @@ phases:
           - "Malformed/non-JSON request body forwarded without proxy validation errors"
           - "All required headers forwarded: anthropic-version, anthropic-beta, x-api-key, authorization, content-type"
           - "count_tokens requests forwarded without triggering trace capture"
+          - "Proxy pipeline execution order: (1) identity resolution, (2) session ID resolution, (3) conversation hash [03-01], (4) policy evaluation [02-01], (5) context injection [03-02], (6) request forwarding, (7) async trace capture [01-03]"
         files_to_modify:
           - "app/src/server/proxy/anthropic-proxy-route.ts"
           - "app/src/server/proxy/identity-resolver.ts"
@@ -156,7 +163,7 @@ phases:
           logged for audit trail.
         acceptance_criteria:
           - "Model access violation returns 403 with JSON body: {error, policy_ref, policy_description, model_suggestion, remediation}"
-          - "Budget exceeded returns 429 with JSON body: {error, current_spend_usd, daily_limit_usd, time_until_reset_seconds}"
+          - "Budget exceeded returns 429 with JSON body: {error, current_spend_usd, daily_limit_usd, time_until_reset_seconds}; spend computed via SELECT math::sum(cost_usd) FROM trace WHERE ->scoped_to->workspace = $ws AND created_at >= time::floor(time::now(), 1d)"
           - "Rate limit exceeded returns 429 with Retry-After header + JSON body: {error, rate_limit_per_minute, reset_time_unix}"
           - "Budget enforcement reads today's spend from cached spend aggregation (updated on every trace write, TTL 10s fallback); cache miss triggers live trace aggregation query"
           - "Policy check completes under 10ms at p99 (in-memory rate limit + cached spend)"
@@ -192,6 +199,7 @@ phases:
           - "Unattributed costs visible as separate category in project breakdown"
           - "Spend cache invalidated on every trace creation (inflight tracker callback); TTL (10s) acts as fallback"
           - "All spend queries respond within 2 seconds"
+          - "Spend and session endpoints registered in start-server.ts route handler — verified by acceptance test HTTP calls returning 200"
         files_to_modify:
           - "app/src/server/proxy/spend-api.ts"
           - "app/src/server/runtime/start-server.ts"
@@ -214,7 +222,8 @@ phases:
           - "GET /api/workspaces/:wsId/proxy/traces?project=X&start=Y&end=Z returns results within 2 seconds"
           - "GET /api/workspaces/:wsId/proxy/compliance?start=X&end=Y verifies governed_by edges on all traces"
           - "Traces without policy authorization flagged as 'unverified' with time period and reason"
-          - "Compliance summary shows authorized_count and unverified_count separately"
+          - "Compliance summary returns {period: {start, end}, authorized_count: N, unverified_count: M, unverified_traces: Array<{id, model, created_at}>}"
+          - "Audit endpoints (traces, compliance) registered in start-server.ts route handler — verified by acceptance test HTTP calls returning 200"
         files_to_modify:
           - "app/src/server/proxy/audit-api.ts"
           - "app/src/server/runtime/start-server.ts"
@@ -244,7 +253,7 @@ phases:
           - "Identical requests (same system prompt + first user message) produce the same conversation ID across calls"
           - "Different system prompts or different first user messages produce different conversation IDs"
           - "Conversation record created with workspace, title (first user message truncated ~100 chars), source='proxy', createdAt, updatedAt"
-          - "Second request with same content reuses existing conversation record — idempotent via CREATE conversation:<uuidv5> SET ... (SurrealDB CREATE is no-op on existing ID)"
+          - "Second request with same content reuses existing conversation record — upserter attempts CREATE conversation:<uuidv5>, catches duplicate error, queries existing record via SELECT; returns existing record on conflict"
           - "Trace input FLEXIBLE field contains conversation reference when hash resolved"
           - "Missing system prompt or missing first user message — conversation hash not computed; trace created without conversation field populated"
           - "Conversation upsert failure does not block request forwarding — warning observation logged"
@@ -277,13 +286,13 @@ phases:
           - "Array-form system prompt preserved with brain-context as additional text block with cache_control: ephemeral"
           - "Last user message embedded using existing EMBEDDING_MODEL from config (same model used for entity embeddings)"
           - "Token budget respected — candidates ranked by weighted cosine similarity, top N selected within budget"
-          - "Context candidate pool cached in-memory per workspace (confirmed decisions, active learnings, open observations with embeddings); populated on first request, refreshed on TTL expiry"
+          - "Context candidate pool cached in-memory per workspace; populated via: SELECT id, summary, embedding FROM decision WHERE workspace=$ws AND status='confirmed' LIMIT 50; SELECT id, text, embedding FROM learning WHERE workspace=$ws AND status='active' LIMIT 30; SELECT id, text, embedding FROM observation WHERE workspace=$ws AND status='open' AND severity IN ['conflict','warning'] LIMIT 20; refreshed on TTL expiry"
           - "Context injection disabled via config — request forwarded without modification"
           - "Context injection failure — request forwarded without modification (fail-open), warning logged"
           - "Session cache hit — no DB query on repeated request within TTL"
           - "Empty workspace (no decisions/learnings/observations) — no brain-context block appended"
           - "Trace input FLEXIBLE field contains brain_context_injected, brain_context_decisions, brain_context_learnings, brain_context_observations, brain_context_tokens_est"
-          - "Trace output FLEXIBLE field contains complete response content (all text blocks, tool_use definitions, and metadata) captured opaquely for downstream Observer analysis — proxy performs NO selective extraction or content analysis per ADR-051"
+          - "Trace output FLEXIBLE field stores opaque response content as {content_blocks: Array<{type: 'text', text: string} | {type: 'tool_use', id: string, name: string, input: object}>, stop_reason: string, usage: {input_tokens, output_tokens, cache_creation_tokens?, cache_read_tokens?}} — proxy captures verbatim, performs NO analysis per ADR-051"
         files_to_modify:
           - "app/src/server/proxy/intelligence-config.ts"
           - "app/src/server/proxy/context-cache.ts"
@@ -327,13 +336,15 @@ phases:
           - "Contradiction detected when trace response conflicts with confirmed decision (conflict observation created)"
           - "Missing decision detected when trace contains unrecorded approach choice (info/validation observation created)"
           - "Tool-use stop_reason — trace analysis skipped (intermediate loop step)"
+          - "KNN queries use two-step pattern per SurrealDB v3.0 workaround: LET $candidates = SELECT ... WHERE embedding <|20,COSINE|> $vec; SELECT ... FROM $candidates WHERE workspace = $ws ORDER BY similarity DESC"
           - "No contradiction when response aligns with all workspace decisions"
           - "Low-confidence contradiction discarded by Tier 2 verification (confidence < 0.6)"
           - "Multiple contradictions in single trace — separate observations per decision"
           - "Observer analysis failure — trace still exists, no observations created (fail-skip)"
           - "Observations created with sourceAgent='observer_agent', not 'llm_proxy'"
           - "Observer webhook receiver at POST /api/observe/trace/:id dispatches to trace response analyzer"
-        prerequisite: "Verify SurrealDB EVENT + webhook infrastructure exists from prior Observer implementation (observer-route.ts handles SUPPORTED_TABLES dispatch)"
+          - "Webhook handler returns 200 on all analysis errors (embedding, KNN, LLM verification) to prevent EVENT retries; returns 400 only for malformed request body"
+        prerequisite: "Verify observer-route.ts exports SUPPORTED_TABLES array with dispatch pattern for at least 'task' and 'decision' types (grep for 'SUPPORTED_TABLES'). Verify POST /api/observe/:table/:id route exists in start-server.ts. Verify SurrealDB supports DEFINE EVENT ... ASYNC syntax (required for v3.0+)."
         files_to_modify:
           - "schema/migrations/0043_trace_llm_call_event.surql"
           - "schema/surreal-schema.surql"
@@ -441,4 +452,6 @@ phases:
 #
 # Pre-implementation gate:
 #   All 12 test files from distill phase must exist with test structure
-#   (setup, assertions, teardown) before Step 01-01 migrations are applied
+#   (setup, assertions, teardown) before Step 01-01 migrations are applied.
+#   Test files must use parametrized test cases for input variations
+#   (e.g., test.each or describe.each), not duplicate test methods per variation.

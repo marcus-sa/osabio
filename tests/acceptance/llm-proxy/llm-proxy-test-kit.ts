@@ -1093,6 +1093,14 @@ export async function seedLlmTraceWithContent(
   const traceRecord = new RecordId("trace", traceId);
   const workspaceRecord = new RecordId("workspace", options.workspaceId);
 
+  // Ensure a test identity exists for the actor field (required by trace schema)
+  const actorId = `proxy-test-actor-${options.workspaceId}`;
+  const actorRecord = new RecordId("identity", actorId);
+  await surreal.query(
+    `CREATE $actor CONTENT { name: "proxy-test-system", type: "system", workspace: $ws, created_at: time::now() };`,
+    { actor: actorRecord, ws: workspaceRecord },
+  ).catch(() => undefined); // Ignore if already exists
+
   const input: Record<string, unknown> = {};
   if (options.conversationId) {
     input.conversation = new RecordId("conversation", options.conversationId);
@@ -1108,6 +1116,8 @@ export async function seedLlmTraceWithContent(
     content: {
       type: "llm_call",
       model: options.model,
+      actor: actorRecord,
+      workspace: workspaceRecord,
       input_tokens: options.inputTokens ?? 100,
       output_tokens: options.outputTokens ?? 50,
       cache_read_tokens: 0,

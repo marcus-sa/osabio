@@ -12,6 +12,7 @@ import { logError, logInfo } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
+import { analyzeTraceResponse } from "./trace-response-analyzer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +24,7 @@ const SUPPORTED_TABLES = new Set<string>([
   "git_commit",
   "decision",
   "observation",
+  "trace",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -49,7 +51,29 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
 
       const workspaceRecord = new RecordId("workspace", workspaceId);
 
-      // Delegate to observer agent
+      // Trace analysis uses a specialized pipeline (embedding + KNN + LLM verification)
+      if (table === "trace") {
+        const traceResult = await analyzeTraceResponse({
+          surreal: deps.surreal,
+          workspaceRecord,
+          traceId: id,
+          traceBody: body,
+          observerModel: deps.observerModel as LanguageModel,
+          embeddingModel: deps.embeddingModel,
+          embeddingDimension: deps.config.embeddingDimension,
+        });
+
+        logInfo("observer.trace.verified", "Trace analysis complete", {
+          traceId: id,
+          observationsCreated: traceResult.observations_created,
+          skipped: traceResult.skipped,
+          reason: traceResult.reason,
+        });
+
+        return jsonResponse({ status: "ok" }, 200);
+      }
+
+      // Delegate to observer agent for all other entity types
       const agentOutput = await runObserverAgent({
         surreal: deps.surreal,
         workspaceRecord,

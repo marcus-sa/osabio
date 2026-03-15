@@ -207,5 +207,32 @@ events:
   s: EXECUTED
   sid: 03-02
   t: '2026-03-15T18:53:36Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-15T18:59:03Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-15T18:59:04Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-15T19:02:03Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-15T19:07:26Z'
+- d: 'NOT_APPLICABLE: trace-response-analyzer logic tested through acceptance tests;
+    pure functions (extractResponseText, shouldAnalyzeTrace) are simple extractors
+    tested implicitly'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-15T19:07:28Z'
 project_id: llm-proxy
 schema_version: '3.0'

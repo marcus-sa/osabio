@@ -428,7 +428,7 @@ DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
 DEFINE TABLE belongs_to TYPE RELATION IN task | decision | question OUT feature | project SCHEMAFULL;
 DEFINE FIELD added_at ON belongs_to TYPE datetime;
 
-DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior SCHEMAFULL;
+DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior | trace SCHEMAFULL;
 DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
@@ -1141,6 +1141,17 @@ DEFINE EVENT observation_peer_review ON observation
   WHEN $event = "CREATE" AND $after.source_agent != "observer_agent"
   THEN {
     http::post("http://localhost:3000/api/observe/observation/" + <string> meta::id($after.id), $after)
+  };
+
+-- EVENT 6: trace_llm_call_created — fires when a new LLM call trace is created
+-- Observer analyzes LLM responses for contradictions with confirmed decisions
+-- and unrecorded architectural choices.
+DEFINE EVENT trace_llm_call_created ON trace
+  ASYNC
+  RETRY 3
+  WHEN $event = "CREATE" AND $after.type = "llm_call"
+  THEN {
+    http::post("http://localhost:3000/api/observe/trace/" + <string> meta::id($after.id), $after)
   };
 
 -- ---------------------------------------------------------------------------
