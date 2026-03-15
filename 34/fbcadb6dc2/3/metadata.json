@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "34fbcadb6dc2",
+  "session_id": "e72ab63a-ea00-44e7-879e-cd0fe113ab80",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T13:58:49.337753Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-042-llm-trace-as-graph-entity.md",
+    "docs/requirements/llm-proxy/US-LP-005-policy-enforcement.md",
+    "docs/research/llm-proxy-research.md",
+    "docs/ux/llm-proxy/journey-proxy-gateway.yaml",
+    "docs/ux/llm-proxy/jtbd-analysis.md",
+    "docs/adrs/ADR-043-policy-engine-reuse-for-llm-enforcement.md",
+    "docs/adrs/ADR-044-local-pricing-table-for-cost-calculation.md",
+    "docs/adrs/ADR-045-multi-provider-via-separate-routes.md",
+    "docs/requirements/llm-proxy/US-LP-002-identity-resolution.md",
+    "docs/requirements/llm-proxy/US-LP-006-spend-monitoring-dashboard.md",
+    "docs/requirements/llm-proxy/US-LP-007-audit-provenance.md",
+    "docs/requirements/llm-proxy/dor-validation.md",
+    "docs/ux/llm-proxy/journey-proxy-gateway-visual.md",
+    "docs/adrs/ADR-040-llm-proxy-in-process-module.md",
+    "docs/adrs/ADR-041-async-trace-capture-with-inflight-tracker.md",
+    "docs/architecture/llm-proxy-architecture.md",
+    "docs/requirements/llm-proxy/US-LP-003-graph-trace-capture.md",
+    "docs/research/coding-agent-internals-research.md",
+    "docs/ux/llm-proxy/journey-proxy-gateway.feature",
+    "docs/ux/llm-proxy/shared-artifacts-registry.md",
+    ".nwave/des-config.json",
+    "docs/requirements/llm-proxy/README.md",
+    "docs/requirements/llm-proxy/US-LP-001-transparent-proxy-passthrough.md",
+    "docs/requirements/llm-proxy/US-LP-004-cost-attribution.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "53813a15b54a",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 35264,
+    "cache_read_tokens": 145588,
+    "output_tokens": 1058,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T13:58:49.331618Z",
+    "agent_lines": 4023,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4023,
+    "agent_percentage": 100
+  }
+}
