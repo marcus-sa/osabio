@@ -78,6 +78,7 @@ jobs:
           EMBEDDING_DIMENSION: ${{ vars.EMBEDDING_DIMENSION }}
           EXTRACTION_STORE_THRESHOLD: ${{ vars.EXTRACTION_STORE_THRESHOLD }}
           OPENAI_BASE_URL: https://openrouter.ai/api/v1
+          ANTHROPIC_API_URL: https://openrouter.ai/api
           EXTRACTION_DISPLAY_THRESHOLD: ${{ vars.EXTRACTION_DISPLAY_THRESHOLD }}
           SURREAL_URL: ws://127.0.0.1:8000/rpc
           SURREAL_USERNAME: root

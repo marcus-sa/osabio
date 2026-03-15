@@ -56,8 +56,6 @@ import {
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com";
-
 const FORWARDED_HEADERS = [
   "anthropic-version",
   "anthropic-beta",
@@ -554,11 +552,13 @@ export function createAnthropicProxyHandler(
   );
   pruneInterval.unref();
 
+  const anthropicApiUrl = deps.config.anthropicApiUrl;
+
   return async (request: Request): Promise<Response> => {
     const startedAt = performance.now();
     const url = new URL(request.url);
     const upstreamPath = url.pathname.replace(/^\/proxy\/llm\/anthropic/, "");
-    const upstreamUrl = `${ANTHROPIC_API_URL}${upstreamPath}`;
+    const upstreamUrl = `${anthropicApiUrl}${upstreamPath}`;
     const isCountTokens = isCountTokensRequest(url.pathname);
 
     // --- Step 1: Parse request body (malformed body forwarded as-is) ---
