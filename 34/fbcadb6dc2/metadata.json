@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "34fbcadb6dc2",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/34/fbcadb6dc2/0/metadata.json",
+      "transcript": "/34/fbcadb6dc2/0/full.jsonl",
+      "context": "/34/fbcadb6dc2/0/context.md",
+      "content_hash": "/34/fbcadb6dc2/0/content_hash.txt",
+      "prompt": "/34/fbcadb6dc2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 285,
+    "cache_read_tokens": 45605,
+    "output_tokens": 43,
+    "api_call_count": 1
+  }
+}
