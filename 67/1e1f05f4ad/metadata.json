@@ -3,7 +3,7 @@
   "checkpoint_id": "671e1f05f4ad",
   "strategy": "manual-commit",
   "branch": "marcus-sa/llm-proxy-research",
-  "checkpoints_count": 1,
+  "checkpoints_count": 34,
   "files_touched": [
     "app/src/server/proxy/anthropic-proxy-route.ts",
     "app/src/server/runtime/start-server.ts"
@@ -22,13 +22,20 @@
       "context": "/67/1e1f05f4ad/1/context.md",
       "content_hash": "/67/1e1f05f4ad/1/content_hash.txt",
       "prompt": "/67/1e1f05f4ad/1/prompt.txt"
+    },
+    {
+      "metadata": "/67/1e1f05f4ad/2/metadata.json",
+      "transcript": "/67/1e1f05f4ad/2/full.jsonl",
+      "context": "/67/1e1f05f4ad/2/context.md",
+      "content_hash": "/67/1e1f05f4ad/2/content_hash.txt",
+      "prompt": "/67/1e1f05f4ad/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 7228,
-    "cache_creation_tokens": 82633,
-    "cache_read_tokens": 303283,
-    "output_tokens": 5058,
-    "api_call_count": 8
+    "input_tokens": 7445,
+    "cache_creation_tokens": 663521,
+    "cache_read_tokens": 9689620,
+    "output_tokens": 37382,
+    "api_call_count": 125
   }
 }
