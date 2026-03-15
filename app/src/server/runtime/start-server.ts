@@ -39,6 +39,7 @@ import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
+import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -76,6 +77,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const policyHandlers = createPolicyRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
+  const anthropicProxyHandler = createAnthropicProxyHandler();
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -659,6 +661,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET",
           createClientInfoHandler(deps.surreal),
         ),
+      },
+      // Anthropic LLM Proxy — transparent passthrough with logging
+      "/proxy/llm/anthropic/v1/messages": {
+        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages", "POST", anthropicProxyHandler),
+      },
+      "/proxy/llm/anthropic/v1/messages/count_tokens": {
+        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
       },
       "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,
