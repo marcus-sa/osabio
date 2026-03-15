@@ -161,5 +161,31 @@ events:
   s: EXECUTED
   sid: 02-02
   t: '2026-03-15T18:39:24Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-15T18:40:00Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-15T18:42:11Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-15T18:44:09Z'
+- d: 'NOT_APPLICABLE: audit API is query-driven with minimal pure logic; acceptance
+    tests cover all behaviors'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-03
+  t: '2026-03-15T18:44:19Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-15T18:47:06Z'
 project_id: llm-proxy
 schema_version: '3.0'

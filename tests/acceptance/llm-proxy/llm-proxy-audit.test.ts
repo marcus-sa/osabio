@@ -4,18 +4,13 @@
  * Traces: US-LP-007 — Audit Provenance Chain
  * Driving ports: GET /api/workspaces/:id/proxy/traces/:traceId,
  *                GET /api/workspaces/:id/proxy/traces?project=...&start=...&end=...,
- *                GET /api/workspaces/:id/proxy/compliance
+ *                GET /api/workspaces/:id/proxy/compliance?start=...&end=...
  *
  * Validates that auditors can view full provenance chains for traces,
  * query by project/date range, run compliance checks, and export data.
- *
- * Implementation sequence:
- * 1. Auditor views provenance chain for a trace — ENABLED
- * 2. Auditor queries traces by project and date range
- * 3. Authorization compliance check passes
- * 4. Traces without authorization flagged as unverified
  */
 import { describe, expect, it } from "bun:test";
+import { RecordId, type Surreal } from "surrealdb";
 import {
   setupAcceptanceSuite,
   createProxyTestWorkspace,
@@ -25,16 +20,76 @@ import {
   queryTraceDetail,
   queryTracesByProject,
   runComplianceCheck,
-  createModelAccessPolicy,
+  seedAgentSession,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_audit");
 
 // ---------------------------------------------------------------------------
-// Scenario: Auditor views full provenance chain for a trace
+// Helper: seed a governed_by edge (trace -> policy)
+// ---------------------------------------------------------------------------
+async function seedGovernedByEdge(
+  surreal: Surreal,
+  traceId: string,
+  policyId: string,
+  decision: "pass" | "deny" = "pass",
+): Promise<void> {
+  const traceRecord = new RecordId("trace", traceId);
+  const policyRecord = new RecordId("policy", policyId);
+
+  await surreal.query(
+    `RELATE $trace->governed_by->$policy SET created_at = time::now(), decision = $decision;`,
+    { trace: traceRecord, policy: policyRecord, decision },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helper: seed a policy with all required schema fields
+// ---------------------------------------------------------------------------
+async function seedAuditPolicy(
+  surreal: Surreal,
+  policyId: string,
+  workspaceId: string,
+): Promise<string> {
+  const policyRecord = new RecordId("policy", policyId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  // Ensure a test identity exists for created_by
+  const identityId = `audit-identity-${workspaceId}`;
+  const identityRecord = new RecordId("identity", identityId);
+  await surreal.query(
+    `CREATE $identity CONTENT { name: "audit-test-user", type: "user", workspace: $ws, created_at: time::now() };`,
+    { identity: identityRecord, ws: workspaceRecord },
+  ).catch(() => undefined);
+
+  await surreal.query(`CREATE $policy CONTENT $content;`, {
+    policy: policyRecord,
+    content: {
+      title: `Audit Test Policy ${policyId}`,
+      description: "Test policy for audit compliance",
+      status: "active",
+      version: 1,
+      workspace: workspaceRecord,
+      created_by: identityRecord,
+      selector: { workspace: workspaceId },
+      rules: [{
+        id: "model_access",
+        condition: { field: "agent_type", operator: "eq", value: "coding-agent" },
+        effect: "allow",
+        priority: 50,
+      }],
+      created_at: new Date(),
+    },
+  });
+
+  return policyId;
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 1: Auditor views full provenance chain for a trace
 // ---------------------------------------------------------------------------
 describe("Auditor views full provenance chain for a trace", () => {
-  it("returns trace detail with usage data and provenance edges", async () => {
+  it("returns trace detail with usage data and linked provenance entities", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-audit-${crypto.randomUUID()}`;
@@ -42,10 +97,13 @@ describe("Auditor views full provenance chain for a trace", () => {
     const taskId = `task-audit-${crypto.randomUUID()}`;
     const traceId = `tr-audit-${crypto.randomUUID()}`;
     const sessionId = `session-audit-${crypto.randomUUID()}`;
+    const policyId = `pol-audit-${crypto.randomUUID()}`;
 
     await createProxyTestWorkspace(surreal, workspaceId);
     await createProxyTestProject(surreal, projectId, workspaceId);
     await createProxyTestTask(surreal, taskId, projectId, workspaceId);
+    await seedAgentSession(surreal, sessionId, { workspaceId });
+    await seedAuditPolicy(surreal, policyId, workspaceId);
 
     // Given a trace exists with full provenance edges
     await seedLlmTrace(surreal, traceId, {
@@ -60,32 +118,43 @@ describe("Auditor views full provenance chain for a trace", () => {
       taskId,
       sessionId,
     });
+    await seedGovernedByEdge(surreal, traceId, policyId);
 
     // When Elena queries the trace detail
     const response = await queryTraceDetail(baseUrl, workspaceId, traceId);
 
-    // Then the API responds with trace data
-    // Note: API endpoint needs to be implemented by crafter
-    expect(response).toBeDefined();
+    // Then the API responds with 200 and full provenance chain
+    expect(response.status).toBe(200);
+    const body = await response.json();
 
-    // Once implemented, validate:
-    // const body = await response.json();
-    // expect(body.model).toBe("claude-sonnet-4-20250514");
-    // expect(body.input_tokens).toBe(12340);
-    // expect(body.output_tokens).toBe(2100);
-    // expect(body.cost_usd).toBe(0.068);
-    // expect(body.provenance.workspace).toBeDefined();
-    // expect(body.provenance.task).toBeDefined();
-    // expect(body.provenance.session).toBeDefined();
+    // Usage data
+    expect(body.model).toBe("claude-sonnet-4-20250514");
+    expect(body.input_tokens).toBe(12340);
+    expect(body.output_tokens).toBe(2100);
+    expect(body.cost_usd).toBe(0.068);
+    expect(body.latency_ms).toBe(4200);
+    expect(body.stop_reason).toBe("end_turn");
+
+    // Provenance chain: linked entities
+    expect(body.provenance).toBeDefined();
+    expect(body.provenance.workspace).toBeDefined();
+    expect(body.provenance.task).toBeDefined();
+    expect(body.provenance.session).toBeDefined();
+    expect(body.provenance.policy).toBeDefined();
+
+    // JSON export shape
+    expect(typeof body.provenance.workspace.id).toBe("string");
+    expect(typeof body.provenance.task.id).toBe("string");
+    expect(typeof body.provenance.session.id).toBe("string");
+    expect(typeof body.provenance.policy.id).toBe("string");
   }, 15_000);
 });
 
 // ---------------------------------------------------------------------------
-// Focused Scenarios
+// Scenario 2: Auditor queries traces by project and date range
 // ---------------------------------------------------------------------------
-
 describe("Auditor queries traces by project and date range", () => {
-  it.skip("returns traces within date range for specified project", async () => {
+  it("returns traces within date range for specified project", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-query-${crypto.randomUUID()}`;
@@ -143,37 +212,56 @@ describe("Auditor queries traces by project and date range", () => {
       "2026-03-15",
     );
 
-    // Then results should include march5 and march10 traces but not march20
-    expect(response).toBeDefined();
-    // Once implemented:
-    // const body = await response.json();
-    // expect(body.traces.length).toBe(2);
+    // Then results include march5 and march10 traces but not march20
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.traces).toBeArray();
+    expect(body.traces.length).toBe(2);
+
+    // Verify ordering by created_at DESC (march10 first)
+    expect(body.traces[0].cost_usd).toBe(0.012);
+    expect(body.traces[1].cost_usd).toBe(0.006);
   }, 15_000);
 });
 
+// ---------------------------------------------------------------------------
+// Scenario 3: Authorization compliance check — all authorized
+// ---------------------------------------------------------------------------
 describe("Authorization compliance check passes", () => {
-  it.skip("verifies all traces have policy authorization edges", async () => {
+  it("reports all traces as authorized when governed_by edges exist", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-comply-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, workspaceId);
 
-    // Given all traces have associated policy authorization
     const policyId = `pol-comply-${crypto.randomUUID()}`;
-    await createModelAccessPolicy(surreal, workspaceId, {
-      policyId,
-      agentType: "coding-agent",
-      allowedModels: ["claude-sonnet-4-20250514"],
-    });
+    await seedAuditPolicy(surreal, policyId, workspaceId);
 
-    await seedLlmTrace(surreal, `trace-comply-${crypto.randomUUID()}`, {
+    // Given two traces both have governed_by policy edges
+    const traceId1 = `trace-comply1-${crypto.randomUUID()}`;
+    const traceId2 = `trace-comply2-${crypto.randomUUID()}`;
+
+    await seedLlmTrace(surreal, traceId1, {
       model: "claude-sonnet-4-20250514",
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
       latency_ms: 1500,
       workspaceId,
+      created_at: new Date("2026-03-10T10:00:00Z"),
     });
+    await seedGovernedByEdge(surreal, traceId1, policyId);
+
+    await seedLlmTrace(surreal, traceId2, {
+      model: "claude-sonnet-4-20250514",
+      input_tokens: 500,
+      output_tokens: 100,
+      cost_usd: 0.003,
+      latency_ms: 800,
+      workspaceId,
+      created_at: new Date("2026-03-12T14:00:00Z"),
+    });
+    await seedGovernedByEdge(surreal, traceId2, policyId);
 
     // When Elena runs the compliance check
     const response = await runComplianceCheck(
@@ -183,34 +271,59 @@ describe("Authorization compliance check passes", () => {
       "2026-03-31",
     );
 
-    // Then the report should show compliance status
-    expect(response).toBeDefined();
-    // Once implemented:
-    // const body = await response.json();
-    // expect(body.compliance_percentage).toBe(100);
+    // Then the compliance summary shows all authorized
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    expect(body.period.start).toBe("2026-03-01");
+    expect(body.period.end).toBe("2026-03-31");
+    expect(body.authorized_count).toBe(2);
+    expect(body.unverified_count).toBe(0);
+    expect(body.unverified_traces).toBeArray();
+    expect(body.unverified_traces.length).toBe(0);
   }, 15_000);
 });
 
+// ---------------------------------------------------------------------------
+// Scenario 4: Traces without authorization flagged as unverified
+// ---------------------------------------------------------------------------
 describe("Traces without authorization flagged as unverified", () => {
-  it.skip("flags traces from policy-gap period as unverified", async () => {
+  it("flags traces missing governed_by policy edge as unverified", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-unverified-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, workspaceId);
 
-    // Given traces exist during a policy gap
-    const gapDate = new Date("2026-03-03T14:00:00Z");
+    const policyId = `pol-mix-${crypto.randomUUID()}`;
+    await seedAuditPolicy(surreal, policyId, workspaceId);
 
+    // Given: one authorized trace and three unverified traces
+    const authorizedTraceId = `trace-auth-${crypto.randomUUID()}`;
+    await seedLlmTrace(surreal, authorizedTraceId, {
+      model: "claude-sonnet-4-20250514",
+      input_tokens: 1000,
+      output_tokens: 200,
+      cost_usd: 0.006,
+      latency_ms: 1500,
+      workspaceId,
+      created_at: new Date("2026-03-10T10:00:00Z"),
+    });
+    await seedGovernedByEdge(surreal, authorizedTraceId, policyId);
+
+    const unverifiedIds: string[] = [];
     for (let i = 0; i < 3; i++) {
-      await seedLlmTrace(surreal, `trace-gap-${crypto.randomUUID()}`, {
+      const id = `trace-gap-${crypto.randomUUID()}`;
+      unverifiedIds.push(id);
+      await seedLlmTrace(surreal, id, {
         model: "claude-sonnet-4-20250514",
         input_tokens: 1000,
         output_tokens: 200,
         cost_usd: 0.006,
         latency_ms: 1500,
         workspaceId,
-        created_at: gapDate,
+        created_at: new Date("2026-03-03T14:00:00Z"),
       });
+      // No governed_by edge -- these are unverified
     }
 
     // When Elena runs the compliance check
@@ -221,10 +334,22 @@ describe("Traces without authorization flagged as unverified", () => {
       "2026-03-31",
     );
 
-    // Then traces without policy should be flagged as unverified
-    expect(response).toBeDefined();
-    // Once implemented:
-    // const body = await response.json();
-    // expect(body.unverified_count).toBe(3);
+    // Then the compliance report flags 3 unverified traces
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    expect(body.period.start).toBe("2026-03-01");
+    expect(body.period.end).toBe("2026-03-31");
+    expect(body.authorized_count).toBe(1);
+    expect(body.unverified_count).toBe(3);
+    expect(body.unverified_traces).toBeArray();
+    expect(body.unverified_traces.length).toBe(3);
+
+    // Each unverified trace includes id, model, and created_at
+    for (const trace of body.unverified_traces) {
+      expect(trace.id).toBeDefined();
+      expect(trace.model).toBe("claude-sonnet-4-20250514");
+      expect(trace.created_at).toBeDefined();
+    }
   }, 15_000);
 });

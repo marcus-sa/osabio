@@ -41,6 +41,7 @@ import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
+import { createAuditApiHandlers } from "../proxy/audit-api";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -80,6 +81,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
+  const auditApiHandlers = createAuditApiHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -662,6 +664,37 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET /api/auth/oauth-client/:clientId",
           "GET",
           createClientInfoHandler(deps.surreal),
+        ),
+      },
+      // LLM Proxy — Audit provenance chain
+      "/api/workspaces/:workspaceId/proxy/traces/:traceId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/traces/:traceId",
+          "GET",
+          (request) => auditApiHandlers.handleTraceDetail(
+            request.params.workspaceId,
+            request.params.traceId,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/traces": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/traces",
+          "GET",
+          (request) => auditApiHandlers.handleTracesByProject(
+            request.params.workspaceId,
+            new URL(request.url),
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/compliance": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/compliance",
+          "GET",
+          (request) => auditApiHandlers.handleCompliance(
+            request.params.workspaceId,
+            new URL(request.url),
+          ),
         ),
       },
       // LLM Proxy — Spend monitoring dashboard
