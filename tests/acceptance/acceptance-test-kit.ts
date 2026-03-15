@@ -129,6 +129,9 @@ export function setupAcceptanceSuite(
       githubClientId: process.env.GITHUB_CLIENT_ID ?? "smoke-test-github-id",
       githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "smoke-test-github-secret",
       observerModelId: process.env.OBSERVER_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
+      scorerModelId: process.env.SCORER_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
+      anthropicApiUrl: process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
+      inferenceProvider: "openrouter",
     };
 
     const deps = await createRuntimeDependencies(config);

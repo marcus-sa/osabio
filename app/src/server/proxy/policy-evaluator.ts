@@ -181,7 +181,7 @@ async function getTodaySpend(
   try {
     const ws = new RecordId("workspace", workspaceId);
     const results = await surreal.query<[Array<{ total: number }>]>(
-      `SELECT math::sum(cost_usd) AS total FROM trace WHERE workspace = $ws AND created_at >= time::floor(time::now(), 1d);`,
+      `SELECT math::sum(cost_usd) AS total FROM trace WHERE workspace = $ws AND created_at >= time::floor(time::now(), 1d) GROUP ALL;`,
       { ws },
     );
     const total = results[0]?.[0]?.total ?? 0;
