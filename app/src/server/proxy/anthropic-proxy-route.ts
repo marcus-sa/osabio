@@ -11,12 +11,13 @@
  * 4. Policy evaluation [future 02-01]
  * 5. Context injection [future 03-02]
  * 6. Request forwarding
- * 7. Async trace capture [future 01-03]
+ * 7. Async trace capture (01-03)
  */
 import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
 import { jsonResponse } from "../http/response";
 import { resolveIdentity } from "./identity-resolver";
 import { resolveSessionId } from "./session-id-resolver";
+import { captureTrace, type TraceData } from "./trace-writer";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
@@ -115,6 +116,8 @@ type StreamContext = {
   model?: string;
   inputTokens: number;
   outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
   stopReason?: string;
 };
 
@@ -132,6 +135,8 @@ function extractSSEUsage(buffer: string, ctx: StreamContext): string {
 
       if (event.type === "message_start" && event.message?.usage) {
         ctx.inputTokens = event.message.usage.input_tokens ?? 0;
+        ctx.cacheCreationTokens = event.message.usage.cache_creation_input_tokens ?? 0;
+        ctx.cacheReadTokens = event.message.usage.cache_read_input_tokens ?? 0;
         ctx.model = event.message.model ?? ctx.model;
       }
 
@@ -149,6 +154,49 @@ function extractSSEUsage(buffer: string, ctx: StreamContext): string {
   }
 
   return remainder;
+}
+
+// ---------------------------------------------------------------------------
+// Non-Streaming Usage Extraction
+// ---------------------------------------------------------------------------
+
+type NonStreamingResponse = {
+  model?: string;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  stop_reason?: string;
+};
+
+function extractNonStreamingUsage(
+  responseBody: string,
+  requestModel: string | undefined,
+  latencyMs: number,
+  identity: { workspaceId?: string; taskId?: string },
+  sessionId?: string,
+): TraceData | undefined {
+  try {
+    const parsed = JSON.parse(responseBody) as NonStreamingResponse;
+    if (!parsed.usage) return undefined;
+
+    return {
+      model: parsed.model ?? requestModel ?? "unknown",
+      inputTokens: parsed.usage.input_tokens ?? 0,
+      outputTokens: parsed.usage.output_tokens ?? 0,
+      cacheCreationTokens: parsed.usage.cache_creation_input_tokens ?? 0,
+      cacheReadTokens: parsed.usage.cache_read_input_tokens ?? 0,
+      stopReason: parsed.stop_reason,
+      latencyMs,
+      workspaceId: identity.workspaceId,
+      sessionId,
+      taskId: identity.taskId,
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,11 +281,23 @@ export function createAnthropicProxyHandler(
     // --- Non-streaming response ---
     if (!isStreaming) {
       const responseBody = await upstream.text();
+      const latencyMs = elapsedMs(startedAt);
+
       logInfo("proxy.anthropic.response", "Anthropic response", {
         status: upstream.status,
-        latency_ms: elapsedMs(startedAt),
+        latency_ms: latencyMs,
         ...identityContext,
       });
+
+      // Async trace capture for non-streaming (skip count_tokens)
+      if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId);
+        if (traceData) {
+          deps.inflight.track(
+            captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
+          );
+        }
+      }
 
       return new Response(responseBody, {
         status: upstream.status,
@@ -258,6 +318,8 @@ export function createAnthropicProxyHandler(
       model: parsed?.model,
       inputTokens: 0,
       outputTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
       stopReason: undefined,
     };
 
@@ -278,14 +340,37 @@ export function createAnthropicProxyHandler(
       } finally {
         await writer.close();
 
+        const latencyMs = elapsedMs(startedAt);
+
         logInfo("proxy.anthropic.response", "Anthropic stream complete", {
           model: streamContext.model,
           input_tokens: streamContext.inputTokens,
           output_tokens: streamContext.outputTokens,
+          cache_creation_tokens: streamContext.cacheCreationTokens,
+          cache_read_tokens: streamContext.cacheReadTokens,
           stop_reason: streamContext.stopReason,
-          latency_ms: elapsedMs(startedAt),
+          latency_ms: latencyMs,
           ...identityContext,
         });
+
+        // Async trace capture for streaming (skip count_tokens)
+        if (!isCountTokens && streamContext.model) {
+          const traceData: TraceData = {
+            model: streamContext.model,
+            inputTokens: streamContext.inputTokens,
+            outputTokens: streamContext.outputTokens,
+            cacheCreationTokens: streamContext.cacheCreationTokens,
+            cacheReadTokens: streamContext.cacheReadTokens,
+            stopReason: streamContext.stopReason,
+            latencyMs,
+            workspaceId: identitySignals.workspaceId,
+            sessionId: effectiveSessionId,
+            taskId: identitySignals.taskId,
+          };
+          deps.inflight.track(
+            captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
+          );
+        }
       }
     })();
 

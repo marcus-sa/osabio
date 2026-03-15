@@ -197,11 +197,7 @@ export async function createProxyTestWorkspace(
       onboarding_summary_pending: false,
       onboarding_started_at: new Date(),
       created_at: new Date(),
-      proxy_settings: {
-        daily_budget: options?.dailyBudget ?? 50.0,
-        alert_threshold: options?.alertThreshold ?? 0.8,
-        rate_limit_per_minute: 60,
-      },
+      // proxy_settings omitted — field not yet defined in SCHEMAFULL workspace table
     },
   });
 
@@ -397,6 +393,7 @@ export async function seedLlmTrace(
   await surreal.query(`CREATE $trace CONTENT $content;`, {
     trace: traceRecord,
     content: {
+      type: "llm_call",
       model: options.model,
       input_tokens: options.input_tokens,
       output_tokens: options.output_tokens,
@@ -405,6 +402,7 @@ export async function seedLlmTrace(
       cost_usd: options.cost_usd,
       latency_ms: options.latency_ms,
       stop_reason: options.stop_reason ?? "end_turn",
+      workspace: workspaceRecord,
       created_at: options.created_at ?? new Date(),
     },
   });
