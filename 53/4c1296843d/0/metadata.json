@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "534c1296843d",
+  "session_id": "7249aa4e-2c2e-40b2-8b4d-42534b5d1aba",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T17:54:27.803104Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/unit/proxy-session-id-resolver.test.ts",
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/session-id-resolver.ts",
+    "app/src/server/runtime/start-server.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-identity.test.ts",
+    "tests/unit/proxy-identity-resolver.test.ts",
+    "app/src/server/proxy/identity-resolver.ts",
+    "docs/feature/llm-proxy/execution-log.yaml",
+    "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "96de53c92fff",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T17:54:27.785363Z",
+    "agent_lines": 0,
+    "human_added": 375,
+    "human_modified": 147,
+    "human_removed": 0,
+    "total_committed": 380,
+    "agent_percentage": 0
+  }
+}
