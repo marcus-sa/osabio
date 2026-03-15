@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "cb7d79c46f95",
+  "session_id": "d6093798-fa90-48c5-9463-239d10c8269a",
   "strategy": "manual-commit",
+  "created_at": "2026-03-15T20:02:54.148187Z",
   "branch": "marcus-sa/llm-proxy-research",
   "checkpoints_count": 1,
   "files_touched": [
@@ -11,27 +13,22 @@
     "schema/migrations/0046_observation_type_proxy_no_policy.surql",
     "schema/surreal-schema.surql"
   ],
-  "sessions": [
-    {
-      "metadata": "/cb/7d79c46f95/0/metadata.json",
-      "transcript": "/cb/7d79c46f95/0/full.jsonl",
-      "context": "",
-      "content_hash": "/cb/7d79c46f95/0/content_hash.txt",
-      "prompt": ""
-    },
-    {
-      "metadata": "/cb/7d79c46f95/1/metadata.json",
-      "transcript": "/cb/7d79c46f95/1/full.jsonl",
-      "context": "/cb/7d79c46f95/1/context.md",
-      "content_hash": "/cb/7d79c46f95/1/content_hash.txt",
-      "prompt": "/cb/7d79c46f95/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "1fab6c8eda30",
   "token_usage": {
     "input_tokens": 66,
     "cache_creation_tokens": 135551,
     "cache_read_tokens": 2901336,
     "output_tokens": 6937,
     "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T20:02:53.723499Z",
+    "agent_lines": 15,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 100
   }
 }
