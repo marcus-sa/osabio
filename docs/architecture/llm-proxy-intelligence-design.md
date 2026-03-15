@@ -188,7 +188,7 @@ The workspace/project context (confirmed decisions, active constraints, learning
 
 **Two-phase query** (leverages caching):
 1. **Session-scoped fetch (cached, TTL 5min)**: All confirmed decisions + active learnings + open observations for workspace. This is the candidate pool.
-2. **Per-turn ranking (computed per request)**: Embed last user message, compute cosine similarity against cached candidate embeddings, rank by priority tier within budget.
+2. **Per-turn ranking (computed per request)**: Embed last user message using existing `EMBEDDING_MODEL` from config (same model used for entity embeddings), compute cosine similarity against cached candidate embeddings, rank by priority tier within budget.
 
 This avoids a KNN database query on every request -- the KNN ranking happens in-memory against the cached candidate pool.
 
@@ -557,19 +557,21 @@ The `llm_call` trace node (from ADR-042) gains intelligence-related fields in `i
 }
 ```
 
-**`output` FLEXIBLE field** (written by proxy -- contains response content for Observer analysis):
-The `output` FLEXIBLE field stores the full response content (text blocks, tool inputs, stop_reason) that the Observer's Trace Response Analyzer reads when triggered by the `trace_llm_call_created` EVENT. This is the bridge between the proxy (data capture) and the Observer (analysis).
+**`output` FLEXIBLE field** (written by proxy -- complete opaque response capture for Observer analysis):
+The `output` FLEXIBLE field stores the **complete, unanalyzed** response content that the Observer's Trace Response Analyzer reads when triggered by the `trace_llm_call_created` EVENT. This is the bridge between the proxy (opaque data capture) and the Observer (analysis). Per ADR-051, the proxy performs NO selective extraction or content analysis -- it captures the full response opaquely.
 
 ```json
 {
   "stop_reason": "end_turn",
-  "text_blocks": ["...assistant response text..."],
-  "tool_inputs": [{"tool": "Write", "input": "..."}],
+  "content": [
+    {"type": "text", "text": "...assistant response text..."},
+    {"type": "tool_use", "id": "...", "name": "Write", "input": {"..."}}
+  ],
   "token_usage": { "input": 1234, "output": 567 }
 }
 ```
 
-This data enables the Observer to perform contradiction detection and missing decision detection without needing to re-fetch or re-parse anything from the upstream API.
+The proxy stores the raw `content` array from the Anthropic response (or equivalent from OpenAI format) without restructuring into separate `text_blocks` / `tool_inputs` fields. The Observer is responsible for parsing and classifying content types during analysis. This ensures the proxy has zero analysis logic -- its role ends at trace creation.
 
 ---
 
@@ -745,10 +747,10 @@ step_12:
     - "Embedding computed via existing embedding pipeline"
 
 step_13:
-  title: "Trace creation with response content for Observer analysis"
-  description: "Extend trace writer to include response text blocks, tool inputs, and stop_reason in FLEXIBLE output field. Add SurrealDB EVENT on trace creation."
+  title: "Trace creation with complete opaque response capture for Observer analysis"
+  description: "Extend trace writer to capture complete response content opaquely in FLEXIBLE output field. Add SurrealDB EVENT on trace creation. Per ADR-051, proxy performs NO selective extraction or content analysis."
   acceptance_criteria:
-    - "llm_call trace output contains response text blocks and tool inputs"
+    - "llm_call trace output contains complete response content (all content blocks captured opaquely, no selective extraction per ADR-051)"
     - "trace_llm_call_created EVENT fires on trace creation with type=llm_call"
     - "Trace write never blocks SSE response delivery"
     - "Intelligence metadata (context injection stats) included in trace input"
@@ -777,9 +779,10 @@ step_15:
   title: "Observer reverse coherence scan: implementations without decisions"
   description: "NEW coherence scan phase in runCoherenceScans() finding completed tasks and commits with no linked decision records"
   acceptance_criteria:
-    - "Completed tasks without decision links flagged as info observations"
+    - "Completed tasks (>14 days, status=completed) without decision links flagged as info observations — query: tasks WHERE status='completed' AND created_at < time::now() - 14d AND no edges matching <-implemented_by<-decision"
+    - "14-day age threshold allows recent implementations to accrue decisions before flagging"
     - "Git commits without decision links flagged as info observations"
-    - "Deduplication against existing observations on same entity"
+    - "Deduplicates against existing observations WHERE category='implementation-without-decision' AND observes target matches entity within past 30 days"
     - "Scan is deterministic (no LLM cost)"
   architectural_constraints:
     - "Extension to existing runCoherenceScans() in graph-scan.ts"

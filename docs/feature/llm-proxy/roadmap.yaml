@@ -21,7 +21,17 @@ title: "LLM Proxy — Transparent Passthrough with Intelligence Layer"
 paradigm: functional
 
 validation:
-  status: pending_review
+  status: revised
+  reviewed_at: "2026-03-16"
+  reviewer: nw-solution-architect-reviewer
+  revision_summary: >
+    Addressed 4 critical, 4 high, 5 medium issues from architecture review.
+    Critical fixes: (1) explicit 3-step data migration for field rename,
+    (2) proxy_intelligence_config assigned to migration 0042,
+    (3) response capture clarified as opaque per ADR-051,
+    (4) conversation hash degradation specified.
+    High fixes: test file mapping added, spend cache invalidation strategy,
+    EVENT webhook prerequisite noted, reverse coherence query specified.
 
 phases:
   - id: "01"
@@ -46,10 +56,11 @@ phases:
         acceptance_criteria:
           - "trace type ASSERT includes 'llm_call' alongside existing types"
           - "LLM fields (model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, provider, stop_reason, request_id) defined as option<> on trace"
-          - "agent_session.external_session_id replaces opencode_session_id with composite index on (external_session_id, workspace)"
-          - "proxy_intelligence_config table exists with workspace, context_injection_enabled, context_injection_token_budget, context_injection_cache_ttl_seconds, context_injection_tier, contradiction_detection_enabled, contradiction_tier1_threshold, contradiction_tier2_confidence_min fields"
-          - "surreal-schema.surql updated with all new definitions"
+          - "agent_session.external_session_id replaces opencode_session_id via 3-step data migration: (1) DEFINE FIELD external_session_id, (2) UPDATE agent_session SET external_session_id = opencode_session_id WHERE opencode_session_id IS NOT NONE, (3) REMOVE FIELD opencode_session_id; composite index on (external_session_id, workspace) created after data copy"
+          - "proxy_intelligence_config table created in migration 0042 — SCHEMAFULL with workspace, context_injection_enabled, context_injection_token_budget, context_injection_cache_ttl_seconds, context_injection_tier, contradiction_detection_enabled, contradiction_tier1_threshold, contradiction_tier2_confidence_min fields"
+          - "surreal-schema.surql updated with all new definitions (reflects state after all three migrations applied)"
           - "bun migrate applies all three migrations successfully"
+          - "Schema migrations are breaking (per project policy) — no rollback supported; ensure implementation readiness before applying"
         files_to_modify:
           - "schema/migrations/0040_trace_llm_call_fields.surql"
           - "schema/migrations/0041_proxy_session_id.surql"
@@ -144,9 +155,10 @@ phases:
           defaults to permissive with warning observation. Policy decisions
           logged for audit trail.
         acceptance_criteria:
-          - "Model access violation returns 403 with policy_ref, violated policy description, and model suggestion"
-          - "Budget exceeded returns 429 with current_spend, daily_limit, and remediation"
-          - "Rate limit exceeded returns 429 with Retry-After header and rate limit description"
+          - "Model access violation returns 403 with JSON body: {error, policy_ref, policy_description, model_suggestion, remediation}"
+          - "Budget exceeded returns 429 with JSON body: {error, current_spend_usd, daily_limit_usd, time_until_reset_seconds}"
+          - "Rate limit exceeded returns 429 with Retry-After header + JSON body: {error, rate_limit_per_minute, reset_time_unix}"
+          - "Budget enforcement reads today's spend from cached spend aggregation (updated on every trace write, TTL 10s fallback); cache miss triggers live trace aggregation query"
           - "Policy check completes under 10ms at p99 (in-memory rate limit + cached spend)"
           - "No policies configured defaults to permissive — request forwarded with warning observation"
           - "Policy decision (pass/fail, policy_ref, timestamp) logged on every request"
@@ -169,7 +181,8 @@ phases:
           Anomaly detection creates observations for sessions exceeding 2x average
           call rate. Budget threshold alerts fire at workspace-configured percentage
           (default 80%). Spend aggregation cached with short TTL (10s) for
-          dashboard reads.
+          dashboard reads. Cache invalidated on every trace creation via
+          inflight tracker callback; TTL acts as fallback invalidation.
         acceptance_criteria:
           - "GET /api/workspaces/:wsId/proxy/spend returns workspace total spend, budget progress percentage, and daily limit"
           - "Spend response includes per-project breakdown with today_spend, mtd_spend, and call_count sorted by today_spend DESC"
@@ -177,6 +190,7 @@ phases:
           - "Anomaly observation created for sessions exceeding 2x average call rate"
           - "Budget threshold alert observation created when daily spend reaches configured percentage"
           - "Unattributed costs visible as separate category in project breakdown"
+          - "Spend cache invalidated on every trace creation (inflight tracker callback); TTL (10s) acts as fallback"
           - "All spend queries respond within 2 seconds"
         files_to_modify:
           - "app/src/server/proxy/spend-api.ts"
@@ -230,10 +244,10 @@ phases:
           - "Identical requests (same system prompt + first user message) produce the same conversation ID across calls"
           - "Different system prompts or different first user messages produce different conversation IDs"
           - "Conversation record created with workspace, title (first user message truncated ~100 chars), source='proxy', createdAt, updatedAt"
-          - "Second request with same content reuses existing conversation record (idempotent CREATE)"
+          - "Second request with same content reuses existing conversation record — idempotent via CREATE conversation:<uuidv5> SET ... (SurrealDB CREATE is no-op on existing ID)"
           - "Trace input FLEXIBLE field contains conversation reference when hash resolved"
-          - "Missing system prompt or missing first user message — trace created without conversation link"
-          - "Conversation upsert failure does not block request forwarding"
+          - "Missing system prompt or missing first user message — conversation hash not computed; trace created without conversation field populated"
+          - "Conversation upsert failure does not block request forwarding — warning observation logged"
         files_to_modify:
           - "app/src/server/proxy/conversation-hash-resolver.ts"
           - "app/src/server/proxy/conversation-upserter.ts"
@@ -261,13 +275,15 @@ phases:
           - "Workspace decisions, learnings, and observations injected into system prompt as <brain-context> XML block"
           - "Original system prompt content preserved — brain-context appended at end"
           - "Array-form system prompt preserved with brain-context as additional text block with cache_control: ephemeral"
+          - "Last user message embedded using existing EMBEDDING_MODEL from config (same model used for entity embeddings)"
           - "Token budget respected — candidates ranked by weighted cosine similarity, top N selected within budget"
+          - "Context candidate pool cached in-memory per workspace (confirmed decisions, active learnings, open observations with embeddings); populated on first request, refreshed on TTL expiry"
           - "Context injection disabled via config — request forwarded without modification"
           - "Context injection failure — request forwarded without modification (fail-open), warning logged"
           - "Session cache hit — no DB query on repeated request within TTL"
           - "Empty workspace (no decisions/learnings/observations) — no brain-context block appended"
           - "Trace input FLEXIBLE field contains brain_context_injected, brain_context_decisions, brain_context_learnings, brain_context_observations, brain_context_tokens_est"
-          - "Trace output FLEXIBLE field contains response text blocks and tool inputs for Observer analysis"
+          - "Trace output FLEXIBLE field contains complete response content (all text blocks, tool_use definitions, and metadata) captured opaquely for downstream Observer analysis — proxy performs NO selective extraction or content analysis per ADR-051"
         files_to_modify:
           - "app/src/server/proxy/intelligence-config.ts"
           - "app/src/server/proxy/context-cache.ts"
@@ -316,6 +332,8 @@ phases:
           - "Multiple contradictions in single trace — separate observations per decision"
           - "Observer analysis failure — trace still exists, no observations created (fail-skip)"
           - "Observations created with sourceAgent='observer_agent', not 'llm_proxy'"
+          - "Observer webhook receiver at POST /api/observe/trace/:id dispatches to trace response analyzer"
+        prerequisite: "Verify SurrealDB EVENT + webhook infrastructure exists from prior Observer implementation (observer-route.ts handles SUPPORTED_TABLES dispatch)"
         files_to_modify:
           - "schema/migrations/0043_trace_llm_call_event.surql"
           - "schema/surreal-schema.surql"
@@ -350,10 +368,11 @@ phases:
           - "Single trace in session — no cross-trace patterns possible, analysis skipped"
           - "Session-end analysis failure — session still ends normally (ASYNC EVENT, fail-skip)"
           - "Accumulated contradiction across multiple traces creates conflict observation"
-          - "Completed tasks (>14 days, status=completed) without decision links flagged as implementation-without-decision"
-          - "Tasks WITH decision links — no observation created"
+          - "Completed tasks (>14 days, status=completed) without decision links flagged as implementation-without-decision — query: tasks WHERE status='completed' AND created_at < time::now() - 14d AND no edges matching <-implemented_by<-decision"
+          - "14-day age threshold allows recent implementations to accrue decisions before flagging"
+          - "Tasks WITH decision links (direct or via feature->belongs_to->decision) — no observation created"
           - "Recent tasks (under 14-day age threshold) — not flagged"
-          - "Duplicate coherence scan — no duplicate observations created"
+          - "Deduplicates against existing observations WHERE category='implementation-without-decision' AND observes target matches task within past 30 days"
         files_to_modify:
           - "schema/migrations/0044_session_ended_event.surql"
           - "schema/surreal-schema.surql"
@@ -396,26 +415,30 @@ phases:
 # --- Metrics ---
 #
 # Total steps: 10
-# Total acceptance criteria: 78
-# Avg AC per step: 7.8
+# Total acceptance criteria: 87 (post-review revision, was 78)
+# Avg AC per step: 8.7
 # New production files: ~18
 # Modified production files: ~8
 # Migration files: 4
 # Test files: 12 (all pre-existing from distill phase)
 # Step/file ratio: 10/22 = 0.45 (well under 2.5)
 #
-# Scenario coverage:
-#   M1  Passthrough (8):     01-02
-#   M2  Identity (5):        01-02
-#   M3  Trace (7):           01-03
-#   M4  Cost (7):            01-03 + 02-02
-#   M5  Policy (7):          02-01
-#   M6  Dashboard (5):       02-02
-#   M7  Audit (4):           02-03
-#   M8  Context Injection (8): 03-02
-#   M9  Conversation Hash (6): 03-01
-#   M10 Session Resolution (5): 01-02
-#   M11 Observer Trace (7):  04-01
-#   M12 Observer Session (5): 04-02
-#   M13 Reverse Coherence (5): 04-02
-#   Total: 82 scenarios across 10 steps
+# Scenario → test file mapping:
+#   M1  Passthrough (8):       01-02 → llm-proxy-passthrough.test.ts
+#   M2  Identity (5):          01-02 → llm-proxy-identity.test.ts
+#   M3  Trace (7):             01-03 → llm-proxy-trace.test.ts
+#   M4  Cost (7):              01-03 + 02-02 → llm-proxy-cost.test.ts
+#   M5  Policy (7):            02-01 → llm-proxy-policy.test.ts
+#   M6  Dashboard (5):         02-02 → llm-proxy-dashboard.test.ts
+#   M7  Audit (4):             02-03 → llm-proxy-audit.test.ts
+#   M8  Context Injection (8): 03-02 → llm-proxy-context-injection.test.ts
+#   M9  Conversation Hash (6): 03-01 → llm-proxy-conversation-hash.test.ts
+#   M10 Session Resolution (5): 01-02 → llm-proxy-session-resolution.test.ts
+#   M11 Observer Trace (7):    04-01 → llm-proxy-observer-trace.test.ts
+#   M12 Observer Session (5):  04-02 → llm-proxy-observer-session-end.test.ts
+#   M13 Reverse Coherence (5): 04-02 → llm-proxy-observer-coherence.test.ts
+#   Total: 82 scenarios across 10 steps, 12 test files
+#
+# Pre-implementation gate:
+#   All 12 test files from distill phase must exist with test structure
+#   (setup, assertions, teardown) before Step 01-01 migrations are applied

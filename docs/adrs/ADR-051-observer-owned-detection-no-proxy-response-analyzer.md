@@ -14,15 +14,18 @@ However, the Observer does NOT currently analyze trace content. It handles `task
 
 ## Decision
 
-The proxy performs NO analysis of LLM responses. Its role ends at trace creation. The detection pipeline is:
+The proxy performs NO analysis of LLM responses. Its role ends at trace creation. The trace captures the **complete response content opaquely** -- all content blocks (text, tool_use, etc.) are stored as-is in the `output` FLEXIBLE field without selective extraction or restructuring. The Observer is responsible for parsing and classifying content types during analysis.
+
+The detection pipeline is:
 
 1. Proxy forwards LLM request, streams response to client
-2. Proxy creates `trace` record (async, post-response, via inflight tracker)
+2. Proxy creates `trace` record with complete opaque response content (async, post-response, via inflight tracker)
 3. SurrealDB EVENT `trace_llm_call_created` fires on trace creation
-4. Observer receives webhook, runs per-trace analysis (contradiction + missing decision detection)
-5. Observer creates observations for confirmed findings
+4. Observer receives webhook at `POST /api/observe/trace/:id`, dispatches to Trace Response Analyzer
+5. Observer parses trace content, runs per-trace analysis (contradiction + missing decision detection)
+6. Observer creates observations for confirmed findings
 
-The proxy has zero detection logic, zero embedding computation, zero LLM calls for analysis. All of that lives in the Observer.
+The proxy has zero detection logic, zero embedding computation, zero LLM calls for analysis, and zero content classification logic. All of that lives in the Observer.
 
 ### New Observer capabilities required
 

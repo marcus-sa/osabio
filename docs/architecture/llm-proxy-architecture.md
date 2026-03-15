@@ -203,7 +203,7 @@ The existing `trace` table is extended with `"llm_call"` as a new type value and
 
 **Existing fields reused**: `session` (record<agent_session>), `workspace` (record<workspace>), `duration_ms`, `input`/`output` (FLEXIBLE), `parent_trace`, `actor`, `created_at`.
 
-**`agent_session` rename**: `opencode_session_id` → `external_session_id` to store Claude Code session UUID (or any external agent session ID).
+**`agent_session` rename**: `opencode_session_id` → `external_session_id` via 3-step data migration: (1) DEFINE FIELD `external_session_id`, (2) UPDATE existing records to copy `opencode_session_id` → `external_session_id`, (3) REMOVE FIELD `opencode_session_id`. Composite index on `(external_session_id, workspace)` created after data copy. Stores Claude Code session UUID or any external agent session ID.
 
 Indexes already exist on `trace` for `session`, `workspace`, `created_at`.
 
@@ -279,7 +279,7 @@ The proxy reuses `evaluatePolicyGate()` from `policy-gate.ts` with an adapted co
 | `agent_role` | Agent type from `X-Brain-Agent-Type` header or inferred |
 
 Budget and rate limit checks are separate from the policy gate:
-- **Budget**: Read spend counter from llm_call trace aggregation, compare against workspace-configured limit
+- **Budget**: Read spend counter from cached spend aggregation (updated on every trace write via inflight tracker callback, TTL 10s fallback). Cache miss triggers live trace aggregation query. Compare against workspace-configured limit.
 - **Rate limit**: In-memory sliding window counter per workspace (too frequent for DB queries)
 
 ### 8.2 Observation System Integration
@@ -396,14 +396,16 @@ Configuration via existing `.env`:
 ```yaml
 step_01:
   title: "Schema migration: extend trace table with llm_call type + LLM fields"
-  description: "Add 'llm_call' to trace type enum, add LLM-specific optional fields (model, tokens, cost, provider, stop_reason), rename opencode_session_id to external_session_id on agent_session"
+  description: "Add 'llm_call' to trace type enum, add LLM-specific optional fields (model, tokens, cost, provider, stop_reason), rename opencode_session_id to external_session_id on agent_session via 3-step data migration, create proxy_intelligence_config table"
   acceptance_criteria:
     - "trace type ASSERT includes 'llm_call'"
     - "LLM fields (model, input_tokens, output_tokens, cost_usd, provider) defined on trace"
-    - "agent_session.external_session_id replaces opencode_session_id"
+    - "agent_session.external_session_id replaces opencode_session_id via 3-step migration (DEFINE → UPDATE → REMOVE)"
+    - "proxy_intelligence_config table created in migration 0042"
   architectural_constraints:
-    - "Migration file 0040_trace_llm_call_fields.surql in schema/migrations/"
+    - "Three migration files: 0040 (trace fields), 0041 (session rename), 0042 (intelligence config)"
     - "Existing trace records unaffected — new fields are optional"
+    - "Schema migrations are breaking (per project policy) — no rollback supported"
 
 step_02:
   title: "Solidify Anthropic proxy passthrough with identity resolution"
@@ -453,9 +455,9 @@ step_05:
   title: "Policy enforcement at proxy boundary"
   description: "Pre-request policy check for model access, budget limit, and rate limit using existing policy engine"
   acceptance_criteria:
-    - "Model access violation returns 403 with policy_ref and remediation"
-    - "Budget exceeded returns 429 with current spend, limit, and remediation"
-    - "Rate limit exceeded returns 429 with Retry-After header"
+    - "Model access violation returns 403 with JSON body: {error, policy_ref, policy_description, model_suggestion, remediation}"
+    - "Budget exceeded returns 429 with JSON body: {error, current_spend_usd, daily_limit_usd, time_until_reset_seconds}"
+    - "Rate limit exceeded returns 429 with Retry-After header + JSON body: {error, rate_limit_per_minute, reset_time_unix}"
     - "Policy check completes under 10ms at p99"
     - "Missing policies default to permissive with warning observation"
   architectural_constraints:
@@ -479,7 +481,7 @@ step_06:
     - "Budget threshold alerts fire at configured percentage"
   architectural_constraints:
     - "Anomaly alerts integrate with existing observation system"
-    - "Spend aggregation cached with short TTL (10s) for dashboard reads"
+    - "Spend aggregation cached with short TTL (10s) for dashboard reads; cache invalidated on every trace creation via inflight tracker callback"
 
 step_07:
   title: "Audit provenance chain and compliance"

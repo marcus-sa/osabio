@@ -50,13 +50,14 @@ Unknown clients get no trace grouping. Traces are linked to workspace only.
 - Zero DB lookup for correlation -- the deterministic ID is computed from request content
 - Consistent UUID format across all conversation records (proxy UUIDv5, UI UUIDv4)
 - No schema changes -- uses existing `conversation` table fields
-- Idempotent creation -- `CREATE conversation:<uuidv5>` is a no-op if the record exists
+- Idempotent creation -- `CREATE conversation:<uuidv5> SET ...` is a no-op if the record already exists (SurrealDB CREATE returns error on existing ID; the upserter catches the error and returns the existing record)
 
 ### Negative
 
 - UUIDv5 computation on every request (negligible: ~0.01ms for hash + UUID formatting)
 - Conversation cannot span system prompt changes -- a new system prompt produces a new conversation ID
-- First user message must be extractable from the request -- if the request has only system messages, no conversation hash is computed
+- First user message must be extractable from the request -- if the request has only system messages or is missing a system prompt, no conversation hash is computed; trace is created without conversation field populated
+- Conversation upsert failure does not block request forwarding -- a warning observation is logged and the trace proceeds without conversation link
 
 ## References
 
