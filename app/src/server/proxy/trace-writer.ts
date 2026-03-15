@@ -31,6 +31,7 @@ export type TraceData = {
   readonly sessionId?: string;
   readonly taskId?: string;
   readonly requestId?: string;
+  readonly conversationId?: string;
   readonly policyDecision?: {
     readonly decision: "pass" | "deny";
     readonly policy_refs: string[];
@@ -108,6 +109,13 @@ async function createTraceNode(
 
   if (data.requestId) {
     content.request_id = data.requestId;
+  }
+
+  // Store conversation reference in the FLEXIBLE input field
+  if (data.conversationId) {
+    content.input = {
+      conversation: new RecordId("conversation", data.conversationId),
+    };
   }
 
   if (data.policyDecision) {

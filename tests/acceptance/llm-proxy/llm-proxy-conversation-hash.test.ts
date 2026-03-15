@@ -16,7 +16,7 @@
  * 5. Missing first user message — trace created without conversation link
  * 6. Multiple turns in same conversation share the same conversation ID
  *
- * All tests use it.skip() — capabilities not yet implemented.
+ * Tests enabled — implementing conversation hash correlation.
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -33,7 +33,7 @@ const getRuntime = setupAcceptanceSuite("llm_proxy_conversation_hash");
 // Walking Skeleton: Same conversation content links to same conversation record
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Identical requests grouped into same conversation", () => {
-  it.skip("creates a single conversation record when two requests share the same system prompt and first user message", async () => {
+  it("creates a single conversation record when two requests share the same system prompt and first user message", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-skel-${crypto.randomUUID()}`;
@@ -87,7 +87,7 @@ describe("Walking Skeleton: Identical requests grouped into same conversation", 
 // ---------------------------------------------------------------------------
 
 describe("Different content produces different conversation record", () => {
-  it.skip("creates separate conversation records for requests with different system prompts", async () => {
+  it("creates separate conversation records for requests with different system prompts", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-diff-${crypto.randomUUID()}`;
@@ -128,7 +128,7 @@ describe("Different content produces different conversation record", () => {
 });
 
 describe("Conversation record has correct title derived from first user message", () => {
-  it.skip("sets the conversation title from the first user message content", async () => {
+  it("sets the conversation title from the first user message content", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-title-${crypto.randomUUID()}`;
@@ -159,7 +159,7 @@ describe("Conversation record has correct title derived from first user message"
 });
 
 describe("Missing system prompt — trace created without conversation link", () => {
-  it.skip("creates a trace but skips conversation hash when no system prompt is provided", async () => {
+  it("creates a trace but skips conversation hash when no system prompt is provided", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-nosys-${crypto.randomUUID()}`;
@@ -191,7 +191,7 @@ describe("Missing system prompt — trace created without conversation link", ()
 });
 
 describe("Missing first user message — trace created without conversation link", () => {
-  it.skip("creates a trace but skips conversation hash when messages array is empty", async () => {
+  it("creates a trace but skips conversation hash when messages array is empty", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-nomsg-${crypto.randomUUID()}`;
@@ -221,7 +221,7 @@ describe("Missing first user message — trace created without conversation link
 });
 
 describe("Multiple turns preserve same conversation identity", () => {
-  it.skip("links all traces in a multi-turn conversation to the same conversation record", async () => {
+  it("links all traces in a multi-turn conversation to the same conversation record", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-conv-multi-${crypto.randomUUID()}`;

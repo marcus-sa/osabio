@@ -7,17 +7,22 @@
  * Pipeline execution order:
  * 1. Identity resolution (from metadata + headers)
  * 2. Session ID resolution (header priority over metadata)
- * 3. Conversation hash [future 03-01]
+ * 3. Conversation hash (03-01) — deterministic UUIDv5 from content
  * 4. Policy evaluation [future 02-01]
  * 5. Context injection [future 03-02]
  * 6. Request forwarding
- * 7. Async trace capture (01-03)
+ * 7. Async trace capture (01-03) + conversation upsert
  */
 import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
 import { jsonResponse } from "../http/response";
 import { resolveIdentity } from "./identity-resolver";
 import { resolveSessionId } from "./session-id-resolver";
 import { captureTrace, type TraceData } from "./trace-writer";
+import {
+  resolveConversationHash,
+  type ConversationHashInput,
+} from "./conversation-hash-resolver";
+import { upsertConversation } from "./conversation-upserter";
 import {
   evaluateProxyPolicy,
   type ProxyPolicyDependencies,
@@ -101,6 +106,8 @@ type ParsedBody = {
   stream?: boolean;
   max_tokens?: number;
   metadata?: { user_id?: string };
+  system?: string | Array<{ type: string; text: string }>;
+  messages?: Array<{ role: string; content: string }>;
 };
 
 function tryParseRequestBody(body: string): ParsedBody | undefined {
@@ -189,6 +196,7 @@ function extractNonStreamingUsage(
   identity: { workspaceId?: string; taskId?: string },
   sessionId?: string,
   policyDecision?: PolicyDecisionLog,
+  conversationId?: string,
 ): TraceData | undefined {
   try {
     const parsed = JSON.parse(responseBody) as NonStreamingResponse;
@@ -206,6 +214,7 @@ function extractNonStreamingUsage(
       sessionId,
       taskId: identity.taskId,
       policyDecision,
+      conversationId,
     };
   } catch {
     return undefined;
@@ -246,6 +255,36 @@ export function createAnthropicProxyHandler(
 
     // --- Step 3: Session ID resolution ---
     const effectiveSessionId = resolveSessionId(identitySignals);
+
+    // --- Step 3.5: Conversation hash resolution (pure) ---
+    const conversationHashInput: ConversationHashInput = {
+      systemPrompt: typeof parsed?.system === "string" ? parsed.system : undefined,
+      systemPromptBlocks: Array.isArray(parsed?.system) ? parsed.system : undefined,
+      messages: parsed?.messages ?? [],
+    };
+    const conversationHash = resolveConversationHash(conversationHashInput);
+
+    // --- Conversation upsert (async, non-blocking) ---
+    let conversationId: string | undefined;
+    if (conversationHash && identitySignals.workspaceId) {
+      try {
+        const conversationRecord = await upsertConversation(
+          {
+            conversationId: conversationHash.conversationId,
+            workspaceId: identitySignals.workspaceId,
+            title: conversationHash.title,
+          },
+          { surreal: deps.surreal },
+        );
+        if (conversationRecord) {
+          conversationId = conversationHash.conversationId;
+        }
+      } catch (error) {
+        logWarn("proxy.anthropic.conversation_upsert_failed", "Conversation upsert failed — continuing without conversation link", {
+          error: String(error),
+        });
+      }
+    }
 
     // --- Workspace validation (non-blocking) ---
     if (identitySignals.workspaceId) {
@@ -352,7 +391,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision, conversationId);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -428,6 +467,7 @@ export function createAnthropicProxyHandler(
             sessionId: effectiveSessionId,
             taskId: identitySignals.taskId,
             policyDecision,
+            conversationId,
           };
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
