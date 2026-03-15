@@ -27,7 +27,74 @@ REMOVE FIELD opencode_session_id ON agent_session;
 
 ---
 
-## 2. New Table: `proxy_intelligence_config`
+## 2. Conversation Hash Correlation
+
+The proxy derives a deterministic conversation ID using UUIDv5 from the request content. This enables trace grouping without sessions.
+
+### 2.1 Conversation Records Created by Proxy
+
+The proxy computes `UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + "\x00" + first_user_message)` to produce a deterministic UUID. This UUID is used directly as the conversation record ID (`conversation:<uuidv5>`). Same conversation content always produces the same ID — no lookup needed.
+
+Both proxy-created and UI-created conversations use UUIDs, but UUIDv5 (deterministic, namespace-based) will not collide with UUIDv4 (random) used by the web UI.
+
+The proxy uses only existing `conversation` table fields — no schema changes required:
+
+| Field | Value | Notes |
+|---|---|---|
+| `workspace` | Resolved workspace RecordId | Scopes the conversation |
+| `title` | First user message (truncated ~100 chars) | Same pattern as `deriveMessageTitle()` |
+| `source` | `"proxy"` | Distinguishes proxy-created from UI-created conversations |
+| `createdAt` | Timestamp of first request | Set on creation only |
+| `updatedAt` | Timestamp of latest request | Updated on subsequent requests |
+
+### 2.2 Conversation Create Query Pattern
+
+```sql
+-- Deterministic ID from UUIDv5 — no lookup needed
+-- CREATE only runs if the record doesn't exist yet
+CREATE conversation:⟨$conv_id⟩ CONTENT {
+  workspace: $ws,
+  title: $title,
+  source: "proxy",
+  createdAt: time::now(),
+  updatedAt: time::now()
+};
+```
+
+**Design notes**:
+- `$conv_id` is `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` (null byte separator prevents collisions)
+- The deterministic ID eliminates the need for a `content_hash` field or lookup query — the ID itself encodes the content identity
+- `CREATE` is idempotent when the record already exists (SurrealDB returns the existing record)
+- The upsert is the ONLY DB write the proxy performs for correlation (besides the trace itself)
+
+### 2.3 Trace-to-Conversation Link
+
+The trace record gains an optional conversation reference:
+
+```
+conversation: option<record<conversation>>
+```
+
+This field is set by the trace writer when conversation hash resolution succeeds. When the conversation hash cannot be computed (missing system prompt or first user message), this field is omitted.
+
+The link enables:
+- `SELECT * FROM trace WHERE conversation = $conv` -- all traces in a conversation
+- Cost attribution per conversation across all requests
+- Observer fallback correlation when no agent_session exists
+
+**Note**: This field is stored in the FLEXIBLE `input` object alongside existing intelligence metadata, not as a top-level trace field. No schema migration needed.
+
+```json
+{
+  "brain_context_injected": true,
+  "brain_context_decisions": 3,
+  "conversation": "conversation:a1b2c3..."
+}
+```
+
+---
+
+## 3. New Table: `proxy_intelligence_config`
 
 Per-workspace configuration for intelligence capabilities. Migration: `schema/migrations/0040_proxy_intelligence_config.surql`.
 
@@ -64,7 +131,7 @@ DEFINE INDEX proxy_intel_config_workspace ON proxy_intelligence_config FIELDS wo
 
 ---
 
-## 3. Trace Metadata Extensions
+## 4. Trace Metadata Extensions
 
 The existing `trace` table (migration 0023) has FLEXIBLE `input` and `output` fields. Intelligence metadata is stored in these fields -- no schema changes required.
 
@@ -100,7 +167,7 @@ These fields enable the Observer to query intelligence pipeline effectiveness:
 
 ---
 
-## 4. Context Cache Structure (In-Memory)
+## 5. Context Cache Structure (In-Memory)
 
 ### Candidate Pool Cache
 
@@ -145,7 +212,7 @@ EmbeddingCacheEntry = {
 
 ---
 
-## 5. Injected System Block Format
+## 6. Injected System Block Format
 
 The `<brain-context>` block appended to the Anthropic Messages API `system` field:
 
@@ -165,7 +232,7 @@ The `<brain-context>` block appended to the Anthropic Messages API `system` fiel
 
 ---
 
-## 6. Observation Payloads (Observer Per-Trace Analysis)
+## 7. Observation Payloads (Observer Per-Trace Analysis)
 
 > **These observations are created by the Observer, NOT the proxy.** The proxy writes traces; the Observer analyzes them via SurrealDB EVENT triggers and creates observations. The `sourceAgent` is `"observer_agent"`, not `"llm_proxy"`.
 
@@ -244,7 +311,7 @@ When the Observer's reverse coherence scan finds completed tasks or commits with
 
 ---
 
-## 7. SurrealDB Queries
+## 8. SurrealDB Queries
 
 ### Session ID Lookup (trace writer, when session ID resolved)
 
@@ -319,7 +386,7 @@ LIMIT 1;
 
 ---
 
-## 8. SurrealDB EVENTs
+## 9. SurrealDB EVENTs
 
 ### 8.1 EVENT: `trace_llm_call_created` on `trace` (NEW)
 
@@ -378,7 +445,7 @@ DEFINE EVENT OVERWRITE session_ended ON agent_session
 
 ---
 
-## 9. Trace Query Patterns for Session Analysis
+## 10. Trace Query Patterns for Session Analysis
 
 ### Load All Session Traces
 
@@ -403,7 +470,7 @@ GROUP BY type;
 
 ---
 
-## 10. Observation Payloads for Session-End Cross-Trace Pattern Synthesis (Enhancement)
+## 11. Observation Payloads for Session-End Cross-Trace Pattern Synthesis (Enhancement)
 
 **Note**: Per-trace contradiction and missing decision detection are handled by the Observer's Trace Response Analyzer (Section 6), triggered by the `trace_llm_call_created` EVENT. This section covers observations from the session-end cross-trace pattern synthesis -- an enhancement for integrated clients only.
 

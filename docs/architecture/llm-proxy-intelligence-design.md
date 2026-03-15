@@ -17,6 +17,7 @@ Five intelligence capabilities layered onto the existing LLM proxy pipeline. The
 
 | Capability | Pipeline Position | Latency Impact | LLM Cost | Blocking | Owner |
 |---|---|---|---|---|---|
+| Conversation Hash Correlation | Pre-forward (hash + upsert) | +1-3ms (upsert) | Zero | No (upsert is best-effort) | Proxy |
 | Context Injection | Pre-forward (request mutation) | +5-15ms (cached), +50-100ms (cold) | Zero | Yes (delays forward) | Proxy |
 | Secret Scanning | Pre-forward (request validation) | +1-2ms | Zero | Yes (may block) | Proxy |
 | Trace Creation | Post-response (async) | Zero (non-blocking) | Zero | Never | Proxy |
@@ -51,6 +52,8 @@ C4Component
     Container_Boundary(proxy, "LLM Proxy Module") {
         Component(anthropic_route, "Anthropic Route Handler", "TypeScript", "Orchestrates pipeline: identity, injection, scanning, forwarding, trace creation")
         Component(identity, "Identity Resolver", "TypeScript", "Resolves workspace/session/task from request")
+        Component(conv_hash, "Conversation Hash Resolver", "TypeScript", "UUIDv5 of system+first_user_message for deterministic conversation identity (pure)")
+        Component(conv_upsert, "Conversation Upserter", "TypeScript", "Idempotent CREATE conversation by deterministic UUIDv5 ID")
         Component(context_injector, "Context Injector", "TypeScript", "Enriches request with graph knowledge before forwarding")
         Component(secret_scanner, "Secret Scanner", "TypeScript", "Regex scan of outbound payloads for credential patterns")
         Component(forwarder, "Request Forwarder", "TypeScript", "Raw byte SSE relay")
@@ -69,6 +72,9 @@ C4Component
     Container(embedding_svc, "Embedding Service", "Existing embedding pipeline")
 
     Rel(anthropic_route, identity, "Resolves request identity")
+    Rel(anthropic_route, conv_hash, "Computes conversation content hash")
+    Rel(anthropic_route, conv_upsert, "Upserts conversation record by hash")
+    Rel(conv_upsert, surreal, "Upserts conversation record")
     Rel(anthropic_route, context_injector, "Enriches request body")
     Rel(anthropic_route, secret_scanner, "Validates outbound payload")
     Rel(anthropic_route, forwarder, "Forwards enriched request")
@@ -96,6 +102,10 @@ Agent Request
   |
   +-> [1] Parse request body (model, stream, metadata)
   +-> [2] Identity Resolution (workspace, session, task)
+  +-> [2.5] CONVERSATION HASH RESOLUTION                          <-- NEW
+  |     |-- UUIDv5(namespace, system + first_user_message) -> deterministic conversation ID
+  |     |-- CREATE conversation (idempotent, best-effort)
+  |     |-- Failure -> skip, trace created without conversation link
   +-> [3] Policy Evaluation (model access, budget, rate limit)
   |     |-- DENY -> 403/429
   |     |-- ALLOW -> continue
@@ -117,6 +127,7 @@ Post-Response (async, proxy-owned):
   +-> [10] WRITE TRACE (llm_call with response content)             <-- NEW
   |     |-- Trace includes response text, tool inputs, stop_reason
   |     |-- Intelligence metadata (context injection stats)
+  |     |-- Trace linked to conversation record (if hash resolved)
   |     |-- Trace creation triggers SurrealDB EVENT
 
 Observer Pipeline (async, EVENT-driven, NEW -- does NOT exist today):
@@ -636,6 +647,8 @@ The proxy creates `llm_call` traces containing response content. A SurrealDB EVE
 
 | Capability | Component(s) | Owner | Traces To |
 |---|---|---|---|
+| Conversation hash -- content-derived grouping | Conversation Hash Resolver, Conversation Upserter | Proxy | Trace correlation |
+| Conversation hash -- trace linking | Trace Writer | Proxy | Observer conversation queries |
 | Context injection -- graph query | Context Injector, Context Cache | Proxy | US-LP-008 (future) |
 | Context injection -- system block append | Context Injector | Proxy | US-LP-008 (future) |
 | Context injection -- tiered routing | Context Injector, Config | Proxy | Issue #127 |
@@ -686,6 +699,21 @@ step_10:
     - "Session ID resolver is a pure function with no DB calls or side effects"
     - "Proxy never creates, updates, or ends agent_session records"
     - "Session lifecycle owned by CLI (brain init hooks) and orchestrator"
+
+step_10b:
+  title: "Conversation hash correlation in proxy pipeline"
+  description: "Content-derived conversation grouping via UUIDv5 of system prompt + first user message, with idempotent conversation CREATE"
+  acceptance_criteria:
+    - "Conversation ID computed as UUIDv5(BRAIN_PROXY_NAMESPACE, system + first_user_message)"
+    - "Conversation record created by deterministic ID (idempotent CREATE, no lookup needed)"
+    - "Trace linked to conversation record when ID resolves"
+    - "Missing system/user message produces no conversation link (not an error)"
+    - "Conversation CREATE failure never blocks request forwarding"
+  architectural_constraints:
+    - "UUIDv5 computation is a pure function (no DB, no side effects)"
+    - "Conversation CREATE is the only DB write for correlation (besides trace)"
+    - "Uses existing conversation table fields (workspace, title, source) — no content_hash field needed"
+    - "Complementary to session ID resolution -- both resolved independently"
 
 step_11:
   title: "Secret scanning pre-forward validation"
@@ -779,11 +807,11 @@ step_16:
 
 | Metric | Value |
 |---|---|
-| Total steps | 8 (step_09 through step_16) |
-| Estimated production files | ~15-17 |
-| Step ratio | 8/16 = 0.50 (well under 2.5) |
-| Total AC | 33 |
-| Avg AC per step | 4.1 |
+| Total steps | 9 (step_09 through step_16, including step_10b) |
+| Estimated production files | ~17-19 |
+| Step ratio | 9/18 = 0.50 (well under 2.5) |
+| Total AC | 38 |
+| Avg AC per step | 4.2 |
 
 ---
 

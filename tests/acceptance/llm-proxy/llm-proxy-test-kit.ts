@@ -575,3 +575,521 @@ export function buildClaudeCodeUserId(
 ): string {
   return `user_${userHash}_account_${accountId}_session_${sessionId}`;
 }
+
+// ---------------------------------------------------------------------------
+// Intelligence: Proxy Intelligence Config
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a proxy_intelligence_config record for a workspace.
+ * Controls context injection, contradiction detection, and session timeout.
+ */
+export async function createProxyIntelligenceConfig(
+  surreal: Surreal,
+  workspaceId: string,
+  options?: {
+    contextInjectionEnabled?: boolean;
+    contextInjectionTokenBudget?: number;
+    contextInjectionCacheTtlSeconds?: number;
+    contextInjectionTier?: "fast" | "secure";
+    contradictionDetectionEnabled?: boolean;
+    contradictionTier1Threshold?: number;
+    contradictionTier2ConfidenceMin?: number;
+    sessionTimeoutMinutes?: number;
+  },
+): Promise<string> {
+  const configId = `cfg-${workspaceId}`;
+  const configRecord = new RecordId("proxy_intelligence_config", configId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  await surreal.query(`CREATE $config CONTENT $content;`, {
+    config: configRecord,
+    content: {
+      workspace: workspaceRecord,
+      context_injection_enabled: options?.contextInjectionEnabled ?? true,
+      context_injection_token_budget: options?.contextInjectionTokenBudget ?? 1000,
+      context_injection_cache_ttl_seconds: options?.contextInjectionCacheTtlSeconds ?? 300,
+      context_injection_tier: options?.contextInjectionTier ?? "secure",
+      contradiction_detection_enabled: options?.contradictionDetectionEnabled ?? true,
+      contradiction_tier1_threshold: options?.contradictionTier1Threshold ?? 0.75,
+      contradiction_tier2_confidence_min: options?.contradictionTier2ConfidenceMin ?? 0.6,
+      session_timeout_minutes: options?.sessionTimeoutMinutes ?? 10,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+
+  return configId;
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Session Query Helpers
+// ---------------------------------------------------------------------------
+
+export type AgentSessionRecord = {
+  id: RecordId;
+  agent: string;
+  workspace: RecordId;
+  started_at: Date;
+  ended_at?: Date;
+  last_activity_at?: Date;
+  source?: string;
+  external_session_id?: string;
+};
+
+/**
+ * Query agent sessions for a workspace, optionally filtered by source.
+ */
+export async function getSessionsForWorkspace(
+  surreal: Surreal,
+  workspaceId: string,
+  options?: { source?: string },
+): Promise<AgentSessionRecord[]> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const sourceFilter = options?.source
+    ? `AND source = $source`
+    : "";
+
+  const results = await surreal.query(
+    `SELECT * FROM agent_session WHERE workspace = $ws ${sourceFilter} ORDER BY started_at DESC;`,
+    { ws: workspaceRecord, source: options?.source },
+  );
+
+  return (results[0] ?? []) as AgentSessionRecord[];
+}
+
+/**
+ * Get a specific agent session by ID.
+ */
+export async function getSessionById(
+  surreal: Surreal,
+  sessionId: string,
+): Promise<AgentSessionRecord | undefined> {
+  const sessionRecord = new RecordId("agent_session", sessionId);
+
+  const results = await surreal.query(
+    `SELECT * FROM $session;`,
+    { session: sessionRecord },
+  );
+
+  return (results[0] as AgentSessionRecord[])?.[0];
+}
+
+/**
+ * Seed an agent session directly for testing scenarios
+ * that need pre-existing session data.
+ */
+export async function seedAgentSession(
+  surreal: Surreal,
+  sessionId: string,
+  options: {
+    workspaceId: string;
+    agent?: string;
+    source?: string;
+    externalSessionId?: string;
+    startedAt?: Date;
+    lastActivityAt?: Date;
+    endedAt?: Date;
+  },
+): Promise<string> {
+  const sessionRecord = new RecordId("agent_session", sessionId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const content: Record<string, unknown> = {
+    agent: options.agent ?? "coding-agent",
+    workspace: workspaceRecord,
+    started_at: options.startedAt ?? new Date(),
+    last_activity_at: options.lastActivityAt ?? new Date(),
+    source: options.source ?? "proxy",
+    created_at: new Date(),
+  };
+
+  if (options.externalSessionId) {
+    content.external_session_id = options.externalSessionId;
+  }
+  if (options.endedAt) {
+    content.ended_at = options.endedAt;
+  }
+
+  await surreal.query(`CREATE $session CONTENT $content;`, {
+    session: sessionRecord,
+    content,
+  });
+
+  return sessionId;
+}
+
+/**
+ * Simulate a session becoming stale by backdating last_activity_at.
+ * This allows testing the background sweep timeout behavior.
+ */
+export async function simulateSessionTimeout(
+  surreal: Surreal,
+  sessionId: string,
+  minutesAgo: number,
+): Promise<void> {
+  const sessionRecord = new RecordId("agent_session", sessionId);
+  const staleTime = new Date(Date.now() - minutesAgo * 60 * 1000);
+
+  await surreal.query(
+    `UPDATE $session SET last_activity_at = $staleTime;`,
+    { session: sessionRecord, staleTime },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Decision Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed a confirmed decision in a workspace for contradiction testing.
+ */
+export async function seedConfirmedDecision(
+  surreal: Surreal,
+  decisionId: string,
+  options: {
+    workspaceId: string;
+    summary: string;
+    rationale?: string;
+    embedding?: number[];
+  },
+): Promise<string> {
+  const decisionRecord = new RecordId("decision", decisionId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const content: Record<string, unknown> = {
+    summary: options.summary,
+    rationale: options.rationale ?? `Rationale for: ${options.summary}`,
+    status: "confirmed",
+    workspace: workspaceRecord,
+    created_at: new Date(),
+  };
+
+  if (options.embedding) {
+    content.embedding = options.embedding;
+  }
+
+  await surreal.query(`CREATE $decision CONTENT $content;`, {
+    decision: decisionRecord,
+    content,
+  });
+
+  return decisionId;
+}
+
+/**
+ * Seed an active learning in a workspace for context injection testing.
+ */
+export async function seedActiveLearning(
+  surreal: Surreal,
+  learningId: string,
+  options: {
+    workspaceId: string;
+    text: string;
+    priority?: number;
+    embedding?: number[];
+  },
+): Promise<string> {
+  const learningRecord = new RecordId("learning", learningId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const content: Record<string, unknown> = {
+    text: options.text,
+    status: "active",
+    learning_type: "human",
+    priority: options.priority ?? 50,
+    workspace: workspaceRecord,
+    created_at: new Date(),
+  };
+
+  if (options.embedding) {
+    content.embedding = options.embedding;
+  }
+
+  await surreal.query(`CREATE $learning CONTENT $content;`, {
+    learning: learningRecord,
+    content,
+  });
+
+  return learningId;
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Observation Query Helpers
+// ---------------------------------------------------------------------------
+
+export type ObservationRecord = {
+  id: RecordId;
+  text: string;
+  severity: string;
+  status: string;
+  observation_type?: string;
+  source_agent?: string;
+  workspace: RecordId;
+  created_at: Date;
+};
+
+/**
+ * Query observations for a workspace, optionally filtered by type and source.
+ */
+export async function getObservationsForWorkspace(
+  surreal: Surreal,
+  workspaceId: string,
+  options?: { observationType?: string; sourceAgent?: string },
+): Promise<ObservationRecord[]> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  let filters = `WHERE workspace = $ws`;
+  if (options?.observationType) {
+    filters += ` AND observation_type = $obsType`;
+  }
+  if (options?.sourceAgent) {
+    filters += ` AND source_agent = $srcAgent`;
+  }
+
+  const results = await surreal.query(
+    `SELECT * FROM observation ${filters} ORDER BY created_at DESC;`,
+    {
+      ws: workspaceRecord,
+      obsType: options?.observationType,
+      srcAgent: options?.sourceAgent,
+    },
+  );
+
+  return (results[0] ?? []) as ObservationRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Extended Proxy Request Options
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a proxy request with additional intelligence-related headers.
+ * Extends the base sendProxyRequest with session and session-end headers.
+ */
+export async function sendProxyRequestWithIntelligence(
+  baseUrl: string,
+  options: ProxyRequestOptions & {
+    sessionHeader?: string;
+    sessionEndHeader?: boolean;
+    systemPrompt?: string | Array<{ type: string; text: string; cache_control?: { type: string } }>;
+  },
+): Promise<Response> {
+  const body = JSON.parse(buildProxyRequestBody(options));
+
+  // Add system prompt if provided (for context injection tests)
+  if (options.systemPrompt) {
+    body.system = options.systemPrompt;
+  }
+
+  const headers = buildProxyHeaders(options);
+
+  if (options.sessionHeader) {
+    headers["X-Brain-Session"] = options.sessionHeader;
+  }
+  if (options.sessionEndHeader) {
+    headers["X-Brain-Session-End"] = "true";
+  }
+
+  return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Conversation Query Helpers
+// ---------------------------------------------------------------------------
+
+export type ConversationRecord = {
+  id: RecordId;
+  workspace: RecordId;
+  title: string;
+  source?: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/**
+ * Query conversations for a workspace, optionally filtered by source.
+ */
+export async function getConversationsForWorkspace(
+  surreal: Surreal,
+  workspaceId: string,
+  options?: { source?: string },
+): Promise<ConversationRecord[]> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const sourceFilter = options?.source
+    ? `AND source = $source`
+    : "";
+
+  const results = await surreal.query(
+    `SELECT * FROM conversation WHERE workspace = $ws ${sourceFilter} ORDER BY createdAt DESC;`,
+    { ws: workspaceRecord, source: options?.source },
+  );
+
+  return (results[0] ?? []) as ConversationRecord[];
+}
+
+/**
+ * Get traces linked to a specific conversation.
+ */
+export async function getTracesForConversation(
+  surreal: Surreal,
+  conversationId: string,
+): Promise<LlmTraceRecord[]> {
+  const conversationRecord = new RecordId("conversation", conversationId);
+
+  const results = await surreal.query(
+    `SELECT * FROM trace WHERE input.conversation = $conv ORDER BY created_at DESC;`,
+    { conv: conversationRecord },
+  );
+
+  return (results[0] ?? []) as LlmTraceRecord[];
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Completed Task Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed a completed task with no decision links for reverse coherence testing.
+ */
+export async function seedCompletedTaskWithoutDecision(
+  surreal: Surreal,
+  taskId: string,
+  options: {
+    workspaceId: string;
+    title: string;
+    completedAt?: Date;
+  },
+): Promise<string> {
+  const taskRecord = new RecordId("task", taskId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+  const completedAt = options.completedAt ?? new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+
+  await surreal.query(`CREATE $task CONTENT $content;`, {
+    task: taskRecord,
+    content: {
+      title: options.title,
+      status: "completed",
+      workspace: workspaceRecord,
+      completed_at: completedAt,
+      created_at: new Date(completedAt.getTime() - 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  return taskId;
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Session End Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * End an agent session by setting ended_at, simulating what the CLI/orchestrator does.
+ * This triggers the SurrealDB EVENT for Observer session-end analysis.
+ */
+export async function endAgentSession(
+  surreal: Surreal,
+  sessionId: string,
+): Promise<void> {
+  const sessionRecord = new RecordId("agent_session", sessionId);
+
+  await surreal.query(
+    `UPDATE $session SET ended_at = time::now();`,
+    { session: sessionRecord },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Trace Content Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed an LLM trace with response content in the FLEXIBLE output field.
+ * Used for Observer per-trace analysis testing.
+ */
+export async function seedLlmTraceWithContent(
+  surreal: Surreal,
+  traceId: string,
+  options: {
+    model: string;
+    workspaceId: string;
+    sessionId?: string;
+    conversationId?: string;
+    responseText: string;
+    stopReason?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    costUsd?: number;
+  },
+): Promise<string> {
+  const traceRecord = new RecordId("trace", traceId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const input: Record<string, unknown> = {};
+  if (options.conversationId) {
+    input.conversation = new RecordId("conversation", options.conversationId);
+  }
+
+  const output: Record<string, unknown> = {
+    content: [{ type: "text", text: options.responseText }],
+    stop_reason: options.stopReason ?? "end_turn",
+  };
+
+  await surreal.query(`CREATE $trace CONTENT $content;`, {
+    trace: traceRecord,
+    content: {
+      type: "llm_call",
+      model: options.model,
+      input_tokens: options.inputTokens ?? 100,
+      output_tokens: options.outputTokens ?? 50,
+      cache_read_tokens: 0,
+      cache_creation_tokens: 0,
+      cost_usd: options.costUsd ?? 0.001,
+      latency_ms: 500,
+      stop_reason: options.stopReason ?? "end_turn",
+      input,
+      output,
+      created_at: new Date(),
+    },
+  });
+
+  // Create workspace edge
+  await surreal.query(
+    `RELATE $trace->scoped_to->$workspace SET created_at = time::now();`,
+    { trace: traceRecord, workspace: workspaceRecord },
+  );
+
+  // Create session edge if provided
+  if (options.sessionId) {
+    const sessionRecord = new RecordId("agent_session", options.sessionId);
+    await surreal.query(
+      `RELATE $session->invoked->$trace SET created_at = time::now();`,
+      { trace: traceRecord, session: sessionRecord },
+    );
+  }
+
+  return traceId;
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Observer Trigger Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Trigger the Observer coherence scan for a workspace.
+ */
+export async function triggerCoherenceScan(
+  baseUrl: string,
+  workspaceId: string,
+): Promise<Response> {
+  return fetch(
+    `${baseUrl}/api/workspaces/${workspaceId}/observer/scan`,
+    { method: "POST" },
+  );
+}

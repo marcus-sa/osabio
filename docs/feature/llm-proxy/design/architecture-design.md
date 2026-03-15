@@ -74,6 +74,8 @@ C4Component
         Component(route, "Anthropic Route Handler", "TypeScript", "Orchestrates pipeline: identity, injection, forwarding, trace creation")
         Component(identity, "Identity Resolver", "TypeScript", "Resolves workspace/session/task from request metadata")
         Component(session_resolver, "Session ID Resolver", "TypeScript", "Extracts session ID from request metadata/headers (pure, no DB)")
+        Component(conv_hash, "Conversation Hash Resolver", "TypeScript", "UUIDv5 of system+first_user_message for deterministic conversation identity (pure, no DB)")
+        Component(conv_upsert, "Conversation Upserter", "TypeScript", "Idempotent CREATE conversation by deterministic UUIDv5 ID")
         Component(injector, "Context Injector", "TypeScript", "Enriches request with graph knowledge before forwarding")
         Component(cache, "Context Cache", "TypeScript", "Per-session TTL Map for workspace candidate pool")
         Component(forwarder, "Request Forwarder", "TypeScript", "Raw byte SSE relay to upstream")
@@ -97,6 +99,9 @@ C4Component
 
     Rel(route, identity, "Resolves request identity")
     Rel(route, session_resolver, "Extracts session ID from request")
+    Rel(route, conv_hash, "Computes conversation content hash")
+    Rel(route, conv_upsert, "Upserts conversation record by hash")
+    Rel(conv_upsert, surreal, "Upserts conversation record")
     Rel(route, config, "Loads workspace intelligence config")
     Rel(route, injector, "Enriches request body")
     Rel(route, forwarder, "Forwards enriched request")
@@ -166,7 +171,63 @@ The SurrealDB EVENT on `ended_at` fires regardless of who sets it -- CLI, orches
 
 ---
 
-## 5. Integration with Existing Proxy Pipeline
+## 5. Conversation Hash Correlation
+
+The proxy derives a conversation identity from request content by hashing the system prompt + first user message. This groups traces into conversations without requiring Brain integration -- any client using the proxy gets conversation grouping for free.
+
+### 5.1 How It Works
+
+LLMs send the full message history on every request. The system prompt and first user message are stable across all requests in the same conversation:
+
+```
+Request 1: [system, user_msg_1] -> hash(system + user_msg_1) -> conv_abc
+Request 2: [system, user_msg_1, assistant, tool_result] -> hash(system + user_msg_1) -> conv_abc
+Request 3: [system, user_msg_1, assistant, tool_result, ...] -> hash(system + user_msg_1) -> conv_abc
+```
+
+### 5.2 Pipeline Position
+
+Conversation hash resolution runs after session ID resolution, before context injection. It is a two-phase operation:
+
+1. **ID computation** (pure function, no DB): Extract system prompt content + first user message content from request body. `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` produces a deterministic UUID.
+2. **Conversation create** (single DB write, idempotent): `CREATE conversation:⟨$conv_id⟩` — if the record already exists, SurrealDB returns the existing record. No lookup query needed.
+
+### 5.3 What This Enables
+
+- **Unknown clients get conversation grouping for free** -- no `brain init` needed, no session lifecycle
+- **Observer can query all traces in a conversation**: `SELECT * FROM trace WHERE conversation = $conv`
+- **Cost attribution per conversation** across all requests
+- **Observer session-end analysis fallback**: When no agent_session exists, conversation grouping provides an alternative correlation boundary
+- **Title derivation**: First user message (truncated) used as conversation title, same pattern as existing `deriveMessageTitle()`
+
+### 5.4 Relationship to Session ID Resolution
+
+| Concern | Session ID | Conversation Hash |
+|---|---|---|
+| Source | Request metadata/headers | Request body content |
+| Requires integration | Yes (`brain init` or X-Brain-Session) | No (content-derived) |
+| Lifecycle | Managed by CLI/orchestrator | None (idempotent upsert) |
+| Scope | Agent session (may span conversations) | Single conversation thread |
+| Client coverage | Integrated clients only | All clients |
+
+Both are resolved independently. A trace may have both a session link AND a conversation link. Unknown clients without session IDs still get conversation grouping.
+
+### 5.5 Error Handling
+
+| Component | Failure Mode | Response |
+|---|---|---|
+| Hash computation | Malformed request body / missing system or user message | Skip conversation hash, trace created without conversation link, log info |
+| Conversation upsert | SurrealDB error | Skip conversation link, trace created without it, log warning |
+
+**Principle**: Conversation hash resolution failures NEVER block request forwarding. The upsert is best-effort -- identical to session ID resolution behavior.
+
+### 5.6 Privacy
+
+The conversation record ID is a UUIDv5 derived from the content — the full system prompt or message content is never stored. The UUID is a one-way deterministic fingerprint used solely for correlation.
+
+---
+
+## 6. Integration with Existing Proxy Pipeline
 
 The intelligence capabilities integrate as two hooks in the existing request pipeline:
 
@@ -190,6 +251,7 @@ Agent Request
   |-> Parse request body
   |-> Identity Resolution (existing)
   |-> **Session ID Resolution** (NEW -- extract session ID from metadata/headers, pure function)
+  |-> **Conversation Hash Resolution** (NEW -- hash system+first_user_message, upsert conversation record)
   |-> Policy Evaluation (existing)
   |-> **Context Injection** (NEW -- pre-forward hook)
   |     |-> Load workspace intelligence config
@@ -206,7 +268,8 @@ Post-Response (async, proxy-owned):
   |-> Compute cost (existing)
   |-> **Write llm_call trace** (NEW -- includes response content in FLEXIBLE output)
   |     |-> Trace includes: response text blocks, tool inputs, stop_reason, intelligence metadata
-  |     |-> Trace creation fires SurrealDB EVENT (see Section 11)
+  |     |-> Trace linked to conversation record (if conversation hash resolved)
+  |     |-> Trace creation fires SurrealDB EVENT (see Section 12)
 
 Observer Pipeline (async, EVENT-driven, NEW -- does NOT exist today):
   |-> SurrealDB EVENT on trace table fires for type = "llm_call"
@@ -228,7 +291,7 @@ Observer Pipeline (async, EVENT-driven, NEW -- does NOT exist today):
 
 ---
 
-## 6. Data Flow: Context Injection
+## 7. Data Flow: Context Injection
 
 ### Phase 1: Candidate Pool (cached, TTL 5min)
 
@@ -267,7 +330,7 @@ Original system field (string | ContentBlock[])
 
 ---
 
-## 7. Data Flow: Observer Per-Trace Analysis (Contradiction + Missing Decision Detection)
+## 8. Data Flow: Observer Per-Trace Analysis (Contradiction + Missing Decision Detection)
 
 > **NEW Observer capability -- does not exist today.** The Observer currently handles `task`, `intent`, `git_commit`, `decision`, and `observation` entities. It has NO handler for `trace` entities. Everything in this section describes new modules that must be built in the Observer system.
 
@@ -348,7 +411,7 @@ Extracted trace content
 
 ---
 
-## 8. Error Handling Strategy
+## 9. Error Handling Strategy
 
 ### 8.1 Proxy Errors (context injection + trace creation)
 
@@ -377,7 +440,7 @@ Extracted trace content
 
 ---
 
-## 9. Enhancement: Observer Session-End Cross-Trace Pattern Synthesis
+## 10. Enhancement: Observer Session-End Cross-Trace Pattern Synthesis
 
 ### 9.1 Overview
 
@@ -486,7 +549,7 @@ Session-end cross-trace analysis catches edge cases invisible to per-trace detec
 
 ---
 
-## 10. Quality Attribute Strategies
+## 11. Quality Attribute Strategies
 
 | Attribute | Strategy |
 |---|---|
@@ -498,10 +561,11 @@ Session-end cross-trace analysis catches edge cases invisible to per-trace detec
 | **Observability** | All fail-open/fail-skip events logged via `logInfo`/`logError`. Intelligence metadata in trace FLEXIBLE fields enables analytics queries (injection rate, candidate hit rate, contradiction frequency). Observation creation provides feed-level visibility for confirmed findings. |
 | **Completeness** | Per-trace Observer analysis handles both contradiction and missing decision detection for all clients. Reverse coherence scan catches implementations without decisions (batch). Session-end cross-trace synthesis (enhancement) provides full-session view for integrated clients. |
 | **Session lifecycle** | Proxy reads session IDs only (pure function, no DB calls). Session lifecycle owned by CLI/orchestrator. SurrealDB EVENT on `ended_at` triggers Observer session-end analysis. SurrealDB EVENT on trace creation triggers Observer per-trace analysis. |
+| **Conversation correlation** | Content-derived conversation hash groups traces for all clients (no integration required). Single idempotent upsert per request. Observer can use conversation grouping as fallback when no session exists. |
 
 ---
 
-## 11. New Observer Capabilities Required
+## 12. New Observer Capabilities Required
 
 > **This section explicitly lists what must be built.** None of these capabilities exist in the Observer today. They are prerequisites for the detection features described in this design.
 

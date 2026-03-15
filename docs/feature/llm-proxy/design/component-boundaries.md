@@ -22,7 +22,37 @@ Extraction sources (checked in order):
 - **Brain-managed agents**: `X-Brain-Session` header value (set by orchestrator or CLI `brain init` hooks)
 - **Unknown client**: No session ID -- returns undefined. Trace linked to workspace only.
 
-### 1.2 Context Injector
+### 1.2 Conversation Hash Resolver
+
+- **Location**: `app/src/server/proxy/conversation-hash-resolver.ts` (a single function, not a module with state)
+- **Responsibility**: Compute a deterministic conversation UUID from request content. Pure function — no DB calls, no side effects.
+- **Input**: Parsed request body (messages array, system field)
+- **Output**: `string | undefined` (UUIDv5 string, or undefined if system/first-user-message missing)
+- **Dependencies**: None (pure computation — uses built-in crypto for UUIDv5)
+- **Error contract**: Returns undefined on any failure or missing input
+
+Algorithm:
+- Extract system prompt content (string or concatenated text blocks from array)
+- Extract first user message content from messages array
+- If either is missing, return undefined
+- `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` → deterministic UUID
+- The null byte separator prevents collisions between different system/user splits that concatenate to the same string
+
+### 1.3 Conversation Upserter
+
+- **Location**: `app/src/server/proxy/conversation-upserter.ts` (a single function, not a module with state)
+- **Responsibility**: Create a conversation record using a deterministic UUIDv5 ID derived from request content. Idempotent — `CREATE` with a deterministic ID is a no-op if the record already exists.
+- **Input**: Request body (system prompt + first user message), workspace RecordId
+- **Output**: `RecordId<"conversation"> | undefined` (the conversation record ID, or undefined on failure)
+- **Dependencies**: SurrealDB (`deps.surreal`)
+- **Error contract**: Returns undefined on any failure (never throws, never blocks request forwarding)
+
+Functions (behavioral contracts):
+- **Compute conversation ID**: `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` — pure function, no DB.
+- **Create conversation**: `CREATE conversation:⟨$conv_id⟩ CONTENT { ... }` — idempotent, no lookup needed.
+- **Title derivation**: First user message truncated to ~100 chars, same pattern as existing `deriveMessageTitle()`.
+
+### 1.4 Context Injector
 
 - **Location**: `app/src/server/proxy/context-injector.ts`
 - **Responsibility**: Build context packet from knowledge graph, inject as system block
@@ -36,7 +66,7 @@ Functions (behavioral contracts, not signatures):
 - **Rank candidates**: Given candidate pool and user message embedding, compute weighted cosine similarity, return top N within token budget.
 - **Inject system block**: Normalize system field to array, append `<brain-context>` block at end, return mutated body string.
 
-### 1.3 Context Cache
+### 1.5 Context Cache
 
 - **Location**: `app/src/server/proxy/context-cache.ts`
 - **Responsibility**: Per-session TTL cache for workspace candidate pools
@@ -45,7 +75,7 @@ Functions (behavioral contracts, not signatures):
 - **TTL**: Configurable (default 5 min for candidates, 10 min for embeddings)
 - **Eviction**: TTL-based check on read. No background reaper needed at current scale.
 
-### 1.4 Trace Writer (Extended)
+### 1.6 Trace Writer (Extended)
 
 - **Location**: `app/src/server/proxy/trace-writer.ts` (existing, extended with response content)
 - **Responsibility**: Write `llm_call` trace with response content in FLEXIBLE `output` field after stream completion. The trace contains all content needed for Observer analysis -- the proxy does NOT analyze it.
@@ -61,7 +91,7 @@ Functions (behavioral contracts):
 
 > **The proxy does NOT contain a Response Analyzer.** All detection and analysis logic (contradiction detection, missing decision detection, decision signal extraction) lives in the Observer system. The proxy's post-response responsibility ends at trace creation.
 
-### 1.5 Intelligence Config Loader
+### 1.7 Intelligence Config Loader
 
 - **Location**: `app/src/server/proxy/intelligence-config.ts`
 - **Responsibility**: Load per-workspace intelligence configuration with env-var fallbacks
@@ -209,6 +239,7 @@ The `SUPPORTED_TABLES` set gains `"trace"` and `"agent_session"`. Workspace reso
 | Used by | Query Type | Tables |
 |---|---|---|
 | Context Injector (cache miss) | Simple indexed SELECT | `decision`, `learning`, `observation` |
+| Conversation Upserter | SELECT + conditional CREATE/UPDATE | `conversation` |
 | Trace Writer | CREATE | `trace` (triggers EVENT) |
 | Intelligence Config Loader | Simple SELECT | `proxy_intelligence_config` |
 | Trace Response Analyzer (NEW) | Two-step KNN | `decision` |
@@ -226,6 +257,9 @@ PROXY PIPELINE:
 anthropic-proxy-route.ts (orchestrator)
   |-> intelligence-config.ts (config loader)
   |-> session-id-resolver.ts (pure function, no deps)
+  |-> conversation-hash-resolver.ts (pure function, no deps)
+  |-> conversation-upserter.ts (idempotent DB write)
+  |     |-> deps.surreal (existing)
   |-> context-injector.ts (pre-forward hook)
   |     |-> context-cache.ts (session TTL cache)
   |     |-> graph/embeddings.ts (existing)
@@ -269,6 +303,22 @@ The route handler calls the session ID resolver early in the pipeline (after ide
 - **Output**: `string | undefined` (the external session ID, or undefined if unrecognized)
 - **Contract**: Pure function. Never throws. No DB calls. No side effects. Returns undefined on any failure or unrecognized input.
 
+### 4.1b Route Handler -> Conversation Hash Resolver
+
+The route handler calls the conversation hash resolver after session ID resolution. It extracts the system prompt and first user message from the request body, producing a deterministic UUIDv5.
+
+- **Input**: Parsed request body (messages array, system field)
+- **Output**: `string | undefined` (UUIDv5 string, or undefined if system/first-user-message missing)
+- **Contract**: Pure function. Never throws. No DB calls. No side effects. Returns undefined on any failure or missing input.
+
+### 4.1c Route Handler -> Conversation Upserter
+
+The route handler calls the conversation upserter with the hash from 4.1b. It upserts a conversation record keyed by content hash and workspace, returning the conversation RecordId for trace linking.
+
+- **Input**: Content hash string, workspace RecordId, first user message text (for title derivation), SurrealDB connection
+- **Output**: `RecordId<"conversation"> | undefined` (the conversation record ID, or undefined on failure)
+- **Contract**: Never throws. Returns undefined on any failure. Failure never blocks request forwarding.
+
 ### 4.2 Route Handler -> Context Injector
 
 The route handler passes the parsed request body, identity context, and config. The injector returns a (possibly mutated) serialized body string.
@@ -281,9 +331,9 @@ The route handler passes the parsed request body, identity context, and config. 
 
 The route handler calls the trace writer after the stream completes. The trace writer runs async and returns nothing to the caller. It writes the `llm_call` trace with response content, which triggers the Observer via SurrealDB EVENT.
 
-- **Input**: Response content blocks, stop_reason, workspace RecordId, session RecordId (optional), intelligence config metadata, dependencies (surreal, inflight tracker)
+- **Input**: Response content blocks, stop_reason, workspace RecordId, session RecordId (optional), conversation RecordId (optional), intelligence config metadata, dependencies (surreal, inflight tracker)
 - **Output**: `void` (side-effect: trace record created in SurrealDB, which triggers Observer EVENT)
-- **Contract**: Never throws. All errors caught internally and logged. Failed trace write means Observer analysis is silently skipped (no EVENT fires).
+- **Contract**: Never throws. All errors caught internally and logged. Failed trace write means Observer analysis is silently skipped (no EVENT fires). Conversation link stored in trace input FLEXIBLE field when provided.
 
 ### 4.4 Observer Route -> Trace Response Analyzer (via Observer Agent, NEW)
 

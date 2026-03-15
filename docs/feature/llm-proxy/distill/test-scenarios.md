@@ -51,15 +51,52 @@
 | 45 | M7-Audit | Authorization compliance check passes | happy | |
 | 46 | M7-Audit | Traces without authorization flagged | error | |
 
+| 47 | M8-Context Injection | Workspace decisions and learnings injected into request | walking_skeleton | |
+| 48 | M8-Context Injection | Original system prompt preserved (append-only) | happy | |
+| 49 | M8-Context Injection | Token budget respected | happy | |
+| 50 | M8-Context Injection | Context injection disabled — forwarded without modification | edge | |
+| 51 | M8-Context Injection | Context injection failure — forwarded without modification (fail-open) | error | |
+| 52 | M8-Context Injection | Session cache hit — no DB query on repeated request | edge | |
+| 53 | M8-Context Injection | Array-form system prompt preserved with brain-context appended | edge | |
+| 54 | M8-Context Injection | Empty workspace — no context block appended | edge | |
+| 55 | M9-Conversation Hash | Identical requests grouped into same conversation | walking_skeleton | |
+| 56 | M9-Conversation Hash | Different content produces different conversation | happy | |
+| 57 | M9-Conversation Hash | Conversation title derived from first user message | happy | |
+| 58 | M9-Conversation Hash | Missing system prompt — trace without conversation link | error | |
+| 59 | M9-Conversation Hash | Missing first user message — trace without conversation link | error | |
+| 60 | M9-Conversation Hash | Multiple turns preserve same conversation identity | happy | |
+| 61 | M10-Session Resolution | Trace linked to agent session via X-Brain-Session header | walking_skeleton | |
+| 62 | M10-Session Resolution | Claude Code metadata.user_id session extraction | happy | |
+| 63 | M10-Session Resolution | Unknown client — trace linked to workspace only | edge | |
+| 64 | M10-Session Resolution | Nonexistent session ID — trace linked to workspace only | error | |
+| 65 | M10-Session Resolution | Session activity timestamp updated on proxy request | happy | |
+| 66 | M11-Observer Trace | Contradiction detected between trace and confirmed decision | walking_skeleton | |
+| 67 | M11-Observer Trace | Missing decision detected from unrecorded approach choice | happy | |
+| 68 | M11-Observer Trace | Tool-use stop reason — trace analysis skipped | edge | |
+| 69 | M11-Observer Trace | No contradiction when response aligns with decisions | happy | |
+| 70 | M11-Observer Trace | Observer analysis failure — trace still exists (fail-skip) | error | |
+| 71 | M11-Observer Trace | Multiple contradictions detected in single trace | happy | |
+| 72 | M11-Observer Trace | Low-confidence contradiction discarded by Tier 2 | edge | |
+| 73 | M12-Observer Session End | Approach drift detected across session traces | walking_skeleton | |
+| 74 | M12-Observer Session End | Consistent traces — no cross-trace observations | happy | |
+| 75 | M12-Observer Session End | Single trace — no cross-trace patterns possible | edge | |
+| 76 | M12-Observer Session End | Session-end analysis failure — session still ends | error | |
+| 77 | M12-Observer Session End | Accumulated contradiction across multiple traces | happy | |
+| 78 | M13-Reverse Coherence | Implementation without decision detected | walking_skeleton | |
+| 79 | M13-Reverse Coherence | Task WITH decision link — no observation | happy | |
+| 80 | M13-Reverse Coherence | Recent task (under age threshold) — not flagged | edge | |
+| 81 | M13-Reverse Coherence | Multiple implementations — separate observations | happy | |
+| 82 | M13-Reverse Coherence | Duplicate scan — no duplicate observations | edge | |
+
 ## Coverage Analysis
 
-- **Total scenarios**: 46
-- **Walking skeletons**: 3 (7%)
-- **Happy path**: 18 (39%)
-- **Error path**: 11 (24%)
-- **Edge cases**: 12 (26%)
-- **Property-based**: 2 (4%)
-- **Error + Edge combined**: 23 (50%) -- exceeds 40% threshold
+- **Total scenarios**: 82
+- **Walking skeletons**: 9 (11%)
+- **Happy path**: 32 (39%)
+- **Error path**: 18 (22%)
+- **Edge cases**: 21 (26%)
+- **Property-based**: 2 (2%)
+- **Error + Edge combined**: 39 (48%) -- exceeds 40% threshold
 
 ## Story Coverage Map
 
@@ -72,8 +109,14 @@
 | US-LP-005 | 31-37 | - | #32, #33, #34 |
 | US-LP-006 | 38-42 | - | #41 |
 | US-LP-007 | 43-46 | - | #46 |
+| Intelligence: Context Injection (ADR-046) | 47-54 | #47 | #51 |
+| Intelligence: Conversation Hash (ADR-050) | 55-60 | #55 | #58, #59 |
+| Intelligence: Session Resolution (ADR-049) | 61-65 | #61 | #64 |
+| Intelligence: Observer Trace (ADR-047/051) | 66-72 | #66 | #70 |
+| Intelligence: Observer Session End (ADR-048) | 73-77 | #73 | #76 |
+| Intelligence: Reverse Coherence (ADR-051) | 78-82 | #78 | - |
 
-All 7 user stories have acceptance test coverage. All acceptance criteria from the requirement documents are mapped to at least one scenario.
+All user stories and intelligence capabilities have acceptance test coverage. All acceptance criteria from the requirement and ADR documents are mapped to at least one scenario.
 
 ## Implementation Sequence
 
@@ -91,3 +134,11 @@ Tests follow one-at-a-time enablement:
 **Phase 3 (Visibility)**:
 6. `llm-proxy-dashboard.test.ts` -- First scenario enabled, 4 skipped
 7. `llm-proxy-audit.test.ts` -- First scenario enabled, 3 skipped
+
+**Phase 4 (Intelligence)**:
+8. `llm-proxy-context-injection.test.ts` -- Walking skeleton enabled, 7 scenarios skipped
+9. `llm-proxy-conversation-hash.test.ts` -- Walking skeleton enabled, 5 scenarios skipped
+10. `llm-proxy-session-resolution.test.ts` -- Walking skeleton enabled, 4 scenarios skipped
+11. `llm-proxy-observer-trace.test.ts` -- Walking skeleton enabled, 6 scenarios skipped
+12. `llm-proxy-observer-session-end.test.ts` -- Walking skeleton enabled, 4 scenarios skipped
+13. `llm-proxy-observer-coherence.test.ts` -- Walking skeleton enabled, 4 scenarios skipped

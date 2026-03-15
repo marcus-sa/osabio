@@ -102,6 +102,102 @@ Feature files use domain terms only:
 - Focused scenarios: 43
 - Ratio: 7% walking skeletons, 93% focused (within 2-5 / 15-20+ recommended range)
 
+---
+
+## Intelligence Capabilities Review (Phase 4)
+
+### Dimension 1: Happy Path Bias
+
+**Status**: PASS
+
+Intelligence scenarios error + edge ratio: 17 / 36 = 47% (threshold: 40%)
+
+Error/edge scenarios per capability:
+- Context Injection: fail-open, disabled, cache hit, array-form, empty workspace (5 error/edge)
+- Conversation Hash: missing system prompt, missing user message (2 error)
+- Session Resolution: unknown client, nonexistent session (2 error/edge)
+- Observer Trace: tool_use skip, fail-skip, low-confidence discard (3 error/edge)
+- Observer Session End: single trace skip, analysis failure (2 error/edge)
+- Reverse Coherence: recent task threshold, dedup scan (2 edge)
+
+### Dimension 2: GWT Format Compliance
+
+**Status**: PASS
+
+All intelligence scenarios follow Given-When-Then with single When action. Observer tests use seed-then-verify pattern (seed trace -> wait for EVENT processing -> verify observations).
+
+### Dimension 3: Business Language Purity
+
+**Status**: PASS
+
+Technical terms avoided:
+- "workspace knowledge injected" (not "SELECT decisions FROM SurrealDB")
+- "approach drift detected" (not "cosine similarity below threshold")
+- "implementation without recorded decision" (not "task with no implemented_by edge")
+- "contradiction observation created" (not "INSERT INTO observation")
+
+### Dimension 4: Coverage Completeness
+
+**Status**: PASS
+
+All 6 intelligence capabilities mapped to scenarios:
+- ADR-046 Context Injection: 8 scenarios
+- ADR-050 Conversation Hash: 6 scenarios
+- ADR-049 Session Resolution: 5 scenarios
+- ADR-047/051 Observer Trace: 7 scenarios
+- ADR-048 Observer Session End: 5 scenarios
+- ADR-051 Reverse Coherence: 5 scenarios
+
+### Dimension 5: Walking Skeleton User-Centricity
+
+**Status**: PASS
+
+All 6 walking skeletons pass litmus test:
+- "Workspace decisions and learnings injected into request" -- user goal: agent gets relevant context
+- "Identical requests grouped into same conversation" -- user goal: trace grouping without setup
+- "Trace linked to agent session" -- user goal: session attribution works
+- "Observer detects contradiction in LLM response" -- user goal: contradictions caught automatically
+- "Observer detects approach drift across session" -- user goal: drift patterns visible
+- "Implementation without recorded decision detected" -- user goal: decision gaps found
+
+### Dimension 6: Priority Validation
+
+**Status**: PASS
+
+Implementation sequence follows dependency chain:
+1. Context Injection (requires identity + trace from Phase 1-2)
+2. Conversation Hash (requires trace creation)
+3. Session Resolution (requires identity + agent_session)
+4. Observer Trace (requires trace creation + Observer EVENT)
+5. Observer Session End (requires session lifecycle + per-trace analysis)
+6. Reverse Coherence (requires task + decision graph)
+
+## Updated Mandate Compliance Evidence
+
+### CM-A: Hexagonal Boundary Enforcement
+
+Intelligence test files invoke through driving ports:
+- `POST /proxy/llm/anthropic/v1/messages` (proxy endpoint with intelligence headers)
+- `POST /api/workspaces/:id/observer/scan` (coherence scan trigger)
+- SurrealDB seed queries (driving port for graph-layer setup)
+- SurrealDB observation queries (driving port for verification)
+
+No internal component imports. All helpers delegate to HTTP or SurrealDB.
+
+### CM-B: Business Language in Test Descriptions
+
+Test `describe` blocks use domain terms:
+- "Workspace decisions and learnings injected" (not "context-injector.ts called")
+- "Observer detects contradiction" (not "trace-response-analyzer cosine > threshold")
+- "Implementation without recorded decision" (not "graph-scan.ts reverse coherence query")
+
+### CM-C: Updated Walking Skeleton + Focused Scenario Counts
+
+- Walking skeletons: 9 (was 3)
+- Focused scenarios: 73 (was 43)
+- Total: 82 (was 46)
+- Ratio: 11% walking skeletons, 89% focused
+
 ## Approval Status
 
-**APPROVED** -- All 6 critique dimensions pass. Ready for handoff to software-crafter.
+**APPROVED** -- All 6 critique dimensions pass for both base proxy and intelligence capabilities. Ready for handoff to software-crafter.
