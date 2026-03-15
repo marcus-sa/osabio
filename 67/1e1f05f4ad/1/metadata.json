@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "671e1f05f4ad",
+  "session_id": "d60d82ce-4cf6-4cda-b2cb-dce04212e31c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T13:56:12.112378Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "33b0ec000bc7",
+  "token_usage": {
+    "input_tokens": 7093,
+    "cache_creation_tokens": 53340,
+    "cache_read_tokens": 197315,
+    "output_tokens": 4408,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T13:56:12.004738Z",
+    "agent_lines": 9,
+    "human_added": 200,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 209,
+    "agent_percentage": 4.30622009569378
+  }
+}
