@@ -25,11 +25,11 @@ Policy evaluation flow:
 
 ### Alternative 2: Full intent system integration (create intent per LLM call)
 - **What**: Create an `intent` record for each LLM request, run full authorization pipeline
-- **Expected impact**: Complete provenance (intent -> authorized_by -> policy -> llm_trace)
+- **Expected impact**: Complete provenance (intent -> authorized_by -> policy -> trace)
 - **Why insufficient**: Intent creation requires DB write before forwarding (5-50ms). At 100-500 calls/day this adds significant overhead. The intent system is designed for discrete agent actions, not high-frequency LLM calls. A lightweight policy check (cached policies, in-memory evaluation) is more appropriate.
 
 ## Consequences
 - **Positive**: Single policy graph for all Brain governance (agents + LLM calls); workspace admins configure in one place
-- **Positive**: Policy trace entries on llm_trace via `governed_by` edge provide audit trail without full intent overhead
+- **Positive**: Policy trace entries on trace via `governed_by` edge provide audit trail without full intent overhead
 - **Negative**: Policy condition vocabulary needs extension for LLM predicates (model, provider) -- small scope change to predicate-evaluator.ts
 - **Negative**: Budget and rate limiting are not part of the policy gate (they live alongside it as separate pre-request checks)

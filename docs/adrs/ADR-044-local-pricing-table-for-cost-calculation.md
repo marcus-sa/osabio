@@ -7,7 +7,7 @@ Proposed
 Each LLM call's cost must be computed from model-specific token pricing (input, output, cache write, cache read rates per million tokens). Cost must be computed at the time of the call so historical costs are not retroactively altered by pricing changes.
 
 ## Decision
-Maintain a static TypeScript configuration object mapping model IDs to per-token rates. Updated manually when providers change pricing. Each `llm_trace` records the cost computed at call time.
+Maintain a static TypeScript configuration object mapping model IDs to per-token rates. Updated manually when providers change pricing. Each `trace` records the cost computed at call time.
 
 ## Alternatives Considered
 

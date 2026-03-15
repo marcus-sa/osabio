@@ -11,18 +11,18 @@ Elena Vasquez is a compliance auditor who needs to verify that every agent LLM c
 - JS-4: Auditable Agent Provenance
 
 ## Solution
-Ensure every llm_trace in the graph has edges forming a complete provenance chain: intent -> authorized_by -> policy; intent -> executed_in -> agent_session -> invoked -> llm_trace -> attributed_to -> task; llm_trace -> scoped_to -> workspace. Provide a query interface and export capability for auditors.
+Ensure every trace in the graph has edges forming a complete provenance chain: intent -> authorized_by -> policy; intent -> executed_in -> agent_session -> invoked -> trace -> attributed_to -> task; trace -> scoped_to -> workspace. Provide a query interface and export capability for auditors.
 
 ## Domain Examples
 
 ### 1: Happy Path -- Elena traces a specific LLM call
-Elena queries trace "llm_trace:tr-2026-0315-001" in the audit view. She sees: model=claude-sonnet-4, tokens (in: 12,340, out: 2,100), cache (create: 0, read: 8,200), cost=$0.068, latency=4,200ms, stop_reason=end_turn. The provenance chain shows: intent:deploy-auth -> authorized_by -> policy:model-access-v2 -> executed_in -> agent_session:priya-auth-42 -> invoked -> llm_trace:tr-2026-0315-001 -> attributed_to -> task:implement-oauth -> scoped_to -> workspace:brain-v1. Elena clicks "Export Provenance Chain as JSON" and receives a structured file.
+Elena queries trace "trace:tr-2026-0315-001" in the audit view. She sees: model=claude-sonnet-4, tokens (in: 12,340, out: 2,100), cache (create: 0, read: 8,200), cost=$0.068, latency=4,200ms, stop_reason=end_turn. The provenance chain shows: intent:deploy-auth -> authorized_by -> policy:model-access-v2 -> executed_in -> agent_session:priya-auth-42 -> invoked -> trace:tr-2026-0315-001 -> attributed_to -> task:implement-oauth -> scoped_to -> workspace:brain-v1. Elena clicks "Export Provenance Chain as JSON" and receives a structured file.
 
 ### 2: Happy Path -- Elena queries all calls for a project in March
 Elena runs a query: "all LLM traces for project auth-service between 2026-03-01 and 2026-03-15". Results return in 1.8 seconds: 1,247 traces, total cost $234.56, across 42 sessions. Each row shows model, tokens, cost, session reference, and policy reference. She exports as CSV for her audit report.
 
 ### 3: Compliance Check -- All calls verified as policy-authorized
-Elena runs the authorization compliance check for March. The system traverses every llm_trace in the workspace, checking for a governing policy edge. Report: 4,891 of 4,891 traces have active policy authorization. Compliance: 100%. She exports the summary.
+Elena runs the authorization compliance check for March. The system traverses every trace in the workspace, checking for a governing policy edge. Report: 4,891 of 4,891 traces have active policy authorization. Compliance: 100%. She exports the summary.
 
 ### 4: Error Path -- Traces without policy authorization flagged
 Due to a brief configuration gap on March 3 (policies were being migrated), 17 LLM calls were processed without active policies. Elena's compliance check flags these 17 as "unverified". Each flagged trace links to the time period when no policies were active. Marcus reviews and confirms they were legitimate calls during the migration window. Elena documents the exception.
@@ -30,7 +30,7 @@ Due to a brief configuration gap on March 3 (policies were being migrated), 17 L
 ## UAT Scenarios (BDD)
 
 ### Scenario: Auditor views full provenance chain for a trace
-Given Elena queries trace "llm_trace:tr-2026-0315-001" in the audit view
+Given Elena queries trace "trace:tr-2026-0315-001" in the audit view
 When the trace detail loads
 Then Elena sees model, token counts, cost, latency, and stop reason
 And the provenance chain shows linked entities from intent through to workspace
@@ -57,7 +57,7 @@ And each flagged trace shows the time period and reason for missing authorizatio
 And the compliance summary shows "4,874 authorized, 17 unverified"
 
 ## Acceptance Criteria
-- [ ] Every llm_trace has edges forming provenance chain (session, workspace required; task, policy optional)
+- [ ] Every trace has edges forming provenance chain (session, workspace required; task, policy optional)
 - [ ] Trace detail view shows all usage data plus visual provenance chain
 - [ ] Provenance chain exportable as JSON
 - [ ] Project + date range query returns results in under 2 seconds
@@ -66,8 +66,8 @@ And the compliance summary shows "4,874 authorized, 17 unverified"
 - [ ] Traces without policy authorization flagged as "unverified" with explanation
 
 ## Technical Notes
-- Provenance chain query: `SELECT *, <-invoked<-agent_session AS sessions, ->attributed_to->task AS tasks, ->scoped_to->workspace AS workspaces FROM llm_trace WHERE id = $traceId`
-- Date range query: `SELECT * FROM llm_trace WHERE ->scoped_to->workspace = $ws AND created_at >= $start AND created_at <= $end`
+- Provenance chain query: `SELECT *, <-invoked<-agent_session AS sessions, ->attributed_to->task AS tasks, ->scoped_to->workspace AS workspaces FROM trace WHERE id = $traceId`
+- Date range query: `SELECT * FROM trace WHERE ->scoped_to->workspace = $ws AND created_at >= $start AND created_at <= $end`
 - Compliance check: batch query all traces in period, LEFT JOIN to policy authorization edges, flag nulls
 - CSV export: server-side generation to handle large result sets; streaming response for >1000 rows
 - JSON export: single trace with all edges expanded inline

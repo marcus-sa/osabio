@@ -292,7 +292,7 @@ Organization
 Unlike flat span trees, Brain traces would be graph nodes with edges to related entities:
 
 ```
-llm_trace (SCHEMAFULL)
+trace (SCHEMAFULL)
   -> model: string
   -> input_tokens: int
   -> output_tokens: int
@@ -305,10 +305,10 @@ llm_trace (SCHEMAFULL)
   -> created_at: datetime
 
 Relationships:
-  agent_session -> invoked -> llm_trace
-  llm_trace -> attributed_to -> task | feature | project
-  llm_trace -> scoped_to -> workspace
-  llm_trace -> governed_by -> policy
+  agent_session -> invoked -> trace
+  trace -> attributed_to -> task | feature | project
+  trace -> scoped_to -> workspace
+  trace -> governed_by -> policy
 ```
 
 This enables queries like:
@@ -401,7 +401,7 @@ Brain LLM Proxy (Bun server)
   |   |-- Evaluate policies (query Brain policy graph)
   |   |-- Rate limit check
   |   |-- Budget check (workspace/project spend limits)
-  |   |-- Create trace node (graph: llm_trace, status: pending)
+  |   |-- Create trace node (graph: trace, status: pending)
   |
   |-- [Forward to Anthropic]
   |   |-- Relay request with original headers (anthropic-beta, anthropic-version)
@@ -427,7 +427,7 @@ Anthropic API (api.anthropic.com)
 
 3. **Attribution via headers**: Claude Code's `ANTHROPIC_CUSTOM_HEADERS` can carry `X-Brain-Workspace`, `X-Brain-Task`, `X-Brain-Session` headers for attribution without modifying the Anthropic API payload.
 
-4. **SurrealDB graph storage**: Traces stored as `llm_trace` nodes with `RELATE` edges to agent sessions, tasks, and workspaces. Consistent with Brain's existing graph model.
+4. **SurrealDB graph storage**: Traces stored as `trace` nodes with `RELATE` edges to agent sessions, tasks, and workspaces. Consistent with Brain's existing graph model.
 
 5. **Policy graph integration**: Pre-request policy checks query the same policy engine used by Brain's Authorizer. No separate policy system.
 
@@ -530,7 +530,7 @@ Anthropic API (api.anthropic.com)
 
 2. **Prototype SSE passthrough** with Bun's native `fetch` and `TransformStream` to measure actual latency overhead. Verify that Bun correctly handles chunked SSE relay without buffering.
 
-3. **Design the `llm_trace` schema** in SurrealDB, extending the existing agent session/trace model. Define the `RELATE` edges and test with `INFO FOR TABLE`.
+3. **Design the `trace` schema** in SurrealDB, extending the existing agent session/trace model. Define the `RELATE` edges and test with `INFO FOR TABLE`.
 
 4. **Investigate `brain start` integration** -- how the CLI can inject `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS` (with session/task attribution), and `ANTHROPIC_AUTH_TOKEN` into the agent's environment when starting a task-scoped session.
 

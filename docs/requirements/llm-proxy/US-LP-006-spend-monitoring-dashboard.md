@@ -71,7 +71,7 @@ And the alert shows current spend, limit, and projected exhaustion time
 - [ ] Anomaly alerts displayed for sessions exceeding 2x average call rate or spend rate
 - [ ] Budget threshold alerts fire at configured percentage (default 80%)
 - [ ] Dashboard loads within 2 seconds
-- [ ] All figures derived from llm_trace graph aggregation (single source of truth)
+- [ ] All figures derived from trace graph aggregation (single source of truth)
 
 ## Technical Notes
 - API endpoints needed: GET /api/workspaces/:workspaceId/proxy/spend (workspace overview), GET /api/workspaces/:workspaceId/proxy/sessions (session list with cost), GET /api/workspaces/:workspaceId/proxy/sessions/:sessionId/traces (individual traces)

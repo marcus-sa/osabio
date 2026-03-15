@@ -128,12 +128,12 @@ Feature: LLM Proxy Gateway
     Given Priya's Claude Code session made a request for model "claude-sonnet-4"
     And the request is attributed to task "implement-oauth" in workspace "brain-v1"
     When the streaming response completes with 12340 input tokens and 2100 output tokens
-    Then an llm_trace node is created in the graph with model "claude-sonnet-4"
+    Then an trace node is created in the graph with model "claude-sonnet-4"
     And the trace records input_tokens=12340, output_tokens=2100
     And the trace records cost_usd computed from Sonnet 4 pricing ($3.00/$15.00 per million)
-    And an edge "agent_session -> invoked -> llm_trace" is created
-    And an edge "llm_trace -> attributed_to -> task:implement-oauth" is created
-    And an edge "llm_trace -> scoped_to -> workspace:brain-v1" is created
+    And an edge "agent_session -> invoked -> trace" is created
+    And an edge "trace -> attributed_to -> task:implement-oauth" is created
+    And an edge "trace -> scoped_to -> workspace:brain-v1" is created
 
   Scenario: Proxy captures cache token metrics
     Given a streaming response includes cache_creation_input_tokens=5000 and cache_read_input_tokens=8200
@@ -167,7 +167,7 @@ Feature: LLM Proxy Gateway
     Then Marcus sees today's total spend with progress bar against daily limit
     And a table shows per-project spend for today and month-to-date
     And the table includes call count per project
-    And all figures are derived from llm_trace graph aggregation
+    And all figures are derived from trace graph aggregation
 
   Scenario: Admin views spend breakdown by agent session
     Given Marcus navigates to the session cost view
@@ -194,16 +194,16 @@ Feature: LLM Proxy Gateway
   # --- Step 8: Audit Provenance ---
 
   Scenario: Auditor traces provenance chain for a specific LLM call
-    Given Elena Vasquez queries the audit view for trace "llm_trace:tr-2026-0315-001"
+    Given Elena Vasquez queries the audit view for trace "trace:tr-2026-0315-001"
     When the trace detail loads
     Then Elena sees the model, token counts, cost, latency, and stop reason
     And Elena sees the provenance chain:
       | From                                  | Edge           | To                              |
       | intent:deploy-auth                    | authorized_by  | policy:model-access-v2          |
       | intent:deploy-auth                    | executed_in    | agent_session:priya-auth-42     |
-      | agent_session:priya-auth-42           | invoked        | llm_trace:tr-2026-0315-001     |
-      | llm_trace:tr-2026-0315-001           | attributed_to  | task:implement-oauth            |
-      | llm_trace:tr-2026-0315-001           | scoped_to      | workspace:brain-v1              |
+      | agent_session:priya-auth-42           | invoked        | trace:tr-2026-0315-001     |
+      | trace:tr-2026-0315-001           | attributed_to  | task:implement-oauth            |
+      | trace:tr-2026-0315-001           | scoped_to      | workspace:brain-v1              |
     And Elena can export the provenance chain as JSON
 
   Scenario: Auditor queries all LLM calls for a project in a date range
@@ -216,7 +216,7 @@ Feature: LLM Proxy Gateway
   Scenario: Auditor verifies all calls were policy-authorized
     Given Elena runs the authorization compliance check for workspace "brain-v1" for March 2026
     When the check completes
-    Then every llm_trace is verified to have a governing policy edge
+    Then every trace is verified to have a governing policy edge
     And any traces without policy authorization are flagged as "unverified"
     And a compliance summary shows authorized vs unverified call counts
 
@@ -231,12 +231,12 @@ Feature: LLM Proxy Gateway
   @property
   Scenario: Every LLM call has a trace in the graph
     Given the proxy has been running for any period
-    Then every successfully forwarded LLM call has a corresponding llm_trace node
-    And every llm_trace has at minimum: model, input_tokens, output_tokens, cost_usd, latency_ms
-    And every llm_trace has an edge to its workspace
+    Then every successfully forwarded LLM call has a corresponding trace node
+    And every trace has at minimum: model, input_tokens, output_tokens, cost_usd, latency_ms
+    And every trace has an edge to its workspace
 
   @property
   Scenario: Spend counters are consistent with trace data
     Given spend counters exist for workspace, project, and task scopes
-    Then the sum of llm_trace.cost_usd for a given scope equals the spend counter value
+    Then the sum of trace.cost_usd for a given scope equals the spend counter value
     And any discrepancy triggers a self-healing reconciliation

@@ -12,12 +12,12 @@ Marcus Olsson is a workspace admin who has zero visibility into what his coding 
 - JS-1: Transparent Cost Visibility (traces are the data source for cost attribution)
 
 ## Solution
-After each LLM call completes, asynchronously create an `llm_trace` node in SurrealDB with usage data, cost, and latency. Create `RELATE` edges linking the trace to its agent session, workspace, and optionally task. All graph writes are non-blocking -- they must not add latency to the response delivery.
+After each LLM call completes, asynchronously create an `trace` node in SurrealDB with usage data, cost, and latency. Create `RELATE` edges linking the trace to its agent session, workspace, and optionally task. All graph writes are non-blocking -- they must not add latency to the response delivery.
 
 ## Domain Examples
 
 ### 1: Happy Path -- Full trace with all edges
-Priya's Claude Code completes a streaming request for "claude-sonnet-4" with 12,340 input tokens (8,200 cache read) and 2,100 output tokens. Cost: $0.068. The proxy creates `llm_trace:tr-001` with all usage fields, then creates edges: `agent_session:6ba7b810 -> invoked -> llm_trace:tr-001`, `llm_trace:tr-001 -> attributed_to -> task:implement-oauth`, `llm_trace:tr-001 -> scoped_to -> workspace:brain-v1`. Marcus later queries `SELECT ->invoked->llm_trace FROM agent_session:6ba7b810` and sees all 8 traces from Priya's session.
+Priya's Claude Code completes a streaming request for "claude-sonnet-4" with 12,340 input tokens (8,200 cache read) and 2,100 output tokens. Cost: $0.068. The proxy creates `trace:tr-001` with all usage fields, then creates edges: `agent_session:6ba7b810 -> invoked -> trace:tr-001`, `trace:tr-001 -> attributed_to -> task:implement-oauth`, `trace:tr-001 -> scoped_to -> workspace:brain-v1`. Marcus later queries `SELECT ->invoked->trace FROM agent_session:6ba7b810` and sees all 8 traces from Priya's session.
 
 ### 2: Edge Case -- Trace without task attribution
 Priya's request had no X-Brain-Task header. The trace is created with workspace and session edges but no `attributed_to` edge. The trace still appears in workspace-level cost queries but not in task-level queries.
@@ -34,7 +34,7 @@ A non-streaming request completes with a JSON response containing `usage: {input
 Given Priya's streaming request completes with model "claude-sonnet-4"
 And the response included input_tokens=12340, output_tokens=2100, cache_read=8200
 When the async trace capture runs
-Then an llm_trace node exists with model="claude-sonnet-4", input_tokens=12340, output_tokens=2100, cache_read_input_tokens=8200
+Then an trace node exists with model="claude-sonnet-4", input_tokens=12340, output_tokens=2100, cache_read_input_tokens=8200
 And cost_usd is computed from Sonnet 4 pricing
 And latency_ms records the total request duration
 And stop_reason records the value from message_delta
@@ -42,15 +42,15 @@ And stop_reason records the value from message_delta
 ### Scenario: Trace edges link to session, workspace, and task
 Given the identity resolution produced session="6ba7b810", workspace="brain-v1", task="implement-oauth"
 When the trace is captured
-Then edge "agent_session:6ba7b810 -> invoked -> llm_trace:{id}" exists
-And edge "llm_trace:{id} -> attributed_to -> task:implement-oauth" exists
-And edge "llm_trace:{id} -> scoped_to -> workspace:brain-v1" exists
+Then edge "agent_session:6ba7b810 -> invoked -> trace:{id}" exists
+And edge "trace:{id} -> attributed_to -> task:implement-oauth" exists
+And edge "trace:{id} -> scoped_to -> workspace:brain-v1" exists
 
 ### Scenario: Trace without task has workspace and session edges only
 Given no X-Brain-Task header was present
 When the trace is captured
-Then edge "llm_trace:{id} -> scoped_to -> workspace:brain-v1" exists
-And edge "agent_session:{id} -> invoked -> llm_trace:{id}" exists
+Then edge "trace:{id} -> scoped_to -> workspace:brain-v1" exists
+And edge "agent_session:{id} -> invoked -> trace:{id}" exists
 And no attributed_to edge is created
 
 ### Scenario: Trace capture does not block response
@@ -67,7 +67,7 @@ And if all retries fail, trace data is logged to stderr as structured JSON
 And a warning observation is created when SurrealDB reconnects
 
 ## Acceptance Criteria
-- [ ] llm_trace node created for every successfully forwarded LLM call
+- [ ] trace node created for every successfully forwarded LLM call
 - [ ] Trace includes: model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, latency_ms, stop_reason, request_id, created_at
 - [ ] RELATE edges created: session -> invoked -> trace, trace -> scoped_to -> workspace
 - [ ] Optional RELATE edge: trace -> attributed_to -> task (when task identity resolved)
@@ -75,11 +75,11 @@ And a warning observation is created when SurrealDB reconnects
 - [ ] Graph write failure retried 3x with exponential backoff; fallback to stderr JSON log
 
 ## Technical Notes
-- llm_trace table must be SCHEMAFULL with all fields defined
-- RELATE edges: `invoked` (TYPE RELATION IN agent_session OUT llm_trace), `attributed_to` (TYPE RELATION IN llm_trace OUT task|feature|project), `scoped_to` (TYPE RELATION IN llm_trace OUT workspace)
+- trace table must be SCHEMAFULL with all fields defined
+- RELATE edges: `invoked` (TYPE RELATION IN agent_session OUT trace), `attributed_to` (TYPE RELATION IN trace OUT task|feature|project), `scoped_to` (TYPE RELATION IN trace OUT workspace)
 - Use `deps.inflight.track()` for async trace writes (consistent with Brain's existing pattern)
 - Cost calculation uses local pricing table (model -> input/output/cache_write/cache_read rates per million tokens)
-- Schema migration required: new tables `llm_trace`, `invoked`, `attributed_to` (reuse existing if compatible), `scoped_to`
+- Schema migration required: new tables `trace`, `invoked`, `attributed_to` (reuse existing if compatible), `scoped_to`
 
 ## Dependencies
 - US-LP-001 (proxy passthrough -- trace capture reads usage from the same SSE events)

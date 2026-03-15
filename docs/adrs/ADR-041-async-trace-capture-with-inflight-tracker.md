@@ -4,7 +4,7 @@
 Proposed
 
 ## Context
-Every LLM call must produce an `llm_trace` graph node with RELATE edges. Graph writes to SurrealDB take 5-50ms. The proxy must not add perceptible latency to the SSE response (< 50ms p95 TTFT overhead). The existing Brain codebase uses `deps.inflight.track()` for async background work, and acceptance tests call `drain()` before assertions.
+Every LLM call must produce an `trace` graph node with RELATE edges. Graph writes to SurrealDB take 5-50ms. The proxy must not add perceptible latency to the SSE response (< 50ms p95 TTFT overhead). The existing Brain codebase uses `deps.inflight.track()` for async background work, and acceptance tests call `drain()` before assertions.
 
 ## Decision
 All post-response work (trace creation, edge creation, spend counter updates, failure observations) runs asynchronously via `deps.inflight.track()`. The SSE stream completes and the client connection closes before graph writes begin.

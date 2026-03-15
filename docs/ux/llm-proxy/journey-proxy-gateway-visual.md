@@ -238,7 +238,7 @@ Confidence
 |     cost_usd: $${CALL_COST}                                      |
 |                                                                    |
 |  3. Write graph trace:                                             |
-|     CREATE llm_trace SET                                           |
+|     CREATE trace SET                                           |
 |       model = ${MODEL_ID},                                        |
 |       input_tokens = ${INPUT_TOKENS},                             |
 |       output_tokens = ${OUTPUT_TOKENS},                           |
@@ -248,10 +248,10 @@ Confidence
 |       request_id = ${REQUEST_ID};                                 |
 |                                                                    |
 |     RELATE agent_session:${SESSION_ID}                            |
-|       -> invoked -> llm_trace:${TRACE_ID};                       |
-|     RELATE llm_trace:${TRACE_ID}                                 |
+|       -> invoked -> trace:${TRACE_ID};                       |
+|     RELATE trace:${TRACE_ID}                                 |
 |       -> attributed_to -> task:${TASK_ID};                        |
-|     RELATE llm_trace:${TRACE_ID}                                 |
+|     RELATE trace:${TRACE_ID}                                 |
 |       -> scoped_to -> workspace:${WORKSPACE_ID};                 |
 |                                                                    |
 |  4. Update spend counters (async):                                 |
@@ -317,7 +317,7 @@ Confidence
 |                                                                    |
 |  Brain Dashboard > Audit > LLM Trace Detail                       |
 |                                                                    |
-|  Trace: llm_trace:${TRACE_ID}                                    |
+|  Trace: trace:${TRACE_ID}                                    |
 |  +---------------------------------------------+                  |
 |  | Field            | Value                     |                  |
 |  |------------------|---------------------------|                  |
@@ -335,7 +335,7 @@ Confidence
 |  [intent:deploy-auth]                                              |
 |     -> authorized_by -> [policy:model-access-v2]                  |
 |     -> executed_in -> [agent_session:priya-auth-42]               |
-|        -> invoked -> [llm_trace:${TRACE_ID}]                     |
+|        -> invoked -> [trace:${TRACE_ID}]                     |
 |           -> attributed_to -> [task:implement-oauth]              |
 |           -> scoped_to -> [workspace:marcus/brain-v1]             |
 |                                                                    |

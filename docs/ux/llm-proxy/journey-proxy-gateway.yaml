@@ -183,11 +183,11 @@ steps:
     action: "Review spend dashboard, investigate anomalies, adjust budgets"
     shared_artifacts:
       - name: "spend_aggregates"
-        source: "aggregated from llm_trace nodes per workspace/project/task"
+        source: "aggregated from trace nodes per workspace/project/task"
         displayed_as: "daily/MTD spend tables"
         consumers: ["dashboard", "budget enforcement", "alerts"]
       - name: "session_costs"
-        source: "aggregated from llm_trace nodes per agent_session"
+        source: "aggregated from trace nodes per agent_session"
         displayed_as: "session cost table"
         consumers: ["dashboard", "anomaly detection"]
       - name: "anomaly_alerts"
@@ -215,7 +215,7 @@ steps:
       entry: "Investigative -- need to verify what happened"
       exit: "Assured -- complete chain verified, every call traceable"
     integration_checkpoint: |
-      Every llm_trace has edges to session, workspace (required) and task (optional).
+      Every trace has edges to session, workspace (required) and task (optional).
       Provenance chain traversable in a single graph query.
       Export produces complete chain per trace in JSON format.
 

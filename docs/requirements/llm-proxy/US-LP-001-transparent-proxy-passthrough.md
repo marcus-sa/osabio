@@ -15,7 +15,7 @@ A transparent HTTP proxy that forwards Anthropic Messages API requests without t
 ## Domain Examples
 
 ### 1: Happy Path -- Priya uses Claude Code normally through the proxy
-Priya sets `ANTHROPIC_BASE_URL=http://localhost:4100/proxy/llm/anthropic` via `brain init`. She opens Claude Code and asks it to refactor `auth-service/middleware.ts`. Claude Code sends 8 streaming API requests through the proxy over 3 minutes. Each request is forwarded to Anthropic with Priya's own `x-api-key`. She notices zero difference in latency or behavior. All 8 calls produce `llm_trace` nodes in the graph (async).
+Priya sets `ANTHROPIC_BASE_URL=http://localhost:4100/proxy/llm/anthropic` via `brain init`. She opens Claude Code and asks it to refactor `auth-service/middleware.ts`. Claude Code sends 8 streaming API requests through the proxy over 3 minutes. Each request is forwarded to Anthropic with Priya's own `x-api-key`. She notices zero difference in latency or behavior. All 8 calls produce `trace` nodes in the graph (async).
 
 ### 2: Edge Case -- Extended thinking and tool use work through the proxy
 Priya asks Claude Code to analyze a complex race condition. Claude Code uses extended thinking (thinking blocks in SSE stream) and then calls the Read tool 4 times. The proxy relays all SSE event types: `message_start`, `content_block_start` (type: thinking), `content_block_delta` (thinking_delta and text_delta), `content_block_stop`, `tool_use` blocks, `message_delta`, `message_stop`. Every event passes through unmodified.

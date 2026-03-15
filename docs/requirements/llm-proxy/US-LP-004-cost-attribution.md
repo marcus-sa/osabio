@@ -33,7 +33,7 @@ Given a streaming response completes with model "claude-sonnet-4"
 And input_tokens=12340, output_tokens=2100, cache_creation_tokens=0, cache_read_tokens=8200
 When the proxy computes cost
 Then cost_usd = ((12340 - 8200) * 3.00 + 8200 * 0.30 + 2100 * 15.00) / 1000000
-And the computed cost is stored in the llm_trace node
+And the computed cost is stored in the trace node
 
 ### Scenario: Cost computed from Haiku non-streaming response
 Given a non-streaming response completes with model "claude-haiku-3.5"
@@ -78,7 +78,7 @@ And the response time is under 2 seconds
 - Spend counters can be running counters (fast reads) or computed from trace aggregation (consistent but slower)
 - If running counters: reconciliation job must verify counters match SUM(cost_usd) from traces periodically
 - API endpoint: GET /api/workspaces/:workspaceId/proxy/spend with query params: period (today/week/month/custom), groupBy (project/session/task)
-- Consider SurrealDB aggregation: `SELECT math::sum(cost_usd) FROM llm_trace WHERE ->scoped_to->workspace = $ws GROUP BY ->attributed_to->task`
+- Consider SurrealDB aggregation: `SELECT math::sum(cost_usd) FROM trace WHERE ->scoped_to->workspace = $ws GROUP BY ->attributed_to->task`
 
 ## Dependencies
 - US-LP-003 (graph trace capture -- spend is derived from trace data)

@@ -78,11 +78,11 @@
 - **Validation**: Stored in trace record; matches Anthropic's request log when investigated
 
 ### spend_counters
-- **Source of truth**: Aggregated from llm_trace nodes (or maintained as running counters)
+- **Source of truth**: Aggregated from trace nodes (or maintained as running counters)
 - **Consumers**: Budget enforcement (authorization step), monitoring dashboard, alert thresholds
 - **Owner**: Proxy spend tracking module
 - **Integration risk**: HIGH -- spend counters out of sync with traces = wrong budget enforcement
-- **Validation**: Counter values must equal SUM(cost_usd) from corresponding llm_trace nodes; reconciliation check runs periodically
+- **Validation**: Counter values must equal SUM(cost_usd) from corresponding trace nodes; reconciliation check runs periodically
 
 ---
 
@@ -92,6 +92,6 @@
 2. **workspace_id** in X-Brain-Workspace header MUST match the workspace owning the proxy instance
 3. **session_id** parsed from metadata.user_id MUST be the same value used in trace edges and session aggregation
 4. **model_id** from request body MUST be the same value used for policy check, cost calculation, and trace record
-5. **call_cost** in each llm_trace MUST equal the cost computed from that trace's token counts and the pricing table at time of computation
+5. **call_cost** in each trace MUST equal the cost computed from that trace's token counts and the pricing table at time of computation
 6. **spend_counters** MUST equal the sum of call_cost across all traces in the corresponding scope (workspace/project/task)
 7. **pricing_table** MUST have an entry for every model_id the proxy encounters; unknown models trigger a warning observation
