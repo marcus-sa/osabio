@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3feb06a918d9",
+  "session_id": "f340068b-7716-4328-870e-15997128d5d6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T16:38:42.517941Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "docs/adrs/ADR-046-context-injection-append-only-system-block.md",
+    "docs/adrs/ADR-047-contradiction-detection-proxy-hybrid-with-observer.md",
+    "docs/adrs/ADR-048-observer-session-end-trace-analysis.md",
+    "docs/adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md",
+    "docs/architecture/llm-proxy-intelligence-design.md",
+    "docs/feature/llm-proxy/design/architecture-design.md",
+    "docs/feature/llm-proxy/design/component-boundaries.md",
+    "docs/feature/llm-proxy/design/data-models.md",
+    "docs/feature/llm-proxy/design/technology-stack.md",
+    "docs/research/llm-session-boundary-detection.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0899cb4061b5",
+  "token_usage": {
+    "input_tokens": 3262,
+    "cache_creation_tokens": 371285,
+    "cache_read_tokens": 3035344,
+    "output_tokens": 28007,
+    "api_call_count": 48
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T16:38:39.254066Z",
+    "agent_lines": 2999,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2999,
+    "agent_percentage": 100
+  }
+}

@@ -1,0 +1,595 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/seoul-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:design  context injection and Contradiction detection @docs/architecture/llm-proxy-intelligence-design.md 
+
+it's part of the llm-proxy feature
+
+---
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md
+- docs/feature/{feature-name}/discuss/user-stories.md
+- docs/feature/{feature-name}/discuss/domain-model.md
+- docs/feature/{feature-name}/discuss/ux-journey.md
+- docs/feature/{feature-name}/discuss/jtbd-job-stories.md — Job stories (JTBD Phase 1)
+- docs/feature/{feature-name}/discuss/jtbd-four-forces.md — Four Forces analysis
+- docs/feature/{feature-name}/discuss/jtbd-opportunity-scores.md — Opportunity scores (if multiple jobs)
+- docs/feature/{feature-name}/design/constraints.md — Technical and business constraints
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-name}.
+
+Context files: see Context Files Required above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOP wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOP wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Expected Outputs
+
+```
+docs/feature/{feature-name}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+
+ARGUMENTS: Design the Context Injection and Contradiction Detection intelligence capabilities for the LLM Proxy feature. These are capabilities layered onto the existing LLM proxy pipeline. Reference architecture: docs/architecture/llm-proxy-intelligence-design.md. This is part of the llm-proxy feature which already has a walking skeleton and acceptance tests. Focus on: 1) Context Injection - enriching LLM requests with workspace knowledge graph context (decisions, learnings, observations) via appended system blocks with session caching and tiered routing. 2) Contradiction Detection - async post-response analysis detecting agent actions conflicting with confirmed decisions using a two-tier pipeline (embedding similarity + Haiku verification). The design document already exists with detailed data flows, queries, configuration model, and ADRs (043, 044). Use it as the primary input.
+
+---
+
+we also need to make sure that if something has been decided and there's missing a decision from the system, then it gets flagged (part of observer agents job (?))
+the observer agent should also observe the traces
+
+
+the observer agent will have to run on traces as well. i assume this makes sense to do it for the whole conversation when the session ends? then we call it async via inflight tracker
+
+---
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md
+- docs/feature/{feature-name}/discuss/user-stories.md
+- docs/feature/{feature-name}/discuss/domain-model.md
+- docs/feature/{feature-name}/discuss/ux-journey.md
+- docs/feature/{feature-name}/discuss/jtbd-job-stories.md — Job stories (JTBD Phase 1)
+- docs/feature/{feature-name}/discuss/jtbd-four-forces.md — Four Forces analysis
+- docs/feature/{feature-name}/discuss/jtbd-opportunity-scores.md — Opportunity scores (if multiple jobs)
+- docs/feature/{feature-name}/design/constraints.md — Technical and business constraints
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-name}.
+
+Context files: see Context Files Required above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOP wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOP wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Expected Outputs
+
+```
+docs/feature/{feature-name}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+
+ARGUMENTS: we also need to make sure that if something has been decided and there's missing a decision from the system, then it gets flagged (part of observer agents job (?))
+the observer agent should also observe the traces
+
+the observer agent will have to run on traces as well. i assume this makes sense to do it for the whole conversation when the session ends? then we call it async via inflight tracker
+
+---
+
+"1. Observer on Traces (session-end analysis)
+When a coding agent session ends → async Observer scan over all traces from that session. This fits naturally:
+
+Session ends (endAgentSession)
+  → deps.inflight.track(analyzeSessionTraces(sessionId))
+    → Load all traces WHERE session = $session AND type = "llm_call"
+    → Extract: system prompts sent, tool calls made, decisions referenced/ignored
+    → Feed to Observer pipeline
+Session end is the right trigger — you have the complete picture, no partial analysis, and the coding agent isn’t blocked."
+
+or would it be better to do this as surrealdb event triggers like the rest of the system?
+
+---
+
+"Missing decision threshold — Every candidate gets an observation, or confidence-gated with peer review?" what do you mean?
+
+---
+
+1. All trace types from the session
+2. same OBSERVER_MODEL
+3. confidence-gated with peer review
+
+---
+
+the llm proxy triggers endAgentSession right ? either that happens when we detect that the request has end_session or after a debounce timeout since last llm session request, e.g 2-3 hours
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools are not available in this context. This session involved substantial design work (LLM proxy intelligence capabilities, Observer trace analysis, session lifecycle management) with multiple architectural decisions, design artifacts created, and unresolved questions about session management. Cannot log via Brain without MCP access. Please enable Brain tools and retry.
+
+---
+
+read the @docs/research/llm-proxy-research.md and @docs/research/coding-agent-internals-research.md  - i am sure they send an end_session request - but how would this work with e.g a marketing agent that connects through brain? does e.g vercel ai sdk send a session end?
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+
+ARGUMENTS: there must be some way to determine this. how does llm observability platforms do this?
+
+---
+
+10 minutes makes sense
+
+---
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOP informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md | user-stories.md
+- docs/feature/{feature-name}/design/architecture-design.md | component-boundaries.md | technology-stack.md
+- docs/feature/{feature-name}/deliver/* (infrastructure design from DEVOP)
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-name}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw:distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-name}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-name}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
+
+---
+
+how do we ensure that agent session end isn't triggered twice? 
+
+the brain cli already hooks into claude and calls agent session end
+
+i honestly don't think it makes sense to have this for claude code, because we would require the plugin to be installed. 
+
+if we manage the coding agents ourselves, then we also know when a session has ended. e.g when a task has been implemented
+
+what do u think?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools are not available in this context. This session involved substantial design work (LLM proxy intelligence capabilities, Observer trace analysis, session lifecycle management) with multiple architectural decisions, design artifacts created, and a final pivot decision about session management. Decisions, observations, and design changes need to be logged via Brain tools before session end. Please enable Brain MCP access and retry.
+
+---
+
+should it even be the proxy's job to upsert the session?
+
+---
+
+"The proxy just needs a session ID on each request so it can link traces to the right session" yeah so either it extracts it or requires custom header..?
+
+---
+
+yes, this makes sense. let's simplify the artifacts to reflect this
+
+---
+
+"Unknown client — no session ID available. Trace gets linked to workspace only. That’s fine — you still get cost tracking, just no session grouping." then when will the observer agent observe unlinked traces? during periodic scan if its X time old?
+
+---
+
+"Missing decision detection (requires session-end trigger)"
+
+why does this require session-end trigger?
+
+contradiction detection works similarly to decision detection
+
+---
+
+what about "Session-scoped contradiction analysis (requires session)"?
+
+---
+
+update the design artifacts to reflect this
+
+---
+
+shouldn't it just run the observer agent for Post-response async ? doesnt it already handle "Contradiction detection" and "Missing decision detection" ?
+
+---
+
+yes
+
+---
+
+yes, but first let's ensure that observer agent currently handles "Missing decision detection	"
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools are not available in this context. Unable to log decisions, observations, questions, tasks, subtasks, or suggestions. Please enable Brain MCP access and retry the Stop hook.
+
+---
+
+update the design to explicitly call out that the Observer needs these new capabilities added
+
+---
+
+commit
