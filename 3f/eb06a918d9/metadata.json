@@ -3,7 +3,7 @@
   "checkpoint_id": "3feb06a918d9",
   "strategy": "manual-commit",
   "branch": "marcus-sa/llm-proxy-research",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "docs/adrs/ADR-046-context-injection-append-only-system-block.md",
     "docs/adrs/ADR-047-contradiction-detection-proxy-hybrid-with-observer.md",
@@ -30,13 +30,20 @@
       "context": "/3f/eb06a918d9/1/context.md",
       "content_hash": "/3f/eb06a918d9/1/content_hash.txt",
       "prompt": "/3f/eb06a918d9/1/prompt.txt"
+    },
+    {
+      "metadata": "/3f/eb06a918d9/2/metadata.json",
+      "transcript": "/3f/eb06a918d9/2/full.jsonl",
+      "context": "/3f/eb06a918d9/2/context.md",
+      "content_hash": "/3f/eb06a918d9/2/content_hash.txt",
+      "prompt": "/3f/eb06a918d9/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1005,
-    "cache_creation_tokens": 70106,
-    "cache_read_tokens": 981518,
-    "output_tokens": 8755,
-    "api_call_count": 18
+    "input_tokens": 1014,
+    "cache_creation_tokens": 81405,
+    "cache_read_tokens": 1428762,
+    "output_tokens": 10738,
+    "api_call_count": 23
   }
 }
