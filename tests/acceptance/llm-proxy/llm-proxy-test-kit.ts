@@ -1019,6 +1019,7 @@ export async function getTracesForConversation(
 
 /**
  * Seed a completed task with no decision links for reverse coherence testing.
+ * Uses created_at for the age threshold (task schema has no completed_at field).
  */
 export async function seedCompletedTaskWithoutDecision(
   surreal: Surreal,
@@ -1031,7 +1032,9 @@ export async function seedCompletedTaskWithoutDecision(
 ): Promise<string> {
   const taskRecord = new RecordId("task", taskId);
   const workspaceRecord = new RecordId("workspace", options.workspaceId);
-  const completedAt = options.completedAt ?? new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+  const createdAt = options.completedAt
+    ? new Date(options.completedAt.getTime() - 7 * 24 * 60 * 60 * 1000)
+    : new Date(Date.now() - 22 * 24 * 60 * 60 * 1000);
 
   await surreal.query(`CREATE $task CONTENT $content;`, {
     task: taskRecord,
@@ -1039,8 +1042,7 @@ export async function seedCompletedTaskWithoutDecision(
       title: options.title,
       status: "completed",
       workspace: workspaceRecord,
-      completed_at: completedAt,
-      created_at: new Date(completedAt.getTime() - 7 * 24 * 60 * 60 * 1000),
+      created_at: createdAt,
     },
   });
 
@@ -1137,9 +1139,13 @@ export async function seedLlmTraceWithContent(
     { trace: traceRecord, workspace: workspaceRecord },
   );
 
-  // Create session edge if provided
+  // Link to session: set session field on trace AND create invoked edge
   if (options.sessionId) {
     const sessionRecord = new RecordId("agent_session", options.sessionId);
+    await surreal.query(
+      `UPDATE $trace SET session = $sess;`,
+      { trace: traceRecord, sess: sessionRecord },
+    );
     await surreal.query(
       `RELATE $sess->invoked->$trace SET created_at = time::now();`,
       { trace: traceRecord, sess: sessionRecord },
@@ -1161,7 +1167,7 @@ export async function triggerCoherenceScan(
   workspaceId: string,
 ): Promise<Response> {
   return fetch(
-    `${baseUrl}/api/workspaces/${workspaceId}/observer/scan`,
+    `${baseUrl}/api/observe/scan/${workspaceId}`,
     { method: "POST" },
   );
 }

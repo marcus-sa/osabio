@@ -218,6 +218,21 @@ DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
 DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
 
+DEFINE EVENT OVERWRITE session_ended ON agent_session
+  WHEN $before.ended_at IS NONE AND $after.ended_at IS NOT NONE
+  THEN {
+    http::post(
+      "http://127.0.0.1:" + <string> $env.PORT + "/api/observe/agent_session/" + <string> record::id($after.id),
+      {
+        ended_at: $after.ended_at,
+        workspace: $after.workspace,
+        agent: $after.agent,
+      }
+    );
+  }
+  ASYNC
+  RETRY 3;
+
 DEFINE TABLE observation SCHEMAFULL;
 DEFINE FIELD text ON observation TYPE string;
 DEFINE FIELD severity ON observation TYPE string ASSERT $value IN ["info", "warning", "conflict"];
