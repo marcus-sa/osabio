@@ -234,5 +234,40 @@ events:
   s: SKIPPED
   sid: 04-01
   t: '2026-03-15T19:07:28Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-15T19:16:16Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-15T19:16:18Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-15T19:18:36Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-15T19:22:11Z'
+- d: 'NOT_APPLICABLE: all logic tested through acceptance tests via driving ports'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-02
+  t: '2026-03-15T19:22:18Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-15T19:30:32Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-15T19:30:33Z'
 project_id: llm-proxy
 schema_version: '3.0'

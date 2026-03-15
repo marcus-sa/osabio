@@ -39,7 +39,7 @@ describe("Walking Skeleton: Non-streaming request forwarded transparently", () =
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly the word 'hello'." }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });
 
     // Then the response arrives with the original status code
@@ -80,7 +80,7 @@ describe("Streaming request relays all SSE events", () => {
       stream: true,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly: 'hello world'" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });
 
     expect(response.status).toBe(200);
@@ -142,7 +142,7 @@ describe("Proxy forwards all required headers", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });
 
     // Then the request succeeds (proving headers were forwarded correctly)
@@ -162,7 +162,7 @@ describe("Malformed request body forwarded without proxy interference", () => {
       headers: {
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
-        "x-api-key": process.env.ANTHROPIC_API_KEY ?? "test-key",
+        "x-api-key": process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? "test-key",
       },
       body: JSON.stringify({ invalid: "body", missing: "required fields" }),
     });
@@ -180,7 +180,7 @@ describe("Count tokens request forwarded without creating a trace", () => {
     const response = await sendCountTokensRequest(baseUrl, {
       model: "claude-sonnet-4-20250514",
       messages: [{ role: "user", content: "How many tokens is this?" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });
 
     // Then the token count response is returned

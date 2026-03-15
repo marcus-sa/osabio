@@ -59,6 +59,13 @@ const PRICING_TABLE: ReadonlyMap<string, ModelPricing> = new Map([
     cacheCreationPerMillion: 0.3,
     cacheReadPerMillion: 0.03,
   }],
+  // OpenAI GPT-4.1-mini (via OpenRouter)
+  ["openai/gpt-4.1-mini", {
+    inputPerMillion: 0.4,
+    outputPerMillion: 1.6,
+    cacheCreationPerMillion: 0,
+    cacheReadPerMillion: 0.1,
+  }],
 ]);
 
 const FALLBACK_PRICING: ModelPricing = {

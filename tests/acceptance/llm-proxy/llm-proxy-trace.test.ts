@@ -45,7 +45,7 @@ describe("Trace created with usage data after LLM call", () => {
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -93,7 +93,7 @@ describe("Trace edges link to session, workspace, and task", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       metadata: {
         user_id: buildClaudeCodeUserId("a1b2c3", accountId, sessionId),
       },
@@ -134,7 +134,7 @@ describe("Trace without task has workspace and session edges only", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -168,7 +168,7 @@ describe("Trace capture does not block response delivery", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     const responseTime = performance.now() - startTime;
@@ -209,7 +209,7 @@ describe("Graph write failure triggers retry and fallback", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 

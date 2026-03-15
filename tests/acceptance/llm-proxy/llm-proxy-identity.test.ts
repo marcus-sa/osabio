@@ -53,7 +53,7 @@ describe("Full identity resolved from Claude Code metadata and headers", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       metadata: {
         user_id: buildClaudeCodeUserId("a1b2c3", accountId, sessionId),
       },
@@ -92,7 +92,7 @@ describe("Graceful degradation without task header", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       metadata: {
         user_id: buildClaudeCodeUserId("b2c3d4", accountId, sessionId),
       },
@@ -118,7 +118,7 @@ describe("Graceful degradation without any metadata", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       // No metadata — third-party agent scenario
     });
@@ -138,7 +138,7 @@ describe("Invalid workspace produces warning but does not block", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: "nonexistent-workspace-" + crypto.randomUUID(),
     });
 
@@ -162,7 +162,7 @@ describe("Malformed metadata.user_id parsed as opaque identifier", () => {
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       metadata: { user_id: "some-random-string-not-matching-pattern" },
       workspaceHeader: workspaceId,
     });

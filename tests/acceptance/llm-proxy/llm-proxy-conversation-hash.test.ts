@@ -49,7 +49,7 @@ describe("Walking Skeleton: Identical requests grouped into same conversation", 
       maxTokens: 50,
       messages: [{ role: "user", content: firstUserMessage }],
       systemPrompt,
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     expect(response1.status).toBe(200);
@@ -65,7 +65,7 @@ describe("Walking Skeleton: Identical requests grouped into same conversation", 
         { role: "user", content: "Can you show an example?" },
       ],
       systemPrompt,
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     expect(response2.status).toBe(200);
@@ -100,7 +100,7 @@ describe("Different content produces different conversation record", () => {
       maxTokens: 50,
       messages: [{ role: "user", content: "Help me write code" }],
       systemPrompt: "You are a Python developer.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     expect(response1.status).toBe(200);
@@ -113,7 +113,7 @@ describe("Different content produces different conversation record", () => {
       maxTokens: 50,
       messages: [{ role: "user", content: "Help me write code" }],
       systemPrompt: "You are a Rust developer.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     expect(response2.status).toBe(200);
@@ -143,7 +143,7 @@ describe("Conversation record has correct title derived from first user message"
       maxTokens: 50,
       messages: [{ role: "user", content: firstMessage }],
       systemPrompt: "You are a security expert.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
     expect(response.status).toBe(200);
@@ -172,7 +172,7 @@ describe("Missing system prompt — trace created without conversation link", ()
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
       // No systemPrompt
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -206,7 +206,7 @@ describe("Missing first user message — trace created without conversation link
       maxTokens: 50,
       messages: [], // Empty messages
       systemPrompt: "You are a helpful assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -247,7 +247,7 @@ describe("Multiple turns preserve same conversation identity", () => {
         maxTokens: 30,
         messages,
         systemPrompt,
-        apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+        apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
         workspaceHeader: workspaceId,
       });
       expect(response.status).toBe(200);

@@ -57,7 +57,7 @@ describe("Walking Skeleton: Trace linked to agent session", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       sessionHeader: sessionId,
     });
@@ -105,7 +105,7 @@ describe("Claude Code metadata.user_id session extraction", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       metadata: {
         user_id: buildClaudeCodeUserId("a1b2c3", "acct-123", ccSessionId),
@@ -140,7 +140,7 @@ describe("Unknown client — trace linked to workspace only", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       // No metadata, no session header
     });
@@ -176,7 +176,7 @@ describe("Nonexistent session ID — trace linked to workspace only", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       sessionHeader: bogusSessionId,
     });
@@ -221,7 +221,7 @@ describe("Session activity timestamp updated on proxy request", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       sessionHeader: sessionId,
     });

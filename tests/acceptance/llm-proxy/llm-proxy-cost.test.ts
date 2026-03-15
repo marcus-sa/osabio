@@ -47,7 +47,7 @@ describe("Cost computed from model response and stored on trace", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Explain recursion in one sentence." }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 

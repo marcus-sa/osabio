@@ -37,7 +37,7 @@ describe("Skeleton 1: Non-streaming passthrough", () => {
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly the word 'hello'." }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });
 
     // Then she receives the model's response with the original content
@@ -79,7 +79,7 @@ describe("Skeleton 2: Trace capture", () => {
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -126,7 +126,7 @@ describe("Skeleton 3: Cost attribution", () => {
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
       taskHeader: taskId,
     });

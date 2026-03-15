@@ -58,7 +58,7 @@ describe("Walking Skeleton: Workspace decisions and learnings injected into requ
       maxTokens: 100,
       messages: [{ role: "user", content: "How should I implement the billing API?" }],
       systemPrompt: "You are a helpful coding assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -107,7 +107,7 @@ describe("Context injection disabled -- request forwarded without modification",
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
       systemPrompt: "You are a helpful assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -141,7 +141,7 @@ describe("Empty workspace -- no context block appended", () => {
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
       systemPrompt: "You are a helpful assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -171,7 +171,7 @@ describe("Context injection failure -- request forwarded without modification (f
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
       systemPrompt: "You are a helpful assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 
@@ -197,7 +197,7 @@ describe("Trace output captures response content", () => {
       maxTokens: 50,
       messages: [{ role: "user", content: "Say hello in one word." }],
       systemPrompt: "You are a helpful assistant.",
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
+      apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
       workspaceHeader: workspaceId,
     });
 

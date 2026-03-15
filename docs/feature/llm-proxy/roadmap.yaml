@@ -20,6 +20,11 @@ project_id: llm-proxy
 title: "LLM Proxy — Transparent Passthrough with Intelligence Layer"
 paradigm: functional
 
+roadmap:
+  project_id: llm-proxy
+  created_at: "2026-03-15"
+  total_steps: 10
+
 validation:
   status: approved
   reviewed_at: "2026-03-16"
@@ -41,13 +46,16 @@ validation:
 
 phases:
   - id: "01"
+    name: "Foundation — Schema, Passthrough, Identity, Trace, Cost"
     title: "Foundation — Schema, Passthrough, Identity, Trace, Cost"
     description: >
       Extend the walking skeleton into a production proxy: schema migrations for
       llm_call trace type, identity resolution from Claude Code metadata + headers,
       async trace capture with graph edges, and cost computation from pricing tables.
     steps:
-      - step_id: "01-01"
+      - id: "01-01"
+        step_id: "01-01"
+        name: "Schema migrations for LLM proxy"
         title: "Schema migrations for LLM proxy"
         description: >
           Three migrations extending the schema for LLM proxy capabilities:
@@ -59,6 +67,7 @@ phases:
           (3) Create proxy_intelligence_config SCHEMAFULL table with workspace-scoped
           settings for context injection and contradiction detection.
           Update surreal-schema.surql with all new definitions.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "trace type ASSERT includes 'llm_call' alongside existing types"
           - "LLM fields (model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, provider, stop_reason, request_id) defined as option<> on trace"
@@ -74,7 +83,9 @@ phases:
           - "schema/surreal-schema.surql"
         depends_on: []
 
-      - step_id: "01-02"
+      - id: "01-02"
+        step_id: "01-02"
+        name: "Proxy handler refactor with identity + session resolution"
         title: "Proxy handler refactor with identity + session resolution"
         description: >
           Refactor the walking skeleton anthropic-proxy-route to accept
@@ -87,6 +98,7 @@ phases:
           full header forwarding (anthropic-version, anthropic-beta, x-api-key,
           authorization, content-type). Upstream failure returns 502 with
           source:proxy distinction. Malformed request body forwarded as-is.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "Proxy handler receives ServerDependencies for SurrealDB and inflight access"
           - "Identity resolved from metadata.user_id + X-Brain-Workspace + X-Brain-Task + X-Brain-Agent-Type"
@@ -109,7 +121,9 @@ phases:
         depends_on:
           - "01-01"
 
-      - step_id: "01-03"
+      - id: "01-03"
+        step_id: "01-03"
+        name: "Async trace capture with cost computation"
         title: "Async trace capture with cost computation"
         description: >
           Trace writer module that creates llm_call trace nodes in SurrealDB after
@@ -122,6 +136,7 @@ phases:
           cache_read_tokens from message_start events. Non-streaming usage extracted
           from response body. Graph write failure retried 3x with exponential
           backoff, fallback to structured log output.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "llm_call trace node created for every forwarded LLM call with model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cost_usd, latency_ms, stop_reason"
           - "RELATE edges created: session->invoked->trace (when session resolved), trace->scoped_to->workspace (always), trace->attributed_to->task (when task resolved)"
@@ -143,13 +158,16 @@ phases:
           - "01-02"
 
   - id: "02"
+    name: "Value — Policy Enforcement, Spend API, Audit"
     title: "Value — Policy Enforcement, Spend API, Audit"
     description: >
       Pre-request policy enforcement (model access, budget, rate limiting),
       spend monitoring API endpoints for dashboard consumption, and audit
       provenance chain with compliance verification.
     steps:
-      - step_id: "02-01"
+      - id: "02-01"
+        step_id: "02-01"
+        name: "Policy enforcement at proxy boundary"
         title: "Policy enforcement at proxy boundary"
         description: >
           Pre-request policy evaluation using the existing evaluatePolicyGate()
@@ -161,6 +179,7 @@ phases:
           policy reference and remediation guidance. No policies configured
           defaults to permissive with warning observation. Policy decisions
           logged for audit trail.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "Model access violation returns 403 with JSON body: {error, policy_ref, policy_description, model_suggestion, remediation}"
           - "Budget exceeded returns 429 with JSON body: {error, current_spend_usd, daily_limit_usd, time_until_reset_seconds}; spend computed via SELECT math::sum(cost_usd) FROM trace WHERE ->scoped_to->workspace = $ws AND created_at >= time::floor(time::now(), 1d)"
@@ -179,7 +198,9 @@ phases:
           - "01-02"
           - "01-03"
 
-      - step_id: "02-02"
+      - id: "02-02"
+        step_id: "02-02"
+        name: "Spend monitoring and dashboard API"
         title: "Spend monitoring and dashboard API"
         description: >
           REST API endpoints for spend monitoring dashboard: workspace spend
@@ -190,6 +211,7 @@ phases:
           (default 80%). Spend aggregation cached with short TTL (10s) for
           dashboard reads. Cache invalidated on every trace creation via
           inflight tracker callback; TTL acts as fallback invalidation.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "GET /api/workspaces/:wsId/proxy/spend returns workspace total spend, budget progress percentage, and daily limit"
           - "Spend response includes per-project breakdown with today_spend, mtd_spend, and call_count sorted by today_spend DESC"
@@ -208,7 +230,9 @@ phases:
         depends_on:
           - "01-03"
 
-      - step_id: "02-03"
+      - id: "02-03"
+        step_id: "02-03"
+        name: "Audit provenance chain and compliance"
         title: "Audit provenance chain and compliance"
         description: >
           REST API endpoints for audit trail: trace detail with full provenance
@@ -216,6 +240,7 @@ phases:
           project, authorization compliance check verifying policy edges on all
           traces in period, and JSON export. Traces without governed_by policy
           edge flagged as "unverified" in compliance report.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "GET /api/workspaces/:wsId/proxy/traces/:traceId returns usage data plus linked session, workspace, task, and policy entities"
           - "Provenance chain exportable as structured JSON"
@@ -232,13 +257,16 @@ phases:
           - "02-01"
 
   - id: "03"
+    name: "Intelligence — Proxy-Owned Capabilities"
     title: "Intelligence — Proxy-Owned Capabilities"
     description: >
       Conversation hash correlation (UUIDv5 content-derived grouping for all
       clients), context injection (workspace decisions/learnings/observations
       injected into system prompt), and trace content capture for Observer analysis.
     steps:
-      - step_id: "03-01"
+      - id: "03-01"
+        step_id: "03-01"
+        name: "Conversation hash correlation via UUIDv5"
         title: "Conversation hash correlation via UUIDv5"
         description: >
           Per ADR-050: derive deterministic conversation ID from request content
@@ -249,6 +277,7 @@ phases:
           UUIDv5 will not collide with UUIDv4 used by web UI. Pipeline position:
           after session resolution, before context injection. Conversation link
           stored in trace input FLEXIBLE field. Failure never blocks forwarding.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "Identical requests (same system prompt + first user message) produce the same conversation ID across calls"
           - "Different system prompts or different first user messages produce different conversation IDs"
@@ -266,7 +295,9 @@ phases:
           - "01-02"
           - "01-03"
 
-      - step_id: "03-02"
+      - id: "03-02"
+        step_id: "03-02"
+        name: "Context injection with intelligence config"
         title: "Context injection with intelligence config"
         description: >
           Pre-forward request enrichment with workspace knowledge graph context.
@@ -280,6 +311,7 @@ phases:
           string|array, preserve existing blocks + cache_control). Fail-open on
           any error. Trace writer extended to capture response content in FLEXIBLE
           output field and intelligence metadata in input field.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "Workspace decisions, learnings, and observations injected into system prompt as <brain-context> XML block"
           - "Original system prompt content preserved — brain-context appended at end"
@@ -305,6 +337,7 @@ phases:
           - "03-01"
 
   - id: "04"
+    name: "Intelligence — Observer Extensions"
     title: "Intelligence — Observer Extensions"
     description: >
       Per ADR-051: all detection and analysis logic lives in the Observer system,
@@ -313,7 +346,9 @@ phases:
       detection), cross-trace pattern synthesis on session end, and reverse
       coherence scan for implementations without decisions.
     steps:
-      - step_id: "04-01"
+      - id: "04-01"
+        step_id: "04-01"
+        name: "Observer per-trace analysis via SurrealDB EVENT"
         title: "Observer per-trace analysis via SurrealDB EVENT"
         description: >
           New Observer capability triggered by trace creation EVENT. Migration
@@ -330,6 +365,7 @@ phases:
           existing decisions → no match = unrecorded → Tier 2 verification →
           create info observations. Both pipelines use existing verification
           pipeline for confidence scoring.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "SurrealDB EVENT trace_llm_call_created fires on trace creation with type='llm_call' (ASYNC, RETRY 3)"
           - "Observer route handles trace entity type — dispatches to trace response analyzer"
@@ -355,7 +391,9 @@ phases:
         depends_on:
           - "03-02"
 
-      - step_id: "04-02"
+      - id: "04-02"
+        step_id: "04-02"
+        name: "Observer session-end analysis + reverse coherence scan"
         title: "Observer session-end analysis + reverse coherence scan"
         description: >
           Two new Observer capabilities. (1) Session-end cross-trace pattern
@@ -371,6 +409,7 @@ phases:
           (no implemented_by or belongs_to edges). Deterministic graph query, no
           LLM needed. Creates info observations for implementations without
           decisions. Deduplicates against existing observations.
+        criteria: see acceptance_criteria
         acceptance_criteria:
           - "SurrealDB EVENT session_ended fires when agent_session.ended_at transitions from NONE to value (ASYNC, RETRY 3)"
           - "Observer route handles agent_session entity type — dispatches to session trace analyzer"
