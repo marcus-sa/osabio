@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b4b9c5e8ef55",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "schema/migrations/0047_trace_actor_optional.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b4/b9c5e8ef55/0/metadata.json",
+      "transcript": "/b4/b9c5e8ef55/0/full.jsonl",
+      "context": "",
+      "content_hash": "/b4/b9c5e8ef55/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
