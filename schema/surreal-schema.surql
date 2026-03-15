@@ -503,8 +503,8 @@ DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 DEFINE TABLE trace SCHEMAFULL;
 DEFINE FIELD type ON trace TYPE string
   ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange", "llm_call"];
-DEFINE FIELD actor ON trace TYPE record<identity>;
-DEFINE FIELD workspace ON trace TYPE record<workspace>;
+DEFINE FIELD actor ON trace TYPE option<record<identity>>;
+DEFINE FIELD workspace ON trace TYPE option<record<workspace>>;
 DEFINE FIELD session ON trace TYPE option<record<agent_session>>;
 DEFINE FIELD parent_trace ON trace TYPE option<record<trace>>;
 DEFINE FIELD tool_name ON trace TYPE option<string>;
