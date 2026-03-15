@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3feb06a918d9",
+  "session_id": "b21689fb-ea87-4590-b416-39ef5673d77d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T16:38:30.528086Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "262a71109dd9",
+  "token_usage": {
+    "input_tokens": 1005,
+    "cache_creation_tokens": 70106,
+    "cache_read_tokens": 981518,
+    "output_tokens": 8755,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T16:38:30.249603Z",
+    "agent_lines": 67,
+    "human_added": 2874,
+    "human_modified": 29,
+    "human_removed": 0,
+    "total_committed": 2970,
+    "agent_percentage": 2.255892255892256
+  }
+}
