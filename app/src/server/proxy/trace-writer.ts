@@ -38,6 +38,25 @@ export type TraceData = {
     readonly reason?: string;
     readonly timestamp: string;
   };
+  // Intelligence metadata (context injection)
+  readonly intelligenceMetadata?: {
+    readonly brain_context_injected: boolean;
+    readonly brain_context_decisions: number;
+    readonly brain_context_learnings: number;
+    readonly brain_context_observations: number;
+    readonly brain_context_tokens_est: number;
+  };
+  // Response content (opaque capture per ADR-051)
+  readonly responseContent?: {
+    readonly content_blocks: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
+    readonly stop_reason: string;
+    readonly usage: {
+      readonly input_tokens: number;
+      readonly output_tokens: number;
+      readonly cache_creation_tokens?: number;
+      readonly cache_read_tokens?: number;
+    };
+  };
 };
 
 type TraceDependencies = {
@@ -111,11 +130,30 @@ async function createTraceNode(
     content.request_id = data.requestId;
   }
 
-  // Store conversation reference in the FLEXIBLE input field
-  if (data.conversationId) {
-    content.input = {
-      conversation: new RecordId("conversation", data.conversationId),
-    };
+  // Store conversation reference and intelligence metadata in FLEXIBLE input field
+  {
+    const inputData: Record<string, unknown> = {};
+
+    if (data.conversationId) {
+      inputData.conversation = new RecordId("conversation", data.conversationId);
+    }
+
+    if (data.intelligenceMetadata) {
+      inputData.brain_context_injected = data.intelligenceMetadata.brain_context_injected;
+      inputData.brain_context_decisions = data.intelligenceMetadata.brain_context_decisions;
+      inputData.brain_context_learnings = data.intelligenceMetadata.brain_context_learnings;
+      inputData.brain_context_observations = data.intelligenceMetadata.brain_context_observations;
+      inputData.brain_context_tokens_est = data.intelligenceMetadata.brain_context_tokens_est;
+    }
+
+    if (Object.keys(inputData).length > 0) {
+      content.input = inputData;
+    }
+  }
+
+  // Store response content in FLEXIBLE output field (opaque capture per ADR-051)
+  if (data.responseContent) {
+    content.output = data.responseContent;
   }
 
   if (data.policyDecision) {

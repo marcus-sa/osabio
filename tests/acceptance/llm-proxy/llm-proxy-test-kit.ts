@@ -614,7 +614,6 @@ export async function createProxyIntelligenceConfig(
     contradictionDetectionEnabled?: boolean;
     contradictionTier1Threshold?: number;
     contradictionTier2ConfidenceMin?: number;
-    sessionTimeoutMinutes?: number;
   },
 ): Promise<string> {
   const configId = `cfg-${workspaceId}`;
@@ -632,7 +631,6 @@ export async function createProxyIntelligenceConfig(
       contradiction_detection_enabled: options?.contradictionDetectionEnabled ?? true,
       contradiction_tier1_threshold: options?.contradictionTier1Threshold ?? 0.75,
       contradiction_tier2_confidence_min: options?.contradictionTier2ConfidenceMin ?? 0.6,
-      session_timeout_minutes: options?.sessionTimeoutMinutes ?? 10,
       created_at: new Date(),
       updated_at: new Date(),
     },
@@ -808,7 +806,7 @@ export async function seedActiveLearning(
   options: {
     workspaceId: string;
     text: string;
-    priority?: number;
+    priority?: string;
     embedding?: number[];
   },
 ): Promise<string> {
@@ -818,8 +816,10 @@ export async function seedActiveLearning(
   const content: Record<string, unknown> = {
     text: options.text,
     status: "active",
-    learning_type: "human",
-    priority: options.priority ?? 50,
+    learning_type: "constraint",
+    source: "human",
+    priority: options.priority ?? "medium",
+    target_agents: ["coding-agent"],
     workspace: workspaceRecord,
     created_at: new Date(),
   };
@@ -834,6 +834,47 @@ export async function seedActiveLearning(
   });
 
   return learningId;
+}
+
+// ---------------------------------------------------------------------------
+// Intelligence: Observation Seed Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed an open observation (conflict/warning) for context injection testing.
+ */
+export async function seedOpenObservation(
+  surreal: Surreal,
+  observationId: string,
+  options: {
+    workspaceId: string;
+    text: string;
+    severity: "conflict" | "warning";
+    embedding?: number[];
+  },
+): Promise<string> {
+  const observationRecord = new RecordId("observation", observationId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const content: Record<string, unknown> = {
+    text: options.text,
+    severity: options.severity,
+    status: "open",
+    source_agent: "observer",
+    workspace: workspaceRecord,
+    created_at: new Date(),
+  };
+
+  if (options.embedding) {
+    content.embedding = options.embedding;
+  }
+
+  await surreal.query(`CREATE $obs CONTENT $content;`, {
+    obs: observationRecord,
+    content,
+  });
+
+  return observationId;
 }
 
 // ---------------------------------------------------------------------------

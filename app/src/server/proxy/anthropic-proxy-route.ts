@@ -34,6 +34,24 @@ import {
   createRateLimiterState,
   type RateLimiterState,
 } from "./rate-limiter";
+import {
+  loadIntelligenceConfig,
+  type IntelligenceConfig,
+} from "./intelligence-config";
+import {
+  createContextCache,
+  type ContextCache,
+  type CachedCandidatePool,
+  type CandidateItem,
+} from "./context-cache";
+import {
+  rankCandidates,
+  selectWithinBudget,
+  buildBrainContextXml,
+  injectBrainContext,
+  type ContextCandidate,
+  type InjectionResult,
+} from "./context-injector";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
@@ -197,12 +215,13 @@ function extractNonStreamingUsage(
   sessionId?: string,
   policyDecision?: PolicyDecisionLog,
   conversationId?: string,
+  injectionResult?: InjectionResult,
 ): TraceData | undefined {
   try {
     const parsed = JSON.parse(responseBody) as NonStreamingResponse;
     if (!parsed.usage) return undefined;
 
-    return {
+    const traceData: TraceData = {
       model: parsed.model ?? requestModel ?? "unknown",
       inputTokens: parsed.usage.input_tokens ?? 0,
       outputTokens: parsed.usage.output_tokens ?? 0,
@@ -215,6 +234,243 @@ function extractNonStreamingUsage(
       taskId: identity.taskId,
       policyDecision,
       conversationId,
+    };
+
+    // Add intelligence metadata if injection occurred
+    if (injectionResult) {
+      (traceData as any).intelligenceMetadata = {
+        brain_context_injected: injectionResult.injected,
+        brain_context_decisions: injectionResult.decisionsCount,
+        brain_context_learnings: injectionResult.learningsCount,
+        brain_context_observations: injectionResult.observationsCount,
+        brain_context_tokens_est: injectionResult.tokensEstimated,
+      };
+    }
+
+    // Capture response content (opaque, per ADR-051)
+    const responseContent = extractResponseContent(responseBody);
+    if (responseContent) {
+      (traceData as any).responseContent = responseContent;
+    }
+
+    return traceData;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Context Candidate Pool Loader (adapter boundary)
+// ---------------------------------------------------------------------------
+
+const DECISION_WEIGHT = 1.0;
+const LEARNING_WEIGHT = 0.8;
+const OBSERVATION_WEIGHT = 0.7;
+
+async function loadCandidatePool(
+  surreal: ServerDependencies["surreal"],
+  workspaceId: string,
+): Promise<CachedCandidatePool> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  type DecisionRow = { id: RecordId; summary: string; embedding?: number[] };
+  type LearningRow = { id: RecordId; text: string; embedding?: number[] };
+  type ObservationRow = { id: RecordId; text: string; embedding?: number[] };
+
+  const [decisionResults, learningResults, observationResults] = await Promise.all([
+    surreal.query<[DecisionRow[]]>(
+      `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;`,
+      { ws: workspaceRecord },
+    ),
+    surreal.query<[LearningRow[]]>(
+      `SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;`,
+      { ws: workspaceRecord },
+    ),
+    surreal.query<[ObservationRow[]]>(
+      `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] LIMIT 20;`,
+      { ws: workspaceRecord },
+    ),
+  ]);
+
+  const decisions: CandidateItem[] = (decisionResults[0] ?? []).map((d) => ({
+    id: (d.id as RecordId).id as string,
+    type: "decision" as const,
+    text: d.summary,
+    weight: DECISION_WEIGHT,
+    embedding: d.embedding,
+  }));
+
+  const learnings: CandidateItem[] = (learningResults[0] ?? []).map((l) => ({
+    id: (l.id as RecordId).id as string,
+    type: "learning" as const,
+    text: l.text,
+    weight: LEARNING_WEIGHT,
+    embedding: l.embedding,
+  }));
+
+  const observations: CandidateItem[] = (observationResults[0] ?? []).map((o) => ({
+    id: (o.id as RecordId).id as string,
+    type: "observation" as const,
+    text: o.text,
+    weight: OBSERVATION_WEIGHT,
+    embedding: o.embedding,
+  }));
+
+  return {
+    decisions,
+    learnings,
+    observations,
+    populatedAt: Date.now(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Embedding Helper (adapter boundary)
+// ---------------------------------------------------------------------------
+
+async function embedUserMessage(
+  embeddingModel: ServerDependencies["embeddingModel"],
+  embeddingDimension: number,
+  text: string,
+): Promise<number[] | undefined> {
+  try {
+    const { embed } = await import("ai");
+    const normalized = text.trim();
+    if (normalized.length === 0) return undefined;
+
+    const result = await embed({
+      model: embeddingModel,
+      value: normalized,
+    });
+
+    if (result.embedding.length !== embeddingDimension) return undefined;
+    return result.embedding;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Context Injection Pipeline (orchestrator)
+// ---------------------------------------------------------------------------
+
+type ContextInjectionResult = {
+  readonly body: string;
+  readonly injectionResult?: InjectionResult;
+};
+
+async function runContextInjection(
+  deps: ServerDependencies,
+  workspaceId: string,
+  parsedBody: ParsedBody,
+  originalBody: string,
+  contextCache: ContextCache,
+  intelligenceConfig: IntelligenceConfig,
+): Promise<ContextInjectionResult> {
+  if (!intelligenceConfig.contextInjectionEnabled) {
+    return { body: originalBody };
+  }
+
+  // 1. Get or populate candidate pool (with cache)
+  let pool: CachedCandidatePool;
+  if (contextCache.has(workspaceId)) {
+    pool = contextCache.get(workspaceId)!;
+  } else {
+    pool = await loadCandidatePool(deps.surreal, workspaceId);
+    contextCache.set(workspaceId, pool);
+  }
+
+  // 2. Check if pool is empty
+  const allCandidates: ContextCandidate[] = [
+    ...pool.decisions,
+    ...pool.learnings,
+    ...pool.observations,
+  ];
+  if (allCandidates.length === 0) {
+    return { body: originalBody };
+  }
+
+  // 3. Extract last user message for embedding
+  const lastUserMessage = [...(parsedBody.messages ?? [])].reverse().find((m) => m.role === "user");
+  if (!lastUserMessage) {
+    return { body: originalBody };
+  }
+
+  // 4. Embed last user message
+  const queryEmbedding = await embedUserMessage(
+    deps.embeddingModel,
+    deps.config.embeddingDimension,
+    lastUserMessage.content,
+  );
+
+  let selectedCandidates;
+  if (queryEmbedding) {
+    // 5. Rank candidates by weighted cosine similarity
+    const ranked = rankCandidates(allCandidates, queryEmbedding);
+    // 6. Select within token budget
+    selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
+  } else {
+    // No embedding available -- fall back to all candidates within budget
+    const ranked = allCandidates.map((c) => ({
+      id: c.id,
+      type: c.type,
+      text: c.text,
+      score: c.weight,
+    }));
+    selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
+  }
+
+  if (selectedCandidates.length === 0) {
+    return { body: originalBody };
+  }
+
+  // 7. Build XML block
+  const brainContextXml = buildBrainContextXml(selectedCandidates);
+
+  // 8. Inject into system prompt
+  const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
+
+  // 9. Build modified request body
+  const modifiedBody = {
+    ...parsedBody,
+    system: injectionResult.system,
+  };
+
+  return {
+    body: JSON.stringify(modifiedBody),
+    injectionResult,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Non-Streaming Response Content Extraction (for trace output)
+// ---------------------------------------------------------------------------
+
+type ResponseContent = {
+  content_blocks: Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
+  stop_reason: string;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_tokens?: number;
+    cache_read_tokens?: number;
+  };
+};
+
+function extractResponseContent(responseBody: string): ResponseContent | undefined {
+  try {
+    const parsed = JSON.parse(responseBody);
+    if (!parsed.content || !parsed.usage) return undefined;
+
+    return {
+      content_blocks: parsed.content,
+      stop_reason: parsed.stop_reason ?? "end_turn",
+      usage: {
+        input_tokens: parsed.usage.input_tokens ?? 0,
+        output_tokens: parsed.usage.output_tokens ?? 0,
+        cache_creation_tokens: parsed.usage.cache_creation_input_tokens,
+        cache_read_tokens: parsed.usage.cache_read_input_tokens,
+      },
     };
   } catch {
     return undefined;
@@ -231,6 +487,7 @@ export function createAnthropicProxyHandler(
   const workspaceCache: WorkspaceCache = new Map();
   const rateLimiterState: RateLimiterState = createRateLimiterState();
   const spendCache: SpendCache = new Map();
+  const contextCache: ContextCache = createContextCache(300); // default TTL, overridden per-workspace
 
   return async (request: Request): Promise<Response> => {
     const startedAt = performance.now();
@@ -337,6 +594,32 @@ export function createAnthropicProxyHandler(
       }
     }
 
+    // --- Step 5: Context injection (fail-open) ---
+    let effectiveBody = body;
+    let injectionResult: InjectionResult | undefined;
+
+    if (parsed && identitySignals.workspaceId && !isCountTokens) {
+      try {
+        const intelligenceConfig = await loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId);
+        const contextResult = await runContextInjection(
+          deps,
+          identitySignals.workspaceId,
+          parsed,
+          body,
+          contextCache,
+          intelligenceConfig,
+        );
+        effectiveBody = contextResult.body;
+        injectionResult = contextResult.injectionResult;
+      } catch (error) {
+        // Fail-open: log warning and continue with original body
+        logWarn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
+          workspace_id: identitySignals.workspaceId,
+          error: String(error),
+        });
+      }
+    }
+
     // --- Build identity context for logging ---
     const identityContext = {
       user_hash: identitySignals.userHash,
@@ -371,7 +654,7 @@ export function createAnthropicProxyHandler(
       upstream = await fetch(upstreamUrl, {
         method: request.method,
         headers: upstreamHeaders,
-        body: request.method !== "GET" ? body : undefined,
+        body: request.method !== "GET" ? effectiveBody : undefined,
       });
     } catch (error) {
       logError("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
@@ -391,7 +674,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision, conversationId);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision, conversationId, injectionResult);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -468,6 +751,15 @@ export function createAnthropicProxyHandler(
             taskId: identitySignals.taskId,
             policyDecision,
             conversationId,
+            ...(injectionResult ? {
+              intelligenceMetadata: {
+                brain_context_injected: injectionResult.injected,
+                brain_context_decisions: injectionResult.decisionsCount,
+                brain_context_learnings: injectionResult.learningsCount,
+                brain_context_observations: injectionResult.observationsCount,
+                brain_context_tokens_est: injectionResult.tokensEstimated,
+              },
+            } : {}),
           };
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
