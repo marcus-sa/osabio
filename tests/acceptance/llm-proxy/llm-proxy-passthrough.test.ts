@@ -71,7 +71,7 @@ describe("Walking Skeleton: Non-streaming request forwarded transparently", () =
 // ---------------------------------------------------------------------------
 
 describe("Streaming request relays all SSE events", () => {
-  it.skip("relays SSE events as raw bytes with all event types passing through", async () => {
+  it("relays SSE events as raw bytes with all event types passing through", async () => {
     const { baseUrl } = getRuntime();
 
     // Given Priya sends a streaming request

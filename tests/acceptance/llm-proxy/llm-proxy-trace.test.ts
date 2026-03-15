@@ -73,7 +73,7 @@ describe("Trace created with usage data after LLM call", () => {
 // ---------------------------------------------------------------------------
 
 describe("Trace edges link to session, workspace, and task", () => {
-  it.skip("creates invoked, attributed_to, and scoped_to edges", async () => {
+  it("creates invoked, attributed_to, and scoped_to edges", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-edges-${crypto.randomUUID()}`;
@@ -122,7 +122,7 @@ describe("Trace edges link to session, workspace, and task", () => {
 });
 
 describe("Trace without task has workspace and session edges only", () => {
-  it.skip("creates workspace edge but no task attribution edge", async () => {
+  it("creates workspace edge but no task attribution edge", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-notask-${crypto.randomUUID()}`;
@@ -155,7 +155,7 @@ describe("Trace without task has workspace and session edges only", () => {
 });
 
 describe("Trace capture does not block response delivery", () => {
-  it.skip("delivers response before graph writes complete", async () => {
+  it("delivers response before graph writes complete", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-nonblock-${crypto.randomUUID()}`;
@@ -191,7 +191,7 @@ describe("Trace capture does not block response delivery", () => {
 });
 
 describe("Graph write failure triggers retry and fallback", () => {
-  it.skip("retries 3 times and logs to stderr on persistent failure", async () => {
+  it("retries 3 times and logs to stderr on persistent failure", async () => {
     // This scenario requires simulating SurrealDB unavailability during trace capture.
     // In acceptance tests with real services, we validate the retry mechanism exists
     // by checking that traces are eventually written even under brief delays.

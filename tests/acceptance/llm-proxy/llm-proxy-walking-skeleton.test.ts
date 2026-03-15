@@ -66,7 +66,7 @@ describe("Skeleton 1: Non-streaming passthrough", () => {
 // Skeleton 2: LLM call is recorded as a trace in the knowledge graph
 // ---------------------------------------------------------------------------
 describe("Skeleton 2: Trace capture", () => {
-  it.skip("records an LLM call as a trace node with model, tokens, cost, and workspace edge", async () => {
+  it("records an LLM call as a trace node with model, tokens, cost, and workspace edge", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-skel2-${crypto.randomUUID()}`;
@@ -108,7 +108,7 @@ describe("Skeleton 2: Trace capture", () => {
 // Skeleton 3: Admin sees cost attributed to the correct project
 // ---------------------------------------------------------------------------
 describe("Skeleton 3: Cost attribution", () => {
-  it.skip("attributes LLM call cost to the correct project and task", async () => {
+  it("attributes LLM call cost to the correct project and task", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-skel3-${crypto.randomUUID()}`;

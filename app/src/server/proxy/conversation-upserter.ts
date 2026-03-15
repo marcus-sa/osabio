@@ -49,6 +49,7 @@ export async function upsertConversation(
         title: $title,
         title_source: "message",
         source: "proxy",
+        createdAt: createdAt ?? time::now(),
         updatedAt: time::now()
       };`,
       {

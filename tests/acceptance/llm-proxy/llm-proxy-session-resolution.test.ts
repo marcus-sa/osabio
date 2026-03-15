@@ -15,7 +15,7 @@
  * 4. Nonexistent session ID — trace linked to workspace only
  * 5. Session activity timestamp updated on proxy request
  *
- * All tests use it.skip() — capabilities not yet implemented.
+ * All tests enabled — capabilities implemented.
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -36,7 +36,7 @@ const getRuntime = setupAcceptanceSuite("llm_proxy_session_resolution");
 // Walking Skeleton: Trace linked to agent session via X-Brain-Session header
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Trace linked to agent session", () => {
-  it.skip("links the trace to the existing agent session when X-Brain-Session header is present", async () => {
+  it("links the trace to the existing agent session when X-Brain-Session header is present", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-skel-${crypto.randomUUID()}`;
@@ -84,7 +84,7 @@ describe("Walking Skeleton: Trace linked to agent session", () => {
 // ---------------------------------------------------------------------------
 
 describe("Claude Code metadata.user_id session extraction", () => {
-  it.skip("links the trace to the agent session resolved from Claude Code metadata", async () => {
+  it("links the trace to the agent session resolved from Claude Code metadata", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-cc-${crypto.randomUUID()}`;
@@ -128,7 +128,7 @@ describe("Claude Code metadata.user_id session extraction", () => {
 });
 
 describe("Unknown client — trace linked to workspace only", () => {
-  it.skip("creates a trace with workspace edge but no session edge for unidentified clients", async () => {
+  it("creates a trace with workspace edge but no session edge for unidentified clients", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-unknown-${crypto.randomUUID()}`;
@@ -162,7 +162,7 @@ describe("Unknown client — trace linked to workspace only", () => {
 });
 
 describe("Nonexistent session ID — trace linked to workspace only", () => {
-  it.skip("creates a trace without session edge when the session ID does not match any record", async () => {
+  it("creates a trace without session edge when the session ID does not match any record", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-bogus-${crypto.randomUUID()}`;
@@ -199,7 +199,7 @@ describe("Nonexistent session ID — trace linked to workspace only", () => {
 });
 
 describe("Session activity timestamp updated on proxy request", () => {
-  it.skip("updates last_activity_at on the agent session when a proxy request is received", async () => {
+  it("updates last_activity_at on the agent session when a proxy request is received", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-activity-${crypto.randomUUID()}`;

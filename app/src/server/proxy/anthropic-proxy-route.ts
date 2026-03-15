@@ -375,6 +375,12 @@ async function runContextInjection(
     ...pool.observations,
   ];
   if (allCandidates.length === 0) {
+    logInfo("proxy.context_injection.empty_pool", "No candidates in pool", {
+      workspace_id: workspaceId,
+      decisions: pool.decisions.length,
+      learnings: pool.learnings.length,
+      observations: pool.observations.length,
+    });
     return { body: originalBody };
   }
 
@@ -664,6 +670,14 @@ export function createAnthropicProxyHandler(
         );
         effectiveBody = contextResult.body;
         injectionResult = contextResult.injectionResult;
+        if (intelligenceConfig.contextInjectionEnabled) {
+          logInfo("proxy.context_injection.result", "Context injection completed", {
+            workspace_id: identitySignals.workspaceId,
+            injected: injectionResult?.injected ?? false,
+            decisions: injectionResult?.decisionsCount ?? 0,
+            learnings: injectionResult?.learningsCount ?? 0,
+          });
+        }
       } catch (error) {
         // Fail-open: log warning and continue with original body
         logWarn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {

@@ -16,8 +16,40 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
-import { logInfo, logError } from "../http/observability";
+import { logInfo, logError, logWarn } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
+
+// ---------------------------------------------------------------------------
+// Retry with Exponential Backoff (for SurrealDB transaction conflicts)
+// ---------------------------------------------------------------------------
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 200;
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  label: string,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < MAX_RETRIES - 1) {
+        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
+        logWarn("proxy.spend.retry", `Retry ${attempt + 1}/${MAX_RETRIES} for ${label}`, {
+          attempt: attempt + 1,
+          delay_ms: delayMs,
+        });
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  throw lastError;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -411,19 +443,22 @@ async function createAnomalyObservation(
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  await surreal.query(`CREATE $obs CONTENT $content;`, {
-    obs: observationRecord,
-    content: {
-      text: `Session ${session.sessionId} has ${session.callCount} LLM calls today, which is ${(session.callCount / averageCalls).toFixed(1)}x the average of ${averageCalls.toFixed(0)} calls per session. This may indicate runaway agent behavior or an infinite loop.`,
-      severity: "warning",
-      status: "open",
-      observation_type: "anomaly",
-      source_agent: "llm-proxy",
-      workspace: workspaceRecord,
-      data: { subtype: "proxy_anomaly_call_rate" },
-      created_at: new Date(),
-    },
-  });
+  await withRetry(() =>
+    surreal.query(`CREATE $obs CONTENT $content;`, {
+      obs: observationRecord,
+      content: {
+        text: `Session ${session.sessionId} has ${session.callCount} LLM calls today, which is ${(session.callCount / averageCalls).toFixed(1)}x the average of ${averageCalls.toFixed(0)} calls per session. This may indicate runaway agent behavior or an infinite loop.`,
+        severity: "warning",
+        status: "open",
+        observation_type: "anomaly",
+        source_agent: "llm-proxy",
+        workspace: workspaceRecord,
+        data: { subtype: "proxy_anomaly_call_rate" },
+        created_at: new Date(),
+      },
+    }),
+    "anomaly_observation_create",
+  );
 }
 
 async function createBudgetThresholdObservation(
@@ -437,19 +472,22 @@ async function createBudgetThresholdObservation(
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  await surreal.query(`CREATE $obs CONTENT $content;`, {
-    obs: observationRecord,
-    content: {
-      text: `Daily spend has reached $${currentSpend.toFixed(2)} (${(pct * 100).toFixed(0)}% of $${budget.toFixed(2)} budget). Consider reviewing active agent sessions or adjusting the daily budget limit.`,
-      severity: "warning",
-      status: "open",
-      observation_type: "anomaly",
-      source_agent: "llm-proxy",
-      workspace: workspaceRecord,
-      data: { subtype: "proxy_budget_threshold" },
-      created_at: new Date(),
-    },
-  });
+  await withRetry(() =>
+    surreal.query(`CREATE $obs CONTENT $content;`, {
+      obs: observationRecord,
+      content: {
+        text: `Daily spend has reached $${currentSpend.toFixed(2)} (${(pct * 100).toFixed(0)}% of $${budget.toFixed(2)} budget). Consider reviewing active agent sessions or adjusting the daily budget limit.`,
+        severity: "warning",
+        status: "open",
+        observation_type: "anomaly",
+        source_agent: "llm-proxy",
+        workspace: workspaceRecord,
+        data: { subtype: "proxy_budget_threshold" },
+        created_at: new Date(),
+      },
+    }),
+    "budget_threshold_observation_create",
+  );
 }
 
 // ---------------------------------------------------------------------------
