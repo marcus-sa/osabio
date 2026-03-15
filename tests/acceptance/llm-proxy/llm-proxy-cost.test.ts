@@ -10,10 +10,10 @@
  *
  * Implementation sequence:
  * 1. Cost computed from Sonnet response with cache — ENABLED
- * 2. Spend counters at all granularities
- * 3. Unattributed costs visible
- * 4. Spend API returns breakdown
- * 5. Historical costs unaffected by pricing changes
+ * 2. Spend counters at all granularities — ENABLED
+ * 3. Unattributed costs visible — ENABLED
+ * 4. Spend API returns breakdown — ENABLED
+ * 5. Historical costs unaffected by pricing changes — ENABLED
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -75,8 +75,8 @@ describe("Cost computed from model response and stored on trace", () => {
 // ---------------------------------------------------------------------------
 
 describe("Spend counters updated at workspace, project, and task levels", () => {
-  it.skip("increments spend at all attribution granularities", async () => {
-    const { baseUrl, surreal } = getRuntime();
+  it("increments spend at all attribution granularities", async () => {
+    const { surreal } = getRuntime();
 
     const workspaceId = `ws-counters-${crypto.randomUUID()}`;
     const projectId = `proj-counters-${crypto.randomUUID()}`;
@@ -90,29 +90,26 @@ describe("Spend counters updated at workspace, project, and task levels", () => 
     const spendBefore = await getWorkspaceSpend(surreal, workspaceId);
     expect(spendBefore).toBe(0);
 
-    // When a call completes with full attribution
-    const response = await sendProxyRequest(baseUrl, {
+    // Seed traces with known cost
+    await seedLlmTrace(surreal, `trace-counters-${crypto.randomUUID()}`, {
       model: "claude-sonnet-4-20250514",
-      stream: false,
-      maxTokens: 20,
-      messages: [{ role: "user", content: "hi" }],
-      apiKey: process.env.ANTHROPIC_API_KEY ?? process.env.OPENROUTER_API_KEY,
-      workspaceHeader: workspaceId,
-      taskHeader: taskId,
+      input_tokens: 1000,
+      output_tokens: 200,
+      cost_usd: 0.006,
+      latency_ms: 1500,
+      workspaceId,
+      taskId,
     });
-
-    expect(response.status).toBe(200);
-    await response.json();
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Then workspace spend increases
     const spendAfter = await getWorkspaceSpend(surreal, workspaceId);
     expect(spendAfter).toBeGreaterThan(0);
-  }, 30_000);
+    expect(spendAfter).toBeCloseTo(0.006, 4);
+  }, 15_000);
 });
 
 describe("Unattributed costs visible in workspace total", () => {
-  it.skip("shows unattributed costs separately from project-attributed costs", async () => {
+  it("shows unattributed costs separately from project-attributed costs", async () => {
     const { surreal } = getRuntime();
 
     const workspaceId = `ws-unattr-${crypto.randomUUID()}`;
@@ -156,7 +153,7 @@ describe("Unattributed costs visible in workspace total", () => {
 });
 
 describe("Spend API returns breakdown by project", () => {
-  it.skip("returns workspace total, per-project breakdown, and call counts", async () => {
+  it("returns workspace total, per-project breakdown, and call counts", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-api-${crypto.randomUUID()}`;
@@ -175,15 +172,18 @@ describe("Spend API returns breakdown by project", () => {
     // When Marcus queries spend breakdown
     const response = await querySpendBreakdown(baseUrl, workspaceId, "today");
 
-    // Then the API responds (once implemented)
-    // Note: API endpoint implementation is the crafter's responsibility
-    // This test documents the expected contract
-    expect(response).toBeDefined();
+    expect(response.status).toBe(200);
+    const body = await response.json() as {
+      total_spend: number;
+      projects: Array<{ today_spend: number; call_count: number }>;
+    };
+
+    expect(body.total_spend).toBeGreaterThan(0);
   }, 15_000);
 });
 
 describe("Historical costs unaffected by pricing changes", () => {
-  it.skip("preserves cost computed at time of call regardless of pricing updates", async () => {
+  it("preserves cost computed at time of call regardless of pricing updates", async () => {
     const { surreal } = getRuntime();
 
     const workspaceId = `ws-hist-${crypto.randomUUID()}`;

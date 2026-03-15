@@ -187,18 +187,23 @@ export async function createProxyTestWorkspace(
 ): Promise<string> {
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
+  const content: Record<string, unknown> = {
+    name: `Proxy Test Workspace ${workspaceId}`,
+    status: "active",
+    onboarding_complete: true,
+    onboarding_turn_count: 0,
+    onboarding_summary_pending: false,
+    onboarding_started_at: new Date(),
+    created_at: new Date(),
+  };
+
+  if (options?.dailyBudget !== undefined) {
+    content.daily_budget_usd = options.dailyBudget;
+  }
+
   await surreal.query(`CREATE $workspace CONTENT $content;`, {
     workspace: workspaceRecord,
-    content: {
-      name: `Proxy Test Workspace ${workspaceId}`,
-      status: "active",
-      onboarding_complete: true,
-      onboarding_turn_count: 0,
-      onboarding_summary_pending: false,
-      onboarding_started_at: new Date(),
-      created_at: new Date(),
-      // proxy_settings omitted — field not yet defined in SCHEMAFULL workspace table
-    },
+    content,
   });
 
   return workspaceId;
@@ -218,7 +223,7 @@ export async function createProxyTestProject(
   await surreal.query(`CREATE $project CONTENT $content;`, {
     project: projectRecord,
     content: {
-      title: `Test Project ${projectId}`,
+      name: `Test Project ${projectId}`,
       status: "active",
       workspace: workspaceRecord,
       created_at: new Date(),
@@ -252,7 +257,7 @@ export async function createProxyTestTask(
   });
 
   // Link task to project
-  await surreal.query(`RELATE $task->belongs_to->$project SET created_at = time::now();`, {
+  await surreal.query(`RELATE $task->belongs_to->$project SET added_at = time::now();`, {
     task: taskRecord,
     project: projectRecord,
   });
@@ -357,12 +362,12 @@ export async function getWorkspaceSpend(
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
   const results = await surreal.query(
-    `SELECT math::sum(cost_usd) AS total FROM trace WHERE ->scoped_to->workspace CONTAINS $ws;`,
+    `SELECT cost_usd FROM trace WHERE workspace = $ws;`,
     { ws: workspaceRecord },
   );
 
-  const row = (results[0] as Array<{ total: number }>)?.[0];
-  return row?.total ?? 0;
+  const rows = (results[0] ?? []) as Array<{ cost_usd: number }>;
+  return rows.reduce((sum, row) => sum + (row.cost_usd ?? 0), 0);
 }
 
 /**
@@ -390,21 +395,37 @@ export async function seedLlmTrace(
   const traceRecord = new RecordId("trace", traceId);
   const workspaceRecord = new RecordId("workspace", options.workspaceId);
 
+  // Ensure a test identity exists for the actor field (required by trace schema)
+  const actorId = `proxy-test-actor-${options.workspaceId}`;
+  const actorRecord = new RecordId("identity", actorId);
+  await surreal.query(
+    `CREATE $actor CONTENT { name: "proxy-test-system", type: "system", workspace: $ws, created_at: time::now() };`,
+    { actor: actorRecord, ws: workspaceRecord },
+  ).catch(() => undefined); // Ignore if already exists
+
+  const traceContent: Record<string, unknown> = {
+    type: "llm_call",
+    model: options.model,
+    input_tokens: options.input_tokens,
+    output_tokens: options.output_tokens,
+    cache_read_tokens: options.cache_read_tokens ?? 0,
+    cache_creation_tokens: options.cache_creation_tokens ?? 0,
+    cost_usd: options.cost_usd,
+    latency_ms: options.latency_ms,
+    stop_reason: options.stop_reason ?? "end_turn",
+    workspace: workspaceRecord,
+    actor: actorRecord,
+    created_at: options.created_at ?? new Date(),
+  };
+
+  // Link session directly on trace record (schema: session TYPE option<record<agent_session>>)
+  if (options.sessionId) {
+    traceContent.session = new RecordId("agent_session", options.sessionId);
+  }
+
   await surreal.query(`CREATE $trace CONTENT $content;`, {
     trace: traceRecord,
-    content: {
-      type: "llm_call",
-      model: options.model,
-      input_tokens: options.input_tokens,
-      output_tokens: options.output_tokens,
-      cache_read_tokens: options.cache_read_tokens ?? 0,
-      cache_creation_tokens: options.cache_creation_tokens ?? 0,
-      cost_usd: options.cost_usd,
-      latency_ms: options.latency_ms,
-      stop_reason: options.stop_reason ?? "end_turn",
-      workspace: workspaceRecord,
-      created_at: options.created_at ?? new Date(),
-    },
+    content: traceContent,
   });
 
   // Create workspace edge
@@ -426,8 +447,8 @@ export async function seedLlmTrace(
   if (options.sessionId) {
     const sessionRecord = new RecordId("agent_session", options.sessionId);
     await surreal.query(
-      `RELATE $session->invoked->$trace SET created_at = time::now();`,
-      { trace: traceRecord, session: sessionRecord },
+      `RELATE $sess->invoked->$trace SET created_at = time::now();`,
+      { trace: traceRecord, sess: sessionRecord },
     );
   }
 
@@ -667,8 +688,8 @@ export async function getSessionById(
   const sessionRecord = new RecordId("agent_session", sessionId);
 
   const results = await surreal.query(
-    `SELECT * FROM $session;`,
-    { session: sessionRecord },
+    `SELECT * FROM $sess;`,
+    { sess: sessionRecord },
   );
 
   return (results[0] as AgentSessionRecord[])?.[0];
@@ -698,8 +719,7 @@ export async function seedAgentSession(
     agent: options.agent ?? "coding-agent",
     workspace: workspaceRecord,
     started_at: options.startedAt ?? new Date(),
-    last_activity_at: options.lastActivityAt ?? new Date(),
-    source: options.source ?? "proxy",
+    last_event_at: options.lastActivityAt ?? new Date(),
     created_at: new Date(),
   };
 
@@ -709,9 +729,12 @@ export async function seedAgentSession(
   if (options.endedAt) {
     content.ended_at = options.endedAt;
   }
+  if (options.source) {
+    content.external_session_id = content.external_session_id ?? options.source;
+  }
 
-  await surreal.query(`CREATE $session CONTENT $content;`, {
-    session: sessionRecord,
+  await surreal.query(`CREATE $sess CONTENT $content;`, {
+    sess: sessionRecord,
     content,
   });
 
@@ -731,8 +754,8 @@ export async function simulateSessionTimeout(
   const staleTime = new Date(Date.now() - minutesAgo * 60 * 1000);
 
   await surreal.query(
-    `UPDATE $session SET last_activity_at = $staleTime;`,
-    { session: sessionRecord, staleTime },
+    `UPDATE $sess SET last_activity_at = $staleTime;`,
+    { sess: sessionRecord, staleTime },
   );
 }
 
@@ -998,8 +1021,8 @@ export async function endAgentSession(
   const sessionRecord = new RecordId("agent_session", sessionId);
 
   await surreal.query(
-    `UPDATE $session SET ended_at = time::now();`,
-    { session: sessionRecord },
+    `UPDATE $sess SET ended_at = time::now();`,
+    { sess: sessionRecord },
   );
 }
 
@@ -1067,8 +1090,8 @@ export async function seedLlmTraceWithContent(
   if (options.sessionId) {
     const sessionRecord = new RecordId("agent_session", options.sessionId);
     await surreal.query(
-      `RELATE $session->invoked->$trace SET created_at = time::now();`,
-      { trace: traceRecord, session: sessionRecord },
+      `RELATE $sess->invoked->$trace SET created_at = time::now();`,
+      { trace: traceRecord, sess: sessionRecord },
     );
   }
 

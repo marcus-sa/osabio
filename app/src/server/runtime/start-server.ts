@@ -40,6 +40,7 @@ import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
+import { createSpendApiHandlers } from "../proxy/spend-api";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -78,6 +79,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
+  const spendApiHandlers = createSpendApiHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -660,6 +662,21 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET /api/auth/oauth-client/:clientId",
           "GET",
           createClientInfoHandler(deps.surreal),
+        ),
+      },
+      // LLM Proxy — Spend monitoring dashboard
+      "/api/workspaces/:workspaceId/proxy/spend": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/spend",
+          "GET",
+          (request) => spendApiHandlers.handleSpend(request.params.workspaceId),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/sessions": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/sessions",
+          "GET",
+          (request) => spendApiHandlers.handleSessions(request.params.workspaceId),
         ),
       },
       // Anthropic LLM Proxy — transparent passthrough with logging

@@ -120,5 +120,46 @@ events:
   s: EXECUTED
   sid: 03-01
   t: '2026-03-15T18:20:26Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-15T18:21:11Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-15T18:23:35Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-15T18:28:46Z'
+- d: 'NOT_APPLICABLE: spend aggregation is query-driven (SurrealDB), anomaly/budget
+    detection logic is simple threshold comparison tested through acceptance tests'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-15T18:28:53Z'
+- d: 'CHECKPOINT_PENDING: completed in prior agent run'
+  p: PREPARE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-15T18:39:16Z'
+- d: 'CHECKPOINT_PENDING: completed in prior agent run'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-15T18:39:16Z'
+- d: 'NOT_APPLICABLE: acceptance tests cover domain behavior through driving ports'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-15T18:39:18Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-15T18:39:24Z'
 project_id: llm-proxy
 schema_version: '3.0'
