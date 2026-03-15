@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ca2605d54c19",
+  "session_id": "1d8cadb1-59ba-4328-90d0-749831ca784c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T17:08:28.235875Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/llm-proxy/distill/acceptance-review.md",
+    "docs/research/openclaw-gateway-protocol-integration.md",
+    "tests/acceptance/llm-proxy/llm-proxy-observer-coherence.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-observer-trace.test.ts",
+    "docs/architecture/llm-proxy-intelligence-design.md",
+    "docs/feature/llm-proxy/design/data-models.md",
+    "docs/feature/llm-proxy/distill/test-scenarios.md",
+    "tests/acceptance/llm-proxy/llm-proxy-conversation-hash.test.ts",
+    "docs/feature/llm-proxy/design/architecture-design.md",
+    "tests/acceptance/llm-proxy/llm-proxy-observer-session-end.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-test-kit.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-context-injection.test.ts",
+    "docs/adrs/ADR-050-conversation-hash-correlation-uuidv5.md",
+    "docs/adrs/ADR-051-observer-owned-detection-no-proxy-response-analyzer.md",
+    "docs/feature/llm-proxy/design/component-boundaries.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "caba67f01506",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 74736,
+    "cache_read_tokens": 154515,
+    "output_tokens": 1924,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T17:08:27.855224Z",
+    "agent_lines": 2898,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2898,
+    "agent_percentage": 100
+  }
+}
