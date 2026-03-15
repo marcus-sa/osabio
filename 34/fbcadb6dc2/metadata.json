@@ -3,7 +3,7 @@
   "checkpoint_id": "34fbcadb6dc2",
   "strategy": "manual-commit",
   "branch": "marcus-sa/llm-proxy-research",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".nwave/des-config.json"
   ],
@@ -14,13 +14,20 @@
       "context": "/34/fbcadb6dc2/0/context.md",
       "content_hash": "/34/fbcadb6dc2/0/content_hash.txt",
       "prompt": "/34/fbcadb6dc2/0/prompt.txt"
+    },
+    {
+      "metadata": "/34/fbcadb6dc2/1/metadata.json",
+      "transcript": "/34/fbcadb6dc2/1/full.jsonl",
+      "context": "/34/fbcadb6dc2/1/context.md",
+      "content_hash": "/34/fbcadb6dc2/1/content_hash.txt",
+      "prompt": "/34/fbcadb6dc2/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1,
-    "cache_creation_tokens": 285,
-    "cache_read_tokens": 45605,
-    "output_tokens": 43,
-    "api_call_count": 1
+    "input_tokens": 7094,
+    "cache_creation_tokens": 53625,
+    "cache_read_tokens": 242920,
+    "output_tokens": 4451,
+    "api_call_count": 6
   }
 }

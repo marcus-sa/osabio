@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "34fbcadb6dc2",
+  "session_id": "d60d82ce-4cf6-4cda-b2cb-dce04212e31c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T13:58:41.396589Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "33b0ec000bc7",
+  "token_usage": {
+    "input_tokens": 7093,
+    "cache_creation_tokens": 53340,
+    "cache_read_tokens": 197315,
+    "output_tokens": 4408,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T13:58:41.223075Z",
+    "agent_lines": 1,
+    "human_added": 4022,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4023,
+    "agent_percentage": 0.024857071836937607
+  }
+}
