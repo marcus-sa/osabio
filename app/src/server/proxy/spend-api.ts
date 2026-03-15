@@ -18,7 +18,6 @@ import type { Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
 import { logInfo, logError } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
-import type { InflightTracker } from "../runtime/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -524,7 +523,7 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
 
       // Async: anomaly detection
       deps.inflight.track(
-        runAnomalyDetection(deps.surreal, deps.inflight, workspaceId).catch((err) => {
+        runAnomalyDetection(deps.surreal, workspaceId).catch((err) => {
           logError("proxy.spend.anomaly_detection_failed", "Anomaly detection failed", err);
         }),
       );
@@ -574,7 +573,6 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
 
 async function runAnomalyDetection(
   surreal: Surreal,
-  _inflight: InflightTracker,
   workspaceId: string,
 ): Promise<void> {
   const sessionCounts = await querySessionCallCounts(surreal, workspaceId);

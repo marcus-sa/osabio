@@ -238,13 +238,7 @@ function extractNonStreamingUsage(
 
     // Add intelligence metadata if injection occurred
     if (injectionResult) {
-      (traceData as any).intelligenceMetadata = {
-        brain_context_injected: injectionResult.injected,
-        brain_context_decisions: injectionResult.decisionsCount,
-        brain_context_learnings: injectionResult.learningsCount,
-        brain_context_observations: injectionResult.observationsCount,
-        brain_context_tokens_est: injectionResult.tokensEstimated,
-      };
+      (traceData as any).intelligenceMetadata = buildIntelligenceMetadata(injectionResult);
     }
 
     // Capture response content (opaque, per ADR-051)
@@ -292,29 +286,24 @@ async function loadCandidatePool(
     ),
   ]);
 
-  const decisions: CandidateItem[] = (decisionResults[0] ?? []).map((d) => ({
-    id: (d.id as RecordId).id as string,
-    type: "decision" as const,
-    text: d.summary,
-    weight: DECISION_WEIGHT,
-    embedding: d.embedding,
-  }));
+  function toCandidates<T extends { id: RecordId; embedding?: number[] }>(
+    rows: T[],
+    type: CandidateItem["type"],
+    weight: number,
+    textFn: (row: T) => string,
+  ): CandidateItem[] {
+    return rows.map((row) => ({
+      id: (row.id as RecordId).id as string,
+      type,
+      text: textFn(row),
+      weight,
+      embedding: row.embedding,
+    }));
+  }
 
-  const learnings: CandidateItem[] = (learningResults[0] ?? []).map((l) => ({
-    id: (l.id as RecordId).id as string,
-    type: "learning" as const,
-    text: l.text,
-    weight: LEARNING_WEIGHT,
-    embedding: l.embedding,
-  }));
-
-  const observations: CandidateItem[] = (observationResults[0] ?? []).map((o) => ({
-    id: (o.id as RecordId).id as string,
-    type: "observation" as const,
-    text: o.text,
-    weight: OBSERVATION_WEIGHT,
-    embedding: o.embedding,
-  }));
+  const decisions = toCandidates(decisionResults[0] ?? [], "decision", DECISION_WEIGHT, (d) => d.summary);
+  const learnings = toCandidates(learningResults[0] ?? [], "learning", LEARNING_WEIGHT, (l) => l.text);
+  const observations = toCandidates(observationResults[0] ?? [], "observation", OBSERVATION_WEIGHT, (o) => o.text);
 
   return {
     decisions,
@@ -443,6 +432,20 @@ async function runContextInjection(
 }
 
 // ---------------------------------------------------------------------------
+// Intelligence Metadata Builder (pure)
+// ---------------------------------------------------------------------------
+
+function buildIntelligenceMetadata(injectionResult: InjectionResult) {
+  return {
+    brain_context_injected: injectionResult.injected,
+    brain_context_decisions: injectionResult.decisionsCount,
+    brain_context_learnings: injectionResult.learningsCount,
+    brain_context_observations: injectionResult.observationsCount,
+    brain_context_tokens_est: injectionResult.tokensEstimated,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Non-Streaming Response Content Extraction (for trace output)
 // ---------------------------------------------------------------------------
 
@@ -475,6 +478,58 @@ function extractResponseContent(responseBody: string): ResponseContent | undefin
   } catch {
     return undefined;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Policy Denial Response Builder
+// ---------------------------------------------------------------------------
+
+function buildPolicyDenialResponse(
+  result: Exclude<ProxyPolicyResult, { decision: "allow" }>,
+): Response {
+  if (result.decision === "deny_rate_limit") {
+    return new Response(JSON.stringify(result.body), {
+      status: result.status,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(result.retryAfterSeconds),
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }
+  return jsonResponse(result.body, result.status);
+}
+
+// ---------------------------------------------------------------------------
+// Streaming Trace Builder
+// ---------------------------------------------------------------------------
+
+function buildStreamingTraceData(
+  streamCtx: StreamContext,
+  latencyMs: number,
+  identitySignals: import("./identity-resolver").IdentitySignals,
+  effectiveSessionId: string | undefined,
+  policyDecision: PolicyDecisionLog | undefined,
+  conversationId: string | undefined,
+  injectionResult: InjectionResult | undefined,
+): TraceData {
+  return {
+    model: streamCtx.model!,
+    inputTokens: streamCtx.inputTokens,
+    outputTokens: streamCtx.outputTokens,
+    cacheCreationTokens: streamCtx.cacheCreationTokens,
+    cacheReadTokens: streamCtx.cacheReadTokens,
+    stopReason: streamCtx.stopReason,
+    latencyMs,
+    workspaceId: identitySignals.workspaceId,
+    sessionId: effectiveSessionId,
+    taskId: identitySignals.taskId,
+    policyDecision,
+    conversationId,
+    ...(injectionResult ? {
+      intelligenceMetadata: buildIntelligenceMetadata(injectionResult),
+    } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -576,21 +631,8 @@ export function createAnthropicProxyHandler(
         policyDeps,
       );
 
-      if (policyResult.decision === "deny_model") {
-        return jsonResponse(policyResult.body, policyResult.status);
-      }
-      if (policyResult.decision === "deny_budget") {
-        return jsonResponse(policyResult.body, policyResult.status);
-      }
-      if (policyResult.decision === "deny_rate_limit") {
-        return new Response(JSON.stringify(policyResult.body), {
-          status: policyResult.status,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": String(policyResult.retryAfterSeconds),
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
+      if (policyResult.decision !== "allow") {
+        return buildPolicyDenialResponse(policyResult);
       }
     }
 
@@ -738,29 +780,10 @@ export function createAnthropicProxyHandler(
 
         // Async trace capture for streaming (skip count_tokens)
         if (!isCountTokens && streamContext.model) {
-          const traceData: TraceData = {
-            model: streamContext.model,
-            inputTokens: streamContext.inputTokens,
-            outputTokens: streamContext.outputTokens,
-            cacheCreationTokens: streamContext.cacheCreationTokens,
-            cacheReadTokens: streamContext.cacheReadTokens,
-            stopReason: streamContext.stopReason,
-            latencyMs,
-            workspaceId: identitySignals.workspaceId,
-            sessionId: effectiveSessionId,
-            taskId: identitySignals.taskId,
-            policyDecision,
-            conversationId,
-            ...(injectionResult ? {
-              intelligenceMetadata: {
-                brain_context_injected: injectionResult.injected,
-                brain_context_decisions: injectionResult.decisionsCount,
-                brain_context_learnings: injectionResult.learningsCount,
-                brain_context_observations: injectionResult.observationsCount,
-                brain_context_tokens_est: injectionResult.tokensEstimated,
-              },
-            } : {}),
-          };
+          const traceData = buildStreamingTraceData(
+            streamContext, latencyMs, identitySignals,
+            effectiveSessionId, policyDecision, conversationId, injectionResult,
+          );
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
           );
