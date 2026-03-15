@@ -13,7 +13,7 @@
 
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
-import { logInfo, logError } from "../http/observability";
+import { logInfo, logError, logWarn } from "../http/observability";
 import type { InflightTracker } from "../runtime/types";
 import {
   type RateLimiterState,
@@ -105,11 +105,18 @@ function evaluateModelAccess(
   context: ProxyPolicyContext,
 ): ModelCheckResult {
   // Filter policies relevant to this agent_type via selector.agent_role
-  const relevantPolicies = context.agentType
-    ? policies.filter(
-        (p) => p.selector.agent_role === context.agentType,
-      )
-    : [];
+  if (!context.agentType) {
+    // No agent type: policies exist but cannot be matched — allow with warning
+    logWarn("proxy.policy.missing_agent_type", "Request lacks agent type; model access policies not enforced", {
+      model: context.model,
+      workspace_id: context.workspaceId,
+    });
+    return { allowed: true, policyIds: policies.map((p) => p.id.id as string) };
+  }
+
+  const relevantPolicies = policies.filter(
+    (p) => p.selector.agent_role === context.agentType,
+  );
 
   if (relevantPolicies.length === 0) {
     // No agent-specific policies; collect all policy IDs for audit
@@ -273,6 +280,7 @@ export type PolicyDecisionLog = {
 export async function evaluateProxyPolicy(
   context: ProxyPolicyContext,
   deps: ProxyPolicyDependencies,
+  noPolicyWarnedWorkspaces?: Set<string>,
 ): Promise<ProxyPolicyResult> {
   // Step 1: Rate limit check (in-memory, sub-ms)
   if (context.workspaceId) {
@@ -336,10 +344,14 @@ export async function evaluateProxyPolicy(
     const policies = await loadWorkspacePolicies(deps.surreal, context.workspaceId);
 
     if (policies.length === 0) {
-      // No policies: permissive default with async warning
-      deps.inflight.track(
-        createNoPolicyWarning(deps.surreal, context.workspaceId).catch(() => undefined),
-      );
+      // No policies: permissive default with async warning (deduplicated per process lifetime)
+      const alreadyWarned = noPolicyWarnedWorkspaces?.has(context.workspaceId) ?? false;
+      if (!alreadyWarned) {
+        noPolicyWarnedWorkspaces?.add(context.workspaceId);
+        deps.inflight.track(
+          createNoPolicyWarning(deps.surreal, context.workspaceId).catch(() => undefined),
+        );
+      }
 
       logInfo("proxy.policy.no_policies", "No policies configured, permissive default", {
         workspace_id: context.workspaceId,

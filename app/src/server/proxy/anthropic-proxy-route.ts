@@ -32,6 +32,7 @@ import {
 } from "./policy-evaluator";
 import {
   createRateLimiterState,
+  pruneStaleEntries,
   type RateLimiterState,
 } from "./rate-limiter";
 import {
@@ -542,7 +543,16 @@ export function createAnthropicProxyHandler(
   const workspaceCache: WorkspaceCache = new Map();
   const rateLimiterState: RateLimiterState = createRateLimiterState();
   const spendCache: SpendCache = new Map();
+  const noPolicyWarnedWorkspaces = new Set<string>();
   const contextCache: ContextCache = createContextCache(300); // default TTL, overridden per-workspace
+
+  // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
+  // unref() ensures this interval does not keep the process alive on shutdown.
+  const pruneInterval = setInterval(
+    () => pruneStaleEntries(rateLimiterState, Date.now()),
+    5 * 60 * 1000,
+  );
+  pruneInterval.unref();
 
   return async (request: Request): Promise<Response> => {
     const startedAt = performance.now();
@@ -629,6 +639,7 @@ export function createAnthropicProxyHandler(
           model: parsed.model,
         },
         policyDeps,
+        noPolicyWarnedWorkspaces,
       );
 
       if (policyResult.decision !== "allow") {
@@ -660,6 +671,16 @@ export function createAnthropicProxyHandler(
           error: String(error),
         });
       }
+    }
+
+    // --- API key validation ---
+    const hasApiKey = request.headers.has("x-api-key");
+    const hasAuthHeader = request.headers.has("authorization");
+    if (!hasApiKey && !hasAuthHeader) {
+      return jsonResponse(
+        { error: "unauthorized", message: "Missing x-api-key or authorization header" },
+        401,
+      );
     }
 
     // --- Build identity context for logging ---

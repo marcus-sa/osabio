@@ -38,6 +38,12 @@ export type ContextCache = {
 // ---------------------------------------------------------------------------
 
 export function createContextCache(ttlSeconds: number): ContextCache {
+  // Per-handler-instance cache (created via factory in createAnthropicProxyHandler).
+  // TTL provides eventual consistency with the graph — stale reads are acceptable
+  // since context injection is best-effort. Cache stampede on cold start is fine:
+  // concurrent requests for the same workspace may each populate, but the last
+  // write wins and subsequent reads serve from cache. Workspace cardinality is
+  // low enough that unbounded Map growth is not a concern.
   const store = new Map<string, CachedCandidatePool>();
   const ttlMs = ttlSeconds * 1000;
 
