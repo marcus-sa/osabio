@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "375fab13a1f9",
+  "session_id": "9716c002-b38f-439b-8987-06b80ae00d4d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T19:51:42.016616Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/proxy/conversation-upserter.ts",
+    "app/src/server/proxy/pricing-table.ts",
+    "docs/feature/llm-proxy/execution-log.yaml",
+    "docs/feature/llm-proxy/roadmap.yaml",
+    "tests/acceptance/llm-proxy/llm-proxy-context-injection.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-conversation-hash.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-cost.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-identity.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-trace.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a5eb3021c87f",
+  "token_usage": {
+    "input_tokens": 199,
+    "cache_creation_tokens": 212519,
+    "cache_read_tokens": 14221736,
+    "output_tokens": 58016,
+    "api_call_count": 133
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T19:51:37.785206Z",
+    "agent_lines": 154,
+    "human_added": 365,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 519,
+    "agent_percentage": 29.672447013487474
+  }
+}
