@@ -201,7 +201,7 @@ DEFINE FIELD files_changed ON agent_session TYPE option<array<object>>;
 DEFINE FIELD files_changed[*].path ON agent_session TYPE string;
 DEFINE FIELD files_changed[*].change_type ON agent_session TYPE string ASSERT $value IN ["created", "modified", "deleted"];
 DEFINE FIELD observations_logged ON agent_session TYPE option<array<record<observation>>>;
-DEFINE FIELD opencode_session_id ON agent_session TYPE option<string>;
+DEFINE FIELD external_session_id ON agent_session TYPE option<string>;
 DEFINE FIELD orchestrator_status ON agent_session TYPE option<string>
   ASSERT $value IS NONE OR $value IN ["spawning", "active", "idle", "completed", "aborted", "error"];
 DEFINE FIELD worktree_branch ON agent_session TYPE option<string>;
@@ -215,6 +215,7 @@ DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
 DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
+DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
 
 DEFINE TABLE observation SCHEMAFULL;
 DEFINE FIELD text ON observation TYPE string;
@@ -485,7 +486,7 @@ DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 -- Trace: forensic record of a unit of thought (call tree node)
 DEFINE TABLE trace SCHEMAFULL;
 DEFINE FIELD type ON trace TYPE string
-  ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange"];
+  ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange", "llm_call"];
 DEFINE FIELD actor ON trace TYPE record<identity>;
 DEFINE FIELD workspace ON trace TYPE record<workspace>;
 DEFINE FIELD session ON trace TYPE option<record<agent_session>>;
@@ -495,6 +496,16 @@ DEFINE FIELD input ON trace TYPE option<object> FLEXIBLE;
 DEFINE FIELD output ON trace TYPE option<object> FLEXIBLE;
 DEFINE FIELD duration_ms ON trace TYPE option<int>;
 DEFINE FIELD created_at ON trace TYPE datetime;
+DEFINE FIELD model ON trace TYPE option<string>;
+DEFINE FIELD provider ON trace TYPE option<string>;
+DEFINE FIELD input_tokens ON trace TYPE option<int>;
+DEFINE FIELD output_tokens ON trace TYPE option<int>;
+DEFINE FIELD cache_creation_tokens ON trace TYPE option<int>;
+DEFINE FIELD cache_read_tokens ON trace TYPE option<int>;
+DEFINE FIELD cost_usd ON trace TYPE option<float>;
+DEFINE FIELD stop_reason ON trace TYPE option<string>;
+DEFINE FIELD request_id ON trace TYPE option<string>;
+DEFINE FIELD latency_ms ON trace TYPE option<int>;
 DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
@@ -1248,6 +1259,21 @@ DEFINE INDEX behavior_created_at ON behavior FIELDS created_at;
 DEFINE TABLE exhibits TYPE RELATION IN identity OUT behavior SCHEMAFULL;
 DEFINE FIELD created_at ON exhibits TYPE option<datetime>;
 DEFINE FIELD added_at ON exhibits TYPE option<datetime>;
+
+-- Proxy intelligence configuration (workspace-scoped)
+DEFINE TABLE proxy_intelligence_config SCHEMAFULL;
+DEFINE FIELD workspace ON proxy_intelligence_config TYPE record<workspace>;
+DEFINE FIELD context_injection_enabled ON proxy_intelligence_config TYPE bool;
+DEFINE FIELD context_injection_token_budget ON proxy_intelligence_config TYPE int;
+DEFINE FIELD context_injection_cache_ttl_seconds ON proxy_intelligence_config TYPE int;
+DEFINE FIELD context_injection_tier ON proxy_intelligence_config TYPE string
+  ASSERT $value IN ["fast", "secure"];
+DEFINE FIELD contradiction_detection_enabled ON proxy_intelligence_config TYPE bool;
+DEFINE FIELD contradiction_tier1_threshold ON proxy_intelligence_config TYPE float;
+DEFINE FIELD contradiction_tier2_confidence_min ON proxy_intelligence_config TYPE float;
+DEFINE FIELD created_at ON proxy_intelligence_config TYPE datetime;
+DEFINE FIELD updated_at ON proxy_intelligence_config TYPE datetime;
+DEFINE INDEX proxy_intelligence_config_workspace ON proxy_intelligence_config FIELDS workspace UNIQUE;
 
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

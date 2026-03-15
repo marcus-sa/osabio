@@ -1,3 +1,24 @@
-schema_version: "2.0"
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-15T17:46:51Z'
+- d: 'NOT_APPLICABLE: schema-only step; existing acceptance tests in llm-proxy-trace.test.ts
+    and test-kit already assert the schema elements being added'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-15T17:46:54Z'
+- d: 'NOT_APPLICABLE: schema migrations contain no unit-testable logic'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-15T17:46:55Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-15T17:46:56Z'
 project_id: llm-proxy
-events: []
+schema_version: '3.0'
