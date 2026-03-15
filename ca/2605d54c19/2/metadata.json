@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ca2605d54c19",
+  "session_id": "b21689fb-ea87-4590-b416-39ef5673d77d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-15T17:08:35.969665Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/openclaw-gateway-protocol-integration.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "262a71109dd9",
+  "token_usage": {
+    "input_tokens": 1005,
+    "cache_creation_tokens": 70106,
+    "cache_read_tokens": 981518,
+    "output_tokens": 8755,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-15T17:08:34.993887Z",
+    "agent_lines": 199,
+    "human_added": 2699,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2898,
+    "agent_percentage": 6.86680469289165
+  }
+}
