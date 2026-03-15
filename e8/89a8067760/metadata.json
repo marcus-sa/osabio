@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e889a8067760",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-050-conversation-hash-correlation-uuidv5.md",
+    "docs/adrs/ADR-051-observer-owned-detection-no-proxy-response-analyzer.md",
+    "docs/architecture/llm-proxy-architecture.md",
+    "docs/architecture/llm-proxy-intelligence-design.md",
+    "docs/feature/llm-proxy/roadmap.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e8/89a8067760/0/metadata.json",
+      "transcript": "/e8/89a8067760/0/full.jsonl",
+      "context": "",
+      "content_hash": "/e8/89a8067760/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
