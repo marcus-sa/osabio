@@ -1,0 +1,24 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:34:34Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:34:48Z'
+- d: 'NOT_APPLICABLE: acceptance tests exercise full persistence round-trip for reasoning
+    field; pure pipeline threading is minimal wiring'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-16T15:35:02Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:36:43Z'
+project_id: intent-llm-traces
+schema_version: '3.0'

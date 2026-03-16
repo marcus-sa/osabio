@@ -28,6 +28,7 @@ export async function createObservation(input: {
   evidenceRefs?: RecordId[];
   verified?: boolean;
   source?: string;
+  reasoning?: string;
 }): Promise<ObservationRecord> {
   const observationRecord = new RecordId("observation", randomUUID());
 
@@ -46,6 +47,7 @@ export async function createObservation(input: {
     ...(input.evidenceRefs && input.evidenceRefs.length > 0 ? { evidence_refs: input.evidenceRefs } : {}),
     ...(input.verified !== undefined ? { verified: input.verified } : {}),
     ...(input.source ? { source: input.source } : {}),
+    ...(input.reasoning !== undefined ? { reasoning: input.reasoning } : {}),
     created_at: input.now,
     updated_at: input.now,
   });
