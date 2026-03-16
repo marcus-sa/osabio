@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "26897c30ae9c",
+  "session_id": "4972770b-ea07-42a7-a0d1-a5e55fba8352",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:23:27.385025Z",
+  "branch": "marcus-sa/opentelemetry-observability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/telemetry/ai-telemetry.ts",
+    "app/src/server/telemetry/logger.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "15286e592d69",
+  "checkpoint_transcript_start": 129,
+  "transcript_lines_at_start": 129,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:23:27.348134Z",
+    "agent_lines": 8,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 8,
+    "agent_percentage": 100
+  }
+}
