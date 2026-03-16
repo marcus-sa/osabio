@@ -124,7 +124,7 @@ The knowledge graph that coordinates your agents shouldn't be a black box you re
 
 | Layer | Technology |
 |-------|-----------|
-| Graph | SurrealDB |
+| Graph | SurrealDB (SurrealKV storage engine) |
 | Backend | Bun (`Bun.serve`) · TypeScript |
 | Frontend | React · Tiptap · Reagraph |
 | Auth | Better Auth · OAuth 2.1 · RAR · DPoP |

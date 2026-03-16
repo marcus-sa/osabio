@@ -12,7 +12,7 @@ services:
       - --allow-guests
       - --allow-net
       - 127.0.0.1,localhost,host.docker.internal
-      - rocksdb:/data/brain.db
+      - surrealkv:/data/brain.db
     ports:
       - "8000:8000"
     extra_hosts:
