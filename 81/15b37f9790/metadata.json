@@ -5,16 +5,7 @@
   "branch": "marcus-sa/cli-proxy-setup",
   "checkpoints_count": 2,
   "files_touched": [
-    "conductor.json",
-    "docs/feature/cli-proxy-setup/distill/acceptance-review.md",
-    "docs/feature/cli-proxy-setup/distill/test-scenarios.md",
-    "docs/feature/cli-proxy-setup/distill/walking-skeleton.md",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-auth-middleware.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-integration-checkpoints.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-settings-config.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-test-kit.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-token-endpoint.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-walking-skeleton.test.ts"
+    "conductor.json"
   ],
   "sessions": [
     {
@@ -33,10 +24,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 94,
-    "cache_creation_tokens": 213144,
-    "cache_read_tokens": 3507405,
-    "output_tokens": 35112,
-    "api_call_count": 57
+    "input_tokens": 67,
+    "cache_creation_tokens": 135701,
+    "cache_read_tokens": 2387787,
+    "output_tokens": 16788,
+    "api_call_count": 40
   }
 }

@@ -3,36 +3,30 @@
   "checkpoint_id": "8115b37f9790",
   "session_id": "e1e9e50b-f71d-45f6-82fa-9989d32132d8",
   "strategy": "manual-commit",
-  "created_at": "2026-03-16T07:02:45.846748Z",
+  "created_at": "2026-03-16T07:03:26.184755Z",
   "branch": "marcus-sa/cli-proxy-setup",
   "checkpoints_count": 1,
   "files_touched": [
-    "docs/feature/cli-proxy-setup/distill/acceptance-review.md",
-    "docs/feature/cli-proxy-setup/distill/test-scenarios.md",
-    "docs/feature/cli-proxy-setup/distill/walking-skeleton.md",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-auth-middleware.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-integration-checkpoints.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-settings-config.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-test-kit.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-token-endpoint.test.ts",
-    "tests/acceptance/cli-proxy-setup/cli-proxy-walking-skeleton.test.ts"
+    "conductor.json"
   ],
   "agent": "Claude Code",
   "turn_id": "24d6c6991814",
+  "checkpoint_transcript_start": 296,
+  "transcript_lines_at_start": 296,
   "token_usage": {
-    "input_tokens": 29,
-    "cache_creation_tokens": 78340,
-    "cache_read_tokens": 1297310,
-    "output_tokens": 18442,
-    "api_call_count": 19
+    "input_tokens": 2,
+    "cache_creation_tokens": 897,
+    "cache_read_tokens": 177692,
+    "output_tokens": 118,
+    "api_call_count": 2
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-16T07:02:45.698519Z",
-    "agent_lines": 1237,
-    "human_added": 453,
+    "calculated_at": "2026-03-16T07:03:26.040107Z",
+    "agent_lines": 1,
+    "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 1690,
-    "agent_percentage": 73.19526627218936
+    "total_committed": 1,
+    "agent_percentage": 100
   }
 }
