@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1af824064b75",
+  "session_id": "52e0eaf5-4c9b-45e1-a69d-469117b43dc9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T04:52:47.11834Z",
+  "branch": "marcus-sa/llm-proxy-research",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/proxy/context-injector.ts",
+    "schema/migrations/0048_proxy_trace_relation_tables.surql",
+    "schema/surreal-schema.surql",
+    "tests/unit/proxy-context-injector.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e090769032f2",
+  "token_usage": {
+    "input_tokens": 589,
+    "cache_creation_tokens": 932220,
+    "cache_read_tokens": 22257849,
+    "output_tokens": 73911,
+    "api_call_count": 212
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T04:52:46.175882Z",
+    "agent_lines": 35,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 35,
+    "agent_percentage": 100
+  }
+}
