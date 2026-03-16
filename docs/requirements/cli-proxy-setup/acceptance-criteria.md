@@ -10,7 +10,7 @@ Feature: Brain CLI proxy setup
     Then .claude/settings.local.json is created with:
       | key                    | value                                                                    |
       | env.ANTHROPIC_BASE_URL | {server_url}/proxy/llm/anthropic                                        |
-      | env.ANTHROPIC_HEADERS  | X-Brain-Auth: {proxy_token}                                              |
+      | env.ANTHROPIC_CUSTOM_HEADERS  | X-Brain-Auth: {proxy_token}                                              |
     And the proxy token is stored in ~/.brain/config.json
     And the CLI prints confirmation with proxy URL and token expiry
 

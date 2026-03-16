@@ -27,7 +27,7 @@ export function mergeProxyEnvSettings(
   const env: Record<string, string> = {
     ...existingEnv,
     ANTHROPIC_BASE_URL: `${serverUrl}/proxy/llm/anthropic`,
-    ANTHROPIC_HEADERS: `X-Brain-Auth: ${proxyToken}`,
+    ANTHROPIC_CUSTOM_HEADERS: `X-Brain-Auth: ${proxyToken}`,
   };
 
   return {

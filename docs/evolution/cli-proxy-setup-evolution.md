@@ -20,7 +20,7 @@ Added Brain-authenticated LLM proxy support with CLI configuration. Developers r
 - **ANTHROPIC_API_KEY** config — Optional server-side key for Brain-auth requests
 
 ### CLI
-- **brain init Step 7** — Requests proxy token, writes `.claude/settings.local.json` with ANTHROPIC_BASE_URL + ANTHROPIC_HEADERS, warns if not gitignored
+- **brain init Step 7** — Requests proxy token, writes `.claude/settings.local.json` with ANTHROPIC_BASE_URL + ANTHROPIC_CUSTOM_HEADERS, warns if not gitignored
 - **Removed SessionStart/PreToolUse hooks** — Context injection now handled by the Brain LLM proxy itself, eliminating redundant CLI hooks (`brain system load-context`, `brain system pretooluse`)
 
 ## Architecture Decisions

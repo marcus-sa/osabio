@@ -60,7 +60,7 @@ C4Container
     System_Ext(anthropic, "Anthropic API")
 
     Container_Boundary(claude, "Claude Code") {
-        Component(settings, ".claude/settings.local.json", "env.ANTHROPIC_BASE_URL + ANTHROPIC_HEADERS")
+        Component(settings, ".claude/settings.local.json", "env.ANTHROPIC_BASE_URL + ANTHROPIC_CUSTOM_HEADERS")
     }
 
     Rel(dev, init, "runs brain init")
@@ -150,7 +150,7 @@ This preserves backward compatibility for users who bring their own API key.
 4. Read or create `.claude/settings.local.json`
 5. Merge `env` keys:
    - `ANTHROPIC_BASE_URL`: `{server_url}/proxy/llm/anthropic`
-   - `ANTHROPIC_HEADERS`: `X-Brain-Auth: {proxy_token}`
+   - `ANTHROPIC_CUSTOM_HEADERS`: `X-Brain-Auth: {proxy_token}`
 6. Check if `.claude/settings.local.json` is gitignored; warn if not
 7. Print confirmation
 
@@ -237,12 +237,12 @@ brain init
   ├── Write ~/.brain/config.json (proxy_token, proxy_token_expires_at)
   └── Write .claude/settings.local.json
         └── env.ANTHROPIC_BASE_URL = {server}/proxy/llm/anthropic
-        └── env.ANTHROPIC_HEADERS = X-Brain-Auth: {token}
+        └── env.ANTHROPIC_CUSTOM_HEADERS = X-Brain-Auth: {token}
 
 claude (runtime)
   ├── Reads .claude/settings.local.json
   ├── Sets ANTHROPIC_BASE_URL → routes to Brain proxy
-  ├── Sets ANTHROPIC_HEADERS → X-Brain-Workspace + X-Brain-Auth on every request
+  ├── Sets ANTHROPIC_CUSTOM_HEADERS → X-Brain-Workspace + X-Brain-Auth on every request
   └── Brain proxy:
         ├── Validates X-Brain-Auth token (DB lookup, cached)
         ├── Derives workspace + identity from token record

@@ -10,7 +10,7 @@
 
 - Add Step 7 to `brain init`: "Proxy Configuration"
 - Server issues a long-lived proxy token during the existing OAuth flow (or via a new endpoint post-auth)
-- CLI writes `.claude/settings.local.json` with `env.ANTHROPIC_BASE_URL` and `env.ANTHROPIC_HEADERS`
+- CLI writes `.claude/settings.local.json` with `env.ANTHROPIC_BASE_URL` and `env.ANTHROPIC_CUSTOM_HEADERS`
 - CLI verifies `.claude/settings.local.json` is in `.gitignore`
 - Proxy validates new Brain auth headers (`Authorization: Bearer <proxy_token>`, `X-Brain-Workspace`)
 - No fallback to direct Anthropic — fail clearly if proxy is unreachable

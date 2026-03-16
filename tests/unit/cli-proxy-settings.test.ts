@@ -28,7 +28,7 @@ describe("mergeProxyEnvSettings", () => {
     expect(result.env.ANTHROPIC_BASE_URL).toBe(
       "https://brain.example.com/proxy/llm/anthropic",
     );
-    expect(result.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_abc123");
+    expect(result.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_abc123");
   });
 
   it("preserves existing non-Brain env vars", () => {
@@ -50,7 +50,7 @@ describe("mergeProxyEnvSettings", () => {
     expect(result.env.ANTHROPIC_BASE_URL).toBe(
       "https://brain.example.com/proxy/llm/anthropic",
     );
-    expect(result.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_xyz789");
+    expect(result.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_xyz789");
   });
 
   it("preserves existing non-env config keys", () => {
@@ -75,7 +75,7 @@ describe("mergeProxyEnvSettings", () => {
     const existing = {
       env: {
         ANTHROPIC_BASE_URL: "https://brain.example.com/proxy/llm/anthropic",
-        ANTHROPIC_HEADERS: "X-Brain-Auth: brp_old_token",
+        ANTHROPIC_CUSTOM_HEADERS: "X-Brain-Auth: brp_old_token",
         SOME_OTHER_KEY: "preserve-me",
       },
     };
@@ -86,7 +86,7 @@ describe("mergeProxyEnvSettings", () => {
       "brp_new_token",
     );
 
-    expect(result.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_new_token");
+    expect(result.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_new_token");
     expect(result.env.ANTHROPIC_BASE_URL).toBe(
       "https://brain.example.com/proxy/llm/anthropic",
     );

@@ -12,7 +12,7 @@ brain init ──> Browser OAuth ──> Token Exchange ──> Write settings �
 | 1 | User | Runs `brain init` in repo | CLI detects repo, starts OAuth flow | Neutral — familiar flow |
 | 2 | User | Authenticates in browser | OAuth consent page, approves scopes | Slight friction, expected |
 | 3 | System | OAuth completes | Server issues long-lived proxy token alongside existing MCP tokens | Relief — "that was quick" |
-| 4 | System | CLI writes `.claude/settings.local.json` | Sets `env.ANTHROPIC_BASE_URL` + `env.ANTHROPIC_HEADERS` | Confidence — "it's configured" |
+| 4 | System | CLI writes `.claude/settings.local.json` | Sets `env.ANTHROPIC_BASE_URL` + `env.ANTHROPIC_CUSTOM_HEADERS` | Confidence — "it's configured" |
 | 5 | User | Runs `claude` | Requests route through Brain proxy transparently | Satisfaction — "it just works" |
 
 ## Error Paths

@@ -59,7 +59,7 @@ function writeSettingsLocal(
 
   const env = (existing.env ?? {}) as Record<string, string>;
   env.ANTHROPIC_BASE_URL = `${serverUrl}/proxy/llm/anthropic`;
-  env.ANTHROPIC_HEADERS = `X-Brain-Auth: ${proxyToken}`;
+  env.ANTHROPIC_CUSTOM_HEADERS = `X-Brain-Auth: ${proxyToken}`;
 
   existing.env = env;
   fs.writeFileSync(settingsPath, JSON.stringify(existing, undefined, 2) + "\n");
@@ -77,7 +77,7 @@ function isGitignored(repoPath: string, filePath: string): boolean {
 // Scenario: Fresh setup with no existing settings.local.json
 // ---------------------------------------------------------------------------
 describe("Fresh proxy setup", () => {
-  it("creates .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_HEADERS", () => {
+  it("creates .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_CUSTOM_HEADERS", () => {
     const settingsPath = path.join(claudeDir, "settings.local.json");
 
     // Given a repo with no .claude/settings.local.json
@@ -91,7 +91,7 @@ describe("Fresh proxy setup", () => {
 
     const content = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     expect(content.env.ANTHROPIC_BASE_URL).toBe("https://brain.example.com/proxy/llm/anthropic");
-    expect(content.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_abc123");
+    expect(content.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_abc123");
   });
 });
 
@@ -120,7 +120,7 @@ describe("Merge with existing settings", () => {
     // Then the env keys are merged (not overwritten)
     const result = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
     expect(result.env.ANTHROPIC_BASE_URL).toBe("https://brain.example.com/proxy/llm/anthropic");
-    expect(result.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_xyz789");
+    expect(result.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_xyz789");
 
     // And existing non-Brain env vars are preserved
     expect(result.env.MY_CUSTOM_VAR).toBe("keep-this");
@@ -151,7 +151,7 @@ describe("Re-run updates token in place", () => {
 
     // Then .claude/settings.local.json is updated with the new token
     const result = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-    expect(result.env.ANTHROPIC_HEADERS).toBe("X-Brain-Auth: brp_new_token");
+    expect(result.env.ANTHROPIC_CUSTOM_HEADERS).toBe("X-Brain-Auth: brp_new_token");
 
     // And the base URL and other keys are unchanged
     expect(result.env.ANTHROPIC_BASE_URL).toBe("https://brain.example.com/proxy/llm/anthropic");

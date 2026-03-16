@@ -98,7 +98,7 @@ phases:
     description: >-
       After OAuth completes in brain init, call POST /api/auth/proxy-token.
       Store proxy_token and expires_at in ~/.brain/config.json. Create or merge
-      .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_HEADERS
+      .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_CUSTOM_HEADERS
       env block. Warn if .gitignore lacks settings.local.json.
     criteria:
       - 'brain init stores proxy_token and proxy_token_expires_at in config'
