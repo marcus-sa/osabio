@@ -270,20 +270,20 @@ async function loadCandidatePool(
   type LearningRow = { id: RecordId; text: string; embedding?: number[] };
   type ObservationRow = { id: RecordId; text: string; embedding?: number[] };
 
-  const [decisionResults, learningResults, observationResults] = await Promise.all([
-    surreal.query<[DecisionRow[]]>(
-      `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;`,
-      { ws: workspaceRecord },
-    ),
-    surreal.query<[LearningRow[]]>(
-      `SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;`,
-      { ws: workspaceRecord },
-    ),
-    surreal.query<[ObservationRow[]]>(
-      `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] LIMIT 20;`,
-      { ws: workspaceRecord },
-    ),
-  ]);
+  // Sequential queries to avoid SurrealDB SDK concurrency issues with
+  // multiple parallel queries on a single WebSocket connection
+  const decisionResults = await surreal.query<[DecisionRow[]]>(
+    `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;`,
+    { ws: workspaceRecord },
+  );
+  const learningResults = await surreal.query<[LearningRow[]]>(
+    `SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;`,
+    { ws: workspaceRecord },
+  );
+  const observationResults = await surreal.query<[ObservationRow[]]>(
+    `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] LIMIT 20;`,
+    { ws: workspaceRecord },
+  );
 
   function toCandidates<T extends { id: RecordId; embedding?: number[] }>(
     rows: T[],

@@ -16,40 +16,9 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
-import { logInfo, logError, logWarn } from "../http/observability";
+import { logInfo, logError } from "../http/observability";
+import { withRetry } from "./retry";
 import type { ServerDependencies } from "../runtime/types";
-
-// ---------------------------------------------------------------------------
-// Retry with Exponential Backoff (for SurrealDB transaction conflicts)
-// ---------------------------------------------------------------------------
-
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 200;
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  label: string,
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      if (attempt < MAX_RETRIES - 1) {
-        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
-        logWarn("proxy.spend.retry", `Retry ${attempt + 1}/${MAX_RETRIES} for ${label}`, {
-          attempt: attempt + 1,
-          delay_ms: delayMs,
-        });
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 // ---------------------------------------------------------------------------
 // Types

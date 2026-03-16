@@ -10,9 +10,10 @@
  */
 
 import { RecordId } from "surrealdb";
-import { logInfo, logError, logWarn } from "../http/observability";
+import { logInfo, logError } from "../http/observability";
 import { calculateCost, type TokenUsage } from "./cost-calculator";
 import { getModelPricing } from "./pricing-table";
+import { withRetry } from "./retry";
 import type { Surreal } from "surrealdb";
 
 // ---------------------------------------------------------------------------
@@ -62,38 +63,6 @@ export type TraceData = {
 type TraceDependencies = {
   readonly surreal: Surreal;
 };
-
-// ---------------------------------------------------------------------------
-// Retry with Exponential Backoff
-// ---------------------------------------------------------------------------
-
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 200;
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  label: string,
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      if (attempt < MAX_RETRIES - 1) {
-        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
-        logWarn("proxy.trace.retry", `Retry ${attempt + 1}/${MAX_RETRIES} for ${label}`, {
-          attempt: attempt + 1,
-          delay_ms: delayMs,
-        });
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 // ---------------------------------------------------------------------------
 // Trace Node Creation
@@ -186,13 +155,37 @@ async function createTraceEdges(
     );
   }
 
-  // Create session invocation edge when session is resolved
+  // Create session invocation edge only when the session record exists.
+  // Try direct ID lookup first, then fall back to external_session_id
+  // (Claude Code embeds session IDs in metadata.user_id which map to
+  // the external_session_id field on agent_session records).
   if (data.sessionId) {
     const sessionRecord = new RecordId("agent_session", data.sessionId);
-    await surreal.query(
-      `RELATE $session->invoked->$trace SET created_at = time::now();`,
-      { session: sessionRecord, trace: traceRecord },
+    const directLookup = await surreal.query<[Array<{ id: RecordId }>]>(
+      `SELECT id FROM $sess;`,
+      { sess: sessionRecord },
     );
+
+    let resolvedSession: RecordId | undefined;
+    if ((directLookup[0]?.length ?? 0) > 0) {
+      resolvedSession = sessionRecord;
+    } else {
+      // Fall back to external_session_id lookup
+      const externalLookup = await surreal.query<[Array<{ id: RecordId }>]>(
+        `SELECT id FROM agent_session WHERE external_session_id = $extId LIMIT 1;`,
+        { extId: data.sessionId },
+      );
+      if ((externalLookup[0]?.length ?? 0) > 0) {
+        resolvedSession = externalLookup[0][0].id;
+      }
+    }
+
+    if (resolvedSession) {
+      await surreal.query(
+        `RELATE $sess->invoked->$trace SET created_at = time::now();`,
+        { sess: resolvedSession, trace: traceRecord },
+      );
+    }
   }
 
   // Create task attribution edge when task is resolved

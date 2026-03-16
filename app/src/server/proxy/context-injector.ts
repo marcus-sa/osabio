@@ -41,28 +41,7 @@ export type InjectionResult = {
 
 type SystemPrompt = string | Array<{ type: string; text: string; cache_control?: { type: string } }> | undefined;
 
-// ---------------------------------------------------------------------------
-// Cosine Similarity (pure)
-// ---------------------------------------------------------------------------
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-
-  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-  if (denominator === 0) return 0;
-
-  return dotProduct / denominator;
-}
+import { cosineSimilarity } from "../graph/embeddings";
 
 // ---------------------------------------------------------------------------
 // Token Estimation (pure, ~4 chars per token)
@@ -81,13 +60,16 @@ export function rankCandidates(
   queryEmbedding: number[],
 ): RankedCandidate[] {
   return candidates
-    .filter((c) => c.embedding !== undefined && c.embedding.length > 0)
-    .map((c) => ({
-      id: c.id,
-      type: c.type,
-      text: c.text,
-      score: cosineSimilarity(c.embedding!, queryEmbedding) * c.weight,
-    }))
+    .map((c) => {
+      // Candidates with embeddings get similarity-weighted scores;
+      // candidates without embeddings fall back to a baseline weight
+      // (half their type weight) so they're still included but ranked lower.
+      const hasEmbedding = c.embedding !== undefined && c.embedding.length > 0;
+      const score = hasEmbedding
+        ? cosineSimilarity(c.embedding!, queryEmbedding) * c.weight
+        : c.weight * 0.5;
+      return { id: c.id, type: c.type, text: c.text, score };
+    })
     .sort((a, b) => b.score - a.score);
 }
 

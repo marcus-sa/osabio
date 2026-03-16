@@ -47,7 +47,7 @@ function parseMetadataUserId(userId?: string): {
   if (!userId) return {};
 
   const match = userId.match(
-    /^user_([a-f0-9]+)_account_([a-f0-9-]+)_session_([a-f0-9-]+)$/,
+    /^user_([\w-]+)_account_([\w-]+)_session_([\w-]+)$/,
   );
 
   if (!match) return { userHash: userId };
