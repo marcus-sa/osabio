@@ -4,11 +4,13 @@ import type {
   GovernanceTier,
 } from "../../../shared/contracts";
 import { FeedItem } from "./FeedItem";
+import { Badge } from "../ui/badge";
+import { cn } from "@/lib/utils";
 
-const TIER_CONFIG: Record<GovernanceTier, { label: string; icon: string }> = {
-  blocking: { label: "Needs Decision", icon: "!!" },
-  review: { label: "Needs Review", icon: "?" },
-  awareness: { label: "Awareness", icon: "i" },
+const TIER_CONFIG: Record<GovernanceTier, { label: string; icon: string; borderClass: string }> = {
+  blocking: { label: "Needs Decision", icon: "!!", borderClass: "border-l-tier-blocking" },
+  review: { label: "Needs Review", icon: "?", borderClass: "border-l-tier-review" },
+  awareness: { label: "Awareness", icon: "i", borderClass: "border-l-tier-awareness" },
 };
 
 export function FeedSection({
@@ -25,13 +27,13 @@ export function FeedSection({
   const config = TIER_CONFIG[tier];
 
   return (
-    <section className={`feed-section feed-section--${tier}`}>
-      <div className="feed-section-header">
-        <span className="feed-section-icon">{config.icon}</span>
-        <h3 className="feed-section-title">{config.label}</h3>
-        <span className="feed-section-count">{items.length}</span>
+    <section className={cn("flex flex-col gap-2 rounded-lg border border-border bg-card p-3 border-l-3", config.borderClass)}>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold">{config.icon}</span>
+        <h3 className="text-xs font-semibold text-foreground">{config.label}</h3>
+        <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[0.6rem]">{items.length}</Badge>
       </div>
-      <div className="feed-section-items">
+      <div className="flex flex-col gap-2">
         {items.map((item) => (
           <FeedItem
             key={item.id}

@@ -4,6 +4,10 @@ import { useAgentReview, type AsyncStatus } from "../hooks/use-agent-review";
 import { DiffViewer } from "../components/review/DiffViewer";
 import { AgentActivityLog, type ActivityEntry } from "../components/review/AgentActivityLog";
 import type { SessionReviewResponse } from "../graph/orchestrator-api";
+import { Button } from "../components/ui/button";
+import { Textarea } from "../components/ui/textarea";
+import { Badge } from "../components/ui/badge";
+import { Separator } from "../components/ui/separator";
 
 const ACTIVE_WORKSPACE_STORAGE_KEY = "brain.activeWorkspaceId";
 
@@ -44,45 +48,19 @@ export type ReviewViewModel = {
 };
 
 export function deriveReviewViewModel(input: ReviewPageInput): ReviewViewModel {
-  // Accept/reject success states take priority
   if (input.acceptStatus === "success") {
-    return {
-      viewState: "accepted",
-      taskTitle: input.reviewData?.taskTitle,
-      acceptDisabled: true,
-      rejectSubmitDisabled: true,
-    };
+    return { viewState: "accepted", taskTitle: input.reviewData?.taskTitle, acceptDisabled: true, rejectSubmitDisabled: true };
   }
-
   if (input.rejectStatus === "success") {
-    return {
-      viewState: "rejected",
-      taskTitle: input.reviewData?.taskTitle,
-      acceptDisabled: true,
-      rejectSubmitDisabled: true,
-    };
+    return { viewState: "rejected", taskTitle: input.reviewData?.taskTitle, acceptDisabled: true, rejectSubmitDisabled: true };
   }
-
-  // Loading states
   if (input.fetchStatus === "idle" || input.fetchStatus === "pending") {
-    return {
-      viewState: "loading",
-      acceptDisabled: true,
-      rejectSubmitDisabled: true,
-    };
+    return { viewState: "loading", acceptDisabled: true, rejectSubmitDisabled: true };
   }
-
-  // Error state
   if (input.fetchStatus === "error") {
-    return {
-      viewState: "error",
-      errorMessage: input.fetchError,
-      acceptDisabled: true,
-      rejectSubmitDisabled: true,
-    };
+    return { viewState: "error", errorMessage: input.fetchError, acceptDisabled: true, rejectSubmitDisabled: true };
   }
 
-  // Loaded with review data
   const data = input.reviewData;
   const isMutating = input.acceptStatus === "pending" || input.rejectStatus === "pending";
 
@@ -91,17 +69,8 @@ export function deriveReviewViewModel(input: ReviewPageInput): ReviewViewModel {
     taskTitle: data?.taskTitle,
     agentSummary: undefined,
     rawDiff: data?.diff.rawDiff,
-    diffStats: data ? {
-      filesChanged: data.diff.stats.filesChanged,
-      insertions: data.diff.stats.insertions,
-      deletions: data.diff.stats.deletions,
-    } : undefined,
-    sessionMeta: data ? {
-      orchestratorStatus: data.session.orchestratorStatus,
-      worktreeBranch: data.session.worktreeBranch,
-      startedAt: data.session.startedAt,
-      lastEventAt: data.session.lastEventAt,
-    } : undefined,
+    diffStats: data ? { filesChanged: data.diff.stats.filesChanged, insertions: data.diff.stats.insertions, deletions: data.diff.stats.deletions } : undefined,
+    sessionMeta: data ? { orchestratorStatus: data.session.orchestratorStatus, worktreeBranch: data.session.worktreeBranch, startedAt: data.session.startedAt, lastEventAt: data.session.lastEventAt } : undefined,
     acceptDisabled: isMutating,
     rejectSubmitDisabled: isMutating || input.rejectFeedback.trim().length === 0,
   };
@@ -113,11 +82,11 @@ export function deriveReviewViewModel(input: ReviewPageInput): ReviewViewModel {
 
 function ReviewLoading() {
   return (
-    <section className="review-page review-page--loading">
-      <div className="review-skeleton">
-        <div className="review-skeleton-title" />
-        <div className="review-skeleton-summary" />
-        <div className="review-skeleton-diff" />
+    <section className="flex h-full items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+        <div className="h-32 w-full max-w-2xl animate-pulse rounded bg-muted" />
       </div>
     </section>
   );
@@ -125,10 +94,10 @@ function ReviewLoading() {
 
 function ReviewError({ message }: { message?: string }) {
   return (
-    <section className="review-page review-page--error">
-      <div className="review-error">
-        <h2>Failed to load review</h2>
-        <p>{message ?? "An unexpected error occurred"}</p>
+    <section className="flex h-full items-center justify-center">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h2 className="text-lg font-semibold text-destructive">Failed to load review</h2>
+        <p className="text-sm text-muted-foreground">{message ?? "An unexpected error occurred"}</p>
       </div>
     </section>
   );
@@ -136,11 +105,11 @@ function ReviewError({ message }: { message?: string }) {
 
 function ReviewSuccess({ variant, taskTitle }: { variant: "accepted" | "rejected"; taskTitle?: string }) {
   return (
-    <section className="review-page review-page--success">
-      <div className="review-success">
-        <h2>{variant === "accepted" ? "Changes Accepted" : "Feedback Submitted"}</h2>
-        {taskTitle ? <p>{taskTitle}</p> : undefined}
-        <p>
+    <section className="flex h-full items-center justify-center">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h2 className="text-lg font-semibold text-foreground">{variant === "accepted" ? "Changes Accepted" : "Feedback Submitted"}</h2>
+        {taskTitle ? <p className="text-sm text-foreground">{taskTitle}</p> : undefined}
+        <p className="text-sm text-muted-foreground">
           {variant === "accepted"
             ? "The agent's changes have been accepted and will be merged."
             : "Your feedback has been sent. The agent will continue working on this task."}
@@ -152,17 +121,11 @@ function ReviewSuccess({ variant, taskTitle }: { variant: "accepted" | "rejected
 
 function SessionMetadata({ meta }: { meta: NonNullable<ReviewViewModel["sessionMeta"]> }) {
   return (
-    <div className="review-session-meta">
-      <span className="review-meta-item">Status: {meta.orchestratorStatus}</span>
-      {meta.worktreeBranch ? (
-        <span className="review-meta-item">Branch: {meta.worktreeBranch}</span>
-      ) : undefined}
-      {meta.startedAt ? (
-        <span className="review-meta-item">Started: {new Date(meta.startedAt).toLocaleString()}</span>
-      ) : undefined}
-      {meta.lastEventAt ? (
-        <span className="review-meta-item">Last activity: {new Date(meta.lastEventAt).toLocaleString()}</span>
-      ) : undefined}
+    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+      <span>Status: <Badge variant="secondary">{meta.orchestratorStatus}</Badge></span>
+      {meta.worktreeBranch ? <span>Branch: <span className="font-mono">{meta.worktreeBranch}</span></span> : undefined}
+      {meta.startedAt ? <span>Started: {new Date(meta.startedAt).toLocaleString()}</span> : undefined}
+      {meta.lastEventAt ? <span>Last activity: {new Date(meta.lastEventAt).toLocaleString()}</span> : undefined}
     </div>
   );
 }
@@ -193,21 +156,12 @@ export function ReviewPage() {
   if (vm.viewState === "accepted") return <ReviewSuccess variant="accepted" taskTitle={vm.taskTitle} />;
   if (vm.viewState === "rejected") return <ReviewSuccess variant="rejected" taskTitle={vm.taskTitle} />;
 
-  function handleAccept() {
-    void review.accept();
-  }
-
-  function handleRejectClick() {
-    setShowRejectForm(true);
-  }
-
+  function handleAccept() { void review.accept(); }
+  function handleRejectClick() { setShowRejectForm(true); }
   function handleRejectSubmit() {
-    if (rejectFeedback.trim().length > 0) {
-      void review.reject(rejectFeedback);
-    }
+    if (rejectFeedback.trim().length > 0) void review.reject(rejectFeedback);
   }
 
-  // Build activity entries from session data if available
   const activityEntries: ActivityEntry[] = [];
   if (review.reviewData?.session?.startedAt) {
     activityEntries.push({
@@ -218,79 +172,51 @@ export function ReviewPage() {
   }
 
   return (
-    <section className="review-page">
-      <header className="review-header">
-        <h1 className="review-title">{vm.taskTitle}</h1>
-        {vm.agentSummary ? (
-          <p className="review-summary">{vm.agentSummary}</p>
-        ) : undefined}
+    <section className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-lg font-semibold text-foreground">{vm.taskTitle}</h1>
+        {vm.agentSummary ? <p className="text-sm text-muted-foreground">{vm.agentSummary}</p> : undefined}
       </header>
 
       {vm.sessionMeta ? <SessionMetadata meta={vm.sessionMeta} /> : undefined}
 
-      <div className="review-diff-section">
-        <h2>Code Changes</h2>
+      <Separator />
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold text-foreground">Code Changes</h2>
         {vm.rawDiff ? <DiffViewer rawDiff={vm.rawDiff} /> : undefined}
       </div>
 
       {activityEntries.length > 0 ? (
-        <div className="review-activity-section">
-          <AgentActivityLog entries={activityEntries} />
-        </div>
+        <AgentActivityLog entries={activityEntries} />
       ) : undefined}
 
-      <div className="review-actions">
-        {review.acceptError ? (
-          <p className="review-action-error">{review.acceptError}</p>
-        ) : undefined}
-        {review.rejectError ? (
-          <p className="review-action-error">{review.rejectError}</p>
-        ) : undefined}
+      <Separator />
+
+      <div className="flex flex-col gap-2">
+        {review.acceptError ? <p className="text-sm text-destructive">{review.acceptError}</p> : undefined}
+        {review.rejectError ? <p className="text-sm text-destructive">{review.rejectError}</p> : undefined}
 
         {showRejectForm ? (
-          <div className="review-reject-form">
-            <textarea
-              className="review-reject-textarea"
+          <div className="flex flex-col gap-2">
+            <Textarea
               placeholder="Describe what needs to change..."
               value={rejectFeedback}
               onChange={(e) => setRejectFeedback(e.target.value)}
             />
-            <div className="review-reject-actions">
-              <button
-                type="button"
-                className="review-btn review-btn--cancel"
-                onClick={() => setShowRejectForm(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="review-btn review-btn--reject-submit"
-                disabled={vm.rejectSubmitDisabled}
-                onClick={handleRejectSubmit}
-              >
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowRejectForm(false)}>Cancel</Button>
+              <Button variant="destructive" disabled={vm.rejectSubmitDisabled} onClick={handleRejectSubmit}>
                 {review.rejectStatus === "pending" ? "Submitting..." : "Submit Feedback"}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="review-action-buttons">
-            <button
-              type="button"
-              className="review-btn review-btn--reject"
-              disabled={vm.acceptDisabled}
-              onClick={handleRejectClick}
-            >
-              Reject
-            </button>
-            <button
-              type="button"
-              className="review-btn review-btn--accept"
-              disabled={vm.acceptDisabled}
-              onClick={handleAccept}
-            >
+          <div className="flex gap-2">
+            <Button variant="outline" disabled={vm.acceptDisabled} onClick={handleRejectClick}>Reject</Button>
+            <Button disabled={vm.acceptDisabled} onClick={handleAccept}>
               {review.acceptStatus === "pending" ? "Accepting..." : "Accept"}
-            </button>
+            </Button>
           </div>
         )}
       </div>

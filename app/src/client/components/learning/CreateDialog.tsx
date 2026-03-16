@@ -12,6 +12,10 @@ import {
   type CreateFormState,
 } from "./create-dialog-logic";
 import { capitalize } from "./learning-card-logic";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 
 type CollisionResult = {
   id: string;
@@ -59,98 +63,90 @@ export function CreateDialog({ onConfirm, onCancel, isSubmitting }: CreateDialog
   const isValid = canSubmitCreate(form.text, form.learningType);
 
   return (
-    <div className="dialog-backdrop" onClick={onCancel}>
-      <div className="dialog dialog--create" onClick={(e) => e.stopPropagation()}>
-        <h3 className="dialog__title">Create Learning</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Learning</DialogTitle>
+        </DialogHeader>
 
         {phase === "collisions" && collisions.length > 0 && (
-          <div className="dialog__collisions">
-            <p className="dialog__collision-heading">Similar learnings found:</p>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium">Similar learnings found:</p>
             {collisions.map((collision) => (
-              <div key={collision.id} className="dialog__collision-item">
-                <span className="dialog__collision-text">{collision.text}</span>
-                <span className="dialog__collision-score">
+              <div key={collision.id} className="flex items-start justify-between gap-2 rounded-md border border-border bg-muted p-2 text-xs">
+                <span className="text-card-foreground">{collision.text}</span>
+                <span className="shrink-0 text-muted-foreground">
                   {Math.round(collision.similarity * 100)}% match
                 </span>
               </div>
             ))}
-            <div className="dialog__actions">
-              <button
-                type="button"
-                className="dialog__btn dialog__btn--cancel"
-                onClick={() => setPhase("form")}
-                disabled={isSubmitting}
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPhase("form")} disabled={isSubmitting}>
                 Go Back
-              </button>
-              <button
-                type="button"
-                className="dialog__btn dialog__btn--confirm"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-              >
+              </Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Anyway"}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         )}
 
         {phase === "form" && (
-          <>
-            <label className="dialog__label" htmlFor="create-text">
-              Learning text (required)
-            </label>
-            <textarea
-              id="create-text"
-              className="dialog__textarea"
-              value={form.text}
-              onChange={(e) => updateField("text", e.target.value)}
-              placeholder="Describe the learning rule or constraint..."
-              rows={4}
-              disabled={isSubmitting}
-            />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="create-text">Learning text (required)</Label>
+              <Textarea
+                id="create-text"
+                value={form.text}
+                onChange={(e) => updateField("text", e.target.value)}
+                placeholder="Describe the learning rule or constraint..."
+                rows={4}
+                disabled={isSubmitting}
+              />
+            </div>
 
-            <label className="dialog__label" htmlFor="create-type">
-              Type (required)
-            </label>
-            <select
-              id="create-type"
-              className="dialog__select"
-              value={form.learningType}
-              onChange={(e) => updateField("learningType", e.target.value as CreateFormState["learningType"])}
-              disabled={isSubmitting}
-            >
-              <option value="">Select type...</option>
-              {LEARNING_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {capitalize(t)}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="create-type">Type (required)</Label>
+              <select
+                id="create-type"
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:border-ring focus:outline-none"
+                value={form.learningType}
+                onChange={(e) => updateField("learningType", e.target.value as CreateFormState["learningType"])}
+                disabled={isSubmitting}
+              >
+                <option value="">Select type...</option>
+                {LEARNING_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {capitalize(t)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <label className="dialog__label" htmlFor="create-priority">
-              Priority
-            </label>
-            <select
-              id="create-priority"
-              className="dialog__select"
-              value={form.priority}
-              onChange={(e) => updateField("priority", e.target.value as CreateFormState["priority"])}
-              disabled={isSubmitting}
-            >
-              {ENTITY_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {capitalize(p)}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="create-priority">Priority</Label>
+              <select
+                id="create-priority"
+                className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:border-ring focus:outline-none"
+                value={form.priority}
+                onChange={(e) => updateField("priority", e.target.value as CreateFormState["priority"])}
+                disabled={isSubmitting}
+              >
+                {ENTITY_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {capitalize(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <fieldset className="dialog__fieldset">
-              <legend className="dialog__legend">Target Agents</legend>
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="text-sm font-medium text-foreground">Target Agents</legend>
 
-              <label className="dialog__checkbox-label">
+              <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
+                  className="rounded border-input"
                   checked={form.targetAllAgents}
                   onChange={(e) => updateField("targetAllAgents", e.target.checked)}
                   disabled={isSubmitting}
@@ -159,11 +155,12 @@ export function CreateDialog({ onConfirm, onCancel, isSubmitting }: CreateDialog
               </label>
 
               {!form.targetAllAgents && (
-                <div className="dialog__agent-list">
+                <div className="flex flex-col gap-1 pl-4">
                   {KNOWN_LEARNING_TARGET_AGENTS.map((agent) => (
-                    <label key={agent.value} className="dialog__checkbox-label">
+                    <label key={agent.value} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
+                        className="rounded border-input"
                         checked={form.selectedAgents.includes(agent.value)}
                         onChange={() => toggleAgent(agent.value)}
                         disabled={isSubmitting}
@@ -175,27 +172,17 @@ export function CreateDialog({ onConfirm, onCancel, isSubmitting }: CreateDialog
               )}
             </fieldset>
 
-            <div className="dialog__actions">
-              <button
-                type="button"
-                className="dialog__btn dialog__btn--cancel"
-                onClick={onCancel}
-                disabled={isSubmitting}
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="dialog__btn dialog__btn--confirm"
-                onClick={handleSubmit}
-                disabled={!isValid || isSubmitting}
-              >
+              </Button>
+              <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
                 {isSubmitting ? "Creating..." : "Create Learning"}
-              </button>
-            </div>
-          </>
+              </Button>
+            </DialogFooter>
+          </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

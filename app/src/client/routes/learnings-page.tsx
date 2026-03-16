@@ -17,6 +17,7 @@ import { useLearnings } from "../hooks/use-learnings";
 import { useLearningActions } from "../hooks/use-learning-actions";
 import type { LearningCardAction } from "../components/learning/LearningCard";
 import type { LearningStatus, LearningType } from "../../shared/contracts";
+import { Button } from "../components/ui/button";
 
 export function LearningsPage() {
   const { learnings, isLoading, error, filters, setFilters, refresh } = useLearnings();
@@ -117,16 +118,12 @@ export function LearningsPage() {
   );
 
   return (
-    <section className="learnings-page">
-      <div className="learnings-page__header">
-        <h1>Learnings</h1>
-        <button
-          type="button"
-          className="learnings-page__create-btn"
-          onClick={() => setDialogState({ type: "create" })}
-        >
+    <section className="mx-auto flex max-w-4xl flex-col gap-4 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">Learnings</h1>
+        <Button size="sm" onClick={() => setDialogState({ type: "create" })}>
           New Learning
-        </button>
+        </Button>
       </div>
       <StatusTabs
         activeStatus={activeStatus}
@@ -139,7 +136,7 @@ export function LearningsPage() {
         onTypeChange={handleTypeChange}
         onAgentChange={handleAgentChange}
       />
-      {error && <p className="learnings-page__error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <LearningList
         learnings={filteredLearnings}
         isLoading={isLoading}

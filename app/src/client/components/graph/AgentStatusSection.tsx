@@ -11,6 +11,9 @@ import { useAgentSession, type AgentSessionStatus } from "../../hooks/use-agent-
 import { assignAgent, type AssignAgentResponse } from "../../graph/orchestrator-api";
 import { useWorkspaceState } from "../../stores/workspace-state";
 import { AgentSessionPanel } from "./AgentSessionPanel";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
 
 // ---------------------------------------------------------------------------
 // Pure core: view derivation
@@ -76,6 +79,15 @@ const STATUS_LABELS: Record<AgentSessionStatus, string> = {
   error: "Error",
 };
 
+const STATUS_VARIANTS: Record<AgentSessionStatus, "default" | "secondary" | "destructive" | "outline"> = {
+  spawning: "outline",
+  active: "default",
+  idle: "secondary",
+  completed: "secondary",
+  aborted: "destructive",
+  error: "destructive",
+};
+
 function statusLabel(status: AgentSessionStatus): string {
   return STATUS_LABELS[status];
 }
@@ -106,19 +118,13 @@ export function AgentStatusSection({
   const [settingRepoPath, setSettingRepoPath] = useState(false);
   const [repoPathError, setRepoPathError] = useState<string | undefined>();
 
-  // Derive the initial view from props
   const initialView = deriveAgentStatusView({ entityKind, entityStatus, agentSession });
 
-  // If we have an assign result, use its stream URL; otherwise use session from props.
-  // streamUrl is a dependency of useAgentSession's useEffect, so when assignResult
-  // arrives and triggers a re-render, the hook will start the SSE subscription.
   const streamUrl = assignResult?.streamUrl ?? (initialView.variant === "active" ? initialView.streamUrl : undefined);
   const startedAt = initialView.variant === "active" ? initialView.startedAt : new Date().toISOString();
 
-  // SSE subscription -- only active when we have a stream URL
   const { state: sessionState } = useAgentSession(streamUrl, startedAt);
 
-  // Determine what to show
   const hasActiveStream = streamUrl !== undefined;
 
   if (initialView.variant === "hidden" && !hasActiveStream) {
@@ -140,7 +146,6 @@ export function AgentStatusSection({
     }
   }
 
-  // Show active session view (either from props or from fresh assignment)
   if (hasActiveStream) {
     const displayStatus = sessionState.status;
     const displayFiles = initialView.variant === "active"
@@ -151,14 +156,14 @@ export function AgentStatusSection({
       ?? (initialView.variant === "active" ? initialView.agentSessionId : "");
 
     return (
-      <div className="entity-detail-section agent-status-section">
-        <h4>Agent</h4>
-        <div className="agent-status-row">
-          <span className={`agent-status-badge agent-status-${displayStatus}`} data-testid="agent-status-badge">
+      <div className="flex flex-col gap-2 px-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent</h4>
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANTS[displayStatus]} data-testid="agent-status-badge">
             {statusLabel(displayStatus)}
-          </span>
+          </Badge>
           {displayFiles > 0 ? (
-            <span className="agent-file-count" data-testid="agent-file-count">
+            <span className="text-xs text-muted-foreground" data-testid="agent-file-count">
               {displayFiles} file{displayFiles !== 1 ? "s" : ""} changed
             </span>
           ) : undefined}
@@ -173,7 +178,7 @@ export function AgentStatusSection({
         />
         {displayStatus === "idle" ? (
           <a
-            className="agent-review-link"
+            className="text-xs font-medium text-ring hover:underline"
             data-testid="agent-review-link"
             href={`/review/${encodeURIComponent(currentSessionId)}`}
           >
@@ -184,18 +189,17 @@ export function AgentStatusSection({
     );
   }
 
-  // Show assign button (with missing repo_path banner when applicable)
   if (initialView.variant === "assign") {
     const missingRepoPath = repoPath === undefined;
 
     return (
-      <div className="entity-detail-section agent-status-section">
-        <h4>Agent</h4>
+      <div className="flex flex-col gap-2 px-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agent</h4>
         {missingRepoPath ? (
-          <div className="agent-repo-path-banner" data-testid="agent-repo-path-banner">
-            <p>Repository path is not configured for this workspace. Set it before assigning an agent.</p>
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3" data-testid="agent-repo-path-banner">
+            <p className="text-xs text-muted-foreground">Repository path is not configured for this workspace. Set it before assigning an agent.</p>
             <form
-              className="agent-repo-path-form"
+              className="flex items-center gap-1.5"
               data-testid="agent-repo-path-form"
               onSubmit={async (e) => {
                 e.preventDefault();
@@ -223,40 +227,40 @@ export function AgentStatusSection({
                 }
               }}
             >
-              <input
+              <Input
                 type="text"
-                className="agent-repo-path-input"
                 data-testid="agent-repo-path-input"
                 placeholder="/path/to/git/repository"
                 value={repoPathInput}
                 onChange={(e) => setRepoPathInput(e.target.value)}
                 disabled={settingRepoPath}
+                className="h-7 flex-1 text-xs"
               />
-              <button
+              <Button
                 type="submit"
-                className="agent-repo-path-action"
+                size="xs"
                 data-testid="agent-repo-path-action"
                 disabled={settingRepoPath || repoPathInput.trim().length === 0}
               >
                 {settingRepoPath ? "Setting..." : "Set Path"}
-              </button>
+              </Button>
             </form>
             {repoPathError ? (
-              <p className="agent-repo-path-error" data-testid="agent-repo-path-error">{repoPathError}</p>
+              <p className="text-xs text-destructive" data-testid="agent-repo-path-error">{repoPathError}</p>
             ) : undefined}
           </div>
         ) : undefined}
-        <button
-          type="button"
-          className="agent-assign-button"
+        <Button
+          variant="outline"
+          size="sm"
           data-testid="agent-assign-button"
           disabled={assigning || missingRepoPath}
           onClick={handleAssign}
         >
           {assigning ? "Assigning..." : "Assign Agent"}
-        </button>
+        </Button>
         {assignError ? (
-          <p className="agent-assign-error" data-testid="agent-assign-error">{assignError}</p>
+          <p className="text-xs text-destructive" data-testid="agent-assign-error">{assignError}</p>
         ) : undefined}
       </div>
     );

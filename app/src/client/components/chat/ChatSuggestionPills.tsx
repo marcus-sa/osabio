@@ -1,6 +1,6 @@
 import type { EntityKind, GovernanceFeedResponse, GovernanceFeedItem } from "../../../shared/contracts";
 import { useViewState } from "../../stores/view-state";
-import { entityColor, entityMutedColor } from "../graph/graph-theme";
+import { entityTwClasses } from "../graph/graph-theme";
 
 const PILL_ENTITY_KINDS: EntityKind[] = ["question", "decision", "observation", "suggestion"];
 const MAX_PILLS_PER_GROUP = 3;
@@ -38,26 +38,24 @@ export function ChatSuggestionPills({ feed }: { feed: GovernanceFeedResponse | u
   }
 
   return (
-    <div className="chat-suggestion-pills">
+    <div className="flex flex-col gap-3 px-4 py-2">
       {groups.map((group) => (
-        <div key={group.kind} className="chat-suggestion-group">
-          <span className="chat-suggestion-group-label">{GROUP_LABELS[group.kind]}</span>
-          <div className="chat-suggestion-group-items">
-            {group.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="chat-suggestion-pill"
-                style={{
-                  borderColor: entityColor(item.entityKind),
-                  background: entityMutedColor(item.entityKind),
-                  color: entityColor(item.entityKind),
-                }}
-                onClick={() => handlePillClick(item)}
-              >
-                {item.entityName}
-              </button>
-            ))}
+        <div key={group.kind} className="flex flex-col gap-1">
+          <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">{GROUP_LABELS[group.kind]}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {group.items.map((item) => {
+              const tw = entityTwClasses(item.entityKind);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`rounded-sm border px-2.5 py-1 text-xs transition-colors hover:opacity-80 ${tw.border} ${tw.mutedBg} ${tw.text}`}
+                  onClick={() => handlePillClick(item)}
+                >
+                  {item.entityName}
+                </button>
+              );
+            })}
           </div>
         </div>
       ))}

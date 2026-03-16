@@ -25,8 +25,8 @@ export function GraphPage() {
 
   if (!workspaceId) {
     return (
-      <section className="graph-page">
-        <div className="graph-empty">
+      <section className="flex h-full flex-col">
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           <p>No workspace selected. Create a workspace from the Chat view first.</p>
         </div>
       </section>
@@ -44,25 +44,27 @@ export function GraphPage() {
   }
 
   return (
-    <section className={`graph-page${hasPanel ? " graph-page--with-panel" : ""}`}>
-      <GraphToolbar
-        workspaceId={workspaceId}
-        viewMode={graphViewMode}
-        projectId={graphProjectId}
-        depth={graphDepth}
-        onViewModeChange={setGraphViewMode}
-        onProjectChange={setGraphProject}
-        onDepthChange={setGraphDepth}
-      />
+    <section className="flex h-full">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <GraphToolbar
+          workspaceId={workspaceId}
+          viewMode={graphViewMode}
+          projectId={graphProjectId}
+          depth={graphDepth}
+          onViewModeChange={setGraphViewMode}
+          onProjectChange={setGraphProject}
+          onDepthChange={setGraphDepth}
+        />
 
-      <KnowledgeGraph
-        workspaceId={workspaceId}
-        projectId={graphViewMode === "project" ? graphProjectId : undefined}
-        centerId={graphViewMode === "focused" ? graphCenterId : undefined}
-        depth={graphDepth}
-        selectedId={selectedEntityId}
-        onNodeClick={handleNodeClick}
-      />
+        <KnowledgeGraph
+          workspaceId={workspaceId}
+          projectId={graphViewMode === "project" ? graphProjectId : undefined}
+          centerId={graphViewMode === "focused" ? graphCenterId : undefined}
+          depth={graphDepth}
+          selectedId={selectedEntityId}
+          onNodeClick={handleNodeClick}
+        />
+      </div>
 
       {hasPanel ? (
         <EntityDetailPanel

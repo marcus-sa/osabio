@@ -1,5 +1,6 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { useViewState } from "../../stores/view-state";
+import { Badge } from "../ui/badge";
 
 const ENTITY_PREFIX = "#entity/";
 
@@ -42,11 +43,11 @@ export function EntityLink(props: AnchorHTMLAttributes<HTMLAnchorElement> & { ch
     <a
       href={href}
       onClick={handleClick}
-      className="entity-link"
+      className="inline-flex items-center gap-1 border-b border-dotted border-ring text-ring no-underline transition-colors hover:border-solid hover:text-accent-hover"
       title={label ? `${label} — view in graph` : "View in graph"}
       {...rest}
     >
-      {label ? <span className="entity-link-kind">{label}</span> : undefined}
+      {label ? <Badge variant="secondary" className="h-3.5 px-1 text-[0.6rem]">{label}</Badge> : undefined}
       {children}
     </a>
   );

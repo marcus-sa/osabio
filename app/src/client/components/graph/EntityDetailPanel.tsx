@@ -3,13 +3,18 @@ import { useNavigate } from "@tanstack/react-router";
 import type { EntityCategory, EntityDetailResponse, EntityKind, EntityPriority } from "../../../shared/contracts";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../../shared/contracts";
 import { CategoryBadge } from "./CategoryBadge";
-import { DescriptionSection } from "./DescriptionSection";
-import { EntityBadge } from "./EntityBadge";
+import { EntityBadge } from "../ui/entity-badge";
+import { StatusBadge } from "../ui/status-badge";
 import { RelationshipList } from "./RelationshipList";
 import { ProvenanceSection } from "./ProvenanceSection";
 import { AgentStatusSection } from "./AgentStatusSection";
+import { DescriptionSection } from "./DescriptionSection";
 import { useViewState } from "../../stores/view-state";
 import { acceptSuggestion, confirmDecision, convertSuggestion, deferSuggestion, dismissSuggestion, markTaskComplete, overrideDecision, setEntityPriority } from "../../graph/actions";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Separator } from "../ui/separator";
+import { X } from "lucide-react";
 
 const CONFIRMABLE_STATUSES = new Set(["extracted", "proposed", "provisional", "inferred"]);
 
@@ -129,18 +134,18 @@ export function EntityDetailPanel({
 
   if (loading) {
     return (
-      <aside className="entity-detail-panel">
-        <p className="entity-detail-meta">Loading...</p>
+      <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
+        <p className="px-4 text-xs text-muted-foreground">Loading...</p>
       </aside>
     );
   }
 
   if (error || !detail) {
     return (
-      <aside className="entity-detail-panel">
-        <div className="entity-detail-header">
-          <p className="entity-detail-meta">{error ?? "Entity not found"}</p>
-          <button type="button" className="entity-detail-close" onClick={onClose}>&times;</button>
+      <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
+        <div className="flex items-start justify-between px-4">
+          <p className="text-xs text-muted-foreground">{error ?? "Entity not found"}</p>
+          <Button variant="ghost" size="icon-xs" onClick={onClose}><X className="size-3.5" /></Button>
         </div>
       </aside>
     );
@@ -172,53 +177,58 @@ export function EntityDetailPanel({
   const showSuggestionActions = kind === "suggestion" && (status === "pending" || status === "deferred");
 
   return (
-    <aside className="entity-detail-panel">
-      <div className="entity-detail-header">
-        <div>
+    <aside className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-card py-4 animate-in slide-in-from-right">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 px-4">
+        <div className="flex flex-col gap-1">
           <EntityBadge kind={kind} />
-          <h3>{detail.entity.name}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{detail.entity.name}</h3>
         </div>
-        <button type="button" className="entity-detail-close" onClick={onClose}>&times;</button>
+        <Button variant="ghost" size="icon-xs" onClick={onClose}><X className="size-3.5" /></Button>
       </div>
 
-      <div className="entity-detail-section">
-        <h4>Metadata</h4>
-        <dl className="entity-detail-meta">
+      <Separator />
+
+      {/* Metadata */}
+      <div className="flex flex-col gap-1 px-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metadata</h4>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
           {status ? (
             <>
-              <dt>Status</dt>
-              <dd>{status}</dd>
+              <dt className="text-muted-foreground">Status</dt>
+              <dd><StatusBadge status={status} /></dd>
             </>
           ) : undefined}
           {typeof detail.entity.data.category === "string" && (ENTITY_CATEGORIES as readonly string[]).includes(detail.entity.data.category) ? (
             <>
-              <dt>Category</dt>
+              <dt className="text-muted-foreground">Category</dt>
               <dd><CategoryBadge category={detail.entity.data.category as EntityCategory} /></dd>
             </>
           ) : undefined}
           {detail.entity.data.confidence !== undefined ? (
             <>
-              <dt>Confidence</dt>
-              <dd>{(detail.entity.data.confidence as number).toFixed(2)}</dd>
+              <dt className="text-muted-foreground">Confidence</dt>
+              <dd className="text-foreground">{(detail.entity.data.confidence as number).toFixed(2)}</dd>
             </>
           ) : undefined}
           {detail.entity.data.created_at ? (
             <>
-              <dt>Created</dt>
-              <dd>{new Date(detail.entity.data.created_at as string).toLocaleDateString()}</dd>
+              <dt className="text-muted-foreground">Created</dt>
+              <dd className="text-foreground">{new Date(detail.entity.data.created_at as string).toLocaleDateString()}</dd>
             </>
           ) : undefined}
           {detail.entity.data.owner_name ? (
             <>
-              <dt>Owner</dt>
-              <dd>{detail.entity.data.owner_name as string}</dd>
+              <dt className="text-muted-foreground">Owner</dt>
+              <dd className="text-foreground">{detail.entity.data.owner_name as string}</dd>
             </>
           ) : undefined}
           {(kind === "task" || kind === "decision" || kind === "question") ? (
             <>
-              <dt>Priority</dt>
+              <dt className="text-muted-foreground">Priority</dt>
               <dd>
                 <select
+                  className="h-6 rounded-md border border-input bg-background px-1.5 text-xs text-foreground focus:border-ring focus:outline-none"
                   value={(detail.entity.data.priority as string | undefined) ?? ""}
                   disabled={actionPending}
                   onChange={async (e) => {
@@ -261,9 +271,9 @@ export function EntityDetailPanel({
       <DescriptionSection data={detail.entity.data} kind={kind} onEntityClick={onEntityClick} />
 
       {rationale ? (
-        <div className="entity-detail-section">
-          <h4>Rationale</h4>
-          <p className="entity-detail-meta">{rationale}</p>
+        <div className="flex flex-col gap-1 px-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rationale</h4>
+          <p className="text-xs text-muted-foreground">{rationale}</p>
         </div>
       ) : undefined}
 
@@ -271,9 +281,13 @@ export function EntityDetailPanel({
 
       <ProvenanceSection provenance={detail.provenance} onJumpToMessage={handleJumpToMessage} />
 
-      <div className="entity-detail-actions">
-        <button
-          type="button"
+      <Separator />
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-1.5 px-4">
+        <Button
+          variant="outline"
+          size="xs"
           onClick={() => {
             navigateToDiscussEntity({
               id: entityId,
@@ -285,64 +299,74 @@ export function EntityDetailPanel({
           }}
         >
           Discuss
-        </button>
+        </Button>
         {showConfirm ? (
-          <button type="button" disabled={actionPending} onClick={handleConfirm}>
+          <Button variant="outline" size="xs" disabled={actionPending} onClick={handleConfirm}>
             Confirm
-          </button>
+          </Button>
         ) : undefined}
         {showOverride ? (
-          <button type="button" disabled={actionPending} onClick={handleOverride}>
+          <Button variant="outline" size="xs" disabled={actionPending} onClick={handleOverride}>
             Override
-          </button>
+          </Button>
         ) : undefined}
         {showComplete ? (
-          <button type="button" disabled={actionPending} onClick={handleComplete}>
+          <Button variant="outline" size="xs" disabled={actionPending} onClick={handleComplete}>
             Mark Complete
-          </button>
+          </Button>
         ) : undefined}
         {showSuggestionActions ? (
           <>
-            <button type="button" disabled={actionPending} onClick={() => handleSuggestionAction(acceptSuggestion, "accepted")}>Accept</button>
-            <button type="button" disabled={actionPending} onClick={() => {
+            <Button variant="outline" size="xs" disabled={actionPending} onClick={() => handleSuggestionAction(acceptSuggestion, "accepted")}>Accept</Button>
+            <Button variant="outline" size="xs" disabled={actionPending} onClick={() => {
               const category = (detail.entity.data.category as string) ?? "";
               setConvertKind(CATEGORY_TO_ENTITY_TYPE[category] ?? "task");
               setConvertTitle(detail.entity.name);
               setShowConvertForm(true);
-            }}>Convert</button>
-            <button type="button" disabled={actionPending} onClick={() => handleSuggestionAction(deferSuggestion, "deferred")}>Defer</button>
-            <button type="button" disabled={actionPending} onClick={() => handleSuggestionAction(dismissSuggestion, "dismissed")}>Dismiss</button>
+            }}>Convert</Button>
+            <Button variant="outline" size="xs" disabled={actionPending} onClick={() => handleSuggestionAction(deferSuggestion, "deferred")}>Defer</Button>
+            <Button variant="destructive" size="xs" disabled={actionPending} onClick={() => handleSuggestionAction(dismissSuggestion, "dismissed")}>Dismiss</Button>
           </>
         ) : undefined}
-        {showConvertForm ? (
-          <div className="entity-convert-form">
-            <label>
-              Convert to:
-              <select value={convertKind} onChange={(e) => setConvertKind(e.target.value as typeof convertKind)}>
-                <option value="task">Task</option>
-                <option value="feature">Feature</option>
-                <option value="decision">Decision</option>
-                <option value="project">Project</option>
-              </select>
-            </label>
-            <label>
-              Title:
-              <input type="text" value={convertTitle} onChange={(e) => setConvertTitle(e.target.value)} />
-            </label>
-            <div className="entity-convert-form-actions">
-              <button type="button" disabled={actionPending || !convertTitle.trim()} onClick={async () => {
-                setActionPending(true);
-                try {
-                  await convertSuggestion(workspaceId, entityId, convertKind, convertTitle.trim() || undefined);
-                  setDetail((prev) => prev ? { ...prev, entity: { ...prev.entity, data: { ...prev.entity.data, status: "converted" } } } : prev);
-                  setShowConvertForm(false);
-                } finally { setActionPending(false); }
-              }}>Confirm</button>
-              <button type="button" onClick={() => setShowConvertForm(false)}>Cancel</button>
-            </div>
-          </div>
-        ) : undefined}
       </div>
+
+      {showConvertForm ? (
+        <div className="flex flex-col gap-2 px-4">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Convert to:
+            <select
+              className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
+              value={convertKind}
+              onChange={(e) => setConvertKind(e.target.value as typeof convertKind)}
+            >
+              <option value="task">Task</option>
+              <option value="feature">Feature</option>
+              <option value="decision">Decision</option>
+              <option value="project">Project</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Title:
+            <Input
+              type="text"
+              value={convertTitle}
+              onChange={(e) => setConvertTitle(e.target.value)}
+              className="h-7 text-xs"
+            />
+          </label>
+          <div className="flex gap-1.5">
+            <Button size="xs" disabled={actionPending || !convertTitle.trim()} onClick={async () => {
+              setActionPending(true);
+              try {
+                await convertSuggestion(workspaceId, entityId, convertKind, convertTitle.trim() || undefined);
+                setDetail((prev) => prev ? { ...prev, entity: { ...prev.entity, data: { ...prev.entity.data, status: "converted" } } } : prev);
+                setShowConvertForm(false);
+              } finally { setActionPending(false); }
+            }}>Confirm</Button>
+            <Button variant="ghost" size="xs" onClick={() => setShowConvertForm(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : undefined}
     </aside>
   );
 }

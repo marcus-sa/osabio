@@ -9,28 +9,26 @@ import type { DiscussEntitySummary, SubagentTrace } from "../../shared/contracts
 import { useWorkspaceState } from "../stores/workspace-state";
 import { useChatSession } from "../hooks/use-chat-session";
 import { useGovernanceFeed } from "../hooks/use-governance-feed";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export function ChatPage() {
   const onboardingState = useWorkspaceState((s) => s.onboardingState);
   const setSidebarHandlers = useWorkspaceState((s) => s.setSidebarHandlers);
 
-  // Read conversationId from /chat/$conversationId route (undefined on /chat)
   const matchWithId = useMatch({ from: "/authenticated/chat/$conversationId", shouldThrow: false });
   const routeConversationId = matchWithId?.params.conversationId;
 
-  // Read message search param (works on both /chat and /chat/:id)
   const search = useSearch({ strict: false });
   const messageParam = (search as { message?: string })?.message;
 
   const chat = useChatSession(routeConversationId);
   const { feed } = useGovernanceFeed();
 
-  // Keep a ref to the latest chat handlers so the effect below doesn't
-  // depend on unstable function references.
   const chatRef = useRef(chat);
   chatRef.current = chat;
 
-  // Register sidebar handlers so the shell sidebar can interact with chat
   useEffect(() => {
     setSidebarHandlers({
       activeConversationId: chat.activeConversationId,
@@ -40,27 +38,20 @@ export function ChatPage() {
     });
   }, [chat.activeConversationId, chat.isLoading]);
 
-  // Cleanup sidebar handlers on unmount
   useEffect(() => {
-    return () => {
-      setSidebarHandlers(undefined);
-    };
+    return () => { setSidebarHandlers(undefined); };
   }, []);
 
-  // Load conversation from URL param on mount/param change
   useEffect(() => {
     if (routeConversationId && routeConversationId !== chat.activeConversationId) {
       chat.selectConversation(routeConversationId);
     } else if (!routeConversationId && chat.activeConversationId) {
-      // Navigated from /chat/:id to /chat (e.g., discuss on new chat)
       chat.resetChat();
     }
   }, [routeConversationId]);
 
-  // Scroll to message from ?message= search param
   useEffect(() => {
     if (!messageParam) return;
-
     const timer = setTimeout(() => {
       const element = document.querySelector(`[data-message-id="${CSS.escape(messageParam)}"]`);
       if (element) {
@@ -71,11 +62,9 @@ export function ChatPage() {
         }, { once: true });
       }
     }, 100);
-
     return () => clearTimeout(timer);
   }, [messageParam, chat.messages]);
 
-  // Auto-scroll to bottom (skip when targeting a specific message)
   const messagesEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (messageParam) return;
@@ -83,14 +72,16 @@ export function ChatPage() {
   }, [chat.messages]);
 
   return (
-    <section className="chat-page">
+    <section className="flex h-full flex-col">
       {(chat.discussEntity ?? chat.conversationDiscussEntity) ? (
-        <DiscussEntityCard
-          entity={(chat.discussEntity ?? chat.conversationDiscussEntity) as DiscussEntitySummary}
-        />
+        <div className="shrink-0 border-b border-border px-4 py-2">
+          <DiscussEntityCard
+            entity={(chat.discussEntity ?? chat.conversationDiscussEntity) as DiscussEntitySummary}
+          />
+        </div>
       ) : undefined}
 
-      <div className="chat-messages">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {chat.messages.length === 0
           && onboardingState === "complete"
           && !chat.discussEntity
@@ -101,24 +92,36 @@ export function ChatPage() {
           <div
             key={message.id}
             data-message-id={message.id}
-            className={`chat-message chat-message--${message.role}`}
+            className={cn(
+              "group mb-4 flex flex-col gap-1",
+              message.role === "user" && "items-end",
+            )}
           >
             {message.role === "user" ? (
-              <div className="chat-message-label">You</div>
+              <span className="text-[0.65rem] font-medium text-muted-foreground">You</span>
             ) : undefined}
             {message.parts.map((part, i) => {
               if (part.type === "text") {
                 return (
-                  <div key={i} className="chat-message-text">
+                  <div
+                    key={i}
+                    className={cn(
+                      "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+                      message.role === "user"
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-muted text-foreground",
+                      "[&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:my-2 [&_pre]:rounded-md [&_pre]:bg-background [&_pre]:p-3 [&_pre]:text-xs [&_code]:text-accent [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-ring [&_a]:underline",
+                    )}
+                  >
                     <Markdown components={{ a: EntityLink }}>{part.text}</Markdown>
                   </div>
                 );
               }
               if (part.type === "reasoning") {
                 return (
-                  <details key={i} className="thinking-block">
-                    <summary>Thinking</summary>
-                    <pre className="thinking-content">{part.text}</pre>
+                  <details key={i} className="max-w-[80%] rounded-lg border border-border bg-muted/50 text-xs">
+                    <summary className="cursor-pointer px-3 py-1.5 text-muted-foreground">Thinking</summary>
+                    <pre className="overflow-x-auto whitespace-pre-wrap px-3 py-2 text-muted-foreground">{part.text}</pre>
                   </details>
                 );
               }
@@ -135,23 +138,23 @@ export function ChatPage() {
                   const trace = (toolPart.output as Record<string, unknown> | undefined)?.trace as SubagentTrace | undefined;
                   if (trace) {
                     return (
-                      <details key={i} className="subagent-trace-block">
-                        <summary className="subagent-trace-summary">
+                      <details key={i} className="max-w-[80%] rounded-lg border border-border bg-muted/50 text-xs">
+                        <summary className="cursor-pointer px-3 py-1.5 text-muted-foreground">
                           PM Agent — {trace.intent.replace(/_/g, " ")} ({trace.steps.filter(s => s.type === "tool_call").length} tools, {(trace.totalDurationMs / 1000).toFixed(1)}s)
                         </summary>
-                        <div className="subagent-trace-steps">
+                        <div className="flex flex-col gap-1 px-3 py-2">
                           {trace.steps.map((step, j) => {
                             if (step.type === "text") {
-                              return <div key={j} className="subagent-trace-text">{step.text}</div>;
+                              return <div key={j} className="text-foreground">{step.text}</div>;
                             }
                             return (
-                              <details key={j} className="subagent-trace-step">
-                                <summary className="subagent-trace-step-summary">
-                                  <span className="subagent-trace-tool">{step.toolName}</span>
-                                  {step.durationMs ? <span className="subagent-trace-duration">{step.durationMs}ms</span> : undefined}
+                              <details key={j} className="rounded border border-border bg-background">
+                                <summary className="flex items-center gap-2 px-2 py-1 text-muted-foreground">
+                                  <span className="font-mono text-accent">{step.toolName}</span>
+                                  {step.durationMs ? <span className="text-[0.6rem]">{step.durationMs}ms</span> : undefined}
                                 </summary>
-                                <pre className="subagent-trace-args">{step.argsJson}</pre>
-                                <pre className="subagent-trace-result">{step.resultJson}</pre>
+                                <pre className="overflow-x-auto whitespace-pre-wrap border-t border-border px-2 py-1 text-muted-foreground">{step.argsJson}</pre>
+                                <pre className="overflow-x-auto whitespace-pre-wrap border-t border-border px-2 py-1 text-muted-foreground">{step.resultJson}</pre>
                               </details>
                             );
                           })}
@@ -162,12 +165,12 @@ export function ChatPage() {
                 }
 
                 return (
-                  <div key={i} className="chat-tool-invocation">
-                    <span className="chat-tool-name">{toolName}</span>
+                  <div key={i} className="flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
+                    <Badge variant="secondary" className="font-mono text-[0.6rem]">{toolName}</Badge>
                     {toolPart.state === "output-available" ? (
-                      <span className="chat-tool-status">Done</span>
+                      <span className="text-entity-feature-fg">Done</span>
                     ) : (
-                      <span className="chat-tool-status chat-tool-status--running">Running...</span>
+                      <span className="animate-pulse text-entity-decision-fg">Running...</span>
                     )}
                   </div>
                 );
@@ -175,17 +178,18 @@ export function ChatPage() {
               return undefined;
             })}
             {message.role === "assistant" ? (
-              <button
-                type="button"
-                className="branch-message-btn"
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={() => void chat.branchFromMessage(message.id)}
                 disabled={chat.isLoading || chat.branchingFromId !== undefined}
                 title="Branch from here"
               >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <path d="M5 3v4.5c0 1.1.9 2 2 2h2.5M5 3L3 5M5 3l2 2M11 5v4.5c0 1.1-.9 2-2 2H6.5M11 5l-2-2M11 5l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </button>
+              </Button>
             ) : undefined}
           </div>
         ))}
@@ -193,27 +197,15 @@ export function ChatPage() {
       </div>
 
       {onboardingState === "summary_pending" ? (
-        <div className="onboarding-action-buttons">
-          <button
-            type="button"
-            disabled={chat.isLoading}
-            onClick={() =>
-              chat.sendMessage("Looks good, let's go.", {
-                onboardingAction: "finalize_onboarding",
-              })}
-          >
+        <div className="flex gap-2 border-t border-border px-4 py-3">
+          <Button variant="outline" disabled={chat.isLoading} onClick={() =>
+            chat.sendMessage("Looks good, let's go.", { onboardingAction: "finalize_onboarding" })}>
             Looks good, let's go
-          </button>
-          <button
-            type="button"
-            disabled={chat.isLoading}
-            onClick={() =>
-              chat.sendMessage("I want to add more.", {
-                onboardingAction: "continue_onboarding",
-              })}
-          >
+          </Button>
+          <Button variant="outline" disabled={chat.isLoading} onClick={() =>
+            chat.sendMessage("I want to add more.", { onboardingAction: "continue_onboarding" })}>
             I want to add more
-          </button>
+          </Button>
         </div>
       ) : undefined}
 
@@ -224,7 +216,7 @@ export function ChatPage() {
         isStreaming={chat.status === "streaming"}
       />
 
-      {chat.errorMessage ? <p className="error-message">{chat.errorMessage}</p> : undefined}
+      {chat.errorMessage ? <p className="px-4 pb-2 text-sm text-destructive">{chat.errorMessage}</p> : undefined}
     </section>
   );
 }
@@ -252,7 +244,6 @@ function ChatInput({
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setInput("");
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -265,7 +256,6 @@ function ChatInput({
     }
   }
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -274,10 +264,10 @@ function ChatInput({
   }, [input]);
 
   return (
-    <div className="chat-input-container">
+    <div className="flex items-end gap-2 border-t border-border bg-card px-4 py-3">
       <textarea
         ref={textareaRef}
-        className="chat-input"
+        className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -286,24 +276,13 @@ function ChatInput({
         disabled={disabled && !isStreaming}
       />
       {isStreaming ? (
-        <button
-          type="button"
-          className="chat-input-btn chat-input-btn--stop"
-          onClick={onStop}
-          title="Stop"
-        >
+        <Button variant="destructive" size="sm" onClick={onStop}>
           Stop
-        </button>
+        </Button>
       ) : (
-        <button
-          type="button"
-          className="chat-input-btn chat-input-btn--send"
-          onClick={handleSubmit}
-          disabled={disabled || input.trim().length === 0}
-          title="Send"
-        >
+        <Button size="sm" onClick={handleSubmit} disabled={disabled || input.trim().length === 0}>
           Send
-        </button>
+        </Button>
       )}
     </div>
   );

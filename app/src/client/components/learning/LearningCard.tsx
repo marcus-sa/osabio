@@ -1,6 +1,9 @@
 import type { LearningSummary } from "../../../shared/contracts";
 import { AgentChips } from "./AgentChips";
 import { capitalize, computeCardActions, truncateText, TRUNCATION_THRESHOLD } from "./learning-card-logic";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 export type LearningCardAction = {
   action: string;
@@ -23,75 +26,84 @@ function formatDate(iso: string): string {
   });
 }
 
+const STATUS_BORDER: Record<string, string> = {
+  active: "border-l-entity-feature",
+  pending_approval: "border-l-entity-decision",
+  dismissed: "border-l-muted-foreground",
+  deactivated: "border-l-muted-foreground",
+};
+
 export function LearningCard({ learning, isExpanded, onToggle, onAction }: LearningCardProps) {
   const actions = computeCardActions(learning.status);
   const displayText = isExpanded ? learning.text : truncateText(learning.text);
   const isTruncated = learning.text.length > TRUNCATION_THRESHOLD;
 
   return (
-    <div className={`learning-card learning-card--${learning.status}`}>
-      <div className="learning-card__header">
-        <div className="learning-card__badges">
-          <span className={`learning-card__type-badge learning-card__type-badge--${learning.learningType}`}>
+    <div className={cn(
+      "flex flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-card/80",
+      "border-l-3",
+      STATUS_BORDER[learning.status] ?? "border-l-border",
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge variant="secondary" className="text-[0.65rem]">
             {capitalize(learning.learningType)}
-          </span>
-          <span className={`learning-card__priority learning-card__priority--${learning.priority}`}>
+          </Badge>
+          <Badge variant="outline" className="text-[0.65rem]">
             {capitalize(learning.priority)}
-          </span>
-          <span className="learning-card__source">{capitalize(learning.source)}</span>
+          </Badge>
+          <span className="text-[0.65rem] text-muted-foreground">{capitalize(learning.source)}</span>
         </div>
-        <span className="learning-card__timestamp">{formatDate(learning.createdAt)}</span>
+        <span className="shrink-0 text-[0.65rem] text-muted-foreground">{formatDate(learning.createdAt)}</span>
       </div>
 
-      <div className="learning-card__body" onClick={isTruncated ? onToggle : undefined}>
-        <p className="learning-card__text">{displayText}</p>
+      {/* Body */}
+      <div className={cn("text-xs leading-relaxed text-card-foreground", isTruncated && "cursor-pointer")} onClick={isTruncated ? onToggle : undefined}>
+        <p className="whitespace-pre-wrap">{displayText}</p>
         {isTruncated && (
-          <button type="button" className="learning-card__expand-btn" onClick={onToggle}>
+          <Button variant="link" size="xs" className="mt-1 h-auto p-0 text-[0.7rem]" onClick={onToggle}>
             {isExpanded ? "Show less" : "Show more"}
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="learning-card__footer">
+      {/* Footer */}
+      <div className="flex flex-wrap items-center gap-2 text-[0.65rem] text-muted-foreground">
         <AgentChips agents={learning.targetAgents} />
 
         {learning.status === "pending_approval" && learning.suggestedBy && (
-          <span className="learning-card__suggested-by">
-            Suggested by: {learning.suggestedBy}
-          </span>
+          <span>Suggested by: {learning.suggestedBy}</span>
         )}
 
         {learning.status === "pending_approval" && learning.patternConfidence !== undefined && (
-          <span className="learning-card__confidence">
-            Confidence: {Math.round(learning.patternConfidence * 100)}%
-          </span>
+          <span>Confidence: {Math.round(learning.patternConfidence * 100)}%</span>
         )}
 
         {learning.status === "dismissed" && learning.dismissedReason && (
-          <span className="learning-card__dismissed-info">
+          <span>
             Dismissed: {learning.dismissedReason}
             {learning.dismissedAt && ` (${formatDate(learning.dismissedAt)})`}
           </span>
         )}
 
         {learning.status === "deactivated" && learning.deactivatedAt && (
-          <span className="learning-card__deactivated-info">
-            Deactivated: {formatDate(learning.deactivatedAt)}
-          </span>
+          <span>Deactivated: {formatDate(learning.deactivatedAt)}</span>
         )}
       </div>
 
+      {/* Actions */}
       {actions.length > 0 && (
-        <div className="learning-card__actions">
+        <div className="flex gap-1.5 border-t border-border pt-2">
           {actions.map((cardAction) => (
-            <button
+            <Button
               key={cardAction.action}
-              type="button"
-              className={`learning-card__action-btn learning-card__action-btn--${cardAction.action}`}
+              variant={cardAction.action === "dismiss" || cardAction.action === "deactivate" ? "destructive" : "outline"}
+              size="xs"
               onClick={() => onAction({ action: cardAction.action, learningId: learning.id })}
             >
               {cardAction.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}

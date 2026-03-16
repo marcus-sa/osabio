@@ -6,6 +6,10 @@
  * client-side and diffed in the browser.
  */
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Badge } from "../ui/badge";
+import { cn } from "@/lib/utils";
+
 // ---------------------------------------------------------------------------
 // Types (reuse from PolicyDetailPage shape)
 // ---------------------------------------------------------------------------
@@ -69,128 +73,60 @@ export type PolicyDiffResult = {
 function serializeCondition(condition: RuleCondition): string {
   const predicates = Array.isArray(condition) ? condition : [condition];
   return predicates
-    .map(
-      (p) =>
-        `${p.field} ${p.operator} ${Array.isArray(p.value) ? `[${p.value.join(",")}]` : String(p.value)}`,
-    )
+    .map((p) => `${p.field} ${p.operator} ${Array.isArray(p.value) ? `[${p.value.join(",")}]` : String(p.value)}`)
     .join(" AND ");
 }
 
 function rulesAreEqual(a: PolicyRule, b: PolicyRule): boolean {
-  return (
-    a.effect === b.effect &&
-    a.priority === b.priority &&
-    serializeCondition(a.condition) === serializeCondition(b.condition)
-  );
+  return a.effect === b.effect && a.priority === b.priority && serializeCondition(a.condition) === serializeCondition(b.condition);
 }
 
-export function diffRules(
-  oldRules: PolicyRule[],
-  newRules: PolicyRule[],
-): RuleDiff[] {
+export function diffRules(oldRules: PolicyRule[], newRules: PolicyRule[]): RuleDiff[] {
   const diffs: RuleDiff[] = [];
   const oldById = new Map(oldRules.map((r) => [r.id, r]));
   const newById = new Map(newRules.map((r) => [r.id, r]));
-
   for (const [id, oldRule] of oldById) {
     const newRule = newById.get(id);
-    if (!newRule) {
-      diffs.push({ kind: "removed", rule: oldRule });
-    } else if (!rulesAreEqual(oldRule, newRule)) {
-      diffs.push({ kind: "changed", ruleId: id, oldRule, newRule });
-    }
+    if (!newRule) diffs.push({ kind: "removed", rule: oldRule });
+    else if (!rulesAreEqual(oldRule, newRule)) diffs.push({ kind: "changed", ruleId: id, oldRule, newRule });
   }
-
   for (const [id, newRule] of newById) {
-    if (!oldById.has(id)) {
-      diffs.push({ kind: "added", rule: newRule });
-    }
+    if (!oldById.has(id)) diffs.push({ kind: "added", rule: newRule });
   }
-
   return diffs;
 }
 
-export function diffSelector(
-  oldSelector: PolicySelector,
-  newSelector: PolicySelector,
-): FieldChange[] {
-  const fields: Array<keyof PolicySelector> = [
-    "workspace",
-    "agent_role",
-    "resource",
-  ];
+export function diffSelector(oldSelector: PolicySelector, newSelector: PolicySelector): FieldChange[] {
+  const fields: Array<keyof PolicySelector> = ["workspace", "agent_role", "resource"];
   const changes: FieldChange[] = [];
-
   for (const field of fields) {
     const oldVal = oldSelector[field] ?? "(none)";
     const newVal = newSelector[field] ?? "(none)";
-    if (oldVal !== newVal) {
-      changes.push({ field, oldValue: oldVal, newValue: newVal });
-    }
+    if (oldVal !== newVal) changes.push({ field, oldValue: oldVal, newValue: newVal });
   }
-
   return changes;
 }
 
-export function diffMetadata(
-  oldPolicy: DiffablePolicy,
-  newPolicy: DiffablePolicy,
-): FieldChange[] {
+export function diffMetadata(oldPolicy: DiffablePolicy, newPolicy: DiffablePolicy): FieldChange[] {
   const changes: FieldChange[] = [];
-
-  if (oldPolicy.title !== newPolicy.title) {
-    changes.push({
-      field: "title",
-      oldValue: oldPolicy.title,
-      newValue: newPolicy.title,
-    });
-  }
-
+  if (oldPolicy.title !== newPolicy.title) changes.push({ field: "title", oldValue: oldPolicy.title, newValue: newPolicy.title });
   const oldDesc = oldPolicy.description ?? "(none)";
   const newDesc = newPolicy.description ?? "(none)";
-  if (oldDesc !== newDesc) {
-    changes.push({ field: "description", oldValue: oldDesc, newValue: newDesc });
-  }
-
-  if (oldPolicy.human_veto_required !== newPolicy.human_veto_required) {
-    changes.push({
-      field: "human_veto_required",
-      oldValue: String(oldPolicy.human_veto_required),
-      newValue: String(newPolicy.human_veto_required),
-    });
-  }
-
+  if (oldDesc !== newDesc) changes.push({ field: "description", oldValue: oldDesc, newValue: newDesc });
+  if (oldPolicy.human_veto_required !== newPolicy.human_veto_required) changes.push({ field: "human_veto_required", oldValue: String(oldPolicy.human_veto_required), newValue: String(newPolicy.human_veto_required) });
   const oldTtl = oldPolicy.max_ttl ?? "(none)";
   const newTtl = newPolicy.max_ttl ?? "(none)";
-  if (oldTtl !== newTtl) {
-    changes.push({ field: "max_ttl", oldValue: oldTtl, newValue: newTtl });
-  }
-
+  if (oldTtl !== newTtl) changes.push({ field: "max_ttl", oldValue: oldTtl, newValue: newTtl });
   return changes;
 }
 
-export function computePolicyDiff(
-  oldPolicy: DiffablePolicy,
-  newPolicy: DiffablePolicy,
-): PolicyDiffResult {
-  return {
-    ruleDiffs: diffRules(oldPolicy.rules, newPolicy.rules),
-    selectorChanges: diffSelector(oldPolicy.selector, newPolicy.selector),
-    metadataChanges: diffMetadata(oldPolicy, newPolicy),
-  };
+export function computePolicyDiff(oldPolicy: DiffablePolicy, newPolicy: DiffablePolicy): PolicyDiffResult {
+  return { ruleDiffs: diffRules(oldPolicy.rules, newPolicy.rules), selectorChanges: diffSelector(oldPolicy.selector, newPolicy.selector), metadataChanges: diffMetadata(oldPolicy, newPolicy) };
 }
 
 function hasDifferences(diff: PolicyDiffResult): boolean {
-  return (
-    diff.ruleDiffs.length > 0 ||
-    diff.selectorChanges.length > 0 ||
-    diff.metadataChanges.length > 0
-  );
+  return diff.ruleDiffs.length > 0 || diff.selectorChanges.length > 0 || diff.metadataChanges.length > 0;
 }
-
-// ---------------------------------------------------------------------------
-// Formatting helpers
-// ---------------------------------------------------------------------------
 
 function formatConditionDisplay(condition: RuleCondition): string {
   return serializeCondition(condition);
@@ -199,6 +135,27 @@ function formatConditionDisplay(condition: RuleCondition): string {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+
+function DiffTable({ headers, rows }: { headers: string[]; rows: Array<{ key: string; cells: string[] }> }) {
+  return (
+    <table className="w-full text-left text-xs">
+      <thead>
+        <tr className="border-b border-border text-muted-foreground">
+          {headers.map((h) => <th key={h} className="px-2 py-1 font-medium">{h}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.key} className="border-b border-border">
+            {row.cells.map((cell, i) => (
+              <td key={i} className={cn("px-2 py-1", i === 1 && "text-destructive line-through", i === 2 && "text-entity-feature-fg")}>{cell}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 export function VersionDiffView({
   oldPolicy,
@@ -212,158 +169,82 @@ export function VersionDiffView({
   const diff = computePolicyDiff(oldPolicy, newPolicy);
 
   return (
-    <div className="policy-dialog__backdrop" onClick={onClose}>
-      <div
-        className="version-diff"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Diff: v${oldPolicy.version} vs v${newPolicy.version}`}
-      >
-        <div className="version-diff__header">
-          <h3 className="version-diff__title">
-            Version Diff: v{oldPolicy.version} → v{newPolicy.version}
-          </h3>
-          <button
-            type="button"
-            className="version-diff__close"
-            onClick={onClose}
-            aria-label="Close diff"
-          >
-            X
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Version Diff: v{oldPolicy.version} → v{newPolicy.version}</DialogTitle>
+        </DialogHeader>
 
         {!hasDifferences(diff) ? (
-          <p className="version-diff__no-changes">
-            No structural differences between versions.
-          </p>
+          <p className="py-4 text-center text-sm text-muted-foreground">No structural differences between versions.</p>
         ) : (
-          <div className="version-diff__content">
+          <div className="flex flex-col gap-4">
             {diff.metadataChanges.length > 0 && (
-              <div className="version-diff__section">
-                <h4 className="version-diff__section-title">Metadata</h4>
-                <table className="version-diff__table">
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>v{oldPolicy.version}</th>
-                      <th>v{newPolicy.version}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diff.metadataChanges.map((change) => (
-                      <tr key={change.field}>
-                        <td className="version-diff__field-name">
-                          {change.field}
-                        </td>
-                        <td className="version-diff__old-value">
-                          {change.oldValue}
-                        </td>
-                        <td className="version-diff__new-value">
-                          {change.newValue}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex flex-col gap-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metadata</h4>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <DiffTable
+                    headers={["Field", `v${oldPolicy.version}`, `v${newPolicy.version}`]}
+                    rows={diff.metadataChanges.map((c) => ({ key: c.field, cells: [c.field, c.oldValue, c.newValue] }))}
+                  />
+                </div>
               </div>
             )}
 
             {diff.selectorChanges.length > 0 && (
-              <div className="version-diff__section">
-                <h4 className="version-diff__section-title">Selector</h4>
-                <table className="version-diff__table">
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>v{oldPolicy.version}</th>
-                      <th>v{newPolicy.version}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diff.selectorChanges.map((change) => (
-                      <tr key={change.field}>
-                        <td className="version-diff__field-name">
-                          {change.field}
-                        </td>
-                        <td className="version-diff__old-value">
-                          {change.oldValue}
-                        </td>
-                        <td className="version-diff__new-value">
-                          {change.newValue}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex flex-col gap-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selector</h4>
+                <div className="overflow-x-auto rounded-md border border-border">
+                  <DiffTable
+                    headers={["Field", `v${oldPolicy.version}`, `v${newPolicy.version}`]}
+                    rows={diff.selectorChanges.map((c) => ({ key: c.field, cells: [c.field, c.oldValue, c.newValue] }))}
+                  />
+                </div>
               </div>
             )}
 
             {diff.ruleDiffs.length > 0 && (
-              <div className="version-diff__section">
-                <h4 className="version-diff__section-title">Rules</h4>
-                <div className="version-diff__rules">
+              <div className="flex flex-col gap-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rules</h4>
+                <div className="flex flex-col gap-1.5">
                   {diff.ruleDiffs.map((rd) => {
                     if (rd.kind === "added") {
                       return (
-                        <div
-                          key={`add-${rd.rule.id}`}
-                          className="version-diff__rule version-diff__rule--added"
-                        >
-                          <span className="version-diff__rule-badge version-diff__rule-badge--added">
-                            Added
-                          </span>
-                          <span className="version-diff__rule-id">
-                            {rd.rule.id}
-                          </span>
-                          <span className="version-diff__rule-detail">
-                            {rd.rule.effect} (priority {rd.rule.priority}) --{" "}
-                            {formatConditionDisplay(rd.rule.condition)}
+                        <div key={`add-${rd.rule.id}`} className="flex flex-col gap-0.5 rounded-md bg-entity-feature-muted p-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="default" className="text-[0.6rem]">Added</Badge>
+                            <span className="font-mono text-muted-foreground">{rd.rule.id}</span>
+                          </div>
+                          <span className="text-entity-feature-fg">
+                            {rd.rule.effect} (priority {rd.rule.priority}) -- {formatConditionDisplay(rd.rule.condition)}
                           </span>
                         </div>
                       );
                     }
                     if (rd.kind === "removed") {
                       return (
-                        <div
-                          key={`rm-${rd.rule.id}`}
-                          className="version-diff__rule version-diff__rule--removed"
-                        >
-                          <span className="version-diff__rule-badge version-diff__rule-badge--removed">
-                            Removed
-                          </span>
-                          <span className="version-diff__rule-id">
-                            {rd.rule.id}
-                          </span>
-                          <span className="version-diff__rule-detail">
-                            {rd.rule.effect} (priority {rd.rule.priority}) --{" "}
-                            {formatConditionDisplay(rd.rule.condition)}
+                        <div key={`rm-${rd.rule.id}`} className="flex flex-col gap-0.5 rounded-md bg-destructive/10 p-2 text-xs">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="destructive" className="text-[0.6rem]">Removed</Badge>
+                            <span className="font-mono text-muted-foreground">{rd.rule.id}</span>
+                          </div>
+                          <span className="text-destructive">
+                            {rd.rule.effect} (priority {rd.rule.priority}) -- {formatConditionDisplay(rd.rule.condition)}
                           </span>
                         </div>
                       );
                     }
-                    // changed
                     return (
-                      <div
-                        key={`chg-${rd.ruleId}`}
-                        className="version-diff__rule version-diff__rule--changed"
-                      >
-                        <span className="version-diff__rule-badge version-diff__rule-badge--changed">
-                          Changed
-                        </span>
-                        <span className="version-diff__rule-id">
-                          {rd.ruleId}
-                        </span>
-                        <div className="version-diff__rule-comparison">
-                          <div className="version-diff__rule-old">
-                            {rd.oldRule.effect} (priority {rd.oldRule.priority})
-                            -- {formatConditionDisplay(rd.oldRule.condition)}
-                          </div>
-                          <div className="version-diff__rule-new">
-                            {rd.newRule.effect} (priority {rd.newRule.priority})
-                            -- {formatConditionDisplay(rd.newRule.condition)}
-                          </div>
+                      <div key={`chg-${rd.ruleId}`} className="flex flex-col gap-0.5 rounded-md bg-entity-decision-muted p-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[0.6rem]">Changed</Badge>
+                          <span className="font-mono text-muted-foreground">{rd.ruleId}</span>
+                        </div>
+                        <div className="text-destructive line-through">
+                          {rd.oldRule.effect} (priority {rd.oldRule.priority}) -- {formatConditionDisplay(rd.oldRule.condition)}
+                        </div>
+                        <div className="text-entity-feature-fg">
+                          {rd.newRule.effect} (priority {rd.newRule.priority}) -- {formatConditionDisplay(rd.newRule.condition)}
                         </div>
                       </div>
                     );
@@ -373,7 +254,7 @@ export function VersionDiffView({
             )}
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

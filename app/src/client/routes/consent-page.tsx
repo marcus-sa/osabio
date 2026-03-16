@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearch } from "@tanstack/react-router";
 import { useSession } from "../lib/auth-client";
 import { getScopeDescription } from "../../shared/scopes";
+import { Button } from "../components/ui/button";
 
 type ClientInfo = { client_name: string };
 
@@ -17,7 +18,6 @@ export function ConsentPage() {
   const scopeString = search.scope ?? "";
   const scopes = scopeString.split(" ").filter(Boolean);
 
-  // Fetch client name for display
   useEffect(() => {
     if (!clientId) return;
     fetch(`/api/auth/oauth-client/${encodeURIComponent(clientId)}`)
@@ -28,7 +28,6 @@ export function ConsentPage() {
       .catch(() => {});
   }, [clientId]);
 
-  // Redirect to sign-in if not authenticated
   if (!sessionPending && !session) {
     const params = new URLSearchParams(search);
     window.location.href = `/sign-in?redirectTo=${encodeURIComponent(`/consent?${params.toString()}`)}`;
@@ -67,62 +66,52 @@ export function ConsentPage() {
 
   if (sessionPending) {
     return (
-      <div className="consent-page">
-        <div className="consent-card">
-          <p className="consent-loading">Loading...</p>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="consent-page">
-      <div className="consent-card">
-        <h1 className="consent-title">Authorize Application</h1>
+    <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-border bg-card p-6">
+        <h1 className="text-lg font-semibold text-foreground">Authorize Application</h1>
 
-        <p className="consent-client">
+        <p className="text-sm text-foreground">
           <strong>{clientName ?? clientId ?? "An application"}</strong> is requesting access to your account.
         </p>
 
         {session?.user && (
-          <p className="consent-user">
+          <p className="text-xs text-muted-foreground">
             Signed in as <strong>{session.user.email ?? session.user.name}</strong>
           </p>
         )}
 
         {scopes.length > 0 && (
-          <div className="consent-scopes">
-            <p className="consent-scopes-label">This will allow the application to:</p>
-            <ul className="consent-scope-list">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-muted-foreground">This will allow the application to:</p>
+            <ul className="flex flex-col gap-1">
               {scopes.map((scope) => (
-                <li key={scope} className="consent-scope-item">
-                  <span className="consent-scope-desc">{getScopeDescription(scope)}</span>
-                  <span className="consent-scope-name">{scope}</span>
+                <li key={scope} className="flex items-center justify-between rounded-md border border-border bg-muted px-3 py-2 text-xs">
+                  <span className="text-foreground">{getScopeDescription(scope)}</span>
+                  <span className="font-mono text-muted-foreground">{scope}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
 
-        {error && <p className="consent-error">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="consent-actions">
-          <button
-            type="button"
-            className="consent-button consent-allow"
-            onClick={() => handleConsent(true)}
-            disabled={loading}
-          >
+        <div className="flex gap-2">
+          <Button onClick={() => handleConsent(true)} disabled={loading} className="flex-1">
             {loading ? "..." : "Allow"}
-          </button>
-          <button
-            type="button"
-            className="consent-button consent-deny"
-            onClick={() => handleConsent(false)}
-            disabled={loading}
-          >
+          </Button>
+          <Button variant="outline" onClick={() => handleConsent(false)} disabled={loading} className="flex-1">
             Deny
-          </button>
+          </Button>
         </div>
       </div>
     </div>
