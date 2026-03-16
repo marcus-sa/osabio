@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2541f0c3336e",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/unit/proxy-dual-mode.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/41f0c3336e/0/metadata.json",
+      "transcript": "/25/41f0c3336e/0/full.jsonl",
+      "context": "/25/41f0c3336e/0/context.md",
+      "content_hash": "/25/41f0c3336e/0/content_hash.txt",
+      "prompt": "/25/41f0c3336e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 287,
+    "cache_creation_tokens": 454818,
+    "cache_read_tokens": 13464964,
+    "output_tokens": 64451,
+    "api_call_count": 149
+  }
+}

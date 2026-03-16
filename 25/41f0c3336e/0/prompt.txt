@@ -1,0 +1,707 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/london directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:distill cli-proxy-setup
+
+---
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOP informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Context Files Required
+
+- docs/feature/{feature-name}/discuss/requirements.md | user-stories.md
+- docs/feature/{feature-name}/design/architecture-design.md | component-boundaries.md | technology-stack.md
+- docs/feature/{feature-name}/deliver/* (infrastructure design from DEVOP)
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-name}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw:distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-name}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-name}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
+
+
+ARGUMENTS: cli-proxy-setup
+
+---
+
+commit everything
+
+---
+
+# NW-DELIVER: Complete DELIVER Wave Orchestrator
+
+**Wave**: DELIVER (wave 6 of 6)|**Agent**: Main Instance (orchestrator)|**Command**: `/nw:deliver "{feature-description}"`
+
+## Overview
+
+Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN > DEVOP > DISTILL > DELIVER).
+
+Sub-agents cannot use Skill tool or `/nw:*` commands. You MUST:
+- Read the relevant command file and embed instructions in the Task prompt
+- Remind the crafter to load its skills as needed for the task (skill files are at `~/.claude/skills/nw/{agent-name}/`)
+
+## CRITICAL BOUNDARY RULES
+
+1. **NEVER implement steps directly.** ALL implementation MUST be delegated to the selected crafter (@nw-software-crafter or @nw-functional-software-crafter per step 1.5) via Task tool with DES markers. You are ORCHESTRATOR — coordinate, not implement.
+2. **NEVER write phase entries to execution-log.yaml.** Only the crafter subagent that performed TDD work may append entries.
+3. **Extract step context from roadmap.yaml ONLY for Task prompt.** Grep roadmap for step_id ~50 lines context, extract (description|acceptance_criteria|files_to_modify), pass in DES template.
+
+**DES circumvention is fraud.** Without DES monitoring, nWave cannot guarantee code quality. For non-deliver tasks (docs, research, one-off edits): `<!-- DES-ENFORCEMENT : exempt -->`. Faking step IDs, omitting markers, or writing log entries manually is never acceptable.
+
+Finalize verification checks every completed step has valid DES-format entries (5 TDD phases + timestamps). Steps without DES monitoring → flagged, finalize blocks until re-executed via Task.
+
+## Rigor Profile Integration
+
+Before dispatching any agent, read the rigor profile from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+**How rigor affects deliver phases:**
+
+| Setting | Effect |
+|---------|--------|
+| `agent_model` | Pass as `model` parameter to all Task tool invocations for crafter agents. If `"inherit"`, omit `model` parameter (Task tool inherits from session). |
+| `reviewer_model` | Pass as `model` parameter to reviewer Task invocations. If `"skip"`, skip Phase 4 entirely. |
+| `review_enabled` | If `false`, skip Phase 4 (Adversarial Review). |
+| `double_review` | If `true`, run Phase 4 twice with separate review scopes. |
+| `tdd_phases` | Pass to crafter in DES template. Replace `# TDD_PHASES` section with the configured phases. If only `[RED_UNIT, GREEN]`, omit PREPARE/RED_ACCEPTANCE/COMMIT instructions. |
+| `refactor_pass` | If `false`, skip Phase 3 (Complete Refactoring). |
+| `mutation_enabled` | If `false`, skip Phase 5 regardless of mutation strategy in CLAUDE.md. |
+
+**Task invocation with rigor model:**
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit this line entirely if "inherit"
+    max_turns=45,
+    prompt=...,
+)
+```
+
+## Orchestration Flow
+
+```
+INPUT: "{feature-description}"
+  |
+  0. Read rigor profile from .nwave/des-config.json (default: standard)
+     Store: agent_model|reviewer_model|tdd_phases|review_enabled|double_review|mutation_enabled|refactor_pass
+  |
+  1. Parse input|derive project-id (kebab-case)|create docs/feature/{project-id}/
+     a. Create execution-log.yaml if missing: schema_version "2.0"|project_id|events: []
+     b. Create deliver session marker: .nwave/des/deliver-session.json
+  |
+  1.5. Detect development paradigm
+     a. Read project CLAUDE.md (project root, NOT ~/.claude/CLAUDE.md)
+     b. Search "## Development Paradigm"
+     c. Found → extract paradigm: "functional"/@nw-functional-software-crafter or "object-oriented"/@nw-software-crafter (default)
+     d. Not found → ask user "OOP or Functional?"|offer to write to CLAUDE.md
+     e. Store selected crafter for all Phase 2 dispatches
+     f. Functional → property-based testing default|@property tags signal PBT|example-based = fallback
+  |
+  1.6. Detect mutation testing strategy
+     a. Same CLAUDE.md|search "## Mutation Testing Strategy"
+     b. Found → extract: per-feature|nightly-delta|pre-release|disabled
+     c. Not found → default "per-feature"
+     d. Log strategy for traceability
+     Note: Strategy locks at deliver start. CLAUDE.md edits during delivery take effect next run.
+  |
+  2. Phase 1 — Roadmap Creation + Review
+     a. Skip if roadmap.yaml exists with validation.status == "approved"
+     b. @nw-solution-architect creates roadmap.yaml (read ~/.claude/commands/nw/roadmap.md)
+        Step IDs: NN-NN format (01-01, 01-02, 02-01). 01-A or 1-1 = invalid.
+     c. Automated quality gate (see below)
+     d. @nw-software-crafter-reviewer reviews (read ~/.claude/commands/nw/review.md)
+     e. Retry once on rejection → stop for manual intervention
+  |
+  3. Phase 2 — Execute All Steps
+     a. Extract steps from roadmap.yaml in dependency order
+     b. Check execution-log.yaml for prior completion (resume)
+     c. {selected-crafter} executes 5-phase TDD cycle (read ~/.claude/commands/nw/execute.md)
+        Use crafter from step 1.5|@nw-functional-software-crafter → PBT default|@property tags signal PBT
+        IMPORTANT: Use DES Prompt Template from execute.md|Include DES markers (DES-VALIDATION|DES-PROJECT-ID|DES-STEP-ID) + 9 mandatory sections
+        OUTCOME_RECORDING: agents use DES CLI (python -m des.cli.log_phase)|CLI bypass → SubagentStop hook corrects timestamps
+     d. Verify COMMIT/PASS in execution-log.yaml per step
+     e. Missing phase → RE-DISPATCH agent. NEVER write entries yourself.
+     f. Stop on first failure
+     g. Timeout recovery: GREEN completed → resume (~5 turns)|GREEN partial → resume|Otherwise → restart higher max_turns
+  |
+  4. Phase 3 — Complete Refactoring (L1-L4) [SKIP if rigor.refactor_pass = false]
+     a. Collect modified files: git diff --name-only {base-commit}..HEAD -- '*.py' | sort -u
+        Split: PRODUCTION_FILES (src/) | TEST_FILES (tests/)
+     b. /nw:refactor {files} --levels L1-L4 via {selected-crafter} with DES orchestrator markers:
+        <!-- DES-VALIDATION : required -->|<!-- DES-PROJECT-ID : {project-id} -->|<!-- DES-MODE : orchestrator -->
+     c. All tests green after each module
+  |
+  5. Phase 4 — Adversarial Review [SKIP if rigor.review_enabled = false]
+     a. If rigor.reviewer_model = "skip" → SKIP phase entirely
+     b. /nw:review @nw-software-crafter-reviewer implementation "{execution-log-path}"
+        Use model=rigor.reviewer_model for reviewer Task invocation
+        Include DES orchestrator markers (same as Phase 3)
+     c. If rigor.double_review = true → run review a second time with different scope focus
+     d. Scope: ALL files modified during feature|includes Testing Theater 7-pattern detection
+     e. One revision pass on rejection → proceed
+  |
+  6. Phase 5 — Mutation Testing [SKIP if rigor.mutation_enabled = false]
+     If rigor.mutation_enabled = false → SKIP regardless of CLAUDE.md strategy
+     Otherwise, apply CLAUDE.md strategy:
+     per-feature → gate ≥80% kill rate (read ~/.claude/commands/nw/mutation-test.md)
+     nightly-delta → SKIP|log "handled by CI nightly pipeline"
+     pre-release → SKIP|log "handled at release boundary"
+     disabled → SKIP|log "disabled per project configuration"
+  |
+  7. Phase 6 — Deliver Integrity Verification
+     a. PYTHONPATH=$HOME/.claude/lib/python python -m des.cli.verify_deliver_integrity docs/feature/{project-id}/
+     b. Exit 0 → proceed|Exit 1 → STOP, read output
+     c. No entries = not executed through DES|Partial = incomplete TDD
+     d. Violations → re-execute via Task with DES markers|Only proceed after pass
+  |
+  8. Phase 7 — Finalize
+     a. @nw-platform-architect archives to docs/evolution/ (read ~/.claude/commands/nw/finalize.md)
+     b. Commit + push|rm -f .nwave/des/deliver-session.json .nwave/des/des-task-active
+  |
+  9. Phase 8 — Retrospective (conditional)
+     Skip if clean execution|@nw-troubleshooter 5 Whys on issues found
+  |
+  10. Phase 9 — Report Completion
+      Display summary: phases|steps|reviews|artifacts|Return to DISCOVER for next iteration
+```
+
+## Orchestrator Responsibilities
+
+Follow this flow directly. Do not delegate orchestration.
+
+Per phase:
+1. Read the relevant command file (paths listed above)
+2. Extract instructions and embed them in the Task prompt
+3. Include task boundary instructions to prevent workflow continuation
+4. Verify output artifacts exist after each Task completes
+5. Update .develop-progress.json for resume capability
+
+## Task Invocation Pattern
+
+DES markers required for step execution. Without markers → unmonitored. Full DES Prompt Template (9 sections) in `~/.claude/commands/nw/execute.md`.
+
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit if "inherit"
+    max_turns=45,  # 25 hotfix|45 standard|65 complex
+    prompt=f'''
+<!-- DES-VALIDATION : required -->
+<!-- DES-PROJECT-ID : {project_id} -->
+<!-- DES-STEP-ID : {step_id} -->
+(step_id: NN-NN format. DES hooks require this.)
+
+TASK BOUNDARY: {task_description}
+Return control to orchestrator after completion.
+
+Read full DES Prompt Template from ~/.claude/commands/nw/execute.md.
+Fill: step_id={step_id}|project_id={project_id}|agent={agent}|task_context={instructions}
+
+SKILL_LOADING: Read your skill files at ~/.claude/skills/nw/{agent-name}/.
+At PREPARE phase, always load: tdd-methodology.md, quality-framework.md.
+Then follow your Skill Loading Strategy table for phase-specific skills.
+''',
+    description="{phase description}"
+)
+```
+
+## Roadmap Quality Gate (Automated, Zero Token Cost)
+
+After roadmap creation, before reviewer:
+1. AC coupling: flag AC referencing private methods (`_method()`)
+2. Decomposition ratio: flag steps/files > 2.5
+3. Identical patterns: flag 3+ steps with same AC structure (batch them)
+4. Validation-only: flag steps with no files_to_modify
+5. Step ID format: flag non-matching `^\d{2}-\d{2}$`
+
+HIGH findings → return to architect for one revision.
+
+## Skip and Resume
+
+- Check `.develop-progress.json` on start for resume
+- Skip if file exists with validation.status == "approved"
+- Skip completed steps via execution-log.yaml COMMIT/PASS
+- Max 2 retry per review rejection → stop for manual intervention
+
+## Input
+
+- `feature-description` (string, required, min 10 chars)
+- project-id: strip prefixes (implement|add|create)|remove stop words|kebab-case|max 5 words
+
+## Output Artifacts
+
+```
+docs/feature/{project-id}/
+  roadmap.yaml|execution-log.yaml|.develop-progress.json
+docs/evolution/
+  {project-id}-evolution.md
+```
+
+## Quality Gates
+
+Roadmap review (1 review, max 2 attempts)|Per-step 5-phase TDD (PREPARE→RED_ACCEPTANCE→RED_UNIT→GREEN→COMMIT)|Paradigm-appropriate crafter|L1-L4 refactoring (Phase 3)|Adversarial review + Testing Theater detection (Phase 4)|Mutation ≥80% if per-feature (Phase 5)|Integrity verification (Phase 6)|All tests passing per phase
+
+## Success Criteria
+
+- [ ] Roadmap created and approved
+- [ ] All steps COMMIT/PASS (5-phase TDD)
+- [ ] L1-L4 refactoring complete (Phase 3)
+- [ ] Adversarial review passed (Phase 4)
+- [ ] Mutation gate ≥80% or skipped per strategy (Phase 5)
+- [ ] Integrity verification passed (Phase 6)
+- [ ] Evolution archived (Phase 7)
+- [ ] Retrospective or clean execution noted (Phase 8)
+- [ ] Completion report (Phase 9)
+
+## Examples
+
+### 1: Fresh Feature
+`/nw:deliver "Implement user authentication with JWT"` → roadmap → review → TDD all steps → mutation → finalize → report
+
+### 2: Resume After Failure
+Same command → loads .develop-progress.json → skips completed → resumes from failure
+
+### 3: Single Step Alternative
+For manual granular control, use individual commands:
+```
+/nw:roadmap @nw-solution-architect "goal"
+/nw:execute {selected-crafter} "project-id" "01-01"
+/nw:finalize @nw-platform-architect "project-id"
+```
+
+## Completion
+
+DELIVER is final wave. After completion → DISCOVER for next feature or mark project complete.
+
+
+ARGUMENTS:  cli-proxy-setup
+
+---
+
+we no longer need this hook since brain llm proxy handles context injection:
+
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "entire hooks claude-code session-start"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "brain system load-context"
+          }
+        ]
+      }
+    ],
+
+we need to revisit our claude hooks and determine which ones are still relevant and how they complement the proxy
+
+---
+
+systematically remove SessionStart → brain system load-context and PreToolUse → brain system pretooluse
+
+---
+
+Continue from where you left off.
+
+---
+
+systematically remove SessionStart → brain system load-context and PreToolUse → brain system pretooluse from cli as well
+
+---
+
+# NW-FINALIZE: Feature Completion and Archive
+
+**Wave**: CROSS_WAVE
+**Agent**: @nw-platform-architect (default) or specified agent
+
+## Overview
+
+Finalize a completed feature: verify all steps done|create evolution document in docs/evolution/|clean up workflow files in docs/feature/{project-id}/|optionally generate reference docs. Agent gathers project data|analyzes execution history|writes summaries|archives|cleans up.
+
+## Usage
+
+```
+/nw:finalize @{agent} "{project-id}"
+```
+
+## Context Files Required
+
+- docs/feature/{project-id}/roadmap.yaml - Original project plan
+- docs/feature/{project-id}/execution-log.yaml - Step execution history (Schema v2.0)
+
+## Pre-Dispatch Gate: All Steps Complete
+
+Before dispatching, verify all steps are done — prevents archiving incomplete features.
+
+Parse execution-log.yaml, verify every step has status DONE. If any step is not DONE, block finalization and list incomplete steps with current status. Do not dispatch until all steps complete.
+
+## Agent Invocation
+
+@{agent}
+
+Finalize: {project-id}
+
+**Key constraints:**
+- Create evolution document in docs/evolution/YYYY-MM-DD-{project-id}.md
+- Archive workflow files, do not delete before user approval
+- Verify all steps DONE before proceeding
+- Update architecture doc statuses from "FUTURE DESIGN" to "IMPLEMENTED"
+- Optionally invoke /nw:document for reference docs (skip with --skip-docs)
+- Commit and push evolution document after approval
+
+## Phases
+
+Agent handles: gather project data|analyze completion stats|write evolution document|archive to docs/evolution/|clean up workflow files (after user approval)|update architecture docs|commit.
+
+## Success Criteria
+
+- [ ] All steps verified DONE before dispatch
+- [ ] Evolution document created in docs/evolution/
+- [ ] User approved summary before cleanup
+- [ ] Workflow directory cleaned up
+- [ ] Architecture docs updated to "IMPLEMENTED" status
+- [ ] Evolution document committed and pushed
+
+## Error Handling
+
+| Error | Response |
+|-------|----------|
+| Invalid agent name | "Invalid agent. Available: nw-researcher, nw-software-crafter, nw-solution-architect, nw-product-owner, nw-acceptance-designer, nw-platform-architect" |
+| Missing project ID | "Usage: /nw:finalize @agent 'project-id'" |
+| Project directory not found | "Project not found: docs/feature/{project-id}/" |
+| Incomplete steps | Block finalization, list incomplete steps |
+
+## Examples
+
+### Example 1: Standard finalization
+```
+/nw:finalize @nw-platform-architect "auth-upgrade"
+```
+Verifies all steps done, invokes nw-platform-architect with "Finalize: auth-upgrade". Agent reads project files, creates docs/evolution/2026-02-08-auth-upgrade.md, requests cleanup approval, commits.
+
+### Example 2: Architect summary
+```
+/nw:finalize @nw-solution-architect "microservices-migration"
+```
+Same flow but nw-solution-architect provides architecture-focused evolution summary.
+
+### Example 3: Blocked by incomplete steps
+```
+/nw:finalize @nw-platform-architect "data-pipeline"
+```
+Pre-dispatch gate finds step 02-03 status IN_PROGRESS. Returns: "BLOCKED: 1 incomplete step - 02-03: IN_PROGRESS. Complete all steps before finalizing."
+
+## Next Wave
+
+**Handoff To**: Feature complete - no next wave
+**Deliverables**: docs/evolution/YYYY-MM-DD-{project-id}.md, cleaned docs/feature/{project-id}/
+
+## Expected Outputs
+
+```
+docs/evolution/YYYY-MM-DD-{project-id}.md
+Updated architecture docs (status -> IMPLEMENTED)
+Cleaned docs/feature/{project-id}/ directory
+```
+
+
+ARGUMENTS: cli-proxy-setup
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: I do not have access to Brain MCP tools (create_provisional_decision, log_observation, etc.) in this evaluation context. I can only return JSON responses matching the specified schema.
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/london/.context/attachments/PR instructions.md (949 B)
+</system_instruction>
+
+
+
+Create a PR
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/london/.context/attachments/unit-tests_67208280489.log (98.9 KB)
+- /Users/marcus/conductor/workspaces/brain-v1/london/.context/attachments/acceptance-tests__llm-proxy__67208368598.log (342.1 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/london/.context/attachments/acceptance-tests__llm-proxy__67209293581.log (339.5 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+---
+
+<system-instruction>
+The user has added 5 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: 
+Line: undefined
+User comment: "<h3>Confidence Score: 2/5</h3>
+
+- Not safe to merge — the proxy token endpoint remains effectively unauthenticated (bearer token parsed but never validated), and the `conductor.json` change can break environment setup for all contributors.
+- Score reflects two carried-over security/correctness issues from previous review rounds (unauthenticated proxy-token endpoint, wrong identity resolved for multi-member workspaces) plus a new regression in `conductor.json` that breaks `bun install` on fresh clones, and an unbounded memory growth vector in the token cache prune logic.
+- `app/src/server/proxy/proxy-token-route.ts` (unauthenticated endpoint, still unresolved from prior review), `conductor.json` (setup regression), `app/src/server/proxy/anthropic-proxy-route.ts` (token cache pruning).
+
+<!-- greptile_failed_comments -->
+<details open><summary><h3>Comments Outside Diff (1)</h3></summary>
+
+1. `app/src/server/proxy/anthropic-proxy-route.ts`, line 582-591 ([link](https://github.com/marcus-sa/brain/blob/37c40897828f29e607209bbd18b5b70264e3e9fa/app/src/server/proxy/anthropic-proxy-route.ts#L582-L591)) 
+
+   **Token cache is never pruned — unbounded memory growth**
+
+   `proxyTokenCache` is a plain `Map` whose TTL is enforced lazily only when the same hash is re-read (`getCachedAuth` deletes on miss). The existing `pruneInterval` at line 587–591 only calls `pruneStaleEntries(rateLimiterState, ...)` — it never touches `proxyTokenCache`.
+
+   In practice this means every unique token that has been seen generates a `TokenCacheEntry` that remains in the Map until that exact token hash is requested again after expiry. In a deployment with many short-lived sessions or periodic token rotation, the cache grows without bound for the lifetime of the process.
+
+   The fix is to include the token cache in the existing prune cycle, or add a separate sweep:
+
+   ```typescript
+   const pruneInterval = setInterval(() => {
+     pruneStaleEntries(rateLimiterState, Date.now());
+     // Evict expired token-cache entries
+     const nowMs = Date.now();
+     for (const [key, entry] of proxyTokenCache) {
+       if (nowMs >= entry.expiresAt) proxyTokenCache.delete(key);
+     }
+   }, 5 * 60 * 1000);
+   ```
+
+</details>
+
+<!-- /greptile_failed_comments -->
+
+<sub>Last reviewed commit: 37c4089</sub>"
+
+Comment metadata:
+This comment was left on a file.
+This comment was left on GitHub by @greptile-apps.
+
+
+Comment #2:
+
+File: app/src/server/proxy/proxy-token-route.ts
+Line: 185
+User comment: "**Bearer token is extracted but never validated**
+
+The `bearerToken` field is parsed from the `Authorization` header in `parseProxyTokenRequest` and stored in `parseResult.value`, but only `workspaceId` is destructured on line 168 — `bearerToken` is silently discarded:
+
+```typescript
+const { workspaceId } = parseResult.value;
+// bearerToken is never used
+```
+
+This means **any** client that supplies any non-empty `Authorization: Bearer <anything>` header and a known `workspace_id` can successfully obtain a proxy token. The endpoint is effectively unauthenticated. The bearer token should be validated against the existing session/identity store (e.g., verified as a valid Brain access token, then used to look up the requesting identity) before issuing a proxy token.
+
+Additionally, `resolveIdentityForWorkspace` receives no information about the authenticated requester — it returns the **first** identity found as a member of the workspace (`LIMIT 1`). In a multi-member workspace this is non-deterministic: the token will often be scoped to the wrong identity. The bearer token validation result should be used to pinpoint the correct identity for the requesting user."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50iJf5. 
+
+
+Comment #3:
+
+File: app/src/server/proxy/proxy-token-route.ts
+Line: 184
+User comment: "**Redundant membership check is always true**
+
+Step 2 (`resolveIdentityForWorkspace`) queries `member_of WHERE out = $ws LIMIT 1` — if it returns an `identityId`, that identity is already proven to be a member of the workspace. Step 3 (`checkWorkspaceMembership`) then asks whether that same identity is a member of the same workspace, which is tautologically `true`. The `if (!isMember)` branch is unreachable:
+
+```typescript
+// Step 2 already guarantees membership if identityId is returned
+const identityId = await resolveIdentityForWorkspace(deps.surreal, workspaceId);
+if (!identityId) { return 403; } // membership already implied
+
+// This check is always true given the query above
+const isMember = await checkWorkspaceMembership(deps.surreal, identityId, workspaceId);
+if (!isMember) { return 403; } // unreachable
+```
+
+Consider removing the redundant round-trip to SurrealDB, or restructuring so that the authenticated requester's identity is passed directly to `checkWorkspaceMembership`."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50iJgz. 
+
+
+Comment #4:
+
+File: conductor.json
+Line: 3
+User comment: "**`cp` of `settings.local.json` will fail and break the full setup script**
+
+The new setup command is:
+
+```
+cp $CONDUCTOR_ROOT_PATH/.env .env && cp $CONDUCTOR_ROOT_PATH/.claude/settings.local.json .claude/settings.local.json && bun install
+```
+
+If `$CONDUCTOR_ROOT_PATH/.claude/settings.local.json` doesn't exist (e.g. on a fresh clone where `brain init` Step 7 hasn't been run), `cp` exits non-zero and the `&&` chain stops — `bun install` never runs and the entire setup fails.
+
+The previous script was `bun install && cp ... .env`, so only the `.env` copy was gated this way. The addition of a second conditional `cp` for a file that may not exist is a regression.
+
+Consider a safe fallback:
+```suggestion
+    "setup": "cp $CONDUCTOR_ROOT_PATH/.env .env && (cp $CONDUCTOR_ROOT_PATH/.claude/settings.local.json .claude/settings.local.json 2>/dev/null || true) && bun install",
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50iVwY. 
+
+
+Comment #5:
+
+File: conductor.json
+Line: 3
+User comment: "**Setup script fails if `settings.local.json` does not exist**
+
+The added `cp $CONDUCTOR_ROOT_PATH/.claude/settings.local.json .claude/settings.local.json` is chained with `&&`, so if the source file doesn't exist (e.g. on a fresh clone before `brain init` Step 7 has been run), `cp` exits non-zero and the chain halts before `bun install` runs — leaving the environment in a broken state.
+
+The previous setup only copied `.env`, which is always present. Consider making the `settings.local.json` copy conditional on the source file existing, or moving it after `bun install` so a missing file doesn't block dependency installation."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50iVxd. 
+
+</system-instruction>
