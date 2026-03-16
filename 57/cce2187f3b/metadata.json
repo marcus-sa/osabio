@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "57cce2187f3b",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/proxy-agent-identity",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/session-upserter.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/57/cce2187f3b/0/metadata.json",
+      "transcript": "/57/cce2187f3b/0/full.jsonl",
+      "context": "/57/cce2187f3b/0/context.md",
+      "content_hash": "/57/cce2187f3b/0/content_hash.txt",
+      "prompt": "/57/cce2187f3b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 214,
+    "cache_creation_tokens": 304879,
+    "cache_read_tokens": 7967605,
+    "output_tokens": 34877,
+    "api_call_count": 108
+  }
+}
