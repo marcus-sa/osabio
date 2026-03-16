@@ -1,0 +1,83 @@
+journey:
+  name: "Self-Hosted Deployment Setup"
+  goal: "Deploy a locked-down Brain instance with a pre-seeded admin account"
+  persona: "Marcus, a platform operator deploying Brain for a small team"
+
+  emotional_arc:
+    start: "Methodical -- following a deployment checklist"
+    middle: "Confident -- migration confirms admin was seeded"
+    end: "Satisfied -- instance is running, locked down, admin can log in"
+
+steps:
+  - id: 1
+    name: "Configure Environment"
+    action: "Edit .env or docker-compose.yml"
+    shared_artifacts:
+      - name: "SELF_HOSTED"
+        source: "Environment variable (.env / compose)"
+        consumers:
+          - "schema/migrate.ts (admin seed gate)"
+          - "app/src/server/runtime/config.ts (registration gate)"
+          - "signup route (403 response)"
+      - name: "ADMIN_EMAIL"
+        source: "Environment variable"
+        consumers:
+          - "schema/migrate.ts (user creation)"
+      - name: "ADMIN_PASSWORD"
+        source: "Environment variable"
+        consumers:
+          - "schema/migrate.ts (hash and user creation)"
+      - name: "WORKTREE_MANAGER_ENABLED"
+        source: "Environment variable"
+        consumers:
+          - "app/src/server/runtime/config.ts"
+          - "workspace settings UI (conditional render)"
+    emotional_state:
+      entry: "Methodical"
+      exit: "Ready to proceed"
+    integration_checkpoint: "All 3 self-hosted env vars present when SELF_HOSTED=true"
+
+  - id: 2
+    name: "Run Migration"
+    action: "bun migrate"
+    shared_artifacts:
+      - name: "admin_user_record"
+        source: "SurrealDB user table (via Better Auth schema)"
+        consumers:
+          - "Better Auth login endpoint"
+          - "DPoP token issuance"
+    emotional_state:
+      entry: "Expectant"
+      exit: "Confident -- admin seed confirmed in output"
+    integration_checkpoint: "Admin user exists in DB with hashed password"
+
+  - id: 3
+    name: "Start Server"
+    action: "bun run start"
+    shared_artifacts:
+      - name: "self_hosted_mode"
+        source: "SELF_HOSTED env var parsed in config.ts"
+        consumers:
+          - "Startup log message"
+          - "Registration endpoint guard"
+    emotional_state:
+      entry: "Almost there"
+      exit: "Confident -- startup log confirms self-hosted mode"
+    integration_checkpoint: "Server starts without error, logs self-hosted mode"
+
+  - id: 4
+    name: "Admin Login"
+    action: "Navigate to login page, enter seeded credentials"
+    emotional_state:
+      entry: "Final verification"
+      exit: "Satisfied -- dashboard loads, deployment complete"
+    integration_checkpoint: "Admin can authenticate and reach dashboard"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "SELF_HOSTED"
+      must_match_across: [1, 2, 3]
+      failure_message: "SELF_HOSTED must be read consistently by migrate.ts and config.ts"
+    - artifact: "ADMIN_EMAIL"
+      must_match_across: [1, 2]
+      failure_message: "Email used in migration must match what admin types at login"
