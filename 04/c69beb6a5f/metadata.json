@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "04c69beb6a5f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/setup-tailwind-shadcn",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/routes/graph-page.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/04/c69beb6a5f/0/metadata.json",
+      "transcript": "/04/c69beb6a5f/0/full.jsonl",
+      "context": "/04/c69beb6a5f/0/context.md",
+      "content_hash": "/04/c69beb6a5f/0/content_hash.txt",
+      "prompt": "/04/c69beb6a5f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
