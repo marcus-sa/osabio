@@ -1,0 +1,5 @@
+clean up all worktrees in /Users/marcus/conductor/workspaces/brain-v1 except for "casablanca"
+
+---
+
+[Request interrupted by user for tool use]
