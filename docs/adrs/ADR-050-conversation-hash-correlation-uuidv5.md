@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Superseded by ADR-052
 
 ## Context
 
