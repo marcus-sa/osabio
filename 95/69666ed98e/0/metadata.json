@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9569666ed98e",
+  "session_id": "fe96e03e-e1bb-4543-8fca-21184f728e51",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:38:36.999618Z",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "schema/surreal-schema.surql",
+    "app/src/server/intent/types.ts",
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "schema/migrations/0051_intent_llm_reasoning.surql",
+    "tests/acceptance/intent-llm-traces/reasoning-test-kit.ts",
+    "tests/acceptance/intent-llm-traces/intent-reasoning.test.ts",
+    "app/src/client/components/reasoning-panel.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "308174b4ef4b",
+  "token_usage": {
+    "input_tokens": 196,
+    "cache_creation_tokens": 335998,
+    "cache_read_tokens": 5139688,
+    "output_tokens": 18263,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:38:34.977467Z",
+    "agent_lines": 39,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 39,
+    "agent_percentage": 100
+  }
+}

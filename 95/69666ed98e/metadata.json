@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9569666ed98e",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/reasoning-panel.tsx",
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/types.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "schema/migrations/0051_intent_llm_reasoning.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/intent-llm-traces/intent-reasoning.test.ts",
+    "tests/acceptance/intent-llm-traces/reasoning-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/95/69666ed98e/0/metadata.json",
+      "transcript": "/95/69666ed98e/0/full.jsonl",
+      "context": "/95/69666ed98e/0/context.md",
+      "content_hash": "/95/69666ed98e/0/content_hash.txt",
+      "prompt": "/95/69666ed98e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 196,
+    "cache_creation_tokens": 335998,
+    "cache_read_tokens": 5139688,
+    "output_tokens": 18263,
+    "api_call_count": 67
+  }
+}
