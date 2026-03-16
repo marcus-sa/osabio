@@ -44,8 +44,8 @@ export function GraphPage() {
   }
 
   return (
-    <section className="flex h-full">
-      <div className="flex flex-1 flex-col overflow-hidden">
+    <section className="relative h-full">
+      <div className="flex h-full flex-col overflow-hidden">
         <GraphToolbar
           workspaceId={workspaceId}
           viewMode={graphViewMode}

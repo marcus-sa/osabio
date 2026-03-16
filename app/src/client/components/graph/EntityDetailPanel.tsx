@@ -134,7 +134,7 @@ export function EntityDetailPanel({
 
   if (loading) {
     return (
-      <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
+      <aside className="absolute inset-y-0 right-0 z-10 flex w-[340px] flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
         <p className="px-4 text-xs text-muted-foreground">Loading...</p>
       </aside>
     );
@@ -142,7 +142,7 @@ export function EntityDetailPanel({
 
   if (error || !detail) {
     return (
-      <aside className="flex w-[340px] shrink-0 flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
+      <aside className="absolute inset-y-0 right-0 z-10 flex w-[340px] flex-col border-l border-border bg-card py-4 animate-in slide-in-from-right">
         <div className="flex items-start justify-between px-4">
           <p className="text-xs text-muted-foreground">{error ?? "Entity not found"}</p>
           <Button variant="ghost" size="icon-xs" onClick={onClose}><X className="size-3.5" /></Button>
@@ -177,7 +177,7 @@ export function EntityDetailPanel({
   const showSuggestionActions = kind === "suggestion" && (status === "pending" || status === "deferred");
 
   return (
-    <aside className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-card py-4 animate-in slide-in-from-right">
+    <aside className="absolute inset-y-0 right-0 z-10 flex w-[340px] flex-col gap-3 overflow-y-auto border-l border-border bg-card py-4 animate-in slide-in-from-right">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-4">
         <div className="flex flex-col gap-1">
