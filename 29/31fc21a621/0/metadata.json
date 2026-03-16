@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2931fc21a621",
+  "session_id": "4030cb06-aacd-4810-8eb2-3289f9e6aa9c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T11:10:08.101452Z",
+  "branch": "marcus-sa/proxy-session-identity",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md",
+    "docs/adrs/ADR-050-conversation-hash-correlation-uuidv5.md",
+    "docs/adrs/ADR-052-proxy-session-not-conversation.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b2d3d285cfc0",
+  "token_usage": {
+    "input_tokens": 187,
+    "cache_creation_tokens": 257015,
+    "cache_read_tokens": 7126711,
+    "output_tokens": 32792,
+    "api_call_count": 92
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T11:10:07.256526Z",
+    "agent_lines": 101,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 101,
+    "agent_percentage": 100
+  }
+}

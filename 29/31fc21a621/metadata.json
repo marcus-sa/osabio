@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2931fc21a621",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/proxy-session-identity",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md",
+    "docs/adrs/ADR-050-conversation-hash-correlation-uuidv5.md",
+    "docs/adrs/ADR-052-proxy-session-not-conversation.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/29/31fc21a621/0/metadata.json",
+      "transcript": "/29/31fc21a621/0/full.jsonl",
+      "context": "/29/31fc21a621/0/context.md",
+      "content_hash": "/29/31fc21a621/0/content_hash.txt",
+      "prompt": "/29/31fc21a621/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 187,
+    "cache_creation_tokens": 257015,
+    "cache_read_tokens": 7126711,
+    "output_tokens": 32792,
+    "api_call_count": 92
+  }
+}
