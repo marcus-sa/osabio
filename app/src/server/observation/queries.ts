@@ -121,6 +121,118 @@ type OpenObservationRow = {
   created_at: string | Date;
 };
 
+// ---------------------------------------------------------------------------
+// Reasoning-aware observation queries
+// ---------------------------------------------------------------------------
+
+type ReasoningObservationRow = {
+  id: ObservationRecord;
+  text: string;
+  reasoning?: string;
+  severity: ObservationSeverity;
+  confidence?: number;
+  source_agent: string;
+  observation_type?: ObservationType;
+  evidence_refs?: RecordId[];
+  created_at: string | Date;
+};
+
+export type ReasoningObservationResult = {
+  id: string;
+  text: string;
+  reasoning?: string;
+  severity: ObservationSeverity;
+  confidence?: number;
+  sourceAgent: string;
+  observationType?: ObservationType;
+  evidenceRefs?: string[];
+  createdAt: string;
+};
+
+const DEFAULT_REASONING_LIMIT = 50;
+
+function formatReasoningRow(row: ReasoningObservationRow): ReasoningObservationResult {
+  return {
+    id: row.id.id as string,
+    text: row.text,
+    ...(row.reasoning !== undefined ? { reasoning: row.reasoning } : {}),
+    severity: row.severity,
+    ...(row.confidence !== undefined ? { confidence: row.confidence } : {}),
+    sourceAgent: row.source_agent,
+    ...(row.observation_type ? { observationType: row.observation_type } : {}),
+    ...(row.evidence_refs && row.evidence_refs.length > 0
+      ? { evidenceRefs: row.evidence_refs.map((ref) => ref.id as string) }
+      : {}),
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : new Date(row.created_at).toISOString(),
+  };
+}
+
+/**
+ * Returns observations that have LLM reasoning attached, scoped to a workspace.
+ * Ordered by creation date descending (most recent first).
+ */
+export async function listObservationsWithReasoning(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  limit?: number;
+  since?: Date;
+}): Promise<ReasoningObservationResult[]> {
+  const limit = input.limit ?? DEFAULT_REASONING_LIMIT;
+
+  const sinceClause = input.since ? "AND created_at >= $since" : "";
+  const query = [
+    "SELECT id, text, reasoning, severity, confidence, source_agent, observation_type, evidence_refs, created_at",
+    "FROM observation",
+    `WHERE workspace = $workspace AND reasoning IS NOT NONE ${sinceClause}`,
+    "ORDER BY created_at DESC",
+    "LIMIT $limit;",
+  ].join(" ");
+
+  const params: Record<string, unknown> = {
+    workspace: input.workspaceRecord,
+    limit,
+  };
+  if (input.since) {
+    params.since = input.since;
+  }
+
+  const [rows] = await input.surreal
+    .query<[ReasoningObservationRow[]]>(query, params)
+    .collect<[ReasoningObservationRow[]]>();
+
+  return rows.map(formatReasoningRow);
+}
+
+/**
+ * Returns observations that have no reasoning (deterministic/rule-based findings).
+ * Ordered by creation date descending.
+ */
+export async function listObservationsWithoutReasoning(input: {
+  surreal: Surreal;
+  workspaceRecord: RecordId<"workspace", string>;
+  limit?: number;
+}): Promise<ReasoningObservationResult[]> {
+  const limit = input.limit ?? DEFAULT_REASONING_LIMIT;
+
+  const [rows] = await input.surreal
+    .query<[ReasoningObservationRow[]]>(
+      [
+        "SELECT id, text, reasoning, severity, confidence, source_agent, observation_type, evidence_refs, created_at",
+        "FROM observation",
+        "WHERE workspace = $workspace AND reasoning IS NONE",
+        "ORDER BY created_at DESC",
+        "LIMIT $limit;",
+      ].join(" "),
+      { workspace: input.workspaceRecord, limit },
+    )
+    .collect<[ReasoningObservationRow[]]>();
+
+  return rows.map(formatReasoningRow);
+}
+
 export async function listWorkspaceOpenObservations(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
