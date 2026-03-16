@@ -1,0 +1,144 @@
+roadmap:
+  project_id: self-hosted-deployment
+  created_at: '2026-03-16T15:46:54Z'
+  total_steps: 7
+  phases: 3
+phases:
+- id: '01'
+  name: 'Foundation: Self-Hosted Config and Auth Hashing'
+  steps:
+  - id: 01-01
+    name: 'Self-hosted env vars in ServerConfig'
+    description: >
+      Add SELF_HOSTED, ADMIN_EMAIL, ADMIN_PASSWORD, WORKTREE_MANAGER_ENABLED
+      to ServerConfig type and loadServerConfig() parsing. Conditional
+      validation: require ADMIN_EMAIL + ADMIN_PASSWORD when SELF_HOSTED=true.
+    criteria:
+      - 'SELF_HOSTED parsed as boolean, defaults to false when unset'
+      - 'ADMIN_EMAIL and ADMIN_PASSWORD required when SELF_HOSTED=true, fail-fast with clear message if missing'
+      - 'ADMIN_EMAIL and ADMIN_PASSWORD ignored when SELF_HOSTED is not true'
+      - 'WORKTREE_MANAGER_ENABLED parsed as boolean, defaults to false'
+      - 'ADMIN_PASSWORD never appears in log output during config loading'
+    time_estimate: 30m
+    dependencies: []
+    implementation_scope:
+      - app/src/server/runtime/config.ts
+  - id: 01-02
+    name: 'Argon2id hash/verify in Better Auth config'
+    description: >
+      Configure Better Auth emailAndPassword with custom password.hash and
+      password.verify using Bun.password (argon2id default). Pass selfHosted
+      flag through dependencies.ts to createAuth.
+    criteria:
+      - 'Better Auth emailAndPassword uses custom hash via Bun.password.hash()'
+      - 'Better Auth emailAndPassword uses custom verify via Bun.password.verify()'
+      - 'selfHosted flag flows from ServerConfig through dependencies to auth config'
+    time_estimate: 20m
+    dependencies:
+      - 01-01
+    implementation_scope:
+      - app/src/server/auth/config.ts
+      - app/src/server/runtime/dependencies.ts
+- id: '02'
+  name: 'Admin Seed Migration'
+  steps:
+  - id: 02-01
+    name: 'Admin user seed in migrate.ts'
+    description: >
+      After .surql migrations complete, when SELF_HOSTED=true: check if admin
+      exists by email, hash password with Bun.password.hash(), create person +
+      account records matching Better Auth schema. Idempotent and skip-safe.
+    criteria:
+      - 'Admin person + account records created when SELF_HOSTED=true and user does not exist'
+      - 'Re-running migration does not duplicate or overwrite existing admin password'
+      - 'Seeded admin can authenticate via Better Auth email/password login'
+      - 'Migration skips seed entirely when SELF_HOSTED is not true'
+      - 'Plaintext password never appears in migration output or stored data'
+    time_estimate: 45m
+    dependencies:
+      - 01-02
+    implementation_scope:
+      - schema/migrate.ts
+- id: '03'
+  name: 'Registration Guard and Feature Flags'
+  steps:
+  - id: 03-01
+    name: 'Signup guard in Better Auth config'
+    description: >
+      When selfHosted=true, intercept signup requests at Better Auth config
+      level. Return HTTP 403 with "Registration is disabled" before user
+      creation. Login endpoint unaffected.
+    criteria:
+      - 'Signup endpoint returns 403 with "Registration is disabled" when SELF_HOSTED=true'
+      - 'Login endpoint works normally for seeded admin in self-hosted mode'
+      - 'Registration works normally when SELF_HOSTED is not true'
+    time_estimate: 30m
+    dependencies:
+      - 02-01
+    implementation_scope:
+      - app/src/server/auth/config.ts
+  - id: 03-02
+    name: 'Public feature flags endpoint'
+    description: >
+      Add GET /api/config endpoint returning public non-secret flags:
+      selfHosted and worktreeManagerEnabled booleans. Single endpoint serving
+      both signup UI and worktree UI consumers.
+    criteria:
+      - 'GET /api/config returns JSON with selfHosted and worktreeManagerEnabled booleans'
+      - 'Endpoint does not expose secrets (no passwords, API keys, or internal config)'
+      - 'Response reflects actual server config values'
+    time_estimate: 15m
+    dependencies:
+      - 01-01
+    implementation_scope:
+      - app/src/server/runtime/start-server.ts
+  - id: 03-03
+    name: 'Hide signup UI in self-hosted mode'
+    description: >
+      Fetch selfHosted flag from /api/config. When true, hide the signup
+      toggle and "Create one" link on the sign-in page. Login form remains
+      fully functional.
+    criteria:
+      - 'Signup link/button not visible when selfHosted=true'
+      - 'Login form remains visible and functional in self-hosted mode'
+      - 'Signup link visible when selfHosted=false (default behavior preserved)'
+    time_estimate: 20m
+    dependencies:
+      - 03-02
+    implementation_scope:
+      - app/src/client/routes/sign-in-page.tsx
+      - app/src/client/lib/auth-client.ts
+  - id: 03-04
+    name: 'Hide repo path UI behind worktree feature flag'
+    description: >
+      Fetch worktreeManagerEnabled from /api/config. When false, hide repo
+      path banner in AgentStatusSection. When true, show existing behavior.
+      UI-only change, backend unaffected.
+    criteria:
+      - 'Repo path UI hidden when worktreeManagerEnabled=false'
+      - 'Repo path UI visible and functional when worktreeManagerEnabled=true'
+      - 'Backend repo path endpoints remain functional regardless of flag value'
+    time_estimate: 15m
+    dependencies:
+      - 03-02
+    implementation_scope:
+      - app/src/client/components/graph/AgentStatusSection.tsx
+      - app/src/client/lib/auth-client.ts
+implementation_scope:
+  source_directories:
+  - app/src/server/runtime/
+  - app/src/server/auth/
+  - app/src/client/routes/
+  - app/src/client/lib/
+  - app/src/client/components/graph/
+  - schema/
+  test_directories:
+  - tests/unit/
+  - tests/acceptance/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: software-crafter-reviewer
+  approved_at: '2026-03-16T15:50:00Z'
