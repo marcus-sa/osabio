@@ -37,6 +37,10 @@ export type ServerConfig = {
   githubClientSecret: string;
   anthropicApiUrl: string;
   anthropicApiKey?: string;
+  selfHosted: boolean;
+  adminEmail?: string;
+  adminPassword?: string;
+  worktreeManagerEnabled: boolean;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -92,6 +96,16 @@ export function loadServerConfig(): ServerConfig {
     ? parseOpenRouterReasoning()
     : undefined;
 
+  const selfHosted = parseBooleanEnv("SELF_HOSTED");
+  const worktreeManagerEnabled = parseBooleanEnv("WORKTREE_MANAGER_ENABLED");
+
+  const adminEmail = selfHosted
+    ? requireSelfHostedEnv("ADMIN_EMAIL")
+    : undefined;
+  const adminPassword = selfHosted
+    ? requireSelfHostedEnv("ADMIN_PASSWORD")
+    : undefined;
+
   return {
     inferenceProvider,
     ...(openRouterApiKey ? { openRouterApiKey } : {}),
@@ -120,6 +134,10 @@ export function loadServerConfig(): ServerConfig {
     githubClientSecret,
     anthropicApiUrl,
     ...(anthropicApiKey ? { anthropicApiKey } : {}),
+    selfHosted,
+    ...(adminEmail ? { adminEmail } : {}),
+    ...(adminPassword ? { adminPassword } : {}),
+    worktreeManagerEnabled,
   };
 }
 
@@ -160,6 +178,19 @@ function parseInferenceProvider(): InferenceProvider {
   if (!value || value === "openrouter") return "openrouter";
   if (value === "ollama") return "ollama";
   throw new Error("INFERENCE_PROVIDER must be one of: openrouter, ollama");
+}
+
+function parseBooleanEnv(name: string): boolean {
+  const value = Bun.env[name]?.trim().toLowerCase();
+  return value === "true";
+}
+
+function requireSelfHostedEnv(name: string): string {
+  const value = Bun.env[name]?.trim();
+  if (!value || value.length === 0) {
+    throw new Error(`${name} is required when SELF_HOSTED=true`);
+  }
+  return value;
 }
 
 function parseOpenRouterReasoning(): OpenRouterReasoningOptions | undefined {
