@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "85a7c4cdce6c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".claude/settings.json",
+    ".nwave/des/deliver-session.json",
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-cli-proxy-setup--",
+    ".nwave/des/des-task-active-cli-proxy-setup--01-02",
+    ".nwave/des/des-task-active-cli-proxy-setup--02-03",
+    "CLAUDE.md",
+    "cli/brain.ts",
+    "cli/commands/init-content.ts",
+    "cli/commands/system.ts",
+    "docs/evolution/cli-proxy-setup-evolution.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/85/a7c4cdce6c/0/metadata.json",
+      "transcript": "/85/a7c4cdce6c/0/full.jsonl",
+      "context": "/85/a7c4cdce6c/0/context.md",
+      "content_hash": "/85/a7c4cdce6c/0/content_hash.txt",
+      "prompt": "/85/a7c4cdce6c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 168,
+    "cache_creation_tokens": 267974,
+    "cache_read_tokens": 9372298,
+    "output_tokens": 52749,
+    "api_call_count": 103
+  }
+}
