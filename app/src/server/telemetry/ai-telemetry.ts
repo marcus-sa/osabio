@@ -6,6 +6,7 @@
  * the automatic OTEL spans emitted by the AI SDK.
  */
 
+import type { LanguageModelUsage } from "ai";
 import type { FunctionId } from "./function-ids";
 import {
   llmDurationHistogram,
@@ -22,10 +23,7 @@ export type AiTelemetryConfig = {
 };
 
 /** Token usage from AI SDK response. */
-export type TokenUsage = {
-  promptTokens?: number;
-  completionTokens?: number;
-};
+export type TokenUsage = LanguageModelUsage;
 
 /**
  * Creates the experimental_telemetry config to spread into AI SDK calls.
@@ -52,12 +50,12 @@ export function recordLlmMetrics(
 
   llmDurationHistogram.record(durationMs, attributes);
 
-  if (usage.promptTokens !== undefined && usage.promptTokens > 0) {
-    llmPromptTokensCounter.add(usage.promptTokens, attributes);
+  if (usage.inputTokens !== undefined && usage.inputTokens > 0) {
+    llmPromptTokensCounter.add(usage.inputTokens, attributes);
   }
 
-  if (usage.completionTokens !== undefined && usage.completionTokens > 0) {
-    llmCompletionTokensCounter.add(usage.completionTokens, attributes);
+  if (usage.outputTokens !== undefined && usage.outputTokens > 0) {
+    llmCompletionTokensCounter.add(usage.outputTokens, attributes);
   }
 }
 

@@ -8,7 +8,7 @@
  * http/observability.ts for straightforward migration.
  */
 
-import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { logs, SeverityNumber, type AnyValueMap } from "@opentelemetry/api-logs";
 
 // ---------------------------------------------------------------------------
 // serializeError — moved from logging.ts
@@ -93,7 +93,7 @@ function emitLogRecord(
     severityNumber: severity.number,
     severityText: severity.text,
     body: message,
-    attributes,
+    attributes: attributes as AnyValueMap,
   });
 }
 

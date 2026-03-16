@@ -2,8 +2,6 @@ import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import type { RecordId, Surreal } from "surrealdb";
 import type { ActionSpec, BudgetLimit, EvaluationResult } from "./types";
-import { createTelemetryConfig } from "../telemetry/ai-telemetry";
-import { FUNCTION_IDS } from "../telemetry/function-ids";
 import type { PolicyTraceEntry, IntentEvaluationContext } from "../policy/types";
 import { evaluatePolicyGate } from "../policy/policy-gate";
 import type { AlignmentResult, AlignmentCandidate } from "../objective/alignment";
