@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Button } from "../ui/button";
 
 // ---------------------------------------------------------------------------
 // Known fields from IntentEvaluationContext
@@ -38,14 +39,12 @@ export const KNOWN_FIELDS: FieldSuggestion[] = [
 // Pure functions: autocomplete filtering
 // ---------------------------------------------------------------------------
 
-/** Pure: filter known fields by prefix match on path. */
 export function filterFields(query: string, knownFields: FieldSuggestion[]): FieldSuggestion[] {
   if (query.length === 0) return knownFields;
   const lower = query.toLowerCase();
   return knownFields.filter((f) => f.path.toLowerCase().includes(lower));
 }
 
-/** Pure: look up the field type for a known field path. */
 export function lookupFieldType(fieldPath: string, knownFields: FieldSuggestion[]): FieldType | undefined {
   return knownFields.find((f) => f.path === fieldPath)?.type;
 }
@@ -69,7 +68,6 @@ const OPERATORS = [
 const STRING_OPERATORS: ReadonlySet<string> = new Set(["eq", "neq", "in", "not_in", "exists"]);
 const NUMBER_OPERATORS: ReadonlySet<string> = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "exists"]);
 
-/** Pure: return operators applicable to the given field type. */
 export function getOperatorsForType(fieldType?: FieldType) {
   if (fieldType === "string") return OPERATORS.filter((op) => STRING_OPERATORS.has(op.value));
   if (fieldType === "number") return OPERATORS.filter((op) => NUMBER_OPERATORS.has(op.value));
@@ -81,18 +79,10 @@ export function getOperatorsForType(fieldType?: FieldType) {
 // ---------------------------------------------------------------------------
 
 const OPERATOR_DISPLAY: Record<string, string> = {
-  eq: "equals",
-  neq: "does not equal",
-  gt: ">",
-  gte: ">=",
-  lt: "<",
-  lte: "<=",
-  in: "is in",
-  not_in: "is not in",
-  exists: "exists",
+  eq: "equals", neq: "does not equal", gt: ">", gte: ">=", lt: "<", lte: "<=",
+  in: "is in", not_in: "is not in", exists: "exists",
 };
 
-/** Pure: format a rule as a human-readable preview string. */
 export function formatRulePreview(field: string, operator: string, value: string, effect: string): string {
   if (!field) return "";
   const effectLabel = effect === "deny" ? "Deny" : "Allow";
@@ -119,66 +109,39 @@ export type RuleEntry = {
   priority: number;
 };
 
-/** Pure: create a new empty rule entry with a generated ID. */
 export function createEmptyRule(): RuleEntry {
-  return {
-    id: `rule-${crypto.randomUUID()}`,
-    field: "",
-    operator: "eq",
-    value: "",
-    effect: "allow",
-    priority: 0,
-  };
+  return { id: `rule-${crypto.randomUUID()}`, field: "", operator: "eq", value: "", effect: "allow", priority: 0 };
 }
 
-/** Pure: update a single rule field immutably. */
-export function updateRuleField<K extends keyof RuleEntry>(
-  rules: RuleEntry[],
-  ruleId: string,
-  field: K,
-  value: RuleEntry[K],
-): RuleEntry[] {
-  return rules.map((rule) =>
-    rule.id === ruleId ? { ...rule, [field]: value } : rule,
-  );
+export function updateRuleField<K extends keyof RuleEntry>(rules: RuleEntry[], ruleId: string, field: K, value: RuleEntry[K]): RuleEntry[] {
+  return rules.map((rule) => rule.id === ruleId ? { ...rule, [field]: value } : rule);
 }
 
-/** Pure: remove a rule by ID. */
 export function removeRule(rules: RuleEntry[], ruleId: string): RuleEntry[] {
   return rules.filter((rule) => rule.id !== ruleId);
 }
 
-/** Pure: append a new empty rule. */
 export function appendRule(rules: RuleEntry[]): RuleEntry[] {
   return [...rules, createEmptyRule()];
 }
 
-/** Pure: convert a RuleEntry to the API submission shape. */
 export function ruleEntryToApiRule(entry: RuleEntry) {
-  return {
-    id: entry.id,
-    condition: {
-      field: entry.field,
-      operator: entry.operator,
-      value: entry.value,
-    },
-    effect: entry.effect,
-    priority: entry.priority,
-  };
+  return { id: entry.id, condition: { field: entry.field, operator: entry.operator, value: entry.value }, effect: entry.effect, priority: entry.priority };
 }
+
+// ---------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------
+
+const inputClass = "h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none";
+const selectClass = "h-7 rounded-md border border-input bg-background px-1.5 text-xs text-foreground focus:border-ring focus:outline-none";
 
 type RuleBuilderProps = {
   rules: RuleEntry[];
   onRulesChange: (rules: RuleEntry[]) => void;
 };
 
-function FieldAutocomplete({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
+function FieldAutocomplete({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const suggestions = filterFields(value, KNOWN_FIELDS);
@@ -194,37 +157,31 @@ function FieldAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [handleClickOutside]);
 
-  const handleSelect = (path: string) => {
-    onChange(path);
-    setShowSuggestions(false);
-  };
-
   return (
-    <div className="rule-builder__autocomplete" ref={containerRef}>
+    <div className="relative" ref={containerRef}>
       <input
         type="text"
-        className="rule-builder__input rule-builder__input--field"
+        className={`${inputClass} w-full`}
         placeholder="Field (e.g. goal)"
         value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setShowSuggestions(true);
-        }}
+        onChange={(e) => { onChange(e.target.value); setShowSuggestions(true); }}
         onFocus={() => setShowSuggestions(true)}
       />
       {showSuggestions && suggestions.length > 0 && (
-        <ul className="rule-builder__suggestions">
+        <ul className="absolute top-full z-10 mt-1 max-h-48 w-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
           {suggestions.map((s) => (
             <li key={s.path}>
               <button
                 type="button"
-                className="rule-builder__suggestion-item"
+                className="flex w-full flex-col gap-0.5 px-2 py-1.5 text-left text-xs transition-colors hover:bg-hover"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSelect(s.path)}
+                onClick={() => { onChange(s.path); setShowSuggestions(false); }}
               >
-                <span className="rule-builder__suggestion-path">{s.path}</span>
-                <span className="rule-builder__suggestion-type">{s.type}</span>
-                <span className="rule-builder__suggestion-desc">{s.description}</span>
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-foreground">{s.path}</span>
+                  <span className="text-[0.6rem] text-muted-foreground">{s.type}</span>
+                </span>
+                <span className="text-muted-foreground">{s.description}</span>
               </button>
             </li>
           ))}
@@ -234,12 +191,7 @@ function FieldAutocomplete({
   );
 }
 
-function RuleRow({
-  rule,
-  onUpdate,
-  onRemove,
-  canRemove,
-}: {
+function RuleRow({ rule, onUpdate, onRemove, canRemove }: {
   rule: RuleEntry;
   onUpdate: <K extends keyof RuleEntry>(field: K, value: RuleEntry[K]) => void;
   onRemove: () => void;
@@ -250,66 +202,22 @@ function RuleRow({
   const preview = formatRulePreview(rule.field, rule.operator, rule.value, rule.effect);
 
   return (
-    <div className="rule-builder__row-container">
-      <div className="rule-builder__row">
-        <FieldAutocomplete
-          value={rule.field}
-          onChange={(v) => onUpdate("field", v)}
-        />
-
-        <select
-          className="rule-builder__select rule-builder__select--operator"
-          value={rule.operator}
-          onChange={(e) => onUpdate("operator", e.target.value as RuleOperator)}
-        >
-          {availableOperators.map((op) => (
-            <option key={op.value} value={op.value}>
-              {op.label}
-            </option>
-          ))}
+    <div className="flex flex-col gap-1">
+      <div className="grid grid-cols-[1fr_120px_1fr_80px_60px_auto] gap-1.5">
+        <FieldAutocomplete value={rule.field} onChange={(v) => onUpdate("field", v)} />
+        <select className={selectClass} value={rule.operator} onChange={(e) => onUpdate("operator", e.target.value as RuleOperator)}>
+          {availableOperators.map((op) => <option key={op.value} value={op.value}>{op.label}</option>)}
         </select>
-
-        <input
-          type={fieldType === "number" ? "number" : "text"}
-          className="rule-builder__input rule-builder__input--value"
-          placeholder="Value"
-          value={rule.value}
-          onChange={(e) => onUpdate("value", e.target.value)}
-        />
-
-        <select
-          className="rule-builder__select rule-builder__select--effect"
-          value={rule.effect}
-          onChange={(e) => onUpdate("effect", e.target.value as RuleEffect)}
-        >
-          {EFFECTS.map((eff) => (
-            <option key={eff.value} value={eff.value}>
-              {eff.label}
-            </option>
-          ))}
+        <input type={fieldType === "number" ? "number" : "text"} className={inputClass} placeholder="Value" value={rule.value} onChange={(e) => onUpdate("value", e.target.value)} />
+        <select className={selectClass} value={rule.effect} onChange={(e) => onUpdate("effect", e.target.value as RuleEffect)}>
+          {EFFECTS.map((eff) => <option key={eff.value} value={eff.value}>{eff.label}</option>)}
         </select>
-
-        <input
-          type="number"
-          className="rule-builder__input rule-builder__input--priority"
-          placeholder="Priority"
-          value={rule.priority}
-          onChange={(e) => onUpdate("priority", Number.parseInt(e.target.value, 10) || 0)}
-        />
-
-        <button
-          type="button"
-          className="rule-builder__remove-btn"
-          onClick={onRemove}
-          disabled={!canRemove}
-          title="Remove rule"
-        >
-          Remove
-        </button>
+        <input type="number" className={inputClass} placeholder="Pri" value={rule.priority} onChange={(e) => onUpdate("priority", Number.parseInt(e.target.value, 10) || 0)} />
+        <Button variant="ghost" size="icon-xs" onClick={onRemove} disabled={!canRemove} title="Remove rule" className="text-destructive">
+          &times;
+        </Button>
       </div>
-      {preview && (
-        <div className="rule-builder__preview">{preview}</div>
-      )}
+      {preview && <p className="text-[0.65rem] italic text-muted-foreground">{preview}</p>}
     </div>
   );
 }
@@ -321,49 +229,30 @@ export function RuleBuilder({ rules, onRulesChange }: RuleBuilderProps) {
     };
   };
 
-  const handleRemove = (ruleId: string) => () => {
-    onRulesChange(removeRule(rules, ruleId));
-  };
-
-  const handleAdd = () => {
-    onRulesChange(appendRule(rules));
-  };
+  const handleRemove = (ruleId: string) => () => { onRulesChange(removeRule(rules, ruleId)); };
+  const handleAdd = () => { onRulesChange(appendRule(rules)); };
 
   return (
-    <div className="rule-builder">
-      <div className="rule-builder__header">
-        <span className="rule-builder__label">Rules</span>
-        <button
-          type="button"
-          className="rule-builder__add-btn"
-          onClick={handleAdd}
-        >
-          Add Rule
-        </button>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">Rules</span>
+        <Button variant="outline" size="xs" onClick={handleAdd}>Add Rule</Button>
       </div>
 
       {rules.length === 0 ? (
-        <p className="rule-builder__empty">
-          No rules yet. Add at least one rule.
-        </p>
+        <p className="py-4 text-center text-xs text-muted-foreground">No rules yet. Add at least one rule.</p>
       ) : (
-        <div className="rule-builder__list">
-          <div className="rule-builder__column-headers">
-            <span className="rule-builder__col-label rule-builder__col-label--field">Field</span>
-            <span className="rule-builder__col-label rule-builder__col-label--operator">Operator</span>
-            <span className="rule-builder__col-label rule-builder__col-label--value">Value</span>
-            <span className="rule-builder__col-label rule-builder__col-label--effect">Effect</span>
-            <span className="rule-builder__col-label rule-builder__col-label--priority">Priority</span>
-            <span className="rule-builder__col-label rule-builder__col-label--action" />
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_120px_1fr_80px_60px_auto] gap-1.5 text-[0.6rem] font-medium uppercase tracking-wider text-muted-foreground">
+            <span>Field</span>
+            <span>Operator</span>
+            <span>Value</span>
+            <span>Effect</span>
+            <span>Pri</span>
+            <span />
           </div>
           {rules.map((rule) => (
-            <RuleRow
-              key={rule.id}
-              rule={rule}
-              onUpdate={handleUpdate(rule.id)}
-              onRemove={handleRemove(rule.id)}
-              canRemove={rules.length > 1}
-            />
+            <RuleRow key={rule.id} rule={rule} onUpdate={handleUpdate(rule.id)} onRemove={handleRemove(rule.id)} canRemove={rules.length > 1} />
           ))}
         </div>
       )}

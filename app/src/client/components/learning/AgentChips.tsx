@@ -1,4 +1,5 @@
 import { resolveAgentLabels } from "./learning-card-logic";
+import { Badge } from "../ui/badge";
 
 type AgentChipsProps = {
   agents: string[];
@@ -9,11 +10,11 @@ export function AgentChips({ agents }: AgentChipsProps) {
   const labels = resolveAgentLabels(agents);
 
   return (
-    <span className="agent-chips">
+    <span className="flex flex-wrap gap-1">
       {labels.map((label) => (
-        <span key={label} className="agent-chips__chip">
+        <Badge key={label} variant="outline" className="text-[0.65rem]">
           {label}
-        </span>
+        </Badge>
       ))}
     </span>
   );

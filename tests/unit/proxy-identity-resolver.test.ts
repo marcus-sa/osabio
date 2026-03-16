@@ -5,7 +5,7 @@
  * from Claude Code metadata.user_id and X-Brain-* headers.
  */
 import { describe, expect, it } from "bun:test";
-import { resolveIdentity, type IdentitySignals } from "../../app/src/server/proxy/identity-resolver";
+import { resolveIdentity, resolveAgentName, type IdentitySignals } from "../../app/src/server/proxy/identity-resolver";
 
 // ---------------------------------------------------------------------------
 // Full identity resolution from Claude Code metadata + headers
@@ -80,5 +80,43 @@ describe("resolveIdentity", () => {
 
     expect(result.sessionHeaderId).toBe("explicit-session-id");
     expect(result.sessionId).toBeUndefined();
+  });
+
+  it("passes through User-Agent string", () => {
+    const result = resolveIdentity({
+      userAgent: "claude-cli/1.0.0",
+    });
+
+    expect(result.userAgent).toBe("claude-cli/1.0.0");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Agent name resolution
+// ---------------------------------------------------------------------------
+describe("resolveAgentName", () => {
+  it("returns agentType header when present", () => {
+    expect(resolveAgentName({ agentType: "coding-agent" })).toBe("coding-agent");
+  });
+
+  it("returns agentType header even when User-Agent contains claude-cli", () => {
+    expect(resolveAgentName({ agentType: "architect", userAgent: "claude-cli/1.0" })).toBe("architect");
+  });
+
+  it("returns claude-cli when User-Agent contains claude-cli", () => {
+    expect(resolveAgentName({ userAgent: "claude-cli/1.0.0" })).toBe("claude-cli");
+  });
+
+  it("returns claude-cli for various claude-cli User-Agent formats", () => {
+    expect(resolveAgentName({ userAgent: "claude-cli" })).toBe("claude-cli");
+    expect(resolveAgentName({ userAgent: "something claude-cli/2.0 other" })).toBe("claude-cli");
+  });
+
+  it("returns proxy when no signals present", () => {
+    expect(resolveAgentName({})).toBe("proxy");
+  });
+
+  it("returns proxy for unrecognized User-Agent", () => {
+    expect(resolveAgentName({ userAgent: "curl/7.88.1" })).toBe("proxy");
   });
 });

@@ -39,9 +39,9 @@ export function LearningFilters({
   onAgentChange,
 }: LearningFiltersProps) {
   return (
-    <div className="learning-filters">
+    <div className="flex gap-2 py-2">
       <select
-        className="learning-filters__select"
+        className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
         value={selectedType ?? ""}
         onChange={(event) => {
           const value = event.target.value;
@@ -57,7 +57,7 @@ export function LearningFilters({
       </select>
 
       <select
-        className="learning-filters__select"
+        className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
         value={selectedAgent ?? ""}
         onChange={(event) => {
           const value = event.target.value;

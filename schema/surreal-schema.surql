@@ -203,6 +203,7 @@ DEFINE FIELD files_changed[*].path ON agent_session TYPE string;
 DEFINE FIELD files_changed[*].change_type ON agent_session TYPE string ASSERT $value IN ["created", "modified", "deleted"];
 DEFINE FIELD observations_logged ON agent_session TYPE option<array<record<observation>>>;
 DEFINE FIELD external_session_id ON agent_session TYPE option<string>;
+DEFINE FIELD source ON agent_session TYPE option<string>;
 DEFINE FIELD orchestrator_status ON agent_session TYPE option<string>
   ASSERT $value IS NONE OR $value IN ["spawning", "active", "idle", "completed", "aborted", "error"];
 DEFINE FIELD worktree_branch ON agent_session TYPE option<string>;

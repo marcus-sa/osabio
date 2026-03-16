@@ -1,6 +1,8 @@
 import { useCallback } from "react";
 import type { LearningSummary } from "../../../shared/contracts";
 import { resolveAgentLabels } from "./learning-card-logic";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 type DeactivateDialogProps = {
   learning: LearningSummary;
@@ -17,41 +19,30 @@ export function DeactivateDialog({ learning, onConfirm, onCancel, isSubmitting }
   }, [learning.id, onConfirm]);
 
   return (
-    <div className="dialog-backdrop" onClick={onCancel}>
-      <div className="dialog dialog--deactivate" onClick={(e) => e.stopPropagation()}>
-        <h3 className="dialog__title">Deactivate Learning</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Deactivate Learning</DialogTitle>
+          <DialogDescription>Are you sure you want to deactivate this learning?</DialogDescription>
+        </DialogHeader>
 
-        <p className="dialog__description">
-          Are you sure you want to deactivate this learning?
-        </p>
-
-        <blockquote className="dialog__quote">
+        <blockquote className="border-l-2 border-border pl-3 text-xs italic text-muted-foreground">
           {learning.text}
         </blockquote>
 
-        <p className="dialog__affected-agents">
+        <p className="text-xs text-muted-foreground">
           Affected agents: {affectedAgents.join(", ")}
         </p>
 
-        <div className="dialog__actions">
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--cancel"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--confirm dialog__btn--destructive"
-            onClick={handleConfirm}
-            disabled={isSubmitting}
-          >
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={isSubmitting}>
             {isSubmitting ? "Deactivating..." : "Deactivate"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

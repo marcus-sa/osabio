@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { GraphCanvas, type GraphCanvasRef, darkTheme } from "reagraph";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GraphCanvas, type GraphCanvasRef, darkTheme, type Theme } from "reagraph";
+
+function resolveBackground(): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+  if (!value) throw new Error("CSS variable --background is not defined");
+  return value;
+}
 import type { GraphResponse, ReagraphEdge } from "../../../shared/contracts";
 import { edgeStyle } from "./graph-theme";
 
@@ -18,6 +24,11 @@ export function KnowledgeGraph({
   selectedId?: string;
   onNodeClick: (nodeId: string) => void;
 }) {
+  const graphTheme = useMemo<Theme>(() => ({
+    ...darkTheme,
+    canvas: { ...darkTheme.canvas, background: resolveBackground() },
+  }), []);
+
   const [data, setData] = useState<GraphResponse | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
@@ -56,24 +67,24 @@ export function KnowledgeGraph({
 
   if (loading) {
     return (
-      <div className="graph-canvas">
-        <div className="graph-empty">Loading graph...</div>
+      <div className="relative flex-1">
+        <div className="flex h-full items-center justify-center text-muted-foreground">Loading graph...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="graph-canvas">
-        <div className="graph-empty">{error}</div>
+      <div className="relative flex-1">
+        <div className="flex h-full items-center justify-center text-muted-foreground">{error}</div>
       </div>
     );
   }
 
   if (!data || (data.nodes.length === 0)) {
     return (
-      <div className="graph-canvas">
-        <div className="graph-empty">
+      <div className="relative flex-1">
+        <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
           <p>Your graph will grow as you have more conversations.</p>
         </div>
       </div>
@@ -90,10 +101,10 @@ export function KnowledgeGraph({
   });
 
   return (
-    <div className="graph-canvas">
+    <div className="relative flex-1">
       <GraphCanvas
         ref={graphRef}
-        theme={darkTheme}
+        theme={graphTheme}
         nodes={data.nodes as any}
         edges={styledEdges as any}
         selections={selectedId ? [selectedId.includes(":") ? selectedId.slice(selectedId.indexOf(":") + 1) : selectedId] : []}

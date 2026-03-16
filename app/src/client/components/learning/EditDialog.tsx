@@ -12,6 +12,10 @@ import {
   type EditFormState,
 } from "./edit-dialog-logic";
 import { capitalize } from "./learning-card-logic";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 
 type EditDialogProps = {
   learning: LearningSummary;
@@ -51,88 +55,83 @@ export function EditDialog({ learning, onConfirm, onCancel, isSubmitting }: Edit
   const hasChanges = buildEditPayload(learning, form) !== undefined;
 
   return (
-    <div className="dialog-backdrop" onClick={onCancel}>
-      <div className="dialog dialog--edit" onClick={(e) => e.stopPropagation()}>
-        <h3 className="dialog__title">Edit Learning</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Learning</DialogTitle>
+        </DialogHeader>
 
-        <label className="dialog__label" htmlFor="edit-text">
-          Learning text
-        </label>
-        <textarea
-          id="edit-text"
-          className="dialog__textarea"
-          value={form.text}
-          onChange={(e) => updateField("text", e.target.value)}
-          rows={4}
-          disabled={isSubmitting}
-        />
-
-        <label className="dialog__label" htmlFor="edit-priority">
-          Priority
-        </label>
-        <select
-          id="edit-priority"
-          className="dialog__select"
-          value={form.priority}
-          onChange={(e) => updateField("priority", e.target.value as EditFormState["priority"])}
-          disabled={isSubmitting}
-        >
-          {ENTITY_PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {capitalize(p)}
-            </option>
-          ))}
-        </select>
-
-        <fieldset className="dialog__fieldset">
-          <legend className="dialog__legend">Target Agents</legend>
-
-          <label className="dialog__checkbox-label">
-            <input
-              type="checkbox"
-              checked={form.targetAllAgents}
-              onChange={(e) => updateField("targetAllAgents", e.target.checked)}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="edit-text">Learning text</Label>
+            <Textarea
+              id="edit-text"
+              value={form.text}
+              onChange={(e) => updateField("text", e.target.value)}
+              rows={4}
               disabled={isSubmitting}
             />
-            All agents
-          </label>
+          </div>
 
-          {!form.targetAllAgents && (
-            <div className="dialog__agent-list">
-              {KNOWN_LEARNING_TARGET_AGENTS.map((agent) => (
-                <label key={agent.value} className="dialog__checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={form.selectedAgents.includes(agent.value)}
-                    onChange={() => toggleAgent(agent.value)}
-                    disabled={isSubmitting}
-                  />
-                  {agent.label}
-                </label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="edit-priority">Priority</Label>
+            <select
+              id="edit-priority"
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground focus:border-ring focus:outline-none"
+              value={form.priority}
+              onChange={(e) => updateField("priority", e.target.value as EditFormState["priority"])}
+              disabled={isSubmitting}
+            >
+              {ENTITY_PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {capitalize(p)}
+                </option>
               ))}
-            </div>
-          )}
-        </fieldset>
+            </select>
+          </div>
 
-        <div className="dialog__actions">
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--cancel"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--confirm"
-            onClick={handleConfirm}
-            disabled={!isValid || !hasChanges || isSubmitting}
-          >
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </button>
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="text-sm font-medium text-foreground">Target Agents</legend>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="rounded border-input"
+                checked={form.targetAllAgents}
+                onChange={(e) => updateField("targetAllAgents", e.target.checked)}
+                disabled={isSubmitting}
+              />
+              All agents
+            </label>
+
+            {!form.targetAllAgents && (
+              <div className="flex flex-col gap-1 pl-4">
+                {KNOWN_LEARNING_TARGET_AGENTS.map((agent) => (
+                  <label key={agent.value} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="rounded border-input"
+                      checked={form.selectedAgents.includes(agent.value)}
+                      onChange={() => toggleAgent(agent.value)}
+                      disabled={isSubmitting}
+                    />
+                    {agent.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={!isValid || !hasChanges || isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

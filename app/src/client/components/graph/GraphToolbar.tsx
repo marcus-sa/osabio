@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { GraphCanvasRef } from "reagraph";
+import { Button } from "../ui/button";
 
 type ProjectOption = {
   id: string;
@@ -43,8 +44,9 @@ export function GraphToolbar({
   }, [graphRef]);
 
   return (
-    <div className="graph-toolbar">
+    <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2">
       <select
+        className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
         value={projectId ?? ""}
         onChange={(e) => {
           if (e.target.value) {
@@ -61,6 +63,7 @@ export function GraphToolbar({
       </select>
 
       <select
+        className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
         value={viewMode}
         onChange={(e) => onViewModeChange(e.target.value as "project" | "focused")}
       >
@@ -69,7 +72,7 @@ export function GraphToolbar({
       </select>
 
       {viewMode === "focused" ? (
-        <label>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           Depth
           <input
             type="range"
@@ -78,14 +81,15 @@ export function GraphToolbar({
             step={1}
             value={depth}
             onChange={(e) => onDepthChange(Number(e.target.value))}
+            className="w-16"
           />
           <span>{depth}</span>
         </label>
       ) : undefined}
 
-      <button type="button" onClick={handleFit}>
+      <Button variant="outline" size="xs" onClick={handleFit}>
         Fit
-      </button>
+      </Button>
     </div>
   );
 }

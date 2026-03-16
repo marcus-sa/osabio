@@ -1,7 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { SearchEntityResponse } from "../../../shared/contracts";
-import { EntityBadge } from "../graph/EntityBadge";
+import { EntityBadge } from "../ui/entity-badge";
 import { useViewState } from "../../stores/view-state";
+import { Button } from "../ui/button";
 
 export function SearchResultCard({ result, onClose }: { result: SearchEntityResponse; onClose?: () => void }) {
   const navigateToGraph = useViewState((s) => s.navigateToGraph);
@@ -20,29 +21,21 @@ export function SearchResultCard({ result, onClose }: { result: SearchEntityResp
   }
 
   return (
-    <div className="search-result-card">
-      <div className="search-result-card-header">
+    <div className="flex flex-col gap-1.5 rounded-md p-2 transition-colors hover:bg-hover">
+      <div className="flex items-center justify-between gap-2">
         <EntityBadge kind={result.kind} />
-        <span className="search-result-confidence">
+        <span className="text-[0.65rem] text-muted-foreground">
           {(result.confidence * 100).toFixed(0)}%
         </span>
       </div>
-      <p className="search-result-text">{result.text}</p>
-      <div className="search-result-footer">
-        <button
-          type="button"
-          className="search-result-graph-btn"
-          onClick={handleViewInGraph}
-        >
+      <p className="text-sm text-foreground">{result.text}</p>
+      <div className="flex gap-1.5">
+        <Button variant="ghost" size="xs" onClick={handleViewInGraph}>
           View in graph
-        </button>
-        <button
-          type="button"
-          className="search-result-graph-btn"
-          onClick={handleDiscuss}
-        >
+        </Button>
+        <Button variant="ghost" size="xs" onClick={handleDiscuss}>
           Discuss
-        </button>
+        </Button>
       </div>
     </div>
   );

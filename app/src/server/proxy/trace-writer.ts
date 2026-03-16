@@ -33,7 +33,6 @@ export type TraceData = {
   readonly sessionId?: string;
   readonly taskId?: string;
   readonly requestId?: string;
-  readonly conversationId?: string;
   readonly policyDecision?: {
     readonly decision: "pass" | "deny";
     readonly policy_refs: string[];
@@ -105,25 +104,15 @@ async function createTraceNode(
     content.request_id = data.requestId;
   }
 
-  // Store conversation reference and intelligence metadata in FLEXIBLE input field
-  {
-    const inputData: Record<string, unknown> = {};
-
-    if (data.conversationId) {
-      inputData.conversation = new RecordId("conversation", data.conversationId);
-    }
-
-    if (data.intelligenceMetadata) {
-      inputData.brain_context_injected = data.intelligenceMetadata.brain_context_injected;
-      inputData.brain_context_decisions = data.intelligenceMetadata.brain_context_decisions;
-      inputData.brain_context_learnings = data.intelligenceMetadata.brain_context_learnings;
-      inputData.brain_context_observations = data.intelligenceMetadata.brain_context_observations;
-      inputData.brain_context_tokens_est = data.intelligenceMetadata.brain_context_tokens_est;
-    }
-
-    if (Object.keys(inputData).length > 0) {
-      content.input = inputData;
-    }
+  // Store intelligence metadata in FLEXIBLE input field
+  if (data.intelligenceMetadata) {
+    content.input = {
+      brain_context_injected: data.intelligenceMetadata.brain_context_injected,
+      brain_context_decisions: data.intelligenceMetadata.brain_context_decisions,
+      brain_context_learnings: data.intelligenceMetadata.brain_context_learnings,
+      brain_context_observations: data.intelligenceMetadata.brain_context_observations,
+      brain_context_tokens_est: data.intelligenceMetadata.brain_context_tokens_est,
+    };
   }
 
   // Store response content in FLEXIBLE output field (opaque capture per ADR-051)

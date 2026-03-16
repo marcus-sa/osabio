@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { signIn, signUp, useSession } from "../lib/auth-client";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Separator } from "../components/ui/separator";
 
 export function SignInPage() {
   const { data: session, isPending } = useSession();
@@ -14,28 +17,19 @@ export function SignInPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // If already authenticated, redirect away
   if (!isPending && session) {
     const redirectTo = search.redirectTo ?? "/";
     void navigate({ to: redirectTo });
     return undefined;
   }
 
-  // Build the URL to resume the OAuth flow after login.
-  // better-auth passes the original OAuth query params (signed) to the login page.
-  // After login we redirect back to /api/auth/oauth2/authorize with those params.
   function getPostLoginRedirect(): string {
     const { redirectTo, ...oauthParams } = search;
-
-    // If there's an explicit redirectTo, use it
     if (redirectTo) return redirectTo;
-
-    // If OAuth params are present (client_id, sig, etc.), resume the authorize flow
     if (oauthParams.client_id || oauthParams.sig) {
       const params = new URLSearchParams(oauthParams);
       return `/api/auth/oauth2/authorize?${params.toString()}`;
     }
-
     return "/";
   }
 
@@ -60,8 +54,6 @@ export function SignInPage() {
           return;
         }
       }
-
-      // Redirect after successful auth
       window.location.href = getPostLoginRedirect();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");
@@ -79,78 +71,77 @@ export function SignInPage() {
 
   if (isPending) {
     return (
-      <div className="sign-in-page">
-        <div className="sign-in-card">
-          <p className="sign-in-loading">Loading...</p>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="sign-in-page">
-      <div className="sign-in-card">
-        <h1 className="sign-in-title">Brain</h1>
-        <p className="sign-in-subtitle">
+    <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-card p-6">
+        <h1 className="text-center text-xl font-bold text-accent">Brain</h1>
+        <p className="text-center text-sm text-muted-foreground">
           {mode === "signin" ? "Sign in to your workspace" : "Create an account"}
         </p>
 
-        <form onSubmit={handleSubmit} className="sign-in-form">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           {mode === "signup" && (
-            <input
+            <Input
               type="text"
               placeholder="Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="sign-in-input"
               required
             />
           )}
-          <input
+          <Input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="sign-in-input"
             required
           />
-          <input
+          <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="sign-in-input"
             required
             minLength={8}
           />
 
-          {error && <p className="sign-in-error">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <button type="submit" className="sign-in-button" disabled={loading}>
+          <Button type="submit" disabled={loading}>
             {loading ? "..." : mode === "signin" ? "Sign in" : "Create account"}
-          </button>
+          </Button>
         </form>
 
-        <div className="sign-in-divider">
-          <span>or</span>
+        <div className="flex items-center gap-3">
+          <Separator className="flex-1" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <Separator className="flex-1" />
         </div>
 
-        <button type="button" className="sign-in-button sign-in-github" onClick={handleGitHub}>
+        <Button variant="outline" onClick={handleGitHub}>
           Sign in with GitHub
-        </button>
+        </Button>
 
-        <p className="sign-in-switch">
+        <p className="text-center text-xs text-muted-foreground">
           {mode === "signin" ? (
             <>
               No account?{" "}
-              <button type="button" onClick={() => { setMode("signup"); setError(""); }}>
+              <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signup"); setError(""); }}>
                 Create one
               </button>
             </>
           ) : (
             <>
               Already have an account?{" "}
-              <button type="button" onClick={() => { setMode("signin"); setError(""); }}>
+              <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signin"); setError(""); }}>
                 Sign in
               </button>
             </>

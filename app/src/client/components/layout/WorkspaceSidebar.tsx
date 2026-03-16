@@ -1,6 +1,10 @@
 import { Link, useMatchRoute } from "@tanstack/react-router";
 import type { ConversationSidebarItem, WorkspaceConversationSidebarResponse } from "../../../shared/contracts";
 import { usePendingLearningCount } from "../../hooks/use-pending-learning-count";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
+import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
 type WorkspaceSidebarProps = {
   sidebar?: WorkspaceConversationSidebarResponse;
@@ -29,14 +33,18 @@ export function WorkspaceSidebar({
       <li key={conv.id}>
         <button
           type="button"
-          className={`sidebar-item sidebar-conversation-item${conv.id === activeConversationId ? " sidebar-item--active" : ""}${depth > 0 ? " sidebar-conversation-item--branch" : ""}`}
+          className={cn(
+            "flex w-full items-center gap-1 truncate rounded-md px-2 py-1.5 text-left text-xs text-foreground transition-colors hover:bg-hover",
+            conv.id === activeConversationId && "bg-active text-accent",
+            depth > 0 && "text-muted-foreground",
+          )}
           style={depth > 0 ? { paddingLeft: `${8 + depth * 12}px` } : undefined}
           onClick={() => onSelectConversation(conv.id)}
         >
           {depth > 0 ? "\u21b3 " : ""}{conv.title}
         </button>
         {conv.branches && conv.branches.length > 0 ? (
-          <ul className="sidebar-list sidebar-branch-list">
+          <ul className="flex flex-col">
             {conv.branches.map((branch) => renderConversationItem(branch, depth + 1))}
           </ul>
         ) : undefined}
@@ -44,35 +52,37 @@ export function WorkspaceSidebar({
     );
   }
 
+  const navItemClass = (active: boolean | object | undefined) =>
+    cn(
+      "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-hover",
+      active && "bg-active text-accent",
+    );
+
   return (
-    <aside className="workspace-sidebar">
+    <aside className="flex w-[200px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-sidebar p-2">
       {/* Navigation links */}
-      <Link to="/" className={`sidebar-item sidebar-nav-item${isHome ? " sidebar-item--active" : ""}`}>
-        Feed
-      </Link>
-      <Link to="/graph" className={`sidebar-item sidebar-nav-item${isGraph ? " sidebar-item--active" : ""}`}>
-        Graph
-      </Link>
-      <Link to="/learnings" className={`sidebar-item sidebar-nav-item${isLearnings ? " sidebar-item--active" : ""}`}>
+      <Link to="/" className={navItemClass(isHome)}>Feed</Link>
+      <Link to="/graph" className={navItemClass(isGraph)}>Graph</Link>
+      <Link to="/learnings" className={navItemClass(isLearnings)}>
         Learnings
         {pendingCount > 0 ? (
-          <span className="sidebar-badge">{pendingCount}</span>
+          <Badge variant="secondary" className="ml-auto h-4 min-w-4 px-1 text-[0.6rem]">{pendingCount}</Badge>
         ) : undefined}
       </Link>
-      <Link to="/policies" className={`sidebar-item sidebar-nav-item${isPolicies ? " sidebar-item--active" : ""}`}>
-        Policies
-      </Link>
+      <Link to="/policies" className={navItemClass(isPolicies)}>Policies</Link>
 
-      <div className="sidebar-divider" />
+      <Separator className="my-1" />
 
       {/* Projects section */}
-      <div className="sidebar-section">
-        <div className="sidebar-section-label">Projects</div>
+      <div className="flex flex-col gap-0.5">
+        <span className="px-2 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">Projects</span>
         {sidebar?.groups.map((group) => (
           <Link
             key={group.projectId}
             to="/"
-            className={`sidebar-item sidebar-project-item${isHome ? " sidebar-item--active" : ""}`}
+            className={cn(
+              "truncate rounded-md px-2 py-1 text-xs text-entity-project-fg transition-colors hover:bg-hover",
+            )}
           >
             #{group.projectName}
           </Link>
@@ -80,36 +90,36 @@ export function WorkspaceSidebar({
       </div>
 
       {/* Agents section */}
-      <div className="sidebar-section">
-        <div className="sidebar-section-label">Agents</div>
-        <span className="sidebar-item sidebar-agent-item">@pm</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="px-2 text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">Agents</span>
+        <span className="px-2 py-1 text-xs text-entity-task-fg">@pm</span>
       </div>
 
-      <div className="sidebar-divider" />
+      <Separator className="my-1" />
 
       {/* Chats section */}
-      <div className="sidebar-section sidebar-section--chats">
-        <div className="sidebar-section-label">
-          Chats
-          <button
-            type="button"
-            className="sidebar-new-chat-btn"
+      <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
+        <div className="flex items-center justify-between px-2">
+          <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-muted-foreground">Chats</span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={onNewConversation}
             disabled={isLoading}
             title="New conversation"
           >
             +
-          </button>
+          </Button>
         </div>
         {sidebar?.groups.map((group) =>
           group.conversations.length > 0 ? (
-            <ul key={group.projectId} className="sidebar-list">
+            <ul key={group.projectId} className="flex flex-col">
               {group.conversations.map((conv) => renderConversationItem(conv))}
             </ul>
           ) : undefined,
         )}
         {sidebar && sidebar.unlinked.length > 0 ? (
-          <ul className="sidebar-list">
+          <ul className="flex flex-col">
             {sidebar.unlinked.map((conv) => renderConversationItem(conv))}
           </ul>
         ) : undefined}

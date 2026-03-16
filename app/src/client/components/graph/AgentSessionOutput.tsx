@@ -45,10 +45,10 @@ export function AgentSessionOutput({
   if (outputEntries.length === 0) {
     return (
       <div
-        className="agent-session-output agent-session-output--empty"
+        className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted p-3 font-mono text-xs"
         data-testid="agent-session-output"
       >
-        <p className="agent-session-output__placeholder">
+        <p className="text-muted-foreground">
           Waiting for agent output...
         </p>
       </div>
@@ -58,7 +58,7 @@ export function AgentSessionOutput({
   return (
     <div
       ref={containerRef}
-      className="agent-session-output"
+      className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap"
       data-testid="agent-session-output"
     >
       {outputEntries.map((entry, index) => {
@@ -67,7 +67,7 @@ export function AgentSessionOutput({
             return (
               <span
                 key={index}
-                className="agent-session-output__token"
+                className="text-foreground"
                 data-testid="agent-output-token"
               >
                 {entry.text}
@@ -77,17 +77,17 @@ export function AgentSessionOutput({
             return (
               <div
                 key={index}
-                className="agent-session-output__file-change"
+                className="my-1 flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 text-[0.7rem]"
                 data-testid="agent-output-file-change"
               >
-                <span className="agent-session-output__file-icon">
+                <span className="font-bold text-accent">
                   {entry.changeType === "created"
                     ? "+"
                     : entry.changeType === "deleted"
                       ? "-"
                       : "~"}
                 </span>
-                <span className="agent-session-output__file-path">
+                <span className="text-muted-foreground">
                   {entry.file}
                 </span>
               </div>
@@ -96,7 +96,7 @@ export function AgentSessionOutput({
             return (
               <div
                 key={index}
-                className="agent-session-output__prompt"
+                className="my-1 rounded border-l-2 border-ring bg-background px-2 py-1 text-ring"
                 data-testid="agent-output-prompt"
               >
                 {entry.text}

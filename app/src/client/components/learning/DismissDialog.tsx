@@ -1,6 +1,10 @@
 import { useState, useCallback } from "react";
 import type { LearningSummary } from "../../../shared/contracts";
 import { canSubmitDismissal, buildDismissPayload } from "./dialog-logic";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 
 type DismissDialogProps = {
   learning: LearningSummary;
@@ -20,46 +24,34 @@ export function DismissDialog({ learning, onConfirm, onCancel, isSubmitting }: D
   const isValid = canSubmitDismissal(reason);
 
   return (
-    <div className="dialog-backdrop" onClick={onCancel}>
-      <div className="dialog dialog--dismiss" onClick={(e) => e.stopPropagation()}>
-        <h3 className="dialog__title">Dismiss Learning</h3>
+    <Dialog open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Dismiss Learning</DialogTitle>
+          <DialogDescription>{learning.text}</DialogDescription>
+        </DialogHeader>
 
-        <p className="dialog__description">
-          {learning.text}
-        </p>
-
-        <label className="dialog__label" htmlFor="dismiss-reason">
-          Reason for dismissal (required)
-        </label>
-        <textarea
-          id="dismiss-reason"
-          className="dialog__textarea"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder="Why is this learning being dismissed?"
-          rows={3}
-          disabled={isSubmitting}
-        />
-
-        <div className="dialog__actions">
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--cancel"
-            onClick={onCancel}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="dismiss-reason">Reason for dismissal (required)</Label>
+          <Textarea
+            id="dismiss-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why is this learning being dismissed?"
+            rows={3}
             disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="dialog__btn dialog__btn--confirm"
-            onClick={handleConfirm}
-            disabled={!isValid || isSubmitting}
-          >
-            {isSubmitting ? "Dismissing..." : "Dismiss"}
-          </button>
+          />
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={!isValid || isSubmitting}>
+            {isSubmitting ? "Dismissing..." : "Dismiss"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

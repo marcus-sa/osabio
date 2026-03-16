@@ -1,4 +1,6 @@
 import type { LearningStatus, LearningSummary } from "../../../shared/contracts";
+import { cn } from "@/lib/utils";
+import { Badge } from "../ui/badge";
 
 export type StatusTabDefinition = {
   status: LearningStatus;
@@ -44,17 +46,24 @@ type StatusTabsProps = {
 
 export function StatusTabs({ activeStatus, counts, onStatusChange }: StatusTabsProps) {
   return (
-    <div className="status-tabs">
+    <div className="flex gap-1 border-b border-border" role="tablist">
       {STATUS_TAB_DEFINITIONS.map((tab) => (
         <button
           key={tab.status}
-          className={`status-tabs__tab${activeStatus === tab.status ? " status-tabs__tab--active" : ""}`}
+          className={cn(
+            "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+            activeStatus === tab.status
+              ? "border-accent text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground",
+          )}
           onClick={() => onStatusChange(tab.status)}
           aria-selected={activeStatus === tab.status}
           role="tab"
         >
           {tab.label}
-          <span className="status-tabs__count">{counts[tab.status as keyof StatusCounts]}</span>
+          <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[0.6rem]">
+            {counts[tab.status as keyof StatusCounts]}
+          </Badge>
         </button>
       ))}
     </div>

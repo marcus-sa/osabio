@@ -11,18 +11,18 @@
  * 4. Policy evaluation [future 02-01]
  * 5. Context injection [future 03-02]
  * 6. Request forwarding
- * 7. Async trace capture (01-03) + conversation upsert
+ * 7. Async trace capture (01-03)
  */
 import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
 import { jsonResponse } from "../http/response";
-import { resolveIdentity } from "./identity-resolver";
+import { resolveIdentity, resolveAgentName } from "./identity-resolver";
 import { resolveSessionId, resolveAgentSessionId } from "./session-id-resolver";
 import { captureTrace, type TraceData } from "./trace-writer";
 import {
-  resolveConversationHash,
-  type ConversationHashInput,
-} from "./conversation-hash-resolver";
-import { upsertConversation } from "./conversation-upserter";
+  resolveSessionHash,
+  type SessionHashInput,
+} from "./session-hash-resolver";
+import { upsertProxySession } from "./session-upserter";
 import {
   evaluateProxyPolicy,
   type ProxyPolicyDependencies,
@@ -236,7 +236,6 @@ function extractNonStreamingUsage(
   identity: { workspaceId?: string; taskId?: string; identityId?: string },
   sessionId?: string,
   policyDecision?: PolicyDecisionLog,
-  conversationId?: string,
   injectionResult?: InjectionResult,
 ): TraceData | undefined {
   try {
@@ -256,7 +255,6 @@ function extractNonStreamingUsage(
       sessionId,
       taskId: identity.taskId,
       policyDecision,
-      conversationId,
     };
 
     // Add intelligence metadata if injection occurred
@@ -544,7 +542,6 @@ function buildStreamingTraceData(
   identitySignals: import("./identity-resolver").IdentitySignals,
   effectiveSessionId: string | undefined,
   policyDecision: PolicyDecisionLog | undefined,
-  conversationId: string | undefined,
   injectionResult: InjectionResult | undefined,
 ): TraceData {
   return {
@@ -560,7 +557,6 @@ function buildStreamingTraceData(
     sessionId: effectiveSessionId,
     taskId: identitySignals.taskId,
     policyDecision,
-    conversationId,
     ...(injectionResult ? {
       intelligenceMetadata: buildIntelligenceMetadata(injectionResult),
     } : {}),
@@ -646,43 +642,46 @@ export function createAnthropicProxyHandler(
       agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
       sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
       proxyTokenIdentityId: brainAuthResult?.identityId,
+      userAgent: request.headers.get("User-Agent") ?? undefined,
     });
 
     // --- Step 3: Session ID resolution ---
     // resolveSessionId returns either the header PK or the external Claude Code
     // session UUID. Resolve to the actual agent_session PK via DB lookup.
     const rawSessionId = resolveSessionId(identitySignals);
-    const effectiveSessionId = rawSessionId
+    let effectiveSessionId = rawSessionId
       ? await resolveAgentSessionId(deps.surreal, rawSessionId)
       : undefined;
 
-    // --- Step 3.5: Conversation hash resolution (pure) ---
-    const conversationHashInput: ConversationHashInput = {
-      systemPrompt: typeof parsed?.system === "string" ? parsed.system : undefined,
-      systemPromptBlocks: Array.isArray(parsed?.system) ? parsed.system : undefined,
-      messages: parsed?.messages ?? [],
-    };
-    const conversationHash = resolveConversationHash(conversationHashInput);
+    // --- Step 3.5: Session hash fallback ---
+    // When no explicit session signal exists, derive a deterministic session
+    // identity from request content (system_prompt + first_user_message).
+    if (!effectiveSessionId && identitySignals.workspaceId && parsed) {
+      const sessionHashInput: SessionHashInput = {
+        systemPrompt: typeof parsed.system === "string" ? parsed.system : undefined,
+        systemPromptBlocks: Array.isArray(parsed.system) ? parsed.system : undefined,
+        messages: parsed.messages ?? [],
+      };
+      const sessionHash = resolveSessionHash(sessionHashInput);
 
-    // --- Conversation upsert (async, non-blocking) ---
-    let conversationId: string | undefined;
-    if (conversationHash && identitySignals.workspaceId) {
-      try {
-        const conversationRecord = await upsertConversation(
-          {
-            conversationId: conversationHash.conversationId,
-            workspaceId: identitySignals.workspaceId,
-            title: conversationHash.title,
-          },
-          { surreal: deps.surreal },
-        );
-        if (conversationRecord) {
-          conversationId = conversationHash.conversationId;
+      if (sessionHash) {
+        try {
+          const upsertedSessionId = await upsertProxySession(
+            {
+              sessionId: sessionHash.sessionId,
+              workspaceId: identitySignals.workspaceId,
+              agent: resolveAgentName(identitySignals),
+            },
+            { surreal: deps.surreal },
+          );
+          if (upsertedSessionId) {
+            effectiveSessionId = upsertedSessionId;
+          }
+        } catch (error) {
+          logWarn("proxy.anthropic.session_hash_upsert_failed", "Session hash upsert failed — continuing without session link", {
+            error: String(error),
+          });
         }
-      } catch (error) {
-        logWarn("proxy.anthropic.conversation_upsert_failed", "Conversation upsert failed — continuing without conversation link", {
-          error: String(error),
-        });
       }
     }
 
@@ -836,7 +835,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, conversationId, injectionResult);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -902,7 +901,7 @@ export function createAnthropicProxyHandler(
         if (!isCountTokens && streamContext.model) {
           const traceData = buildStreamingTraceData(
             streamContext, latencyMs, identitySignals,
-            effectiveSessionId, policyDecision, conversationId, injectionResult,
+            effectiveSessionId, policyDecision, injectionResult,
           );
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),

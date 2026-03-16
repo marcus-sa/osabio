@@ -15,7 +15,11 @@
     "skipLibCheck": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"],
-    "typeRoots": ["./node_modules/@types", "./node_modules/bun-types"]
+    "typeRoots": ["./node_modules/@types", "./node_modules/bun-types"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./app/src/client/*"]
+    }
   },
   "include": ["app/**/*.ts", "app/**/*.tsx"]
 }

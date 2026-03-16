@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { type PolicyListItem, type PolicyStatus, usePolicies } from "../../hooks/use-policies";
 import { CreatePolicyDialog } from "./CreatePolicyDialog";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 
 const ALL_STATUSES: PolicyStatus[] = ["draft", "testing", "active", "deprecated", "superseded"];
 
@@ -11,6 +13,14 @@ const STATUS_LABELS: Record<PolicyStatus, string> = {
   active: "Active",
   deprecated: "Deprecated",
   superseded: "Superseded",
+};
+
+const STATUS_VARIANT: Record<PolicyStatus, "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "secondary",
+  testing: "outline",
+  active: "default",
+  deprecated: "secondary",
+  superseded: "secondary",
 };
 
 /** Pure: format ISO date string into a readable short date. */
@@ -23,44 +33,39 @@ function formatDate(isoDate: string): string {
   });
 }
 
-/** Pure: compute a CSS modifier class for a policy status badge. */
-function statusBadgeClass(status: PolicyStatus): string {
-  return `policies-page__status-badge policies-page__status-badge--${status}`;
-}
-
 function PolicyTable({ policies }: { policies: PolicyListItem[] }) {
   return (
-    <div className="policies-page__table-wrapper">
-      <table className="policies-page__table">
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-full text-left text-xs">
         <thead>
-          <tr>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Version</th>
-            <th>Rules</th>
-            <th>Created</th>
+          <tr className="border-b border-border bg-muted text-muted-foreground">
+            <th className="px-3 py-2 font-medium">Title</th>
+            <th className="px-3 py-2 font-medium">Status</th>
+            <th className="px-3 py-2 font-medium">Version</th>
+            <th className="px-3 py-2 font-medium">Rules</th>
+            <th className="px-3 py-2 font-medium">Created</th>
           </tr>
         </thead>
         <tbody>
           {policies.map((policy) => (
-            <tr key={policy.id} className="policies-page__row">
-              <td>
+            <tr key={policy.id} className="border-b border-border transition-colors hover:bg-hover">
+              <td className="px-3 py-2">
                 <Link
                   to="/policies/$policyId"
                   params={{ policyId: policy.id }}
-                  className="policies-page__title-link"
+                  className="font-medium text-ring hover:underline"
                 >
                   {policy.title}
                 </Link>
               </td>
-              <td>
-                <span className={statusBadgeClass(policy.status)}>
+              <td className="px-3 py-2">
+                <Badge variant={STATUS_VARIANT[policy.status]}>
                   {STATUS_LABELS[policy.status]}
-                </span>
+                </Badge>
               </td>
-              <td>v{policy.version}</td>
-              <td>{policy.rules_count}</td>
-              <td>{formatDate(policy.created_at)}</td>
+              <td className="px-3 py-2 text-muted-foreground">v{policy.version}</td>
+              <td className="px-3 py-2 text-muted-foreground">{policy.rules_count}</td>
+              <td className="px-3 py-2 text-muted-foreground">{formatDate(policy.created_at)}</td>
             </tr>
           ))}
         </tbody>
@@ -71,7 +76,7 @@ function PolicyTable({ policies }: { policies: PolicyListItem[] }) {
 
 function EmptyState({ hasFilter }: { hasFilter: boolean }) {
   return (
-    <div className="policies-page__empty">
+    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
       {hasFilter
         ? "No policies match the selected filter."
         : "No policies yet. Create one to get started."}
@@ -87,9 +92,9 @@ function StatusFilter({
   onStatusChange: (status?: PolicyStatus) => void;
 }) {
   return (
-    <div className="policies-page__filters">
+    <div className="flex gap-2 py-2">
       <select
-        className="policies-page__status-select"
+        className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:border-ring focus:outline-none"
         value={selectedStatus ?? ""}
         onChange={(e) =>
           onStatusChange(e.target.value ? (e.target.value as PolicyStatus) : undefined)
@@ -121,16 +126,12 @@ export function PoliciesPage() {
   const handleCloseDialog = useCallback(() => setDialogOpen(false), []);
 
   return (
-    <section className="policies-page">
-      <div className="policies-page__header">
-        <h1>Policies</h1>
-        <button
-          type="button"
-          className="policies-page__create-btn"
-          onClick={handleOpenDialog}
-        >
+    <section className="mx-auto flex max-w-4xl flex-col gap-4 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">Policies</h1>
+        <Button size="sm" onClick={handleOpenDialog}>
           Create Policy
-        </button>
+        </Button>
       </div>
 
       <CreatePolicyDialog open={dialogOpen} onClose={handleCloseDialog} />
@@ -140,10 +141,10 @@ export function PoliciesPage() {
         onStatusChange={handleStatusChange}
       />
 
-      {error && <p className="policies-page__error">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {isLoading ? (
-        <p className="policies-page__loading">Loading policies...</p>
+        <p className="text-sm text-muted-foreground">Loading policies...</p>
       ) : policies.length > 0 ? (
         <PolicyTable policies={policies} />
       ) : (

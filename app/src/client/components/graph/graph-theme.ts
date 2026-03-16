@@ -44,6 +44,31 @@ export function entityMutedColor(kind: EntityKind): string {
   }
 }
 
+/** Returns Tailwind class strings for entity color styling. */
+export function entityTwClasses(kind: EntityKind): { bg: string; text: string; border: string; mutedBg: string } {
+  const token = entityColorToken(kind);
+  return {
+    bg: `bg-entity-${token}`,
+    text: `text-entity-${token}-fg`,
+    border: `border-entity-${token}`,
+    mutedBg: `bg-entity-${token}-muted`,
+  };
+}
+
+function entityColorToken(kind: EntityKind): string {
+  switch (kind) {
+    case "observation": return "decision";
+    case "suggestion": return "question";
+    case "workspace": return "project";
+    case "message": return "task";
+    case "identity": return "person";
+    case "agent_session": return "task";
+    case "intent": return "feature";
+    case "learning": return "decision";
+    default: return kind;
+  }
+}
+
 export type EdgeStyleResult = {
   stroke: string;
   strokeDasharray: string;

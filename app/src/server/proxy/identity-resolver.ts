@@ -18,6 +18,7 @@ export type IdentityInput = {
   sessionHeader?: string;
   /** Identity ID resolved from a proxy token (Brain auth mode) */
   proxyTokenIdentityId?: string;
+  userAgent?: string;
 };
 
 export type IdentitySignals = {
@@ -30,6 +31,7 @@ export type IdentitySignals = {
   agentType?: string;
   /** Identity ID from a proxy token (Brain auth mode) */
   proxyTokenIdentityId?: string;
+  userAgent?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -70,6 +72,20 @@ function parseMetadataUserId(userId?: string): {
  * to produce a complete identity picture. Missing signals degrade
  * gracefully — each field is optional.
  */
+/**
+ * Derive the agent name from identity signals.
+ *
+ * Priority:
+ * 1. X-Brain-Agent-Type header (explicit)
+ * 2. User-Agent containing "claude-cli" → "claude-cli"
+ * 3. "proxy" (unknown caller)
+ */
+export function resolveAgentName(signals: Pick<IdentitySignals, "agentType" | "userAgent">): string {
+  if (signals.agentType) return signals.agentType;
+  if (signals.userAgent?.includes("claude-cli")) return "claude-cli";
+  return "proxy";
+}
+
 export function resolveIdentity(input: IdentityInput): IdentitySignals {
   const parsed = parseMetadataUserId(input.metadataUserId);
 
@@ -82,5 +98,6 @@ export function resolveIdentity(input: IdentityInput): IdentitySignals {
     taskId: input.taskHeader,
     agentType: input.agentTypeHeader,
     proxyTokenIdentityId: input.proxyTokenIdentityId,
+    userAgent: input.userAgent,
   };
 }
