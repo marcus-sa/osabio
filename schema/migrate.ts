@@ -79,22 +79,29 @@ async function seedAdminUser(
   const now = new Date();
 
   const personContent = buildPersonRecord(config.email, now);
-  const [createdPersons] = await surreal.query<[Array<{ id: RecordId }>]>(
-    "CREATE person CONTENT $content;",
-    { content: personContent },
-  );
-  const personRecord = createdPersons[0];
-  const personId = personRecord.id.id as string;
+  const accountContent = buildAccountRecord("", hashedPassword, now);
 
-  const accountContent = buildAccountRecord(personId, hashedPassword, now);
-  await surreal.query(
-    "CREATE $record CONTENT $content;",
+  // Atomic transaction: create person + account together
+  const [createdPersons] = await surreal.query<[Array<{ id: RecordId }>]>(
+    `BEGIN TRANSACTION;
+     LET $person = CREATE person CONTENT $personContent;
+     LET $pid = $person[0].id;
+     CREATE type::thing("account", record::id($pid)) CONTENT {
+       account_id: record::id($pid),
+       provider_id: $providerId,
+       password: $hashedPw,
+       person_id: $pid,
+       created_at: $createdAt,
+       updated_at: $updatedAt
+     };
+     RETURN $person;
+     COMMIT TRANSACTION;`,
     {
-      record: new RecordId("account", personId),
-      content: {
-        ...accountContent,
-        person_id: personRecord.id,
-      },
+      personContent,
+      providerId: accountContent.provider_id,
+      hashedPw: accountContent.password,
+      createdAt: now,
+      updatedAt: now,
     },
   );
 

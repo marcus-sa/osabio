@@ -10,7 +10,7 @@ export function SignInPage() {
   const { data: session, isPending } = useSession();
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as Record<string, string>;
-  const { config } = usePublicConfig();
+  const { config, isLoading: configLoading } = usePublicConfig();
 
   const signupAllowed = !config.selfHosted;
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -73,7 +73,7 @@ export function SignInPage() {
     });
   }
 
-  if (isPending) {
+  if (isPending || configLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6">
