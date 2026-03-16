@@ -8,6 +8,10 @@ describe("telemetry/logger", () => {
 
   beforeEach(() => {
     originalProvider = logs.getLoggerProvider();
+    // Clear the OTEL global registration so setGlobalLoggerProvider accepts our provider.
+    // Without this, a prior initTelemetry() call (from another test file sharing the
+    // process) causes setGlobalLoggerProvider to silently no-op.
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("io.opentelemetry.js.api.logs")];
     const provider = new LoggerProvider({
       processors: [new SimpleLogRecordProcessor(exporter)],
     });
@@ -16,6 +20,7 @@ describe("telemetry/logger", () => {
   });
 
   afterAll(() => {
+    delete (globalThis as Record<symbol, unknown>)[Symbol.for("io.opentelemetry.js.api.logs")];
     logs.setGlobalLoggerProvider(originalProvider);
   });
 
