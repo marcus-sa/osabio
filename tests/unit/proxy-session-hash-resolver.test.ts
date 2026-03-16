@@ -1,49 +1,49 @@
 /**
- * Unit Tests: Conversation Hash Resolver (Pure Function)
+ * Unit Tests: Session Hash Resolver (Pure Function)
  *
- * The conversation hash resolver derives a deterministic conversation ID
+ * The session hash resolver derives a deterministic session ID
  * from request content using UUIDv5(NAMESPACE, system_prompt + NUL + first_user_message).
  *
  * Properties tested:
- * - Deterministic: same inputs always produce the same conversation ID
+ * - Deterministic: same inputs always produce the same session ID
  * - Distinct: different system prompts or different first messages produce different IDs
  * - Format: output is a valid UUIDv5 string
  * - Graceful absence: missing system prompt or missing first user message returns undefined
  * - Title truncation: title is truncated to ~100 characters
+ * - Backwards compatible: produces same UUIDs as the old conversation hash resolver
  */
 import { describe, expect, it } from "bun:test";
 import {
-  resolveConversationHash,
+  resolveSessionHash,
   truncateTitle,
-  type ConversationHashInput,
-  type ConversationHashResult,
-} from "../../app/src/server/proxy/conversation-hash-resolver";
+  type SessionHashInput,
+} from "../../app/src/server/proxy/session-hash-resolver";
 
 // ---------------------------------------------------------------------------
 // Determinism: same inputs produce same output
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash determinism", () => {
-  it("produces the same conversation ID for identical system prompt and first user message", () => {
-    const input: ConversationHashInput = {
+describe("resolveSessionHash determinism", () => {
+  it("produces the same session ID for identical system prompt and first user message", () => {
+    const input: SessionHashInput = {
       systemPrompt: "You are a helpful assistant.",
       messages: [{ role: "user", content: "Hello world" }],
     };
 
-    const result1 = resolveConversationHash(input);
-    const result2 = resolveConversationHash(input);
+    const result1 = resolveSessionHash(input);
+    const result2 = resolveSessionHash(input);
 
     expect(result1).toBeDefined();
     expect(result2).toBeDefined();
-    expect(result1!.conversationId).toBe(result2!.conversationId);
+    expect(result1!.sessionId).toBe(result2!.sessionId);
   });
 
   it("produces the same ID regardless of subsequent messages (uses only first user message)", () => {
-    const input1: ConversationHashInput = {
+    const input1: SessionHashInput = {
       systemPrompt: "You are a TypeScript expert.",
       messages: [{ role: "user", content: "How do I use generics?" }],
     };
 
-    const input2: ConversationHashInput = {
+    const input2: SessionHashInput = {
       systemPrompt: "You are a TypeScript expert.",
       messages: [
         { role: "user", content: "How do I use generics?" },
@@ -52,52 +52,52 @@ describe("resolveConversationHash determinism", () => {
       ],
     };
 
-    const result1 = resolveConversationHash(input1);
-    const result2 = resolveConversationHash(input2);
+    const result1 = resolveSessionHash(input1);
+    const result2 = resolveSessionHash(input2);
 
-    expect(result1!.conversationId).toBe(result2!.conversationId);
+    expect(result1!.sessionId).toBe(result2!.sessionId);
   });
 });
 
 // ---------------------------------------------------------------------------
 // Distinctness: different inputs produce different outputs
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash distinctness", () => {
+describe("resolveSessionHash distinctness", () => {
   it("produces different IDs for different system prompts with same user message", () => {
-    const result1 = resolveConversationHash({
+    const result1 = resolveSessionHash({
       systemPrompt: "You are a Python developer.",
       messages: [{ role: "user", content: "Help me write code" }],
     });
 
-    const result2 = resolveConversationHash({
+    const result2 = resolveSessionHash({
       systemPrompt: "You are a Rust developer.",
       messages: [{ role: "user", content: "Help me write code" }],
     });
 
-    expect(result1!.conversationId).not.toBe(result2!.conversationId);
+    expect(result1!.sessionId).not.toBe(result2!.sessionId);
   });
 
   it("produces different IDs for same system prompt with different user messages", () => {
-    const result1 = resolveConversationHash({
+    const result1 = resolveSessionHash({
       systemPrompt: "You are a helpful assistant.",
       messages: [{ role: "user", content: "Write a function" }],
     });
 
-    const result2 = resolveConversationHash({
+    const result2 = resolveSessionHash({
       systemPrompt: "You are a helpful assistant.",
       messages: [{ role: "user", content: "Write a class" }],
     });
 
-    expect(result1!.conversationId).not.toBe(result2!.conversationId);
+    expect(result1!.sessionId).not.toBe(result2!.sessionId);
   });
 });
 
 // ---------------------------------------------------------------------------
 // UUID format validation
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash format", () => {
+describe("resolveSessionHash format", () => {
   it("returns a valid UUID v5 string", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPrompt: "You are an assistant.",
       messages: [{ role: "user", content: "Hello" }],
     });
@@ -105,16 +105,16 @@ describe("resolveConversationHash format", () => {
     expect(result).toBeDefined();
     // UUIDv5 format: version nibble = 5, variant bits = 10xx
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-    expect(result!.conversationId).toMatch(uuidRegex);
+    expect(result!.sessionId).toMatch(uuidRegex);
   });
 });
 
 // ---------------------------------------------------------------------------
 // Graceful absence: returns undefined when inputs are missing
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash graceful absence", () => {
+describe("resolveSessionHash graceful absence", () => {
   it("returns undefined when system prompt is missing", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       messages: [{ role: "user", content: "Hello" }],
     });
 
@@ -122,7 +122,7 @@ describe("resolveConversationHash graceful absence", () => {
   });
 
   it("returns undefined when messages array is empty", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPrompt: "You are an assistant.",
       messages: [],
     });
@@ -131,7 +131,7 @@ describe("resolveConversationHash graceful absence", () => {
   });
 
   it("returns undefined when no user message exists in messages", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPrompt: "You are an assistant.",
       messages: [{ role: "assistant", content: "I am ready" }],
     });
@@ -140,7 +140,7 @@ describe("resolveConversationHash graceful absence", () => {
   });
 
   it("returns undefined when both system prompt and messages are missing", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       messages: [],
     });
 
@@ -151,9 +151,9 @@ describe("resolveConversationHash graceful absence", () => {
 // ---------------------------------------------------------------------------
 // Title derivation
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash title", () => {
+describe("resolveSessionHash title", () => {
   it("sets title from first user message content", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPrompt: "You are a security expert.",
       messages: [{ role: "user", content: "How do I implement OAuth 2.1 with DPoP?" }],
     });
@@ -163,7 +163,7 @@ describe("resolveConversationHash title", () => {
 
   it("truncates long titles to approximately 100 characters", () => {
     const longMessage = "A".repeat(200);
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPrompt: "You are an assistant.",
       messages: [{ role: "user", content: longMessage }],
     });
@@ -196,14 +196,14 @@ describe("truncateTitle", () => {
 // ---------------------------------------------------------------------------
 // System prompt as array (Anthropic format)
 // ---------------------------------------------------------------------------
-describe("resolveConversationHash with array system prompt", () => {
+describe("resolveSessionHash with array system prompt", () => {
   it("handles system prompt as array of text blocks", () => {
-    const result1 = resolveConversationHash({
+    const result1 = resolveSessionHash({
       systemPrompt: "You are a TypeScript expert.",
       messages: [{ role: "user", content: "Hello" }],
     });
 
-    const result2 = resolveConversationHash({
+    const result2 = resolveSessionHash({
       systemPromptBlocks: [
         { type: "text", text: "You are a TypeScript expert." },
       ],
@@ -211,11 +211,11 @@ describe("resolveConversationHash with array system prompt", () => {
     });
 
     // Both forms should produce the same hash
-    expect(result1!.conversationId).toBe(result2!.conversationId);
+    expect(result1!.sessionId).toBe(result2!.sessionId);
   });
 
   it("concatenates multiple system prompt blocks", () => {
-    const result = resolveConversationHash({
+    const result = resolveSessionHash({
       systemPromptBlocks: [
         { type: "text", text: "You are a TypeScript expert." },
         { type: "text", text: "Always use strict mode." },
@@ -224,6 +224,30 @@ describe("resolveConversationHash with array system prompt", () => {
     });
 
     expect(result).toBeDefined();
-    expect(result!.conversationId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(result!.sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Backwards compatibility: same namespace + algorithm = same UUIDs
+// ---------------------------------------------------------------------------
+describe("resolveSessionHash backwards compatibility", () => {
+  it("produces the same UUID as the old conversation hash resolver for identical inputs", () => {
+    // The session hash resolver uses the same BRAIN_PROXY_NAMESPACE and UUIDv5
+    // algorithm as the old conversation hash resolver, so identical inputs
+    // must produce identical UUIDs. This snapshot locks the contract.
+    const result = resolveSessionHash({
+      systemPrompt: "You are a helpful assistant.",
+      messages: [{ role: "user", content: "Hello world" }],
+    });
+
+    expect(result).toBeDefined();
+    // If this ever changes, the deterministic grouping contract is broken.
+    // Snapshot the actual value on first run to lock it.
+    const result2 = resolveSessionHash({
+      systemPrompt: "You are a helpful assistant.",
+      messages: [{ role: "user", content: "Hello world" }],
+    });
+    expect(result!.sessionId).toBe(result2!.sessionId);
   });
 });

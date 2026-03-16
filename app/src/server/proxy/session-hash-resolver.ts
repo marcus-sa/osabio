@@ -1,13 +1,13 @@
 /**
- * Conversation Hash Resolver — Pure Function
+ * Session Hash Resolver — Pure Function
  *
- * Derives a deterministic conversation identity from request content
+ * Derives a deterministic agent session identity from request content
  * using UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
  *
- * This enables trace grouping across multiple turns of the same conversation
- * without requiring Brain integration or session lifecycle management.
+ * This enables trace grouping via agent_session when no explicit session
+ * signal (X-Brain-Session header or Claude Code metadata) is available.
  *
- * Port: ConversationHashInput -> ConversationHashResult | undefined
+ * Port: SessionHashInput -> SessionHashResult | undefined
  * Side effects: none (pure function)
  */
 
@@ -30,14 +30,14 @@ const MAX_TITLE_LENGTH = 100;
 // Types
 // ---------------------------------------------------------------------------
 
-export type ConversationHashInput = {
+export type SessionHashInput = {
   readonly systemPrompt?: string;
   readonly systemPromptBlocks?: ReadonlyArray<{ type: string; text: string }>;
   readonly messages: ReadonlyArray<{ role: string; content: string }>;
 };
 
-export type ConversationHashResult = {
-  readonly conversationId: string;
+export type SessionHashResult = {
+  readonly sessionId: string;
   readonly title: string;
 };
 
@@ -87,7 +87,7 @@ export function truncateTitle(text: string, maxLength: number = MAX_TITLE_LENGTH
 // System Prompt Normalization
 // ---------------------------------------------------------------------------
 
-function normalizeSystemPrompt(input: ConversationHashInput): string | undefined {
+function normalizeSystemPrompt(input: SessionHashInput): string | undefined {
   if (input.systemPrompt) return input.systemPrompt;
 
   if (input.systemPromptBlocks && input.systemPromptBlocks.length > 0) {
@@ -116,19 +116,19 @@ function extractFirstUserMessage(
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a deterministic conversation identity from request content.
+ * Resolve a deterministic session identity from request content.
  *
  * Returns undefined when either the system prompt or the first user message
  * is missing -- these are required to compute a stable hash.
  *
- * The conversation ID is a UUIDv5 derived from:
+ * The session ID is a UUIDv5 derived from:
  *   UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message)
  *
  * The title is the first user message, truncated to ~100 characters.
  */
-export function resolveConversationHash(
-  input: ConversationHashInput,
-): ConversationHashResult | undefined {
+export function resolveSessionHash(
+  input: SessionHashInput,
+): SessionHashResult | undefined {
   const systemPrompt = normalizeSystemPrompt(input);
   if (!systemPrompt) return undefined;
 
@@ -136,8 +136,8 @@ export function resolveConversationHash(
   if (!firstUserMessage) return undefined;
 
   const hashContent = systemPrompt + NUL_SEPARATOR + firstUserMessage;
-  const conversationId = generateUuidV5(BRAIN_PROXY_NAMESPACE, hashContent);
+  const sessionId = generateUuidV5(BRAIN_PROXY_NAMESPACE, hashContent);
   const title = truncateTitle(firstUserMessage);
 
-  return { conversationId, title };
+  return { sessionId, title };
 }
