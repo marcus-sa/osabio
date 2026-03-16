@@ -23,11 +23,12 @@ function deriveObservationSource(data: Record<string, unknown>): ReasoningSource
 }
 
 function deriveIntentSource(data: Record<string, unknown>): ReasoningSource | undefined {
-  const llmReasoning = data.llm_reasoning as string | undefined;
-  const policyOnly = (data.evaluation as Record<string, unknown> | undefined)?.policy_only as boolean | undefined;
+  const evaluation = data.evaluation as Record<string, unknown> | undefined;
+  const evaluationReasoning = evaluation?.reasoning as string | undefined;
+  const policyOnly = evaluation?.policy_only as boolean | undefined;
 
-  if (llmReasoning) {
-    return { type: "available", reasoning: llmReasoning };
+  if (evaluationReasoning) {
+    return { type: "available", reasoning: evaluationReasoning };
   }
 
   if (policyOnly) {

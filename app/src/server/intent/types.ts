@@ -65,7 +65,6 @@ export type IntentRecord = {
   };
   veto_expires_at?: Date;
   veto_reason?: string;
-  llm_reasoning?: string;
   error_reason?: string;
   authorization_details?: BrainAction[];
   dpop_jwk_thumbprint?: string;

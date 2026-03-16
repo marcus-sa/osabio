@@ -58,14 +58,15 @@ export type IntentRow = {
   goal: string;
   reasoning: string;
   status: string;
-  llm_reasoning?: string;
   evaluation?: {
     decision: string;
     risk_score: number;
     reason: string;
+    reasoning?: string;
     evaluated_at: string;
     policy_only: boolean;
   };
+  veto_expires_at?: string;
   workspace: RecordId<"workspace">;
   created_at: string;
 };
@@ -323,7 +324,7 @@ export async function createDraftIntent(
 }
 
 /**
- * Simulates an LLM evaluation completing and persisting llm_reasoning on the intent.
+ * Simulates an LLM evaluation completing and persisting evaluation.reasoning on the intent.
  * This mimics what the authorizer does after the LLM evaluator returns.
  */
 export async function simulateEvaluationWithReasoning(
@@ -346,10 +347,10 @@ export async function simulateEvaluationWithReasoning(
       decision: opts.decision,
       risk_score: opts.risk_score,
       reason: opts.reason,
+      reasoning: opts.llm_reasoning,
       evaluated_at: new Date(),
       policy_only: opts.policy_only ?? false,
     },
-    llm_reasoning: opts.llm_reasoning,
     updated_at: new Date(),
   };
 

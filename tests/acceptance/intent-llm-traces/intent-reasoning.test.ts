@@ -4,10 +4,10 @@
  * Traces: US-02 (Persist LLM Reasoning on Intents)
  *
  * Validates that:
- * - Intent evaluation captures LLM chain-of-thought as llm_reasoning
- * - llm_reasoning is distinct from the human-authored reasoning field
- * - Policy-only evaluations have no llm_reasoning (field absent)
- * - llm_reasoning persists through intent status transitions
+ * - Intent evaluation captures LLM chain-of-thought as evaluation.reasoning
+ * - evaluation.reasoning is distinct from the human-authored reasoning field
+ * - Policy-only evaluations have no evaluation.reasoning (field absent)
+ * - evaluation.reasoning persists through intent status transitions
  *
  * Driving ports:
  *   updateIntentStatus() — intent query function (app/src/server/intent/intent-queries.ts)
@@ -66,7 +66,7 @@ describe("Walking Skeleton: Authorizer records its reasoning during intent evalu
     // Then the intent carries both the human reasoning and the evaluator's reasoning
     const record = await getIntentRecord(surreal, intentId);
     expect(record.reasoning).toBe("The task requires email format validation for security compliance");
-    expect(record.llm_reasoning).toBe(llmReasoning);
+    expect(record.evaluation?.reasoning).toBe(llmReasoning);
     expect(record.evaluation?.decision).toBe("APPROVE");
     expect(record.status).toBe("authorized");
   }, 30_000);
@@ -102,7 +102,7 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
 
     // Then the LLM reasoning is persisted on the intent
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toContain("read-only access");
+    expect(record.evaluation?.reasoning).toContain("read-only access");
     expect(record.evaluation?.policy_only).toBe(false);
   }, 30_000);
 
@@ -131,8 +131,8 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
 
     // Then the rejection reasoning is persisted
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toContain("CRITICAL");
-    expect(record.llm_reasoning).toContain("bulk deletion");
+    expect(record.evaluation?.reasoning).toContain("CRITICAL");
+    expect(record.evaluation?.reasoning).toContain("bulk deletion");
     expect(record.evaluation?.decision).toBe("REJECT");
   }, 30_000);
 
@@ -161,7 +161,7 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
 
     // Then the reasoning is available during the veto window
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toContain("billing changes carry inherent financial risk");
+    expect(record.evaluation?.reasoning).toContain("billing changes carry inherent financial risk");
     expect(record.status).toBe("pending_veto");
     expect(record.veto_expires_at).toBeDefined();
   }, 30_000);
@@ -194,8 +194,8 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
     // Then both reasoning fields are present and independent
     const record = await getIntentRecord(surreal, intentId);
     expect(record.reasoning).toBe(humanReasoning);
-    expect(record.llm_reasoning).toBe(evaluatorReasoning);
-    expect(record.reasoning).not.toBe(record.llm_reasoning);
+    expect(record.evaluation?.reasoning).toBe(evaluatorReasoning);
+    expect(record.reasoning).not.toBe(record.evaluation?.reasoning);
   }, 30_000);
 });
 
@@ -205,7 +205,7 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
 
 describe("Step 02: Policy-only evaluations have no LLM reasoning", () => {
   // ---------------------------------------------------------------------------
-  // S02-5: Policy-only approval has no llm_reasoning
+  // S02-5: Policy-only approval has no evaluation.reasoning
   // ---------------------------------------------------------------------------
   it("policy-only approval does not have evaluator reasoning", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -228,12 +228,12 @@ describe("Step 02: Policy-only evaluations have no LLM reasoning", () => {
 
     // Then the intent has no LLM reasoning (field absent)
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toBeUndefined();
+    expect(record.evaluation?.reasoning).toBeUndefined();
     expect(record.evaluation?.policy_only).toBe(true);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // S02-6: Policy-only rejection has no llm_reasoning
+  // S02-6: Policy-only rejection has no evaluation.reasoning
   // ---------------------------------------------------------------------------
   it("policy-only rejection does not have evaluator reasoning", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -256,7 +256,7 @@ describe("Step 02: Policy-only evaluations have no LLM reasoning", () => {
 
     // Then the intent has no LLM reasoning
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toBeUndefined();
+    expect(record.evaluation?.reasoning).toBeUndefined();
     expect(record.evaluation?.policy_only).toBe(true);
     expect(record.evaluation?.decision).toBe("REJECT");
   }, 30_000);
@@ -298,7 +298,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     // Then the LLM reasoning is still present after the transition
     const record = await getIntentRecord(surreal, intentId);
     expect(record.status).toBe("authorized");
-    expect(record.llm_reasoning).toContain("Authentication refactoring is medium risk");
+    expect(record.evaluation?.reasoning).toContain("Authentication refactoring is medium risk");
   }, 30_000);
 
   // ---------------------------------------------------------------------------
@@ -330,8 +330,8 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
 
     // Then the full reasoning text is preserved
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toBe(longReasoning);
-    expect(record.llm_reasoning!.length).toBeGreaterThan(2000);
+    expect(record.evaluation?.reasoning).toBe(longReasoning);
+    expect(record.evaluation?.reasoning!.length).toBeGreaterThan(2000);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
@@ -361,11 +361,11 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
 
     // Then the special characters are preserved
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toBe(reasoning);
+    expect(record.evaluation?.reasoning).toBe(reasoning);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // S02-10: Intent without evaluation has no llm_reasoning
+  // S02-10: Intent without evaluation has no evaluation.reasoning
   // ---------------------------------------------------------------------------
   it("draft intent that has not been evaluated has no evaluator reasoning", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -381,12 +381,12 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     // Then the intent has no LLM reasoning since it was never evaluated
     const record = await getIntentRecord(surreal, intentId);
     expect(record.status).toBe("draft");
-    expect(record.llm_reasoning).toBeUndefined();
+    expect(record.evaluation?.reasoning).toBeUndefined();
     expect(record.evaluation).toBeUndefined();
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // S02-11: LLM timeout fallback has no llm_reasoning
+  // S02-11: LLM timeout fallback has no evaluation.reasoning
   // ---------------------------------------------------------------------------
   it("when LLM evaluation times out, the fallback policy-only result has no reasoning", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -409,7 +409,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
 
     // Then there is no LLM reasoning (the LLM never completed)
     const record = await getIntentRecord(surreal, intentId);
-    expect(record.llm_reasoning).toBeUndefined();
+    expect(record.evaluation?.reasoning).toBeUndefined();
     expect(record.evaluation?.policy_only).toBe(true);
     expect(record.evaluation?.reason).toContain("timeout");
   }, 30_000);
@@ -470,8 +470,8 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const r2 = await getIntentRecord(surreal, intent2);
     const r3 = await getIntentRecord(surreal, intent3);
 
-    expect(r1.llm_reasoning).toBe("Read-only, minimal risk");
-    expect(r2.llm_reasoning).toContain("moderate risk");
-    expect(r3.llm_reasoning).toBeUndefined();
+    expect(r1.evaluation?.reasoning).toBe("Read-only, minimal risk");
+    expect(r2.evaluation?.reasoning).toContain("moderate risk");
+    expect(r3.evaluation?.reasoning).toBeUndefined();
   }, 30_000);
 });
