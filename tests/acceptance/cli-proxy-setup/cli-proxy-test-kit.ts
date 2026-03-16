@@ -170,8 +170,8 @@ export async function seedExpiredProxyToken(
   const daysAgo = options.expiredDaysAgo ?? 1;
   const expiredAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
 
-  await surreal.query(`CREATE $token CONTENT $content;`, {
-    token: tokenRecord,
+  await surreal.query(`CREATE $tkn CONTENT $content;`, {
+    tkn: tokenRecord,
     content: {
       token_hash: options.tokenHash,
       workspace: workspaceRecord,

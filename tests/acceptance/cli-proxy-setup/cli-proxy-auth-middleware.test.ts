@@ -130,10 +130,11 @@ describe("Proxy backward compatibility", () => {
     const workspaceId = `ws-direct-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, workspaceId);
 
-    // Given an existing user who brings their own API key (pre-Brain-auth flow)
-    const apiKey = process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY;
+    // Given an existing user who brings their own Anthropic API key (pre-Brain-auth flow)
+    // Note: OPENROUTER_API_KEY won't work here — direct auth sends x-api-key to Anthropic's API
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      console.warn("Skipping direct auth test: no OPENROUTER_API_KEY or ANTHROPIC_API_KEY");
+      console.warn("Skipping direct auth test: no ANTHROPIC_API_KEY");
       return;
     }
 
@@ -189,6 +190,15 @@ describe("Proxy workspace derivation from token", () => {
 
     // Then the request succeeds (workspace is derived from token, header ignored)
     // And traces are attributed to workspace A (the real one), not B
+    // Note: If the server has no ANTHROPIC_API_KEY, it returns 500 — skip LLM assertions.
+    if (response.status === 500) {
+      const errBody = await response.json() as { error?: { message?: string } };
+      if (errBody.error?.message?.includes("API key not configured")) {
+        console.warn("Skipping workspace derivation LLM test: server has no ANTHROPIC_API_KEY");
+        return;
+      }
+    }
+
     expect(response.status).toBe(200);
 
     // Note: Trace attribution verification is covered in integration checkpoint tests
