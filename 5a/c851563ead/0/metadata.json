@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5ac851563ead",
+  "session_id": "fe96e03e-e1bb-4543-8fca-21184f728e51",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:23:06.720672Z",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/intent-llm-traces/reasoning-queries.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b2a2eddeaa19",
+  "checkpoint_transcript_start": 41,
+  "transcript_lines_at_start": 41,
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 52889,
+    "cache_read_tokens": 229948,
+    "output_tokens": 872,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:23:06.350798Z",
+    "agent_lines": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 100
+  }
+}
