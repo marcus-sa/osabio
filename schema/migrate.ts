@@ -211,7 +211,9 @@ async function main() {
   await surreal.close();
 }
 
-main().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Migration failed:", err);
+    process.exit(1);
+  });
+}
