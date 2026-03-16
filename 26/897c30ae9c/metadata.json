@@ -3,7 +3,7 @@
   "checkpoint_id": "26897c30ae9c",
   "strategy": "manual-commit",
   "branch": "marcus-sa/opentelemetry-observability",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/server/intent/authorizer.ts",
     "app/src/server/telemetry/ai-telemetry.ts",
@@ -16,13 +16,20 @@
       "context": "/26/897c30ae9c/0/context.md",
       "content_hash": "/26/897c30ae9c/0/content_hash.txt",
       "prompt": "/26/897c30ae9c/0/prompt.txt"
+    },
+    {
+      "metadata": "/26/897c30ae9c/1/metadata.json",
+      "transcript": "/26/897c30ae9c/1/full.jsonl",
+      "context": "/26/897c30ae9c/1/context.md",
+      "content_hash": "/26/897c30ae9c/1/content_hash.txt",
+      "prompt": "/26/897c30ae9c/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 58,
+    "cache_creation_tokens": 66312,
+    "cache_read_tokens": 1807844,
+    "output_tokens": 8118,
+    "api_call_count": 28
   }
 }
