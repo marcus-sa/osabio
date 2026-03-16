@@ -22,6 +22,9 @@ export type BrainConfig = {
   dpop_token_expires_at?: number;
   /** Identity for intent submission */
   identity_id?: string;
+  /** LLM proxy token for transparent Anthropic proxying */
+  proxy_token?: string;
+  proxy_token_expires_at?: string;
 };
 
 /** Per-repo auth entry in ~/.brain/config.json */
@@ -37,6 +40,9 @@ export type RepoConfig = {
   dpop_access_token?: string;
   dpop_token_expires_at?: number;
   identity_id?: string;
+  /** LLM proxy token for transparent Anthropic proxying */
+  proxy_token?: string;
+  proxy_token_expires_at?: string;
 };
 
 /** Root shape of ~/.brain/config.json */
@@ -143,6 +149,8 @@ export async function loadConfig(): Promise<BrainConfig | undefined> {
       dpop_access_token: repo.dpop_access_token,
       dpop_token_expires_at: repo.dpop_token_expires_at,
       identity_id: repo.identity_id,
+      proxy_token: repo.proxy_token,
+      proxy_token_expires_at: repo.proxy_token_expires_at,
     };
   }
   return undefined;
