@@ -60,13 +60,13 @@ export function rankCandidates(
   queryEmbedding: number[],
 ): RankedCandidate[] {
   return candidates
-    .filter((c) => c.embedding !== undefined && c.embedding.length > 0)
-    .map((c) => ({
-      id: c.id,
-      type: c.type,
-      text: c.text,
-      score: cosineSimilarity(c.embedding!, queryEmbedding) * c.weight,
-    }))
+    .map((c) => {
+      const hasEmbedding = c.embedding !== undefined && c.embedding.length > 0;
+      const score = hasEmbedding
+        ? cosineSimilarity(c.embedding!, queryEmbedding) * c.weight
+        : c.weight * 0.5;
+      return { id: c.id, type: c.type, text: c.text, score };
+    })
     .sort((a, b) => b.score - a.score);
 }
 

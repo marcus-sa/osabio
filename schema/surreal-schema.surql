@@ -530,6 +530,15 @@ DEFINE INDEX trace_created_at ON trace FIELDS created_at;
 
 DEFINE TABLE spawns TYPE RELATION IN message OUT trace SCHEMAFULL;
 
+DEFINE TABLE invoked TYPE RELATION IN agent_session OUT trace SCHEMAFULL;
+DEFINE FIELD created_at ON invoked TYPE datetime;
+
+DEFINE TABLE scoped_to TYPE RELATION IN trace OUT workspace SCHEMAFULL;
+DEFINE FIELD created_at ON scoped_to TYPE datetime;
+
+DEFINE TABLE attributed_to TYPE RELATION IN trace OUT task SCHEMAFULL;
+DEFINE FIELD created_at ON attributed_to TYPE datetime;
+
 DEFINE TABLE governed_by TYPE RELATION IN trace OUT policy SCHEMAFULL;
 DEFINE FIELD created_at ON governed_by TYPE datetime;
 DEFINE FIELD decision ON governed_by TYPE string ASSERT $value IN ['pass', 'deny'];

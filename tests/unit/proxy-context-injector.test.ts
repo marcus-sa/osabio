@@ -73,7 +73,7 @@ describe("rankCandidates", () => {
     expect(ranked[1].id).toBe("high-sim-low-weight");
   });
 
-  it("skips candidates without embeddings", () => {
+  it("ranks candidates without embeddings lower using baseline weight", () => {
     const queryEmbedding = [1, 0, 0];
     const candidates: ContextCandidate[] = [
       { id: "has-embedding", type: "decision", text: "text", embedding: [1, 0, 0], weight: 1.0 },
@@ -82,8 +82,11 @@ describe("rankCandidates", () => {
 
     const ranked = rankCandidates(candidates, queryEmbedding);
 
-    expect(ranked.length).toBe(1);
+    expect(ranked.length).toBe(2);
     expect(ranked[0].id).toBe("has-embedding");
+    expect(ranked[1].id).toBe("no-embedding");
+    // Embedding-less candidate gets weight * 0.5 baseline
+    expect(ranked[1].score).toBe(0.5);
   });
 
   it("returns empty array for empty candidates", () => {
