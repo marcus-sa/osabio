@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fd6399b79f7c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/cli-proxy-setup/execution-log.yaml",
+    "tests/acceptance/cli-proxy-setup/cli-proxy-auth-middleware.test.ts",
+    "tests/acceptance/cli-proxy-setup/cli-proxy-integration-checkpoints.test.ts",
+    "tests/acceptance/cli-proxy-setup/cli-proxy-test-kit.ts",
+    "tests/acceptance/cli-proxy-setup/cli-proxy-walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fd/6399b79f7c/0/metadata.json",
+      "transcript": "/fd/6399b79f7c/0/full.jsonl",
+      "context": "/fd/6399b79f7c/0/context.md",
+      "content_hash": "/fd/6399b79f7c/0/content_hash.txt",
+      "prompt": "/fd/6399b79f7c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 90,
+    "cache_creation_tokens": 120010,
+    "cache_read_tokens": 5156942,
+    "output_tokens": 38035,
+    "api_call_count": 54
+  }
+}
