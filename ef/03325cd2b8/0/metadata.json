@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ef03325cd2b8",
+  "session_id": "e1e9e50b-f71d-45f6-82fa-9989d32132d8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T07:37:43.539059Z",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/identity-resolver.ts",
+    "app/src/server/runtime/start-server.ts",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/cli-proxy-setup/cli-proxy-test-kit.ts",
+    "tests/unit/proxy-dual-mode.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "580f63265fd2",
+  "token_usage": {
+    "input_tokens": 83,
+    "cache_creation_tokens": 115433,
+    "cache_read_tokens": 4521370,
+    "output_tokens": 33460,
+    "api_call_count": 49
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T07:37:43.312801Z",
+    "agent_lines": 233,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 233,
+    "agent_percentage": 100
+  }
+}
