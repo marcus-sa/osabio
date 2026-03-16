@@ -1,9 +1,8 @@
 /**
  * OTEL-backed structured logger for the Brain server.
  *
- * Emits log records via the OTEL Logs API. When no LoggerProvider is
- * registered (pre-init), falls back to console.* so early boot messages
- * are not lost.
+ * Emits log records via the OTEL Logs API. Before initTelemetry() is called,
+ * the OTEL API returns a no-op logger that silently drops records.
  *
  * API mirrors the existing logInfo/logWarn/logError/logDebug shape from
  * http/observability.ts for straightforward migration.
@@ -49,30 +48,6 @@ export function serializeError(error: unknown, depth = 0): Record<string, unknow
   if (candidate.cause !== undefined) serialized.cause = serializeError(candidate.cause, depth + 1);
 
   return serialized;
-}
-
-// ---------------------------------------------------------------------------
-// Console fallback for pre-init
-// ---------------------------------------------------------------------------
-
-function getConsoleFn(severity: string): (...args: unknown[]) => void {
-  switch (severity) {
-    case "DEBUG": return console.debug;
-    case "INFO": return console.log;
-    case "WARN": return console.warn;
-    case "ERROR": return console.error;
-    default: return console.log;
-  }
-}
-
-export function logToConsole(
-  severity: string,
-  event: string,
-  message: string,
-  meta?: Record<string, unknown>,
-): void {
-  const fn = getConsoleFn(severity);
-  fn(`[${severity}] ${event}: ${message}`, meta ?? "");
 }
 
 // ---------------------------------------------------------------------------

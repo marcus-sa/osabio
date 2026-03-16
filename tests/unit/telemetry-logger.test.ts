@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll, mock } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import { LoggerProvider, SimpleLogRecordProcessor, InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
 
@@ -78,24 +78,5 @@ describe("telemetry/logger", () => {
     expect(records[0].body).toBe("Cache hit for key");
     expect(records[0].attributes?.["event"]).toBe("cache.hit");
     expect(records[0].attributes?.["key"]).toBe("user:123");
-  });
-});
-
-describe("telemetry/logger pre-init fallback", () => {
-  test("log functions fall back to console when no LoggerProvider is registered", async () => {
-    // Re-import with fresh module to get pre-init behavior
-    // The default no-op logger should fall back to console
-    const consoleSpy = mock(() => {});
-    const originalLog = console.log;
-    console.log = consoleSpy;
-
-    try {
-      const { logToConsole } = await import("../../app/src/server/telemetry/logger");
-      logToConsole("INFO", "test.event", "Test message", { key: "value" });
-
-      expect(consoleSpy).toHaveBeenCalled();
-    } finally {
-      console.log = originalLog;
-    }
   });
 });
