@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6b03cc91d066",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/README.md",
+    "app/src/server/auth/README.md",
+    "app/src/server/behavior/README.md",
+    "app/src/server/chat/README.md",
+    "app/src/server/descriptions/README.md",
+    "app/src/server/entities/README.md",
+    "app/src/server/extraction/README.md",
+    "app/src/server/feed/README.md",
+    "app/src/server/graph/README.md",
+    "app/src/server/http/README.md",
+    "app/src/server/iam/README.md",
+    "app/src/server/intent/README.md",
+    "app/src/server/learning/README.md",
+    "app/src/server/mcp/README.md",
+    "app/src/server/oauth/README.md",
+    "app/src/server/objective/README.md",
+    "app/src/server/observation/README.md",
+    "app/src/server/observer/README.md",
+    "app/src/server/onboarding/README.md",
+    "app/src/server/orchestrator/README.md",
+    "app/src/server/policy/README.md",
+    "app/src/server/proxy/README.md",
+    "app/src/server/runtime/README.md",
+    "app/src/server/streaming/README.md",
+    "app/src/server/suggestion/README.md",
+    "app/src/server/webhook/README.md",
+    "app/src/server/workspace/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6b/03cc91d066/0/metadata.json",
+      "transcript": "/6b/03cc91d066/0/full.jsonl",
+      "context": "/6b/03cc91d066/0/context.md",
+      "content_hash": "/6b/03cc91d066/0/content_hash.txt",
+      "prompt": "/6b/03cc91d066/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
