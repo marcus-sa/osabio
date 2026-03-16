@@ -133,6 +133,8 @@ export function setupAcceptanceSuite(
       anthropicApiUrl: process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
       ...(process.env.ANTHROPIC_API_KEY?.trim() ? { anthropicApiKey: process.env.ANTHROPIC_API_KEY.trim() } : {}),
       inferenceProvider: "openrouter",
+      selfHosted: process.env.SELF_HOSTED?.trim().toLowerCase() === "true",
+      worktreeManagerEnabled: process.env.WORKTREE_MANAGER_ENABLED?.trim().toLowerCase() === "true",
     };
 
     const deps = await createRuntimeDependencies(config);
