@@ -204,13 +204,14 @@ Respond with is_contradiction (true/false), confidence (0.0-1.0), and brief reas
 async function verifyMissingDecision(
   model: LanguageModel,
   responseText: string,
-): Promise<{ isDecision: boolean; confidence: number; summary: string }> {
+): Promise<{ isDecision: boolean; confidence: number; summary: string; reasoning: string }> {
   const { generateObject } = await import("ai");
 
   const missingDecisionSchema = z.object({
     is_decision: z.boolean().describe("Whether the response contains an unrecorded architectural/strategic decision"),
     confidence: z.number().describe("Confidence score 0.0-1.0"),
     summary: z.string().describe("Brief summary of the decision found, or empty string"),
+    reasoning: z.string().describe("Brief explanation of why this is or is not an unrecorded decision"),
   });
 
   const { object } = await generateObject({
@@ -232,13 +233,14 @@ NOT decisions:
 - Following existing instructions/conventions
 - Asking questions or presenting options without choosing
 
-Does this response contain a decision-shaped statement? Respond with is_decision, confidence (0.0-1.0), and a summary of the decision if found.`,
+Does this response contain a decision-shaped statement? Respond with is_decision, confidence (0.0-1.0), a summary of the decision if found, and reasoning explaining your analysis.`,
   });
 
   return {
     isDecision: object.is_decision,
     confidence: object.confidence,
     summary: object.summary,
+    reasoning: object.reasoning,
   };
 }
 
@@ -305,6 +307,7 @@ async function detectContradictions(
         confidence: verdict.confidence,
         verified: true,
         source: "llm",
+        reasoning: verdict.reasoning,
       });
 
       observationsCreated += 1;
@@ -378,6 +381,7 @@ async function detectMissingDecisions(
       confidence: missingResult.confidence,
       verified: true,
       source: "llm",
+      reasoning: missingResult.reasoning,
     });
 
     logInfo("observer.trace.missing_decision", "Unrecorded decision observation created", {
