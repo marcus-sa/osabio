@@ -15,6 +15,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
 import { X } from "lucide-react";
+import { ReasoningPanel, deriveReasoningSource } from "../reasoning-panel";
 
 const CONFIRMABLE_STATUSES = new Set(["extracted", "proposed", "provisional", "inferred"]);
 
@@ -276,6 +277,11 @@ export function EntityDetailPanel({
           <p className="text-xs text-muted-foreground">{rationale}</p>
         </div>
       ) : undefined}
+
+      {(() => {
+        const reasoningSource = deriveReasoningSource(kind, detail.entity.data);
+        return reasoningSource ? <ReasoningPanel source={reasoningSource} /> : undefined;
+      })()}
 
       <RelationshipList relationships={detail.relationships} onEntityClick={onEntityClick} />
 

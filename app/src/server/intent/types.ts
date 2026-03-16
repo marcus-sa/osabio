@@ -37,6 +37,7 @@ export type EvaluationResult = {
   decision: "APPROVE" | "REJECT";
   risk_score: number;
   reason: string;
+  reasoning?: string;
 };
 
 // --- Routing Decision (discriminated union) ---

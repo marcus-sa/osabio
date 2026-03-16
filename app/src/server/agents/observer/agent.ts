@@ -349,6 +349,7 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
           source: "llm",
           confidence: llmVerdict.confidence,
           observationType: "validation",
+          reasoning: llmVerdict.reasoning,
         };
 
         await persistObservation(surreal, workspaceRecord, [observationRecord as ObserveTargetRecord], reviewResult, "llm");
@@ -538,6 +539,7 @@ async function persistObservation(
     evidenceRefs: evidenceRefRecords.length > 0 ? evidenceRefRecords : undefined,
     verified: result.verified,
     source: result.source ?? defaultSource,
+    reasoning: result.reasoning,
   });
 }
 
