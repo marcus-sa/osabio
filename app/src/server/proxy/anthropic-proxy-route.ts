@@ -758,8 +758,17 @@ export function createAnthropicProxyHandler(
       }
     }
 
-    // --- API key validation (skip only when Brain auth provides server key) ---
-    if (!(authMode.mode === "brain" && authMode.serverApiKey)) {
+    // --- API key validation ---
+    if (authMode.mode === "brain") {
+      // Brain auth: server provides the API key — reject early if not configured
+      if (!authMode.serverApiKey) {
+        return jsonResponse(
+          { error: { type: "server_error", message: "API key not configured — server cannot proxy Brain-auth requests" } },
+          500,
+        );
+      }
+    } else {
+      // Direct auth: client must provide their own API key
       const hasApiKey = request.headers.has("x-api-key");
       const hasAuthHeader = request.headers.has("authorization");
       if (!hasApiKey && !hasAuthHeader) {
