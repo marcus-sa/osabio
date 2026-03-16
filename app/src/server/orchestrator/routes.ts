@@ -5,7 +5,7 @@
  * injected via OrchestratorRouteDeps. No direct DB or IO access.
  */
 import { jsonError, jsonResponse } from "../http/response";
-import { withRequestLogging, type RouteHandler } from "../http/request-logging";
+import { withTracing, type RouteHandler } from "../http/instrumentation";
 import type {
   OrchestratorSessionResult,
   SessionStatusResult,
@@ -532,15 +532,15 @@ export function wireOrchestratorRoutes(
     : undefined;
 
   return {
-    assign: withRequestLogging("orchestrator.assign", "POST", withWorkspaceAccess(handlers.assign)),
-    status: withRequestLogging("orchestrator.status", "GET", withWorkspaceAccess(handlers.status)),
-    accept: withRequestLogging("orchestrator.accept", "POST", withWorkspaceAccess(handlers.accept)),
-    abort: withRequestLogging("orchestrator.abort", "POST", withWorkspaceAccess(handlers.abort)),
-    review: withRequestLogging("orchestrator.review", "GET", withWorkspaceAccess(handlers.review)),
-    reject: withRequestLogging("orchestrator.reject", "POST", withWorkspaceAccess(handlers.reject)),
-    prompt: withRequestLogging("orchestrator.prompt", "POST", withWorkspaceAccess(handlers.prompt)),
+    assign: withTracing("orchestrator.assign", "POST", withWorkspaceAccess(handlers.assign)),
+    status: withTracing("orchestrator.status", "GET", withWorkspaceAccess(handlers.status)),
+    accept: withTracing("orchestrator.accept", "POST", withWorkspaceAccess(handlers.accept)),
+    abort: withTracing("orchestrator.abort", "POST", withWorkspaceAccess(handlers.abort)),
+    review: withTracing("orchestrator.review", "GET", withWorkspaceAccess(handlers.review)),
+    reject: withTracing("orchestrator.reject", "POST", withWorkspaceAccess(handlers.reject)),
+    prompt: withTracing("orchestrator.prompt", "POST", withWorkspaceAccess(handlers.prompt)),
     ...(streamHandler
-      ? { stream: withRequestLogging("orchestrator.stream", "GET", withWorkspaceAccess(streamHandler.stream)) }
+      ? { stream: withTracing("orchestrator.stream", "GET", withWorkspaceAccess(streamHandler.stream)) }
       : {}),
   };
 }

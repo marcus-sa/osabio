@@ -14,7 +14,12 @@ import { randomUUID } from "node:crypto";
 import { trace, context, SpanStatusCode } from "@opentelemetry/api";
 import { jsonError, withRequestIdHeader } from "./response";
 import { httpDurationHistogram, httpRequestsCounter } from "../telemetry/metrics";
-import type { RouteRequest, RouteHandler } from "./request-logging";
+
+export type RouteRequest = Request & {
+  params: Record<string, string>;
+};
+
+export type RouteHandler = (request: RouteRequest) => Response | Promise<Response>;
 
 const tracer = trace.getTracer("brain-server");
 

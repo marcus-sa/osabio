@@ -57,7 +57,6 @@
     "mdast-util-to-string": "^4.0.0",
     "micromark-extension-gfm": "^3.0.0",
     "ollama-ai-provider": "^1.2.0",
-    "pino": "^10.3.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",
