@@ -27,6 +27,28 @@ export {
 };
 
 // ---------------------------------------------------------------------------
+// Test Model Configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * The Anthropic model to use in proxy acceptance tests.
+ * Required env var: TEST_PROXY_ANTHROPIC_MODEL
+ * Example: claude-haiku-4-5-20251001
+ */
+function requireTestProxyModel(): string {
+  const model = process.env.TEST_PROXY_ANTHROPIC_MODEL?.trim();
+  if (!model) {
+    throw new Error(
+      "TEST_PROXY_ANTHROPIC_MODEL env var is required for proxy acceptance tests. " +
+      "Set it to a cheap model like claude-haiku-4-5-20251001.",
+    );
+  }
+  return model;
+}
+
+export const TEST_PROXY_MODEL = requireTestProxyModel();
+
+// ---------------------------------------------------------------------------
 // Proxy Request Builders
 // ---------------------------------------------------------------------------
 

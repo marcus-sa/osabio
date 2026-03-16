@@ -27,6 +27,7 @@ import {
   getWorkspaceSpend,
   seedLlmTrace,
   querySpendBreakdown,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_cost");
@@ -43,7 +44,7 @@ describe("Cost computed from model response and stored on trace", () => {
 
     // Given Priya sends a request that produces a response with token usage
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Explain recursion in one sentence." }],
@@ -92,7 +93,7 @@ describe("Spend counters updated at workspace, project, and task levels", () => 
 
     // Seed traces with known cost
     await seedLlmTrace(surreal, `trace-counters-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
@@ -123,7 +124,7 @@ describe("Unattributed costs visible in workspace total", () => {
     // Given attributed traces
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-attr-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 1000,
         output_tokens: 200,
         cost_usd: 0.006,
@@ -136,7 +137,7 @@ describe("Unattributed costs visible in workspace total", () => {
     // And unattributed traces (no task)
     for (let i = 0; i < 2; i++) {
       await seedLlmTrace(surreal, `trace-unattr-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 500,
         output_tokens: 100,
         cost_usd: 0.003,
@@ -161,7 +162,7 @@ describe("Spend API returns breakdown by project", () => {
 
     // Seed traces for API test
     await seedLlmTrace(surreal, `trace-api-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
@@ -194,7 +195,7 @@ describe("Historical costs unaffected by pricing changes", () => {
     yesterday.setDate(yesterday.getDate() - 1);
 
     await seedLlmTrace(surreal, `trace-hist-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 12340,
       output_tokens: 2100,
       cost_usd: 0.046,

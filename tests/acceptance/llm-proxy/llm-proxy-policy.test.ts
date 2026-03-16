@@ -16,6 +16,7 @@ import {
   createProxyTestWorkspace,
   seedLlmTrace,
   getObservationsForWorkspace,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_policy");
@@ -146,7 +147,7 @@ describe("Budget exceeded request blocked with spend details", () => {
     // Given: workspace already spent $10.50 today (over $10 limit)
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-bud-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 10000,
         output_tokens: 2000,
         cost_usd: 3.50,
@@ -157,7 +158,7 @@ describe("Budget exceeded request blocked with spend details", () => {
 
     // When: agent makes another LLM request
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -194,7 +195,7 @@ describe("Rate limited request blocked with retry guidance", () => {
     // Send 65 requests rapidly (default limit is 60/min per workspace)
     const promises = Array.from({ length: 65 }, () =>
       sendProxyRequest(baseUrl, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         stream: false,
         maxTokens: 10,
         messages: [{ role: "user", content: "hi" }],
@@ -234,7 +235,7 @@ describe("No policies defaults to permissive with warning", () => {
 
     // When: agent requests any model
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -276,12 +277,12 @@ describe("Policy decision logged for audit trail", () => {
     await createProxyModelPolicy(surreal, workspaceId, {
       policyId,
       agentType: "coding-agent",
-      allowedModels: ["claude-sonnet-4-20250514", "claude-opus-4-20250514"],
+      allowedModels: [TEST_PROXY_MODEL, "claude-opus-4-20250514"],
     });
 
     // When: coding-agent requests an allowed model
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],

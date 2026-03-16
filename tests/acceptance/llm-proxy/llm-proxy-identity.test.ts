@@ -24,6 +24,7 @@ import {
   createProxyTestProject,
   buildClaudeCodeUserId,
   getTracesForWorkspace,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_identity");
@@ -49,7 +50,7 @@ describe("Full identity resolved from Claude Code metadata and headers", () => {
 
     // When a request includes full Claude Code metadata and headers
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -88,7 +89,7 @@ describe("Graceful degradation without task header", () => {
 
     // Given a request with metadata but no task header
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -114,7 +115,7 @@ describe("Graceful degradation without any metadata", () => {
 
     // Given a request with workspace header but no metadata.user_id
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -134,7 +135,7 @@ describe("Invalid workspace produces warning but does not block", () => {
 
     // Given a request with a non-existent workspace
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -158,7 +159,7 @@ describe("Malformed metadata.user_id parsed as opaque identifier", () => {
 
     // Given a request with non-standard metadata.user_id format
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
