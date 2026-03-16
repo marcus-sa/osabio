@@ -21,6 +21,7 @@ type CreateIntentParams = {
 
 type StatusUpdateFields = {
   evaluation?: EvaluationResult & { evaluated_at: Date; policy_only: boolean };
+  llm_reasoning?: string;
   veto_expires_at?: Date;
   veto_reason?: string;
   error_reason?: string;
@@ -150,6 +151,9 @@ export async function updateIntentStatus(
 
   if (updates?.evaluation) {
     setFields.evaluation = updates.evaluation;
+  }
+  if (updates?.llm_reasoning) {
+    setFields.llm_reasoning = updates.llm_reasoning;
   }
   if (updates?.veto_expires_at) {
     setFields.veto_expires_at = updates.veto_expires_at;

@@ -268,6 +268,7 @@ export function createIntentSubmissionHandler(
           if (routing.route === "auto_approve" || (routing.route === "veto_window")) {
             await updateIntentStatus(surreal, intentId.id as string, "authorized", {
               evaluation: evaluationRecord,
+              ...(evaluation.reasoning ? { llm_reasoning: evaluation.reasoning } : {}),
             });
 
             logInfo("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
