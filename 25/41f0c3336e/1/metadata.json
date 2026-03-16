@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2541f0c3336e",
+  "session_id": "fe97bbce-96d1-441f-a8e7-b1cedc3f53a4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T10:50:43.677086Z",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/unit/proxy-dual-mode.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8fd977a4d30f",
+  "token_usage": {
+    "input_tokens": 196,
+    "cache_creation_tokens": 125540,
+    "cache_read_tokens": 1261108,
+    "output_tokens": 5308,
+    "api_call_count": 29
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T10:50:43.490785Z",
+    "agent_lines": 19,
+    "human_added": 35,
+    "human_modified": 17,
+    "human_removed": 0,
+    "total_committed": 71,
+    "agent_percentage": 26.76056338028169
+  }
+}
