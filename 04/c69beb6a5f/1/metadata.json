@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "04c69beb6a5f",
+  "session_id": "e27f921d-51c0-45da-963b-a3b9a76bffa7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T07:03:35.534103Z",
+  "branch": "marcus-sa/setup-tailwind-shadcn",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/routes/graph-page.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c4f44f4ad27f",
+  "token_usage": {
+    "input_tokens": 1996,
+    "cache_creation_tokens": 885193,
+    "cache_read_tokens": 20691771,
+    "output_tokens": 105636,
+    "api_call_count": 163
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T07:03:34.547632Z",
+    "agent_lines": 5,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 100
+  }
+}
