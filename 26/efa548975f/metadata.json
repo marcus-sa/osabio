@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "26efa548975f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 6,
+  "files_touched": [
+    ".nwave/des/deliver-session-intent-llm-traces.json",
+    "docs/feature/intent-llm-traces/execution-log.yaml",
+    "docs/feature/intent-llm-traces/roadmap.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/26/efa548975f/0/metadata.json",
+      "transcript": "/26/efa548975f/0/full.jsonl",
+      "context": "/26/efa548975f/0/context.md",
+      "content_hash": "/26/efa548975f/0/content_hash.txt",
+      "prompt": "/26/efa548975f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 96,
+    "cache_creation_tokens": 80731,
+    "cache_read_tokens": 6825783,
+    "output_tokens": 28916,
+    "api_call_count": 52
+  }
+}

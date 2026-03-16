@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "26efa548975f",
+  "session_id": "e8bcd827-cc18-46ee-aed9-a6478c901af6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:06:56.720965Z",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 6,
+  "files_touched": [
+    ".nwave/des/deliver-session-intent-llm-traces.json",
+    "docs/feature/intent-llm-traces/execution-log.yaml",
+    "docs/feature/intent-llm-traces/roadmap.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c364800c173c",
+  "checkpoint_transcript_start": 586,
+  "transcript_lines_at_start": 586,
+  "token_usage": {
+    "input_tokens": 96,
+    "cache_creation_tokens": 80731,
+    "cache_read_tokens": 6825783,
+    "output_tokens": 28916,
+    "api_call_count": 52
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:06:55.094914Z",
+    "agent_lines": 490,
+    "human_added": 308,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 798,
+    "agent_percentage": 61.40350877192983
+  }
+}
