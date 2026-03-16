@@ -155,8 +155,10 @@ async function createTraceEdges(
     );
   }
 
-  // Create session invocation edge when session is resolved
-  // NOTE: `$session` is a SurrealDB protected variable — use `$sess` instead
+  // Create session invocation edge when session is resolved.
+  // NOTE: `$session` is a SurrealDB protected variable — use `$sess` instead.
+  // The caller must resolve the effective session ID to an agent_session PK
+  // before passing it here.
   if (data.sessionId) {
     const sessionRecord = new RecordId("agent_session", data.sessionId);
     await surreal.query(

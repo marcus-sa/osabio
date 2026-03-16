@@ -16,7 +16,7 @@
 import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
 import { jsonResponse } from "../http/response";
 import { resolveIdentity } from "./identity-resolver";
-import { resolveSessionId } from "./session-id-resolver";
+import { resolveSessionId, resolveAgentSessionId } from "./session-id-resolver";
 import { captureTrace, type TraceData } from "./trace-writer";
 import {
   resolveConversationHash,
@@ -587,7 +587,12 @@ export function createAnthropicProxyHandler(
     });
 
     // --- Step 3: Session ID resolution ---
-    const effectiveSessionId = resolveSessionId(identitySignals);
+    // resolveSessionId returns either the header PK or the external Claude Code
+    // session UUID. Resolve to the actual agent_session PK via DB lookup.
+    const rawSessionId = resolveSessionId(identitySignals);
+    const effectiveSessionId = rawSessionId
+      ? await resolveAgentSessionId(deps.surreal, rawSessionId)
+      : undefined;
 
     // --- Step 3.5: Conversation hash resolution (pure) ---
     const conversationHashInput: ConversationHashInput = {
