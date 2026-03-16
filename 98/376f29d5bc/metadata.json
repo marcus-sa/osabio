@@ -3,7 +3,7 @@
   "checkpoint_id": "98376f29d5bc",
   "strategy": "manual-commit",
   "branch": "marcus-sa/opentelemetry-observability",
-  "checkpoints_count": 0,
+  "checkpoints_count": 4,
   "files_touched": [
     "docs/adrs/ADR-053-otel-over-pino.md",
     "docs/design/opentelemetry-observability/architecture-design.md",
@@ -25,13 +25,20 @@
       "context": "/98/376f29d5bc/0/context.md",
       "content_hash": "/98/376f29d5bc/0/content_hash.txt",
       "prompt": "/98/376f29d5bc/0/prompt.txt"
+    },
+    {
+      "metadata": "/98/376f29d5bc/1/metadata.json",
+      "transcript": "/98/376f29d5bc/1/full.jsonl",
+      "context": "/98/376f29d5bc/1/context.md",
+      "content_hash": "/98/376f29d5bc/1/content_hash.txt",
+      "prompt": "/98/376f29d5bc/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 52,
-    "cache_creation_tokens": 60945,
-    "cache_read_tokens": 293840,
-    "output_tokens": 1129,
-    "api_call_count": 6
+    "input_tokens": 250,
+    "cache_creation_tokens": 359219,
+    "cache_read_tokens": 11339344,
+    "output_tokens": 50185,
+    "api_call_count": 112
   }
 }
