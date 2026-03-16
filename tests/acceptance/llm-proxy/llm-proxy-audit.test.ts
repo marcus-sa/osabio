@@ -21,6 +21,7 @@ import {
   queryTracesByProject,
   runComplianceCheck,
   seedAgentSession,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_audit");
@@ -107,7 +108,7 @@ describe("Auditor views full provenance chain for a trace", () => {
 
     // Given a trace exists with full provenance edges
     await seedLlmTrace(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 12340,
       output_tokens: 2100,
       cost_usd: 0.068,
@@ -128,7 +129,7 @@ describe("Auditor views full provenance chain for a trace", () => {
     const body = await response.json();
 
     // Usage data
-    expect(body.model).toBe("claude-sonnet-4-20250514");
+    expect(body.model).toBe(TEST_PROXY_MODEL);
     expect(body.input_tokens).toBe(12340);
     expect(body.output_tokens).toBe(2100);
     expect(body.cost_usd).toBe(0.068);
@@ -171,7 +172,7 @@ describe("Auditor queries traces by project and date range", () => {
     const march20 = new Date("2026-03-20T12:00:00Z");
 
     await seedLlmTrace(surreal, `trace-m5-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
@@ -182,7 +183,7 @@ describe("Auditor queries traces by project and date range", () => {
     });
 
     await seedLlmTrace(surreal, `trace-m10-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 2000,
       output_tokens: 400,
       cost_usd: 0.012,
@@ -193,7 +194,7 @@ describe("Auditor queries traces by project and date range", () => {
     });
 
     await seedLlmTrace(surreal, `trace-m20-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 3000,
       output_tokens: 600,
       cost_usd: 0.018,
@@ -242,7 +243,7 @@ describe("Authorization compliance check passes", () => {
     const traceId2 = `trace-comply2-${crypto.randomUUID()}`;
 
     await seedLlmTrace(surreal, traceId1, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
@@ -253,7 +254,7 @@ describe("Authorization compliance check passes", () => {
     await seedGovernedByEdge(surreal, traceId1, policyId);
 
     await seedLlmTrace(surreal, traceId2, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 500,
       output_tokens: 100,
       cost_usd: 0.003,
@@ -300,7 +301,7 @@ describe("Traces without authorization flagged as unverified", () => {
     // Given: one authorized trace and three unverified traces
     const authorizedTraceId = `trace-auth-${crypto.randomUUID()}`;
     await seedLlmTrace(surreal, authorizedTraceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       input_tokens: 1000,
       output_tokens: 200,
       cost_usd: 0.006,
@@ -315,7 +316,7 @@ describe("Traces without authorization flagged as unverified", () => {
       const id = `trace-gap-${crypto.randomUUID()}`;
       unverifiedIds.push(id);
       await seedLlmTrace(surreal, id, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 1000,
         output_tokens: 200,
         cost_usd: 0.006,
@@ -348,7 +349,7 @@ describe("Traces without authorization flagged as unverified", () => {
     // Each unverified trace includes id, model, and created_at
     for (const trace of body.unverified_traces) {
       expect(trace.id).toBeDefined();
-      expect(trace.model).toBe("claude-sonnet-4-20250514");
+      expect(trace.model).toBe(TEST_PROXY_MODEL);
       expect(trace.created_at).toBeDefined();
     }
   }, 15_000);

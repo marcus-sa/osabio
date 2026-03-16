@@ -53,6 +53,15 @@ import {
   type ContextCandidate,
   type InjectionResult,
 } from "./context-injector";
+import {
+  resolveProxyAuth,
+  createLookupProxyToken,
+  createTokenCache,
+  ProxyAuthError,
+  type ProxyAuthResult,
+  type LookupProxyToken,
+  type TokenCache,
+} from "./proxy-auth";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
@@ -95,10 +104,18 @@ async function validateWorkspace(
 }
 
 // ---------------------------------------------------------------------------
+// Auth Mode (dual-mode: Brain auth vs direct auth)
+// ---------------------------------------------------------------------------
+
+export type AuthMode =
+  | { mode: "direct" }
+  | { mode: "brain"; serverApiKey?: string };
+
+// ---------------------------------------------------------------------------
 // Header Forwarding
 // ---------------------------------------------------------------------------
 
-function buildUpstreamHeaders(request: Request): Headers {
+export function buildUpstreamHeaders(request: Request, authMode: AuthMode): Headers {
   const headers = new Headers();
 
   for (const name of FORWARDED_HEADERS) {
@@ -106,10 +123,16 @@ function buildUpstreamHeaders(request: Request): Headers {
     if (value) headers.set(name, value);
   }
 
-  const xApiKey = request.headers.get("x-api-key");
-  const authHeader = request.headers.get("authorization");
-  if (xApiKey) headers.set("x-api-key", xApiKey);
-  if (authHeader) headers.set("authorization", authHeader);
+  if (authMode.mode === "brain" && authMode.serverApiKey) {
+    // Brain auth with server-held API key: inject it, do not forward client auth
+    headers.set("x-api-key", authMode.serverApiKey);
+  } else {
+    // Direct auth: forward client's auth headers as-is
+    const xApiKey = request.headers.get("x-api-key");
+    const authHeader = request.headers.get("authorization");
+    if (xApiKey) headers.set("x-api-key", xApiKey);
+    if (authHeader) headers.set("authorization", authHeader);
+  }
 
   return headers;
 }
@@ -210,7 +233,7 @@ function extractNonStreamingUsage(
   responseBody: string,
   requestModel: string | undefined,
   latencyMs: number,
-  identity: { workspaceId?: string; taskId?: string },
+  identity: { workspaceId?: string; taskId?: string; identityId?: string },
   sessionId?: string,
   policyDecision?: PolicyDecisionLog,
   injectionResult?: InjectionResult,
@@ -228,6 +251,7 @@ function extractNonStreamingUsage(
       stopReason: parsed.stop_reason,
       latencyMs,
       workspaceId: identity.workspaceId,
+      identityId: identity.identityId,
       sessionId,
       taskId: identity.taskId,
       policyDecision,
@@ -529,6 +553,7 @@ function buildStreamingTraceData(
     stopReason: streamCtx.stopReason,
     latencyMs,
     workspaceId: identitySignals.workspaceId,
+    identityId: identitySignals.proxyTokenIdentityId,
     sessionId: effectiveSessionId,
     taskId: identitySignals.taskId,
     policyDecision,
@@ -551,10 +576,20 @@ export function createAnthropicProxyHandler(
   const noPolicyWarnedWorkspaces = new Set<string>();
   const contextCache: ContextCache = createContextCache(300); // default TTL, overridden per-workspace
 
+  // Proxy auth: per-handler cache + DB lookup function (not module-level singletons)
+  const proxyTokenCache: TokenCache = createTokenCache();
+  const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
+
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
   const pruneInterval = setInterval(
-    () => pruneStaleEntries(rateLimiterState, Date.now()),
+    () => {
+      pruneStaleEntries(rateLimiterState, Date.now());
+      const nowMs = Date.now();
+      for (const [key, entry] of proxyTokenCache) {
+        if (nowMs >= entry.expiresAt) proxyTokenCache.delete(key);
+      }
+    },
     5 * 60 * 1000,
   );
   pruneInterval.unref();
@@ -573,13 +608,40 @@ export function createAnthropicProxyHandler(
     const parsed = tryParseRequestBody(body);
     const isStreaming = parsed?.stream === true;
 
+    // --- Step 1.5: Brain auth resolution (dual-mode) ---
+    let brainAuthResult: ProxyAuthResult | undefined;
+    let authMode: AuthMode = { mode: "direct" };
+
+    try {
+      brainAuthResult = await resolveProxyAuth(
+        request.headers,
+        lookupProxyToken,
+        proxyTokenCache,
+      );
+    } catch (error) {
+      if (error instanceof ProxyAuthError) {
+        return jsonResponse(
+          { error: { type: "authentication_error", message: error.message } },
+          401,
+        );
+      }
+      throw error;
+    }
+
+    if (brainAuthResult) {
+      // Brain auth mode: use server API key if available, otherwise forward client auth headers
+      authMode = { mode: "brain", serverApiKey: deps.config.anthropicApiKey };
+    }
+
     // --- Step 2: Identity resolution ---
+    // In Brain auth mode, workspace comes from the token (not from headers)
     const identitySignals = resolveIdentity({
       metadataUserId: parsed?.metadata?.user_id,
-      workspaceHeader: request.headers.get("X-Brain-Workspace") ?? undefined,
+      workspaceHeader: brainAuthResult?.workspaceId ?? (request.headers.get("X-Brain-Workspace") ?? undefined),
       taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
       agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
       sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
+      proxyTokenIdentityId: brainAuthResult?.identityId,
       userAgent: request.headers.get("User-Agent") ?? undefined,
     });
 
@@ -698,13 +760,24 @@ export function createAnthropicProxyHandler(
     }
 
     // --- API key validation ---
-    const hasApiKey = request.headers.has("x-api-key");
-    const hasAuthHeader = request.headers.has("authorization");
-    if (!hasApiKey && !hasAuthHeader) {
-      return jsonResponse(
-        { error: "unauthorized", message: "Missing x-api-key or authorization header" },
-        401,
-      );
+    if (authMode.mode === "brain") {
+      // Brain auth: server provides the API key — reject early if not configured
+      if (!authMode.serverApiKey) {
+        return jsonResponse(
+          { error: { type: "server_error", message: "API key not configured — server cannot proxy Brain-auth requests" } },
+          500,
+        );
+      }
+    } else {
+      // Direct auth: client must provide their own API key
+      const hasApiKey = request.headers.has("x-api-key");
+      const hasAuthHeader = request.headers.has("authorization");
+      if (!hasApiKey && !hasAuthHeader) {
+        return jsonResponse(
+          { error: { type: "authentication_error", message: "Missing x-api-key or authorization header" } },
+          401,
+        );
+      }
     }
 
     // --- Build identity context for logging ---
@@ -715,6 +788,7 @@ export function createAnthropicProxyHandler(
       workspace_id: identitySignals.workspaceId,
       task_id: identitySignals.taskId,
       agent_type: identitySignals.agentType,
+      identity_id: identitySignals.proxyTokenIdentityId,
       is_count_tokens: isCountTokens || undefined,
     };
 
@@ -734,7 +808,7 @@ export function createAnthropicProxyHandler(
       : undefined;
 
     // --- Step 6: Request forwarding ---
-    const upstreamHeaders = buildUpstreamHeaders(request);
+    const upstreamHeaders = buildUpstreamHeaders(request, authMode);
 
     let upstream: Response;
     try {
@@ -761,7 +835,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision, injectionResult);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),

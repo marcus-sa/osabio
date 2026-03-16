@@ -26,6 +26,7 @@ import {
   getSessionsForWorkspace,
   getTraceEdges,
   seedAgentSession,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_session_hash");
@@ -45,7 +46,7 @@ describe("Walking Skeleton: Identical requests grouped into same agent_session",
 
     // Given two requests with the same system prompt and first user message
     const response1 = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: firstUserMessage }],
@@ -57,7 +58,7 @@ describe("Walking Skeleton: Identical requests grouped into same agent_session",
     await response1.json();
 
     const response2 = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [
@@ -97,7 +98,7 @@ describe("Different content produces different agent_session records", () => {
 
     // Given a request with one system prompt
     const response1 = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Help me write code" }],
@@ -110,7 +111,7 @@ describe("Different content produces different agent_session records", () => {
 
     // And a request with a different system prompt
     const response2 = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Help me write code" }],
@@ -137,7 +138,7 @@ describe("Agent session has correct source marker", () => {
     await createProxyTestWorkspace(surreal, workspaceId);
 
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "How do I implement OAuth 2.1 with DPoP?" }],
@@ -165,7 +166,7 @@ describe("Missing system prompt — trace created without session hash fallback"
 
     // Given a request with no system prompt
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -210,7 +211,7 @@ describe("Multiple turns preserve same session identity", () => {
       }
 
       const response = await sendProxyRequestWithIntelligence(baseUrl, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         stream: false,
         maxTokens: 30,
         messages,
@@ -250,7 +251,7 @@ describe("Explicit session header takes precedence over content hash", () => {
 
     // Send request WITH explicit session header
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],

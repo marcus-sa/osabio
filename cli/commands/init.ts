@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
-import { findGitRoot, saveRepoConfig, loadGlobalConfig } from "../config";
+import { findGitRoot, saveRepoConfig, saveGlobalConfig, loadGlobalConfig, loadConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
 import { generateDPoPKeyMaterial } from "../dpop";
+import { mergeProxyEnvSettings, checkSettingsGitignored } from "../proxy-settings";
 import {
   BRAIN_HOOKS,
   BRAIN_CLAUDE_MD,
@@ -47,6 +48,9 @@ export async function runInit(): Promise<void> {
 
   // Step 6: Git hooks
   installGitHooks(gitRoot);
+
+  // Step 7: Proxy config
+  await setupProxyConfig(serverUrl, workspaceId, gitRoot);
 
   console.log(`\nDone. Restart Claude Code to activate.`);
 }
@@ -419,6 +423,106 @@ exit 0
 
   writeFileSync(postCommitPath, postCommitScript, { mode: 0o755 });
   console.log("✓ Git: post-commit hook installed");
+}
+
+// ---------------------------------------------------------------------------
+// Step 7: Proxy config (.claude/settings.local.json + ~/.brain/config.json)
+// ---------------------------------------------------------------------------
+
+export async function setupProxyConfig(
+  serverUrl: string,
+  workspaceId: string,
+  gitRoot: string,
+): Promise<void> {
+  // 1. Load existing config to get access_token
+  const config = await loadConfig();
+  if (!config?.access_token) {
+    console.log("  Skipping proxy setup — no access token available.");
+    return;
+  }
+
+  // 2. Request proxy token from server
+  let proxyToken: string;
+  let proxyTokenExpiresAt: string;
+  try {
+    const res = await fetch(`${serverUrl}/api/auth/proxy-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.access_token}`,
+      },
+      body: JSON.stringify({ workspace_id: workspaceId }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      console.log(`  Skipping proxy setup — proxy token request failed: ${res.status} ${body}`);
+      return;
+    }
+    const data = (await res.json()) as {
+      proxy_token: string;
+      expires_at: string;
+    };
+    proxyToken = data.proxy_token;
+    proxyTokenExpiresAt = data.expires_at;
+  } catch (err) {
+    console.log(`  Skipping proxy setup — could not reach proxy token endpoint.`);
+    return;
+  }
+
+  // 3. Store proxy token expiry in ~/.brain/config.json (raw token stays only in settings.local.json)
+  const global = await loadGlobalConfig();
+  if (global?.repos[gitRoot]) {
+    delete global.repos[gitRoot].proxy_token;
+    global.repos[gitRoot].proxy_token_expires_at = proxyTokenExpiresAt;
+    await saveGlobalConfig(global);
+  } else {
+    console.warn(`  Warning: repo entry for ${gitRoot} not found in ~/.brain/config.json — proxy token expiry tracking will not work.`);
+  }
+
+  // 4. Read or create .claude/settings.local.json
+  const claudeDir = join(gitRoot, ".claude");
+  if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
+
+  const settingsPath = join(claudeDir, "settings.local.json");
+  const settingsFile = Bun.file(settingsPath);
+  let existing: Record<string, unknown> = {};
+  if (await settingsFile.exists()) {
+    try {
+      existing = await settingsFile.json();
+    } catch {
+      // Corrupted — start fresh
+    }
+  }
+
+  // 5. Merge proxy env vars (pure function)
+  const merged = mergeProxyEnvSettings(existing, serverUrl, proxyToken);
+
+  // 6. Write merged config
+  await Bun.write(settingsPath, JSON.stringify(merged, undefined, 2) + "\n");
+
+  // 7. Check .gitignore
+  const gitignorePath = join(gitRoot, ".gitignore");
+  let gitignoreContent: string | undefined;
+  try {
+    const gitignoreFile = Bun.file(gitignorePath);
+    if (await gitignoreFile.exists()) {
+      gitignoreContent = await gitignoreFile.text();
+    }
+  } catch {
+    // No .gitignore — that's fine
+  }
+
+  if (!checkSettingsGitignored(gitignoreContent)) {
+    console.log(
+      "  ⚠ Warning: .claude/settings.local.json is not in .gitignore — it contains a secret proxy token.",
+    );
+  }
+
+  // 8. Confirmation
+  const expiryDate = new Date(proxyTokenExpiresAt).toLocaleDateString();
+  console.log(`✓ Proxy: .claude/settings.local.json configured`);
+  console.log(`  Base URL: ${serverUrl}/proxy/llm/anthropic`);
+  console.log(`  Token expires: ${expiryDate}`);
 }
 
 export async function setupCommands(gitRoot: string): Promise<void> {

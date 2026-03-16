@@ -36,6 +36,7 @@ export type ServerConfig = {
   githubClientId: string;
   githubClientSecret: string;
   anthropicApiUrl: string;
+  anthropicApiKey?: string;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -65,9 +66,7 @@ export function loadServerConfig(): ServerConfig {
 
   const chatAgentModelId = requireEnv("CHAT_AGENT_MODEL");
   const extractionModelId = requireEnv("EXTRACTION_MODEL");
-  const pmAgentModelId = Bun.env.PM_AGENT_MODEL && Bun.env.PM_AGENT_MODEL.trim().length > 0
-    ? Bun.env.PM_AGENT_MODEL.trim()
-    : extractionModelId;
+  const pmAgentModelId = optionalEnv("PM_AGENT_MODEL") ?? extractionModelId;
   const analyticsAgentModelId = requireEnv("ANALYTICS_MODEL");
   const embeddingModelId = requireEnv("EMBEDDING_MODEL");
   const embeddingDimension = parsePositiveInteger(requireEnv("EMBEDDING_DIMENSION"), "EMBEDDING_DIMENSION");
@@ -79,18 +78,15 @@ export function loadServerConfig(): ServerConfig {
   const surrealDatabase = requireEnv("SURREAL_DATABASE");
 
   const port = parsePositiveInteger(requireEnv("PORT"), "PORT");
-  const observerModelId = Bun.env.OBSERVER_MODEL && Bun.env.OBSERVER_MODEL.trim().length > 0
-    ? Bun.env.OBSERVER_MODEL.trim()
-    : extractionModelId;
-  const scorerModelId = Bun.env.SCORER_MODEL && Bun.env.SCORER_MODEL.trim().length > 0
-    ? Bun.env.SCORER_MODEL.trim()
-    : extractionModelId;
-  const githubWebhookSecret = Bun.env.GITHUB_WEBHOOK_SECRET?.trim() || undefined;
+  const observerModelId = optionalEnv("OBSERVER_MODEL") ?? extractionModelId;
+  const scorerModelId = optionalEnv("SCORER_MODEL") ?? extractionModelId;
+  const githubWebhookSecret = optionalEnv("GITHUB_WEBHOOK_SECRET");
   const betterAuthSecret = requireEnv("BETTER_AUTH_SECRET");
   const betterAuthUrl = requireEnv("BETTER_AUTH_URL");
   const githubClientId = requireEnv("GITHUB_CLIENT_ID");
   const githubClientSecret = requireEnv("GITHUB_CLIENT_SECRET");
-  const anthropicApiUrl = Bun.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com";
+  const anthropicApiUrl = optionalEnv("ANTHROPIC_API_URL") ?? "https://api.anthropic.com";
+  const anthropicApiKey = optionalEnv("ANTHROPIC_API_KEY");
 
   const openRouterReasoning = inferenceProvider === "openrouter"
     ? parseOpenRouterReasoning()
@@ -123,7 +119,14 @@ export function loadServerConfig(): ServerConfig {
     githubClientId,
     githubClientSecret,
     anthropicApiUrl,
+    ...(anthropicApiKey ? { anthropicApiKey } : {}),
   };
+}
+
+function optionalEnv(name: string): string | undefined {
+  const value = Bun.env[name]?.trim();
+  if (!value || value.length === 0) return undefined;
+  return value;
 }
 
 function requireEnv(name: string): string {

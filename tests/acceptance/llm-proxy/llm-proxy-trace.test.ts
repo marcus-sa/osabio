@@ -26,6 +26,7 @@ import {
   getTracesForWorkspace,
   getTraceEdges,
   seedAgentSession,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_trace");
@@ -42,7 +43,7 @@ describe("Trace created with usage data after LLM call", () => {
 
     // Given Priya sends a request through the proxy in a known workspace
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],
@@ -98,7 +99,7 @@ describe("Trace edges link to session, workspace, and task", () => {
 
     // Given identity resolution produced session, workspace, and task
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -139,7 +140,7 @@ describe("Trace without task has workspace and session edges only", () => {
 
     // Given no task header was present
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -173,7 +174,7 @@ describe("Trace capture does not block response delivery", () => {
     // Given a request is sent through the proxy
     const startTime = performance.now();
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -214,7 +215,7 @@ describe("Graph write failure triggers retry and fallback", () => {
 
     // Given a normal request completes
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],

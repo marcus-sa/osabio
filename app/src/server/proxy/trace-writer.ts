@@ -29,6 +29,7 @@ export type TraceData = {
   readonly stopReason?: string;
   readonly latencyMs: number;
   readonly workspaceId?: string;
+  readonly identityId?: string;
   readonly sessionId?: string;
   readonly taskId?: string;
   readonly requestId?: string;
@@ -92,6 +93,11 @@ async function createTraceNode(
   // Set workspace directly on the trace node when known
   if (data.workspaceId) {
     content.workspace = new RecordId("workspace", data.workspaceId);
+  }
+
+  // Set identity directly on the trace node (Brain auth mode)
+  if (data.identityId) {
+    content.identity = new RecordId("identity", data.identityId);
   }
 
   if (data.requestId) {
@@ -245,6 +251,7 @@ export async function captureTrace(
       latency_ms: Math.round(data.latencyMs),
       stop_reason: data.stopReason,
       workspace_id: data.workspaceId,
+      identity_id: data.identityId,
       session_id: data.sessionId,
       task_id: data.taskId,
     });

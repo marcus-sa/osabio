@@ -22,6 +22,7 @@ import {
   seedActiveLearning,
   seedOpenObservation,
   getTracesForWorkspace,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_context_injection");
@@ -53,7 +54,7 @@ describe("Walking Skeleton: Workspace decisions and learnings injected into requ
 
     // When the developer sends a request through the proxy for this workspace
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 100,
       messages: [{ role: "user", content: "How should I implement the billing API?" }],
@@ -102,7 +103,7 @@ describe("Context injection disabled -- request forwarded without modification",
 
     // When a request is sent through the proxy
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -136,7 +137,7 @@ describe("Empty workspace -- no context block appended", () => {
 
     // When a request is sent
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -166,7 +167,7 @@ describe("Context injection failure -- request forwarded without modification (f
     // Deliberately not creating workspace or config
 
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -192,7 +193,7 @@ describe("Trace output captures response content", () => {
     });
 
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Say hello in one word." }],

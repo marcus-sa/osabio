@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "setup": "bun install && cp $CONDUCTOR_ROOT_PATH/.env .env",
+    "setup": "cp $CONDUCTOR_ROOT_PATH/.env .env && (cp $CONDUCTOR_ROOT_PATH/.claude/settings.local.json .claude/settings.local.json 2>/dev/null || true) && bun install",
     "archive": "rm -rf node_modules"
   }
 }

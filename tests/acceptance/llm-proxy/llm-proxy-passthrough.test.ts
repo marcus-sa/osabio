@@ -21,6 +21,7 @@ import {
   sendProxyRequest,
   sendCountTokensRequest,
   collectProxySSEEvents,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_passthrough");
@@ -32,10 +33,10 @@ describe("Walking Skeleton: Non-streaming request forwarded transparently", () =
   it("forwards a non-streaming request and returns the model response unmodified", async () => {
     const { baseUrl } = getRuntime();
 
-    // Given Priya sends a non-streaming request for model "claude-sonnet-4"
+    // Given Priya sends a non-streaming request through the proxy
     // (uses a real API key from env — acceptance tests hit real services)
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly the word 'hello'." }],
@@ -76,7 +77,7 @@ describe("Streaming request relays all SSE events", () => {
 
     // Given Priya sends a streaming request
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: true,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly: 'hello world'" }],
@@ -119,7 +120,7 @@ describe("Upstream failure returns distinguishable error", () => {
     // (not wrapped in proxy error), showing the proxy only returns 502 for
     // actual network failures.
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "hello" }],
@@ -138,7 +139,7 @@ describe("Proxy forwards all required headers", () => {
     // Given Priya's request includes all required headers
     // When the proxy forwards the request
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 10,
       messages: [{ role: "user", content: "hi" }],
@@ -178,7 +179,7 @@ describe("Count tokens request forwarded without creating a trace", () => {
 
     // Given Priya sends a count_tokens request
     const response = await sendCountTokensRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       messages: [{ role: "user", content: "How many tokens is this?" }],
       apiKey: process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY,
     });

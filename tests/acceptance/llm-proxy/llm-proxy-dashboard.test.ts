@@ -27,6 +27,7 @@ import {
   seedLlmTrace,
   seedAgentSession,
   getObservationsForWorkspace,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_dashboard");
@@ -62,7 +63,7 @@ describe("Spend endpoint registered and returns workspace overview", () => {
     // Seed traces with known costs
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-overview-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 2000,
         output_tokens: 500,
         cost_usd: 5.0,
@@ -109,7 +110,7 @@ describe("Spend response includes per-project breakdown", () => {
     // Project 1: higher spend (3 traces x $0.10)
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-p1-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 2000,
         output_tokens: 500,
         cost_usd: 0.10,
@@ -172,7 +173,7 @@ describe("Session endpoint returns per-session cost breakdown", () => {
     // Session 1: expensive (3 traces x $0.30)
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-s1-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 5000,
         output_tokens: 1000,
         cost_usd: 0.30,
@@ -210,7 +211,7 @@ describe("Session endpoint returns per-session cost breakdown", () => {
     expect(body.sessions.length).toBe(2);
     expect(body.sessions[0].total_cost).toBeGreaterThan(body.sessions[1].total_cost);
     expect(body.sessions[0].call_count).toBe(3);
-    expect(body.sessions[0].primary_model).toBe("claude-sonnet-4-20250514");
+    expect(body.sessions[0].primary_model).toBe(TEST_PROXY_MODEL);
     expect(body.sessions[1].call_count).toBe(1);
   }, 15_000);
 });
@@ -237,7 +238,7 @@ describe("Anomaly detection for sessions exceeding 2x average call rate", () => 
     for (const sid of [normalSession1, normalSession2]) {
       for (let i = 0; i < 5; i++) {
         await seedLlmTrace(surreal, `trace-normal-${crypto.randomUUID()}`, {
-          model: "claude-sonnet-4-20250514",
+          model: TEST_PROXY_MODEL,
           input_tokens: 2000,
           output_tokens: 500,
           cost_usd: 0.01,
@@ -251,7 +252,7 @@ describe("Anomaly detection for sessions exceeding 2x average call rate", () => 
     // Anomaly session: 25 calls (well above 2x average threshold)
     for (let i = 0; i < 25; i++) {
       await seedLlmTrace(surreal, `trace-anomaly-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 2000,
         output_tokens: 500,
         cost_usd: 0.01,
@@ -296,7 +297,7 @@ describe("Budget threshold alert fires at configured percentage", () => {
     // Seed $8.50 of spend (85% of $10 budget, above 80% default threshold)
     for (let i = 0; i < 17; i++) {
       await seedLlmTrace(surreal, `trace-thresh-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 2000,
         output_tokens: 500,
         cost_usd: 0.50,
@@ -343,7 +344,7 @@ describe("Unattributed costs visible as separate category in project breakdown",
     // Attributed traces
     for (let i = 0; i < 2; i++) {
       await seedLlmTrace(surreal, `trace-attr-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 1000,
         output_tokens: 200,
         cost_usd: 0.05,
@@ -356,7 +357,7 @@ describe("Unattributed costs visible as separate category in project breakdown",
     // Unattributed traces (no task)
     for (let i = 0; i < 3; i++) {
       await seedLlmTrace(surreal, `trace-unattr-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 500,
         output_tokens: 100,
         cost_usd: 0.03,
@@ -399,7 +400,7 @@ describe("All spend queries respond within 2 seconds", () => {
     // Seed some traces
     for (let i = 0; i < 10; i++) {
       await seedLlmTrace(surreal, `trace-perf-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         input_tokens: 1000,
         output_tokens: 200,
         cost_usd: 0.01,

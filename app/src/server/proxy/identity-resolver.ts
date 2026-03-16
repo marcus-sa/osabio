@@ -16,6 +16,8 @@ export type IdentityInput = {
   taskHeader?: string;
   agentTypeHeader?: string;
   sessionHeader?: string;
+  /** Identity ID resolved from a proxy token (Brain auth mode) */
+  proxyTokenIdentityId?: string;
   userAgent?: string;
 };
 
@@ -27,6 +29,8 @@ export type IdentitySignals = {
   workspaceId?: string;
   taskId?: string;
   agentType?: string;
+  /** Identity ID from a proxy token (Brain auth mode) */
+  proxyTokenIdentityId?: string;
   userAgent?: string;
 };
 
@@ -93,6 +97,7 @@ export function resolveIdentity(input: IdentityInput): IdentitySignals {
     workspaceId: input.workspaceHeader,
     taskId: input.taskHeader,
     agentType: input.agentTypeHeader,
+    proxyTokenIdentityId: input.proxyTokenIdentityId,
     userAgent: input.userAgent,
   };
 }

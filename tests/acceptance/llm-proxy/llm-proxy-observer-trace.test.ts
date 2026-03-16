@@ -20,6 +20,7 @@ import {
   seedLlmTraceWithContent,
   getObservationsForWorkspace,
   fetchRaw,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 import { testAI } from "../acceptance-test-kit";
 import { createEmbeddingVector } from "../../../app/src/server/graph/embeddings";
@@ -96,7 +97,7 @@ describe("Walking Skeleton: Observer detects contradiction in LLM response", () 
     const responseText = "I'll create this internal API endpoint as a REST route using Express with manual JSON parsing instead of tRPC. Here's the Express route handler for the billing invoices endpoint.";
 
     await seedLlmTraceWithContent(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       responseText,
       stopReason: "end_turn",
@@ -138,7 +139,7 @@ describe("Tool-use stop reason -- trace analysis skipped", () => {
     const traceId = `trace-tooluse-${crypto.randomUUID()}`;
 
     await seedLlmTraceWithContent(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       responseText: "Let me implement this REST endpoint...",
       stopReason: "tool_use",
@@ -178,7 +179,7 @@ describe("Observer analysis failure -- trace still exists, no observation create
     const traceId = `trace-fail-${crypto.randomUUID()}`;
 
     await seedLlmTraceWithContent(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       responseText: "Some response content that might contradict something",
       stopReason: "end_turn",
@@ -249,7 +250,7 @@ describe("Observations created with sourceAgent='observer_agent'", () => {
     const responseText = "I created this internal API endpoint as a REST route using Express with manual JSON parsing instead of tRPC for the billing service.";
 
     await seedLlmTraceWithContent(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       responseText,
       stopReason: "end_turn",
@@ -298,7 +299,7 @@ describe("No contradiction when response aligns with decisions", () => {
     const responseText = "I'll create the internal API endpoint using tRPC with createTRPCRouter and Zod input validation as required by the team's standards.";
 
     await seedLlmTraceWithContent(surreal, traceId, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       responseText,
       stopReason: "end_turn",

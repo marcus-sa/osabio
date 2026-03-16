@@ -23,6 +23,7 @@ import {
   getObservationsForWorkspace,
   getSessionById,
   fetchRaw,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_observer_session_end");
@@ -70,7 +71,7 @@ describe("Walking Skeleton: Observer detects approach drift across session trace
 
     // Trace 1: Agent starts with tRPC (aligned)
     await seedLlmTraceWithContent(surreal, `trace-drift1-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "I'll set up the tRPC router for the billing service following our standard patterns.",
@@ -79,7 +80,7 @@ describe("Walking Skeleton: Observer detects approach drift across session trace
 
     // Trace 2: Agent starts drifting (mentions REST as alternative)
     await seedLlmTraceWithContent(surreal, `trace-drift2-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "Actually, tRPC is causing complexity with the webhook handler. Let me consider a simpler REST approach for this endpoint.",
@@ -88,7 +89,7 @@ describe("Walking Skeleton: Observer detects approach drift across session trace
 
     // Trace 3: Agent has fully switched to REST (contradicts decision)
     await seedLlmTraceWithContent(surreal, `trace-drift3-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "I've implemented the billing webhook as a REST endpoint with Express. The route handler accepts POST /api/billing/webhooks.",
@@ -142,7 +143,7 @@ describe("Session with consistent traces -- no cross-trace observations", () => 
     // All traces consistently use tRPC
     for (let i = 0; i < 3; i++) {
       await seedLlmTraceWithContent(surreal, `trace-consistent-${crypto.randomUUID()}`, {
-        model: "claude-sonnet-4-20250514",
+        model: TEST_PROXY_MODEL,
         workspaceId,
         sessionId,
         responseText: `Implementing tRPC router ${i} with Zod validation following established patterns.`,
@@ -185,7 +186,7 @@ describe("Session with single trace -- no cross-trace patterns possible", () => 
 
     // Only one trace in the session
     await seedLlmTraceWithContent(surreal, `trace-single-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "Implemented a REST endpoint for the billing webhook.",
@@ -266,7 +267,7 @@ describe("Accumulated contradiction across multiple traces", () => {
     // Individual traces look acceptable in isolation but combined they show
     // a pattern of bypassing the repository layer
     await seedLlmTraceWithContent(surreal, `trace-accum1-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "For this quick fix, I'll add a small SQL query directly in the handler to check the user count. Just a one-off read.",
@@ -274,7 +275,7 @@ describe("Accumulated contradiction across multiple traces", () => {
     });
 
     await seedLlmTraceWithContent(surreal, `trace-accum2-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "The analytics endpoint needs a custom join that doesn't fit our repository pattern, so I'll write the SQL inline.",
@@ -282,7 +283,7 @@ describe("Accumulated contradiction across multiple traces", () => {
     });
 
     await seedLlmTraceWithContent(surreal, `trace-accum3-${crypto.randomUUID()}`, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       workspaceId,
       sessionId,
       responseText: "Added another direct query for the dashboard stats. The repository is too rigid for these aggregation queries.",

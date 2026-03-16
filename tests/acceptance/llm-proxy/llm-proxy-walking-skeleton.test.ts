@@ -19,6 +19,7 @@ import {
   getTracesForWorkspace,
   getTracesForTask,
   getWorkspaceSpend,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_skeleton");
@@ -33,7 +34,7 @@ describe("Skeleton 1: Non-streaming passthrough", () => {
     // Given Priya has configured Claude Code to use Brain's proxy
     // And she has a valid Anthropic API key
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Reply with exactly the word 'hello'." }],
@@ -73,9 +74,9 @@ describe("Skeleton 2: Trace capture", () => {
     await createProxyTestWorkspace(surreal, workspaceId);
 
     // Given Priya is working in workspace "brain-v1"
-    // When she sends a request for model "claude-sonnet-4"
+    // When she sends a request through the proxy
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],
@@ -90,7 +91,7 @@ describe("Skeleton 2: Trace capture", () => {
     // Allow async trace capture to complete
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // And a trace appears in the knowledge graph with model "claude-sonnet-4"
+    // And a trace appears in the knowledge graph with the configured model
     const traces = await getTracesForWorkspace(surreal, workspaceId);
     expect(traces.length).toBeGreaterThanOrEqual(1);
 
@@ -122,7 +123,7 @@ describe("Skeleton 3: Cost attribution", () => {
     // Given Priya is working on task "implement-oauth" in project "auth-service"
     // And she makes an LLM call through the proxy
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 20,
       messages: [{ role: "user", content: "Say exactly: test" }],

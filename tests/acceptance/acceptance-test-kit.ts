@@ -131,6 +131,7 @@ export function setupAcceptanceSuite(
       observerModelId: process.env.OBSERVER_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
       scorerModelId: process.env.SCORER_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
       anthropicApiUrl: process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
+      ...(process.env.ANTHROPIC_API_KEY?.trim() ? { anthropicApiKey: process.env.ANTHROPIC_API_KEY.trim() } : {}),
       inferenceProvider: "openrouter",
     };
 

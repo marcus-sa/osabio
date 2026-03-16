@@ -28,6 +28,7 @@ import {
   getTraceEdges,
   getSessionById,
   buildClaudeCodeUserId,
+  TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_session_resolution");
@@ -53,7 +54,7 @@ describe("Walking Skeleton: Trace linked to agent session", () => {
 
     // When the developer sends a request with the X-Brain-Session header
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -101,7 +102,7 @@ describe("Claude Code metadata.user_id session extraction", () => {
 
     // When Claude Code sends a request with session ID embedded in metadata.user_id
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -136,7 +137,7 @@ describe("Unknown client — trace linked to workspace only", () => {
 
     // Given no session ID is provided in the request (no header, no metadata)
     const response = await sendProxyRequest(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -172,7 +173,7 @@ describe("Nonexistent session ID — trace linked to workspace only", () => {
     const bogusSessionId = crypto.randomUUID();
 
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
@@ -217,7 +218,7 @@ describe("Session activity timestamp updated on proxy request", () => {
 
     // When a proxy request is sent in this session
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
-      model: "claude-sonnet-4-20250514",
+      model: TEST_PROXY_MODEL,
       stream: false,
       maxTokens: 50,
       messages: [{ role: "user", content: "Hello" }],
