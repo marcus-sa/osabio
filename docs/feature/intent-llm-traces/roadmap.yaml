@@ -1,0 +1,281 @@
+# LLM Reasoning as Internal Telemetry — Implementation Roadmap
+#
+# Store LLM chain-of-thought reasoning on Observation and Intent nodes.
+# Extends Observer verification pipeline and Intent authorization to persist
+# reasoning strings, adds query function for programmatic consumers, and
+# gates reasoning fields to admin-only API responses.
+#
+# Design artifacts:
+#   - docs/feature/intent-llm-traces/design/architecture-design.md
+#   - docs/adrs/ADR-053-llm-reasoning-as-internal-telemetry.md
+#   - docs/requirements/intent-llm-traces/US-01 through US-04
+#   - tests/acceptance/intent-llm-traces/ (37 acceptance scenarios)
+#
+# Paradigm: Functional (TypeScript)
+# Rigor: inherit model, review enabled, mutation disabled
+#
+# Revision 2: Addressed all 6 blockers from iteration 1 crafter review.
+#   D1: Rewrote all ACs to behavioral outcomes (no internal types, SQL syntax, or call chains)
+#   D2: Decomposed Step 01-01 into 4 substeps (01-01 through 01-04)
+#   D3: Fixed Step 04-01 test_file to separate UI test file
+#   D4: Moved internal type/function references from ACs to implementation_notes
+#   D5: Removed file-specific references from Step 02-01 ACs
+#   D6: Removed index/parameter implementation details from Step 03-01 ACs
+
+project_id: intent-llm-traces
+title: "LLM Reasoning as Internal Telemetry on Intent and Observation Nodes"
+paradigm: functional
+
+roadmap:
+  project_id: intent-llm-traces
+  created_at: "2026-03-16"
+  total_steps: 7
+
+validation:
+  status: approved
+  reviewed_at: "2026-03-16"
+  reviewer: nw-software-crafter-reviewer
+  iteration: 2
+  verdict: APPROVED
+  revision_summary: >
+    Revision 2: Addressed all 6 blockers from iteration 1 crafter review.
+    D1: Rewrote all ACs to behavioral outcomes.
+    D2: Decomposed Step 01-01 into 4 substeps (01-01 through 01-04).
+    D3: Fixed Step 04-01 test_file to separate UI test file.
+    D4: Moved internal type/function references to implementation_notes.
+    D5: Removed file-specific references from ACs.
+    D6: Removed index/parameter details from ACs.
+
+phases:
+  - id: "01"
+    name: "Observation Reasoning Persistence"
+    title: "Schema + Observer Pipeline Threading"
+    description: >
+      Add reasoning field to observation table, extend observation creation to accept
+      reasoning, and thread reasoning from all Observer LLM paths through to persistence.
+      Decomposed into 4 substeps: schema+verification, peer review, graph scan, trace analyzer.
+      This phase is the critical path unblocking phases 03 and 04.
+    steps:
+      - id: "01-01"
+        step_id: "01-01"
+        name: "Schema migration and verification reasoning path"
+        title: "Observation reasoning schema and verification path"
+        description: >
+          Add reasoning field to observation table. Extend observation creation to accept
+          and persist reasoning. Thread reasoning from the Observer verification path so
+          that verification verdicts produce observations with reasoning attached.
+        acceptance_criteria:
+          - "Observations can be created with optional reasoning text that persists and is retrievable"
+          - "Observations created without reasoning have no reasoning field (absent, not null)"
+          - "Observer verification produces observations with reasoning explaining the verification logic"
+          - "Deterministic observations (no LLM involved) do not have reasoning"
+          - "Observation text (conclusion) and reasoning (chain-of-thought) are distinct values"
+          - "Schema migration applies successfully via bun migrate"
+          - "Existing observations without reasoning continue to load"
+        test_file: "tests/acceptance/intent-llm-traces/observation-reasoning.test.ts"
+        files_to_modify:
+          - "schema/migrations/NEXT_observation_reasoning.surql"
+          - "schema/surreal-schema.surql"
+          - "app/src/server/observation/queries.ts"
+          - "app/src/server/observer/llm-reasoning.ts"
+          - "app/src/server/observer/verification-pipeline.ts"
+          - "app/src/server/agents/observer/agent.ts"
+        implementation_notes: >
+          Check next migration number by scanning schema/migrations/ for highest prefix.
+          Use DEFINE FIELD OVERWRITE reasoning ON observation TYPE option<string>.
+          Wrap in BEGIN TRANSACTION / COMMIT TRANSACTION.
+          Add reasoning?: string to createObservation input type in observation/queries.ts.
+          Add reasoning?: string to VerificationResult type in verification-pipeline.ts.
+          In llm-reasoning.ts, LlmVerdict already has .reasoning — pass through applyLlmVerdict.
+          In agent.ts, persistObservation extracts reasoning from VerificationResult, passes to createObservation.
+        dependencies: []
+
+      - id: "01-02"
+        step_id: "01-02"
+        name: "Peer review reasoning path"
+        title: "Peer review observations include reasoning"
+        description: >
+          Thread reasoning from the Observer peer review path so that peer review
+          verdicts produce observations with reasoning attached.
+        acceptance_criteria:
+          - "Peer review observations include the reviewer's chain-of-thought reasoning"
+          - "Peer review reasoning is distinct from the reviewed observation's text"
+        test_file: "tests/acceptance/intent-llm-traces/observation-reasoning.test.ts"
+        files_to_modify:
+          - "app/src/server/observer/llm-reasoning.ts"
+          - "app/src/server/agents/observer/agent.ts"
+        implementation_notes: >
+          PeerReviewVerdict already has .reasoning field in llm-reasoning.ts.
+          Thread it through the peer review observation creation path in agent.ts
+          (peerReviewObservation or similar function) to createObservation.
+        dependencies:
+          - "01-01"
+
+      - id: "01-03"
+        step_id: "01-03"
+        name: "Graph scan contradiction and anomaly reasoning paths"
+        title: "Graph scan observations include reasoning"
+        description: >
+          Thread reasoning from the graph scan contradiction detection and anomaly
+          evaluation paths so that these observations include reasoning.
+        acceptance_criteria:
+          - "Contradiction observations from graph scan include the detection reasoning"
+          - "Anomaly observations from graph scan include the evaluation reasoning"
+          - "Filtered anomalies (not relevant) do not produce observations and thus no reasoning is stored"
+        test_file: "tests/acceptance/intent-llm-traces/observation-reasoning.test.ts"
+        files_to_modify:
+          - "app/src/server/observer/llm-synthesis.ts"
+          - "app/src/server/observer/graph-scan.ts"
+        implementation_notes: >
+          In llm-synthesis.ts, DetectedContradiction and AnomalyEvaluation types have .reasoning fields.
+          In graph-scan.ts, the contradiction loop and anomaly loop iterate over LLM results —
+          thread .reasoning to createObservation calls within each loop iteration.
+        dependencies:
+          - "01-01"
+
+      - id: "01-04"
+        step_id: "01-04"
+        name: "Trace analyzer reasoning paths"
+        title: "Trace analyzer observations include reasoning"
+        description: >
+          Thread reasoning from the trace response analyzer paths (contradiction
+          verification and missing decision detection) so that these observations
+          include reasoning.
+        acceptance_criteria:
+          - "Trace contradiction observations include the verification reasoning"
+          - "Missing decision observations include the detection reasoning"
+        test_file: "tests/acceptance/intent-llm-traces/observation-reasoning.test.ts"
+        files_to_modify:
+          - "app/src/server/observer/trace-response-analyzer.ts"
+        implementation_notes: >
+          In trace-response-analyzer.ts, verifyContradiction and verifyMissingDecision
+          return objects with reasoning/summary fields. Thread these to createObservation
+          calls within detectContradictions and detectMissingDecisions functions.
+        dependencies:
+          - "01-01"
+
+  - id: "02"
+    name: "Intent Reasoning Persistence"
+    title: "Authorizer LLM Chain-of-Thought Capture"
+    description: >
+      Add llm_reasoning field to intent table, extend LLM evaluator to capture
+      full chain-of-thought alongside existing reason summary, and persist on
+      intent records.
+    steps:
+      - id: "02-01"
+        step_id: "02-01"
+        name: "Intent LLM reasoning persistence"
+        title: "Intent LLM reasoning persistence"
+        description: >
+          Add llm_reasoning field to intent table. Extend LLM evaluator to capture
+          full chain-of-thought alongside existing one-line reason summary. Persist
+          on intent records when LLM evaluation occurs. Policy-only evaluations
+          (no LLM call) must not have llm_reasoning.
+        acceptance_criteria:
+          - "LLM-evaluated intents include full chain-of-thought reasoning as llm_reasoning"
+          - "llm_reasoning is distinct from existing human-provided reasoning field"
+          - "llm_reasoning is distinct from evaluation.reason (one-line summary)"
+          - "Policy-only evaluations do not have llm_reasoning (field absent, not null)"
+          - "Existing human reasoning field is unchanged by this change"
+          - "Existing intents without llm_reasoning continue to load"
+          - "Schema migration applies successfully via bun migrate"
+        test_file: "tests/acceptance/intent-llm-traces/intent-reasoning.test.ts"
+        files_to_modify:
+          - "schema/migrations/NEXT_intent_llm_reasoning.surql"
+          - "schema/surreal-schema.surql"
+          - "app/src/server/intent/authorizer.ts"
+          - "app/src/server/intent/intent-queries.ts"
+          - "app/src/server/intent/types.ts"
+          - "app/src/server/oauth/intent-submission.ts"
+        implementation_notes: >
+          Use DEFINE FIELD OVERWRITE llm_reasoning ON intent TYPE option<string>.
+          The evaluationResultSchema Zod schema needs a new reasoning field with .describe()
+          instructing the LLM to provide full chain-of-thought. The existing reason field
+          keeps its current description (brief summary). StatusUpdateFields type in
+          intent-queries.ts needs llm_reasoning?: string. The intent-submission.ts handler
+          passes evaluation.reasoning through to updateIntentStatus as llm_reasoning.
+        dependencies: []
+
+  - id: "03"
+    name: "Reasoning Query and API Gating"
+    title: "Programmatic Access and Access Control"
+    description: >
+      Add query function for observations with reasoning. Gate reasoning fields
+      in API responses to admin-role requesters only.
+    steps:
+      - id: "03-01"
+        step_id: "03-01"
+        name: "Reasoning query function and API access control"
+        title: "Reasoning query function and API access control"
+        description: >
+          Add query function returning observations that have reasoning, filtered by
+          workspace, with configurable limit and optional time range. Gate reasoning
+          and llm_reasoning fields in observation and intent detail API responses to
+          admin-role requesters only.
+        acceptance_criteria:
+          - "Query returns only observations that have reasoning attached"
+          - "Query is scoped to the requesting workspace"
+          - "Query results are ordered by creation date, most recent first"
+          - "Query respects configurable limit (default 50)"
+          - "Query supports time-range filtering via sinceDate parameter"
+          - "Observation detail API includes reasoning for admin-role requesters"
+          - "Observation detail API omits reasoning for non-admin requesters"
+          - "Intent detail API includes llm_reasoning for admin-role requesters"
+          - "Intent detail API omits llm_reasoning for non-admin requesters"
+          - "Non-admin responses omit reasoning fields entirely (not null, not empty)"
+        test_file: "tests/acceptance/intent-llm-traces/reasoning-queries.test.ts"
+        files_to_modify:
+          - "app/src/server/observation/queries.ts"
+          - "app/src/server/entities/entity-detail-route.ts"
+          - "app/src/server/intent/intent-routes.ts"
+        implementation_notes: >
+          SurrealQL: SELECT id, text, reasoning, severity, confidence, source,
+          observation_type, evidence_refs, created_at FROM observation WHERE workspace = $ws
+          AND reasoning IS NOT NONE AND created_at > $since ORDER BY created_at DESC LIMIT $limit.
+          Uses existing workspace B-tree index, no KNN needed.
+          For API gating, check requester role at the response serialization layer.
+          Observation detail in entity-detail-route.ts — conditionally include/exclude
+          reasoning field based on role. Similar gating in intent-routes.ts.
+        dependencies:
+          - "01-01"
+
+  - id: "04"
+    name: "UI Reasoning Panel"
+    title: "View Logic Collapsible Panel"
+    description: >
+      Collapsible panel on observation and intent detail views showing LLM reasoning.
+      Three states: reasoning available, deterministic fallback, legacy empty.
+    steps:
+      - id: "04-01"
+        step_id: "04-01"
+        name: "View Logic UI reasoning panel"
+        title: "View Logic UI reasoning panel"
+        description: >
+          Add a collapsible View Logic panel to observation and intent detail views.
+          Panel collapsed by default. Three states: reasoning available (show full text),
+          deterministic (show fallback message), legacy/empty (show not available message).
+          Panel only renders when API response includes reasoning (admin-only from step 03-01).
+        acceptance_criteria:
+          - "View Logic toggle button visible on observation detail for admin users"
+          - "Reasoning panel collapsed by default"
+          - "Panel shows full reasoning text when reasoning is present"
+          - "Panel shows deterministic fallback message when source is deterministic and reasoning absent"
+          - "Panel shows legacy empty state when reasoning absent and source is not deterministic"
+          - "Reasoning text renders in monospace font"
+          - "View Logic toggle visible on intent detail for admin users"
+          - "Intent panel shows llm_reasoning distinct from human reasoning"
+          - "Toggle hides panel on second click"
+        test_file: "tests/acceptance/intent-llm-traces/view-logic-panel.test.ts"
+        files_to_modify:
+          - "app/src/client/components/reasoning-panel.tsx"
+          - "app/src/client/components/observation-detail.tsx"
+          - "app/src/client/components/intent-detail.tsx"
+        implementation_notes: >
+          Create shared ReasoningPanel component using shadcn/ui Collapsible.
+          Panel receives reasoning, source, and optional trace info as props.
+          observation-detail and intent-detail conditionally render ReasoningPanel
+          when reasoning/llm_reasoning is present in API response.
+          Model identifier resolved via trace linkage (observation -> source_session
+          -> agent_session -> invoked -> trace for model field).
+        dependencies:
+          - "03-01"
