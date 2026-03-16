@@ -18,6 +18,8 @@ import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { loadBranchChain } from "./branch-chain";
 import { persistSubagentTrace } from "./trace-loader";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 type ChatRequestBody = {
   messages: UIMessage[];
@@ -216,6 +218,7 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       system,
       messages: modelMessages,
       tools,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.CHAT_AGENT),
       experimental_context: {
         actor: "chat_agent",
         workspaceRecord,

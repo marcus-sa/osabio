@@ -6,6 +6,8 @@ import {
 import { buildExtractionSystemPrompt } from "./prompt";
 import type { ExtractionGraphContextRow, MessageContextRow } from "./types";
 import { elapsedMs, logError, logInfo } from "../http/observability";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 export async function extractStructuredGraph(input: {
   extractionModel: any;
@@ -33,6 +35,7 @@ export async function extractStructuredGraph(input: {
       model: input.extractionModel,
       schema: extractionResultSchema,
       temperature: 0.1,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.EXTRACTION),
       system: buildExtractionSystemPrompt({ onboarding: input.onboarding }),
       prompt: [
         "Conversation history (reference resolution only):",
@@ -59,16 +62,19 @@ export async function extractStructuredGraph(input: {
     });
 
     const output = extractionOutput.object as ExtractionPromptOutput;
+    const durationMs = elapsedMs(startedAt);
+    recordLlmMetrics(FUNCTION_IDS.EXTRACTION, extractionOutput.usage, durationMs);
     logInfo("extraction.generate.completed", "Structured extraction completed", {
       onboarding: input.onboarding,
       entityCount: output.entities.length,
       relationshipCount: output.relationships.length,
       toolCount: output.tools.length,
-      durationMs: elapsedMs(startedAt),
+      durationMs,
     });
 
     return output;
   } catch (error) {
+    recordLlmError(FUNCTION_IDS.EXTRACTION, error instanceof Error ? error.constructor.name : "unknown");
     logError("extraction.generate.failed", "Structured extraction failed", error, {
       onboarding: input.onboarding,
       durationMs: elapsedMs(startedAt),

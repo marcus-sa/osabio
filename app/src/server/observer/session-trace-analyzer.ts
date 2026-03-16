@@ -130,9 +130,13 @@ async function analyzeCrossTracePatterns(
     `--- Trace ${t.index + 1} ---\n${t.text.slice(0, 1500)}`,
   ).join("\n\n");
 
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
+
   const { object } = await generateObject({
     model,
     schema: crossTracePatternSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_SYNTHESIS),
     prompt: `You are an AI governance observer analyzing a sequence of LLM responses from a single coding session for cross-trace patterns.
 
 CONFIRMED WORKSPACE DECISIONS:

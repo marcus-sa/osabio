@@ -9,6 +9,8 @@ import type { DPoPVerificationDeps, LookupWorkspace } from "../oauth/dpop-middle
 import type { LookupIdentity, LookupManager, ResolvedIdentity, ResolvedManager } from "../oauth/identity-lifecycle";
 import { checkAuthority, checkAuthorityOrError } from "../iam/authority";
 import type { AgentType } from "../chat/tools/types";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 import {
   listProjectDecisions,
   getTaskDependencyTree,
@@ -1283,6 +1285,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       model: extractionModel,
       schema: commitCheckSchema,
       temperature: 0.1,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.MCP_CONTEXT),
       system: [
         "You are a pre-commit analyzer for a knowledge graph-integrated development workflow.",
         "Analyze the staged git diff and commit message against the project context.",

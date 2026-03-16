@@ -97,5 +97,26 @@ events:
   s: EXECUTED
   sid: 02-01
   t: '2026-03-16T15:29:07Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-16T15:29:20Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-16T15:27:10Z'
+- d: 'NOT_APPLICABLE: adding experimental_telemetry config to existing call sites
+    has no meaningful acceptance test boundary - verification is structural'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-16T15:27:20Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-16T15:27:51Z'
 project_id: opentelemetry-observability
 schema_version: '3.0'

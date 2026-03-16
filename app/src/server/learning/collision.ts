@@ -13,6 +13,8 @@ import { generateObject } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import { logInfo, logWarn } from "../http/observability";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -180,6 +182,7 @@ async function classifyWithLlm(
       model: model as any,
       schema: classificationSchema,
       temperature: 0.1,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.EXTRACTION),
       abortSignal: AbortSignal.timeout(30_000),
       prompt: [
         `Given learning A: "${learningText}"`,

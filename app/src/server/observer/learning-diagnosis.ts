@@ -17,6 +17,8 @@ import { generateObject, type LanguageModel } from "ai";
 import { logError, logInfo } from "../http/observability";
 import { rootCauseSchema, type RootCauseClassification } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
 import { cosineSimilarity, createEmbeddingVector } from "../graph/embeddings";
@@ -429,11 +431,13 @@ export async function classifyRootCause(
       model,
       system: OBSERVER_IDENTITY,
       schema: rootCauseSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS),
       prompt,
       abortSignal: AbortSignal.timeout(CLASSIFICATION_TIMEOUT_MS),
     });
 
     const latencyMs = Date.now() - start;
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS, result.usage, latencyMs);
     logInfo("observer.llm.root_cause", "Root cause classification completed", {
       latencyMs,
       category: result.object.category,
@@ -444,6 +448,7 @@ export async function classifyRootCause(
     return result.object;
   } catch (error) {
     const latencyMs = Date.now() - start;
+    recordLlmError(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS, error instanceof Error ? error.constructor.name : "unknown");
     logError("observer.llm.root_cause_error", "Root cause classification failed", {
       error,
       latencyMs,

@@ -163,6 +163,8 @@ async function verifyContradiction(
   decision: DecisionCandidate,
 ): Promise<ContradictionVerdict> {
   const { generateObject } = await import("ai");
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
 
   const contradictionSchema = z.object({
     is_contradiction: z.boolean().describe("Whether the response contradicts the decision"),
@@ -173,6 +175,7 @@ async function verifyContradiction(
   const { object } = await generateObject({
     model,
     schema: contradictionSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
     prompt: `You are an AI governance observer. Determine if this LLM response contradicts a confirmed workspace decision.
 
 CONFIRMED DECISION:
@@ -206,6 +209,8 @@ async function verifyMissingDecision(
   responseText: string,
 ): Promise<{ isDecision: boolean; confidence: number; summary: string }> {
   const { generateObject } = await import("ai");
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
 
   const missingDecisionSchema = z.object({
     is_decision: z.boolean().describe("Whether the response contains an unrecorded architectural/strategic decision"),
@@ -216,6 +221,7 @@ async function verifyMissingDecision(
   const { object } = await generateObject({
     model,
     schema: missingDecisionSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
     prompt: `You are an AI governance observer. Determine if this LLM response contains an architectural or strategic decision that should be tracked.
 
 LLM RESPONSE:

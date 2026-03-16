@@ -4,6 +4,8 @@ import type { ExtractedEntity, ExtractedRelationship, OnboardingState } from "..
 import { logInfo, logError } from "../http/observability";
 import { buildChatContext, buildSystemPrompt, type ChatContext } from "./context";
 import { createChatAgentTools } from "./tools";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 type ConversationMessage = {
   role: "user" | "assistant";
@@ -75,6 +77,7 @@ export async function runChatAgent(input: {
     model: input.model,
     system,
     messages: modelMessages,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.CHAT_AGENT),
     tools: createChatAgentTools({
       surreal: input.surreal,
       pmAgentModel: input.pmAgentModel,
