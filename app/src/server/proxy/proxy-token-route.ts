@@ -69,7 +69,7 @@ async function resolveIdentityForWorkspaceAndPerson(
 ): Promise<string | undefined> {
   const personRecord = new RecordId("person", personId);
   const wsRecord = new RecordId("workspace", workspaceId);
-  const results = await surreal.query<[RecordId[]]>(
+  const results = await surreal.query<[undefined, RecordId[]]>(
     `LET $identities = SELECT VALUE in FROM identity_person WHERE out = $person;
      SELECT VALUE id FROM identity WHERE id IN $identities AND id IN (SELECT VALUE in FROM member_of WHERE out = $ws) LIMIT 1;`,
     { person: personRecord, ws: wsRecord },
