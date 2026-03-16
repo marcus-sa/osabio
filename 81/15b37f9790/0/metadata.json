@@ -3,16 +3,11 @@
   "checkpoint_id": "8115b37f9790",
   "session_id": "32125689-d91a-4c55-a338-c305b02a1b47",
   "strategy": "manual-commit",
-  "created_at": "2026-03-16T07:02:42.629547Z",
+  "created_at": "2026-03-16T07:03:25.617861Z",
   "branch": "marcus-sa/cli-proxy-setup",
-  "checkpoints_count": 9,
+  "checkpoints_count": 1,
   "files_touched": [
-    "docs/feature/cli-proxy-setup/design/architecture-design.md",
-    "docs/requirements/cli-proxy-setup/acceptance-criteria.md",
-    "docs/requirements/cli-proxy-setup/user-stories.md",
-    "docs/ux/cli-proxy-setup/journey-proxy-setup-visual.md",
-    "docs/ux/cli-proxy-setup/jtbd-four-forces.md",
-    "docs/ux/cli-proxy-setup/jtbd-job-stories.md"
+    "conductor.json"
   ],
   "agent": "Claude Code",
   "turn_id": "b4ea024db91b",
@@ -24,12 +19,12 @@
     "api_call_count": 38
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-16T07:02:42.369132Z",
-    "agent_lines": 453,
-    "human_added": 1237,
+    "calculated_at": "2026-03-16T07:03:25.35438Z",
+    "agent_lines": 1,
+    "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 1690,
-    "agent_percentage": 26.804733727810653
+    "total_committed": 1,
+    "agent_percentage": 100
   }
 }
