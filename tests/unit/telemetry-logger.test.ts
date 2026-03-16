@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeEach, afterAll } from "bun:test";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import { LoggerProvider, SimpleLogRecordProcessor, InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
 
@@ -6,12 +6,13 @@ describe("telemetry/logger", () => {
   const exporter = new InMemoryLogRecordExporter();
   let originalProvider: ReturnType<typeof logs.getLoggerProvider>;
 
-  beforeAll(() => {
+  beforeEach(() => {
     originalProvider = logs.getLoggerProvider();
     const provider = new LoggerProvider({
       processors: [new SimpleLogRecordProcessor(exporter)],
     });
     logs.setGlobalLoggerProvider(provider);
+    exporter.getFinishedLogRecords().length = 0;
   });
 
   afterAll(() => {
@@ -20,7 +21,6 @@ describe("telemetry/logger", () => {
 
   test("log.info emits OTEL log record with INFO severity", async () => {
     const { log } = await import("../../app/src/server/telemetry/logger");
-    exporter.getFinishedLogRecords().length = 0;
 
     log.info("server.started", "Server started on port 3000", { port: 3000 });
 
@@ -35,7 +35,6 @@ describe("telemetry/logger", () => {
 
   test("log.warn emits OTEL log record with WARN severity", async () => {
     const { log } = await import("../../app/src/server/telemetry/logger");
-    exporter.getFinishedLogRecords().length = 0;
 
     log.warn("rate.limit", "Rate limit approaching");
 
@@ -49,7 +48,6 @@ describe("telemetry/logger", () => {
 
   test("log.error emits OTEL log record with ERROR severity and serialized error", async () => {
     const { log } = await import("../../app/src/server/telemetry/logger");
-    exporter.getFinishedLogRecords().length = 0;
 
     const testError = new Error("connection refused");
     log.error("db.connect", "Database connection failed", testError, { host: "localhost" });
@@ -67,7 +65,6 @@ describe("telemetry/logger", () => {
 
   test("log.debug emits OTEL log record with DEBUG severity", async () => {
     const { log } = await import("../../app/src/server/telemetry/logger");
-    exporter.getFinishedLogRecords().length = 0;
 
     log.debug("cache.hit", "Cache hit for key", { key: "user:123" });
 
