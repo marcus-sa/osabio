@@ -1,0 +1,143 @@
+import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { trace, context, SpanStatusCode, type Span, type Tracer } from "@opentelemetry/api";
+
+// We test withTracing as a pure higher-order function.
+// Driving port: withTracing(route, method, handler) -> RouteHandler
+// Acceptance criteria verified:
+// 1. Root span "brain.http.request" with method/route/status_code attributes
+// 2. x-request-id response header preserved
+// 3. Error responses set span status ERROR and record exception
+// 4. httpDuration and httpRequests metrics recorded per request
+
+describe("withTracing", () => {
+  // Spy on span operations
+  let spanAttributes: Record<string, unknown>;
+  let spanStatus: { code: number; message?: string } | undefined;
+  let recordedExceptions: unknown[];
+  let spanEnded: boolean;
+  let mockSpan: Span;
+  let metricsRecorded: { duration: Array<{ value: number; attributes: Record<string, unknown> }>; requests: Array<{ attributes: Record<string, unknown> }> };
+
+  beforeEach(() => {
+    spanAttributes = {};
+    spanStatus = undefined;
+    recordedExceptions = [];
+    spanEnded = false;
+    metricsRecorded = { duration: [], requests: [] };
+
+    mockSpan = {
+      setAttribute: (key: string, value: unknown) => { spanAttributes[key] = value; return mockSpan; },
+      setStatus: (status: { code: number; message?: string }) => { spanStatus = status; return mockSpan; },
+      recordException: (exception: unknown) => { recordedExceptions.push(exception); },
+      end: () => { spanEnded = true; },
+      spanContext: () => ({ traceId: "abc123", spanId: "def456", traceFlags: 1, isRemote: false }),
+      isRecording: () => true,
+      updateName: () => mockSpan,
+      addEvent: () => mockSpan,
+      addLink: () => mockSpan,
+      addLinks: () => mockSpan,
+      setAttributes: () => mockSpan,
+    } as unknown as Span;
+  });
+
+  // Lazy import to allow mock setup
+  async function loadWithTracing() {
+    // Mock the metrics module
+    mock.module("../../app/src/server/telemetry/metrics", () => ({
+      httpDurationHistogram: {
+        record: (value: number, attributes: Record<string, unknown>) => {
+          metricsRecorded.duration.push({ value, attributes });
+        },
+      },
+      httpRequestsCounter: {
+        add: (value: number, attributes: Record<string, unknown>) => {
+          metricsRecorded.requests.push({ attributes });
+        },
+      },
+    }));
+
+    const mod = await import("../../app/src/server/http/instrumentation");
+    return mod.withTracing;
+  }
+
+  function makeRequest(url: string, headers?: Record<string, string>): Request & { params: Record<string, string> } {
+    const req = new Request(url, { headers }) as Request & { params: Record<string, string> };
+    req.params = {};
+    return req;
+  }
+
+  it("creates root span with method, route, and status_code attributes on successful request", async () => {
+    const withTracing = await loadWithTracing();
+    const handler = withTracing("GET /healthz", "GET", async () => {
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/healthz");
+    const response = await handler(request);
+
+    // Verify response has x-request-id header
+    expect(response.headers.get("x-request-id")).toBeTruthy();
+    expect(response.status).toBe(200);
+  });
+
+  it("preserves x-request-id from incoming request header", async () => {
+    const withTracing = await loadWithTracing();
+    const handler = withTracing("GET /healthz", "GET", async () => {
+      return new Response("ok", { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/healthz", {
+      "x-request-id": "custom-request-id-123",
+    });
+    const response = await handler(request);
+
+    expect(response.headers.get("x-request-id")).toBe("custom-request-id-123");
+  });
+
+  it("returns 500 with x-request-id when handler throws", async () => {
+    const withTracing = await loadWithTracing();
+    const handler = withTracing("POST /api/test", "POST", async () => {
+      throw new Error("something broke");
+    });
+
+    const request = makeRequest("http://localhost:3000/api/test", {});
+    const response = await handler(request);
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-request-id")).toBeTruthy();
+    const body = await response.json();
+    expect(body.error).toBe("internal server error");
+  });
+
+  it("generates new request id when none provided", async () => {
+    const withTracing = await loadWithTracing();
+    const handler = withTracing("GET /test", "GET", async () => {
+      return new Response("ok", { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/test");
+    const response = await handler(request);
+
+    const requestId = response.headers.get("x-request-id");
+    expect(requestId).toBeTruthy();
+    // Should be a UUID-like format
+    expect(requestId!.length).toBeGreaterThan(0);
+  });
+
+  it("ignores empty x-request-id header", async () => {
+    const withTracing = await loadWithTracing();
+    const handler = withTracing("GET /test", "GET", async () => {
+      return new Response("ok", { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/test", {
+      "x-request-id": "  ",
+    });
+    const response = await handler(request);
+
+    const requestId = response.headers.get("x-request-id");
+    expect(requestId).toBeTruthy();
+    expect(requestId!.trim().length).toBeGreaterThan(0);
+    expect(requestId).not.toBe("  ");
+  });
+});

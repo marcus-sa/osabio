@@ -1,5 +1,5 @@
 import appHtml from "../../client/index.html";
-import { withRequestLogging } from "../http/request-logging";
+import { withTracing } from "../http/instrumentation";
 import { jsonResponse } from "../http/response";
 import { logError, logInfo } from "../http/observability";
 import { createSseRegistry } from "../streaming/sse-registry";
@@ -101,34 +101,34 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     idleTimeout: 0,
     routes: {
       "/healthz": {
-        GET: withRequestLogging("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
+        GET: withTracing("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
       },
       "/api/workspaces": {
-        POST: withRequestLogging("POST /api/workspaces", "POST", (request) => workspaceHandlers.handleCreateWorkspace(request)),
+        POST: withTracing("POST /api/workspaces", "POST", (request) => workspaceHandlers.handleCreateWorkspace(request)),
       },
       "/api/workspaces/:workspaceId/bootstrap": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/bootstrap",
           "GET",
           (request) => workspaceHandlers.handleWorkspaceBootstrap(request.params.workspaceId),
         ),
       },
       "/api/workspaces/:workspaceId/sidebar": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/sidebar",
           "GET",
           (request) => workspaceHandlers.handleWorkspaceSidebar(request.params.workspaceId),
         ),
       },
       "/api/workspaces/:workspaceId/repo-path": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/repo-path",
           "POST",
           (request) => workspaceHandlers.handleUpdateRepoPath(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/conversations/:conversationId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/conversations/:conversationId",
           "GET",
           (request) =>
@@ -139,36 +139,36 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/chat": {
-        POST: withRequestLogging("POST /api/chat", "POST", (request) => chatRouteHandler(request)),
+        POST: withTracing("POST /api/chat", "POST", (request) => chatRouteHandler(request)),
       },
       "/api/chat/messages": {
-        POST: withRequestLogging("POST /api/chat/messages", "POST", (request) => chatHandlers.handlePostChatMessage(request)),
+        POST: withTracing("POST /api/chat/messages", "POST", (request) => chatHandlers.handlePostChatMessage(request)),
       },
       "/api/chat/stream/:messageId": {
-        GET: withRequestLogging("GET /api/chat/stream/:messageId", "GET", (request) =>
+        GET: withTracing("GET /api/chat/stream/:messageId", "GET", (request) =>
           chatHandlers.handleChatStream(request.params.messageId),
         ),
       },
       "/api/entities/search": {
-        GET: withRequestLogging("GET /api/entities/search", "GET", (request) => entitySearchHandler(new URL(request.url))),
+        GET: withTracing("GET /api/entities/search", "GET", (request) => entitySearchHandler(new URL(request.url))),
       },
       "/api/graph/:workspaceId": {
-        GET: withRequestLogging("GET /api/graph/:workspaceId", "GET", (request) =>
+        GET: withTracing("GET /api/graph/:workspaceId", "GET", (request) =>
           graphHandler(request.params.workspaceId, new URL(request.url)),
         ),
       },
       "/api/entities/:entityId": {
-        GET: withRequestLogging("GET /api/entities/:entityId", "GET", (request) =>
+        GET: withTracing("GET /api/entities/:entityId", "GET", (request) =>
           entityDetailHandler(request.params.entityId, new URL(request.url)),
         ),
       },
       "/api/entities/:entityId/actions": {
-        POST: withRequestLogging("POST /api/entities/:entityId/actions", "POST", (request) =>
+        POST: withTracing("POST /api/entities/:entityId/actions", "POST", (request) =>
           entityActionsHandler(request.params.entityId, request),
         ),
       },
       "/api/workspaces/:workspaceId/conversations/:parentId/branch": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/conversations/:parentId/branch",
           "POST",
           (request) =>
@@ -180,26 +180,26 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/work-items/accept": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/work-items/accept",
           "POST",
           (request) => workItemAcceptHandler(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/learnings": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/learnings",
           "POST",
           (request) => learningHandlers.handleCreate(request.params.workspaceId, request),
         ),
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/learnings",
           "GET",
           (request) => learningHandlers.handleList(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/learnings/:learningId": {
-        PUT: withRequestLogging(
+        PUT: withTracing(
           "PUT /api/workspaces/:workspaceId/learnings/:learningId",
           "PUT",
           (request) => learningHandlers.handleEdit(
@@ -210,7 +210,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/learnings/:learningId/actions": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/learnings/:learningId/actions",
           "POST",
           (request) => learningHandlers.handleAction(
@@ -221,19 +221,19 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/policies": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/policies",
           "GET",
           (request) => policyHandlers.handleList(request.params.workspaceId, request),
         ),
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/policies",
           "POST",
           (request) => policyHandlers.handleCreate(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/policies/:policyId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/policies/:policyId",
           "GET",
           (request) => policyHandlers.handleDetail(
@@ -244,7 +244,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/policies/:policyId/activate": {
-        PATCH: withRequestLogging(
+        PATCH: withTracing(
           "PATCH /api/workspaces/:workspaceId/policies/:policyId/activate",
           "PATCH",
           (request) => policyHandlers.handleActivate(
@@ -255,7 +255,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/policies/:policyId/deprecate": {
-        PATCH: withRequestLogging(
+        PATCH: withTracing(
           "PATCH /api/workspaces/:workspaceId/policies/:policyId/deprecate",
           "PATCH",
           (request) => policyHandlers.handleDeprecate(
@@ -266,7 +266,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/policies/:policyId/versions": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/policies/:policyId/versions",
           "GET",
           (request) => policyHandlers.handleVersionHistory(
@@ -275,7 +275,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
             request,
           ),
         ),
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/policies/:policyId/versions",
           "POST",
           (request) => policyHandlers.handleCreateVersion(
@@ -286,83 +286,83 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/objectives": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/objectives",
           "POST",
           (request) => objectiveHandlers.handleCreate(request.params.workspaceId, request),
         ),
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/objectives",
           "GET",
           (request) => objectiveHandlers.handleList(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/objectives/:objectiveId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/objectives/:objectiveId",
           "GET",
           (request) => objectiveHandlers.handleGet(request.params.workspaceId, request.params.objectiveId),
         ),
-        PUT: withRequestLogging(
+        PUT: withTracing(
           "PUT /api/workspaces/:workspaceId/objectives/:objectiveId",
           "PUT",
           (request) => objectiveHandlers.handleUpdate(request.params.workspaceId, request.params.objectiveId, request),
         ),
       },
       "/api/workspaces/:workspaceId/objectives/:objectiveId/progress": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/objectives/:objectiveId/progress",
           "GET",
           (request) => objectiveHandlers.handleProgress(request.params.workspaceId, request.params.objectiveId),
         ),
       },
       "/api/workspaces/:workspaceId/behaviors": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/behaviors",
           "GET",
           (request) => behaviorHandlers.handleList(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/behaviors/score": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/behaviors/score",
           "POST",
           (request) => behaviorHandlers.handleScore(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/behavior-definitions": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/behavior-definitions",
           "POST",
           (request) => behaviorHandlers.handleCreateDefinition(request.params.workspaceId, request),
         ),
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/behavior-definitions",
           "GET",
           (request) => behaviorHandlers.handleListDefinitions(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/behavior-definitions/:definitionId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/behavior-definitions/:definitionId",
           "GET",
           (request) => behaviorHandlers.handleGetDefinition(request.params.workspaceId, request.params.definitionId),
         ),
-        PUT: withRequestLogging(
+        PUT: withTracing(
           "PUT /api/workspaces/:workspaceId/behavior-definitions/:definitionId",
           "PUT",
           (request) => behaviorHandlers.handleUpdateDefinition(request.params.workspaceId, request.params.definitionId, request),
         ),
       },
       "/api/workspaces/:workspaceId/feed": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/feed",
           "GET",
           (request) => feedHandler(request.params.workspaceId),
         ),
       },
       "/api/workspaces/:workspaceId/webhooks/github": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/webhooks/github",
           "POST",
           (request) => githubWebhookHandler(request.params.workspaceId, request),
@@ -395,183 +395,183 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // MCP — Setup
       "/api/mcp/:workspaceId/projects": {
-        GET: withRequestLogging("GET /api/mcp/:workspaceId/projects", "GET", (request) =>
+        GET: withTracing("GET /api/mcp/:workspaceId/projects", "GET", (request) =>
           mcpHandlers.handleListProjects(request.params.workspaceId),
         ),
       },
       // MCP — Intent-based context
       "/api/mcp/:workspaceId/context": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/context", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/context", "POST", (request) =>
           mcpHandlers.handleIntentContext(request.params.workspaceId, request),
         ),
       },
       // MCP — Tier 1 Read
       "/api/mcp/:workspaceId/workspace-context": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/workspace-context", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/workspace-context", "POST", (request) =>
           mcpHandlers.handleWorkspaceContext(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/project-context": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/project-context", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/project-context", "POST", (request) =>
           mcpHandlers.handleProjectContext(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/task-context": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/task-context", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/task-context", "POST", (request) =>
           mcpHandlers.handleTaskContext(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/decisions": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/decisions", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/decisions", "POST", (request) =>
           mcpHandlers.handleGetDecisions(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/tasks/dependencies": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/tasks/dependencies", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/tasks/dependencies", "POST", (request) =>
           mcpHandlers.handleGetTaskDependencies(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/constraints": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/constraints", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/constraints", "POST", (request) =>
           mcpHandlers.handleGetConstraints(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/changes": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/changes", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/changes", "POST", (request) =>
           mcpHandlers.handleGetChanges(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/entities/:entityId": {
-        GET: withRequestLogging("GET /api/mcp/:workspaceId/entities/:entityId", "GET", (request) =>
+        GET: withTracing("GET /api/mcp/:workspaceId/entities/:entityId", "GET", (request) =>
           mcpHandlers.handleGetEntityDetail(request.params.workspaceId, request.params.entityId, request),
         ),
       },
       // MCP — Tier 2 Reason
       "/api/mcp/:workspaceId/decisions/resolve": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/decisions/resolve", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/decisions/resolve", "POST", (request) =>
           mcpHandlers.handleResolveDecision(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/constraints/check": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/constraints/check", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/constraints/check", "POST", (request) =>
           mcpHandlers.handleCheckConstraints(request.params.workspaceId, request),
         ),
       },
       // MCP — Tier 3 Write
       "/api/mcp/:workspaceId/decisions/provisional": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/decisions/provisional", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/decisions/provisional", "POST", (request) =>
           mcpHandlers.handleCreateProvisionalDecision(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/questions": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/questions", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/questions", "POST", (request) =>
           mcpHandlers.handleAskQuestion(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/tasks/status": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/tasks/status", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/tasks/status", "POST", (request) =>
           mcpHandlers.handleUpdateTaskStatus(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/tasks/subtask": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/tasks/subtask", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/tasks/subtask", "POST", (request) =>
           mcpHandlers.handleCreateSubtask(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/notes": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/notes", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/notes", "POST", (request) =>
           mcpHandlers.handleLogNote(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/observations": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/observations", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/observations", "POST", (request) =>
           mcpHandlers.handleLogObservation(request.params.workspaceId, request),
         ),
       },
       // MCP — Suggestions
       "/api/mcp/:workspaceId/suggestions": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/suggestions", "POST", (request) =>
           mcpHandlers.handleListSuggestions(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/suggestions/create": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/create", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/suggestions/create", "POST", (request) =>
           mcpHandlers.handleCreateSuggestion(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/suggestions/action": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/action", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/suggestions/action", "POST", (request) =>
           mcpHandlers.handleSuggestionAction(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/suggestions/convert": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/suggestions/convert", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/suggestions/convert", "POST", (request) =>
           mcpHandlers.handleConvertSuggestion(request.params.workspaceId, request),
         ),
       },
       // MCP — Lifecycle
       "/api/mcp/:workspaceId/sessions/start": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/sessions/start", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/sessions/start", "POST", (request) =>
           mcpHandlers.handleSessionStart(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/sessions/end": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/sessions/end", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/sessions/end", "POST", (request) =>
           mcpHandlers.handleSessionEnd(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/commits": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/commits", "POST", (request) =>
           mcpHandlers.handleLogCommit(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/commits/pre-check": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits/pre-check", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/commits/pre-check", "POST", (request) =>
           mcpHandlers.handlePreCheck(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/commits/post-check": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/commits/post-check", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/commits/post-check", "POST", (request) =>
           mcpHandlers.handlePostCheck(request.params.workspaceId, request),
         ),
       },
       // MCP — Intent tools
       "/api/mcp/:workspaceId/intents/create": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/create", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/intents/create", "POST", (request) =>
           mcpHandlers.handleCreateIntent(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/intents/submit": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/submit", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/intents/submit", "POST", (request) =>
           mcpHandlers.handleSubmitIntent(request.params.workspaceId, request),
         ),
       },
       "/api/mcp/:workspaceId/intents/status": {
-        POST: withRequestLogging("POST /api/mcp/:workspaceId/intents/status", "POST", (request) =>
+        POST: withTracing("POST /api/mcp/:workspaceId/intents/status", "POST", (request) =>
           mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
         ),
       },
       // Observer — periodic graph scan
       "/api/observe/scan/:workspaceId": {
-        POST: withRequestLogging("POST /api/observe/scan/:workspaceId", "POST", (request) =>
+        POST: withTracing("POST /api/observe/scan/:workspaceId", "POST", (request) =>
           graphScanHandler(request.params.workspaceId, request),
         ),
       },
       // Observer — verification pipeline (called by SurrealQL EVENT via http::post)
       "/api/observe/:table/:id": {
-        POST: withRequestLogging("POST /api/observe/:table/:id", "POST", (request) =>
+        POST: withTracing("POST /api/observe/:table/:id", "POST", (request) =>
           observerHandler(request.params.table, request.params.id, request),
         ),
       },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)
       "/api/intents/:intentId/evaluate": {
-        POST: withRequestLogging("POST /api/intents/:intentId/evaluate", "POST", (request) =>
+        POST: withTracing("POST /api/intents/:intentId/evaluate", "POST", (request) =>
           intentHandlers.handleEvaluate(request.params.intentId, request),
         ),
       },
       // Intent — consent display
       "/api/workspaces/:workspaceId/intents/:intentId/consent": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/intents/:intentId/consent",
           "GET",
           (request) =>
@@ -580,7 +580,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Intent — approve from consent
       "/api/workspaces/:workspaceId/intents/:intentId/approve": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/intents/:intentId/approve",
           "POST",
           (request) =>
@@ -589,7 +589,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Intent — constrain from consent
       "/api/workspaces/:workspaceId/intents/:intentId/constrain": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/intents/:intentId/constrain",
           "POST",
           (request) =>
@@ -598,7 +598,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Intent — veto
       "/api/workspaces/:workspaceId/intents/:intentId/veto": {
-        POST: withRequestLogging(
+        POST: withTracing(
           "POST /api/workspaces/:workspaceId/intents/:intentId/veto",
           "POST",
           (request) =>
@@ -607,7 +607,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Intent — list pending for governance feed
       "/api/workspaces/:workspaceId/intents/pending": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/intents/pending",
           "GET",
           (request) => intentHandlers.handleListPending(request.params.workspaceId),
@@ -615,7 +615,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Identity discovery — returns owner identity for CLI DPoP token acquisition
       "/api/auth/identity/:workspaceId": {
-        GET: withRequestLogging("GET /api/auth/identity/:workspaceId", "GET", async (request) => {
+        GET: withTracing("GET /api/auth/identity/:workspaceId", "GET", async (request) => {
           const wsId = request.params.workspaceId;
           const rows = await deps.surreal.query<[Array<{ identityId: string }>]>(
             `SELECT meta::id(id) AS identityId FROM identity WHERE workspace = $ws AND type = "owner" LIMIT 1;`,
@@ -628,25 +628,25 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // OAuth 2.1 RAR+DPoP — Intent submission with DPoP thumbprint binding
       "/api/auth/intents": {
-        POST: withRequestLogging("POST /api/auth/intents", "POST", (request) =>
+        POST: withTracing("POST /api/auth/intents", "POST", (request) =>
           intentSubmissionHandler(request),
         ),
       },
       // OAuth 2.1 RAR+DPoP — Token endpoint
       "/api/auth/token": {
-        POST: withRequestLogging("POST /api/auth/token", "POST", (request) =>
+        POST: withTracing("POST /api/auth/token", "POST", (request) =>
           tokenEndpointHandler(request),
         ),
       },
       // OAuth 2.1 RAR+DPoP — Bridge session-to-token exchange
       "/api/auth/bridge/exchange": {
-        POST: withRequestLogging("POST /api/auth/bridge/exchange", "POST", (request) =>
+        POST: withTracing("POST /api/auth/bridge/exchange", "POST", (request) =>
           bridgeExchangeHandler(request),
         ),
       },
       // AS JWKS endpoint — public keys for token verification
       "/api/auth/brain/.well-known/jwks": {
-        GET: withRequestLogging("GET /api/auth/brain/.well-known/jwks", "GET", async () =>
+        GET: withTracing("GET /api/auth/brain/.well-known/jwks", "GET", async () =>
           jsonResponse(buildJwksResponse(deps.asSigningKey), 200),
         ),
       },
@@ -663,7 +663,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         }, 200),
       },
       "/api/auth/oauth-client/:clientId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/auth/oauth-client/:clientId",
           "GET",
           createClientInfoHandler(deps.surreal),
@@ -671,7 +671,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // LLM Proxy — Audit provenance chain
       "/api/workspaces/:workspaceId/proxy/traces/:traceId": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/proxy/traces/:traceId",
           "GET",
           (request) => auditApiHandlers.handleTraceDetail(
@@ -681,7 +681,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/proxy/traces": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/proxy/traces",
           "GET",
           (request) => auditApiHandlers.handleTracesByProject(
@@ -691,7 +691,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/proxy/compliance": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/proxy/compliance",
           "GET",
           (request) => auditApiHandlers.handleCompliance(
@@ -702,14 +702,14 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // LLM Proxy — Spend monitoring dashboard
       "/api/workspaces/:workspaceId/proxy/spend": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/proxy/spend",
           "GET",
           (request) => spendApiHandlers.handleSpend(request.params.workspaceId),
         ),
       },
       "/api/workspaces/:workspaceId/proxy/sessions": {
-        GET: withRequestLogging(
+        GET: withTracing(
           "GET /api/workspaces/:workspaceId/proxy/sessions",
           "GET",
           (request) => spendApiHandlers.handleSessions(request.params.workspaceId),
@@ -717,14 +717,14 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       // Anthropic LLM Proxy — transparent passthrough with logging
       "/proxy/llm/anthropic/v1/messages": {
-        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages", "POST", anthropicProxyHandler),
+        POST: withTracing("POST /proxy/llm/anthropic/v1/messages", "POST", anthropicProxyHandler),
       },
       "/proxy/llm/anthropic/v1/messages/count_tokens": {
-        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
+        POST: withTracing("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
       },
       // Proxy token issuance — CLI brain init Step 7
       "/api/auth/proxy-token": {
-        POST: withRequestLogging("POST /api/auth/proxy-token", "POST", proxyTokenHandler),
+        POST: withTracing("POST /api/auth/proxy-token", "POST", proxyTokenHandler),
       },
       "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,
