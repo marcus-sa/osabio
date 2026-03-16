@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1f091aa8aa8a",
+  "session_id": "8dc8b5ae-2331-4f87-b004-22b121f4d6ce",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:52:16.012909Z",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/self-hosted-deployment/execution-log.yaml",
+    "docs/feature/self-hosted-deployment/roadmap.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9b71b38c0c11",
+  "token_usage": {
+    "input_tokens": 164,
+    "cache_creation_tokens": 310836,
+    "cache_read_tokens": 4940750,
+    "output_tokens": 27149,
+    "api_call_count": 77
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:52:13.462281Z",
+    "agent_lines": 326,
+    "human_added": 341,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 667,
+    "agent_percentage": 48.87556221889056
+  }
+}
