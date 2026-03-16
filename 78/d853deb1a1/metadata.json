@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "78d853deb1a1",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/chat/trace-loader.ts",
+    "schema/migrate.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/78/d853deb1a1/0/metadata.json",
+      "transcript": "/78/d853deb1a1/0/full.jsonl",
+      "context": "/78/d853deb1a1/0/context.md",
+      "content_hash": "/78/d853deb1a1/0/content_hash.txt",
+      "prompt": "/78/d853deb1a1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 76,
+    "cache_creation_tokens": 121043,
+    "cache_read_tokens": 2578271,
+    "output_tokens": 8766,
+    "api_call_count": 44
+  }
+}
