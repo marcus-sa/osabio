@@ -233,7 +233,7 @@ function extractNonStreamingUsage(
   responseBody: string,
   requestModel: string | undefined,
   latencyMs: number,
-  identity: { workspaceId?: string; taskId?: string },
+  identity: { workspaceId?: string; taskId?: string; identityId?: string },
   sessionId?: string,
   policyDecision?: PolicyDecisionLog,
   conversationId?: string,
@@ -252,6 +252,7 @@ function extractNonStreamingUsage(
       stopReason: parsed.stop_reason,
       latencyMs,
       workspaceId: identity.workspaceId,
+      identityId: identity.identityId,
       sessionId,
       taskId: identity.taskId,
       policyDecision,
@@ -555,6 +556,7 @@ function buildStreamingTraceData(
     stopReason: streamCtx.stopReason,
     latencyMs,
     workspaceId: identitySignals.workspaceId,
+    identityId: identitySignals.proxyTokenIdentityId,
     sessionId: effectiveSessionId,
     taskId: identitySignals.taskId,
     policyDecision,
@@ -787,6 +789,7 @@ export function createAnthropicProxyHandler(
       workspace_id: identitySignals.workspaceId,
       task_id: identitySignals.taskId,
       agent_type: identitySignals.agentType,
+      identity_id: identitySignals.proxyTokenIdentityId,
       is_count_tokens: isCountTokens || undefined,
     };
 
@@ -833,7 +836,7 @@ export function createAnthropicProxyHandler(
 
       // Async trace capture for non-streaming (skip count_tokens)
       if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, identitySignals, effectiveSessionId, policyDecision, conversationId, injectionResult);
+        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, conversationId, injectionResult);
         if (traceData) {
           deps.inflight.track(
             captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
