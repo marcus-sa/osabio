@@ -1,0 +1,100 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/london directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 3 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: app/src/server/proxy/proxy-token-route.ts
+Line: 78
+User comment: "**Arbitrary identity selection causes false 403s for multi-identity users**
+
+`resolveIdentityForPerson` uses `LIMIT 1` with no ordering, so when a person has more than one identity record (e.g., a user who belongs to multiple orgs each with their own identity), the DB can return any of them. If the identity returned is NOT a member of the requested workspace, `checkWorkspaceMembership` (line 207) returns `false` and the user receives a 403 — even though another of their identities IS a valid member.
+
+The fix is to push the workspace filter into the identity-resolution query so you always resolve the identity that is actually a member of the target workspace:
+
+```typescript
+async function resolveIdentityForWorkspaceAndPerson(
+  surreal: ServerDependencies["surreal"],
+  personId: string,
+  workspaceId: string,
+): Promise<string | undefined> {
+  const personRecord = new RecordId("person", personId);
+  const wsRecord = new RecordId("workspace", workspaceId);
+  const results = await surreal.query<[RecordId[]]>(
+    `SELECT VALUE ip.in
+     FROM identity_person AS ip
+     WHERE ip.out = $person
+       AND (SELECT VALUE count() FROM member_of WHERE in = ip.in AND out = $ws) > 0
+     LIMIT 1;`,
+    { person: personRecord, ws: wsRecord },
+  );
+  const identityRec = results[0]?.[0];
+  return identityRec?.id as string | undefined;
+}
+```
+
+With this approach the separate `checkWorkspaceMembership` round-trip can also be removed, simplifying the handler."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50j8Vg. 
+
+
+Comment #2:
+
+File: app/src/server/proxy/proxy-token-route.ts
+Line: 220
+User comment: "**Revoke + issue is not atomic — crash between steps leaves no valid proxy token**
+
+`revokePreviousTokens` and `storeProxyToken` are two independent DB calls with no transaction wrapping them. If the server crashes (or throws an exception) after the revocation completes but before the new token is stored, all existing tokens for this identity+workspace are revoked and no replacement exists — the CLI proxy breaks until the user reruns `brain init`.
+
+Wrapping both statements in a single SurrealDB `BEGIN TRANSACTION` / `COMMIT TRANSACTION` block eliminates this window. The revocation `UPDATE` and the new token `CREATE` should be executed together so either both succeed or neither does."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50j8WU. 
+
+
+Comment #3:
+
+File: cli/commands/init.ts
+Line: 474
+User comment: "**Raw proxy token stored in global config unnecessarily**
+
+`proxy_token` (the raw secret) is written to `~/.brain/config.json` alongside `proxy_token_expires_at`. The only downstream consumer of this global config for proxy purposes is `checkTokenExpiry` in `token-expiry.ts`, which only reads `proxy_token_expires_at` — the raw token is never read back from global config. The live copy is already in `.claude/settings.local.json`.
+
+Storing the raw token in a global home-directory file increases exposure: `~/.brain/config.json` may be more broadly accessible via dotfile repos, backup tools, or other tooling that scans home directories, while `settings.local.json` is at least gitignore-warned at write time.
+
+Consider storing only the expiry:
+```typescript
+// Only expiry tracking is needed in global config
+global.repos[gitRoot].proxy_token_expires_at = proxyTokenExpiresAt;
+await saveGlobalConfig(global);
+```
+
+You would also want to remove `proxy_token` from the `RepoConfig` / `BrainConfig` types and the `loadConfig` projection in `cli/config.ts` to avoid it leaking into in-memory config objects."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50kyuW. 
+
+</system-instruction>
+
+---
+
+Commit and push all changes

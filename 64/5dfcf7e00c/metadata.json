@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "645dfcf7e00c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/proxy-token-route.ts",
+    "cli/commands/init.ts",
+    "cli/config.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/64/5dfcf7e00c/0/metadata.json",
+      "transcript": "/64/5dfcf7e00c/0/full.jsonl",
+      "context": "/64/5dfcf7e00c/0/context.md",
+      "content_hash": "/64/5dfcf7e00c/0/content_hash.txt",
+      "prompt": "/64/5dfcf7e00c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 50582,
+    "cache_read_tokens": 892846,
+    "output_tokens": 5686,
+    "api_call_count": 17
+  }
+}
