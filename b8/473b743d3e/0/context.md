@@ -1,0 +1,86 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/seoul-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisect...
+
+### Prompt 2
+
+"Renamed $session → $sess in all SurrealDB bound parameters across 4 files. session is a protected variable in SurrealDB v3.0, which caused the RELATE $session->invoked->$trace query to fail after 3 retries, resulting in missing session edges. This fixes:" add this to learnings in AGENTS.md
+
+### Prompt 3
+
+"Still investigating (1 failure):
+
+llm-proxy-context-injection.test.ts:156 — empty workspace gets brain_context_injected: true. The candidate pool somehow has observations despite the workspace having none seeded. I added detailed logging (proxy.context_injection.pool_loaded with per-type counts + observations count in the result log) so the next CI run will reveal exactly what’s in the pool.
+The push should trigger CI. The new logging will help diagnose the 4th failure if it persists."
+
+run ...
+
+### Prompt 4
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/acceptance-tests__llm-proxy__67178816252.log (343.1 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+### Prompt 5
+
+Continue from where you left off.
+
+### Prompt 6
+
+why arent we doing this in one transaction?
+
+### Prompt 7
+
+Continue from where you left off.
+
+### Prompt 8
+
+read the surrealdb docs instead of guessing...
+
+### Prompt 9
+
+Continue from where you left off.
+
+### Prompt 10
+
+https://surrealdb.com/docs/surrealql/statements/ifelse
+
+### Prompt 11
+
+u can still do this in one query...
+
+### Prompt 12
+
+Continue from where you left off.
+
+### Prompt 13
+
+i also dont really understand this. it seems like we're making a workaround rather than fixing the actual issue, which is that the caller is providing the wrong session id
+
+the provided session id should always refer to agent session id and not an external session id.
+
+### Prompt 14
+
+Continue from where you left off.
+
+### Prompt 15
+
+continue
+
+### Prompt 16
+
+Commit and push all changes
+
