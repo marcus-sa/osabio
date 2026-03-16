@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6f26ca879023",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/graph/AgentStatusSection.tsx",
+    "app/src/client/hooks/use-public-config.ts",
+    "app/src/client/main.tsx",
+    "app/src/client/routes/sign-in-page.tsx",
+    "tests/unit/use-public-config.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6f/26ca879023/0/metadata.json",
+      "transcript": "/6f/26ca879023/0/full.jsonl",
+      "context": "/6f/26ca879023/0/context.md",
+      "content_hash": "/6f/26ca879023/0/content_hash.txt",
+      "prompt": "/6f/26ca879023/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 29,
+    "cache_creation_tokens": 50951,
+    "cache_read_tokens": 786408,
+    "output_tokens": 4195,
+    "api_call_count": 16
+  }
+}
