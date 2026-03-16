@@ -3,7 +3,7 @@
   "checkpoint_id": "bed32ef5ef25",
   "strategy": "manual-commit",
   "branch": "marcus-sa/cli-proxy-setup",
-  "checkpoints_count": 0,
+  "checkpoints_count": 4,
   "files_touched": [
     ".agents/skills/shadcn/SKILL.md",
     ".agents/skills/shadcn/agents/openai.yml",
@@ -146,13 +146,20 @@
       "context": "/be/d32ef5ef25/0/context.md",
       "content_hash": "/be/d32ef5ef25/0/content_hash.txt",
       "prompt": "/be/d32ef5ef25/0/prompt.txt"
+    },
+    {
+      "metadata": "/be/d32ef5ef25/1/metadata.json",
+      "transcript": "/be/d32ef5ef25/1/full.jsonl",
+      "context": "/be/d32ef5ef25/1/context.md",
+      "content_hash": "/be/d32ef5ef25/1/content_hash.txt",
+      "prompt": "/be/d32ef5ef25/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 21,
-    "cache_creation_tokens": 52373,
-    "cache_read_tokens": 533256,
-    "output_tokens": 2620,
-    "api_call_count": 11
+    "input_tokens": 117,
+    "cache_creation_tokens": 159182,
+    "cache_read_tokens": 5052698,
+    "output_tokens": 15913,
+    "api_call_count": 62
   }
 }
