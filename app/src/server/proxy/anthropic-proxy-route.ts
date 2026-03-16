@@ -53,6 +53,15 @@ import {
   type ContextCandidate,
   type InjectionResult,
 } from "./context-injector";
+import {
+  resolveProxyAuth,
+  createLookupProxyToken,
+  createTokenCache,
+  ProxyAuthError,
+  type ProxyAuthResult,
+  type LookupProxyToken,
+  type TokenCache,
+} from "./proxy-auth";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 
@@ -95,10 +104,18 @@ async function validateWorkspace(
 }
 
 // ---------------------------------------------------------------------------
+// Auth Mode (dual-mode: Brain auth vs direct auth)
+// ---------------------------------------------------------------------------
+
+export type AuthMode =
+  | { mode: "direct" }
+  | { mode: "brain"; serverApiKey: string };
+
+// ---------------------------------------------------------------------------
 // Header Forwarding
 // ---------------------------------------------------------------------------
 
-function buildUpstreamHeaders(request: Request): Headers {
+export function buildUpstreamHeaders(request: Request, authMode: AuthMode): Headers {
   const headers = new Headers();
 
   for (const name of FORWARDED_HEADERS) {
@@ -106,10 +123,16 @@ function buildUpstreamHeaders(request: Request): Headers {
     if (value) headers.set(name, value);
   }
 
-  const xApiKey = request.headers.get("x-api-key");
-  const authHeader = request.headers.get("authorization");
-  if (xApiKey) headers.set("x-api-key", xApiKey);
-  if (authHeader) headers.set("authorization", authHeader);
+  if (authMode.mode === "brain") {
+    // Brain auth: inject server-held API key, do not forward client auth
+    headers.set("x-api-key", authMode.serverApiKey);
+  } else {
+    // Direct auth: forward client's auth headers as-is
+    const xApiKey = request.headers.get("x-api-key");
+    const authHeader = request.headers.get("authorization");
+    if (xApiKey) headers.set("x-api-key", xApiKey);
+    if (authHeader) headers.set("authorization", authHeader);
+  }
 
   return headers;
 }
@@ -555,6 +578,10 @@ export function createAnthropicProxyHandler(
   const noPolicyWarnedWorkspaces = new Set<string>();
   const contextCache: ContextCache = createContextCache(300); // default TTL, overridden per-workspace
 
+  // Proxy auth: per-handler cache + DB lookup function (not module-level singletons)
+  const proxyTokenCache: TokenCache = createTokenCache();
+  const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
+
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
   const pruneInterval = setInterval(
@@ -577,13 +604,48 @@ export function createAnthropicProxyHandler(
     const parsed = tryParseRequestBody(body);
     const isStreaming = parsed?.stream === true;
 
+    // --- Step 1.5: Brain auth resolution (dual-mode) ---
+    let brainAuthResult: ProxyAuthResult | undefined;
+    let authMode: AuthMode = { mode: "direct" };
+
+    try {
+      brainAuthResult = await resolveProxyAuth(
+        request.headers,
+        lookupProxyToken,
+        proxyTokenCache,
+      );
+    } catch (error) {
+      if (error instanceof ProxyAuthError) {
+        return jsonResponse(
+          { error: { type: "authentication_error", message: error.message } },
+          401,
+        );
+      }
+      throw error;
+    }
+
+    if (brainAuthResult) {
+      // Brain auth mode: server provides API key
+      const serverApiKey = deps.config.anthropicApiKey;
+      if (!serverApiKey) {
+        logError("proxy.anthropic.no_server_api_key", "Server Anthropic API key not configured for Brain auth mode", undefined);
+        return jsonResponse(
+          { error: { type: "server_error", message: "Server Anthropic API key not configured" } },
+          500,
+        );
+      }
+      authMode = { mode: "brain", serverApiKey };
+    }
+
     // --- Step 2: Identity resolution ---
+    // In Brain auth mode, workspace comes from the token (not from headers)
     const identitySignals = resolveIdentity({
       metadataUserId: parsed?.metadata?.user_id,
-      workspaceHeader: request.headers.get("X-Brain-Workspace") ?? undefined,
+      workspaceHeader: brainAuthResult?.workspaceId ?? (request.headers.get("X-Brain-Workspace") ?? undefined),
       taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
       agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
       sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
+      proxyTokenIdentityId: brainAuthResult?.identityId,
     });
 
     // --- Step 3: Session ID resolution ---
@@ -698,14 +760,16 @@ export function createAnthropicProxyHandler(
       }
     }
 
-    // --- API key validation ---
-    const hasApiKey = request.headers.has("x-api-key");
-    const hasAuthHeader = request.headers.has("authorization");
-    if (!hasApiKey && !hasAuthHeader) {
-      return jsonResponse(
-        { error: "unauthorized", message: "Missing x-api-key or authorization header" },
-        401,
-      );
+    // --- API key validation (skip for Brain auth — server provides key) ---
+    if (authMode.mode === "direct") {
+      const hasApiKey = request.headers.has("x-api-key");
+      const hasAuthHeader = request.headers.has("authorization");
+      if (!hasApiKey && !hasAuthHeader) {
+        return jsonResponse(
+          { error: { type: "authentication_error", message: "Missing x-api-key or authorization header" } },
+          401,
+        );
+      }
     }
 
     // --- Build identity context for logging ---
@@ -735,7 +799,7 @@ export function createAnthropicProxyHandler(
       : undefined;
 
     // --- Step 6: Request forwarding ---
-    const upstreamHeaders = buildUpstreamHeaders(request);
+    const upstreamHeaders = buildUpstreamHeaders(request, authMode);
 
     let upstream: Response;
     try {

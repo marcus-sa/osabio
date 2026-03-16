@@ -246,7 +246,6 @@ export async function createProxyTestIdentity(
     content: {
       name: `Test User ${options.identityId}`,
       type: "human",
-      email: options.email ?? `${options.identityId}@test.brain.dev`,
       workspace: workspaceRecord,
       created_at: new Date(),
     },
@@ -254,7 +253,7 @@ export async function createProxyTestIdentity(
 
   // Create member_of edge
   await surreal.query(
-    `RELATE $identity->member_of->$workspace SET role = "admin", joined_at = time::now();`,
+    `RELATE $identity->member_of->$workspace SET role = "admin", added_at = time::now();`,
     { identity: identityRecord, workspace: workspaceRecord },
   );
 

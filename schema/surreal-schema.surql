@@ -1316,5 +1316,18 @@ DEFINE FIELD created_at ON proxy_intelligence_config TYPE datetime;
 DEFINE FIELD updated_at ON proxy_intelligence_config TYPE datetime;
 DEFINE INDEX proxy_intelligence_config_workspace ON proxy_intelligence_config FIELDS workspace UNIQUE;
 
+-- ---------------------------------------------------------------------------
+-- Proxy Token: CLI proxy authentication tokens (hashed, scoped, revocable)
+-- ---------------------------------------------------------------------------
+DEFINE TABLE proxy_token SCHEMAFULL;
+DEFINE FIELD token_hash ON proxy_token TYPE string;
+DEFINE FIELD workspace ON proxy_token TYPE record<workspace>;
+DEFINE FIELD identity ON proxy_token TYPE record<identity>;
+DEFINE FIELD expires_at ON proxy_token TYPE datetime;
+DEFINE FIELD created_at ON proxy_token TYPE datetime DEFAULT time::now();
+DEFINE FIELD revoked ON proxy_token TYPE bool DEFAULT false;
+DEFINE INDEX idx_proxy_token_hash ON proxy_token FIELDS token_hash UNIQUE;
+DEFINE INDEX idx_proxy_token_identity_workspace ON proxy_token FIELDS identity, workspace;
+
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

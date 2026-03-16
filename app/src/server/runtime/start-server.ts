@@ -40,6 +40,7 @@ import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
+import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 
@@ -80,6 +81,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
+  const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
   const auditApiHandlers = createAuditApiHandlers(deps);
 
@@ -718,6 +720,10 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       },
       "/proxy/llm/anthropic/v1/messages/count_tokens": {
         POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
+      },
+      // Proxy token issuance — CLI brain init Step 7
+      "/api/auth/proxy-token": {
+        POST: withRequestLogging("POST /api/auth/proxy-token", "POST", proxyTokenHandler),
       },
       "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,
