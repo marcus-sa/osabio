@@ -1,0 +1,664 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/casablanca directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+/nw:refactor client to use shadcn/ui and tailwindcss
+
+---
+
+# NW-REFACTOR: Systematic Code Refactoring
+
+**Wave**: CROSS_WAVE
+**Agent**: Crafty (nw-software-crafter)
+**Command**: `*refactor`
+
+## Overview
+
+Applies the Refactoring Priority Premise (RPP) — cascading 6-level hierarchy where lower levels complete before higher. Levels: L1 Readability|L2 Complexity|L3 Responsibilities|L4 Abstractions|L5 Design Patterns|L6 SOLID++. Each builds on previous. For complex multi-class refactorings, agent applies Mikado Method internally.
+
+## Context Files Required
+
+- src/\* - Production codebase
+- tests/\* - Test codebase
+
+## Agent Invocation
+
+@nw-software-crafter
+
+Execute \*refactor for {target-class-or-module}.
+
+**Context Files:**
+- src/\*
+- tests/\*
+
+**Configuration:**
+- level: 3 # Shorthand: --from=1 --to=3 (RPP range)
+- from: 1 # Start RPP level (default: 1)
+- to: 3 # End RPP level (default: same as level)
+- scope: module # file/module/project
+- method: extract # extract/inline/rename/move
+- mikado_planning: false # Use Mikado Method for complex refactorings
+
+## Success Criteria
+
+- [ ] Code quality metrics improved (measured before/after)
+- [ ] All tests passing after refactoring
+- [ ] Refactoring levels applied in sequence (L1 before L2, etc.)
+- [ ] Technical debt reduced measurably
+
+## Next Wave
+
+**Handoff To**: {invoking-agent-returns-to-workflow}
+**Deliverables**: Refactored codebase with quality improvements
+
+## Examples
+
+### Example 1: Module-level readability refactor
+```
+/nw:refactor src/auth/token_manager.py --level=2 --scope=module
+```
+Crafty applies RPP L1-L2: rename ambiguous variables|extract magic numbers into constants|remove dead code (L1), then simplify conditionals|extract long methods (L2).
+
+### Example 2: SOLID-level design refactor
+```
+/nw:refactor src/billing/ --level=6 --scope=module --mikado_planning=true
+```
+Crafty uses Mikado Method for multi-class refactoring, applies dependency inversion|interface segregation across billing module.
+
+### Example 3: RPP range sweep (L1-L3)
+```
+/nw:refactor src/des/domain/ --from=1 --to=3 --scope=module
+```
+Sweeps L1 readability|L2 complexity|L3 responsibility smells. Cascade rule: L2 only after L1 clean, L3 only after L2 clean.
+
+### Example 4: Targeted single-level refactor
+```
+/nw:refactor src/des/cli/verify.py --level=3 --scope=file
+```
+Targets L3 responsibility smells only (Large Class, Feature Envy, Shotgun Surgery). Assumes L1-L2 already clean.
+
+## Expected Outputs
+
+```
+src/*                              (refactored production code)
+tests/*                            (refactored test code)
+docs/refactoring/
+  refactoring-log.md
+  quality-metrics.md
+```
+
+
+ARGUMENTS: Refactor the Brain client (app/src/client/) to use shadcn/ui components and Tailwind CSS v4 for styling, replacing any existing CSS/styling approach
+
+---
+
+<task-notification>
+<task-id>a694ebaee9e96e06b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a694ebaee9e96e06b.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate search domain to Tailwind" completed</summary>
+<result>I need file write/edit permissions to complete this migration. Both the Write and Edit tools have been denied. Let me explain what I was going to do so you can decide how to proceed.
+
+## Migration Plan
+
+Here are the complete replacement contents for all three files:
+
+### 1. `app/src/client/components/search/SearchOverlay.tsx`
+
+Replace the custom BEM overlay with shadcn's `CommandDialog` pattern. This eliminates the manual backdrop, input ref/focus management, and Escape key handler (all handled by the Dialog primitive). The `Command` with `shouldFilter={false}` delegates filtering to the existing `useEntitySearch` hook.
+
+```tsx
+import { useState } from "react";
+import type { EntityKind } from "../../../shared/contracts";
+import { useEntitySearch } from "../../hooks/use-entity-search";
+import { SearchFilters } from "./SearchFilters";
+import { SearchResultCard } from "./SearchResultCard";
+import {
+  CommandDialog,
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "../ui/command";
+
+type SearchOverlayProps = {
+  onClose: () => void;
+};
+
+export function SearchOverlay({ onClose }: SearchOverlayProps) {
+  const { results, isSearching, query, setQuery } = useEntitySearch();
+  const [activeFilter, setActiveFilter] = useState<EntityKind | "all">("all");
+
+  const filteredResults =
+    activeFilter === "all"
+      ? results
+      : results.filter((r) => r.kind === activeFilter);
+
+  return (
+    <CommandDialog open onOpenChange={(open) => !open && onClose()}>
+      <Command shouldFilter={false}>
+        <CommandInput
+          placeholder="Search entities..."
+          value={query}
+          onValueChange={setQuery}
+        />
+
+        <SearchFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+
+        <CommandList className="max-h-80">
+          {!query.trim() ? (
+            <CommandEmpty>
+              Type to search across decisions, tasks, features, and more.
+            </CommandEmpty>
+          ) : isSearching ? (
+            <CommandEmpty>Searching...</CommandEmpty>
+          ) : filteredResults.length === 0 ? (
+            <CommandEmpty>
+              No results found for &ldquo;{query}&rdquo;.
+            </CommandEmpty>
+          ) : (
+            <CommandGroup>
+              {filteredResults.map((result) => (
+                <CommandItem key={result.id} value={result.id} asChild>
+                  <SearchResultCard result={result} onClose={onClose} />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </Command>
+    </CommandDialog>
+  );
+}
+```
+
+### 2. `app/src/client/components/search/SearchResultCard.tsx`
+
+Replace BEM classes with Tailwind utilities. Use `EntityBadge` from the ui directory, `Badge` for the confidence score, and `Button` (ghost variant, xs size) for the action buttons.
+
+```tsx
+import { useNavigate } from "@tanstack/react-router";
+import type { SearchEntityResponse } from "../../../shared/contracts";
+import { EntityBadge } from "../ui/entity-badge";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { useViewState } from "../../stores/view-state";
+
+export function SearchResultCard({ result, onClose }: { result: SearchEntityResponse; onClose?: () => void }) {
+  const navigateToGraph = useViewState((s) => s.navigateToGraph);
+  const navigateToDiscussEntity = useViewState((s) => s.navigateToDiscussEntity);
+  const navigate = useNavigate();
+
+  function handleViewInGraph() {
+    navigateToGraph(result.id);
+    void navigate({ to: "/graph" });
+  }
+
+  function handleDiscuss() {
+    navigateToDiscussEntity({ id: result.id, kind: result.kind, name: result.text });
+    onClose?.();
+    void navigate({ to: "/chat" });
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-card p-3">
+      <div className="flex items-center justify-between">
+        <EntityBadge kind={result.kind} />
+        <Badge variant="secondary" className="text-xs text-muted-foreground">
+          {(result.confidence * 100).toFixed(0)}%
+        </Badge>
+      </div>
+      <p className="text-sm text-foreground">{result.text}</p>
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={handleViewInGraph}
+        >
+          View in graph
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={handleDiscuss}
+        >
+          Discuss
+        </Button>
+      </div>
+    </div>
+  );
+}
+```
+
+### 3. `app/src/client/components/search/SearchFilters.tsx`
+
+Replace BEM filter chips with Tailwind-styled `Badge` components using `outline` and `default` variants for active/inactive states.
+
+```tsx
+import type { EntityKind } from "../../../shared/contracts";
+import { cn } from "@/lib/utils";
+import { Badge } from "../ui/badge";
+
+const FILTER_OPTIONS: Array<{ label: string; value: EntityKind | "all" }> = [
+  { label: "All", value: "all" },
+  { label: "Decision", value: "decision" },
+  { label: "Task", value: "task" },
+  { label: "Feature", value: "feature" },
+  { label: "Question", value: "question" },
+  { label: "Observation", value: "observation" },
+  { label: "Suggestion", value: "suggestion" },
+  { label: "Message", value: "message" },
+  { label: "Person", value: "person" },
+  { label: "Project", value: "project" },
+  { label: "Policy", value: "policy" },
+  { label: "Intent", value: "intent" },
+];
+
+export function SearchFilters({
+  activeFilter,
+  onFilterChange,
+}: {
+  activeFilter: EntityKind | "all";
+  onFilterChange: (filter: EntityKind | "all") => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 px-3 py-2 border-b border-border">
+      {FILTER_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onFilterChange(option.value)}
+        >
+          <Badge
+            variant={activeFilter === option.value ? "default" : "outline"}
+            className={cn(
+              "cursor-pointer transition-colors",
+              activeFilter === option.value
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {option.label}
+          </Badge>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+## What I need from you
+
+Please grant Write or Edit permissions so I can apply these changes to the three files, or copy the contents above into the files manually.</result>
+<usage><total_tokens>38577</total_tokens><tool_uses>12</tool_uses><duration_ms>70234</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a694ebaee9e96e06b.output
+
+---
+
+<task-notification>
+<task-id>a755f8b27dc2e51d3</task-id>
+<tool-use-id>toolu_01JAbFsgLs7mume7EVutP9mU</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a755f8b27dc2e51d3.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate feed domain to Tailwind" completed</summary>
+<result>I need file write/edit permissions to complete this task. Both the Write and Edit tools have been denied. Let me explain what I was trying to do.
+
+---
+
+I need either **Write** or **Edit** tool permissions to complete this migration. Both have been denied. Here is exactly what I planned to change across the 3 files (skipping `feed-action-routing.ts` per the rules since it's logic-only):
+
+### 1. `GovernanceFeed.tsx`
+
+**Changes:**
+- Add `import { Button } from "../ui/button"`
+- Error state: replace `className="feed-error"` div with `className="flex flex-col items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"`, replace raw `<button>` with `<Button variant="outline" size="sm">`
+- Loading state: replace `className="feed-loading"` with `className="py-8 text-center text-sm text-muted-foreground"`
+- Empty state: replace `className="feed-empty"` with `className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground"`
+- Root container: replace `className="governance-feed"` with `className="flex flex-col gap-6"`
+
+### 2. `FeedSection.tsx`
+
+**Changes:**
+- Add `import { cn } from "@/lib/utils"` and `import { Badge } from "../ui/badge"`
+- Section wrapper: replace BEM `feed-section feed-section--${tier}` with Tailwind `cn("flex flex-col gap-3 rounded-lg border-l-4 bg-card p-4", tier === "blocking" && "border-tier-blocking", tier === "review" && "border-tier-review", tier === "awareness" && "border-tier-awareness")`
+- Header: replace `className="feed-section-header"` with `className="flex items-center gap-2"`
+- Icon span: replace `className="feed-section-icon"` with `cn("flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold", tier === "blocking" && "bg-tier-blocking-muted text-tier-blocking-fg", tier === "review" && "bg-tier-review-muted text-tier-review-fg", tier === "awareness" && "bg-tier-awareness-muted text-tier-awareness-fg")`
+- Title h3: replace `className="feed-section-title"` with `className="text-sm font-semibold text-foreground"`
+- Count span: replace `className="feed-section-count"` with a `<Badge variant="secondary">` component
+- Items container: replace `className="feed-section-items"` with `className="flex flex-col gap-2"`
+
+### 3. `FeedItem.tsx`
+
+**Changes:**
+- Replace `import { EntityBadge } from "../graph/EntityBadge"` with `import { EntityBadge } from "../ui/entity-badge"`
+- Add imports: `import { cn } from "@/lib/utils"`, `import { StatusBadge } from "../ui/status-badge"`, `import { Badge } from "../ui/badge"`, `import { Button } from "../ui/button"`
+- Root div: replace BEM `feed-item feed-item--${tier}` with `cn("rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/50", item.tier === "blocking" && "border-l-2 border-l-tier-blocking", ...)`
+- Header: replace `className="feed-item-header"` with `className="flex items-center justify-between gap-2"`
+- Badges container: replace `className="feed-item-badges"` with `className="flex flex-wrap items-center gap-1.5"`
+- Priority span: replace `className="feed-item-priority"` with `<Badge variant="outline">`
+- Status span: replace `className="feed-item-status"` with `<StatusBadge status={item.status} />`
+- Entity name: replace `className="feed-item-name"` with `className="mt-1.5 text-sm font-medium text-foreground"`
+- Reason text: replace `className="feed-item-reason"` with `className="mt-1 text-xs text-muted-foreground"`
+- Conflict text: replace `className="feed-item-conflict"` with `className="mt-1.5 text-xs text-destructive"`
+- Project text: replace `className="feed-item-project"` with `className="mt-1 text-xs text-muted-foreground"`
+- Actions container: replace `className="feed-item-actions"` with `className="mt-3 flex flex-wrap gap-2"`
+- Action buttons: replace raw `<button>` with `<Button variant="outline" size="xs">`
+
+Please grant Write or Edit permission so I can apply these changes.</result>
+<usage><total_tokens>42025</total_tokens><tool_uses>17</tool_uses><duration_ms>79895</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a755f8b27dc2e51d3.output
+
+---
+
+<task-notification>
+<task-id>a662d0c79374c46ec</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a662d0c79374c46ec.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate review domain to Tailwind" completed</summary>
+<result>I need file write/edit permissions to complete this migration. Both the `Write` and `Edit` tools have been denied. These are the only tools available for modifying file contents.
+
+Here is what I was attempting to do and the complete replacement content for each of the three files:
+
+---
+
+## 1. `app/src/client/components/review/DiffViewer.tsx`
+
+Key changes:
+- Import `cn` from `@/lib/utils` and `Badge` from `../ui/badge`
+- `FileStatusBadge` uses `<Badge>` with variant mapping (`secondary` for modified, `default` for new, `destructive` for deleted)
+- `DiffLine` uses `cn()` with conditional Tailwind classes: additions get `bg-entity-feature-muted text-entity-feature-fg`, deletions get `bg-destructive/10 text-destructive`, hunk headers get `bg-muted text-muted-foreground font-semibold`
+- `FileSection` uses `rounded-lg border border-border`, button gets flex layout classes, expanded content gets `bg-card`
+- `DiffViewer` summary uses `flex items-center gap-3 text-sm text-muted-foreground`, file list uses `flex flex-col gap-2`
+- Empty state uses `text-sm text-muted-foreground py-4 text-center`
+
+## 2. `app/src/client/components/review/AgentActivityLog.tsx`
+
+Key changes:
+- Import `cn` from `@/lib/utils`, `Card`/`CardHeader`/`CardTitle`/`CardContent` from `../ui/card`, `Badge` from `../ui/badge`
+- Wrap `AgentActivityLog` in `<Card>` with `<CardHeader><CardTitle>` for the title and `<CardContent>` for the timeline
+- `ActivityItem` uses flex layout (`flex items-center gap-3 py-2 border-b border-border last:border-0`), timestamp uses `text-xs text-muted-foreground tabular-nums`, indicator uses `<Badge variant="outline">`, description uses `text-sm text-foreground`
+- Type-specific coloring via `cn()`: error entries get `text-destructive` on description
+- Empty state uses `text-sm text-muted-foreground py-4 text-center`
+
+## 3. `app/src/client/routes/review-page.tsx`
+
+Key changes:
+- Import `Button` from `../components/ui/button`, `Card`/`CardHeader`/`CardTitle`/`CardContent`/`CardFooter` from `../components/ui/card`, `Badge` from `../components/ui/badge`, `Textarea` from `../components/ui/textarea`, `cn` from `@/lib/utils`
+- `ReviewLoading`: skeleton with `animate-pulse` divs using `bg-muted rounded`
+- `ReviewError`: `<Card>` with destructive styling
+- `ReviewSuccess`: `<Card>` with success content
+- `SessionMetadata`: flex layout with `<Badge variant="outline">` items
+- Main review layout: `<section className="mx-auto max-w-4xl space-y-6 p-6">`
+- Header uses `text-2xl font-semibold text-foreground`
+- Diff section wrapped in `<Card>`
+- Actions use `<Button>` components: accept gets `variant="default"`, reject gets `variant="destructive"`, cancel gets `variant="outline"`
+- Reject textarea uses `<Textarea>` component
+- Error messages use `text-sm text-destructive`
+
+---
+
+**To proceed, please grant permission for either the `Write` or `Edit` tool, and I will apply all three file changes.**</result>
+<usage><total_tokens>41633</total_tokens><tool_uses>10</tool_uses><duration_ms>77593</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a662d0c79374c46ec.output
+
+---
+
+<task-notification>
+<task-id>a2f06b8ff745ae5ff</task-id>
+<tool-use-id>toolu_01S9y9qsqpm4s1zHovvqzm5J</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a2f06b8ff745ae5ff.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate RuleBuilder to Tailwind" completed</summary>
+<result>I need file write/edit permissions to complete this migration. Both the Write and Edit tools have been denied.
+
+Here is what I was trying to do and the complete replacement file I prepared:
+
+**Summary of changes:**
+
+1. **New imports** -- Added `Button`, `Input`, `Label`, `Select`/`SelectContent`/`SelectItem`/`SelectTrigger`/`SelectValue` from `@/components/ui/`.
+
+2. **FieldAutocomplete** -- Replaced BEM classes:
+   - `.rule-builder__autocomplete` -> `relative`
+   - `<input>` -> shadcn `<Input>` component
+   - `.rule-builder__suggestions` -> absolute-positioned `<ul>` with `z-50 mt-1 rounded-lg border border-border bg-popover shadow-md`
+   - `.rule-builder__suggestion-item` -> `flex w-full items-center gap-2 px-2.5 py-1.5 text-sm hover:bg-muted`
+   - `.rule-builder__suggestion-path` -> `font-mono text-foreground`
+   - `.rule-builder__suggestion-type` -> `rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground`
+   - `.rule-builder__suggestion-desc` -> `ml-auto truncate text-xs text-muted-foreground`
+
+3. **RuleRow** -- Replaced BEM layout with Tailwind grid:
+   - `.rule-builder__row` -> `grid grid-cols-[1fr_9rem_1fr_6rem_5rem_auto] items-center gap-2`
+   - `<select>` elements -> shadcn `<Select>` with `<SelectTrigger>`/`<SelectContent>`/`<SelectItem>`
+   - `<input>` elements -> shadcn `<Input>`
+   - `.rule-builder__remove-btn` -> shadcn `<Button variant="destructive" size="sm">`
+   - `.rule-builder__preview` -> `<p className="pl-0.5 text-xs text-muted-foreground italic">`
+
+4. **RuleBuilder** -- Replaced BEM wrapper:
+   - `.rule-builder` -> `space-y-3`
+   - `.rule-builder__header` -> `flex items-center justify-between`
+   - `.rule-builder__label` -> shadcn `<Label>`
+   - `.rule-builder__add-btn` -> shadcn `<Button variant="outline" size="sm">`
+   - `.rule-builder__empty` -> `py-4 text-center text-sm text-muted-foreground`
+   - `.rule-builder__column-headers` -> same grid template with `text-xs font-medium text-muted-foreground`
+
+5. **All pure functions, types, and exports** -- Completely untouched.
+
+To proceed, please either grant Write or Edit permission, or I can output the complete file content for you to paste manually.</result>
+<usage><total_tokens>42569</total_tokens><tool_uses>9</tool_uses><duration_ms>80109</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a2f06b8ff745ae5ff.output
+
+---
+
+<task-notification>
+<task-id>ac25d4938a58ed7e9</task-id>
+<tool-use-id>toolu_017zTiQZCsyU7Df8bAstqoxq</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/ac25d4938a58ed7e9.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate VersionDiffView to Tailwind" completed</summary>
+<result>Both the Write and Edit tools are denied. I cannot modify files in this session.
+
+Here is what I was trying to do and the complete replacement file content. You can apply it manually:
+
+**Goal:** Replace all BEM CSS classes in `VersionDiffView.tsx` with Tailwind utility classes and shadcn/ui `Dialog` + `Badge` components.
+
+**Key changes:**
+
+1. **Imports added** at the top:
+   - `Badge` from `@/components/ui/badge`
+   - `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`
+
+2. **Modal markup replaced** -- the manual backdrop `div` + inner dialog `div` with close button is replaced by the shadcn `Dialog` (controlled via `open` + `onOpenChange`), `DialogContent` (which includes the overlay, close button, and portal automatically), `DialogHeader`, and `DialogTitle`.
+
+3. **Tables** -- BEM classes like `version-diff__table`, `version-diff__field-name`, `version-diff__old-value`, `version-diff__new-value` replaced with:
+   - Table container: `overflow-x-auto rounded-md border border-border`
+   - Table: `w-full text-sm`
+   - Header row: `border-b border-border bg-muted/50`, th cells: `px-3 py-2 text-left font-medium text-muted-foreground`
+   - Body rows: `border-b border-border last:border-b-0`
+   - Field name cell: `px-3 py-2 font-medium text-foreground`
+   - Old value cell: `px-3 py-2 text-destructive bg-destructive/10`
+   - New value cell: `px-3 py-2 text-entity-feature-fg bg-entity-feature-muted`
+
+4. **Rule diff items** -- BEM rule cards replaced with:
+   - Added: container `bg-entity-feature-muted`, `Badge` with `bg-entity-feature-muted text-entity-feature-fg`
+   - Removed: container `bg-destructive/10`, `Badge variant="destructive"`
+   - Changed: container `bg-entity-decision-muted`, `Badge` with `bg-entity-decision-muted text-entity-decision-fg`, old value with `text-destructive line-through`, new value with `text-entity-feature-fg`
+
+5. **All pure diff functions, types, and exports** are kept exactly as-is -- no logic changes.
+
+Would you like to grant Write or Edit permission so I can apply these changes directly?</result>
+<usage><total_tokens>39708</total_tokens><tool_uses>6</tool_uses><duration_ms>75486</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/ac25d4938a58ed7e9.output
+
+---
+
+<task-notification>
+<task-id>a86cd110068a9e0db</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a86cd110068a9e0db.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate PolicyDetailPage to Tailwind" completed</summary>
+<result>Both Write and Edit tools were denied permission. I cannot modify the file without these tools.
+
+To complete this migration, I need either **Write** or **Edit** tool permissions. Here is what I was attempting to do:
+
+**Migrate `/Users/marcus/conductor/workspaces/brain-v1/casablanca/app/src/client/components/policy/PolicyDetailPage.tsx`** from BEM CSS classes to Tailwind CSS utility classes and shadcn/ui components. The specific changes planned:
+
+1. **New imports**: `Badge`, `Button`, `Separator` from `../ui/*`, and `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogDescription`/`DialogFooter` from `../ui/dialog`
+2. **Remove** the `statusBadgeClass()` helper; replace with a `STATUS_VARIANT` mapping (matching PoliciesPage pattern) and `<Badge variant={...}>` components
+3. **PolicyMetadata**: Replace `.policy-detail__metadata` / `.policy-detail__meta-row` / `.policy-detail__meta-label` / `.policy-detail__meta-value` with a `grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 rounded-lg border border-border bg-card p-4` layout, using `text-sm text-muted-foreground` for labels and `text-sm text-foreground` for values
+4. **RulesSection**: Replace `.policy-detail__rules-table` with `overflow-x-auto rounded-lg border border-border` wrapper and standard Tailwind table styling; replace `.policy-detail__effect-badge` with `<Badge variant={rule.effect === "allow" ? "default" : "destructive"}>` 
+5. **GovernanceEdgesSection**: Replace `.policy-detail__edges` / `.policy-detail__edge-group` / `.policy-detail__edge-list` / `.policy-detail__edge-item` with `flex flex-col gap-4` layout and `rounded-md bg-muted/50 px-3 py-1.5` list items
+6. **VersionHistorySection**: Replace `.policy-detail__version-list` / `.policy-detail__version-item` with Tailwind spacing, conditional `border border-border bg-muted` for current version; replace `.policy-detail__diff-btn` with `<Button variant="ghost" size="xs">`
+7. **ConfirmDialog**: Replace custom `.policy-dialog__backdrop` / `.policy-detail__confirm-dialog` with shadcn `<Dialog>` / `<DialogContent>` / `<DialogHeader>` / `<DialogTitle>` / `<DialogDescription>` / `<DialogFooter>` with `<Button variant="outline">` for cancel and `<Button variant={isDestructive ? "destructive" : "default"}>` for confirm
+8. **ActionButtons**: Replace `.policy-detail__action-btn--activate/deprecate/version` with `<Button variant="default/destructive/outline" size="sm">`
+9. **Main component**: Replace `.policy-detail` with `mx-auto max-w-3xl space-y-6 p-6`; add `<Separator />` between sections; replace `.policy-detail__error` with `rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive`
+
+Please grant Write or Edit permission so I can apply these changes.</result>
+<usage><total_tokens>49442</total_tokens><tool_uses>8</tool_uses><duration_ms>125501</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/a86cd110068a9e0db.output
+
+---
+
+<task-notification>
+<task-id>ac2856252caad232b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/ac2856252caad232b.output</output-file>
+<status>completed</status>
+<summary>Agent "Migrate chat domain to Tailwind" completed</summary>
+<result>I need both Write and Bash permissions to create these files. Both tools were denied. Let me explain what I need:
+
+I need file-writing permission to complete this task. The migration requires replacing the full content of 6 files with their Tailwind CSS / shadcn/ui equivalents. The Write tool and Bash (with `cat >`) were both denied.
+
+Could you grant permission to either the **Write** tool or **Bash** so I can write the migrated file contents? Here is a summary of what each file will contain:
+
+---
+
+**1. `app/src/client/routes/chat-page.tsx`** (largest file):
+- Imports `cn`, `Button`, `Badge`, `ScrollArea` from shadcn/ui
+- Root `<section>` uses `flex h-full flex-col` instead of `.chat-page`
+- Messages area wrapped in `<ScrollArea>` with `mx-auto max-w-3xl` container
+- User messages: `ml-auto max-w-[85%] bg-primary text-primary-foreground rounded-lg`
+- Assistant messages: `bg-muted text-foreground rounded-lg`
+- Markdown content uses scoped `[&_p]:mb-2 [&_pre]:rounded-md [&_pre]:bg-muted ...` prose styles
+- Tool invocations use `<Badge variant="secondary">` instead of `.chat-tool-invocation`
+- Branch button uses `<Button variant="ghost" size="icon-xs">` with group-hover opacity
+- Onboarding buttons use `<Button variant="default">` and `<Button variant="outline">`
+- Chat input area: `flex items-end gap-2 border-t border-border bg-card` with Send/Stop as `<Button>`
+- Thinking block uses `border border-border bg-card` details/summary
+- PM Agent trace uses nested `<details>` with Tailwind borders/spacing
+
+**2. `app/src/client/components/chat/ChatSuggestionPills.tsx`**:
+- Removes `entityColor`/`entityMutedColor` inline style imports, uses `entityBgClass`/`entityTextClass`/`entityBorderClass` from `../ui/entity-badge`
+- Pills use `rounded-full border px-3 py-1 text-xs font-medium` with entity color classes via `cn()`
+- Groups use `flex flex-col gap-1.5` with `text-xs font-medium text-muted-foreground` labels
+
+**3. `app/src/client/components/chat/EntityLink.tsx`**:
+- Regular links: `text-accent underline underline-offset-2 hover:text-accent/80`
+- Entity links: `inline-flex items-center gap-1 rounded px-1 py-0.5 text-accent hover:bg-accent/10`
+- Kind label: `text-[0.65rem] font-semibold uppercase tracking-wider opacity-60`
+
+**4. `app/src/client/components/chat/DiscussEntityCard.tsx`**:
+- Uses `<Card size="sm">` and `<CardContent>` from shadcn
+- Uses `<EntityBadge>` from `../ui/entity-badge` (new path) and `<StatusBadge>` from `../ui/status-badge`
+
+**5. `app/src/client/components/chat/SuggestionToolCard.tsx`**:
+- Uses `<Card>`, `<CardHeader>`, `<CardTitle>`, `<CardContent>` from shadcn
+- Uses `<Badge variant="secondary">` for category
+- Card styled with `border-entity-question bg-entity-question-muted`
+
+**6. `app/src/client/components/chat/InlineRelationshipGraph.tsx`**:
+- Wrapper: `my-2 rounded-lg border border-border bg-card`
+- Title: `px-3 pt-3 text-xs font-medium text-muted-foreground`
+- No other structural changes (Reagraph canvas is style-inline by necessity)
+
+Please grant Write or Bash permission so I can apply these changes.</result>
+<usage><total_tokens>59831</total_tokens><tool_uses>28</tool_uses><duration_ms>239689</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-casablanca/e27f921d-51c0-45da-963b-a3b9a76bffa7/tasks/ac2856252caad232b.output
+
+---
+
+verify
+
+---
+
+buttons, inputs, etc need more padding
+
+less border radius
+
+---
+
+badges as well
+
+---
+
+Continue from where you left off.
+
+---
+
+badges need less border radius as well
+
+---
+
+badges still have too much border radius...
+
+---
+
+badges/pills/ whatever is used in search has too much border radius
+
+---
+
+graph background should be transparent
+
+---
+
+now it's white
+
+---
+
+shouldn't it point to the css var?
+
+---
+
+can't it access the variable itself? "var(--background)"
+
+---
+
+ok, dont add fallback. it makes maintenance brittle
+
+---
+
+NO, in:
+  return getComputedStyle(document.documentElement).getPropertyValue("--background").trim() || "#0a0a0c";
+
+remove "|| "#0a0a0c";" and fail if getPropertyValue("--background") is not present
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/casablanca/.context/attachments/PR instructions.md (956 B)
+</system_instruction>
+
+
+
+Create a PR
