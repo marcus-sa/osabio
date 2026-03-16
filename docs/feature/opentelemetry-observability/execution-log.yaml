@@ -118,5 +118,65 @@ events:
   s: EXECUTED
   sid: 02-02
   t: '2026-03-16T15:27:51Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-16T15:36:32Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-16T15:36:33Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:37:54Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:38:24Z'
+- d: 'NOT_APPLICABLE: acceptance test covers the verification via file scanning'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-01
+  t: '2026-03-16T15:38:25Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:41:02Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:41:23Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-16T15:42:41Z'
+- d: 'NOT_APPLICABLE: deletion step with structural acceptance criteria verified post-GREEN'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-16T15:42:50Z'
+- d: 'NOT_APPLICABLE: deletion step with no domain logic to test'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-02
+  t: '2026-03-16T15:42:51Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-16T15:44:15Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-02
+  t: '2026-03-16T15:44:40Z'
 project_id: opentelemetry-observability
 schema_version: '3.0'

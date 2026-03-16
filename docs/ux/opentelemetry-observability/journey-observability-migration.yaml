@@ -1,0 +1,255 @@
+journey:
+  name: "OpenTelemetry Observability Migration"
+  goal: "Replace Pino structured logging with OpenTelemetry traces and metrics, enabling LLM debugging, request tracing, operational monitoring, and cost visibility"
+  persona: "Marcus -- solo developer/operator of Brain platform"
+
+  emotional_arc:
+    start: "Uncertain -- will OTEL work on Bun? How much code changes?"
+    middle: "Oriented/Capable -- spans flowing, AI SDK telemetry works out of the box"
+    end: "Confident -- any issue diagnosable in minutes, costs fully attributed"
+
+  jobs_served:
+    - id: job-1
+      title: "Debug LLM Calls"
+      primary_steps: [2, 4]
+    - id: job-2
+      title: "Request Tracing"
+      primary_steps: [3, 4]
+    - id: job-3
+      title: "Operational Monitoring"
+      primary_steps: [1, 5]
+    - id: job-4
+      title: "Cost Visibility"
+      primary_steps: [2, 5]
+
+steps:
+  - id: 1
+    name: "OTEL SDK Setup & Configuration"
+    description: "Install OpenTelemetry packages, configure trace and metric providers, set up exporters"
+
+    actions:
+      - "Install @opentelemetry/sdk-node, /api, /sdk-trace-node, /sdk-metrics, OTLP exporters"
+      - "Create telemetry initialization module (runs before server start)"
+      - "Configure console exporter for dev, OTLP for prod via standard env vars"
+      - "Remove Pino dependency; create thin console logger for startup messages"
+
+    shared_artifacts:
+      - name: "TracerProvider"
+        source: "app/src/server/telemetry/init.ts"
+        displayed_as: "${tracerProvider}"
+        consumers:
+          - "All modules that create spans"
+      - name: "MeterProvider"
+        source: "app/src/server/telemetry/init.ts"
+        displayed_as: "${meterProvider}"
+        consumers:
+          - "All modules that record metrics"
+      - name: "ServiceName"
+        value: "brain"
+        source: "OTEL_SERVICE_NAME env var"
+        consumers:
+          - "All spans and metrics"
+
+    emotional_state:
+      entry: "Uncertain -- is this going to be complex?"
+      exit: "Oriented -- packages installed, console shows spans"
+
+    integration_checkpoint: |
+      TracerProvider and MeterProvider initialize before Bun.serve() starts.
+      Console exporter outputs spans with zero additional configuration.
+      OTLP exporter activates only when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+      Startup messages still appear via thin console logger.
+
+    error_paths:
+      - trigger: "OTEL SDK incompatible with Bun runtime"
+        outcome: "Graceful degradation -- spans are no-ops, metrics silently dropped"
+      - trigger: "OTLP endpoint unreachable"
+        outcome: "SDK buffers spans, retries per OTEL retry spec, logs warning"
+
+  - id: 2
+    name: "AI SDK Telemetry Instrumentation"
+    description: "Enable experimental_telemetry on all generateText, generateObject, and streamText calls"
+
+    actions:
+      - "Add experimental_telemetry config to all 15 generateObject call sites"
+      - "Add experimental_telemetry config to all 2 streamText call sites"
+      - "Add experimental_telemetry config to ToolLoopAgent calls (PM, analytics)"
+      - "Define functionId taxonomy for all LLM functions"
+      - "Include workspaceId and messageId as telemetry metadata where available"
+
+    shared_artifacts:
+      - name: "FunctionId Taxonomy"
+        source: "app/src/server/telemetry/function-ids.ts"
+        displayed_as: "${functionId}"
+        consumers:
+          - "All generateObject/streamText call sites"
+          - "Metrics aggregation by function"
+          - "Cost attribution queries"
+      - name: "Telemetry Config Factory"
+        source: "app/src/server/telemetry/ai-telemetry.ts"
+        displayed_as: "${telemetryConfig}"
+        consumers:
+          - "All AI SDK call sites"
+
+    function_id_taxonomy:
+      - "brain.extraction.generate"
+      - "brain.extraction.dedupe"
+      - "brain.chat.agent"
+      - "brain.chat.stream"
+      - "brain.pm.agent"
+      - "brain.observer.verify"
+      - "brain.observer.peer-review"
+      - "brain.behavior.score"
+      - "brain.onboarding.generate"
+      - "brain.intent.authorize"
+      - "brain.analytics.agent"
+
+    emotional_state:
+      entry: "Oriented -- SDK is set up, now instrumenting"
+      exit: "Capable -- every LLM call emits structured telemetry"
+
+    integration_checkpoint: |
+      AI SDK spans appear in console output during dev.
+      Each span carries functionId, model, token counts, and duration.
+      Telemetry metadata includes workspaceId for multi-workspace filtering.
+
+  - id: 3
+    name: "HTTP & Pipeline Distributed Tracing"
+    description: "Create root spans for HTTP requests, child spans for pipeline stages, propagate context"
+
+    actions:
+      - "Replace withRequestLogging wrapper with span-creating wrapper"
+      - "Create child spans for extraction pipeline, chat processing, tool execution"
+      - "Carry requestId as span attribute for backward compatibility"
+      - "Ensure OTEL context propagates through AsyncLocalStorage boundaries"
+      - "Remove Pino-based request logging (replaced by HTTP spans)"
+
+    shared_artifacts:
+      - name: "HTTP Root Span"
+        source: "app/src/server/http/request-tracing.ts"
+        displayed_as: "${rootSpan}"
+        consumers:
+          - "All HTTP handlers via wrapper"
+          - "AI SDK telemetry (auto-nests under active context)"
+      - name: "RequestId Attribute"
+        source: "Span attribute on root HTTP span"
+        displayed_as: "${requestId}"
+        consumers:
+          - "Log correlation (backward compat)"
+          - "Error reporting"
+
+    emotional_state:
+      entry: "Capable -- LLM calls instrumented"
+      exit: "Capable (deepened) -- full request waterfall visible"
+
+    integration_checkpoint: |
+      AI SDK spans nest as children under HTTP root spans.
+      Trace waterfall shows complete request lifecycle.
+      AsyncLocalStorage context and OTEL context coexist.
+      requestId attribute present on root span for backward compat.
+
+    error_paths:
+      - trigger: "Context lost across async boundary"
+        outcome: "Orphaned spans appear as separate traces -- detectable in trace viewer"
+      - trigger: "SSE streaming breaks span lifecycle"
+        outcome: "Root span ends when response headers sent; streaming spans are siblings"
+
+  - id: 4
+    name: "LLM Debugging Workflow"
+    description: "Use trace data to diagnose wrong or slow LLM responses"
+
+    actions:
+      - "Search traces by messageId or workspaceId metadata"
+      - "Inspect LLM span for model, tokens, duration, status"
+      - "Compare prompt token count against expectations"
+      - "Identify whether issue is prompt, model, or data"
+
+    emotional_state:
+      entry: "Problem-solving -- something went wrong"
+      exit: "Confident -- root cause identified with evidence"
+
+    integration_checkpoint: |
+      Traces searchable by telemetry metadata (messageId, workspaceId).
+      LLM spans contain sufficient data for diagnosis without raw prompt content.
+
+  - id: 5
+    name: "Operational Metrics & Cost Monitoring"
+    description: "Record and export metrics for health monitoring and cost attribution"
+
+    actions:
+      - "Define OTEL metrics: llm duration histogram, token counters, HTTP duration histogram, request counter"
+      - "Record metrics at instrumentation points (HTTP wrapper, AI SDK telemetry integration)"
+      - "Export via console in dev, OTLP in prod"
+      - "Attribute token usage to functionId for cost breakdown"
+
+    metrics:
+      - name: "brain.llm.duration"
+        type: "histogram"
+        unit: "ms"
+        attributes: ["functionId", "model"]
+      - name: "brain.llm.tokens.prompt"
+        type: "counter"
+        attributes: ["functionId", "model"]
+      - name: "brain.llm.tokens.completion"
+        type: "counter"
+        attributes: ["functionId", "model"]
+      - name: "brain.llm.errors"
+        type: "counter"
+        attributes: ["functionId", "model", "error_type"]
+      - name: "brain.http.duration"
+        type: "histogram"
+        unit: "ms"
+        attributes: ["method", "route", "status_code"]
+      - name: "brain.http.requests"
+        type: "counter"
+        attributes: ["method", "route", "status_code"]
+      - name: "brain.extraction.entities"
+        type: "counter"
+        attributes: ["entity_type"]
+
+    shared_artifacts:
+      - name: "Metrics Registry"
+        source: "app/src/server/telemetry/metrics.ts"
+        displayed_as: "${metrics}"
+        consumers:
+          - "HTTP request wrapper"
+          - "AI SDK telemetry integration"
+          - "Extraction persistence"
+
+    emotional_state:
+      entry: "Capable -- tracing works"
+      exit: "Confident -- quantitative health and cost visibility"
+
+    integration_checkpoint: |
+      Metrics appear in console during dev.
+      OTLP export works when endpoint configured.
+      Token counters aggregate correctly by functionId.
+      HTTP metrics match actual request volume.
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "TracerProvider"
+      must_match_across: [1, 2, 3]
+      failure_message: "All spans must use the same TracerProvider initialized at startup"
+    - artifact: "FunctionId Taxonomy"
+      must_match_across: [2, 5]
+      failure_message: "Function IDs used in telemetry must match those used in metrics aggregation"
+    - artifact: "ServiceName"
+      must_match_across: [1, 2, 3, 5]
+      failure_message: "All telemetry must use consistent service name 'brain'"
+
+  coexistence_requirements:
+    - "OTEL context propagation must not break existing AsyncLocalStorage request context"
+    - "SurrealDB graph traces (application audit trail) remain independent of OTEL traces"
+    - "Thin console logger replaces Pino for startup messages only"
+
+  removed_artifacts:
+    - name: "Pino logger"
+      previously: "app/src/server/logging.ts"
+      replaced_by: "OTEL spans for events, OTEL metrics for counters, console logger for startup"
+    - name: "logInfo/logWarn/logError/logDebug"
+      previously: "app/src/server/http/observability.ts"
+      replaced_by: "Span events and attributes"
+    - name: "withRequestLogging"
+      previously: "app/src/server/http/request-logging.ts"
+      replaced_by: "Span-creating HTTP wrapper"
