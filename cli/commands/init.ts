@@ -469,10 +469,10 @@ export async function setupProxyConfig(
     return;
   }
 
-  // 3. Store proxy token in ~/.brain/config.json
+  // 3. Store proxy token expiry in ~/.brain/config.json (raw token stays only in settings.local.json)
   const global = await loadGlobalConfig();
   if (global?.repos[gitRoot]) {
-    global.repos[gitRoot].proxy_token = proxyToken;
+    delete global.repos[gitRoot].proxy_token;
     global.repos[gitRoot].proxy_token_expires_at = proxyTokenExpiresAt;
     await saveGlobalConfig(global);
   } else {

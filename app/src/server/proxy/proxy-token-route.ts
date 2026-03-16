@@ -5,11 +5,9 @@
  * Pipeline:
  *   1. Parse workspace_id from request body + extract bearer token
  *   2. Validate bearer token via Better Auth session
- *   3. Resolve authenticated person → identity
- *   4. Verify identity is a member of the target workspace
- *   5. Revoke previous tokens for same identity+workspace
- *   6. Generate token, hash, store
- *   7. Return raw token + expiry
+ *   3. Resolve authenticated person → identity (scoped to workspace membership)
+ *   4. Revoke previous tokens + issue new one (atomic transaction)
+ *   5. Return raw token + expiry
  *
  * Driving port: POST /api/auth/proxy-token
  * Driven ports: SurrealDB (proxy_token table)
@@ -60,18 +58,25 @@ function parseProxyTokenRequest(
 
 // ---------------------------------------------------------------------------
 // Identity Resolution (driven port — queries SurrealDB)
+// Resolves the identity for a person that is a member of the target workspace,
+// avoiding false 403s when a person has multiple identities.
 // ---------------------------------------------------------------------------
 
-async function resolveIdentityForPerson(
+async function resolveIdentityForWorkspaceAndPerson(
   surreal: ServerDependencies["surreal"],
   personId: string,
+  workspaceId: string,
 ): Promise<string | undefined> {
   const personRecord = new RecordId("person", personId);
+  const wsRecord = new RecordId("workspace", workspaceId);
   const results = await surreal.query<[RecordId[]]>(
-    `SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;`,
-    { person: personRecord },
+    `SELECT VALUE ip.in
+     FROM identity_person AS ip
+     WHERE ip.out = $person
+       AND (SELECT VALUE count() FROM member_of WHERE in = ip.in AND out = $ws) > 0
+     LIMIT 1;`,
+    { person: personRecord, ws: wsRecord },
   );
-
   const identityRec = results[0]?.[0];
   return identityRec?.id as string | undefined;
 }
@@ -89,23 +94,6 @@ function workspaceRecord(workspaceId: string): RecordId {
 }
 
 // ---------------------------------------------------------------------------
-// Membership Check (driven port — queries SurrealDB)
-// ---------------------------------------------------------------------------
-
-async function checkWorkspaceMembership(
-  surreal: ServerDependencies["surreal"],
-  identityId: string,
-  workspaceId: string,
-): Promise<boolean> {
-  const results = await surreal.query<[Array<{ count: number }>]>(
-    `SELECT count() AS count FROM member_of WHERE in = $identity AND out = $ws GROUP ALL;`,
-    { identity: identityRecord(identityId), ws: workspaceRecord(workspaceId) },
-  );
-
-  return (results[0]?.[0]?.count ?? 0) > 0;
-}
-
-// ---------------------------------------------------------------------------
 // Session Validation (driven port — Better Auth)
 // ---------------------------------------------------------------------------
 
@@ -118,25 +106,12 @@ async function validateSession(
 }
 
 // ---------------------------------------------------------------------------
-// Token Revocation (driven port — mutates SurrealDB)
+// Token Rotation (driven port — mutates SurrealDB)
+// Revoke + issue in a single transaction to avoid a crash window where
+// no valid token exists.
 // ---------------------------------------------------------------------------
 
-async function revokePreviousTokens(
-  surreal: ServerDependencies["surreal"],
-  identityId: string,
-  workspaceId: string,
-): Promise<void> {
-  await surreal.query(
-    `UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;`,
-    { identity: identityRecord(identityId), ws: workspaceRecord(workspaceId) },
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Token Storage (driven port — mutates SurrealDB)
-// ---------------------------------------------------------------------------
-
-async function storeProxyToken(
+async function rotateProxyToken(
   surreal: ServerDependencies["surreal"],
   tokenHash: string,
   identityId: string,
@@ -144,14 +119,17 @@ async function storeProxyToken(
   expiresAt: Date,
 ): Promise<void> {
   await surreal.query(
-    `CREATE proxy_token CONTENT {
-      token_hash: $hash,
-      workspace: $ws,
-      identity: $identity,
-      expires_at: $expires,
-      created_at: time::now(),
-      revoked: false,
-    };`,
+    `BEGIN TRANSACTION;
+     UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;
+     CREATE proxy_token CONTENT {
+       token_hash: $hash,
+       workspace: $ws,
+       identity: $identity,
+       expires_at: $expires,
+       created_at: time::now(),
+       revoked: false,
+     };
+     COMMIT TRANSACTION;`,
     {
       hash: tokenHash,
       ws: workspaceRecord(workspaceId),
@@ -196,27 +174,18 @@ export function createProxyTokenHandler(
       return jsonResponse({ error: "invalid_session" }, 401);
     }
 
-    // 3. Resolve person → identity
-    const identityId = await resolveIdentityForPerson(deps.surreal, personId);
+    // 3. Resolve person → identity (scoped to workspace membership)
+    const identityId = await resolveIdentityForWorkspaceAndPerson(deps.surreal, personId, workspaceId);
     if (!identityId) {
-      return jsonResponse({ error: "identity_not_found" }, 403);
-    }
-
-    // 4. Verify identity is a member of the target workspace
-    const isMember = await checkWorkspaceMembership(deps.surreal, identityId, workspaceId);
-    if (!isMember) {
       return jsonResponse({ error: "workspace_membership_required" }, 403);
     }
 
-    // 5. Revoke previous tokens
-    await revokePreviousTokens(deps.surreal, identityId, workspaceId);
-
-    // 6. Generate and store new token
+    // 4. Revoke previous tokens + issue new one (atomic)
     const rawToken = generateProxyToken();
     const tokenHash = hashProxyToken(rawToken);
     const expiresAt = computeExpiresAt(ttlDays);
 
-    await storeProxyToken(deps.surreal, tokenHash, identityId, workspaceId, expiresAt);
+    await rotateProxyToken(deps.surreal, tokenHash, identityId, workspaceId, expiresAt);
 
     logInfo("proxy.token.issued", "Proxy token issued", {
       workspace_id: workspaceId,
@@ -224,7 +193,7 @@ export function createProxyTokenHandler(
       ttl_days: ttlDays,
     });
 
-    // 7. Return raw token (only time it leaves the server)
+    // 5. Return raw token (only time it leaves the server)
     return jsonResponse({
       proxy_token: rawToken,
       expires_at: expiresAt.toISOString(),
