@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1b8c9791390f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/cli-proxy-setup",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    "tests/acceptance/llm-proxy/llm-proxy-audit.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-context-injection.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-cost.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-dashboard.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-identity.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-observer-session-end.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-observer-trace.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-policy.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-hash.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-test-kit.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-trace.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1b/8c9791390f/0/metadata.json",
+      "transcript": "/1b/8c9791390f/0/full.jsonl",
+      "context": "/1b/8c9791390f/0/context.md",
+      "content_hash": "/1b/8c9791390f/0/content_hash.txt",
+      "prompt": "/1b/8c9791390f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 705,
+    "cache_creation_tokens": 61107,
+    "cache_read_tokens": 1918384,
+    "output_tokens": 5659,
+    "api_call_count": 30
+  }
+}

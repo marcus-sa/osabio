@@ -1,0 +1,42 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/london directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+well anthropic/claude-sonnet-4 is configured somewhere because it is showing up in my openrouter logs
+Now I see the picture. The proxy defaults to https://api.anthropic.com but can be overridden via ANTHROPIC_API_URL. The anthropic/claude-sonnet-4 in your OpenRouter logs isn’t coming from Brain’s server code.
+
+This is coming from your client (Claude Code, Cursor, etc.) that’s configured to use the proxy. The client sends model: "anthropic/claude-sonnet-4" in its request body — the proxy just passes that through to whatever ANTHROPIC_API_URL is set to.
+
+Check:
+
+Your ANTHROPIC_API_URL env var on the running Brain server — if it points to https://openrouter.ai/api/v1, that’s how it reaches OpenRouter
+Your coding agent’s model config — Claude Code or Cursor is sending anthropic/claude-sonnet-4 as the model name in the request body
+The proxy itself doesn’t pick the model — it’s a passthrough. The model name is decided by whatever client is talking through the proxy.
+the llm-proxy tests must be using sonnet somewhere.... we should default to haiku
+No default model constant in the test kit — each test file hardcodes claude-sonnet-4-20250514. Let me add a constant to the kit and update all test files.
+add it as required env var
+
+something like PROXY_ANTHROPIC_MODEL
+TEXT_PROXY_ANTHROPIC_MODEL
+TEST_PROXY_ANTHROPIC_MODEL
+Claude Code error: No conversation found with session ID: c54aa788-7f93-4524-bca4-0dba94d34178
+Retry in new chat
+add it as required env var
+
+
+TEST_PROXY_ANTHROPIC_MODEL
+
+---
+
+add to ci.yml as well
+
+---
+
+Commit and push all changes
