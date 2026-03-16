@@ -10,12 +10,6 @@
 // ---------------------------------------------------------------------------
 
 export const BRAIN_HOOKS: Record<string, Array<{ type: string; command?: string; prompt?: string }>> = {
-  PreToolUse: [
-    { type: "command", command: "brain system pretooluse" },
-  ],
-  SessionStart: [
-    { type: "command", command: "brain system load-context" },
-  ],
   UserPromptSubmit: [
     { type: "command", command: "brain system check-updates" },
   ],
@@ -61,8 +55,6 @@ You can include task IDs (\`task:abc123\`), project names, file paths, or just a
 
 ## Hooks
 
-- **SessionStart** loads workspace/project context automatically
-- **PreToolUse** injects brain context when dispatching subagents
 - **UserPromptSubmit** checks for workspace-level graph updates
 - **Stop** catches unlogged decisions before the session ends
 - **SessionEnd** logs session summary to the graph

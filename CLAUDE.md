@@ -20,8 +20,6 @@ You can include task IDs (`task:abc123`), project names, file paths, or just a p
 
 ## Hooks
 
-- **SessionStart** loads workspace/project context automatically
-- **PreToolUse** injects brain context when dispatching subagents
 - **UserPromptSubmit** checks for workspace-level graph updates
 - **Stop** catches unlogged decisions before the session ends
 - **SessionEnd** logs session summary to the graph

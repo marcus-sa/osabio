@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { runInit } from "./commands/init";
-import { runLoadContext, runCheckUpdates, runEndSession, runPreToolUse } from "./commands/system";
+import { runCheckUpdates, runEndSession } from "./commands/system";
 import { runCheckCommit, runLogCommit } from "./commands/git-hooks";
 import { runCommitCheck } from "./commands/commit-check";
 
@@ -17,21 +17,15 @@ async function main(): Promise<void> {
 
     case "system":
       switch (subcommand) {
-        case "load-context":
-          await runLoadContext();
-          break;
         case "check-updates":
           await runCheckUpdates();
           break;
         case "end-session":
           await runEndSession();
           break;
-        case "pretooluse":
-          await runPreToolUse();
-          break;
         default:
           console.error(`Unknown system subcommand: ${subcommand}`);
-          console.error("Available: load-context, check-updates, end-session, pretooluse");
+          console.error("Available: check-updates, end-session");
           process.exit(1);
       }
       break;
@@ -75,10 +69,8 @@ brain — Connect coding agents to the Brain knowledge graph
 
 Usage:
   brain init                     Set up Brain integration (auth, MCP, hooks, commands, git hooks)
-  brain system load-context      Load workspace info (SessionStart hook)
   brain system check-updates     Check for graph updates (UserPromptSubmit hook)
   brain system end-session       End agent session (SessionEnd hook)
-  brain system pretooluse        Inject brain context into subagent dispatch (PreToolUse hook)
   brain check-commit             Pre-commit hook: check for task completion
   brain commit-check             Post-commit hook: extract task refs and mark done
   brain log-commit               Deprecated no-op (GitHub webhook ingests commits)

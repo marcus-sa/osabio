@@ -21,7 +21,7 @@ Added Brain-authenticated LLM proxy support with CLI configuration. Developers r
 
 ### CLI
 - **brain init Step 7** — Requests proxy token, writes `.claude/settings.local.json` with ANTHROPIC_BASE_URL + ANTHROPIC_HEADERS, warns if not gitignored
-- **SessionStart hook** — Warns when proxy token is expired or expiring within 7 days
+- **Removed SessionStart/PreToolUse hooks** — Context injection now handled by the Brain LLM proxy itself, eliminating redundant CLI hooks (`brain system load-context`, `brain system pretooluse`)
 
 ## Architecture Decisions
 
@@ -60,7 +60,9 @@ Added Brain-authenticated LLM proxy support with CLI configuration. Developers r
 - `app/src/server/runtime/config.ts` — ANTHROPIC_API_KEY + optionalEnv helper
 - `app/src/server/runtime/start-server.ts` — Route registration
 - `cli/commands/init.ts` — Step 7: setupProxyConfig
-- `cli/commands/system.ts` — Token expiry warning
+- `cli/commands/system.ts` — Removed runLoadContext + runPreToolUse (proxy handles context injection)
+- `cli/brain.ts` — Removed load-context + pretooluse subcommands
+- `cli/commands/init-content.ts` — Removed SessionStart + PreToolUse hook entries
 - `cli/config.ts` — proxy_token + proxy_token_expires_at fields
 - `.env.example` — ANTHROPIC_API_KEY documentation
 

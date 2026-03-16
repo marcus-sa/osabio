@@ -29,14 +29,6 @@
             "command": "entire hooks claude-code pre-task"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "brain system pretooluse"
-          }
-        ]
       }
     ],
     "SessionEnd": [
@@ -65,14 +57,6 @@
           {
             "type": "command",
             "command": "entire hooks claude-code session-start"
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "brain system load-context"
           }
         ]
       }
