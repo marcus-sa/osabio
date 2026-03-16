@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b7659f3caccb",
+  "session_id": "fe96e03e-e1bb-4543-8fca-21184f728e51",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:29:13.257884Z",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "schema/surreal-schema.surql",
+    "schema/migrations/0052_intent_evaluation_reasoning.surql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f9c18ddc50e4",
+  "checkpoint_transcript_start": 169,
+  "transcript_lines_at_start": 169,
+  "token_usage": {
+    "input_tokens": 59,
+    "cache_creation_tokens": 63857,
+    "cache_read_tokens": 1031837,
+    "output_tokens": 3567,
+    "api_call_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:29:12.590899Z",
+    "agent_lines": 11,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 11,
+    "agent_percentage": 100
+  }
+}
