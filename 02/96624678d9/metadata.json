@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0296624678d9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/adrs/ADR-053-admin-seed-via-migration-with-bun-argon2id.md",
+    "docs/feature/self-hosted-deployment/design/architecture.md",
+    "docs/feature/self-hosted-deployment/design/review.yaml",
+    "docs/requirements/self-hosted-deployment/US-001-self-hosted-env-config.md",
+    "docs/requirements/self-hosted-deployment/US-002-admin-seed-migration.md",
+    "docs/requirements/self-hosted-deployment/US-003-disable-registration.md",
+    "docs/requirements/self-hosted-deployment/US-004-worktree-manager-feature-flag.md",
+    "docs/requirements/self-hosted-deployment/dor-validation.md",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup-visual.md",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup.feature",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup.yaml",
+    "docs/ux/self-hosted-deployment/jtbd-analysis.md",
+    "docs/ux/self-hosted-deployment/shared-artifacts-registry.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/96624678d9/0/metadata.json",
+      "transcript": "/02/96624678d9/0/full.jsonl",
+      "context": "/02/96624678d9/0/context.md",
+      "content_hash": "/02/96624678d9/0/content_hash.txt",
+      "prompt": "/02/96624678d9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 96292,
+    "cache_read_tokens": 1263237,
+    "output_tokens": 9502,
+    "api_call_count": 31
+  }
+}

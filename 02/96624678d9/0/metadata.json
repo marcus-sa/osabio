@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0296624678d9",
+  "session_id": "8dc8b5ae-2331-4f87-b004-22b121f4d6ce",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T15:45:36.335343Z",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/adrs/ADR-053-admin-seed-via-migration-with-bun-argon2id.md",
+    "docs/feature/self-hosted-deployment/design/architecture.md",
+    "docs/feature/self-hosted-deployment/design/review.yaml",
+    "docs/requirements/self-hosted-deployment/US-001-self-hosted-env-config.md",
+    "docs/requirements/self-hosted-deployment/US-002-admin-seed-migration.md",
+    "docs/requirements/self-hosted-deployment/US-003-disable-registration.md",
+    "docs/requirements/self-hosted-deployment/US-004-worktree-manager-feature-flag.md",
+    "docs/requirements/self-hosted-deployment/dor-validation.md",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup-visual.md",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup.feature",
+    "docs/ux/self-hosted-deployment/journey-self-hosted-setup.yaml",
+    "docs/ux/self-hosted-deployment/jtbd-analysis.md",
+    "docs/ux/self-hosted-deployment/shared-artifacts-registry.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "183326835c40",
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 96292,
+    "cache_read_tokens": 1263237,
+    "output_tokens": 9502,
+    "api_call_count": 31
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T15:45:35.179203Z",
+    "agent_lines": 1070,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1070,
+    "agent_percentage": 100
+  }
+}
