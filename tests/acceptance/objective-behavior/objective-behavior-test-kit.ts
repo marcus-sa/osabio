@@ -559,8 +559,8 @@ export async function createAgentSession(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const identityRecord = new RecordId("identity", identityId);
 
-  await surreal.query(`CREATE $session CONTENT $content;`, {
-    session: sessionRecord,
+  await surreal.query(`CREATE $sess CONTENT $content;`, {
+    sess: sessionRecord,
     content: {
       status: opts?.status ?? "completed",
       agent: identityRecord,

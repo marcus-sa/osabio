@@ -487,9 +487,10 @@ async function transitionIntentToExecuting(
   await updateIntentStatus(surreal, intentId, "executing");
 
   const intentRecord = new RecordId("intent", intentId);
+  // NOTE: `$session` is a SurrealDB protected variable — use `$sess` instead
   await surreal.query(
-    "RELATE $intent->gates->$session SET created_at = time::now();",
-    { intent: intentRecord, session: sessionRecord },
+    "RELATE $intent->gates->$sess SET created_at = time::now();",
+    { intent: intentRecord, sess: sessionRecord },
   );
 
   logInfo("orchestrator.intent-gate", "Intent transitioned to executing with gates relation", {

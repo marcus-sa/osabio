@@ -384,6 +384,15 @@ async function runContextInjection(
     return { body: originalBody };
   }
 
+  logInfo("proxy.context_injection.pool_loaded", "Candidate pool loaded", {
+    workspace_id: workspaceId,
+    decisions: pool.decisions.length,
+    learnings: pool.learnings.length,
+    observations: pool.observations.length,
+    total: allCandidates.length,
+    cached: contextCache.has(workspaceId),
+  });
+
   // 3. Extract last user message for embedding
   const lastUserMessage = [...(parsedBody.messages ?? [])].reverse().find((m) => m.role === "user");
   if (!lastUserMessage) {
@@ -676,6 +685,7 @@ export function createAnthropicProxyHandler(
             injected: injectionResult?.injected ?? false,
             decisions: injectionResult?.decisionsCount ?? 0,
             learnings: injectionResult?.learningsCount ?? 0,
+            observations: injectionResult?.observationsCount ?? 0,
           });
         }
       } catch (error) {

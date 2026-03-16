@@ -156,11 +156,12 @@ async function createTraceEdges(
   }
 
   // Create session invocation edge when session is resolved
+  // NOTE: `$session` is a SurrealDB protected variable — use `$sess` instead
   if (data.sessionId) {
     const sessionRecord = new RecordId("agent_session", data.sessionId);
     await surreal.query(
-      `RELATE $session->invoked->$trace SET created_at = time::now();`,
-      { session: sessionRecord, trace: traceRecord },
+      `RELATE $sess->invoked->$trace SET created_at = time::now();`,
+      { sess: sessionRecord, trace: traceRecord },
     );
   }
 
