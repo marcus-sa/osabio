@@ -11,6 +11,8 @@ import type { AgentSessionStatus, OutputEntry } from "../../hooks/use-agent-sess
 import { isTerminalStatus } from "../../hooks/use-agent-session";
 import { AgentSessionOutput } from "./AgentSessionOutput";
 import { sendPrompt, abortSession } from "../../graph/orchestrator-api";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 // ---------------------------------------------------------------------------
 // Pure core: prompt input view derivation
@@ -102,70 +104,72 @@ export function AgentSessionPanel({
   }
 
   return (
-    <div className="agent-session-panel" data-testid="agent-session-panel">
+    <div className="flex flex-col gap-2" data-testid="agent-session-panel">
       <AgentSessionOutput
         outputEntries={outputEntries}
         status={sessionStatus}
       />
 
       {stallWarning ? (
-        <p className="agent-stall-warning" data-testid="agent-stall-warning">
+        <p className="text-xs text-entity-decision" data-testid="agent-stall-warning">
           Agent may be stalled (no activity for {stallWarning.stallDurationSeconds}s)
         </p>
       ) : undefined}
 
       {connectionError ? (
-        <p className="agent-connection-error">{connectionError}</p>
+        <p className="text-xs text-destructive">{connectionError}</p>
       ) : undefined}
 
       {showPromptInput ? (
         <form
-          className="agent-prompt-form"
+          className="flex items-center gap-1.5"
           data-testid="agent-prompt-form"
           onSubmit={handleSubmitPrompt}
         >
-          <input
+          <Input
             type="text"
-            className="agent-prompt-input"
             data-testid="agent-prompt-input"
             placeholder="Send follow-up instruction..."
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
             disabled={inputDisabled}
+            className="h-7 flex-1 text-xs"
           />
-          <button
+          <Button
             type="submit"
-            className="agent-prompt-submit"
+            size="xs"
             data-testid="agent-prompt-submit"
             disabled={inputDisabled || promptText.trim().length === 0}
           >
             {inputView.variant === "submitting" ? "Sending..." : "Send"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="agent-abort-button"
+            variant="destructive"
+            size="xs"
             data-testid="agent-abort-button"
             disabled={isAborting || isTerminalStatus(sessionStatus)}
             onClick={handleAbort}
           >
             {isAborting ? "Aborting..." : "Abort"}
-          </button>
+          </Button>
         </form>
       ) : (
-        <div className="agent-session-panel__terminal-actions">
-          <button
+        <div className="flex items-center gap-1.5">
+          <Button
             type="button"
-            className="agent-abort-button"
+            variant="destructive"
+            size="xs"
             data-testid="agent-abort-button"
             disabled={true}
           >
             Abort
-          </button>
+          </Button>
         </div>
       )}
 
       {promptError ? (
-        <p className="agent-prompt-error" data-testid="agent-prompt-error">{promptError}</p>
+        <p className="text-xs text-destructive" data-testid="agent-prompt-error">{promptError}</p>
       ) : undefined}
     </div>
   );

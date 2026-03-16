@@ -1,6 +1,8 @@
 import type { GovernanceFeedAction, GovernanceFeedItem } from "../../../shared/contracts";
-import { EntityBadge } from "../graph/EntityBadge";
+import { EntityBadge } from "../ui/entity-badge";
 import { CategoryBadge } from "../graph/CategoryBadge";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 
 export function FeedItem({
   item,
@@ -10,43 +12,43 @@ export function FeedItem({
   onAction: (action: GovernanceFeedAction) => void;
 }) {
   return (
-    <div className={`feed-item feed-item--${item.tier}`}>
-      <div className="feed-item-header">
-        <div className="feed-item-badges">
+    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1">
           <EntityBadge kind={item.entityKind} />
           {item.category ? <CategoryBadge category={item.category} /> : undefined}
           {item.priority ? (
-            <span className="feed-item-priority">{item.priority}</span>
+            <Badge variant="outline" className="text-[0.6rem]">{item.priority}</Badge>
           ) : undefined}
         </div>
         {item.status ? (
-          <span className="feed-item-status">{item.status}</span>
+          <Badge variant="secondary" className="text-[0.6rem]">{item.status}</Badge>
         ) : undefined}
       </div>
 
-      <p className="feed-item-name">{item.entityName}</p>
-      <p className="feed-item-reason">{item.reason}</p>
+      <p className="text-sm font-medium text-foreground">{item.entityName}</p>
+      <p className="text-xs text-muted-foreground">{item.reason}</p>
 
       {item.conflictTarget ? (
-        <p className="feed-item-conflict">
+        <p className="text-xs text-destructive">
           Conflicts with: <strong>{item.conflictTarget.entityName}</strong>
         </p>
       ) : undefined}
 
       {item.project ? (
-        <p className="feed-item-project">{item.project}</p>
+        <p className="text-xs text-entity-project-fg">{item.project}</p>
       ) : undefined}
 
-      <div className="feed-item-actions">
+      <div className="flex flex-wrap gap-1.5 pt-1">
         {item.actions.map((action) => (
-          <button
+          <Button
             key={action.action}
-            type="button"
-            className={`feed-action-btn feed-action-btn--${action.action}`}
+            variant={action.action === "dismiss" || action.action === "abort" ? "destructive" : "outline"}
+            size="xs"
             onClick={() => onAction(action)}
           >
             {action.label}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

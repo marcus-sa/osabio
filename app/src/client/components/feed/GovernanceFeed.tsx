@@ -9,6 +9,7 @@ import { useViewState } from "../../stores/view-state";
 import { abortSession } from "../../graph/orchestrator-api";
 import { classifyFeedAction } from "./feed-action-routing";
 import { FeedSection } from "./FeedSection";
+import { Button } from "../ui/button";
 
 async function executeEntityAction(
   workspaceId: string,
@@ -78,15 +79,15 @@ export function GovernanceFeed({
 
   if (error) {
     return (
-      <div className="feed-error">
+      <div className="flex flex-col items-center gap-2 py-12 text-sm text-destructive">
         <p>{error}</p>
-        <button type="button" onClick={onRefresh}>Retry</button>
+        <Button variant="outline" size="sm" onClick={onRefresh}>Retry</Button>
       </div>
     );
   }
 
   if (!feed && isLoading) {
-    return <p className="feed-loading">Loading governance feed...</p>;
+    return <p className="py-12 text-center text-sm text-muted-foreground">Loading governance feed...</p>;
   }
 
   if (!feed) return undefined;
@@ -95,14 +96,14 @@ export function GovernanceFeed({
 
   if (totalItems === 0) {
     return (
-      <div className="feed-empty">
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
         <p>No governance items require attention.</p>
       </div>
     );
   }
 
   return (
-    <div className="governance-feed">
+    <div className="flex flex-col gap-4">
       <FeedSection tier="blocking" items={feed.blocking} onAction={handleAction} />
       <FeedSection tier="review" items={feed.review} onAction={handleAction} />
       <FeedSection tier="awareness" items={feed.awareness} onAction={handleAction} />

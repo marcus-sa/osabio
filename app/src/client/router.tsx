@@ -15,6 +15,9 @@ import { PoliciesPage } from "./components/policy/PoliciesPage";
 import { PolicyDetailPage } from "./components/policy/PolicyDetailPage";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
+import { Button } from "./components/ui/button";
+import { Badge } from "./components/ui/badge";
+import { Search } from "lucide-react";
 
 function AppShell() {
   const workspace = useWorkspace();
@@ -54,7 +57,7 @@ function AppShell() {
       setCreateWorkspaceRepoPath={workspace.setCreateWorkspaceRepoPath}
       onCreateWorkspace={workspace.onCreateWorkspace}
     >
-      <div className="app-shell">
+      <div className="flex h-screen overflow-hidden bg-background text-foreground">
         <WorkspaceSidebar
           sidebar={sidebar}
           activeConversationId={sidebarHandlers?.activeConversationId}
@@ -62,23 +65,25 @@ function AppShell() {
           onNewConversation={handleNewConversation}
           onSelectConversation={handleSelectConversation}
         />
-        <div className="app-main">
-          <div className="content-header">
-            <span className="content-header-title">{workspaceName}</span>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border bg-card px-4">
+            <span className="text-sm font-semibold text-foreground">{workspaceName}</span>
             {onboardingState === "active" ? (
-              <span className="onboarding-badge">Setting up</span>
+              <Badge variant="secondary">Setting up</Badge>
             ) : onboardingState === "summary_pending" ? (
-              <span className="onboarding-badge">Review setup</span>
+              <Badge variant="secondary">Review setup</Badge>
             ) : undefined}
-            <button
-              type="button"
-              className="search-trigger"
+            <Button
+              variant="outline"
+              size="xs"
+              className="ml-auto gap-1.5 text-muted-foreground"
               onClick={() => setSearchOpen(true)}
             >
+              <Search className="size-3" />
               Search...
-            </button>
+            </Button>
           </div>
-          <div className="app-content">
+          <div className="flex-1 overflow-y-auto">
             <Outlet />
           </div>
         </div>

@@ -1,3 +1,97 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Entity accent colors */
+  --color-entity-project: var(--entity-project);
+  --color-entity-feature: var(--entity-feature);
+  --color-entity-task: var(--entity-task);
+  --color-entity-decision: var(--entity-decision);
+  --color-entity-question: var(--entity-question);
+  --color-entity-person: var(--entity-person);
+  --color-entity-policy: var(--entity-policy);
+  --color-entity-objective: var(--entity-objective);
+  --color-entity-behavior: var(--entity-behavior);
+
+  /* Entity foreground colors */
+  --color-entity-project-fg: var(--entity-project-fg);
+  --color-entity-feature-fg: var(--entity-feature-fg);
+  --color-entity-task-fg: var(--entity-task-fg);
+  --color-entity-decision-fg: var(--entity-decision-fg);
+  --color-entity-question-fg: var(--entity-question-fg);
+  --color-entity-person-fg: var(--entity-person-fg);
+  --color-entity-policy-fg: var(--entity-policy-fg);
+  --color-entity-objective-fg: var(--entity-objective-fg);
+  --color-entity-behavior-fg: var(--entity-behavior-fg);
+
+  /* Entity muted backgrounds */
+  --color-entity-project-muted: var(--entity-project-muted);
+  --color-entity-feature-muted: var(--entity-feature-muted);
+  --color-entity-task-muted: var(--entity-task-muted);
+  --color-entity-decision-muted: var(--entity-decision-muted);
+  --color-entity-question-muted: var(--entity-question-muted);
+  --color-entity-person-muted: var(--entity-person-muted);
+  --color-entity-policy-muted: var(--entity-policy-muted);
+  --color-entity-objective-muted: var(--entity-objective-muted);
+  --color-entity-behavior-muted: var(--entity-behavior-muted);
+
+  /* Governance tier colors */
+  --color-tier-blocking: var(--tier-blocking);
+  --color-tier-blocking-muted: var(--tier-blocking-muted);
+  --color-tier-review: var(--tier-review);
+  --color-tier-review-muted: var(--tier-review-muted);
+  --color-tier-awareness: var(--tier-awareness);
+  --color-tier-awareness-muted: var(--tier-awareness-muted);
+
+  /* Hover/active surface variants */
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-accent-glow: var(--accent-glow);
+  --color-accent-hover: var(--accent-hover);
+}
+
 :root {
   font-family: "Instrument Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -13,23 +107,50 @@
   --input: #1e1e26;
   --ring: #c4f042;
   --destructive: #d66a8a;
+  --destructive-foreground: #fef2f2;
+
+  /* Primary / Secondary */
+  --primary: #e8e6e3;
+  --primary-foreground: #0a0a0c;
+  --secondary: #18181c;
+  --secondary-foreground: #e8e6e3;
+
+  /* Popover */
+  --popover: #111114;
+  --popover-foreground: #e8e6e3;
+
+  /* Accent / brand */
+  --accent: #c4f042;
+  --accent-foreground: #0a0a0c;
+  --accent-glow: rgba(196, 240, 66, 0.08);
+  --accent-hover: #d4ff52;
 
   /* Hover/active surface variants */
   --hover: #2a2a32;
   --active: #32323c;
 
-  /* Accent / brand */
-  --accent: #c4f042;
-  --accent-glow: rgba(196, 240, 66, 0.08);
-  --accent-hover: #d4ff52;
+  /* Sidebar */
+  --sidebar: #111114;
+  --sidebar-foreground: #e8e6e3;
+  --sidebar-primary: #c4f042;
+  --sidebar-primary-foreground: #0a0a0c;
+  --sidebar-accent: #18181c;
+  --sidebar-accent-foreground: #e8e6e3;
+  --sidebar-border: #1e1e26;
+  --sidebar-ring: #c4f042;
+
+  /* Chart */
+  --chart-1: #5b8dee;
+  --chart-2: #6ee7b7;
+  --chart-3: #c4f042;
+  --chart-4: #e8944a;
+  --chart-5: #a78bfa;
 
   /* Typography */
   --font-mono: "JetBrains Mono", monospace;
 
   /* Radius */
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-xs: 6px;
+  --radius: 4px;
 
   /* Entity accent palette — mapped to landing page colors */
   --entity-project: #5b8dee;

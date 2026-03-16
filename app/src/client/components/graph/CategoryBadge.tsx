@@ -1,4 +1,5 @@
 import type { EntityCategory } from "../../../shared/contracts";
+import { Badge } from "../ui/badge";
 
 const CATEGORY_CONFIG: Record<EntityCategory, { icon: string; label: string }> = {
   engineering: { icon: "\u2699\uFE0F", label: "Engineering" },
@@ -12,8 +13,8 @@ const CATEGORY_CONFIG: Record<EntityCategory, { icon: string; label: string }> =
 export function CategoryBadge({ category }: { category: EntityCategory }) {
   const config = CATEGORY_CONFIG[category];
   return (
-    <span className="category-badge">
+    <Badge variant="secondary" className="gap-1">
       {config.icon} {config.label}
-    </span>
+    </Badge>
   );
 }

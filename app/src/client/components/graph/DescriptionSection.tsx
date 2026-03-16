@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { EntityKind } from "../../../shared/contracts";
+import { Button } from "../ui/button";
 
 type SourceRef = {
   tb: string;
@@ -41,38 +42,40 @@ export function DescriptionSection({
   }
 
   return (
-    <div className="entity-detail-section">
-      <h4>Description</h4>
+    <div className="flex flex-col gap-1 px-4">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h4>
       {description ? (
-        <p className="entity-detail-description">{description}</p>
+        <p className="text-xs leading-relaxed text-card-foreground">{description}</p>
       ) : undefined}
 
       {entries && entries.length > 0 ? (
         <>
-          <button
-            type="button"
-            className="description-timeline-toggle"
+          <Button
+            variant="ghost"
+            size="xs"
+            className="w-fit text-xs text-muted-foreground"
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? "\u25BC" : "\u25B6"} History ({entries.length} {entries.length === 1 ? "entry" : "entries"})
-          </button>
+          </Button>
 
           {expanded ? (
-            <div className="description-timeline">
+            <div className="flex flex-col gap-1.5 border-l-2 border-border pl-3">
               {[...entries].reverse().map((entry, index) => (
-                <div key={`desc-${index}`} className="description-timeline-entry">
-                  <span className="description-timeline-date">
+                <div key={`desc-${index}`} className="flex flex-col gap-0.5 text-xs">
+                  <span className="text-muted-foreground">
                     {new Date(entry.created_at).toLocaleDateString()}
                   </span>
-                  <span className="description-timeline-text">{entry.text}</span>
+                  <span className="text-card-foreground">{entry.text}</span>
                   {entry.source ? (
-                    <button
-                      type="button"
-                      className="description-timeline-trigger"
+                    <Button
+                      variant="link"
+                      size="xs"
+                      className="w-fit p-0 text-xs text-ring"
                       onClick={() => onEntityClick(formatSourceRef(entry.source!))}
                     >
                       &rarr; {formatSourceRef(entry.source)}
-                    </button>
+                    </Button>
                   ) : undefined}
                 </div>
               ))}

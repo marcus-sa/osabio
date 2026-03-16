@@ -1,8 +1,5 @@
 /**
  * Dialog for creating a new policy.
- *
- * Form state management uses pure reducer-style functions.
- * Submit calls POST /api/workspaces/:workspaceId/policies.
  */
 
 import { useCallback, useState } from "react";
@@ -14,6 +11,11 @@ import {
   createEmptyRule,
   ruleEntryToApiRule,
 } from "./RuleBuilder";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
 
 // ---------------------------------------------------------------------------
 // Form state types
@@ -39,7 +41,6 @@ type FormErrors = {
 // Pure form helpers
 // ---------------------------------------------------------------------------
 
-/** Pure: create initial form state. */
 function createInitialFormState(): PolicyFormState {
   return {
     title: "",
@@ -51,55 +52,32 @@ function createInitialFormState(): PolicyFormState {
   };
 }
 
-/** Pure: validate form and return errors (empty object = valid). */
 function validateForm(state: PolicyFormState): FormErrors {
   const errors: FormErrors = {};
-
-  if (state.title.trim() === "") {
-    errors.title = "Title is required";
-  }
-
-  if (state.description.trim() === "") {
-    errors.description = "Description is required";
-  }
-
+  if (state.title.trim() === "") errors.title = "Title is required";
+  if (state.description.trim() === "") errors.description = "Description is required";
   if (state.rules.length === 0) {
     errors.rules = "At least one rule is required";
   } else {
     const hasEmptyField = state.rules.some((r) => r.field.trim() === "");
-    if (hasEmptyField) {
-      errors.rules = "All rules must have a non-empty field";
-    }
+    if (hasEmptyField) errors.rules = "All rules must have a non-empty field";
   }
-
   return errors;
 }
 
-/** Pure: check whether a FormErrors object contains any errors. */
 function hasErrors(errors: FormErrors): boolean {
   return Object.keys(errors).length > 0;
 }
 
-/** Pure: build the API request body from form state. */
 function buildRequestBody(state: PolicyFormState) {
   const body: Record<string, unknown> = {
     title: state.title.trim(),
     description: state.description.trim(),
     rules: state.rules.map(ruleEntryToApiRule),
   };
-
-  if (state.agentRole.trim()) {
-    body.selector = { agent_role: state.agentRole.trim() };
-  }
-
-  if (state.humanVetoRequired) {
-    body.human_veto_required = true;
-  }
-
-  if (state.maxTtl.trim()) {
-    body.max_ttl = state.maxTtl.trim();
-  }
-
+  if (state.agentRole.trim()) body.selector = { agent_role: state.agentRole.trim() };
+  if (state.humanVetoRequired) body.human_veto_required = true;
+  if (state.maxTtl.trim()) body.max_ttl = state.maxTtl.trim();
   return body;
 }
 
@@ -123,10 +101,10 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
   const updateField = useCallback(
     <K extends keyof PolicyFormState>(field: K, value: PolicyFormState[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
-      // Clear field-specific error on change
       setErrors((prev) => {
         const next = { ...prev };
         if (field === "title") delete next.title;
+        if (field === "description") delete next.description;
         if (field === "rules") delete next.rules;
         delete next.submit;
         return next;
@@ -136,9 +114,7 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
   );
 
   const handleRulesChange = useCallback(
-    (rules: RuleEntry[]) => {
-      updateField("rules", rules);
-    },
+    (rules: RuleEntry[]) => { updateField("rules", rules); },
     [updateField],
   );
 
@@ -151,11 +127,7 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
 
   const handleSubmit = useCallback(async () => {
     const validationErrors = validateForm(form);
-    if (hasErrors(validationErrors)) {
-      setErrors(validationErrors);
-      return;
-    }
-
+    if (hasErrors(validationErrors)) { setErrors(validationErrors); return; }
     if (!workspaceId) return;
 
     setIsSubmitting(true);
@@ -175,116 +147,72 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
         try {
           const parsed = JSON.parse(text) as { error?: string };
           message = parsed.error ?? text;
-        } catch {
-          message = text;
-        }
+        } catch { message = text; }
         setErrors({ submit: message || "Failed to create policy" });
         return;
       }
 
       const data = (await response.json()) as { policy_id: string };
-
-      // Reset form
       setForm(createInitialFormState());
       setErrors({});
       onClose();
-
-      // Navigate to the newly created policy
-      void navigate({
-        to: "/policies/$policyId",
-        params: { policyId: data.policy_id },
-      });
+      void navigate({ to: "/policies/$policyId", params: { policyId: data.policy_id } });
     } catch (err) {
-      setErrors({
-        submit: err instanceof Error ? err.message : "Failed to create policy",
-      });
+      setErrors({ submit: err instanceof Error ? err.message : "Failed to create policy" });
     } finally {
       setIsSubmitting(false);
     }
   }, [form, workspaceId, onClose, navigate]);
 
-  if (!open) return undefined;
-
   return (
-    <div className="policy-dialog__backdrop" onClick={handleClose}>
-      <div
-        className="policy-dialog"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Create Policy"
-      >
-        <div className="policy-dialog__header">
-          <h2>Create Policy</h2>
-          <button
-            type="button"
-            className="policy-dialog__close-btn"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Close
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Create Policy</DialogTitle>
+        </DialogHeader>
 
-        <div className="policy-dialog__body">
+        <div className="flex flex-col gap-3">
           {errors.submit && (
-            <p className="policy-dialog__error">{errors.submit}</p>
+            <p className="text-sm text-destructive">{errors.submit}</p>
           )}
 
-          <div className="policy-dialog__field">
-            <label className="policy-dialog__label" htmlFor="policy-title">
-              Title <span className="policy-dialog__required">*</span>
-            </label>
-            <input
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="policy-title">Title <span className="text-destructive">*</span></Label>
+            <Input
               id="policy-title"
-              type="text"
-              className="policy-dialog__input"
               placeholder="e.g. Restrict code deployment"
               value={form.title}
               onChange={(e) => updateField("title", e.target.value)}
             />
-            {errors.title && (
-              <p className="policy-dialog__field-error">{errors.title}</p>
-            )}
+            {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
           </div>
 
-          <div className="policy-dialog__field">
-            <label className="policy-dialog__label" htmlFor="policy-description">
-              Description <span className="policy-dialog__required">*</span>
-            </label>
-            <textarea
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="policy-description">Description <span className="text-destructive">*</span></Label>
+            <Textarea
               id="policy-description"
-              className={`policy-dialog__textarea${errors.description ? " policy-dialog__textarea--error" : ""}`}
               placeholder="Describe what this policy governs"
               rows={3}
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
             />
+            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
           </div>
 
-          <div className="policy-dialog__row">
-            <div className="policy-dialog__field policy-dialog__field--half">
-              <label className="policy-dialog__label" htmlFor="policy-agent-role">
-                Agent Role
-              </label>
-              <input
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="policy-agent-role">Agent Role</Label>
+              <Input
                 id="policy-agent-role"
-                type="text"
-                className="policy-dialog__input"
                 placeholder="e.g. coding_agent"
                 value={form.agentRole}
                 onChange={(e) => updateField("agentRole", e.target.value)}
               />
             </div>
-
-            <div className="policy-dialog__field policy-dialog__field--half">
-              <label className="policy-dialog__label" htmlFor="policy-max-ttl">
-                Max TTL
-              </label>
-              <input
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="policy-max-ttl">Max TTL</Label>
+              <Input
                 id="policy-max-ttl"
-                type="text"
-                className="policy-dialog__input"
                 placeholder="e.g. 1h, 30m"
                 value={form.maxTtl}
                 onChange={(e) => updateField("maxTtl", e.target.value)}
@@ -292,44 +220,31 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
             </div>
           </div>
 
-          <div className="policy-dialog__field policy-dialog__field--toggle">
-            <label className="policy-dialog__toggle-label">
-              <input
-                type="checkbox"
-                checked={form.humanVetoRequired}
-                onChange={(e) => updateField("humanVetoRequired", e.target.checked)}
-              />
-              <span>Human veto required</span>
-            </label>
-          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="rounded border-input"
+              checked={form.humanVetoRequired}
+              onChange={(e) => updateField("humanVetoRequired", e.target.checked)}
+            />
+            Human veto required
+          </label>
 
-          <div className="policy-dialog__rules-section">
+          <div className="flex flex-col gap-1.5">
             <RuleBuilder rules={form.rules} onRulesChange={handleRulesChange} />
-            {errors.rules && (
-              <p className="policy-dialog__field-error">{errors.rules}</p>
-            )}
+            {errors.rules && <p className="text-xs text-destructive">{errors.rules}</p>}
           </div>
         </div>
 
-        <div className="policy-dialog__footer">
-          <button
-            type="button"
-            className="policy-dialog__cancel-btn"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="policy-dialog__submit-btn"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Create Policy"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

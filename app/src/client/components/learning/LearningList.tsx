@@ -28,14 +28,14 @@ export function LearningList({ learnings, isLoading, onAction }: LearningListPro
 
   if (learnings.length === 0) {
     return (
-      <div className="learning-list__empty">
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
         <p>No learnings match the current filters.</p>
       </div>
     );
   }
 
   return (
-    <div className="learning-list">
+    <div className="flex flex-col gap-3">
       {learnings.map((learning) => (
         <LearningCard
           key={learning.id}

@@ -61,8 +61,8 @@ export function InlineRelationshipGraph(props: InlineRelationshipGraphProps) {
   }
 
   return (
-    <section className="inline-relationship-graph">
-      <p className="extraction-summary-title">{props.title}</p>
+    <section className="my-2 rounded-lg border border-border bg-card p-3">
+      <p className="mb-2 text-xs font-semibold text-foreground">{props.title}</p>
       <div style={{ height: 300, position: "relative" }}>
         <GraphCanvas
           theme={darkTheme}

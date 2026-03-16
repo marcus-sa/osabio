@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 export type ActivityType = "tool_call" | "file_change" | "decision" | "error";
 
 export type ActivityEntry = {
@@ -25,19 +27,20 @@ function formatTimestamp(iso: string): string {
 function ActivityItem({ entry }: { entry: ActivityEntry }) {
   const indicator = TYPE_INDICATORS[entry.type];
   return (
-    <div className={`activity-entry activity-entry--${entry.type}`}>
-      <span className="activity-timestamp">{formatTimestamp(entry.timestamp)}</span>
-      <span className="activity-indicator" title={indicator.label}>
-        {indicator.icon}
-      </span>
-      <span className="activity-description">{entry.description}</span>
+    <div className={cn(
+      "flex items-start gap-2 rounded-md px-2 py-1.5 text-xs",
+      entry.type === "error" && "bg-destructive/10",
+    )}>
+      <span className="shrink-0 font-mono text-muted-foreground">{formatTimestamp(entry.timestamp)}</span>
+      <span className="shrink-0" title={indicator.label}>{indicator.icon}</span>
+      <span className="text-foreground">{entry.description}</span>
     </div>
   );
 }
 
 export function AgentActivityLog({ entries }: { entries: ActivityEntry[] }) {
   if (entries.length === 0) {
-    return <div className="activity-log activity-log--empty">No activity recorded</div>;
+    return <div className="py-4 text-center text-sm text-muted-foreground">No activity recorded</div>;
   }
 
   const sorted = [...entries].sort(
@@ -45,9 +48,9 @@ export function AgentActivityLog({ entries }: { entries: ActivityEntry[] }) {
   );
 
   return (
-    <div className="activity-log">
-      <h3 className="activity-log-title">Agent Activity</h3>
-      <div className="activity-timeline">
+    <div className="flex flex-col gap-2">
+      <h3 className="text-sm font-semibold text-foreground">Agent Activity</h3>
+      <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-card p-2">
         {sorted.map((entry, index) => (
           <ActivityItem key={index} entry={entry} />
         ))}
