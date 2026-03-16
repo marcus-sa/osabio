@@ -155,14 +155,14 @@ export async function persistSubagentTrace(
       if (c.input) fields.push(`input: ${JSON.stringify(c.input)}`);
       if (c.output) fields.push(`output: ${JSON.stringify(c.output)}`);
       if (c.duration_ms !== undefined) fields.push(`duration_ms: ${c.duration_ms}`);
-      return `CREATE type::thing("trace", ${JSON.stringify(c.id)}) CONTENT { ${fields.join(", ")} };`;
+      return `CREATE type::record("trace", ${JSON.stringify(c.id)}) CONTENT { ${fields.join(", ")} };`;
     })
     .join("\n    ");
 
   await surreal.query(
     `
     BEGIN TRANSACTION;
-    LET $rootRecord = type::thing("trace", $rootId);
+    LET $rootRecord = type::record("trace", $rootId);
     CREATE $rootRecord CONTENT {
       type: "subagent_spawn",
       actor: $actor,

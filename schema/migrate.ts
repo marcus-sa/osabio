@@ -86,8 +86,9 @@ async function seedAdminUser(
     `BEGIN TRANSACTION;
      LET $person = CREATE person CONTENT $personContent;
      LET $pid = $person[0].id;
-     CREATE type::thing("account", record::id($pid)) CONTENT {
-       account_id: record::id($pid),
+     LET $rawId = record::id($pid);
+     CREATE type::record("account", $rawId) CONTENT {
+       account_id: $rawId,
        provider_id: $providerId,
        password: $hashedPw,
        person_id: $pid,
