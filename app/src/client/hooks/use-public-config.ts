@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 
 export type PublicConfig = {
   selfHosted: boolean;
   worktreeManagerEnabled: boolean;
 };
 
-const DEFAULT_CONFIG: PublicConfig = {
+export const DEFAULT_CONFIG: PublicConfig = {
   selfHosted: false,
   worktreeManagerEnabled: false,
 };
@@ -31,41 +31,19 @@ export function parseConfigResponse(data: unknown): PublicConfig {
   return DEFAULT_CONFIG;
 }
 
-export function usePublicConfig(): {
-  config: PublicConfig;
-  isLoading: boolean;
-} {
-  const [config, setConfig] = useState<PublicConfig>(DEFAULT_CONFIG);
-  const [isLoading, setIsLoading] = useState(true);
+export async function fetchPublicConfig(): Promise<PublicConfig> {
+  try {
+    const response = await fetch(CONFIG_URL);
+    if (!response.ok) return DEFAULT_CONFIG;
+    const data: unknown = await response.json();
+    return parseConfigResponse(data);
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
 
-  useEffect(() => {
-    let cancelled = false;
+export const PublicConfigContext = createContext<PublicConfig>(DEFAULT_CONFIG);
 
-    fetch(CONFIG_URL)
-      .then((response) => {
-        if (!response.ok) return DEFAULT_CONFIG;
-        return response.json() as Promise<unknown>;
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setConfig(parseConfigResponse(data));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setConfig(DEFAULT_CONFIG);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return { config, isLoading };
+export function usePublicConfig(): PublicConfig {
+  return useContext(PublicConfigContext);
 }

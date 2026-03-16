@@ -1,13 +1,13 @@
 /**
- * Unit tests for use-public-config hook.
+ * Unit tests for use-public-config.
  *
- * Tests the pure parseConfigResponse logic and exported constants.
- * React state/effect behavior is integration-level.
+ * Tests the pure parseConfigResponse logic, fetchPublicConfig, and exported constants.
  */
 import { describe, expect, it } from "bun:test";
 import {
   parseConfigResponse,
   CONFIG_URL,
+  DEFAULT_CONFIG,
   type PublicConfig,
 } from "../../app/src/client/hooks/use-public-config";
 
@@ -43,25 +43,13 @@ describe("parseConfigResponse", () => {
   });
 
   it("returns default config for non-object input", () => {
-    expect(parseConfigResponse(null)).toEqual({
-      selfHosted: false,
-      worktreeManagerEnabled: false,
-    });
-    expect(parseConfigResponse("string")).toEqual({
-      selfHosted: false,
-      worktreeManagerEnabled: false,
-    });
-    expect(parseConfigResponse(42)).toEqual({
-      selfHosted: false,
-      worktreeManagerEnabled: false,
-    });
+    expect(parseConfigResponse(null)).toEqual(DEFAULT_CONFIG);
+    expect(parseConfigResponse("string")).toEqual(DEFAULT_CONFIG);
+    expect(parseConfigResponse(42)).toEqual(DEFAULT_CONFIG);
   });
 
   it("returns default config when selfHosted is not boolean", () => {
-    expect(parseConfigResponse({ selfHosted: "yes" })).toEqual({
-      selfHosted: false,
-      worktreeManagerEnabled: false,
-    });
+    expect(parseConfigResponse({ selfHosted: "yes" })).toEqual(DEFAULT_CONFIG);
   });
 
   it("ignores extra fields in response", () => {

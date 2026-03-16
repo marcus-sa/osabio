@@ -124,7 +124,7 @@ export function AgentStatusSection({
 }) {
   const repoPath = useWorkspaceState((s) => s.repoPath);
   const setStoreRepoPath = useWorkspaceState((s) => s.setRepoPath);
-  const { config } = usePublicConfig();
+  const config = usePublicConfig();
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | undefined>();
   const [assignResult, setAssignResult] = useState<AssignAgentResponse | undefined>();
