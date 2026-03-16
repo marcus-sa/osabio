@@ -443,6 +443,9 @@ describe("Step 03: API reasoning access control", () => {
   // ---------------------------------------------------------------------------
   // S03-13: Admin user sees reasoning in API response
   // US-03 requires implementation of admin role check -- skip until implemented
+  // TODO: Implement role-based API gating — observation detail endpoint needs
+  //   to check requester role and strip `reasoning` for non-admin users.
+  //   Requires: role field on identity, role-aware middleware, response filtering.
   // ---------------------------------------------------------------------------
   it.skip("admin user receives reasoning field in the observation API response", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -469,6 +472,8 @@ describe("Step 03: API reasoning access control", () => {
   // ---------------------------------------------------------------------------
   // S03-14: Non-admin user does not see reasoning in API response
   // US-03 requires implementation of admin role check -- skip until implemented
+  // TODO: Inverse of S03-13 — verify reasoning is omitted when requester lacks admin role.
+  //   Depends on the same role infrastructure as S03-13.
   // ---------------------------------------------------------------------------
   it.skip("non-admin user receives observation API response without reasoning field", async () => {
     const { baseUrl, surreal } = getRuntime();
