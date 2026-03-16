@@ -9,7 +9,7 @@
  *   2. buildUpstreamHeaders in brain auth mode: injects server API key, omits client auth
  *   3. resolveBrainAuth returns ProxyAuthResult when X-Brain-Auth is valid
  *   4. resolveBrainAuth returns undefined when X-Brain-Auth is absent (pass-through)
- *   5. Brain auth mode with missing server API key produces error signal
+ *   5. Brain auth mode without server API key forwards client auth headers
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -123,6 +123,41 @@ describe("buildUpstreamHeaders", () => {
       expect(headers.get("anthropic-version")).toBe("2023-06-01");
       expect(headers.get("anthropic-beta")).toBe("messages-2024-12-19");
       expect(headers.get("content-type")).toBe("application/json");
+    });
+  });
+
+  // --- Brain auth mode without server API key (client provides own key) ---
+  describe("brain auth mode without server API key", () => {
+    const brainAuthNoKey: AuthMode = { mode: "brain" };
+
+    it("forwards client x-api-key when no server key configured", () => {
+      const request = new Request("http://localhost/proxy/llm/anthropic/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": "sk-ant-client-key-789",
+        },
+      });
+
+      const headers = buildUpstreamHeaders(request, brainAuthNoKey);
+
+      expect(headers.get("x-api-key")).toBe("sk-ant-client-key-789");
+      expect(headers.get("anthropic-version")).toBe("2023-06-01");
+    });
+
+    it("forwards client authorization header when no server key configured", () => {
+      const request = new Request("http://localhost/proxy/llm/anthropic/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "authorization": "Bearer sk-ant-client-bearer-passthrough",
+        },
+      });
+
+      const headers = buildUpstreamHeaders(request, brainAuthNoKey);
+
+      expect(headers.get("authorization")).toBe("Bearer sk-ant-client-bearer-passthrough");
     });
   });
 });
