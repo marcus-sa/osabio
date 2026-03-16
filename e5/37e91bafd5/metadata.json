@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e537e91bafd5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/opentelemetry-observability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/telemetry/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e5/37e91bafd5/0/metadata.json",
+      "transcript": "/e5/37e91bafd5/0/full.jsonl",
+      "context": "/e5/37e91bafd5/0/context.md",
+      "content_hash": "/e5/37e91bafd5/0/content_hash.txt",
+      "prompt": "/e5/37e91bafd5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 1498,
+    "cache_read_tokens": 184702,
+    "output_tokens": 724,
+    "api_call_count": 3
+  }
+}
