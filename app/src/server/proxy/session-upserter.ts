@@ -22,7 +22,6 @@ import { logInfo, logError } from "../http/observability";
 export type SessionUpsertInput = {
   readonly sessionId: string;
   readonly workspaceId: string;
-  readonly title: string;
   readonly agent: string;
 };
 

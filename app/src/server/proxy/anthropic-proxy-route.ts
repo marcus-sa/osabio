@@ -608,7 +608,6 @@ export function createAnthropicProxyHandler(
             {
               sessionId: sessionHash.sessionId,
               workspaceId: identitySignals.workspaceId,
-              title: sessionHash.title,
               agent: resolveAgentName(identitySignals),
             },
             { surreal: deps.surreal },
