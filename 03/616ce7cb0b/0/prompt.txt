@@ -1,0 +1,85 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/hartford-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 2 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: 
+Line: undefined
+User comment: "<h3>Confidence Score: 3/5</h3>
+
+- The PR is safe to merge for non-self-hosted deployments; self-hosted deployments will work but have a silent migration failure mode when credentials are missing.
+- The overall design is sound and the happy path works correctly. However, the `parseSeedConfig` silent-skip bug means a misconfigured `SELF_HOSTED=true` deployment silently exits `bun migrate` with exit code 0 but no admin user, leaving the system in an inconsistent state that is only caught at server startup. This is a real operational hazard for self-hosted deployments. The other two issues (misleading `buildAccountRecord` call and missing `isLoading` guard) are lower-severity but reduce confidence below 4.
+- `schema/migrate.ts` requires the most attention — the `parseSeedConfig` silent-return behaviour and the `buildAccountRecord("", ...)` call both need addressing before this is safe to rely on in production self-hosted deployments.
+
+<!-- greptile_other_comments_section -->
+
+<sub>Last reviewed commit: 92591ff</sub>"
+
+Comment metadata:
+This comment was left on a file.
+This comment was left on GitHub by @greptile-apps.
+
+
+Comment #2:
+
+File: schema/migrate.ts
+Line: 20
+User comment: "**Silent skip when `SELF_HOSTED=true` but credentials missing**
+
+`parseSeedConfig` silently returns `undefined` when `SELF_HOSTED=true` but `ADMIN_EMAIL` or `ADMIN_PASSWORD` is absent. This directly contradicts the fail-fast requirement: running `bun migrate` will exit 0 with no admin user created and no error output, while `bun start` will later fail loudly with "ADMIN_EMAIL is required when SELF_HOSTED=true". The operator gets a false green during migration and a confusing failure at startup.
+
+`loadServerConfig()` in `config.ts` does the right thing here — it calls `requireSelfHostedEnv()` which throws immediately. The migration runner should mirror that behaviour:
+
+```suggestion
+  if (!email) throw new Error("ADMIN_EMAIL is required when SELF_HOSTED=true");
+  if (!password) throw new Error("ADMIN_PASSWORD is required when SELF_HOSTED=true");
+```
+
+The corresponding unit tests in `tests/unit/runtime/admin-seed.test.ts` that assert `undefined` is returned in these cases should be updated to expect a thrown error."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50o3M2. 
+
+</system-instruction>
+
+---
+
+Commit and push all changes
+
+---
+
+"withRequestLogging" no longer exists. it has been replaced with "withTracing"
+
+---
+
+Commit and push all changes
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/hartford-v1/.context/attachments/unit-tests_67275775501.log (94.1 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+---
+
+Commit and push all changes
