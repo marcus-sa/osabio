@@ -155,37 +155,13 @@ async function createTraceEdges(
     );
   }
 
-  // Create session invocation edge only when the session record exists.
-  // Try direct ID lookup first, then fall back to external_session_id
-  // (Claude Code embeds session IDs in metadata.user_id which map to
-  // the external_session_id field on agent_session records).
+  // Create session invocation edge when session is resolved
   if (data.sessionId) {
     const sessionRecord = new RecordId("agent_session", data.sessionId);
-    const directLookup = await surreal.query<[Array<{ id: RecordId }>]>(
-      `SELECT id FROM $sess;`,
-      { sess: sessionRecord },
+    await surreal.query(
+      `RELATE $session->invoked->$trace SET created_at = time::now();`,
+      { session: sessionRecord, trace: traceRecord },
     );
-
-    let resolvedSession: RecordId | undefined;
-    if ((directLookup[0]?.length ?? 0) > 0) {
-      resolvedSession = sessionRecord;
-    } else {
-      // Fall back to external_session_id lookup
-      const externalLookup = await surreal.query<[Array<{ id: RecordId }>]>(
-        `SELECT id FROM agent_session WHERE external_session_id = $extId LIMIT 1;`,
-        { extId: data.sessionId },
-      );
-      if ((externalLookup[0]?.length ?? 0) > 0) {
-        resolvedSession = externalLookup[0][0].id;
-      }
-    }
-
-    if (resolvedSession) {
-      await surreal.query(
-        `RELATE $sess->invoked->$trace SET created_at = time::now();`,
-        { sess: resolvedSession, trace: traceRecord },
-      );
-    }
   }
 
   // Create task attribution edge when task is resolved

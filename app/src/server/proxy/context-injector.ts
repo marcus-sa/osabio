@@ -60,16 +60,13 @@ export function rankCandidates(
   queryEmbedding: number[],
 ): RankedCandidate[] {
   return candidates
-    .map((c) => {
-      // Candidates with embeddings get similarity-weighted scores;
-      // candidates without embeddings fall back to a baseline weight
-      // (half their type weight) so they're still included but ranked lower.
-      const hasEmbedding = c.embedding !== undefined && c.embedding.length > 0;
-      const score = hasEmbedding
-        ? cosineSimilarity(c.embedding!, queryEmbedding) * c.weight
-        : c.weight * 0.5;
-      return { id: c.id, type: c.type, text: c.text, score };
-    })
+    .filter((c) => c.embedding !== undefined && c.embedding.length > 0)
+    .map((c) => ({
+      id: c.id,
+      type: c.type,
+      text: c.text,
+      score: cosineSimilarity(c.embedding!, queryEmbedding) * c.weight,
+    }))
     .sort((a, b) => b.score - a.score);
 }
 
