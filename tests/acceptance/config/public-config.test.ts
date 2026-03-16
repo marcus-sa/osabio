@@ -8,10 +8,10 @@ const getRuntime = setupAcceptanceSuite("public-config", {
   },
 });
 
-describe("GET /api/config", () => {
+describe("GET /config", () => {
   it("returns selfHosted and worktreeManagerEnabled booleans", async () => {
     const { baseUrl } = getRuntime();
-    const response = await fetch(`${baseUrl}/api/config`);
+    const response = await fetch(`${baseUrl}/config`);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
@@ -25,7 +25,7 @@ describe("GET /api/config", () => {
 
   it("does not expose secrets or internal config", async () => {
     const { baseUrl } = getRuntime();
-    const response = await fetch(`${baseUrl}/api/config`);
+    const response = await fetch(`${baseUrl}/config`);
     const body = await response.json();
 
     // Must not contain any secret or internal configuration

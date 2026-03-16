@@ -10,7 +10,7 @@ export const DEFAULT_CONFIG: PublicConfig = {
   worktreeManagerEnabled: false,
 };
 
-export const CONFIG_URL = "/api/config";
+export const CONFIG_URL = "/config";
 
 export function parseConfigResponse(data: unknown): PublicConfig {
   if (

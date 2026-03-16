@@ -67,6 +67,6 @@ describe("parseConfigResponse", () => {
 
 describe("CONFIG_URL", () => {
   it("points to the public config endpoint", () => {
-    expect(CONFIG_URL).toBe("/api/config");
+    expect(CONFIG_URL).toBe("/config");
   });
 });
