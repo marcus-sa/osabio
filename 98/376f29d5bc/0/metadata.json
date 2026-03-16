@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "98376f29d5bc",
+  "session_id": "4972770b-ea07-42a7-a0d1-a5e55fba8352",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T16:04:58.145326Z",
+  "branch": "marcus-sa/opentelemetry-observability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/ux/opentelemetry-observability/jtbd-four-forces.md",
+    "docs/ux/opentelemetry-observability/jtbd-job-stories.md",
+    "docs/feature/opentelemetry-observability/execution-log.yaml",
+    "docs/requirements/opentelemetry-observability/requirements.md",
+    "docs/requirements/opentelemetry-observability/user-stories.md",
+    "docs/ux/opentelemetry-observability/journey-observability-migration-visual.md",
+    "docs/ux/opentelemetry-observability/journey-observability-migration.yaml",
+    "docs/adrs/ADR-053-otel-over-pino.md",
+    "docs/design/opentelemetry-observability/architecture-design.md",
+    "docs/design/opentelemetry-observability/component-boundaries.md",
+    "docs/feature/opentelemetry-observability/roadmap.yaml",
+    "docs/requirements/opentelemetry-observability/acceptance-criteria.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c4a43bab1c66",
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 60945,
+    "cache_read_tokens": 293840,
+    "output_tokens": 1129,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T16:04:57.996082Z",
+    "agent_lines": 60,
+    "human_added": 2418,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2478,
+    "agent_percentage": 2.4213075060532687
+  }
+}
