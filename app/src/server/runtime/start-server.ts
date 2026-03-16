@@ -104,7 +104,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         GET: withTracing("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
       },
       "/config": {
-        GET: withRequestLogging("GET /config", "GET", async () =>
+        GET: withTracing("GET /config", "GET", async () =>
           jsonResponse({
             selfHosted: config.selfHosted,
             worktreeManagerEnabled: config.worktreeManagerEnabled,
