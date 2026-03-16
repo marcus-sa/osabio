@@ -593,7 +593,7 @@ export async function runGraphScan(
     queryCompletedTasks(surreal, workspaceRecord),
   ]);
 
-  type ContradictionPair = { decision: ConfirmedDecision; task: CompletedTask };
+  type ContradictionPair = { decision: ConfirmedDecision; task: CompletedTask; reasoning?: string };
   const contradictions: ContradictionPair[] = [];
 
   if (decisions.length > 0 && completedTasks.length > 0) {
@@ -612,7 +612,7 @@ export async function runGraphScan(
         const taskId = parseEntityRef(c.task_ref)?.id;
         const decision = decisionId ? decisionMap.get(decisionId) : undefined;
         const task = taskId ? taskMap.get(taskId) : undefined;
-        if (decision && task) contradictions.push({ decision, task });
+        if (decision && task) contradictions.push({ decision, task, reasoning: c.reasoning });
       }
     }
   }
@@ -622,7 +622,7 @@ export async function runGraphScan(
   // Track deduplicated entity refs so we exclude them from pattern synthesis
   const dedupedEntityRefs = new Set<string>();
 
-  for (const { decision, task } of contradictions) {
+  for (const { decision, task, reasoning } of contradictions) {
     // Entity-level dedup: check if observer already has an open observation on this decision
     const existingForDecision = await queryExistingObserverObservationsForEntity(
       surreal, workspaceRecord,
@@ -651,6 +651,7 @@ export async function runGraphScan(
       severity: "conflict",
       sourceAgent: "observer_agent",
       observationType: "contradiction",
+      reasoning,
       now,
       relatedRecords: [
         decision.id as ObserveTargetRecord,
@@ -785,6 +786,7 @@ export async function runGraphScan(
       severity,
       sourceAgent: "observer_agent",
       observationType: "anomaly",
+      reasoning: evaluation?.reasoning,
       now,
       relatedRecords: [anomaly.taskRecord as ObserveTargetRecord],
     });
