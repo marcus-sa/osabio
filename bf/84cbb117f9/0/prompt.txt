@@ -1,0 +1,90 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/seoul-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/acceptance-tests__llm-proxy__67176784718.log (351.2 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+---
+
+"Renamed $session → $sess in all SurrealDB bound parameters across 4 files. session is a protected variable in SurrealDB v3.0, which caused the RELATE $session->invoked->$trace query to fail after 3 retries, resulting in missing session edges. This fixes:" add this to learnings in AGENTS.md
+
+---
+
+"Still investigating (1 failure):
+
+llm-proxy-context-injection.test.ts:156 — empty workspace gets brain_context_injected: true. The candidate pool somehow has observations despite the workspace having none seeded. I added detailed logging (proxy.context_injection.pool_loaded with per-type counts + observations count in the result log) so the next CI run will reveal exactly what’s in the pool.
+The push should trigger CI. The new logging will help diagnose the 4th failure if it persists."
+
+run the acceptance test locally..
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/seoul-v1/.context/attachments/acceptance-tests__llm-proxy__67178816252.log (343.1 KB)
+</system_instruction>
+
+
+
+Fix the failing CI actions. I've attached the failure logs.
+
+---
+
+Continue from where you left off.
+
+---
+
+why arent we doing this in one transaction?
+
+---
+
+Continue from where you left off.
+
+---
+
+read the surrealdb docs instead of guessing...
+
+---
+
+Continue from where you left off.
+
+---
+
+https://surrealdb.com/docs/surrealql/statements/ifelse
+
+---
+
+u can still do this in one query...
+
+---
+
+Continue from where you left off.
+
+---
+
+i also dont really understand this. it seems like we're making a workaround rather than fixing the actual issue, which is that the caller is providing the wrong session id
+
+the provided session id should always refer to agent session id and not an external session id.
+
+---
+
+Continue from where you left off.
+
+---
+
+continue
