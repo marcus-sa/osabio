@@ -4,6 +4,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./ui/collap
 
 type ReasoningSource =
   | { type: "available"; reasoning: string; model?: string }
+  | { type: "intent"; reasoning: string; evaluationReasoning?: string }
   | { type: "deterministic" }
   | { type: "legacy" };
 
@@ -23,16 +24,12 @@ function deriveObservationSource(data: Record<string, unknown>): ReasoningSource
 }
 
 function deriveIntentSource(data: Record<string, unknown>): ReasoningSource | undefined {
+  const reasoning = data.reasoning as string | undefined;
   const evaluation = data.evaluation as Record<string, unknown> | undefined;
   const evaluationReasoning = evaluation?.reasoning as string | undefined;
-  const policyOnly = evaluation?.policy_only as boolean | undefined;
 
-  if (evaluationReasoning) {
-    return { type: "available", reasoning: evaluationReasoning };
-  }
-
-  if (policyOnly) {
-    return { type: "deterministic" };
+  if (reasoning) {
+    return { type: "intent", reasoning, evaluationReasoning };
   }
 
   return { type: "legacy" };
@@ -80,6 +77,29 @@ function ReasoningBody({ source }: { source: ReasoningSource }) {
           <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
             {source.reasoning}
           </pre>
+        </div>
+      );
+    case "intent":
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-[0.6rem] font-medium uppercase tracking-wider text-muted-foreground">
+              Intent Reasoning
+            </span>
+            <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
+              {source.reasoning}
+            </pre>
+          </div>
+          {source.evaluationReasoning ? (
+            <div className="flex flex-col gap-1">
+              <span className="text-[0.6rem] font-medium uppercase tracking-wider text-muted-foreground">
+                Evaluation Reasoning
+              </span>
+              <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
+                {source.evaluationReasoning}
+              </pre>
+            </div>
+          ) : undefined}
         </div>
       );
     case "deterministic":
