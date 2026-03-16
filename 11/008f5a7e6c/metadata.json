@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "11008f5a7e6c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/opentelemetry-observability",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "app/src/server/agents/analytics/agent.ts",
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/behavior/llm-scorer.ts",
+    "app/src/server/chat/chat-route.ts",
+    "app/src/server/chat/handler.ts",
+    "app/src/server/extraction/extract-graph.ts",
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/observer/learning-diagnosis.ts",
+    "app/src/server/observer/llm-reasoning.ts",
+    "app/src/server/observer/llm-synthesis.ts",
+    "app/src/server/onboarding/onboarding-reply.ts",
+    "app/src/server/telemetry/ai-telemetry.ts",
+    "conductor.json",
+    "docs/feature/opentelemetry-observability/execution-log.yaml",
+    "tests/unit/telemetry/ai-telemetry.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/11/008f5a7e6c/0/metadata.json",
+      "transcript": "/11/008f5a7e6c/0/full.jsonl",
+      "context": "/11/008f5a7e6c/0/context.md",
+      "content_hash": "/11/008f5a7e6c/0/content_hash.txt",
+      "prompt": "/11/008f5a7e6c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 149,
+    "cache_creation_tokens": 128645,
+    "cache_read_tokens": 7023640,
+    "output_tokens": 38311,
+    "api_call_count": 78
+  }
+}
