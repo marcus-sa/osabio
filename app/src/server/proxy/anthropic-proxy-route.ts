@@ -109,7 +109,7 @@ async function validateWorkspace(
 
 export type AuthMode =
   | { mode: "direct" }
-  | { mode: "brain"; serverApiKey: string };
+  | { mode: "brain"; serverApiKey?: string };
 
 // ---------------------------------------------------------------------------
 // Header Forwarding
@@ -123,8 +123,8 @@ export function buildUpstreamHeaders(request: Request, authMode: AuthMode): Head
     if (value) headers.set(name, value);
   }
 
-  if (authMode.mode === "brain") {
-    // Brain auth: inject server-held API key, do not forward client auth
+  if (authMode.mode === "brain" && authMode.serverApiKey) {
+    // Brain auth with server-held API key: inject it, do not forward client auth
     headers.set("x-api-key", authMode.serverApiKey);
   } else {
     // Direct auth: forward client's auth headers as-is
@@ -585,7 +585,13 @@ export function createAnthropicProxyHandler(
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
   const pruneInterval = setInterval(
-    () => pruneStaleEntries(rateLimiterState, Date.now()),
+    () => {
+      pruneStaleEntries(rateLimiterState, Date.now());
+      const nowMs = Date.now();
+      for (const [key, entry] of proxyTokenCache) {
+        if (nowMs >= entry.expiresAt) proxyTokenCache.delete(key);
+      }
+    },
     5 * 60 * 1000,
   );
   pruneInterval.unref();
@@ -625,16 +631,8 @@ export function createAnthropicProxyHandler(
     }
 
     if (brainAuthResult) {
-      // Brain auth mode: server provides API key
-      const serverApiKey = deps.config.anthropicApiKey;
-      if (!serverApiKey) {
-        logError("proxy.anthropic.no_server_api_key", "Server Anthropic API key not configured for Brain auth mode", undefined);
-        return jsonResponse(
-          { error: { type: "server_error", message: "Server Anthropic API key not configured" } },
-          500,
-        );
-      }
-      authMode = { mode: "brain", serverApiKey };
+      // Brain auth mode: use server API key if available, otherwise forward client auth headers
+      authMode = { mode: "brain", serverApiKey: deps.config.anthropicApiKey };
     }
 
     // --- Step 2: Identity resolution ---
@@ -760,8 +758,8 @@ export function createAnthropicProxyHandler(
       }
     }
 
-    // --- API key validation (skip for Brain auth — server provides key) ---
-    if (authMode.mode === "direct") {
+    // --- API key validation (skip only when Brain auth provides server key) ---
+    if (!(authMode.mode === "brain" && authMode.serverApiKey)) {
       const hasApiKey = request.headers.has("x-api-key");
       const hasAuthHeader = request.headers.has("authorization");
       if (!hasApiKey && !hasAuthHeader) {

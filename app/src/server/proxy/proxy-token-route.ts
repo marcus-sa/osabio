@@ -3,10 +3,10 @@
  *
  * Issues brp_-prefixed proxy tokens for CLI authentication.
  * Pipeline:
- *   1. Extract + validate Authorization bearer token
- *   2. Parse workspace_id from request body
- *   3. Resolve identity for the caller
- *   4. Verify workspace membership
+ *   1. Parse workspace_id from request body + extract bearer token
+ *   2. Validate bearer token via Better Auth session
+ *   3. Resolve authenticated person → identity
+ *   4. Verify identity is a member of the target workspace
  *   5. Revoke previous tokens for same identity+workspace
  *   6. Generate token, hash, store
  *   7. Return raw token + expiry
@@ -62,20 +62,18 @@ function parseProxyTokenRequest(
 // Identity Resolution (driven port — queries SurrealDB)
 // ---------------------------------------------------------------------------
 
-type IdentityRow = {
-  identityId: string;
-};
-
-async function resolveIdentityForWorkspace(
+async function resolveIdentityForPerson(
   surreal: ServerDependencies["surreal"],
-  workspaceId: string,
+  personId: string,
 ): Promise<string | undefined> {
-  const results = await surreal.query<[IdentityRow[]]>(
-    `SELECT meta::id(in) AS identityId FROM member_of WHERE out = $ws LIMIT 1;`,
-    { ws: workspaceRecord(workspaceId) },
+  const personRecord = new RecordId("person", personId);
+  const results = await surreal.query<[RecordId[]]>(
+    `SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;`,
+    { person: personRecord },
   );
 
-  return results[0]?.[0]?.identityId;
+  const identityRec = results[0]?.[0];
+  return identityRec?.id as string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +103,18 @@ async function checkWorkspaceMembership(
   );
 
   return (results[0]?.[0]?.count ?? 0) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Session Validation (driven port — Better Auth)
+// ---------------------------------------------------------------------------
+
+async function validateSession(
+  auth: ServerDependencies["auth"],
+  headers: Headers,
+): Promise<string | undefined> {
+  const session = await auth.api.getSession({ headers });
+  return session?.user?.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,22 +190,28 @@ export function createProxyTokenHandler(
 
     const { workspaceId } = parseResult.value;
 
-    // 2. Resolve identity for workspace
-    const identityId = await resolveIdentityForWorkspace(deps.surreal, workspaceId);
-    if (!identityId) {
-      return jsonResponse({ error: "workspace_membership_required" }, 403);
+    // 2. Validate bearer token via Better Auth session
+    const personId = await validateSession(deps.auth, request.headers);
+    if (!personId) {
+      return jsonResponse({ error: "invalid_session" }, 401);
     }
 
-    // 3. Verify the resolved identity is a member of the target workspace
+    // 3. Resolve person → identity
+    const identityId = await resolveIdentityForPerson(deps.surreal, personId);
+    if (!identityId) {
+      return jsonResponse({ error: "identity_not_found" }, 403);
+    }
+
+    // 4. Verify identity is a member of the target workspace
     const isMember = await checkWorkspaceMembership(deps.surreal, identityId, workspaceId);
     if (!isMember) {
       return jsonResponse({ error: "workspace_membership_required" }, 403);
     }
 
-    // 4. Revoke previous tokens
+    // 5. Revoke previous tokens
     await revokePreviousTokens(deps.surreal, identityId, workspaceId);
 
-    // 5. Generate and store new token
+    // 6. Generate and store new token
     const rawToken = generateProxyToken();
     const tokenHash = hashProxyToken(rawToken);
     const expiresAt = computeExpiresAt(ttlDays);
@@ -208,7 +224,7 @@ export function createProxyTokenHandler(
       ttl_days: ttlDays,
     });
 
-    // 6. Return raw token (only time it leaves the server)
+    // 7. Return raw token (only time it leaves the server)
     return jsonResponse({
       proxy_token: rawToken,
       expires_at: expiresAt.toISOString(),
