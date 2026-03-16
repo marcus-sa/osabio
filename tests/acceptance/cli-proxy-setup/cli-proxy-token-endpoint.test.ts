@@ -15,7 +15,7 @@ import { describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
   createProxyTestWorkspace,
-  createProxyTestIdentity,
+  createProxyTestUser,
   requestProxyToken,
   getProxyTokensForIdentity,
   countActiveProxyTokens,
@@ -30,20 +30,16 @@ describe("Proxy token storage", () => {
   it("stores the token as a SHA-256 hash, not plaintext", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-hash-${crypto.randomUUID()}`;
-    const identityId = `id-hash-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "hash");
 
     // Given Priya requests a proxy token
-    const response = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const response = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(response.status).toBe(200);
 
     const { proxy_token } = await response.json() as { proxy_token: string };
 
     // When we inspect the stored token in the database
-    const tokens = await getProxyTokensForIdentity(surreal, identityId, workspaceId);
+    const tokens = await getProxyTokensForIdentity(surreal, user.identityId, user.workspaceId);
 
     // Then the plaintext token does not appear in the record
     expect(tokens.length).toBeGreaterThanOrEqual(1);
@@ -63,19 +59,15 @@ describe("Proxy token re-issuance", () => {
   it("revokes previous tokens for the same identity+workspace when a new one is issued", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-reissue-${crypto.randomUUID()}`;
-    const identityId = `id-reissue-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "reissue");
 
     // Given Priya already has a proxy token
-    const firstResponse = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const firstResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(firstResponse.status).toBe(200);
     const { proxy_token: firstToken } = await firstResponse.json() as { proxy_token: string };
 
     // When she runs brain init again and a new token is issued
-    const secondResponse = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const secondResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(secondResponse.status).toBe(200);
     const { proxy_token: secondToken } = await secondResponse.json() as { proxy_token: string };
 
@@ -83,11 +75,11 @@ describe("Proxy token re-issuance", () => {
     expect(secondToken).not.toBe(firstToken);
 
     // And only one active token exists for this identity+workspace
-    const activeCount = await countActiveProxyTokens(surreal, identityId, workspaceId);
+    const activeCount = await countActiveProxyTokens(surreal, user.identityId, user.workspaceId);
     expect(activeCount).toBe(1);
 
     // And the old token is marked as revoked
-    const allTokens = await getProxyTokensForIdentity(surreal, identityId, workspaceId);
+    const allTokens = await getProxyTokensForIdentity(surreal, user.identityId, user.workspaceId);
     const revokedTokens = allTokens.filter((t) => t.revoked);
     expect(revokedTokens.length).toBeGreaterThanOrEqual(1);
   }, 15_000);
@@ -117,17 +109,16 @@ describe("Proxy token auth enforcement", () => {
   it("rejects token request for a workspace the user does not belong to", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const ownedWorkspaceId = `ws-owned-${crypto.randomUUID()}`;
-    const otherWorkspaceId = `ws-other-${crypto.randomUUID()}`;
-    const identityId = `id-noaccess-${crypto.randomUUID()}`;
+    // Priya has access to her own workspace (created by createProxyTestUser)
+    const user = await createProxyTestUser(baseUrl, surreal, "noaccess");
 
-    await createProxyTestWorkspace(surreal, ownedWorkspaceId);
+    // Create another workspace that Priya is NOT a member of
+    const otherWorkspaceId = `ws-other-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, otherWorkspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId: ownedWorkspaceId });
 
     // Given Priya has access to workspace A but NOT workspace B
     // When she requests a proxy token for workspace B
-    const response = await requestProxyToken(baseUrl, "test-access-token", otherWorkspaceId);
+    const response = await requestProxyToken(baseUrl, user.sessionHeaders, otherWorkspaceId);
 
     // Then the server returns 403
     expect(response.status).toBe(403);

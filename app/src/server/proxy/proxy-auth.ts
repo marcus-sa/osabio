@@ -168,8 +168,10 @@ export async function resolveProxyAuth(
     identityId: record.identityId,
   };
 
-  // Cache the successful resolution
-  setCachedAuth(cache, tokenHash, result, cacheTtlMs, nowMs);
+  // Cache the successful resolution — cap TTL at token's remaining validity
+  // so the cache never outlasts the authoritative DB expiry
+  const remainingMs = record.expiresAt.getTime() - nowMs;
+  setCachedAuth(cache, tokenHash, result, Math.min(cacheTtlMs, remainingMs), nowMs);
 
   return result;
 }

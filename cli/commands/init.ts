@@ -475,6 +475,8 @@ export async function setupProxyConfig(
     global.repos[gitRoot].proxy_token = proxyToken;
     global.repos[gitRoot].proxy_token_expires_at = proxyTokenExpiresAt;
     await saveGlobalConfig(global);
+  } else {
+    console.warn(`  Warning: repo entry for ${gitRoot} not found in ~/.brain/config.json — proxy token expiry tracking will not work.`);
   }
 
   // 4. Read or create .claude/settings.local.json

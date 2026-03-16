@@ -33,6 +33,8 @@ export {
   type TestUser,
 };
 
+export type { ProxyTestUser };
+
 // ---------------------------------------------------------------------------
 // Proxy Token Issuance Helpers
 // ---------------------------------------------------------------------------
@@ -45,20 +47,118 @@ export type ProxyTokenResponse = {
 
 /**
  * Request a proxy token from the server, simulating what `brain init` Step 7 does.
+ *
+ * The endpoint validates via Better Auth session cookies (not the Bearer value).
+ * Pass sessionHeaders from createProxyTestUser() which contains Cookie header.
+ * A dummy Authorization: Bearer header is included to satisfy the parse check.
  */
 export async function requestProxyToken(
   baseUrl: string,
-  accessToken: string,
+  sessionHeaders: Record<string, string>,
   workspaceId: string,
 ): Promise<Response> {
   return fetch(`${baseUrl}/api/auth/proxy-token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
+      "Authorization": "Bearer session-via-cookie",
+      ...sessionHeaders,
     },
     body: JSON.stringify({ workspace_id: workspaceId }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Full Proxy Test User Setup
+// ---------------------------------------------------------------------------
+
+export type ProxyTestUser = {
+  sessionHeaders: Record<string, string>;
+  workspaceId: string;
+  identityId: string;
+  personId: string;
+};
+
+/**
+ * Create a fully-wired test user for proxy token tests.
+ *
+ * Pipeline:
+ *   1. Sign up via Better Auth → session cookies + person ID
+ *   2. Create workspace
+ *   3. Create identity with identity_person edge (person → identity)
+ *   4. Create member_of edge (identity → workspace)
+ *
+ * Returns session headers (cookies) for use with requestProxyToken().
+ */
+export async function createProxyTestUser(
+  baseUrl: string,
+  surreal: Surreal,
+  suffix: string,
+): Promise<ProxyTestUser> {
+  const workspaceId = `ws-${suffix}-${crypto.randomUUID()}`;
+  const identityId = `id-${suffix}-${crypto.randomUUID()}`;
+
+  // 1. Create real Better Auth user → session cookies
+  const email = `proxy-${Date.now()}-${suffix}@test.local`;
+  const signUpResponse = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Proxy Test User", email, password: "test-password-123" }),
+    redirect: "manual",
+  });
+
+  if (!signUpResponse.ok) {
+    const body = await signUpResponse.text();
+    throw new Error(`Failed to create proxy test user (${signUpResponse.status}): ${body}`);
+  }
+
+  const setCookie = signUpResponse.headers.getSetCookie();
+  if (!setCookie || setCookie.length === 0) {
+    throw new Error("Sign-up did not return session cookies");
+  }
+
+  const cookieHeader = setCookie.map((c) => c.split(";")[0]).join("; ");
+  const sessionHeaders: Record<string, string> = { Cookie: cookieHeader };
+
+  // Extract person ID from sign-up response body
+  const signUpBody = await signUpResponse.json() as { user?: { id?: string } };
+  const personId = signUpBody.user?.id;
+  if (!personId) {
+    throw new Error("Sign-up response did not include user ID");
+  }
+
+  // 2. Create workspace
+  await createProxyTestWorkspace(surreal, workspaceId);
+
+  // 3. Create identity
+  const identityRecord = new RecordId("identity", identityId);
+  const workspaceRec = new RecordId("workspace", workspaceId);
+  const personRecord = new RecordId("person", personId);
+
+  await surreal.query(`CREATE $identity CONTENT $content;`, {
+    identity: identityRecord,
+    content: {
+      name: "Proxy Test User",
+      type: "human",
+      role: "owner",
+      workspace: workspaceRec,
+      created_at: new Date(),
+    },
+  });
+
+  // 4. Create identity_person edge (identity → person)
+  await surreal.query(
+    `RELATE $identity->identity_person->$person SET added_at = time::now();`,
+    { identity: identityRecord, person: personRecord },
+  );
+
+  // 5. Create member_of edge (identity → workspace)
+  await surreal.query(
+    `RELATE $identity->member_of->$workspace SET role = "admin", added_at = time::now();`,
+    { identity: identityRecord, workspace: workspaceRec },
+  );
+
+  return { sessionHeaders, workspaceId, identityId, personId };
 }
 
 // ---------------------------------------------------------------------------

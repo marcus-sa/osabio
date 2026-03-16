@@ -15,7 +15,7 @@ import { describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
   createProxyTestWorkspace,
-  createProxyTestIdentity,
+  createProxyTestUser,
   requestProxyToken,
   sendBrainAuthProxyRequest,
   seedExpiredProxyToken,
@@ -69,11 +69,7 @@ describe("Proxy rejects invalid tokens", () => {
   it("returns 401 for an expired proxy token", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-expired-${crypto.randomUUID()}`;
-    const identityId = `id-expired-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "expired");
 
     // Given a proxy token that expired 1 day ago
     // (We seed the token directly in DB since the endpoint won't issue expired tokens)
@@ -84,8 +80,8 @@ describe("Proxy rejects invalid tokens", () => {
 
     await seedExpiredProxyToken(surreal, `pt-expired-${crypto.randomUUID()}`, {
       tokenHash,
-      workspaceId,
-      identityId,
+      workspaceId: user.workspaceId,
+      identityId: user.identityId,
       expiredDaysAgo: 1,
     });
 
@@ -99,18 +95,14 @@ describe("Proxy rejects invalid tokens", () => {
   it("returns 401 for a revoked proxy token", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-revoked-${crypto.randomUUID()}`;
-    const identityId = `id-revoked-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "revoked");
 
     // Given Priya had a proxy token that was then revoked by re-issuance
-    const firstResponse = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const firstResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     const { proxy_token: firstToken } = await firstResponse.json() as { proxy_token: string };
 
     // Re-issue to revoke the first token
-    await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
 
     // When a request uses the revoked (first) token
     const proxyResponse = await sendBrainAuthProxyRequest(baseUrl, firstToken);
@@ -160,16 +152,13 @@ describe("Proxy workspace derivation from token", () => {
   it("uses workspace from the token record, ignoring X-Brain-Workspace header", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const realWorkspaceId = `ws-real-${crypto.randomUUID()}`;
-    const spoofedWorkspaceId = `ws-spoofed-${crypto.randomUUID()}`;
-    const identityId = `id-derive-${crypto.randomUUID()}`;
+    const user = await createProxyTestUser(baseUrl, surreal, "derive");
 
-    await createProxyTestWorkspace(surreal, realWorkspaceId);
+    const spoofedWorkspaceId = `ws-spoofed-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, spoofedWorkspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId: realWorkspaceId });
 
     // Given Priya has a proxy token bound to workspace A
-    const tokenResponse = await requestProxyToken(baseUrl, "test-access-token", realWorkspaceId);
+    const tokenResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     const { proxy_token } = await tokenResponse.json() as { proxy_token: string };
 
     // When she sends a request with X-Brain-Workspace pointing to workspace B (spoofed)

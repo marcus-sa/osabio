@@ -16,8 +16,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
-  createProxyTestWorkspace,
-  createProxyTestIdentity,
+  createProxyTestUser,
   requestProxyToken,
   sendBrainAuthProxyRequest,
 } from "./cli-proxy-test-kit";
@@ -32,14 +31,10 @@ describe("Brain-auth trace attribution", () => {
   it("creates a trace attributed to the workspace from the proxy token (not headers)", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-trace-${crypto.randomUUID()}`;
-    const identityId = `id-trace-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "trace");
 
     // Given Priya has a valid proxy token
-    const tokenResponse = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const tokenResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     const { proxy_token } = await tokenResponse.json() as { proxy_token: string };
 
     // When she makes a Brain-auth proxy request
@@ -61,7 +56,7 @@ describe("Brain-auth trace attribution", () => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Then a trace appears in the correct workspace
-    const traces = await getTracesForWorkspace(surreal, workspaceId);
+    const traces = await getTracesForWorkspace(surreal, user.workspaceId);
     expect(traces.length).toBeGreaterThanOrEqual(1);
 
     const trace = traces[0];
@@ -77,15 +72,11 @@ describe("Proxy token TTL", () => {
   it("issues tokens with at least 90-day TTL", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-ttl-${crypto.randomUUID()}`;
-    const identityId = `id-ttl-${crypto.randomUUID()}`;
-
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "ttl");
 
     // Given the OAuth flow completes
     // When the server issues a proxy token
-    const response = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const response = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     const body = await response.json() as { expires_at: string };
 
     // Then the token has a TTL of at least 90 days

@@ -13,8 +13,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
-  createProxyTestWorkspace,
-  createProxyTestIdentity,
+  createProxyTestUser,
   requestProxyToken,
   sendBrainAuthProxyRequest,
 } from "./cli-proxy-test-kit";
@@ -28,15 +27,11 @@ describe("Skeleton 1: Proxy token issuance", () => {
   it("issues a brp_-prefixed token with 90-day expiry for an authenticated user", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-skel1-${crypto.randomUUID()}`;
-    const identityId = `id-skel1-${crypto.randomUUID()}`;
-
-    // Given Priya has completed OAuth and has a valid access token
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    // Given Priya has completed OAuth and has a valid session
+    const user = await createProxyTestUser(baseUrl, surreal, "skel1");
 
     // When brain init Step 7 requests a proxy token
-    const response = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const response = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
 
     // Then the server returns a proxy token with brp_ prefix
     expect(response.status).toBe(200);
@@ -48,7 +43,7 @@ describe("Skeleton 1: Proxy token issuance", () => {
     };
 
     expect(body.proxy_token).toMatch(/^brp_/);
-    expect(body.workspace_id).toBe(workspaceId);
+    expect(body.workspace_id).toBe(user.workspaceId);
 
     // And the token expires at least 89 days from now (90-day TTL)
     const expiresAt = new Date(body.expires_at);
@@ -64,14 +59,10 @@ describe("Skeleton 2: Brain-authenticated proxy request", () => {
   it("forwards a request to Anthropic using server-held API key when X-Brain-Auth is valid", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const workspaceId = `ws-skel2-${crypto.randomUUID()}`;
-    const identityId = `id-skel2-${crypto.randomUUID()}`;
-
     // Given Priya has a valid proxy token from brain init
-    await createProxyTestWorkspace(surreal, workspaceId);
-    await createProxyTestIdentity(surreal, { identityId, workspaceId });
+    const user = await createProxyTestUser(baseUrl, surreal, "skel2");
 
-    const tokenResponse = await requestProxyToken(baseUrl, "test-access-token", workspaceId);
+    const tokenResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(tokenResponse.status).toBe(200);
     const { proxy_token } = await tokenResponse.json() as { proxy_token: string };
 
