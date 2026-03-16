@@ -73,7 +73,7 @@ describe("setupMcpJson", () => {
 // ---------------------------------------------------------------------------
 
 describe("setupClaudeHooks", () => {
-  const expectedEvents = ["PreToolUse", "SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"];
+  const expectedEvents = ["UserPromptSubmit", "Stop", "SessionEnd"];
 
   it("creates settings.json with all hook events", async () => {
     await setupClaudeHooks(gitRoot);
@@ -90,7 +90,7 @@ describe("setupClaudeHooks", () => {
     writeFileSync(
       join(gitRoot, ".claude", "settings.json"),
       JSON.stringify({
-        hooks: { PreToolUse: [{ hooks: [{ type: "command", command: "eslint" }] }] },
+        hooks: { UserPromptSubmit: [{ hooks: [{ type: "command", command: "eslint" }] }] },
         otherSetting: true,
       }),
     );
@@ -100,8 +100,8 @@ describe("setupClaudeHooks", () => {
     const settings = JSON.parse(readFileSync(join(gitRoot, ".claude", "settings.json"), "utf-8"));
     expect(settings.otherSetting).toBe(true);
     // eslint hook preserved + brain hook added
-    expect(settings.hooks.PreToolUse.length).toBe(2);
-    expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe("eslint");
+    expect(settings.hooks.UserPromptSubmit.length).toBe(2);
+    expect(settings.hooks.UserPromptSubmit[0].hooks[0].command).toBe("eslint");
   });
 
   it("does not duplicate brain hooks on second run", async () => {
