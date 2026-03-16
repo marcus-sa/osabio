@@ -10,7 +10,31 @@ export type AuthConfig = {
   betterAuthUrl: string;
   githubClientId: string;
   githubClientSecret: string;
+  selfHosted: boolean;
 };
+
+type EmailAndPasswordConfig = {
+  enabled: boolean;
+  password?: {
+    hash: (password: string) => Promise<string>;
+    verify: (params: { hash: string; password: string }) => Promise<boolean>;
+  };
+};
+
+export function buildEmailAndPasswordConfig(selfHosted: boolean): EmailAndPasswordConfig {
+  if (!selfHosted) {
+    return { enabled: true };
+  }
+
+  return {
+    enabled: true,
+    password: {
+      hash: (password: string) => Bun.password.hash(password, "argon2id"),
+      verify: ({ hash, password }: { hash: string; password: string }) =>
+        Bun.password.verify(password, hash),
+    },
+  };
+}
 
 export function createAuth(surreal: Surreal, config: AuthConfig) {
   const allScopes = [
@@ -67,9 +91,7 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
         updatedAt: "updated_at",
       },
     },
-    emailAndPassword: {
-      enabled: true,
-    },
+    emailAndPassword: buildEmailAndPasswordConfig(config.selfHosted),
     socialProviders: {
       github: {
         clientId: config.githubClientId,
