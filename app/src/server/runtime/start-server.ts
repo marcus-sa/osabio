@@ -43,6 +43,7 @@ import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
+import { initTelemetry } from "../telemetry/init";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -740,6 +741,9 @@ function detectTransport(url: string): string {
 }
 
 export async function startServer(): Promise<void> {
+  const telemetry = initTelemetry();
+  logInfo("telemetry.init", "OpenTelemetry SDK initialized", { exporterType: telemetry.exporterType });
+
   const config = loadServerConfig();
   const runtime = await createRuntimeDependencies(config);
   await ensureDefaultWorkspaceProjectScope(runtime.surreal);
@@ -775,6 +779,15 @@ export async function startServer(): Promise<void> {
       logError("intent.veto.recovery", "Failed to recover expired veto windows", err);
     }),
   );
+
+  // Graceful shutdown: flush telemetry on SIGTERM/SIGINT
+  const handleShutdownSignal = async (signal: string) => {
+    logInfo("server.shutdown", `Received ${signal}, draining telemetry...`);
+    await telemetry.shutdown();
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => handleShutdownSignal("SIGTERM"));
+  process.on("SIGINT", () => handleShutdownSignal("SIGINT"));
 
   logInfo("server.started", "Brain app server started", {
     port: server.port,
