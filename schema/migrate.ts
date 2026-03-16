@@ -16,8 +16,8 @@ export function parseSeedConfig(
 
   const email = env.ADMIN_EMAIL?.trim();
   const password = env.ADMIN_PASSWORD;
-  if (!email) return undefined;
-  if (!password) return undefined;
+  if (!email) throw new Error("ADMIN_EMAIL is required when SELF_HOSTED=true");
+  if (!password) throw new Error("ADMIN_PASSWORD is required when SELF_HOSTED=true");
 
   return { email, password };
 }
@@ -79,7 +79,6 @@ async function seedAdminUser(
   const now = new Date();
 
   const personContent = buildPersonRecord(config.email, now);
-  const accountContent = buildAccountRecord("", hashedPassword, now);
 
   // Atomic transaction: create person + account together
   const [createdPersons] = await surreal.query<[Array<{ id: RecordId }>]>(
@@ -99,8 +98,8 @@ async function seedAdminUser(
      COMMIT TRANSACTION;`,
     {
       personContent,
-      providerId: accountContent.provider_id,
-      hashedPw: accountContent.password,
+      providerId: "credential",
+      hashedPw: hashedPassword,
       createdAt: now,
       updatedAt: now,
     },

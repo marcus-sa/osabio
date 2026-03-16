@@ -25,16 +25,16 @@ describe("admin seed config parsing", () => {
     expect(parseSeedConfig({ SELF_HOSTED: "" })).toBeUndefined();
   });
 
-  test("returns undefined when SELF_HOSTED=true but email missing", () => {
-    expect(
+  test("throws when SELF_HOSTED=true but email missing", () => {
+    expect(() =>
       parseSeedConfig({ SELF_HOSTED: "true", ADMIN_PASSWORD: "pass" }),
-    ).toBeUndefined();
+    ).toThrow("ADMIN_EMAIL is required when SELF_HOSTED=true");
   });
 
-  test("returns undefined when SELF_HOSTED=true but password missing", () => {
-    expect(
+  test("throws when SELF_HOSTED=true but password missing", () => {
+    expect(() =>
       parseSeedConfig({ SELF_HOSTED: "true", ADMIN_EMAIL: "a@b.com" }),
-    ).toBeUndefined();
+    ).toThrow("ADMIN_PASSWORD is required when SELF_HOSTED=true");
   });
 
   test("trims whitespace from email", () => {
