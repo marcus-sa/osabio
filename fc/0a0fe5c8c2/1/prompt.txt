@@ -1,0 +1,103 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/casablanca directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 3 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: 
+Line: undefined
+User comment: "<h3>Confidence Score: 3/5</h3>
+
+- Safe to merge with minor fixes — one visual regression in the primary Button hover state needs correction before shipping.
+- The migration is large but mechanical, and the underlying logic is preserved across all pages. The broken `[a]:hover:bg-primary/80` selector on the default Button variant is the main regression introduced: primary buttons will render without any hover feedback in standard usage, which is a user-facing visual bug. The `"use client"` directives and the missing description error-clear are low-severity style/UX issues that don't affect correctness.
+- app/src/client/components/ui/button.tsx — broken default hover selector; app/src/client/components/policy/CreatePolicyDialog.tsx — description error not cleared on input change.
+
+<!-- greptile_other_comments_section -->
+
+<sub>Last reviewed commit: 25dc783</sub>"
+
+Comment metadata:
+This comment was left on a file.
+This comment was left on GitHub by @greptile-apps.
+
+
+Comment #2:
+
+File: app/src/client/components/ui/command.tsx
+Line: 72
+User comment: "**`DialogHeader` rendered outside the portal popup**
+
+`DialogHeader` (containing `DialogTitle` and `DialogDescription`) is placed outside `DialogContent`. Since `DialogContent` renders via a `DialogPortal`, the header will be mounted in the calling component's DOM location, not inside the dialog popup element. This means the accessible name/description won't be properly associated with the popup via `aria-labelledby`/`aria-describedby`, breaking screen-reader semantics even though the content is `sr-only`.
+
+Move the header inside `DialogContent`:
+
+```suggestion
+  return (
+    <Dialog {...props}>
+      <DialogContent
+        className={cn(
+          "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+          className
+        )}
+        showCloseButton={showCloseButton}
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
+  )
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50fjk5. 
+
+
+Comment #3:
+
+File: app/src/client/components/policy/CreatePolicyDialog.tsx
+Line: 200
+User comment: "**Missing `errors.description` feedback**
+
+Validation for the description field runs correctly (see `validateForm`), but the error message is never rendered. The `title` field correctly shows `{errors.title && <p ...>}` after its input, but the description field has no equivalent, so users submitting with an empty description will see the submit button disabled with no explanation.
+
+```suggestion
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="policy-description">Description <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="policy-description"
+              placeholder="Describe what this policy governs"
+              rows={3}
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+            />
+            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+          </div>
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c50fjlh. 
+
+</system-instruction>
+
+---
+
+Commit and push all changes

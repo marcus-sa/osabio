@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fc0a0fe5c8c2",
+  "session_id": "92610371-aba8-4027-a8d5-d4afb07d69a9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T07:11:29.052553Z",
+  "branch": "marcus-sa/setup-tailwind-shadcn",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/policy/CreatePolicyDialog.tsx",
+    "app/src/client/components/ui/button.tsx",
+    "app/src/client/components/ui/command.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1e9a6c5353de",
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 43885,
+    "cache_read_tokens": 266983,
+    "output_tokens": 1678,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T07:11:29.023853Z",
+    "agent_lines": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 7,
+    "agent_percentage": 100
+  }
+}

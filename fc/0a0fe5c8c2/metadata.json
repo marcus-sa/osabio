@@ -3,7 +3,7 @@
   "checkpoint_id": "fc0a0fe5c8c2",
   "strategy": "manual-commit",
   "branch": "marcus-sa/setup-tailwind-shadcn",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/client/components/policy/CreatePolicyDialog.tsx",
     "app/src/client/components/ui/button.tsx",
@@ -16,13 +16,20 @@
       "context": "/fc/0a0fe5c8c2/0/context.md",
       "content_hash": "/fc/0a0fe5c8c2/0/content_hash.txt",
       "prompt": "/fc/0a0fe5c8c2/0/prompt.txt"
+    },
+    {
+      "metadata": "/fc/0a0fe5c8c2/1/metadata.json",
+      "transcript": "/fc/0a0fe5c8c2/1/full.jsonl",
+      "context": "/fc/0a0fe5c8c2/1/context.md",
+      "content_hash": "/fc/0a0fe5c8c2/1/content_hash.txt",
+      "prompt": "/fc/0a0fe5c8c2/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 11,
+    "cache_creation_tokens": 43885,
+    "cache_read_tokens": 266983,
+    "output_tokens": 1678,
+    "api_call_count": 6
   }
 }
