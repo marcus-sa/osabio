@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b6706ccacde0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/self-hosted-admin-seed",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b6/706ccacde0/0/metadata.json",
+      "transcript": "/b6/706ccacde0/0/full.jsonl",
+      "context": "/b6/706ccacde0/0/context.md",
+      "content_hash": "/b6/706ccacde0/0/content_hash.txt",
+      "prompt": "/b6/706ccacde0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 5373,
+    "cache_read_tokens": 494139,
+    "output_tokens": 1441,
+    "api_call_count": 9
+  }
+}
