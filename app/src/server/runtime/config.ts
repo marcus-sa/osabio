@@ -35,6 +35,7 @@ export type ServerConfig = {
   betterAuthUrl: string;
   githubClientId: string;
   githubClientSecret: string;
+  anthropicApiUrl: string;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -89,6 +90,7 @@ export function loadServerConfig(): ServerConfig {
   const betterAuthUrl = requireEnv("BETTER_AUTH_URL");
   const githubClientId = requireEnv("GITHUB_CLIENT_ID");
   const githubClientSecret = requireEnv("GITHUB_CLIENT_SECRET");
+  const anthropicApiUrl = Bun.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com";
 
   const openRouterReasoning = inferenceProvider === "openrouter"
     ? parseOpenRouterReasoning()
@@ -120,6 +122,7 @@ export function loadServerConfig(): ServerConfig {
     betterAuthUrl,
     githubClientId,
     githubClientSecret,
+    anthropicApiUrl,
   };
 }
 

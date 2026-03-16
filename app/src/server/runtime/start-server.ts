@@ -39,6 +39,9 @@ import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
+import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
+import { createSpendApiHandlers } from "../proxy/spend-api";
+import { createAuditApiHandlers } from "../proxy/audit-api";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -76,6 +79,9 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const policyHandlers = createPolicyRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
+  const anthropicProxyHandler = createAnthropicProxyHandler(deps);
+  const spendApiHandlers = createSpendApiHandlers(deps);
+  const auditApiHandlers = createAuditApiHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -659,6 +665,59 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET",
           createClientInfoHandler(deps.surreal),
         ),
+      },
+      // LLM Proxy — Audit provenance chain
+      "/api/workspaces/:workspaceId/proxy/traces/:traceId": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/traces/:traceId",
+          "GET",
+          (request) => auditApiHandlers.handleTraceDetail(
+            request.params.workspaceId,
+            request.params.traceId,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/traces": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/traces",
+          "GET",
+          (request) => auditApiHandlers.handleTracesByProject(
+            request.params.workspaceId,
+            new URL(request.url),
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/compliance": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/compliance",
+          "GET",
+          (request) => auditApiHandlers.handleCompliance(
+            request.params.workspaceId,
+            new URL(request.url),
+          ),
+        ),
+      },
+      // LLM Proxy — Spend monitoring dashboard
+      "/api/workspaces/:workspaceId/proxy/spend": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/spend",
+          "GET",
+          (request) => spendApiHandlers.handleSpend(request.params.workspaceId),
+        ),
+      },
+      "/api/workspaces/:workspaceId/proxy/sessions": {
+        GET: withRequestLogging(
+          "GET /api/workspaces/:workspaceId/proxy/sessions",
+          "GET",
+          (request) => spendApiHandlers.handleSessions(request.params.workspaceId),
+        ),
+      },
+      // Anthropic LLM Proxy — transparent passthrough with logging
+      "/proxy/llm/anthropic/v1/messages": {
+        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages", "POST", anthropicProxyHandler),
+      },
+      "/proxy/llm/anthropic/v1/messages/count_tokens": {
+        POST: withRequestLogging("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
       },
       "/api/auth/*": async (request) => deps.auth.handler(request),
       "/": appHtml,

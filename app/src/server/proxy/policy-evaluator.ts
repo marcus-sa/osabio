@@ -1,0 +1,393 @@
+/**
+ * Proxy Policy Evaluator — Pre-request policy enforcement
+ *
+ * Evaluates three policy dimensions before forwarding LLM requests:
+ * 1. Model access — agent_type allowed to use requested model
+ * 2. Budget enforcement — workspace daily spend within limit
+ * 3. Rate limiting — in-memory sliding window per workspace
+ *
+ * Pure core with effect boundaries at spend queries and observation writes.
+ *
+ * Port: (ProxyPolicyContext, ProxyPolicyDependencies) -> Promise<ProxyPolicyResult>
+ */
+
+import { RecordId } from "surrealdb";
+import type { Surreal } from "surrealdb";
+import { logInfo, logError, logWarn } from "../http/observability";
+import type { InflightTracker } from "../runtime/types";
+import {
+  type RateLimiterState,
+  checkRateLimit,
+} from "./rate-limiter";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type ProxyPolicyContext = {
+  readonly workspaceId: string;
+  readonly agentType?: string;
+  readonly model: string;
+};
+
+export type ProxyPolicyResult =
+  | { decision: "allow"; policyIds: string[] }
+  | { decision: "deny_model"; status: 403; body: ModelViolationBody }
+  | { decision: "deny_budget"; status: 429; body: BudgetExceededBody }
+  | { decision: "deny_rate_limit"; status: 429; body: RateLimitBody; retryAfterSeconds: number };
+
+type ModelViolationBody = {
+  error: "policy_violation";
+  policy_ref: string;
+  policy_description: string;
+  model_requested: string;
+  model_suggestion: string[];
+  remediation: string;
+};
+
+type BudgetExceededBody = {
+  error: "budget_exceeded";
+  current_spend_usd: number;
+  daily_limit_usd: number;
+  time_until_reset_seconds: number;
+  remediation: string;
+};
+
+type RateLimitBody = {
+  error: "rate_limit_exceeded";
+  rate_limit_per_minute: number;
+  reset_time_unix: number;
+  remediation: string;
+};
+
+type PolicyRuleRecord = {
+  id: string;
+  condition: { field: string; operator: string; value: unknown } | Array<{ field: string; operator: string; value: unknown }>;
+  effect: "allow" | "deny";
+  priority: number;
+};
+
+type ProxyPolicyRecord = {
+  id: RecordId<"policy">;
+  title: string;
+  description?: string;
+  selector: { agent_role?: string };
+  rules: PolicyRuleRecord[];
+  status: string;
+};
+
+export type SpendCacheEntry = {
+  spendUsd: number;
+  fetchedAt: number;
+};
+
+export type SpendCache = Map<string, SpendCacheEntry>;
+
+const SPEND_CACHE_TTL_MS = 10_000; // 10 seconds
+
+export type ProxyPolicyDependencies = {
+  readonly surreal: Surreal;
+  readonly inflight: InflightTracker;
+  readonly rateLimiterState: RateLimiterState;
+  readonly spendCache: SpendCache;
+};
+
+// ---------------------------------------------------------------------------
+// Model Access Evaluation (pure)
+// ---------------------------------------------------------------------------
+
+type ModelCheckResult =
+  | { allowed: true; policyIds: string[] }
+  | { allowed: false; policyRef: string; policyDescription: string; allowedModels: string[] };
+
+function evaluateModelAccess(
+  policies: ProxyPolicyRecord[],
+  context: ProxyPolicyContext,
+): ModelCheckResult {
+  // Filter policies relevant to this agent_type via selector.agent_role
+  if (!context.agentType) {
+    // No agent type: policies exist but cannot be matched — allow with warning
+    logWarn("proxy.policy.missing_agent_type", "Request lacks agent type; model access policies not enforced", {
+      model: context.model,
+      workspace_id: context.workspaceId,
+    });
+    return { allowed: true, policyIds: policies.map((p) => p.id.id as string) };
+  }
+
+  const relevantPolicies = policies.filter(
+    (p) => p.selector.agent_role === context.agentType,
+  );
+
+  if (relevantPolicies.length === 0) {
+    // No agent-specific policies; collect all policy IDs for audit
+    return { allowed: true, policyIds: policies.map((p) => p.id.id as string) };
+  }
+
+  // Check each relevant policy's rules for model access deny
+  for (const policy of relevantPolicies) {
+    for (const rule of policy.rules) {
+      const conditions = Array.isArray(rule.condition) ? rule.condition : [rule.condition];
+
+      for (const cond of conditions) {
+        // Match deny rules where the model is not in the allowed list
+        if (
+          rule.effect === "deny" &&
+          cond.field === "model" &&
+          cond.operator === "not_in" &&
+          Array.isArray(cond.value)
+        ) {
+          const allowedModels = cond.value as string[];
+          if (!allowedModels.includes(context.model)) {
+            return {
+              allowed: false,
+              policyRef: policy.id.id as string,
+              policyDescription: policy.description ?? policy.title,
+              allowedModels,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    allowed: true,
+    policyIds: relevantPolicies.map((p) => p.id.id as string),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Budget Check (effect boundary: DB query with cache)
+// ---------------------------------------------------------------------------
+
+function secondsUntilMidnightUtc(now: Date): number {
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(0, 0, 0, 0);
+  return Math.ceil((tomorrow.getTime() - now.getTime()) / 1000);
+}
+
+async function getTodaySpend(
+  surreal: Surreal,
+  workspaceId: string,
+  cache: SpendCache,
+): Promise<number> {
+  const now = Date.now();
+  const cached = cache.get(workspaceId);
+  if (cached && now - cached.fetchedAt < SPEND_CACHE_TTL_MS) {
+    return cached.spendUsd;
+  }
+
+  try {
+    const ws = new RecordId("workspace", workspaceId);
+    const results = await surreal.query<[Array<{ total: number }>]>(
+      `SELECT math::sum(cost_usd) AS total FROM trace WHERE workspace = $ws AND created_at >= time::floor(time::now(), 1d) GROUP ALL;`,
+      { ws },
+    );
+    const total = results[0]?.[0]?.total ?? 0;
+    cache.set(workspaceId, { spendUsd: total, fetchedAt: Date.now() });
+    return total;
+  } catch (error) {
+    logError("proxy.policy.spend_query_failed", "Failed to query workspace spend", error);
+    // On query failure, use stale cache if available
+    if (cached) return cached.spendUsd;
+    return 0;
+  }
+}
+
+async function getDailyBudget(
+  surreal: Surreal,
+  workspaceId: string,
+): Promise<number | undefined> {
+  try {
+    const ws = new RecordId("workspace", workspaceId);
+    const results = await surreal.query<[Array<{ daily_budget_usd?: number }>]>(
+      `SELECT daily_budget_usd FROM $ws;`,
+      { ws },
+    );
+    return results[0]?.[0]?.daily_budget_usd;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Load workspace policies (effect boundary)
+// ---------------------------------------------------------------------------
+
+async function loadWorkspacePolicies(
+  surreal: Surreal,
+  workspaceId: string,
+): Promise<ProxyPolicyRecord[]> {
+  try {
+    const ws = new RecordId("workspace", workspaceId);
+    const results = await surreal.query<[ProxyPolicyRecord[]]>(
+      `SELECT * FROM policy WHERE workspace = $ws AND status = 'active';`,
+      { ws },
+    );
+    return results[0] ?? [];
+  } catch (error) {
+    logError("proxy.policy.load_failed", "Failed to load workspace policies", error);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Observation Writer (async, fire-and-forget)
+// ---------------------------------------------------------------------------
+
+async function createNoPolicyWarning(
+  surreal: Surreal,
+  workspaceId: string,
+): Promise<void> {
+  try {
+    const observationId = `obs-${crypto.randomUUID()}`;
+    const observationRecord = new RecordId("observation", observationId);
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+
+    await surreal.query(`CREATE $obs CONTENT $content;`, {
+      obs: observationRecord,
+      content: {
+        text: `No LLM proxy policies configured for workspace. All requests are being forwarded without model access restrictions. Consider creating policies to control which models each agent type can use.`,
+        severity: "warning",
+        status: "open",
+        observation_type: "proxy_no_policy",
+        source_agent: "llm-proxy",
+        workspace: workspaceRecord,
+        created_at: new Date(),
+      },
+    });
+  } catch (error) {
+    logError("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Policy Decision Logger (async)
+// ---------------------------------------------------------------------------
+
+export type PolicyDecisionLog = {
+  decision: "pass" | "deny";
+  policy_refs: string[];
+  reason?: string;
+  timestamp: string;
+};
+
+// ---------------------------------------------------------------------------
+// Main Evaluation Pipeline
+// ---------------------------------------------------------------------------
+
+export async function evaluateProxyPolicy(
+  context: ProxyPolicyContext,
+  deps: ProxyPolicyDependencies,
+  noPolicyWarnedWorkspaces?: Set<string>,
+): Promise<ProxyPolicyResult> {
+  // Step 1: Rate limit check (in-memory, sub-ms)
+  if (context.workspaceId) {
+    const rateLimitResult = checkRateLimit(
+      deps.rateLimiterState,
+      context.workspaceId,
+    );
+
+    if (!rateLimitResult.allowed) {
+      logInfo("proxy.policy.rate_limited", "Rate limit exceeded", {
+        workspace_id: context.workspaceId,
+        rate_limit_per_minute: rateLimitResult.rateLimitPerMinute,
+      });
+
+      return {
+        decision: "deny_rate_limit",
+        status: 429,
+        body: {
+          error: "rate_limit_exceeded",
+          rate_limit_per_minute: rateLimitResult.rateLimitPerMinute,
+          reset_time_unix: rateLimitResult.resetTimeUnix,
+          remediation: `Rate limit of ${rateLimitResult.rateLimitPerMinute} requests per minute exceeded. Wait ${rateLimitResult.retryAfterSeconds} seconds before retrying.`,
+        },
+        retryAfterSeconds: rateLimitResult.retryAfterSeconds,
+      };
+    }
+  }
+
+  // Step 2: Budget check (cached DB query)
+  if (context.workspaceId) {
+    const dailyBudget = await getDailyBudget(deps.surreal, context.workspaceId);
+    if (dailyBudget !== undefined) {
+      const currentSpend = await getTodaySpend(deps.surreal, context.workspaceId, deps.spendCache);
+      if (currentSpend >= dailyBudget) {
+        const now = new Date();
+        const resetSeconds = secondsUntilMidnightUtc(now);
+
+        logInfo("proxy.policy.budget_exceeded", "Daily budget exceeded", {
+          workspace_id: context.workspaceId,
+          current_spend_usd: currentSpend,
+          daily_limit_usd: dailyBudget,
+        });
+
+        return {
+          decision: "deny_budget",
+          status: 429,
+          body: {
+            error: "budget_exceeded",
+            current_spend_usd: currentSpend,
+            daily_limit_usd: dailyBudget,
+            time_until_reset_seconds: resetSeconds,
+            remediation: `Daily budget of $${dailyBudget.toFixed(2)} exceeded. Current spend: $${currentSpend.toFixed(2)}. Budget resets at midnight UTC (${resetSeconds}s).`,
+          },
+        };
+      }
+    }
+  }
+
+  // Step 3: Model access policy check (DB + pure evaluation)
+  if (context.workspaceId) {
+    const policies = await loadWorkspacePolicies(deps.surreal, context.workspaceId);
+
+    if (policies.length === 0) {
+      // No policies: permissive default with async warning (deduplicated per process lifetime)
+      const alreadyWarned = noPolicyWarnedWorkspaces?.has(context.workspaceId) ?? false;
+      if (!alreadyWarned) {
+        noPolicyWarnedWorkspaces?.add(context.workspaceId);
+        deps.inflight.track(
+          createNoPolicyWarning(deps.surreal, context.workspaceId).catch(() => undefined),
+        );
+      }
+
+      logInfo("proxy.policy.no_policies", "No policies configured, permissive default", {
+        workspace_id: context.workspaceId,
+      });
+
+      return { decision: "allow", policyIds: [] };
+    }
+
+    const modelCheck = evaluateModelAccess(policies, context);
+
+    if (!modelCheck.allowed) {
+      logInfo("proxy.policy.model_denied", "Model access denied by policy", {
+        workspace_id: context.workspaceId,
+        agent_type: context.agentType,
+        model: context.model,
+        policy_ref: modelCheck.policyRef,
+      });
+
+      return {
+        decision: "deny_model",
+        status: 403,
+        body: {
+          error: "policy_violation",
+          policy_ref: modelCheck.policyRef,
+          policy_description: modelCheck.policyDescription,
+          model_requested: context.model,
+          model_suggestion: modelCheck.allowedModels,
+          remediation: `Model '${context.model}' is not allowed for agent type '${context.agentType}'. Allowed models: ${modelCheck.allowedModels.join(", ")}. Contact workspace admin to update model access policies.`,
+        },
+      };
+    }
+
+    return { decision: "allow", policyIds: modelCheck.policyIds };
+  }
+
+  // No workspace: permissive (degraded mode)
+  return { decision: "allow", policyIds: [] };
+}
+

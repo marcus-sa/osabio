@@ -55,6 +55,7 @@ DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
 DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
+DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -201,7 +202,7 @@ DEFINE FIELD files_changed ON agent_session TYPE option<array<object>>;
 DEFINE FIELD files_changed[*].path ON agent_session TYPE string;
 DEFINE FIELD files_changed[*].change_type ON agent_session TYPE string ASSERT $value IN ["created", "modified", "deleted"];
 DEFINE FIELD observations_logged ON agent_session TYPE option<array<record<observation>>>;
-DEFINE FIELD opencode_session_id ON agent_session TYPE option<string>;
+DEFINE FIELD external_session_id ON agent_session TYPE option<string>;
 DEFINE FIELD orchestrator_status ON agent_session TYPE option<string>
   ASSERT $value IS NONE OR $value IN ["spawning", "active", "idle", "completed", "aborted", "error"];
 DEFINE FIELD worktree_branch ON agent_session TYPE option<string>;
@@ -215,6 +216,22 @@ DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
 DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
+DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
+
+DEFINE EVENT OVERWRITE session_ended ON agent_session
+  WHEN $before.ended_at IS NONE AND $after.ended_at IS NOT NONE
+  THEN {
+    http::post(
+      "http://127.0.0.1:" + <string> $env.PORT + "/api/observe/agent_session/" + <string> record::id($after.id),
+      {
+        ended_at: $after.ended_at,
+        workspace: $after.workspace,
+        agent: $after.agent,
+      }
+    );
+  }
+  ASYNC
+  RETRY 3;
 
 DEFINE TABLE observation SCHEMAFULL;
 DEFINE FIELD text ON observation TYPE string;
@@ -223,7 +240,7 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment", "proxy_no_policy"] OR $value IS NONE;
 DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
 DEFINE FIELD source ON observation TYPE option<string>;
 DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
@@ -426,7 +443,7 @@ DEFINE FIELD added_at ON decided_in TYPE option<datetime>;
 DEFINE TABLE belongs_to TYPE RELATION IN task | decision | question OUT feature | project SCHEMAFULL;
 DEFINE FIELD added_at ON belongs_to TYPE datetime;
 
-DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior SCHEMAFULL;
+DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior | trace SCHEMAFULL;
 DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
@@ -485,9 +502,9 @@ DEFINE FIELD added_at ON attended_by TYPE option<datetime>;
 -- Trace: forensic record of a unit of thought (call tree node)
 DEFINE TABLE trace SCHEMAFULL;
 DEFINE FIELD type ON trace TYPE string
-  ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange"];
-DEFINE FIELD actor ON trace TYPE record<identity>;
-DEFINE FIELD workspace ON trace TYPE record<workspace>;
+  ASSERT $value IN ["tool_call", "message", "subagent_spawn", "intent_submission", "bridge_exchange", "llm_call"];
+DEFINE FIELD actor ON trace TYPE option<record<identity>>;
+DEFINE FIELD workspace ON trace TYPE option<record<workspace>>;
 DEFINE FIELD session ON trace TYPE option<record<agent_session>>;
 DEFINE FIELD parent_trace ON trace TYPE option<record<trace>>;
 DEFINE FIELD tool_name ON trace TYPE option<string>;
@@ -495,12 +512,36 @@ DEFINE FIELD input ON trace TYPE option<object> FLEXIBLE;
 DEFINE FIELD output ON trace TYPE option<object> FLEXIBLE;
 DEFINE FIELD duration_ms ON trace TYPE option<int>;
 DEFINE FIELD created_at ON trace TYPE datetime;
+DEFINE FIELD model ON trace TYPE option<string>;
+DEFINE FIELD provider ON trace TYPE option<string>;
+DEFINE FIELD input_tokens ON trace TYPE option<int>;
+DEFINE FIELD output_tokens ON trace TYPE option<int>;
+DEFINE FIELD cache_creation_tokens ON trace TYPE option<int>;
+DEFINE FIELD cache_read_tokens ON trace TYPE option<int>;
+DEFINE FIELD cost_usd ON trace TYPE option<float>;
+DEFINE FIELD stop_reason ON trace TYPE option<string>;
+DEFINE FIELD request_id ON trace TYPE option<string>;
+DEFINE FIELD latency_ms ON trace TYPE option<int>;
+DEFINE FIELD policy_decision ON trace TYPE option<object> FLEXIBLE;
 DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
 DEFINE INDEX trace_created_at ON trace FIELDS created_at;
 
 DEFINE TABLE spawns TYPE RELATION IN message OUT trace SCHEMAFULL;
+
+DEFINE TABLE invoked TYPE RELATION IN agent_session OUT trace SCHEMAFULL;
+DEFINE FIELD created_at ON invoked TYPE datetime;
+
+DEFINE TABLE scoped_to TYPE RELATION IN trace OUT workspace SCHEMAFULL;
+DEFINE FIELD created_at ON scoped_to TYPE datetime;
+
+DEFINE TABLE attributed_to TYPE RELATION IN trace OUT task SCHEMAFULL;
+DEFINE FIELD created_at ON attributed_to TYPE datetime;
+
+DEFINE TABLE governed_by TYPE RELATION IN trace OUT policy SCHEMAFULL;
+DEFINE FIELD created_at ON governed_by TYPE datetime;
+DEFINE FIELD decision ON governed_by TYPE string ASSERT $value IN ['pass', 'deny'];
 
 -- Intent governance
 DEFINE TABLE intent SCHEMAFULL;
@@ -1126,6 +1167,17 @@ DEFINE EVENT observation_peer_review ON observation
     http::post("http://localhost:3000/api/observe/observation/" + <string> meta::id($after.id), $after)
   };
 
+-- EVENT 6: trace_llm_call_created — fires when a new LLM call trace is created
+-- Observer analyzes LLM responses for contradictions with confirmed decisions
+-- and unrecorded architectural choices.
+DEFINE EVENT trace_llm_call_created ON trace
+  ASYNC
+  RETRY 3
+  WHEN $event = "CREATE" AND $after.type = "llm_call"
+  THEN {
+    http::post("http://localhost:3000/api/observe/trace/" + <string> meta::id($after.id), $after)
+  };
+
 -- ---------------------------------------------------------------------------
 -- Learning table: behavioral rules injected into agent prompts at runtime
 -- ---------------------------------------------------------------------------
@@ -1248,6 +1300,21 @@ DEFINE INDEX behavior_created_at ON behavior FIELDS created_at;
 DEFINE TABLE exhibits TYPE RELATION IN identity OUT behavior SCHEMAFULL;
 DEFINE FIELD created_at ON exhibits TYPE option<datetime>;
 DEFINE FIELD added_at ON exhibits TYPE option<datetime>;
+
+-- Proxy intelligence configuration (workspace-scoped)
+DEFINE TABLE proxy_intelligence_config SCHEMAFULL;
+DEFINE FIELD workspace ON proxy_intelligence_config TYPE record<workspace>;
+DEFINE FIELD context_injection_enabled ON proxy_intelligence_config TYPE bool;
+DEFINE FIELD context_injection_token_budget ON proxy_intelligence_config TYPE int;
+DEFINE FIELD context_injection_cache_ttl_seconds ON proxy_intelligence_config TYPE int;
+DEFINE FIELD context_injection_tier ON proxy_intelligence_config TYPE string
+  ASSERT $value IN ["fast", "secure"];
+DEFINE FIELD contradiction_detection_enabled ON proxy_intelligence_config TYPE bool;
+DEFINE FIELD contradiction_tier1_threshold ON proxy_intelligence_config TYPE float;
+DEFINE FIELD contradiction_tier2_confidence_min ON proxy_intelligence_config TYPE float;
+DEFINE FIELD created_at ON proxy_intelligence_config TYPE datetime;
+DEFINE FIELD updated_at ON proxy_intelligence_config TYPE datetime;
+DEFINE INDEX proxy_intelligence_config_workspace ON proxy_intelligence_config FIELDS workspace UNIQUE;
 
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;

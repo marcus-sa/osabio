@@ -369,6 +369,12 @@ DEFINE INDEX idx_task_fulltext ON task FIELDS title FULLTEXT ANALYZER entity_sea
 
 Search queries run from the app layer (`entity-search-route.ts`) instead of SurrealDB stored functions due to the limitations above. Fulltext indexes are defined in `schema/migrations/0002_fulltext_search_indexes.surql`.
 
+## SurrealDB Protected Variables
+
+- `$session` is a protected variable in SurrealDB v3.0 and cannot be used as a bound query parameter. Using it causes `'session' is a protected variable and cannot be set` errors that silently fail after retries.
+- Use `$sess` (or another non-reserved name) instead when binding `RecordId<"agent_session", string>` values in queries like `RELATE $sess->invoked->$trace`.
+- Other known protected variables: `$auth`, `$token`, `$session`, `$before`, `$after`, `$event`, `$this`, `$parent`, `$value`. Always avoid these as bound parameter names.
+
 ## SurrealDB SDK v2
 
 Reference: https://surrealdb.com/learn/fundamentals/schemafull/define-fields

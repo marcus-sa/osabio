@@ -12,6 +12,8 @@ import { logError, logInfo } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
+import { analyzeTraceResponse } from "./trace-response-analyzer";
+import { analyzeSessionTraces } from "./session-trace-analyzer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +25,8 @@ const SUPPORTED_TABLES = new Set<string>([
   "git_commit",
   "decision",
   "observation",
+  "trace",
+  "agent_session",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -49,7 +53,49 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
 
       const workspaceRecord = new RecordId("workspace", workspaceId);
 
-      // Delegate to observer agent
+      // Session-end analysis: cross-trace pattern detection
+      if (table === "agent_session") {
+        const sessionResult = await analyzeSessionTraces({
+          surreal: deps.surreal,
+          workspaceRecord,
+          sessionId: id,
+          observerModel: deps.observerModel as LanguageModel,
+        });
+
+        logInfo("observer.session.verified", "Session trace analysis complete", {
+          sessionId: id,
+          observationsCreated: sessionResult.observations_created,
+          skipped: sessionResult.skipped,
+          reason: sessionResult.reason,
+          tracesAnalyzed: sessionResult.traces_analyzed,
+        });
+
+        return jsonResponse({ status: "ok" }, 200);
+      }
+
+      // Trace analysis uses a specialized pipeline (embedding + KNN + LLM verification)
+      if (table === "trace") {
+        const traceResult = await analyzeTraceResponse({
+          surreal: deps.surreal,
+          workspaceRecord,
+          traceId: id,
+          traceBody: body,
+          observerModel: deps.observerModel as LanguageModel,
+          embeddingModel: deps.embeddingModel,
+          embeddingDimension: deps.config.embeddingDimension,
+        });
+
+        logInfo("observer.trace.verified", "Trace analysis complete", {
+          traceId: id,
+          observationsCreated: traceResult.observations_created,
+          skipped: traceResult.skipped,
+          reason: traceResult.reason,
+        });
+
+        return jsonResponse({ status: "ok" }, 200);
+      }
+
+      // Delegate to observer agent for all other entity types
       const agentOutput = await runObserverAgent({
         surreal: deps.surreal,
         workspaceRecord,
@@ -105,7 +151,9 @@ export function createGraphScanRouteHandler(deps: ServerDependencies) {
 // Workspace resolution
 // ---------------------------------------------------------------------------
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Workspace IDs may be UUIDs or prefixed slugs (e.g. test workspaces).
+// Validate they contain only safe characters.
+const WORKSPACE_ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 async function resolveWorkspaceId(
   surreal: Surreal,
@@ -141,7 +189,7 @@ async function resolveWorkspaceId(
     wsId = rows?.[0]?.workspace ? (rows[0].workspace.id as string) : undefined;
   }
 
-  if (wsId && !UUID_PATTERN.test(wsId)) {
+  if (wsId && !WORKSPACE_ID_PATTERN.test(wsId)) {
     throw new Error(`Invalid workspace ID format: ${wsId}`);
   }
 

@@ -671,9 +671,9 @@ async function loadActiveSessions(
     const [decisionRows] = await surreal
       .query<[Array<{ id: RecordId<"decision", string>; summary: string }>]>(
         `SELECT id, summary FROM decision
-         WHERE id IN (SELECT VALUE out FROM produced WHERE \`in\` = $session)
+         WHERE id IN (SELECT VALUE out FROM produced WHERE \`in\` = $sess)
            AND status = "provisional";`,
-        { session: session.id },
+        { sess: session.id },
       )
       .collect<[Array<{ id: RecordId<"decision", string>; summary: string }>]>();
 

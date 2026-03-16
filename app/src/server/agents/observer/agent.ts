@@ -83,6 +83,22 @@ export async function runObserverAgent(input: ObserverAgentInput): Promise<Obser
     case "observation":
       result = await peerReviewObservation(input);
       break;
+    case "trace":
+      // Trace analysis is handled by the trace-response-analyzer at the route level.
+      // This case exists for completeness; the route dispatches directly.
+      return {
+        observations_created: 0,
+        verdict: "inconclusive",
+        evidence: ["Trace analysis handled by trace-response-analyzer at route level"],
+      };
+    case "agent_session":
+      // Session-end analysis is handled by the session-trace-analyzer at the route level.
+      // This case exists for completeness; the route dispatches directly.
+      return {
+        observations_created: 0,
+        verdict: "inconclusive",
+        evidence: ["Session analysis handled by session-trace-analyzer at route level"],
+      };
     default:
       return {
         observations_created: 0,

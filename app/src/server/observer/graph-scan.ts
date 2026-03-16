@@ -80,9 +80,16 @@ export type StaleObjective = {
   created_at: string | Date;
 };
 
+export type ImplementationWithoutDecision = {
+  id: RecordId<"task">;
+  title: string;
+  created_at: string | Date;
+};
+
 export type CoherenceScanResult = {
   orphaned_decisions_found: number;
   stale_objectives_found: number;
+  implementations_without_decisions_found: number;
   observations_created: number;
 };
 
@@ -92,6 +99,7 @@ export type GraphScanResult = {
   status_drift_found: number;
   orphaned_decisions_found: number;
   stale_objectives_found: number;
+  implementations_without_decisions_found: number;
   observations_created: number;
   llm_filtered_count: number;
   learning_proposals_created: number;
@@ -354,6 +362,40 @@ export async function queryStaleObjectives(
 }
 
 /**
+ * Finds completed tasks older than the coherence threshold that have no
+ * linked decision records -- neither directly via implemented_by edges
+ * nor indirectly via shared feature/project (belongs_to edges).
+ *
+ * Deterministic graph query, no LLM needed.
+ */
+export async function queryImplementationsWithoutDecisions(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<ImplementationWithoutDecision[]> {
+  const thresholdDate = new Date(
+    Date.now() - COHERENCE_AGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  // Two-step approach:
+  // 1. Find completed tasks older than threshold
+  // 2. Filter out tasks that have decision links (direct or via feature/project)
+  const [rows] = await surreal.query<[ImplementationWithoutDecision[]]>(
+    `SELECT id, title, created_at FROM task
+     WHERE workspace = $ws
+       AND status IN ["completed", "done"]
+       AND created_at < $threshold
+       AND array::len(<-implemented_by<-decision) = 0
+       AND array::len(->belongs_to->feature<-belongs_to<-decision) = 0
+       AND array::len(->belongs_to->project<-belongs_to<-decision) = 0
+     ORDER BY created_at ASC
+     LIMIT 50;`,
+    { ws: workspaceRecord, threshold: thresholdDate },
+  );
+
+  return rows ?? [];
+}
+
+/**
  * Runs coherence scans: detects orphaned decisions and stale objectives,
  * creates observations for disconnected patterns.
  *
@@ -366,6 +408,7 @@ export async function runCoherenceScans(
   const result: CoherenceScanResult = {
     orphaned_decisions_found: 0,
     stale_objectives_found: 0,
+    implementations_without_decisions_found: 0,
     observations_created: 0,
   };
 
@@ -376,9 +419,10 @@ export async function runCoherenceScans(
     limit: 100,
   });
 
-  const [orphanedDecisions, staleObjectives] = await Promise.all([
+  const [orphanedDecisions, staleObjectives, implsWithoutDecisions] = await Promise.all([
     queryOrphanedDecisions(surreal, workspaceRecord),
     queryStaleObjectives(surreal, workspaceRecord),
+    queryImplementationsWithoutDecisions(surreal, workspaceRecord),
   ]);
 
   result.orphaned_decisions_found = orphanedDecisions.length;
@@ -460,6 +504,47 @@ export async function runCoherenceScans(
     result.observations_created += 1;
   }
 
+  // Create observations for implementations without decisions
+  result.implementations_without_decisions_found = implsWithoutDecisions.length;
+
+  for (const task of implsWithoutDecisions) {
+    const existingForTask = await queryExistingObserverObservationsForEntity(
+      surreal,
+      workspaceRecord,
+      task.id as RecordId<string, string>,
+    );
+
+    const observationText =
+      `Implementation without decision: Task "${task.title}" was completed but has no linked decision record ` +
+      `(no direct or feature/project-level decision link after ${COHERENCE_AGE_THRESHOLD_DAYS} days). ` +
+      `Consider recording the decision that led to this implementation.`;
+
+    if (
+      existingForTask.length > 0 ||
+      isAlreadyObserved(existingObservations, observationText, task.id.id as string)
+    ) {
+      logInfo("observer.coherence.dedup", "Skipping duplicate implementation-without-decision observation", {
+        taskId: task.id.id,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "info",
+      sourceAgent: "observer_agent",
+      observationType: "validation",
+      now,
+      relatedRecords: [
+        task.id as ObserveTargetRecord,
+      ],
+    });
+    result.observations_created += 1;
+  }
+
   logInfo("observer.coherence.completed", "Coherence scan completed", {
     workspaceId: workspaceRecord.id,
     ...result,
@@ -486,6 +571,7 @@ export async function runGraphScan(
     status_drift_found: 0,
     orphaned_decisions_found: 0,
     stale_objectives_found: 0,
+    implementations_without_decisions_found: 0,
     observations_created: 0,
     llm_filtered_count: 0,
     learning_proposals_created: 0,
@@ -803,6 +889,7 @@ export async function runGraphScan(
   const coherenceResult = await runCoherenceScans(surreal, workspaceRecord);
   result.orphaned_decisions_found = coherenceResult.orphaned_decisions_found;
   result.stale_objectives_found = coherenceResult.stale_objectives_found;
+  result.implementations_without_decisions_found = coherenceResult.implementations_without_decisions_found;
   result.observations_created += coherenceResult.observations_created;
 
   // 6. Diagnostic learning proposals: cluster observations and check coverage
