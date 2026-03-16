@@ -98,3 +98,8 @@ Finalize a completed feature: verify all steps done|create evolution document in
 
 ## Context Files ...
 
+### Prompt 10
+
+Stop hook feedback:
+Prompt hook condition was not met: I do not have access to Brain MCP tools (create_provisional_decision, log_observation, etc.) in this evaluation context. I can only return JSON responses matching the specified schema.
+
