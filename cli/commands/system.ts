@@ -1,5 +1,6 @@
 import { loadConfig, requireConfig } from "../config";
 import { BrainHttpClient } from "../http-client";
+import { checkTokenExpiry } from "../token-expiry";
 
 // ---------------------------------------------------------------------------
 // Shared response types
@@ -81,6 +82,15 @@ type ActiveSession = {
  */
 export async function runLoadContext(): Promise<void> {
   const config = await requireConfig();
+
+  // Check proxy token expiry before loading context
+  const expiry = checkTokenExpiry(config.proxy_token_expires_at, Date.now());
+  if (expiry.status === "expired") {
+    console.error("Warning: Brain proxy token has expired. Run `brain init` to refresh.");
+  } else if (expiry.status === "expiring_soon") {
+    console.error(`Warning: Brain proxy token expires in ${expiry.daysRemaining} day${expiry.daysRemaining === 1 ? "" : "s"}. Run \`brain init\` to refresh.`);
+  }
+
   const client = new BrainHttpClient(config);
 
   try {
