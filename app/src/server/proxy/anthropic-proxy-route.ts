@@ -281,7 +281,7 @@ async function loadCandidatePool(
     { ws: workspaceRecord },
   );
   const observationResults = await surreal.query<[ObservationRow[]]>(
-    `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] LIMIT 20;`,
+    `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND observation_type NOT IN ['proxy_no_policy'] LIMIT 20;`,
     { ws: workspaceRecord },
   );
 
@@ -361,8 +361,10 @@ async function runContextInjection(
 
   // 1. Get or populate candidate pool (with cache)
   let pool: CachedCandidatePool;
+  let fromCache = false;
   if (contextCache.has(workspaceId)) {
     pool = contextCache.get(workspaceId)!;
+    fromCache = true;
   } else {
     pool = await loadCandidatePool(deps.surreal, workspaceId);
     contextCache.set(workspaceId, pool);
@@ -375,12 +377,6 @@ async function runContextInjection(
     ...pool.observations,
   ];
   if (allCandidates.length === 0) {
-    logInfo("proxy.context_injection.empty_pool", "No candidates in pool", {
-      workspace_id: workspaceId,
-      decisions: pool.decisions.length,
-      learnings: pool.learnings.length,
-      observations: pool.observations.length,
-    });
     return { body: originalBody };
   }
 
@@ -390,7 +386,7 @@ async function runContextInjection(
     learnings: pool.learnings.length,
     observations: pool.observations.length,
     total: allCandidates.length,
-    cached: contextCache.has(workspaceId),
+    cached: fromCache,
   });
 
   // 3. Extract last user message for embedding
