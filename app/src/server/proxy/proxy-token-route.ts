@@ -70,14 +70,11 @@ async function resolveIdentityForWorkspaceAndPerson(
   const personRecord = new RecordId("person", personId);
   const wsRecord = new RecordId("workspace", workspaceId);
   const results = await surreal.query<[RecordId[]]>(
-    `SELECT VALUE ip.in
-     FROM identity_person AS ip
-     WHERE ip.out = $person
-       AND (SELECT VALUE count() FROM member_of WHERE in = ip.in AND out = $ws) > 0
-     LIMIT 1;`,
+    `LET $identities = SELECT VALUE in FROM identity_person WHERE out = $person;
+     SELECT VALUE id FROM identity WHERE id IN $identities AND id IN (SELECT VALUE in FROM member_of WHERE out = $ws) LIMIT 1;`,
     { person: personRecord, ws: wsRecord },
   );
-  const identityRec = results[0]?.[0];
+  const identityRec = results[1]?.[0];
   return identityRec?.id as string | undefined;
 }
 
