@@ -45,11 +45,7 @@ export function buildSignupGuard(selfHosted: boolean): SignupGuardHooks | undefi
   };
 }
 
-export function buildEmailAndPasswordConfig(selfHosted: boolean): EmailAndPasswordConfig {
-  if (!selfHosted) {
-    return { enabled: true };
-  }
-
+export function buildEmailAndPasswordConfig(): EmailAndPasswordConfig {
   return {
     enabled: true,
     password: {
@@ -118,7 +114,7 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
         updatedAt: "updated_at",
       },
     },
-    emailAndPassword: buildEmailAndPasswordConfig(config.selfHosted),
+    emailAndPassword: buildEmailAndPasswordConfig(),
     socialProviders: {
       github: {
         clientId: config.githubClientId,
