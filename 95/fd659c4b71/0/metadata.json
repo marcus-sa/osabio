@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "95fd659c4b71",
+  "session_id": "4030cb06-aacd-4810-8eb2-3289f9e6aa9c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T11:02:50.066481Z",
+  "branch": "marcus-sa/proxy-session-not-conversation",
+  "checkpoints_count": 7,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/conversation-upserter.ts",
+    "app/src/server/proxy/identity-resolver.ts",
+    "app/src/server/proxy/session-hash-resolver.ts",
+    "app/src/server/proxy/session-upserter.ts",
+    "app/src/server/proxy/trace-writer.ts",
+    "schema/migrations/0049_agent_session_source_field.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/llm-proxy/llm-proxy-conversation-hash.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-hash.test.ts",
+    "tests/unit/proxy-identity-resolver.test.ts",
+    "tests/unit/proxy-session-hash-resolver.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d75aeb8b6c6d",
+  "token_usage": {
+    "input_tokens": 163,
+    "cache_creation_tokens": 208939,
+    "cache_read_tokens": 6304829,
+    "output_tokens": 28826,
+    "api_call_count": 75
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T11:02:49.100241Z",
+    "agent_lines": 866,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 867,
+    "agent_percentage": 99.88465974625143
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "95fd659c4b71",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/proxy-session-not-conversation",
+  "checkpoints_count": 7,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/conversation-upserter.ts",
+    "app/src/server/proxy/identity-resolver.ts",
+    "app/src/server/proxy/session-hash-resolver.ts",
+    "app/src/server/proxy/session-upserter.ts",
+    "app/src/server/proxy/trace-writer.ts",
+    "schema/migrations/0049_agent_session_source_field.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/llm-proxy/llm-proxy-conversation-hash.test.ts",
+    "tests/acceptance/llm-proxy/llm-proxy-session-hash.test.ts",
+    "tests/unit/proxy-identity-resolver.test.ts",
+    "tests/unit/proxy-session-hash-resolver.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/95/fd659c4b71/0/metadata.json",
+      "transcript": "/95/fd659c4b71/0/full.jsonl",
+      "context": "/95/fd659c4b71/0/context.md",
+      "content_hash": "/95/fd659c4b71/0/content_hash.txt",
+      "prompt": "/95/fd659c4b71/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 163,
+    "cache_creation_tokens": 208939,
+    "cache_read_tokens": 6304829,
+    "output_tokens": 28826,
+    "api_call_count": 75
+  }
+}
