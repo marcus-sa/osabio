@@ -19,8 +19,8 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
-import { logInfo, logError } from "../http/observability";
 import { extractResponseText } from "./trace-response-analyzer";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,9 +130,13 @@ async function analyzeCrossTracePatterns(
     `--- Trace ${t.index + 1} ---\n${t.text.slice(0, 1500)}`,
   ).join("\n\n");
 
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
+
   const { object } = await generateObject({
     model,
     schema: crossTracePatternSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_SYNTHESIS),
     prompt: `You are an AI governance observer analyzing a sequence of LLM responses from a single coding session for cross-trace patterns.
 
 CONFIRMED WORKSPACE DECISIONS:
@@ -179,7 +183,7 @@ export async function analyzeSessionTraces(
   const traces = await loadSessionTraces(surreal, sessionId);
 
   if (traces.length < 2) {
-    logInfo("observer.session.skipped", "Session skipped: fewer than 2 traces", {
+    log.info("observer.session.skipped", "Session skipped: fewer than 2 traces", {
       sessionId,
       traceCount: traces.length,
     });
@@ -201,7 +205,7 @@ export async function analyzeSessionTraces(
     .filter((t) => t.text.trim().length > 0);
 
   if (traceTexts.length < 2) {
-    logInfo("observer.session.skipped", "Session skipped: fewer than 2 traces with extractable text", {
+    log.info("observer.session.skipped", "Session skipped: fewer than 2 traces with extractable text", {
       sessionId,
       traceCount: traces.length,
       extractableCount: traceTexts.length,
@@ -226,7 +230,7 @@ export async function analyzeSessionTraces(
       decisions,
     );
   } catch (error) {
-    logError("observer.session.llm_error", "Cross-trace LLM analysis failed", {
+    log.error("observer.session.llm_error", "Cross-trace LLM analysis failed", {
       sessionId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -276,14 +280,14 @@ export async function analyzeSessionTraces(
 
       observationsCreated += 1;
 
-      logInfo("observer.session.pattern_found", "Cross-trace pattern observation created", {
+      log.info("observer.session.pattern_found", "Cross-trace pattern observation created", {
         sessionId,
         patternType: pattern.pattern_type,
         confidence: pattern.confidence,
         traceIndices: pattern.trace_indices,
       });
     } catch (error) {
-      logError("observer.session.observation_error", "Failed to create pattern observation", {
+      log.error("observer.session.observation_error", "Failed to create pattern observation", {
         sessionId,
         patternType: pattern.pattern_type,
         error: error instanceof Error ? error.message : String(error),
@@ -291,7 +295,7 @@ export async function analyzeSessionTraces(
     }
   }
 
-  logInfo("observer.session.analysis_complete", "Session trace analysis complete", {
+  log.info("observer.session.analysis_complete", "Session trace analysis complete", {
     sessionId,
     tracesAnalyzed: traceTexts.length,
     patternsFound: analysisResult.patterns.length,

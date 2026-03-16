@@ -1,7 +1,6 @@
 import { RecordId } from "surrealdb";
 import { ENTITY_PRIORITIES, type EntityActionRequest } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import { acknowledgeObservation, resolveObservation } from "../observation/queries";
 import { acceptSuggestion, convertSuggestion, dismissSuggestion, deferSuggestion } from "../suggestion/queries";
@@ -14,6 +13,7 @@ import {
   type GraphEntityTable,
 } from "../graph/queries";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
+import { log } from "../telemetry/logger";
 
 type EntityActionTable = GraphEntityTable | "observation";
 
@@ -52,7 +52,7 @@ async function handleEntityAction(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError("entity.action.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
+    log.error("entity.action.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -72,7 +72,7 @@ async function handleEntityAction(
           observationRecord: entityRecord as RecordId<"observation", string>,
           now,
         });
-        logInfo("entity.action.acknowledge", "Observation acknowledged", { workspaceId, entityId });
+        log.info("entity.action.acknowledge", "Observation acknowledged", { workspaceId, entityId });
         return jsonResponse({ status: "acknowledged" }, 200);
       }
 
@@ -83,7 +83,7 @@ async function handleEntityAction(
           observationRecord: entityRecord as RecordId<"observation", string>,
           now,
         });
-        logInfo("entity.action.resolve", "Observation resolved", { workspaceId, entityId });
+        log.info("entity.action.resolve", "Observation resolved", { workspaceId, entityId });
         return jsonResponse({ status: "resolved" }, 200);
       }
 
@@ -99,7 +99,7 @@ async function handleEntityAction(
           suggestionRecord: entityRecord as RecordId<"suggestion", string>,
           now,
         });
-        logInfo("entity.action.accept", "Suggestion accepted", { workspaceId, entityId });
+        log.info("entity.action.accept", "Suggestion accepted", { workspaceId, entityId });
         return jsonResponse({ status: "accepted" }, 200);
       }
 
@@ -110,7 +110,7 @@ async function handleEntityAction(
           suggestionRecord: entityRecord as RecordId<"suggestion", string>,
           now,
         });
-        logInfo("entity.action.dismiss", "Suggestion dismissed", { workspaceId, entityId });
+        log.info("entity.action.dismiss", "Suggestion dismissed", { workspaceId, entityId });
         return jsonResponse({ status: "dismissed" }, 200);
       }
 
@@ -121,7 +121,7 @@ async function handleEntityAction(
           suggestionRecord: entityRecord as RecordId<"suggestion", string>,
           now,
         });
-        logInfo("entity.action.defer", "Suggestion deferred", { workspaceId, entityId });
+        log.info("entity.action.defer", "Suggestion deferred", { workspaceId, entityId });
         return jsonResponse({ status: "deferred" }, 200);
       }
 
@@ -139,7 +139,7 @@ async function handleEntityAction(
           embeddingDimension: deps.config.embeddingDimension,
           now,
         });
-        logInfo("entity.action.convert", "Suggestion converted", { workspaceId, suggestionId: entityId, convertedEntityId: result.entityId, table: result.table });
+        log.info("entity.action.convert", "Suggestion converted", { workspaceId, suggestionId: entityId, convertedEntityId: result.entityId, table: result.table });
         return jsonResponse({ status: "converted", entityId: result.entityId, table: result.table }, 201);
       }
 
@@ -177,7 +177,7 @@ async function handleEntityAction(
         },
       }).catch(() => undefined));
 
-      logInfo("entity.action.confirm", "Decision confirmed", { workspaceId, entityId });
+      log.info("entity.action.confirm", "Decision confirmed", { workspaceId, entityId });
       return jsonResponse({ status: "confirmed" }, 200);
     }
 
@@ -191,7 +191,7 @@ async function handleEntityAction(
         updated_at: now,
         ...(body.notes ? { override_notes: body.notes } : {}),
       });
-      logInfo("entity.action.override", "Decision overridden", { workspaceId, entityId });
+      log.info("entity.action.override", "Decision overridden", { workspaceId, entityId });
       return jsonResponse({ status: "overridden" }, 200);
     }
 
@@ -219,7 +219,7 @@ async function handleEntityAction(
         },
       }).catch(() => undefined));
 
-      logInfo("entity.action.complete", "Feature completed", { workspaceId, entityId });
+      log.info("entity.action.complete", "Feature completed", { workspaceId, entityId });
       return jsonResponse({ status: "completed" }, 200);
     }
 
@@ -248,7 +248,7 @@ async function handleEntityAction(
         },
       }).catch(() => undefined));
 
-      logInfo("entity.action.complete", "Task completed", { workspaceId, entityId });
+      log.info("entity.action.complete", "Task completed", { workspaceId, entityId });
       return jsonResponse({ status: "completed" }, 200);
     }
 
@@ -257,7 +257,7 @@ async function handleEntityAction(
         status: "dismissed",
         updated_at: now,
       });
-      logInfo("entity.action.dismiss", "Question dismissed", { workspaceId, entityId });
+      log.info("entity.action.dismiss", "Question dismissed", { workspaceId, entityId });
       return jsonResponse({ status: "dismissed" }, 200);
     }
 
@@ -269,13 +269,13 @@ async function handleEntityAction(
         priority: body.priority,
         updated_at: now,
       });
-      logInfo("entity.action.set_priority", "Priority updated", { workspaceId, entityId, priority: body.priority });
+      log.info("entity.action.set_priority", "Priority updated", { workspaceId, entityId, priority: body.priority });
       return jsonResponse({ status: "priority_updated", priority: body.priority }, 200);
     }
 
     return jsonError(`action '${body.action}' is not valid for entity type '${table}'`, 400);
   } catch (error) {
-    logError("entity.action.failed", "Entity action failed", error, {
+    log.error("entity.action.failed", "Entity action failed", error, {
       workspaceId,
       entityId,
       action: body.action,

@@ -8,7 +8,7 @@ import type {
 } from "../../shared/contracts";
 import type { GraphEntityRecord } from "../extraction/types";
 import { toIsoString } from "../http/response";
-import { logInfo } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // ── Pure functions (exported for unit testing) ──────────────────────────
 
@@ -292,7 +292,7 @@ export async function refreshConversationTouchedBy(
     await surreal.delete(staleEdge.id);
   }
 
-  logInfo("conversation.touched_by.refreshed", "Refreshed touched_by edges", {
+  log.info("conversation.touched_by.refreshed", "Refreshed touched_by edges", {
     conversationId: conversationRecord.id as string,
     projectCount: projectAgg.size,
     removedCount: existingByProject.size,
@@ -398,7 +398,7 @@ export async function maybeUpgradeConversationTitle(
       title_source: "entity" as const,
     });
 
-    logInfo("conversation.title.upgraded", "Upgraded conversation title", {
+    log.info("conversation.title.upgraded", "Upgraded conversation title", {
       conversationId: conversationRecord.id as string,
       newTitle,
     });

@@ -1,6 +1,8 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import type { DescriptionEntry, DescriptionTarget } from "./types";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 const synthesisOutputSchema = z.object({
   description: z.string().min(1),
@@ -31,6 +33,7 @@ export async function synthesizeDescription(input: {
     model: input.extractionModel,
     schema: synthesisOutputSchema,
     temperature: 0.1,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.DESCRIPTIONS),
     system: [
       "You synthesize entity descriptions from a list of description entries.",
       "Each entry represents a fact or change about the entity.",

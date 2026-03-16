@@ -9,8 +9,10 @@
 
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
-import { logError, logInfo } from "../http/observability";
 import type { BehaviorDefinitionRecord, LlmScorerResult } from "./definition-types";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Output Schema (Zod for generateObject structured output)
@@ -78,23 +80,27 @@ export async function scoreTelemetryWithLlm(
   graphEvidence?: string,
 ): Promise<LlmScorerResult | undefined> {
   const prompt = buildScoringPrompt(definition, telemetryPayload, graphEvidence);
+  const start = performance.now();
 
   try {
     const result = await generateObject({
       model,
       schema: llmScorerResultSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.BEHAVIOR_SCORER),
       prompt,
       abortSignal: AbortSignal.timeout(SCORER_TIMEOUT_MS),
     });
 
-    logInfo("behavior.scorer.llm", "LLM scoring complete", {
+    recordLlmMetrics(FUNCTION_IDS.BEHAVIOR_SCORER, result.usage, Math.round(performance.now() - start));
+    log.info("behavior.scorer.llm", "LLM scoring complete", {
       definition_title: definition.title,
       score: result.object.score,
     });
 
     return result.object;
   } catch (error) {
-    logError("behavior.scorer.llm", "LLM scoring failed", error, {
+    recordLlmError(FUNCTION_IDS.BEHAVIOR_SCORER, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("behavior.scorer.llm", "LLM scoring failed", error, {
       definition_title: definition.title,
     });
     return undefined;

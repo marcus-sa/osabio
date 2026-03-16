@@ -5,7 +5,7 @@
  * transaction conflicts under concurrent load.
  */
 
-import { logWarn } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 200;
@@ -23,7 +23,7 @@ export async function withRetry<T>(
       lastError = error;
       if (attempt < MAX_RETRIES - 1) {
         const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
-        logWarn("proxy.retry", `Retry ${attempt + 1}/${MAX_RETRIES} for ${label}`, {
+        log.warn("proxy.retry", `Retry ${attempt + 1}/${MAX_RETRIES} for ${label}`, {
           attempt: attempt + 1,
           delay_ms: delayMs,
         });

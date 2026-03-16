@@ -1,6 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { HttpError } from "../http/errors";
-import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -10,6 +9,7 @@ import {
   type GraphEntityTable,
 } from "../graph/queries";
 import { buildEntityDetailResponse, type AgentSessionRow } from "./entity-detail-response";
+import { log } from "../telemetry/logger";
 
 export function createEntityDetailHandler(
   deps: ServerDependencies,
@@ -34,7 +34,7 @@ async function handleEntityDetail(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError("entity.detail.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
+    log.error("entity.detail.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -53,7 +53,7 @@ async function handleEntityDetail(
 
     const response = buildEntityDetailResponse(detail, agentSessionRow);
 
-    logInfo("entity.detail.served", "Entity detail served", {
+    log.info("entity.detail.served", "Entity detail served", {
       workspaceId,
       entityId,
       relationshipCount: detail.relationships.length,
@@ -63,7 +63,7 @@ async function handleEntityDetail(
 
     return jsonResponse(response, 200);
   } catch (error) {
-    logError("entity.detail.failed", "Entity detail failed", error, {
+    log.error("entity.detail.failed", "Entity detail failed", error, {
       workspaceId,
       entityId,
     });

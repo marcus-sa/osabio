@@ -1,12 +1,12 @@
 import { RecordId } from "surrealdb";
 import { HttpError } from "../http/errors";
-import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { activatePolicy, buildVersionChain, createPolicy, deprecatePolicy, getPolicyById, getPolicyEdges, getVersionChain, listWorkspacePolicies } from "./policy-queries";
 import { validatePolicyCreateBody } from "./policy-validation";
 import type { PolicyRecord, PolicyRule, PolicySelector, PolicyStatus } from "./types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Pure identity guard
@@ -76,7 +76,7 @@ async function resolveWorkspace(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError(logEvent, "Failed to resolve workspace", error, { workspaceId });
+    log.error(logEvent, "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 }
@@ -154,7 +154,7 @@ async function handleListPolicies(
 
     return jsonResponse({ policies }, 200);
   } catch (error) {
-    logError("policy.list.failed", "Failed to list policies", error, { workspaceId });
+    log.error("policy.list.failed", "Failed to list policies", error, { workspaceId });
     return jsonError("failed to list policies", 500);
   }
 }
@@ -206,7 +206,7 @@ async function handlePolicyDetail(
       version_chain: versionChain,
     }, 200);
   } catch (error) {
-    logError("policy.detail.failed", "Failed to get policy detail", error, { workspaceId, policyId });
+    log.error("policy.detail.failed", "Failed to get policy detail", error, { workspaceId, policyId });
     return jsonError("failed to get policy detail", 500);
   }
 }
@@ -255,7 +255,7 @@ async function handleCreatePolicy(
 
     return jsonResponse({ policy_id: policyId }, 201);
   } catch (error) {
-    logError("policy.create.failed", "Failed to create policy", error, { workspaceId });
+    log.error("policy.create.failed", "Failed to create policy", error, { workspaceId });
     return jsonError("failed to create policy", 500);
   }
 }
@@ -304,7 +304,7 @@ async function handleActivatePolicy(
 
     return jsonResponse({ status: "active" }, 200);
   } catch (error) {
-    logError("policy.activate.failed", "Failed to activate policy", error, { workspaceId, policyId });
+    log.error("policy.activate.failed", "Failed to activate policy", error, { workspaceId, policyId });
     return jsonError("failed to activate policy", 500);
   }
 }
@@ -348,7 +348,7 @@ async function handleDeprecatePolicy(
 
     return jsonResponse({ status: "deprecated" }, 200);
   } catch (error) {
-    logError("policy.deprecate.failed", "Failed to deprecate policy", error, { workspaceId, policyId });
+    log.error("policy.deprecate.failed", "Failed to deprecate policy", error, { workspaceId, policyId });
     return jsonError("failed to deprecate policy", 500);
   }
 }
@@ -430,7 +430,7 @@ async function handleCreatePolicyVersion(
 
     return jsonResponse({ policy_id: newPolicyId, version }, 201);
   } catch (error) {
-    logError("policy.version.failed", "Failed to create policy version", error, { workspaceId, policyId });
+    log.error("policy.version.failed", "Failed to create policy version", error, { workspaceId, policyId });
     return jsonError("failed to create policy version", 500);
   }
 }
@@ -460,7 +460,7 @@ async function handleGetVersionHistory(
 
     return jsonResponse({ versions }, 200);
   } catch (error) {
-    logError("policy.versions.failed", "Failed to get version history", error, { workspaceId, policyId });
+    log.error("policy.versions.failed", "Failed to get version history", error, { workspaceId, policyId });
     return jsonError("failed to get version history", 500);
   }
 }

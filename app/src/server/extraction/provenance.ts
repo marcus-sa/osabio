@@ -1,5 +1,5 @@
 import type { SourceKind } from "../../shared/contracts";
-import { logWarn } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 export function resolveValidatedResolvedFromMessageId(input: {
   resolvedFromMessageId?: string;
@@ -21,7 +21,7 @@ export function resolveValidatedResolvedFromMessageId(input: {
   }
 
   if (resolvedFromMessageId === input.sourceMessageId) {
-    logWarn("extraction.provenance.self_reference", "LLM returned resolvedFromMessageId matching current source message; discarding", {
+    log.warn("extraction.provenance.self_reference", "LLM returned resolvedFromMessageId matching current source message; discarding", {
       resolvedFromMessageId,
       sourceMessageId: input.sourceMessageId,
     });
@@ -29,7 +29,7 @@ export function resolveValidatedResolvedFromMessageId(input: {
   }
 
   if (!input.extractionHistoryMessageIds.has(resolvedFromMessageId)) {
-    logWarn("extraction.provenance.unknown_message", "LLM returned resolvedFromMessageId not in conversation history; discarding", {
+    log.warn("extraction.provenance.unknown_message", "LLM returned resolvedFromMessageId not in conversation history; discarding", {
       resolvedFromMessageId,
     });
     return undefined;

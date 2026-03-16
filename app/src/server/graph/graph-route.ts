@@ -1,6 +1,5 @@
 import { RecordId } from "surrealdb";
 import { HttpError } from "../http/errors";
-import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -12,6 +11,7 @@ import {
   type GraphEntityTable,
 } from "./queries";
 import { transformToReagraph } from "./transform";
+import { log } from "../telemetry/logger";
 
 export function createGraphRouteHandler(
   deps: ServerDependencies,
@@ -31,7 +31,7 @@ async function handleGraphRoute(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError("graph.route.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
+    log.error("graph.route.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -51,7 +51,7 @@ async function handleGraphRoute(
         depth,
       });
       const result = transformToReagraph(raw);
-      logInfo("graph.route.focused", "Focused graph view served", {
+      log.info("graph.route.focused", "Focused graph view served", {
         workspaceId,
         center: centerParam,
         depth,
@@ -69,7 +69,7 @@ async function handleGraphRoute(
         projectRecord,
       });
       const result = transformToReagraph(raw);
-      logInfo("graph.route.project", "Project graph view served", {
+      log.info("graph.route.project", "Project graph view served", {
         workspaceId,
         project: projectParam,
         nodeCount: result.nodes.length,
@@ -83,14 +83,14 @@ async function handleGraphRoute(
       workspaceRecord,
     });
     const result = transformToReagraph(raw);
-    logInfo("graph.route.overview", "Workspace graph overview served", {
+    log.info("graph.route.overview", "Workspace graph overview served", {
       workspaceId,
       nodeCount: result.nodes.length,
       edgeCount: result.edges.length,
     });
     return jsonResponse(result, 200);
   } catch (error) {
-    logError("graph.route.failed", "Graph route failed", error, {
+    log.error("graph.route.failed", "Graph route failed", error, {
       workspaceId,
       project: projectParam,
       center: centerParam,

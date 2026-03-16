@@ -4,6 +4,8 @@ import type { Surreal } from "surrealdb";
 import type { ChatToolExecutionContext } from "../../chat/tools/types";
 import { buildAnalyticsSystemPrompt } from "./prompt";
 import { createAnalyticsTools } from "./tools";
+import { createTelemetryConfig } from "../../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../../telemetry/function-ids";
 
 const entityRefSchema = z.object({
   entityId: z.string().describe("Entity identifier in table:id format, e.g. 'task:abc123'."),
@@ -40,6 +42,7 @@ export async function runAnalyticsAgent(input: AnalyticsAgentInput): Promise<Ana
     instructions: system,
     tools: createAnalyticsTools(input.analyticsSurreal),
     output: Output.object({ schema: analyticsResultSchema }),
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.ANALYTICS_AGENT),
     experimental_context: input.context,
     stopWhen: stepCountIs(5),
   });

@@ -1,0 +1,84 @@
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+
+describe("telemetry init", () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    // Clean OTEL env vars before each test
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    delete process.env.SERVICE_VERSION;
+  });
+
+  afterEach(() => {
+    // Restore original env
+    Object.keys(process.env).forEach((key) => {
+      if (key.startsWith("OTEL_") || key === "SERVICE_VERSION") {
+        if (originalEnv[key] === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = originalEnv[key];
+        }
+      }
+    });
+  });
+
+  describe("initTelemetry", () => {
+    it("returns telemetry handle with all three providers", async () => {
+      const { initTelemetry } = await import("../../app/src/server/telemetry/init");
+      const handle = initTelemetry();
+
+      expect(handle).toBeDefined();
+      expect(handle.tracerProvider).toBeDefined();
+      expect(handle.meterProvider).toBeDefined();
+      expect(handle.loggerProvider).toBeDefined();
+      expect(typeof handle.shutdown).toBe("function");
+
+      await handle.shutdown();
+    });
+
+    it("uses console exporters when OTEL_EXPORTER_OTLP_ENDPOINT is unset", async () => {
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      const { initTelemetry } = await import("../../app/src/server/telemetry/init");
+      const handle = initTelemetry();
+
+      expect(handle.exporterType).toBe("console");
+      await handle.shutdown();
+    });
+
+    it("uses OTLP exporters when OTEL_EXPORTER_OTLP_ENDPOINT is set", async () => {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+      const { initTelemetry } = await import("../../app/src/server/telemetry/init");
+      const handle = initTelemetry();
+
+      expect(handle.exporterType).toBe("otlp");
+      await handle.shutdown();
+    });
+
+    it("returns no-op handle when initialization fails", async () => {
+      const { createNoopTelemetryHandle } = await import("../../app/src/server/telemetry/init");
+      const handle = createNoopTelemetryHandle();
+
+      expect(handle.exporterType).toBe("noop");
+      // shutdown should not throw
+      await handle.shutdown();
+    });
+  });
+
+  describe("shutdownTelemetry", () => {
+    it("flushes and shuts down all three providers without throwing", async () => {
+      const { initTelemetry } = await import("../../app/src/server/telemetry/init");
+      const handle = initTelemetry();
+
+      // Should not throw
+      await handle.shutdown();
+    });
+
+    it("is idempotent — calling shutdown twice does not throw", async () => {
+      const { initTelemetry } = await import("../../app/src/server/telemetry/init");
+      const handle = initTelemetry();
+
+      await handle.shutdown();
+      await handle.shutdown();
+    });
+  });
+});

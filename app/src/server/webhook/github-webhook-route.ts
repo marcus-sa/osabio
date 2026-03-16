@@ -1,9 +1,9 @@
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { jsonError, jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { processGitCommits } from "./github-commit-processor";
 import type { GitHubPushEvent } from "./types";
+import { log } from "../telemetry/logger";
 
 export function createGitHubWebhookHandler(
   deps: ServerDependencies,
@@ -23,7 +23,7 @@ async function handleGitHubWebhook(
   }
 
   if (eventType !== "push") {
-    logInfo("webhook.github.skipped", "Non-push event ignored", { eventType });
+    log.info("webhook.github.skipped", "Non-push event ignored", { eventType });
     return jsonResponse({ accepted: true, reason: "event type not processed" }, 200);
   }
 
@@ -44,7 +44,7 @@ async function handleGitHubWebhook(
   const event = JSON.parse(rawBody) as GitHubPushEvent;
 
   if (!event.ref.startsWith("refs/heads/")) {
-    logInfo("webhook.github.skipped", "Non-branch push ignored", {
+    log.info("webhook.github.skipped", "Non-branch push ignored", {
       ref: event.ref,
     });
     return jsonResponse({ accepted: true, reason: "non-branch ref" }, 200);
@@ -61,7 +61,7 @@ async function handleGitHubWebhook(
     return jsonError("workspace not found", 404);
   }
 
-  logInfo("webhook.github.accepted", "Processing push event", {
+  log.info("webhook.github.accepted", "Processing push event", {
     workspaceId,
     repository: event.repository.full_name,
     commitCount: event.commits.length,
@@ -79,7 +79,7 @@ async function handleGitHubWebhook(
     event,
     autoLinkThreshold: 0.85,
   }).catch((error) => {
-    logError("webhook.github.processing_failed", "Commit processing failed", error, {
+    log.error("webhook.github.processing_failed", "Commit processing failed", error, {
       workspaceId,
       repository: event.repository.full_name,
     });

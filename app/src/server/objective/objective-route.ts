@@ -4,9 +4,9 @@
  * Thin composition layer: parses HTTP requests, delegates to query functions,
  * returns JSON responses. No domain logic lives here.
  */
-import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
+import { log } from "../telemetry/logger";
 import {
   createObjective,
   getObjective,
@@ -74,7 +74,7 @@ async function handleListObjectives(
       objectives: objectives.map(serializeObjective),
     }, 200);
   } catch (error) {
-    logError("objective.list.failed", "Failed to list objectives", error, { workspaceId });
+    log.error("objective.list.failed", "Failed to list objectives", error, { workspaceId });
     return jsonError("failed to list objectives", 500);
   }
 }
@@ -125,7 +125,7 @@ async function handleCreateObjective(
 
     return jsonResponse({ objectiveId: result.objectiveId }, 201);
   } catch (error) {
-    logError("objective.create.failed", "Failed to create objective", error, { workspaceId });
+    log.error("objective.create.failed", "Failed to create objective", error, { workspaceId });
     return jsonError("failed to create objective", 500);
   }
 }
@@ -165,7 +165,7 @@ async function handleGetObjective(
 
     return jsonResponse({ objective: serializeObjective(objective) }, 200);
   } catch (error) {
-    logError("objective.get.failed", "Failed to get objective", error, { workspaceId, objectiveId });
+    log.error("objective.get.failed", "Failed to get objective", error, { workspaceId, objectiveId });
     return jsonError("failed to get objective", 500);
   }
 }
@@ -192,7 +192,7 @@ async function handleGetObjectiveProgress(
 
     return jsonResponse({ progress }, 200);
   } catch (error) {
-    logError("objective.progress.failed", "Failed to get objective progress", error, {
+    log.error("objective.progress.failed", "Failed to get objective progress", error, {
       workspaceId,
       objectiveId,
     });
@@ -239,7 +239,7 @@ async function handleUpdateObjective(
       status: "updated",
     }, 200);
   } catch (error) {
-    logError("objective.update.failed", "Failed to update objective", error, { workspaceId, objectiveId });
+    log.error("objective.update.failed", "Failed to update objective", error, { workspaceId, objectiveId });
     return jsonError("failed to update objective", 500);
   }
 }

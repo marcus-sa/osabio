@@ -4,11 +4,11 @@ import { z } from "zod";
 import type { BranchConversationResponse } from "../../shared/contracts";
 import type { ConversationRow } from "../extraction/types";
 import { HttpError } from "../http/errors";
-import { logError, logInfo, logWarn } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { deriveMessageTitle } from "../workspace/conversation-sidebar";
 import type { ServerDependencies } from "../runtime/types";
+import { log } from "../telemetry/logger";
 
 const branchRequestSchema = z.object({
   messageId: z.string().min(1),
@@ -46,7 +46,7 @@ async function handleBranchConversation(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError("branch.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
+    log.error("branch.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -106,7 +106,7 @@ async function handleBranchConversation(
       throw error;
     }
 
-    logInfo("branch.created", "Conversation branch created", {
+    log.info("branch.created", "Conversation branch created", {
       workspaceId,
       parentConversationId,
       branchId,
@@ -122,7 +122,7 @@ async function handleBranchConversation(
     return jsonResponse(response, 201);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("branch.http_error", "Branch creation failed with client-facing error", {
+      log.warn("branch.http_error", "Branch creation failed with client-facing error", {
         workspaceId,
         parentConversationId,
         statusCode: error.status,
@@ -130,7 +130,7 @@ async function handleBranchConversation(
       return jsonError(error.message, error.status);
     }
 
-    logError("branch.failed", "Branch creation failed", error, {
+    log.error("branch.failed", "Branch creation failed", error, {
       workspaceId,
       parentConversationId,
     });

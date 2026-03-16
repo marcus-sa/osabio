@@ -4,6 +4,8 @@ import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type ExtractedEntity, type Extrac
 import type { ChatToolDeps, ChatToolExecutionContext } from "../../chat/tools/types";
 import { buildPmSystemPrompt } from "./prompt";
 import { createPmTools } from "./tools";
+import { createTelemetryConfig } from "../../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../../telemetry/function-ids";
 
 const workItemSuggestionSchema = z
   .object({
@@ -83,6 +85,7 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
     instructions: system,
     tools: createPmTools(input.deps),
     output: Output.object({ schema: pmAgentResultSchema }),
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.PM_AGENT),
     experimental_context: { ...input.context, actor: "pm_agent" as const, humanPresent: input.context.humanPresent ?? true },
     stopWhen: stepCountIs(6),
   });

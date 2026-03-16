@@ -14,7 +14,7 @@ import { readEntityName } from "../graph/queries";
 import { readEntityText } from "../extraction/entity-text";
 import type { GraphEntityRecord, SourceRecord } from "../extraction/types";
 import { HttpError } from "../http/errors";
-import { elapsedMs, logDebug, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { parseCreateWorkspaceRequest } from "../http/parsing";
 import { jsonError, jsonResponse, toIsoString } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
@@ -25,6 +25,7 @@ import { loadMessagesWithInheritance } from "../chat/branch-chain";
 import { validateRepoPath } from "./validate-repo-path";
 import { bootstrapWorkspaceIdentities } from "./identity-bootstrap";
 import type { ShellExecResult } from "../orchestrator/worktree-manager";
+import { log } from "../telemetry/logger";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -70,7 +71,7 @@ export function createWorkspaceRouteHandlers(
 
 async function handleCreateWorkspace(deps: ServerDependencies, request: Request, shellExec?: ShellExec): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("workspace.create.started", "Workspace creation started");
+  log.info("workspace.create.started", "Workspace creation started");
 
   const session = await deps.auth.api.getSession({ headers: request.headers });
   if (!session?.user?.id) {
@@ -97,7 +98,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
     }
   }
 
-  logDebug("http.request.validated", "Workspace request validated");
+  log.debug("http.request.validated", "Workspace request validated");
 
   const now = new Date();
   const workspaceId = randomUUID();
@@ -171,7 +172,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
     await transaction.commit();
   } catch (error) {
     await transaction.cancel();
-    logError("workspace.create.failed", "Workspace creation failed", error, {
+    log.error("workspace.create.failed", "Workspace creation failed", error, {
       workspaceId,
       conversationId,
     });
@@ -183,7 +184,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
   try {
     await bootstrapWorkspaceIdentities(deps.surreal, workspaceRecord, ownerRecord);
   } catch (error) {
-    logWarn("workspace.create.identity_bootstrap_failed", "Identity bootstrap failed but workspace creation succeeded", {
+    log.warn("workspace.create.identity_bootstrap_failed", "Identity bootstrap failed but workspace creation succeeded", {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -196,7 +197,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
     onboardingComplete: false,
   };
 
-  logInfo("workspace.create.completed", "Workspace creation completed", {
+  log.info("workspace.create.completed", "Workspace creation completed", {
     workspaceId,
     conversationId,
     durationMs: elapsedMs(startedAt),
@@ -207,7 +208,7 @@ async function handleCreateWorkspace(deps: ServerDependencies, request: Request,
 
 async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: string): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("workspace.bootstrap.started", "Workspace bootstrap started", { workspaceId });
+  log.info("workspace.bootstrap.started", "Workspace bootstrap started", { workspaceId });
 
   try {
     const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
@@ -247,7 +248,7 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
       sidebar,
     };
 
-    logInfo("workspace.bootstrap.completed", "Workspace bootstrap completed", {
+    log.info("workspace.bootstrap.completed", "Workspace bootstrap completed", {
       workspaceId,
       conversationId: conversationRecord.id as string,
       messageCount: messages.length,
@@ -258,14 +259,14 @@ async function handleWorkspaceBootstrap(deps: ServerDependencies, workspaceId: s
     return jsonResponse(payload, 200);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("workspace.bootstrap.http_error", "Workspace bootstrap failed with client-facing error", {
+      log.warn("workspace.bootstrap.http_error", "Workspace bootstrap failed with client-facing error", {
         workspaceId,
         statusCode: error.status,
       });
       return jsonError(error.message, error.status);
     }
 
-    logError("workspace.bootstrap.failed", "Workspace bootstrap failed", error, { workspaceId });
+    log.error("workspace.bootstrap.failed", "Workspace bootstrap failed", error, { workspaceId });
     const errorText = error instanceof Error ? error.message : "workspace bootstrap failed";
     return jsonError(errorText, 500);
   }
@@ -396,13 +397,13 @@ async function readSourceLabel(deps: ServerDependencies, sourceRecord: SourceRec
 
 async function handleWorkspaceSidebar(deps: ServerDependencies, workspaceId: string): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("workspace.sidebar.started", "Workspace sidebar request started", { workspaceId });
+  log.info("workspace.sidebar.started", "Workspace sidebar request started", { workspaceId });
 
   try {
     const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
     const sidebar = await buildWorkspaceConversationSidebar(deps.surreal, workspaceRecord);
 
-    logInfo("workspace.sidebar.completed", "Workspace sidebar request completed", {
+    log.info("workspace.sidebar.completed", "Workspace sidebar request completed", {
       workspaceId,
       groupCount: sidebar.groups.length,
       unlinkedCount: sidebar.unlinked.length,
@@ -412,14 +413,14 @@ async function handleWorkspaceSidebar(deps: ServerDependencies, workspaceId: str
     return jsonResponse(sidebar, 200);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("workspace.sidebar.http_error", "Workspace sidebar failed with client-facing error", {
+      log.warn("workspace.sidebar.http_error", "Workspace sidebar failed with client-facing error", {
         workspaceId,
         statusCode: error.status,
       });
       return jsonError(error.message, error.status);
     }
 
-    logError("workspace.sidebar.failed", "Workspace sidebar request failed", error, { workspaceId });
+    log.error("workspace.sidebar.failed", "Workspace sidebar request failed", error, { workspaceId });
     const errorText = error instanceof Error ? error.message : "workspace sidebar failed";
     return jsonError(errorText, 500);
   }
@@ -431,7 +432,7 @@ async function handleWorkspaceConversation(
   conversationId: string,
 ): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("workspace.conversation.started", "Workspace conversation request started", {
+  log.info("workspace.conversation.started", "Workspace conversation request started", {
     workspaceId,
     conversationId,
   });
@@ -486,7 +487,7 @@ async function handleWorkspaceConversation(
       ...(discussEntity ? { discussEntity } : {}),
     };
 
-    logInfo("workspace.conversation.completed", "Workspace conversation request completed", {
+    log.info("workspace.conversation.completed", "Workspace conversation request completed", {
       workspaceId,
       conversationId,
       messageCount: messages.length,
@@ -496,7 +497,7 @@ async function handleWorkspaceConversation(
     return jsonResponse(payload, 200);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("workspace.conversation.http_error", "Workspace conversation failed with client-facing error", {
+      log.warn("workspace.conversation.http_error", "Workspace conversation failed with client-facing error", {
         workspaceId,
         conversationId,
         statusCode: error.status,
@@ -504,7 +505,7 @@ async function handleWorkspaceConversation(
       return jsonError(error.message, error.status);
     }
 
-    logError("workspace.conversation.failed", "Workspace conversation request failed", error, {
+    log.error("workspace.conversation.failed", "Workspace conversation request failed", error, {
       workspaceId,
       conversationId,
     });
@@ -524,7 +525,7 @@ async function handleUpdateRepoPath(
   shellExec?: ShellExec,
 ): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("workspace.repo_path.update.started", "Repo path update started", { workspaceId });
+  log.info("workspace.repo_path.update.started", "Repo path update started", { workspaceId });
 
   try {
     let body: unknown;
@@ -561,7 +562,7 @@ async function handleUpdateRepoPath(
       { workspace: workspaceRecord, repoPath: trimmedPath },
     );
 
-    logInfo("workspace.repo_path.update.completed", "Repo path update completed", {
+    log.info("workspace.repo_path.update.completed", "Repo path update completed", {
       workspaceId,
       repoPath: trimmedPath,
       durationMs: elapsedMs(startedAt),
@@ -570,14 +571,14 @@ async function handleUpdateRepoPath(
     return jsonResponse({ ok: true }, 200);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("workspace.repo_path.update.http_error", "Repo path update failed with client-facing error", {
+      log.warn("workspace.repo_path.update.http_error", "Repo path update failed with client-facing error", {
         workspaceId,
         statusCode: error.status,
       });
       return jsonError(error.message, error.status);
     }
 
-    logError("workspace.repo_path.update.failed", "Repo path update failed", error, { workspaceId });
+    log.error("workspace.repo_path.update.failed", "Repo path update failed", error, { workspaceId });
     const errorText = error instanceof Error ? error.message : "repo path update failed";
     return jsonError(errorText, 500);
   }

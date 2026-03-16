@@ -13,7 +13,7 @@
  * 6. Request forwarding
  * 7. Async trace capture (01-03)
  */
-import { logInfo, logError, logWarn, elapsedMs } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { jsonResponse } from "../http/response";
 import { resolveIdentity, resolveAgentName } from "./identity-resolver";
 import { resolveSessionId, resolveAgentSessionId } from "./session-id-resolver";
@@ -64,6 +64,7 @@ import {
 } from "./proxy-auth";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
+import { log } from "../telemetry/logger";
 
 const FORWARDED_HEADERS = [
   "anthropic-version",
@@ -402,7 +403,7 @@ async function runContextInjection(
     return { body: originalBody };
   }
 
-  logInfo("proxy.context_injection.pool_loaded", "Candidate pool loaded", {
+  log.info("proxy.context_injection.pool_loaded", "Candidate pool loaded", {
     workspace_id: workspaceId,
     decisions: pool.decisions.length,
     learnings: pool.learnings.length,
@@ -678,7 +679,7 @@ export function createAnthropicProxyHandler(
             effectiveSessionId = upsertedSessionId;
           }
         } catch (error) {
-          logWarn("proxy.anthropic.session_hash_upsert_failed", "Session hash upsert failed — continuing without session link", {
+          log.warn("proxy.anthropic.session_hash_upsert_failed", "Session hash upsert failed — continuing without session link", {
             error: String(error),
           });
         }
@@ -693,7 +694,7 @@ export function createAnthropicProxyHandler(
         workspaceCache,
       );
       if (!isValid) {
-        logWarn("proxy.anthropic.invalid_workspace", "Workspace not found in database", {
+        log.warn("proxy.anthropic.invalid_workspace", "Workspace not found in database", {
           workspaceId: identitySignals.workspaceId,
         });
       }
@@ -742,7 +743,7 @@ export function createAnthropicProxyHandler(
         effectiveBody = contextResult.body;
         injectionResult = contextResult.injectionResult;
         if (intelligenceConfig.contextInjectionEnabled) {
-          logInfo("proxy.context_injection.result", "Context injection completed", {
+          log.info("proxy.context_injection.result", "Context injection completed", {
             workspace_id: identitySignals.workspaceId,
             injected: injectionResult?.injected ?? false,
             decisions: injectionResult?.decisionsCount ?? 0,
@@ -752,7 +753,7 @@ export function createAnthropicProxyHandler(
         }
       } catch (error) {
         // Fail-open: log warning and continue with original body
-        logWarn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
+        log.warn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
           workspace_id: identitySignals.workspaceId,
           error: String(error),
         });
@@ -792,7 +793,7 @@ export function createAnthropicProxyHandler(
       is_count_tokens: isCountTokens || undefined,
     };
 
-    logInfo("proxy.anthropic.request", "Forwarding to Anthropic", {
+    log.info("proxy.anthropic.request", "Forwarding to Anthropic", {
       method: request.method,
       url: upstreamUrl,
       ...identityContext,
@@ -818,7 +819,7 @@ export function createAnthropicProxyHandler(
         body: request.method !== "GET" ? effectiveBody : undefined,
       });
     } catch (error) {
-      logError("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
+      log.error("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
       return jsonResponse({ error: "upstream_unreachable", source: "proxy" }, 502);
     }
 
@@ -827,7 +828,7 @@ export function createAnthropicProxyHandler(
       const responseBody = await upstream.text();
       const latencyMs = elapsedMs(startedAt);
 
-      logInfo("proxy.anthropic.response", "Anthropic response", {
+      log.info("proxy.anthropic.response", "Anthropic response", {
         status: upstream.status,
         latency_ms: latencyMs,
         ...identityContext,
@@ -880,13 +881,13 @@ export function createAnthropicProxyHandler(
           buffer = extractSSEUsage(buffer, streamContext);
         }
       } catch (error) {
-        logError("proxy.anthropic.stream_error", "SSE relay error", error);
+        log.error("proxy.anthropic.stream_error", "SSE relay error", error);
       } finally {
         await writer.close();
 
         const latencyMs = elapsedMs(startedAt);
 
-        logInfo("proxy.anthropic.response", "Anthropic stream complete", {
+        log.info("proxy.anthropic.response", "Anthropic stream complete", {
           model: streamContext.model,
           input_tokens: streamContext.inputTokens,
           output_tokens: streamContext.outputTokens,

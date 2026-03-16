@@ -10,7 +10,7 @@
 
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
-import { logWarn } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,7 +89,7 @@ export async function loadIntelligenceConfig(
     const row = results[0]?.[0];
     return resolveIntelligenceConfig(row);
   } catch (error) {
-    logWarn("proxy.intelligence_config.load_failed", "Failed to load intelligence config, using defaults", {
+    log.warn("proxy.intelligence_config.load_failed", "Failed to load intelligence config, using defaults", {
       workspace_id: workspaceId,
       error: String(error),
     });

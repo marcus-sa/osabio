@@ -1,0 +1,154 @@
+roadmap:
+  project_id: opentelemetry-observability
+  created_at: '2026-03-16T15:05:56Z'
+  total_steps: 7
+  phases: 3
+phases:
+- id: '01'
+  name: 'Foundation'
+  steps:
+  - id: 01-01
+    name: 'Install OTEL dependencies and create function ID constants'
+    description: >
+      Add all @opentelemetry/* packages to package.json. Create telemetry/function-ids.ts
+      with typed constants for the brain.* function ID taxonomy.
+    criteria:
+      - 'All 11 @opentelemetry/* packages present in package.json dependencies'
+      - 'telemetry/function-ids.ts exports typed constants for all 15 function IDs'
+      - 'bun install succeeds without resolution errors'
+    time_estimate: '30m'
+    dependencies: []
+  - id: 01-02
+    name: 'OTEL SDK bootstrap and graceful shutdown'
+    description: >
+      Create telemetry/init.ts: initialize TracerProvider, MeterProvider, LoggerProvider
+      with BatchSpanProcessor and console/OTLP exporters selected by OTEL_EXPORTER_OTLP_ENDPOINT.
+      Export shutdownTelemetry for graceful drain. Wire initTelemetry() into start-server.ts
+      before createRuntimeDependencies(). Register shutdownTelemetry on SIGTERM/SIGINT.
+    criteria:
+      - 'Console exporters active when OTEL_EXPORTER_OTLP_ENDPOINT is unset'
+      - 'OTLP HTTP exporters active when OTEL_EXPORTER_OTLP_ENDPOINT is set'
+      - 'Server starts normally when OTEL SDK init fails'
+      - 'initTelemetry called before Bun.serve in startup sequence'
+      - 'shutdownTelemetry flushes all three providers'
+      - 'shutdownTelemetry wired to SIGTERM/SIGINT handlers'
+    time_estimate: '1h'
+    dependencies:
+      - 01-01
+  - id: 01-03
+    name: 'OTEL logger wrapper and metric instruments'
+    description: >
+      Create telemetry/logger.ts with log.info/warn/error/debug backed by OTEL Logs API.
+      Move serializeError from logging.ts. Create telemetry/metrics.ts with all 7 metric
+      instruments (histograms + counters). Pre-init fallback to console.*.
+    criteria:
+      - 'log.info/warn/error/debug emit OTEL log records with correct severity'
+      - 'Logs within active span inherit trace_id and span_id'
+      - 'Pre-init calls fall back to console without errors'
+      - 'Seven metric instruments created and exported'
+    time_estimate: '1h'
+    dependencies:
+      - 01-02
+- id: '02'
+  name: 'Instrumentation'
+  steps:
+  - id: 02-01
+    name: 'HTTP request tracing wrapper'
+    description: >
+      Create http/instrumentation.ts with withTracing() replacing withRequestLogging().
+      Root span brain.http.request with method/route/status_code attributes. Record
+      httpDuration and httpRequests metrics. Replace all withRequestLogging calls
+      in start-server.ts.
+    criteria:
+      - 'HTTP requests create root span with method, route, status_code'
+      - 'x-request-id response header preserved'
+      - 'Error responses set span status ERROR and record exception'
+      - 'httpDuration and httpRequests metrics recorded per request'
+      - 'All withRequestLogging replaced with withTracing in start-server'
+    time_estimate: '1.5h'
+    dependencies:
+      - 01-03
+  - id: 02-02
+    name: 'AI SDK experimental_telemetry on all LLM calls'
+    description: >
+      Create telemetry/ai-telemetry.ts with createTelemetryConfig and recordLlmMetrics/recordLlmError.
+      Audit shows 41 generateObject/streamText calls across 16 files. Add experimental_telemetry
+      config to all call sites with appropriate function IDs. Record LLM duration, token
+      counters, and error counters.
+    criteria:
+      - 'All 41 generateObject/streamText calls include experimental_telemetry'
+      - 'Each call uses a functionId from the approved taxonomy'
+      - 'LLM duration and token counters recorded per call'
+      - 'LLM errors increment brain.llm.errors counter'
+      - 'Telemetry coexists with existing devtools middleware'
+    time_estimate: '3h'
+    dependencies:
+      - 01-03
+- id: '03'
+  name: 'Migration and cleanup'
+  steps:
+  - id: 03-01
+    name: 'Migrate all log call sites to OTEL logger'
+    description: >
+      Replace all logInfo/logWarn/logError/logDebug imports and calls with
+      log.info/warn/error/debug from telemetry/logger.ts across all 62 files
+      (~409 call sites). Remove log functions from observability.ts (keep
+      elapsedMs, userFacingError).
+    criteria:
+      - 'Zero imports of logInfo/logWarn/logError/logDebug remain'
+      - 'All 409 log call sites updated to OTEL logger pattern'
+      - 'observability.ts retains only elapsedMs and userFacingError'
+      - 'Server starts and all existing tests pass'
+    time_estimate: '2.5h'
+    dependencies:
+      - 02-01
+      - 02-02
+  - id: 03-02
+    name: 'Remove Pino and deprecated files'
+    description: >
+      Delete logging.ts, request-logging.ts, request-context.ts. Remove pino
+      from package.json. Verify no dangling imports remain.
+    criteria:
+      - 'logging.ts, request-logging.ts, request-context.ts deleted'
+      - 'pino removed from package.json dependencies'
+      - 'Zero imports of deleted files remain'
+      - 'bun install succeeds and all tests pass'
+    time_estimate: '30m'
+    dependencies:
+      - 03-01
+implementation_scope:
+  source_directories:
+  - app/src/server/telemetry/
+  - app/src/server/http/
+  - app/src/server/runtime/
+  - app/src/server/chat/
+  - app/src/server/extraction/
+  - app/src/server/observer/
+  - app/src/server/agents/observer/
+  - app/src/server/behavior/
+  - app/src/server/onboarding/
+  - app/src/server/intent/
+  - app/src/server/mcp/
+  - app/src/server/learning/
+  - app/src/server/descriptions/
+  - app/src/server/proxy/
+  - app/src/server/workspace/
+  - app/src/server/streaming/
+  - app/src/server/webhook/
+  - app/src/server/policy/
+  - app/src/server/orchestrator/
+  - app/src/server/oauth/
+  - app/src/server/feed/
+  - app/src/server/graph/
+  - app/src/server/entities/
+  - app/src/server/objective/
+  test_directories:
+  - tests/unit/telemetry/
+  - tests/acceptance/telemetry/
+  excluded_patterns:
+  - '*.test.ts.snap'
+  - node_modules/**
+validation:
+  status: pending
+  reviewer: marcus
+  approved_at: null

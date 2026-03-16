@@ -1,7 +1,8 @@
 import { embed } from "ai";
 import { type RecordId, type Surreal } from "surrealdb";
-import { elapsedMs, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import type { GraphEntityRecord } from "./types";
+import { log } from "../telemetry/logger";
 
 export async function persistEmbeddings(input: {
   surreal: Surreal;
@@ -12,7 +13,7 @@ export async function persistEmbeddings(input: {
   entities: Array<{ record: GraphEntityRecord; text: string }>;
 }): Promise<void> {
   const startedAt = performance.now();
-  logInfo("embedding.persist.started", "Embedding persistence started", {
+  log.info("embedding.persist.started", "Embedding persistence started", {
     messageId: input.assistantMessageRecord.id as string,
     entityCount: input.entities.length,
   });
@@ -44,14 +45,14 @@ export async function persistEmbeddings(input: {
       embeddedEntityCount += 1;
     }
 
-    logInfo("embedding.persist.completed", "Embedding persistence completed", {
+    log.info("embedding.persist.completed", "Embedding persistence completed", {
       messageId: input.assistantMessageRecord.id as string,
       entityCount: input.entities.length,
       embeddedEntityCount,
       durationMs: elapsedMs(startedAt),
     });
   } catch (error) {
-    logError("embedding.persist.failed", "Embedding persistence failed", error, {
+    log.error("embedding.persist.failed", "Embedding persistence failed", error, {
       messageId: input.assistantMessageRecord.id as string,
       entityCount: input.entities.length,
       durationMs: elapsedMs(startedAt),
@@ -76,7 +77,7 @@ export async function createEmbedding(
   });
 
   if (result.embedding.length !== embeddingDimension) {
-    logWarn("embedding.dimension_mismatch", "Skipping embedding write due to vector dimension mismatch", {
+    log.warn("embedding.dimension_mismatch", "Skipping embedding write due to vector dimension mismatch", {
       actualDimension: result.embedding.length,
       configuredDimension: embeddingDimension,
     });
@@ -111,7 +112,7 @@ async function writeEmbedding(input: {
     throw new Error(`${input.label} embedding update verification failed`);
   }
 
-  logWarn(
+  log.warn(
     "embedding.persist.unexpected_update_output",
     "embedding update returned no row but verification succeeded",
     { record: input.label },

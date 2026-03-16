@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import { elapsedMs, logError, logInfo } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { createEmbedding } from "./embedding-writeback";
 import { extractStructuredGraph } from "./extract-graph";
 import { splitDocumentIntoChunks } from "./markdown-chunker";
 import { persistExtractionOutput } from "./persist-extraction";
 import type { IncomingAttachment, PersistExtractionResult, SourceRecord } from "./types";
+import { log } from "../telemetry/logger";
 
 export async function ingestAttachment(input: {
   surreal: Surreal;
@@ -28,7 +29,7 @@ export async function ingestAttachment(input: {
   const workspaceId = input.workspaceRecord.id as string;
   const conversationId = input.conversationRecord.id as string;
 
-  logInfo("attachment.ingest.started", "Attachment ingestion started", {
+  log.info("attachment.ingest.started", "Attachment ingestion started", {
     workspaceId,
     conversationId,
     documentId: documentRecord.id as string,
@@ -104,7 +105,7 @@ export async function ingestAttachment(input: {
       unresolvedAssigneeNames.push(...result.unresolvedAssigneeNames);
     }
 
-    logInfo("attachment.ingest.completed", "Attachment ingestion completed", {
+    log.info("attachment.ingest.completed", "Attachment ingestion completed", {
       workspaceId,
       conversationId,
       documentId: documentRecord.id as string,
@@ -123,7 +124,7 @@ export async function ingestAttachment(input: {
       unresolvedAssigneeNames,
     };
   } catch (error) {
-    logError("attachment.ingest.failed", "Attachment ingestion failed", error, {
+    log.error("attachment.ingest.failed", "Attachment ingestion failed", error, {
       workspaceId,
       conversationId,
       documentId: documentRecord.id as string,

@@ -1,9 +1,11 @@
 import { stepCountIs, streamText, type ModelMessage } from "ai";
 import { RecordId, Surreal } from "surrealdb";
 import type { ExtractedEntity, ExtractedRelationship, OnboardingState } from "../../shared/contracts";
-import { logInfo, logError } from "../http/observability";
 import { buildChatContext, buildSystemPrompt, type ChatContext } from "./context";
 import { createChatAgentTools } from "./tools";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 type ConversationMessage = {
   role: "user" | "assistant";
@@ -75,6 +77,7 @@ export async function runChatAgent(input: {
     model: input.model,
     system,
     messages: modelMessages,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.CHAT_AGENT),
     tools: createChatAgentTools({
       surreal: input.surreal,
       pmAgentModel: input.pmAgentModel,
@@ -117,12 +120,12 @@ export async function runChatAgent(input: {
     }
 
     if (part.type === "tool-call") {
-      logInfo("chat.agent.tool_call", "Chat agent invoked tool", part);
+      log.info("chat.agent.tool_call", "Chat agent invoked tool", part);
       toolCalls.push({ name: part.toolName, args: (part as any).input as Record<string, unknown> });
     }
 
     if (part.type === "tool-result") {
-      logInfo("chat.agent.tool_result", "Chat agent tool returned", part);
+      log.info("chat.agent.tool_result", "Chat agent tool returned", part);
       const toolResult = part.output as Record<string, unknown> | undefined;
       if (toolResult) {
         if (Array.isArray(toolResult.extracted_entities)) {
@@ -135,7 +138,7 @@ export async function runChatAgent(input: {
     }
 
     if (part.type === "error") {
-      logError("chat.agent.stream_error", "Chat agent stream error", part.error, {});
+      log.error("chat.agent.stream_error", "Chat agent stream error", part.error, {});
     }
   }
 

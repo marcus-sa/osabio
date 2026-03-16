@@ -1,6 +1,5 @@
 import { RecordId } from "surrealdb";
 import { jsonError, jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { updateIntentStatus, listPendingIntents, getIntentById } from "./intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import { routeByRisk } from "./risk-router";
@@ -13,6 +12,7 @@ import {
 import type { ServerDependencies } from "../runtime/types";
 import type { IntentRecord, RoutingDecision } from "./types";
 import type { BrainAction } from "../oauth/types";
+import { log } from "../telemetry/logger";
 
 // --- Shared Helpers ---
 
@@ -117,7 +117,7 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       return jsonError("Missing requester in intent body", 400);
     }
 
-    logInfo("intent.evaluate.received", "Evaluate endpoint received intent", {
+    log.info("intent.evaluate.received", "Evaluate endpoint received intent", {
       intentId,
       status: body.status,
       goal: body.goal,
@@ -125,7 +125,7 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
 
     // Idempotency guard: only process intents in pending_auth status
     if (body.status !== "pending_auth") {
-      logInfo("intent.evaluate.skipped", "Intent not in pending_auth status", {
+      log.info("intent.evaluate.skipped", "Intent not in pending_auth status", {
         intentId,
         currentStatus: body.status,
       });
@@ -181,7 +181,7 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       );
 
       if (!result.ok) {
-        logError(
+        log.error(
           "intent.evaluate.update_failed",
           `Failed to update intent status to ${transition.targetStatus}`,
           new Error(result.error),
@@ -190,10 +190,10 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
         return jsonError(result.error, 409);
       }
 
-      logInfo(transition.logEvent, transition.logMessage, transition.logContext);
+      log.info(transition.logEvent, transition.logMessage, transition.logContext);
       return jsonResponse(transition.responseBody(evaluation), 200);
     } catch (error) {
-      logError("intent.evaluate.error", "Intent evaluation pipeline failed", error, {
+      log.error("intent.evaluate.error", "Intent evaluation pipeline failed", error, {
         intentId,
       });
       return jsonError("Internal evaluation error", 500);
@@ -221,14 +221,14 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
     });
 
     if (!result.ok) {
-      logError("intent.veto.failed", "Failed to veto intent", new Error(result.error), {
+      log.error("intent.veto.failed", "Failed to veto intent", new Error(result.error), {
         intentId,
         workspaceId,
       });
       return jsonError(result.error, 409);
     }
 
-    logInfo("intent.vetoed", "Intent vetoed by user", {
+    log.info("intent.vetoed", "Intent vetoed by user", {
       intentId,
       workspaceId,
       reason: body.reason.trim(),
@@ -296,14 +296,14 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
     const result = await updateIntentStatus(surreal, intentId, "authorized");
 
     if (!result.ok) {
-      logError("intent.approve.failed", "Failed to approve intent", new Error(result.error), {
+      log.error("intent.approve.failed", "Failed to approve intent", new Error(result.error), {
         intentId,
         workspaceId,
       });
       return jsonError(result.error, 409);
     }
 
-    logInfo("intent.approved", "Intent approved by human", {
+    log.info("intent.approved", "Intent approved by human", {
       intentId,
       workspaceId,
     });
@@ -375,7 +375,7 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       },
     );
 
-    logInfo("intent.constrained", "Intent constrained and authorized by human", {
+    log.info("intent.constrained", "Intent constrained and authorized by human", {
       intentId,
       workspaceId,
     });

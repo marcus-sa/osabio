@@ -13,7 +13,6 @@ import type { BrainAction } from "./types";
 import type { ActionSpec } from "../intent/types";
 import type { ServerDependencies } from "../runtime/types";
 import { jsonError, jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { createIntent, createTrace, updateIntentStatus } from "../intent/intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
@@ -186,7 +185,7 @@ export function createIntentSubmissionHandler(
       );
 
       if (!identityCheck.allowed) {
-        logInfo("intent.submission.identity_blocked", "Intent submission blocked by identity check", {
+        log.info("intent.submission.identity_blocked", "Intent submission blocked by identity check", {
           identityId: data.identity_id,
           reason: identityCheck.reason,
           code: identityCheck.code,
@@ -217,7 +216,7 @@ export function createIntentSubmissionHandler(
         dpop_jwk_thumbprint: data.dpop_jwk_thumbprint,
       });
 
-      logInfo("intent.submission.created", "Intent created via OAuth submission", {
+      log.info("intent.submission.created", "Intent created via OAuth submission", {
         intentId: intentId.id as string,
         traceId: traceRecord.id as string,
         workspaceId: data.workspace_id,
@@ -231,7 +230,7 @@ export function createIntentSubmissionHandler(
       );
 
       if (!transitionResult.ok) {
-        logError(
+        log.error(
           "intent.submission.transition_failed",
           "Failed to transition intent to pending_auth",
           new Error(transitionResult.error),
@@ -270,7 +269,7 @@ export function createIntentSubmissionHandler(
               evaluation: evaluationRecord,
             });
 
-            logInfo("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
+            log.info("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
               intentId: intentId.id as string,
             });
 
@@ -281,7 +280,7 @@ export function createIntentSubmissionHandler(
             }, 201);
           }
         } catch (error) {
-          logError(
+          log.error(
             "intent.submission.inline_eval_failed",
             "Inline evaluation failed, falling back to async",
             error,
@@ -297,7 +296,7 @@ export function createIntentSubmissionHandler(
         trace_id: traceRecord.id as string,
       }, 201);
     } catch (error) {
-      logError("intent.submission.error", "Intent submission failed", error);
+      log.error("intent.submission.error", "Intent submission failed", error);
       return jsonError("Internal server error", 500);
     }
   };
@@ -309,6 +308,7 @@ export function createIntentSubmissionHandler(
 
 import type { Surreal } from "surrealdb";
 import type { ResolvedIdentity, ResolvedManager } from "./identity-lifecycle";
+import { log } from "../telemetry/logger";
 
 type SurrealIdentityRow = {
   identityId: string;
