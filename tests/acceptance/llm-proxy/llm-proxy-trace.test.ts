@@ -25,6 +25,7 @@ import {
   buildClaudeCodeUserId,
   getTracesForWorkspace,
   getTraceEdges,
+  seedAgentSession,
 } from "./llm-proxy-test-kit";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_trace");
@@ -86,6 +87,14 @@ describe("Trace edges link to session, workspace, and task", () => {
 
     const sessionId = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
     const accountId = "550e8400-e29b-41d4-a716-446655440000";
+
+    // Seed an agent_session with this external session ID so the resolver can find it
+    await seedAgentSession(surreal, crypto.randomUUID(), {
+      workspaceId,
+      agent: "coding-agent",
+      source: "proxy",
+      externalSessionId: sessionId,
+    });
 
     // Given identity resolution produced session, workspace, and task
     const response = await sendProxyRequest(baseUrl, {
