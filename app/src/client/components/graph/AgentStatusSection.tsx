@@ -10,6 +10,7 @@ import type { AgentSessionSummary, EntityKind } from "../../../shared/contracts"
 import { useAgentSession, type AgentSessionStatus } from "../../hooks/use-agent-session";
 import { assignAgent, type AssignAgentResponse } from "../../graph/orchestrator-api";
 import { useWorkspaceState } from "../../stores/workspace-state";
+import { usePublicConfig } from "../../hooks/use-public-config";
 import { AgentSessionPanel } from "./AgentSessionPanel";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -67,6 +68,18 @@ export function deriveAgentStatusView(input: DeriveAgentStatusInput): AgentStatu
 }
 
 // ---------------------------------------------------------------------------
+// Repo path banner visibility
+// ---------------------------------------------------------------------------
+
+export function shouldShowRepoPathBanner(input: {
+  worktreeManagerEnabled: boolean;
+  repoPath: string | undefined;
+}): boolean {
+  if (!input.worktreeManagerEnabled) return false;
+  return input.repoPath === undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Status badge display
 // ---------------------------------------------------------------------------
 
@@ -111,6 +124,7 @@ export function AgentStatusSection({
 }) {
   const repoPath = useWorkspaceState((s) => s.repoPath);
   const setStoreRepoPath = useWorkspaceState((s) => s.setRepoPath);
+  const { config } = usePublicConfig();
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState<string | undefined>();
   const [assignResult, setAssignResult] = useState<AssignAgentResponse | undefined>();
@@ -190,7 +204,10 @@ export function AgentStatusSection({
   }
 
   if (initialView.variant === "assign") {
-    const missingRepoPath = repoPath === undefined;
+    const missingRepoPath = shouldShowRepoPathBanner({
+      worktreeManagerEnabled: config.worktreeManagerEnabled,
+      repoPath,
+    });
 
     return (
       <div className="flex flex-col gap-2 px-4">
