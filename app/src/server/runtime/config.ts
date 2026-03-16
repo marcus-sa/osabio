@@ -143,7 +143,7 @@ export function loadServerConfig(): ServerConfig {
 
 function optionalEnv(name: string): string | undefined {
   const value = Bun.env[name]?.trim();
-  if (!value || value.length === 0) return undefined;
+  if (!value) return undefined;
   return value;
 }
 
@@ -187,7 +187,7 @@ function parseBooleanEnv(name: string): boolean {
 
 function requireSelfHostedEnv(name: string): string {
   const value = Bun.env[name]?.trim();
-  if (!value || value.length === 0) {
+  if (!value) {
     throw new Error(`${name} is required when SELF_HOSTED=true`);
   }
   return value;

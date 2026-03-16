@@ -16,8 +16,8 @@ export function parseSeedConfig(
 
   const email = env.ADMIN_EMAIL?.trim();
   const password = env.ADMIN_PASSWORD;
-  if (!email || email.length === 0) return undefined;
-  if (!password || password.length === 0) return undefined;
+  if (!email) return undefined;
+  if (!password) return undefined;
 
   return { email, password };
 }
