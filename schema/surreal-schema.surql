@@ -566,6 +566,7 @@ DEFINE FIELD evaluation.decision ON intent TYPE string
 DEFINE FIELD evaluation.risk_score ON intent TYPE int
   ASSERT $value >= 0 AND $value <= 100;
 DEFINE FIELD evaluation.reason ON intent TYPE string;
+DEFINE FIELD evaluation.reasoning ON intent TYPE option<string>;
 DEFINE FIELD evaluation.evaluated_at ON intent TYPE datetime;
 DEFINE FIELD evaluation.policy_only ON intent TYPE bool;
 DEFINE FIELD evaluation.policy_trace ON intent TYPE option<array<object>>;
