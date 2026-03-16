@@ -1,0 +1,165 @@
+roadmap:
+  project_id: cli-proxy-setup
+  created_at: '2026-03-16T07:04:28Z'
+  total_steps: 8
+  phases: 4
+phases:
+- id: '01'
+  name: 'Schema and Token Endpoint'
+  steps:
+  - id: 01-01
+    name: 'proxy_token schema migration'
+    description: >-
+      Define SCHEMAFULL proxy_token table with token_hash, workspace, identity,
+      expires_at, created_at, revoked fields. Add unique index on token_hash and
+      composite index on identity+workspace.
+    criteria:
+      - 'proxy_token table exists with all required fields after migration'
+      - 'Unique constraint on token_hash rejects duplicate inserts'
+      - 'Composite index on identity+workspace enables single-query lookup'
+      - 'Migration applies atomically inside transaction'
+    time_estimate: '30m'
+    dependencies: []
+    implementation_scope:
+      - schema/migrations/0049_proxy_token.surql
+  - id: 01-02
+    name: 'POST /api/auth/proxy-token endpoint'
+    description: >-
+      Issue brp_-prefixed proxy tokens. Validate caller OAuth token, verify
+      workspace membership, revoke prior tokens for same identity+workspace,
+      store SHA-256 hash, return raw token with 90-day TTL.
+    criteria:
+      - 'Returns brp_-prefixed token and expires_at on valid OAuth + membership'
+      - 'Rejects request when caller lacks workspace membership (403)'
+      - 'Previous tokens for same identity+workspace are revoked on issuance'
+      - 'Stored record contains SHA-256 hash, never raw token'
+      - 'TTL defaults to 90 days, overridable via PROXY_TOKEN_TTL_DAYS env'
+    time_estimate: '2h'
+    dependencies: ['01-01']
+    implementation_scope:
+      - app/src/server/proxy/proxy-token-route.ts
+      - app/src/server/runtime/start-server.ts
+- id: '02'
+  name: 'Proxy Auth Middleware and Dual-Mode'
+  steps:
+  - id: 02-01
+    name: 'Proxy auth middleware'
+    description: >-
+      Extract X-Brain-Auth header, SHA-256 hash the token, look up proxy_token
+      record. Validate not expired, not revoked. Return resolved workspace_id
+      and identity_id. 5-min in-memory cache keyed by token hash.
+    criteria:
+      - 'Valid X-Brain-Auth header resolves to workspace_id and identity_id'
+      - 'Expired token returns 401 with descriptive error'
+      - 'Revoked token returns 401'
+      - 'Repeated lookups within 5 minutes served from cache without DB call'
+      - 'Missing or malformed header returns undefined (pass-through)'
+    time_estimate: '1.5h'
+    dependencies: ['01-02']
+    implementation_scope:
+      - app/src/server/proxy/proxy-auth.ts
+  - id: 02-02
+    name: 'Server-side Anthropic API key config'
+    description: >-
+      Add optional ANTHROPIC_API_KEY to ServerConfig. When Brain auth mode is
+      active, inject as x-api-key to upstream Anthropic. When direct auth,
+      forward client headers unchanged.
+    criteria:
+      - 'ANTHROPIC_API_KEY parsed from env as optional string in ServerConfig'
+      - 'Brain-auth requests use server-held key for upstream x-api-key'
+      - 'Direct-auth requests forward client-provided headers unmodified'
+      - '.env.example documents the new variable'
+    time_estimate: '45m'
+    dependencies: ['02-01']
+    implementation_scope:
+      - app/src/server/runtime/config.ts
+      - .env.example
+  - id: 02-03
+    name: 'Dual-mode proxy handler'
+    description: >-
+      Modify anthropic-proxy-route to branch on X-Brain-Auth presence. Brain
+      auth path validates proxy token, resolves identity, injects server API
+      key. Absent header falls through to existing direct-auth flow.
+    criteria:
+      - 'X-Brain-Auth present: proxy token validated, server API key injected upstream'
+      - 'X-Brain-Auth absent: existing direct-auth flow unchanged'
+      - 'Identity resolved from proxy token attached to request context'
+      - 'Invalid proxy token returns 401 before upstream call'
+    time_estimate: '1.5h'
+    dependencies: ['02-01', '02-02']
+    implementation_scope:
+      - app/src/server/proxy/anthropic-proxy-route.ts
+      - app/src/server/proxy/identity-resolver.ts
+- id: '03'
+  name: 'CLI Configuration'
+  steps:
+  - id: 03-01
+    name: 'CLI setupProxyConfig in brain init'
+    description: >-
+      After OAuth completes in brain init, call POST /api/auth/proxy-token.
+      Store proxy_token and expires_at in ~/.brain/config.json. Create or merge
+      .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_HEADERS
+      env block. Warn if .gitignore lacks settings.local.json.
+    criteria:
+      - 'brain init stores proxy_token and proxy_token_expires_at in config'
+      - '.claude/settings.local.json created with correct env vars'
+      - 'Existing settings.local.json merged without overwriting unrelated keys'
+      - 'Warning printed if .gitignore missing settings.local.json entry'
+    time_estimate: '2h'
+    dependencies: ['01-02']
+    implementation_scope:
+      - cli/commands/init.ts
+      - cli/config.ts
+  - id: 03-02
+    name: 'SessionStart token expiry warning'
+    description: >-
+      On SessionStart hook, read proxy_token_expires_at from config. If expired
+      or expiring within 7 days, print warning with re-init instructions.
+    criteria:
+      - 'Expired token prints error-level warning with brain init instructions'
+      - 'Token expiring within 7 days prints warning with days remaining'
+      - 'Valid token with >7 days remaining produces no warning'
+    time_estimate: '45m'
+    dependencies: ['03-01']
+    implementation_scope:
+      - cli/commands/system.ts
+- id: '04'
+  name: 'Integration Verification'
+  steps:
+  - id: 04-01
+    name: 'End-to-end acceptance test verification'
+    description: >-
+      Run all cli-proxy-setup acceptance tests. Verify walking skeleton passes
+      (token issuance through Brain-auth proxy request). Confirm all milestone
+      test suites green.
+    criteria:
+      - 'Walking skeleton test passes (token issue + proxy request round-trip)'
+      - 'Token endpoint tests pass (issuance, revocation, membership check)'
+      - 'Auth middleware tests pass (valid, expired, revoked, cached tokens)'
+      - 'Settings config tests pass (file creation, merge, gitignore warning)'
+      - 'Integration checkpoint tests pass (all milestones green)'
+    time_estimate: '1h'
+    dependencies: ['02-03', '03-02']
+    implementation_scope:
+      - tests/acceptance/cli-proxy-setup/cli-proxy-test-kit.ts
+      - tests/acceptance/cli-proxy-setup/cli-proxy-walking-skeleton.test.ts
+      - tests/acceptance/cli-proxy-setup/cli-proxy-token-endpoint.test.ts
+      - tests/acceptance/cli-proxy-setup/cli-proxy-auth-middleware.test.ts
+      - tests/acceptance/cli-proxy-setup/cli-proxy-settings-config.test.ts
+      - tests/acceptance/cli-proxy-setup/cli-proxy-integration-checkpoints.test.ts
+implementation_scope:
+  source_directories:
+  - app/src/server/proxy/
+  - app/src/server/runtime/
+  - cli/commands/
+  - cli/
+  - schema/migrations/
+  test_directories:
+  - tests/acceptance/cli-proxy-setup/
+  excluded_patterns:
+  - node_modules/**
+  - dist/**
+validation:
+  status: approved
+  reviewer: nw-software-crafter-reviewer
+  approved_at: '2026-03-16'
