@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e298144f9ee5",
+  "session_id": "e8bcd827-cc18-46ee-aed9-a6478c901af6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-16T15:22:47.828341Z",
+  "branch": "marcus-sa/intent-llm-traces",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/adrs/ADR-053-llm-reasoning-as-internal-telemetry.md",
+    "docs/feature/intent-llm-traces/design/architecture-design.md",
+    "docs/feature/intent-llm-traces/distill/test-scenarios.md",
+    "docs/requirements/intent-llm-traces/US-01-persist-reasoning-on-observations.md",
+    "docs/requirements/intent-llm-traces/US-02-persist-reasoning-on-intents.md",
+    "docs/requirements/intent-llm-traces/US-03-view-logic-ui-toggle.md",
+    "docs/requirements/intent-llm-traces/US-04-observer-reasoning-queries.md",
+    "docs/requirements/intent-llm-traces/dor-validation.md",
+    "docs/ux/intent-llm-traces/journey-investigate-agent-action-visual.md",
+    "docs/ux/intent-llm-traces/journey-investigate-agent-action.feature",
+    "docs/ux/intent-llm-traces/journey-investigate-agent-action.yaml",
+    "docs/ux/intent-llm-traces/jtbd-analysis.md",
+    "docs/ux/intent-llm-traces/shared-artifacts-registry.md",
+    "tests/acceptance/intent-llm-traces/intent-reasoning.test.ts",
+    "tests/acceptance/intent-llm-traces/observation-reasoning.test.ts",
+    "tests/acceptance/intent-llm-traces/reasoning-queries.test.ts",
+    "tests/acceptance/intent-llm-traces/reasoning-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d00f214c79a4",
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 87441,
+    "cache_read_tokens": 1143397,
+    "output_tokens": 8973,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-16T15:22:47.151719Z",
+    "agent_lines": 3635,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3635,
+    "agent_percentage": 100
+  }
+}
