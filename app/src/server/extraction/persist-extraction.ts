@@ -15,12 +15,13 @@ import type {
   SourceRecord,
   TempEntityReference,
 } from "./types";
-import { elapsedMs, logError, logInfo } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { seedDescriptionEntry } from "../descriptions/persist";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
 import type { DescriptionTarget } from "../descriptions/types";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 import { postValidateEntities, postValidateRelationships } from "./validation";
+import { log } from "../telemetry/logger";
 
 export async function persistExtractionOutput(input: {
   surreal: Surreal;
@@ -42,7 +43,7 @@ export async function persistExtractionOutput(input: {
   now: Date;
 }): Promise<PersistExtractionResult> {
   const startedAt = performance.now();
-  logInfo("extraction.persist.started", "Extraction persistence started", {
+  log.info("extraction.persist.started", "Extraction persistence started", {
     workspaceId: input.workspaceRecord.id as string,
     sourceKind: input.sourceKind,
     sourceId: input.sourceRecord.id as string,
@@ -219,7 +220,7 @@ export async function persistExtractionOutput(input: {
       });
     }
 
-    logInfo("extraction.persist.completed", "Extraction persistence completed", {
+    log.info("extraction.persist.completed", "Extraction persistence completed", {
       workspaceId: input.workspaceRecord.id as string,
       sourceKind: input.sourceKind,
       sourceId: input.sourceRecord.id as string,
@@ -240,7 +241,7 @@ export async function persistExtractionOutput(input: {
       unresolvedAssigneeNames: [...unresolvedAssigneeNames],
     };
   } catch (error) {
-    logError("extraction.persist.failed", "Extraction persistence failed", error, {
+    log.error("extraction.persist.failed", "Extraction persistence failed", error, {
       workspaceId: input.workspaceRecord.id as string,
       sourceKind: input.sourceKind,
       sourceId: input.sourceRecord.id as string,

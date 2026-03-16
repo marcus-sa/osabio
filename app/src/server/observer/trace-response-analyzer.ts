@@ -19,7 +19,7 @@ import type { embed } from "ai";
 import { z } from "zod";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
 import { createEmbeddingVector } from "../graph/embeddings";
-import { logInfo, logError } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
@@ -270,11 +270,11 @@ async function detectContradictions(
   );
 
   if (candidates.length === 0) {
-    logInfo("observer.trace.no_candidates", "No similar decisions found for trace", { traceId });
+    log.info("observer.trace.no_candidates", "No similar decisions found for trace", { traceId });
     return 0;
   }
 
-  logInfo("observer.trace.candidates_found", "KNN candidates for contradiction check", {
+  log.info("observer.trace.candidates_found", "KNN candidates for contradiction check", {
     traceId,
     candidateCount: candidates.length,
   });
@@ -287,7 +287,7 @@ async function detectContradictions(
       const verdict = await verifyContradiction(observerModel, responseText, candidate);
 
       if (!verdict.isContradiction || verdict.confidence < config.tier2ConfidenceMin) {
-        logInfo("observer.trace.not_contradicted", "Candidate not contradicted or low confidence", {
+        log.info("observer.trace.not_contradicted", "Candidate not contradicted or low confidence", {
           traceId,
           decisionId: candidate.id.id,
           isContradiction: verdict.isContradiction,
@@ -315,13 +315,13 @@ async function detectContradictions(
 
       observationsCreated += 1;
 
-      logInfo("observer.trace.contradiction_found", "Contradiction observation created", {
+      log.info("observer.trace.contradiction_found", "Contradiction observation created", {
         traceId,
         decisionId: candidate.id.id,
         confidence: verdict.confidence,
       });
     } catch (error) {
-      logError("observer.trace.verification_error", "Tier 2 verification failed for candidate", {
+      log.error("observer.trace.verification_error", "Tier 2 verification failed for candidate", {
         traceId,
         decisionId: candidate.id.id,
         error: error instanceof Error ? error.message : String(error),
@@ -364,7 +364,7 @@ async function detectMissingDecisions(
 
     // If we found a similar existing decision, it's not "missing"
     if (existingDecisions.length > 0) {
-      logInfo("observer.trace.decision_exists", "Decision-shaped content matches existing decision", {
+      log.info("observer.trace.decision_exists", "Decision-shaped content matches existing decision", {
         traceId,
         matchedDecisionId: existingDecisions[0].id.id,
       });
@@ -386,14 +386,14 @@ async function detectMissingDecisions(
       source: "llm",
     });
 
-    logInfo("observer.trace.missing_decision", "Unrecorded decision observation created", {
+    log.info("observer.trace.missing_decision", "Unrecorded decision observation created", {
       traceId,
       summary: missingResult.summary,
     });
 
     return 1;
   } catch (error) {
-    logError("observer.trace.missing_detection_error", "Missing decision detection failed", {
+    log.error("observer.trace.missing_detection_error", "Missing decision detection failed", {
       traceId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -457,7 +457,7 @@ export async function analyzeTraceResponse(
 
   // Step 1: Check stop_reason
   if (!shouldAnalyzeTrace(undefined, traceBody)) {
-    logInfo("observer.trace.skipped", "Trace skipped: tool_use stop_reason", { traceId });
+    log.info("observer.trace.skipped", "Trace skipped: tool_use stop_reason", { traceId });
     return { observations_created: 0, skipped: true, reason: "tool_use" };
   }
 
@@ -466,14 +466,14 @@ export async function analyzeTraceResponse(
   const responseText = extractResponseText(output);
 
   if (responseText.trim().length === 0) {
-    logInfo("observer.trace.empty", "Trace skipped: no extractable text", { traceId });
+    log.info("observer.trace.empty", "Trace skipped: no extractable text", { traceId });
     return { observations_created: 0, skipped: true, reason: "empty_response" };
   }
 
   // Load intelligence config
   const config = await loadIntelligenceConfig(surreal, workspaceRecord);
   if (!config || !config.enabled) {
-    logInfo("observer.trace.config_disabled", "Trace analysis skipped: not enabled", { traceId });
+    log.info("observer.trace.config_disabled", "Trace analysis skipped: not enabled", { traceId });
     return { observations_created: 0, skipped: true, reason: "not_enabled" };
   }
 
@@ -485,7 +485,7 @@ export async function analyzeTraceResponse(
   );
 
   if (!responseEmbedding) {
-    logError("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
+    log.error("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
     return { observations_created: 0, skipped: true, reason: "embedding_failed" };
   }
 
@@ -497,7 +497,7 @@ export async function analyzeTraceResponse(
 
   const totalObservations = contradictionCount + missingCount;
 
-  logInfo("observer.trace.analysis_complete", "Trace analysis complete", {
+  log.info("observer.trace.analysis_complete", "Trace analysis complete", {
     traceId,
     contradictions: contradictionCount,
     missingDecisions: missingCount,

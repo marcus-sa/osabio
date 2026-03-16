@@ -7,19 +7,20 @@ import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 import { findWorkspaceIdentityByName } from "../extraction/identity-resolution";
 import { createEmbedding } from "../extraction/embedding-writeback";
 import { createObservation } from "../observation/queries";
-import { elapsedMs, logError, logInfo } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import type { SourceRecord } from "../extraction/types";
 import { updateTaskStatus } from "../mcp/mcp-queries";
 import { extractReferencedTaskIds } from "./commit-task-refs";
 import { determineTaskStatusUpdates } from "./task-status-from-push";
 import { classifyDecisionLinks } from "./types";
 import type { CommitInput, ProcessCommitResult, ProcessWebhookInput, ProcessWebhookResult, TaskStatusUpdateResult } from "./types";
+import { log } from "../telemetry/logger";
 
 export async function processGitCommits(input: ProcessWebhookInput): Promise<ProcessWebhookResult> {
   const startedAt = performance.now();
   const workspaceId = input.workspaceRecord.id as string;
 
-  logInfo("webhook.commits.started", "Processing commits", {
+  log.info("webhook.commits.started", "Processing commits", {
     workspaceId,
     repository: input.event.repository.full_name,
     commitCount: input.event.commits.length,
@@ -83,7 +84,7 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
       result.observationsCreated.push(...commitResult.observationsCreated);
       result.taskStatusUpdates.push(...commitResult.taskStatusUpdates);
     } catch (error) {
-      logError("webhook.commit.failed", "Failed to process commit", error, {
+      log.error("webhook.commit.failed", "Failed to process commit", error, {
         workspaceId,
         sha: commit.sha,
       });
@@ -91,7 +92,7 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
     }
   }
 
-  logInfo("webhook.commits.completed", "Finished processing commits", {
+  log.info("webhook.commits.completed", "Finished processing commits", {
     workspaceId,
     ...result,
     durationMs: elapsedMs(startedAt),
@@ -146,7 +147,7 @@ async function processCommit(input: {
     created_at: input.now,
   });
 
-  logInfo("webhook.commit.created", "Created git_commit record", {
+  log.info("webhook.commit.created", "Created git_commit record", {
     sha: input.commit.sha,
     commitRecordId,
   });
@@ -202,14 +203,14 @@ async function processCommit(input: {
           status: update.targetStatus,
         });
         taskStatusResults.push({ taskId: update.taskId, status: update.targetStatus });
-        logInfo("webhook.commit.task_status", "Updated task status from push", {
+        log.info("webhook.commit.task_status", "Updated task status from push", {
           taskId: update.taskId,
           status: update.targetStatus,
           sha: input.commit.sha,
           isDefaultBranch: input.isDefaultBranch,
         });
       } catch (error) {
-        logError("webhook.commit.task_status_failed", "Failed to update task status", error, {
+        log.error("webhook.commit.task_status_failed", "Failed to update task status", error, {
           taskId: update.taskId,
           sha: input.commit.sha,
         });
@@ -217,7 +218,7 @@ async function processCommit(input: {
     }
   }
 
-  logInfo("webhook.commit.task_refs", "Processed explicit commit task references", {
+  log.info("webhook.commit.task_refs", "Processed explicit commit task references", {
     sha: input.commit.sha,
     referencedTaskCount: referencedTaskIds.length,
     linkedTaskCount,
@@ -283,7 +284,7 @@ async function processCommit(input: {
         .output("after");
 
       autoLinkedDecisions.push(action.entityId);
-      logInfo("webhook.commit.autolinked", "Auto-linked decision to commit", {
+      log.info("webhook.commit.autolinked", "Auto-linked decision to commit", {
         decisionId: action.entityId,
         sha: input.commit.sha,
         confidence: action.confidence,
@@ -300,7 +301,7 @@ async function processCommit(input: {
       });
 
       observationsCreated.push(observation.id as string);
-      logInfo("webhook.commit.observation", "Created confirmation observation", {
+      log.info("webhook.commit.observation", "Created confirmation observation", {
         decisionId: action.entityId,
         sha: input.commit.sha,
         confidence: action.confidence,

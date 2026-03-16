@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
-import { logInfo } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // -- Types --
 
@@ -47,7 +47,7 @@ export async function bootstrapWorkspaceIdentities(
 
   await ensureTemplateAgents(surreal, workspaceRecord, ownerIdentity);
 
-  logInfo("identity.bootstrap.completed", "Identity bootstrap completed", {
+  log.info("identity.bootstrap.completed", "Identity bootstrap completed", {
     workspaceId: workspaceRecord.id as string,
   });
 }
@@ -85,7 +85,7 @@ async function ensureOwnerIdentity(
 ): Promise<RecordId<"identity", string>> {
   const existing = await findExistingIdentity(surreal, workspaceRecord, "human", "owner");
   if (existing) {
-    logInfo("identity.bootstrap.owner_exists", "Owner identity already exists, skipping", {
+    log.info("identity.bootstrap.owner_exists", "Owner identity already exists, skipping", {
       workspaceId: workspaceRecord.id as string,
     });
     return existing;
@@ -117,7 +117,7 @@ async function ensureOwnerIdentity(
     })
     .output("after");
 
-  logInfo("identity.bootstrap.owner_created", "Owner identity created", {
+  log.info("identity.bootstrap.owner_created", "Owner identity created", {
     workspaceId: workspaceRecord.id as string,
     identityId: identityRecord.id as string,
   });
@@ -145,7 +145,7 @@ async function ensureSingleAgent(
 ): Promise<void> {
   const existing = await findExistingIdentity(surreal, workspaceRecord, "agent", template.role);
   if (existing) {
-    logInfo("identity.bootstrap.agent_exists", "Agent identity already exists, skipping", {
+    log.info("identity.bootstrap.agent_exists", "Agent identity already exists, skipping", {
       workspaceId: workspaceRecord.id as string,
       agentType: template.agentType,
     });
@@ -179,7 +179,7 @@ async function ensureSingleAgent(
     })
     .output("after");
 
-  logInfo("identity.bootstrap.agent_created", "Agent identity created", {
+  log.info("identity.bootstrap.agent_created", "Agent identity created", {
     workspaceId: workspaceRecord.id as string,
     agentType: template.agentType,
   });

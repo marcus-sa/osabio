@@ -1,6 +1,6 @@
 import type { StreamEvent } from "../../shared/contracts";
 import { jsonError } from "../http/response";
-import { logInfo, logWarn } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 type StreamState = {
   queue: StreamEvent[];
@@ -31,7 +31,7 @@ export function createSseRegistry(): SseRegistry {
     }
 
     streams.delete(messageId);
-    logInfo("sse.stream.closed", "SSE stream closed", { messageId, reason });
+    log.info("sse.stream.closed", "SSE stream closed", { messageId, reason });
   }
 
   function encodeSse(event: StreamEvent): Uint8Array {
@@ -49,14 +49,14 @@ export function createSseRegistry(): SseRegistry {
     handleStreamRequest(messageId: string): Response {
       const state = streams.get(messageId);
       if (!state) {
-        logWarn("sse.stream.not_found", "SSE stream not found", { messageId });
+        log.warn("sse.stream.not_found", "SSE stream not found", { messageId });
         return jsonError("stream not found", 404);
       }
 
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
           state.controller = controller;
-          logInfo("sse.stream.opened", "SSE stream opened", { messageId, queuedEventCount: state.queue.length });
+          log.info("sse.stream.opened", "SSE stream opened", { messageId, queuedEventCount: state.queue.length });
 
           for (const event of state.queue) {
             controller.enqueue(encodeSse(event));

@@ -14,10 +14,10 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel, embed } from "ai";
 import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord } from "../observation/queries";
-import { logInfo } from "../http/observability";
 import { detectContradictions as defaultDetectContradictions, evaluateAnomalies as defaultEvaluateAnomalies, synthesizePatterns as defaultSynthesizePatterns, type Anomaly, type AnomalyCandidate } from "./llm-synthesis";
 import { parseEntityRef } from "./evidence-validator";
 import { runDiagnosticClustering, queryWorkspaceBehaviorTrends, proposeBehaviorLearning, checkBehaviorLearningRateLimit } from "./learning-diagnosis";
+import { log } from "../telemetry/logger";
 
 type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
@@ -444,7 +444,7 @@ export async function runCoherenceScans(
       existingForDecision.length > 0 ||
       isAlreadyObserved(existingObservations, observationText, decision.id.id as string)
     ) {
-      logInfo("observer.coherence.dedup", "Skipping duplicate orphaned decision observation", {
+      log.info("observer.coherence.dedup", "Skipping duplicate orphaned decision observation", {
         decisionId: decision.id.id,
       });
       continue;
@@ -482,7 +482,7 @@ export async function runCoherenceScans(
       existingForObjective.length > 0 ||
       isAlreadyObserved(existingObservations, observationText, objective.id.id as string)
     ) {
-      logInfo("observer.coherence.dedup", "Skipping duplicate stale objective observation", {
+      log.info("observer.coherence.dedup", "Skipping duplicate stale objective observation", {
         objectiveId: objective.id.id,
       });
       continue;
@@ -523,7 +523,7 @@ export async function runCoherenceScans(
       existingForTask.length > 0 ||
       isAlreadyObserved(existingObservations, observationText, task.id.id as string)
     ) {
-      logInfo("observer.coherence.dedup", "Skipping duplicate implementation-without-decision observation", {
+      log.info("observer.coherence.dedup", "Skipping duplicate implementation-without-decision observation", {
         taskId: task.id.id,
       });
       continue;
@@ -545,7 +545,7 @@ export async function runCoherenceScans(
     result.observations_created += 1;
   }
 
-  logInfo("observer.coherence.completed", "Coherence scan completed", {
+  log.info("observer.coherence.completed", "Coherence scan completed", {
     workspaceId: workspaceRecord.id,
     ...result,
   });
@@ -634,7 +634,7 @@ export async function runGraphScan(
       `The task appears to implement an approach that contradicts the confirmed decision.`;
 
     if (existingForDecision.length > 0 || isAlreadyObserved(existingObservations, observationText, decision.id.id as string)) {
-      logInfo("observer.scan.dedup", "Skipping duplicate contradiction observation", {
+      log.info("observer.scan.dedup", "Skipping duplicate contradiction observation", {
         decisionId: decision.id.id,
         taskId: task.id.id,
       });
@@ -707,7 +707,7 @@ export async function runGraphScan(
         });
       }
     } else {
-      logInfo("observer.llm.fallback", "Anomaly evaluation failed, treating all as relevant", {
+      log.info("observer.llm.fallback", "Anomaly evaluation failed, treating all as relevant", {
         candidateCount: anomalyCandidates.length,
       });
     }
@@ -757,7 +757,7 @@ export async function runGraphScan(
     const evaluation = evaluationMap.get(anomaly.entityRef);
 
     if (evaluation && !evaluation.relevant) {
-      logInfo("observer.scan.llm_filtered", `${anomaly.anomalyType} task filtered by LLM as not relevant`, {
+      log.info("observer.scan.llm_filtered", `${anomaly.anomalyType} task filtered by LLM as not relevant`, {
         taskId: (anomaly.taskRecord.id as string),
         reasoning: evaluation.reasoning,
       });
@@ -771,7 +771,7 @@ export async function runGraphScan(
     );
 
     if (existingForTask.length > 0 || isAlreadyObserved(existingObservations, anomaly.observationText, anomaly.taskRecord.id as string)) {
-      logInfo("observer.scan.dedup", `Skipping duplicate ${anomaly.anomalyType} observation`, anomaly.dedupContext ?? {});
+      log.info("observer.scan.dedup", `Skipping duplicate ${anomaly.anomalyType} observation`, anomaly.dedupContext ?? {});
       dedupedEntityRefs.add(anomaly.entityRef);
       continue;
     }
@@ -845,7 +845,7 @@ export async function runGraphScan(
         // Dedup: check if a similar pattern observation already exists
         const patternText = `${pattern.pattern_name}: ${pattern.description}`;
         if (isAlreadyObserved(existingObservations, patternText)) {
-          logInfo("observer.scan.synthesis_dedup", "Skipping duplicate pattern", {
+          log.info("observer.scan.synthesis_dedup", "Skipping duplicate pattern", {
             pattern: pattern.pattern_name,
           });
           continue;
@@ -875,11 +875,11 @@ export async function runGraphScan(
         result.observations_created += 1;
       }
 
-      logInfo("observer.scan.synthesis", "Pattern synthesis completed", {
+      log.info("observer.scan.synthesis", "Pattern synthesis completed", {
         patternsFound: patterns.length,
       });
     } else {
-      logInfo("observer.llm.fallback", "Pattern synthesis failed, anomalies reported individually", {
+      log.info("observer.llm.fallback", "Pattern synthesis failed, anomalies reported individually", {
         anomalyCount: anomalies.length,
       });
     }
@@ -899,14 +899,14 @@ export async function runGraphScan(
     result.coverage_skips = diagnostic.result.coverage_skips;
     result.learning_proposals_created = diagnostic.result.learning_proposals_created;
 
-    logInfo("observer.scan.diagnostic", "Diagnostic clustering completed", {
+    log.info("observer.scan.diagnostic", "Diagnostic clustering completed", {
       workspaceId: workspaceRecord.id,
       clustersFound: diagnostic.result.clusters_found,
       coverageSkips: diagnostic.result.coverage_skips,
       uncoveredClusters: diagnostic.uncoveredClusters.length,
     });
   } catch (error) {
-    logInfo("observer.scan.diagnostic_error", "Diagnostic clustering failed, continuing scan", {
+    log.info("observer.scan.diagnostic_error", "Diagnostic clustering failed, continuing scan", {
       workspaceId: workspaceRecord.id,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -920,7 +920,7 @@ export async function runGraphScan(
     });
 
     if (rateLimitCheck.blocked) {
-      logInfo("observer.scan.behavior_rate_limited", "Behavior learning proposals rate-limited", {
+      log.info("observer.scan.behavior_rate_limited", "Behavior learning proposals rate-limited", {
         workspaceId: workspaceRecord.id,
         recentProposalCount: rateLimitCheck.count,
       });
@@ -946,7 +946,7 @@ export async function runGraphScan(
         }
       }
 
-      logInfo("observer.scan.behavior_trends", "Behavior trend analysis completed", {
+      log.info("observer.scan.behavior_trends", "Behavior trend analysis completed", {
         workspaceId: workspaceRecord.id,
         totalTrends: behaviorTrends.length,
         actionableTrends: actionableTrends.length,
@@ -954,13 +954,13 @@ export async function runGraphScan(
       });
     }
   } catch (error) {
-    logInfo("observer.scan.behavior_error", "Behavior trend analysis failed, continuing scan", {
+    log.info("observer.scan.behavior_error", "Behavior trend analysis failed, continuing scan", {
       workspaceId: workspaceRecord.id,
       error: error instanceof Error ? error.message : String(error),
     });
   }
 
-  logInfo("observer.scan.completed", "Graph scan completed", {
+  log.info("observer.scan.completed", "Graph scan completed", {
     workspaceId: workspaceRecord.id,
     ...result,
   });

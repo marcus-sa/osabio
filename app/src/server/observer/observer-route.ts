@@ -8,12 +8,12 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
 import { runObserverAgent } from "../agents/observer/agent";
 import { runGraphScan } from "./graph-scan";
 import { analyzeTraceResponse } from "./trace-response-analyzer";
 import { analyzeSessionTraces } from "./session-trace-analyzer";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,12 +42,12 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
     try {
       const body = await request.json().catch(() => undefined);
 
-      logInfo("observer.event.received", "Observer event received", { table, id });
+      log.info("observer.event.received", "Observer event received", { table, id });
 
       // Resolve workspace
       const workspaceId = await resolveWorkspaceId(deps.surreal, table, id, body);
       if (!workspaceId) {
-        logError("observer.event.no_workspace", "Cannot determine workspace", { table, id });
+        log.error("observer.event.no_workspace", "Cannot determine workspace", { table, id });
         return jsonResponse({ status: "ok" }, 200);
       }
 
@@ -62,7 +62,7 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
           observerModel: deps.observerModel as LanguageModel,
         });
 
-        logInfo("observer.session.verified", "Session trace analysis complete", {
+        log.info("observer.session.verified", "Session trace analysis complete", {
           sessionId: id,
           observationsCreated: sessionResult.observations_created,
           skipped: sessionResult.skipped,
@@ -85,7 +85,7 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
           embeddingDimension: deps.config.embeddingDimension,
         });
 
-        logInfo("observer.trace.verified", "Trace analysis complete", {
+        log.info("observer.trace.verified", "Trace analysis complete", {
           traceId: id,
           observationsCreated: traceResult.observations_created,
           skipped: traceResult.skipped,
@@ -105,7 +105,7 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
         observerModel: deps.observerModel as LanguageModel,
       });
 
-      logInfo(`observer.${table}.verified`, `${table} verification complete`, {
+      log.info(`observer.${table}.verified`, `${table} verification complete`, {
         [`${table}Id`]: id,
         verdict: agentOutput.verdict,
         observationsCreated: agentOutput.observations_created,
@@ -114,7 +114,7 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
 
       return jsonResponse({ status: "ok" }, 200);
     } catch (error) {
-      logError("observer.event.error", "Observer event processing failed", error);
+      log.error("observer.event.error", "Observer event processing failed", error);
       // Return 200 to prevent SurrealDB EVENT retries for non-transient errors
       return jsonResponse({ status: "error", message: "processing failed" }, 200);
     }
@@ -128,7 +128,7 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
 export function createGraphScanRouteHandler(deps: ServerDependencies) {
   return async (workspaceId: string, _request: Request): Promise<Response> => {
     try {
-      logInfo("observer.scan.started", "Graph scan triggered", { workspaceId });
+      log.info("observer.scan.started", "Graph scan triggered", { workspaceId });
 
       const workspaceRecord = new RecordId("workspace", workspaceId);
       const result = await runGraphScan(
@@ -141,7 +141,7 @@ export function createGraphScanRouteHandler(deps: ServerDependencies) {
 
       return jsonResponse({ status: "ok", ...result }, 200);
     } catch (error) {
-      logError("observer.scan.error", "Graph scan failed", error);
+      log.error("observer.scan.error", "Graph scan failed", error);
       return jsonResponse({ status: "error", message: "scan failed" }, 500);
     }
   };

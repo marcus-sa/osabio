@@ -1,7 +1,7 @@
 import type { RecordId, Surreal } from "surrealdb";
-import { logError, logInfo } from "../http/observability";
 import { synthesizeDescription } from "./generate";
 import type { DescriptionEntry, DescriptionTarget } from "./types";
+import { log } from "../telemetry/logger";
 
 type EntityWithDescriptionEntries = {
   name?: string;
@@ -29,7 +29,7 @@ export async function appendDescriptionEntry(input: {
 
   const existing = rows[0];
   if (!existing) {
-    logError("description.append.entity_not_found", "Target entity not found", undefined, {
+    log.error("description.append.entity_not_found", "Target entity not found", undefined, {
       targetRecord: `${input.targetRecord.table}:${input.targetRecord.id}`,
     });
     return;
@@ -56,7 +56,7 @@ export async function appendDescriptionEntry(input: {
     updated_at: new Date(),
   });
 
-  logInfo("description.append.success", "Description entry appended", {
+  log.info("description.append.success", "Description entry appended", {
     targetRecord: `${input.targetRecord.table}:${input.targetRecord.id}`,
     entryCount: entries.length,
   });
@@ -80,7 +80,7 @@ export async function seedDescriptionEntry(input: {
     updated_at: new Date(),
   });
 
-  logInfo("description.seed.success", "Description seeded", {
+  log.info("description.seed.success", "Description seeded", {
     targetRecord: `${input.targetRecord.table}:${input.targetRecord.id}`,
   });
 }

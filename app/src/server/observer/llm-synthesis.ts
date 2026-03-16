@@ -7,11 +7,11 @@
  */
 
 import { generateObject, type LanguageModel } from "ai";
-import { logError, logInfo } from "../http/observability";
 import { anomalyEvaluationResultSchema, contradictionDetectionResultSchema, synthesisResultSchema, type AnomalyEvaluation, type DetectedContradiction, type SynthesisPattern } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
 import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 export type Anomaly = {
   type: "contradiction" | "stale_blocked" | "status_drift";
@@ -67,7 +67,7 @@ Rules:
 
     const latencyMs = Date.now() - start;
     recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
-    logInfo("observer.llm.synthesis", "LLM pattern synthesis completed", {
+    log.info("observer.llm.synthesis", "LLM pattern synthesis completed", {
       latencyMs,
       patternCount: result.object.patterns.length,
     });
@@ -77,7 +77,7 @@ Rules:
   } catch (error) {
     const latencyMs = Date.now() - start;
     recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
-    logError("observer.llm.synthesis_error", "LLM pattern synthesis failed", {
+    log.error("observer.llm.synthesis_error", "LLM pattern synthesis failed", {
       error,
       latencyMs,
     });
@@ -153,7 +153,7 @@ Rules:
 
     const latencyMs = Date.now() - start;
     recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
-    logInfo("observer.llm.contradiction_detection", "LLM contradiction detection completed", {
+    log.info("observer.llm.contradiction_detection", "LLM contradiction detection completed", {
       latencyMs,
       contradictionCount: result.object.contradictions.length,
     });
@@ -162,7 +162,7 @@ Rules:
   } catch (error) {
     const latencyMs = Date.now() - start;
     recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
-    logError("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
+    log.error("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
       error,
       latencyMs,
     });
@@ -230,7 +230,7 @@ Return an evaluation for EVERY candidate. Use the exact entity_ref from the list
     const latencyMs = Date.now() - start;
     recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
     const relevantCount = result.object.evaluations.filter((e) => e.relevant).length;
-    logInfo("observer.llm.anomaly_evaluation", "LLM anomaly evaluation completed", {
+    log.info("observer.llm.anomaly_evaluation", "LLM anomaly evaluation completed", {
       latencyMs,
       candidateCount: candidates.length,
       relevantCount,
@@ -241,7 +241,7 @@ Return an evaluation for EVERY candidate. Use the exact entity_ref from the list
   } catch (error) {
     const latencyMs = Date.now() - start;
     recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
-    logError("observer.llm.anomaly_evaluation_error", "LLM anomaly evaluation failed", {
+    log.error("observer.llm.anomaly_evaluation_error", "LLM anomaly evaluation failed", {
       error,
       latencyMs,
     });

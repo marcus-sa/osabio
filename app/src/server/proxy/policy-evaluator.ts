@@ -13,8 +13,8 @@
 
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
-import { logInfo, logError, logWarn } from "../http/observability";
 import type { InflightTracker } from "../runtime/types";
+import { log } from "../telemetry/logger";
 import {
   type RateLimiterState,
   checkRateLimit,
@@ -107,7 +107,7 @@ function evaluateModelAccess(
   // Filter policies relevant to this agent_type via selector.agent_role
   if (!context.agentType) {
     // No agent type: policies exist but cannot be matched — allow with warning
-    logWarn("proxy.policy.missing_agent_type", "Request lacks agent type; model access policies not enforced", {
+    log.warn("proxy.policy.missing_agent_type", "Request lacks agent type; model access policies not enforced", {
       model: context.model,
       workspace_id: context.workspaceId,
     });
@@ -188,7 +188,7 @@ async function getTodaySpend(
     cache.set(workspaceId, { spendUsd: total, fetchedAt: Date.now() });
     return total;
   } catch (error) {
-    logError("proxy.policy.spend_query_failed", "Failed to query workspace spend", error);
+    log.error("proxy.policy.spend_query_failed", "Failed to query workspace spend", error);
     // On query failure, use stale cache if available
     if (cached) return cached.spendUsd;
     return 0;
@@ -227,7 +227,7 @@ async function loadWorkspacePolicies(
     );
     return results[0] ?? [];
   } catch (error) {
-    logError("proxy.policy.load_failed", "Failed to load workspace policies", error);
+    log.error("proxy.policy.load_failed", "Failed to load workspace policies", error);
     return [];
   }
 }
@@ -258,7 +258,7 @@ async function createNoPolicyWarning(
       },
     });
   } catch (error) {
-    logError("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
+    log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
   }
 }
 
@@ -290,7 +290,7 @@ export async function evaluateProxyPolicy(
     );
 
     if (!rateLimitResult.allowed) {
-      logInfo("proxy.policy.rate_limited", "Rate limit exceeded", {
+      log.info("proxy.policy.rate_limited", "Rate limit exceeded", {
         workspace_id: context.workspaceId,
         rate_limit_per_minute: rateLimitResult.rateLimitPerMinute,
       });
@@ -318,7 +318,7 @@ export async function evaluateProxyPolicy(
         const now = new Date();
         const resetSeconds = secondsUntilMidnightUtc(now);
 
-        logInfo("proxy.policy.budget_exceeded", "Daily budget exceeded", {
+        log.info("proxy.policy.budget_exceeded", "Daily budget exceeded", {
           workspace_id: context.workspaceId,
           current_spend_usd: currentSpend,
           daily_limit_usd: dailyBudget,
@@ -353,7 +353,7 @@ export async function evaluateProxyPolicy(
         );
       }
 
-      logInfo("proxy.policy.no_policies", "No policies configured, permissive default", {
+      log.info("proxy.policy.no_policies", "No policies configured, permissive default", {
         workspace_id: context.workspaceId,
       });
 
@@ -363,7 +363,7 @@ export async function evaluateProxyPolicy(
     const modelCheck = evaluateModelAccess(policies, context);
 
     if (!modelCheck.allowed) {
-      logInfo("proxy.policy.model_denied", "Model access denied by policy", {
+      log.info("proxy.policy.model_denied", "Model access denied by policy", {
         workspace_id: context.workspaceId,
         agent_type: context.agentType,
         model: context.model,

@@ -1,10 +1,11 @@
 import { RecordId } from "surrealdb";
 import type { EntityKind, SearchEntityResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs, logDebug, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceProjectRecord, resolveWorkspaceRecord } from "../workspace/workspace-scope";
+import { log } from "../telemetry/logger";
 
 type SearchEntityRow = {
   id: RecordId<string, string>;
@@ -107,13 +108,13 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
   }
 
   const limit = Math.min(Math.floor(parsedLimit), 100);
-  logDebug("http.request.validated", "Entity search request validated", {
+  log.debug("http.request.validated", "Entity search request validated", {
     workspaceId,
     projectId,
     limit,
     queryLength: query.length,
   });
-  logInfo("entity.search.started", "Entity search started", {
+  log.info("entity.search.started", "Entity search started", {
     workspaceId,
     projectId,
     limit,
@@ -129,7 +130,7 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     }
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("entity.search.http_error", "Entity search failed with client-facing error", {
+      log.warn("entity.search.http_error", "Entity search failed with client-facing error", {
         workspaceId,
         projectId,
         statusCode: error.status,
@@ -137,7 +138,7 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
       return jsonError(error.message, error.status);
     }
 
-    logError("entity.search.scope_validation.failed", "Entity search scope validation failed", error, {
+    log.error("entity.search.scope_validation.failed", "Entity search scope validation failed", error, {
       workspaceId,
       projectId,
     });
@@ -173,7 +174,7 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     sourceKind: "message",
   } satisfies SearchEntityResponse));
 
-  logInfo("entity.search.completed", "Entity search completed", {
+  log.info("entity.search.completed", "Entity search completed", {
     workspaceId,
     projectId,
     limit,

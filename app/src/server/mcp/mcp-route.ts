@@ -1,6 +1,5 @@
 import { RecordId } from "surrealdb";
 import { jsonError, jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
 import { resolveIntentContext, type IntentContextInput } from "./intent-context";
 import { authenticateAndAuthorize } from "./mcp-dpop-auth";
@@ -57,6 +56,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { createIntent, createTrace, updateIntentStatus, getIntentById } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
+import { log } from "../telemetry/logger";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -244,10 +244,10 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         workspaceName: auth.workspaceName,
         ...(body.session_id ? { excludeSessionId: requireRawId(body.session_id, "session_id") } : {}),
       });
-      logInfo("mcp.workspace-context.built", "Workspace overview assembled", { workspaceId, projectCount: overview.projects.length });
+      log.info("mcp.workspace-context.built", "Workspace overview assembled", { workspaceId, projectCount: overview.projects.length });
       return jsonResponse(overview, 200);
     } catch (error) {
-      logError("mcp.workspace-context.failed", "Failed to build workspace overview", error);
+      log.error("mcp.workspace-context.failed", "Failed to build workspace overview", error);
       return jsonError("failed to build workspace overview", 500);
     }
   }
@@ -275,10 +275,10 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         cwd: body.cwd,
         paths: body.paths,
       });
-      logInfo("mcp.intent-context.resolved", "Intent context resolved", { workspaceId, level: result.level });
+      log.info("mcp.intent-context.resolved", "Intent context resolved", { workspaceId, level: result.level });
       return jsonResponse(result, 200);
     } catch (error) {
-      logError("mcp.intent-context.failed", "Failed to resolve intent context", error);
+      log.error("mcp.intent-context.failed", "Failed to resolve intent context", error);
       return jsonError("failed to resolve intent context", 500);
     }
   }
@@ -315,10 +315,10 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
           projectRecord,
         });
         if (!pluginContext) return jsonError("project not found", 404);
-        logInfo("mcp.project-context.plugin", "Plugin project context returned", { workspaceId, projectId });
+        log.info("mcp.project-context.plugin", "Plugin project context returned", { workspaceId, projectId });
         return jsonResponse(pluginContext, 200);
       } catch (error) {
-        logError("mcp.project-context.plugin.failed", "Failed to get plugin project context", error);
+        log.error("mcp.project-context.plugin.failed", "Failed to get plugin project context", error);
         return jsonError("failed to get project context", 500);
       }
     }
@@ -342,7 +342,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         ...(sessionId ? { excludeSessionId: sessionId } : {}),
       });
 
-      logInfo("mcp.project-context.built", "Project context assembled", {
+      log.info("mcp.project-context.built", "Project context assembled", {
         workspaceId,
         projectId,
         taskId,
@@ -355,7 +355,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
       return jsonResponse(contextPacket, 200);
     } catch (error) {
-      logError("mcp.project-context.failed", "Failed to build project context", error);
+      log.error("mcp.project-context.failed", "Failed to build project context", error);
       return jsonError("failed to build project context", 500);
     }
   }
@@ -389,7 +389,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         taskRecord,
       });
       if (!pluginContext) return jsonError("task not found", 404);
-      logInfo("mcp.task-context.plugin", "Plugin task context returned", { workspaceId, taskId });
+      log.info("mcp.task-context.plugin", "Plugin task context returned", { workspaceId, taskId });
       return jsonResponse(pluginContext, 200);
     }
 
@@ -406,10 +406,10 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         ...(sessionId ? { excludeSessionId: sessionId } : {}),
       });
 
-      logInfo("mcp.task-context.built", "Task context assembled", { workspaceId, taskId });
+      log.info("mcp.task-context.built", "Task context assembled", { workspaceId, taskId });
       return jsonResponse(taskContext, 200);
     } catch (error) {
-      logError("mcp.task-context.failed", "Failed to build task context", error);
+      log.error("mcp.task-context.failed", "Failed to build task context", error);
       return jsonError("failed to build task context", 500);
     }
   }
@@ -759,7 +759,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       ...(featureRecord ? { featureRecord } : {}),
     });
 
-    logInfo("mcp.decision.created", "Provisional decision created via MCP", {
+    log.info("mcp.decision.created", "Provisional decision created via MCP", {
       workspaceId,
       decisionId: decisionRecord.id as string,
     });
@@ -825,7 +825,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       ...(blockingTaskId ? { blocking_task: new RecordId("task", blockingTaskId) } : {}),
     });
 
-    logInfo("mcp.question.created", "Question created via MCP", {
+    log.info("mcp.question.created", "Question created via MCP", {
       workspaceId,
       questionId: questionRecord.id as string,
     });
@@ -1038,7 +1038,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         .output("after");
     }
 
-    logInfo("mcp.observation.created", "Observation logged via MCP", {
+    log.info("mcp.observation.created", "Observation logged via MCP", {
       workspaceId,
       observationId: observationRecord.id as string,
       observationType: body.category,
@@ -1365,7 +1365,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
           taskIds,
         });
       } catch (error) {
-        logError("commit-check", "Failed to batch-complete tasks", error);
+        log.error("commit-check", "Failed to batch-complete tasks", error);
         return taskIds.map((id) => ({ task_id: id, status: "done", updated: false }));
       }
     };
@@ -1545,7 +1545,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       ...(embedding ? { embedding } : {}),
     });
 
-    logInfo("mcp", "suggestion_created", { id: suggestionRecord.id as string });
+    log.info("mcp", "suggestion_created", { id: suggestionRecord.id as string });
 
     return jsonResponse({
       suggestion_id: suggestionRecord.id as string,
@@ -1595,7 +1595,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       return jsonError(error instanceof Error ? error.message : "suggestion action failed", 400);
     }
 
-    logInfo("mcp", `suggestion_${body.action}`, { id: suggestionId });
+    log.info("mcp", `suggestion_${body.action}`, { id: suggestionId });
 
     return jsonResponse({
       suggestion_id: suggestionId,
@@ -1647,7 +1647,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         now: new Date(),
       });
 
-      logInfo("mcp", "suggestion_converted", { id: suggestionId, to: result.table });
+      log.info("mcp", "suggestion_converted", { id: suggestionId, to: result.table });
 
       return jsonResponse({
         suggestion_id: suggestionId,
@@ -1708,11 +1708,11 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         workspace: auth.workspaceRecord,
       });
 
-      logInfo("mcp.intent.created", "Draft intent created", { workspaceId, intentId: intentRecord.id as string });
+      log.info("mcp.intent.created", "Draft intent created", { workspaceId, intentId: intentRecord.id as string });
 
       return jsonResponse({ intent_id: intentRecord.id as string, status: "draft" as IntentStatus }, 201);
     } catch (error) {
-      logError("mcp.intent.create.failed", "Failed to create intent", error);
+      log.error("mcp.intent.create.failed", "Failed to create intent", error);
       return jsonError("failed to create intent", 500);
     }
   }
@@ -1741,11 +1741,11 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         return jsonError(result.error, 409);
       }
 
-      logInfo("mcp.intent.submitted", "Intent submitted for authorization", { workspaceId, intentId });
+      log.info("mcp.intent.submitted", "Intent submitted for authorization", { workspaceId, intentId });
 
       return jsonResponse({ intent_id: intentId, status: "pending_auth" as IntentStatus }, 200);
     } catch (error) {
-      logError("mcp.intent.submit.failed", "Failed to submit intent", error);
+      log.error("mcp.intent.submit.failed", "Failed to submit intent", error);
       return jsonError("failed to submit intent", 500);
     }
   }
@@ -1786,7 +1786,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         ...(intent.error_reason ? { error_reason: intent.error_reason } : {}),
       }, 200);
     } catch (error) {
-      logError("mcp.intent.status.failed", "Failed to get intent status", error);
+      log.error("mcp.intent.status.failed", "Failed to get intent status", error);
       return jsonError("failed to get intent status", 500);
     }
   }

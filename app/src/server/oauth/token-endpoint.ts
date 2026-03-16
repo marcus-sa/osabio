@@ -20,7 +20,6 @@ import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
 import { getIntentById, recordTokenIssuance } from "../intent/intent-queries";
 import { jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { logAuditEvent, createAuditEvent } from "./audit";
 import { oauthErrorResponse } from "./oauth-errors";
 import {
@@ -273,7 +272,7 @@ export function createTokenEndpointHandler(
     );
 
     if (!identityCheck.allowed) {
-      logInfo("token.endpoint.identity_blocked", "Token request blocked by identity check", {
+      log.info("token.endpoint.identity_blocked", "Token request blocked by identity check", {
         intentId: data.intentId,
         reason: identityCheck.reason,
       });
@@ -286,7 +285,7 @@ export function createTokenEndpointHandler(
       dpopResult.thumbprint,
     );
     if (!intentVerification.ok) {
-      logInfo("token.endpoint.rejected", "Token request rejected", {
+      log.info("token.endpoint.rejected", "Token request rejected", {
         intentId: data.intentId,
         reason: intentVerification.errorDescription,
       });
@@ -312,7 +311,7 @@ export function createTokenEndpointHandler(
       intent.authorization_details,
     );
     if (!detailsMatch.ok) {
-      logInfo("token.endpoint.rejected", "Authorization details mismatch", {
+      log.info("token.endpoint.rejected", "Authorization details mismatch", {
         intentId: data.intentId,
       });
 
@@ -341,10 +340,10 @@ export function createTokenEndpointHandler(
       const now = new Date();
       await recordTokenIssuance(surreal, data.intentId, now, tokenResult.expiresAt)
         .catch((err) => {
-          logError("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
+          log.error("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
         });
 
-      logInfo("token.endpoint.issued", "DPoP-bound access token issued", {
+      log.info("token.endpoint.issued", "DPoP-bound access token issued", {
         intentId: data.intentId,
         expiresAt: tokenResult.expiresAt.toISOString(),
       });
@@ -374,7 +373,7 @@ export function createTokenEndpointHandler(
         200,
       );
     } catch (error) {
-      logError("token.endpoint.error", "Token issuance failed", error);
+      log.error("token.endpoint.error", "Token issuance failed", error);
       return oauthErrorResponse("server_error", "Internal server error", 500);
     }
   };
@@ -385,6 +384,7 @@ export function createTokenEndpointHandler(
 // ---------------------------------------------------------------------------
 
 import type { ResolvedIdentity, ResolvedManager } from "./identity-lifecycle";
+import { log } from "../telemetry/logger";
 
 type SurrealIdentityRow = {
   identityId: string;

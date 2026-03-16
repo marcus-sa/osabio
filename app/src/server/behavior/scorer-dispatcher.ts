@@ -10,7 +10,7 @@ import type { Surreal } from "surrealdb";
 import type { BehaviorDefinitionRecord, LlmScorerResult } from "./definition-types";
 import { scoreTelemetryWithLlm } from "./llm-scorer";
 import { createBehavior, type BehaviorInput } from "./queries";
-import { logInfo } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,7 +57,7 @@ async function scoreOneDefinition(
   );
 
   if (!llmResult) {
-    logInfo("behavior.dispatcher", "LLM scorer returned no result (timeout or failure)", {
+    log.info("behavior.dispatcher", "LLM scorer returned no result (timeout or failure)", {
       definition_title: definition.title,
     });
     return undefined;
@@ -131,7 +131,7 @@ export async function dispatchScoring(
 ): Promise<ScoredResult[]> {
   if (matchedDefinitions.length === 0) return [];
 
-  logInfo("behavior.dispatcher", "Dispatching scoring", {
+  log.info("behavior.dispatcher", "Dispatching scoring", {
     telemetry_type: request.telemetryType,
     matched_definitions: matchedDefinitions.length,
   });
@@ -145,7 +145,7 @@ export async function dispatchScoring(
     }
   }
 
-  logInfo("behavior.dispatcher", "Scoring complete", {
+  log.info("behavior.dispatcher", "Scoring complete", {
     telemetry_type: request.telemetryType,
     scored: results.length,
     skipped: matchedDefinitions.length - results.length,

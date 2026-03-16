@@ -1,7 +1,7 @@
 import type { RecordId, Surreal } from "surrealdb";
-import { logError, logInfo } from "../http/observability";
 import { appendDescriptionEntry } from "./persist";
 import type { DescriptionEntry, DescriptionTarget, DescriptionTrigger } from "./types";
+import { log } from "../telemetry/logger";
 
 type AffectedEntity = {
   id: RecordId;
@@ -19,7 +19,7 @@ export async function fireDescriptionUpdates(input: {
     return;
   }
 
-  logInfo("description.trigger.fire", "Firing description updates", {
+  log.info("description.trigger.fire", "Firing description updates", {
     triggerKind: input.trigger.kind,
     triggerEntity: `${input.trigger.entity.table}:${input.trigger.entity.id}`,
     affectedCount: affected.length,
@@ -39,7 +39,7 @@ export async function fireDescriptionUpdates(input: {
       targetType: target.type,
       entry,
     }).catch((error) => {
-      logError("description.trigger.update_failed", "Description update failed for target", error, {
+      log.error("description.trigger.update_failed", "Description update failed for target", error, {
         triggerKind: input.trigger.kind,
         targetRecord: `${target.id.table}:${target.id.id}`,
       });

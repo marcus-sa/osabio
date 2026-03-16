@@ -10,11 +10,11 @@
  */
 
 import { RecordId } from "surrealdb";
-import { logInfo, logError } from "../http/observability";
 import { calculateCost, type TokenUsage } from "./cost-calculator";
 import { getModelPricing } from "./pricing-table";
 import { withRetry } from "./retry";
 import type { Surreal } from "surrealdb";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -231,7 +231,7 @@ export async function captureTrace(
       "trace_edges_create",
     );
 
-    logInfo("proxy.trace.captured", "LLM call trace captured", {
+    log.info("proxy.trace.captured", "LLM call trace captured", {
       trace_id: traceId,
       model: data.model,
       cost_usd: costUsd,
@@ -239,8 +239,8 @@ export async function captureTrace(
     });
   } catch (error) {
     // Fallback: structured log output when graph write fails after retries
-    logError("proxy.trace.write_failed", "Failed to write trace after retries, logging fallback", error);
-    logInfo("proxy.trace.fallback", "Trace data (graph write failed)", {
+    log.error("proxy.trace.write_failed", "Failed to write trace after retries, logging fallback", error);
+    log.info("proxy.trace.fallback", "Trace data (graph write failed)", {
       trace_id: traceId,
       model: data.model,
       input_tokens: data.inputTokens,

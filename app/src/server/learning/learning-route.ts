@@ -1,7 +1,6 @@
 import { RecordId } from "surrealdb";
 import { LEARNING_TYPES, type LearningStatus, type LearningType } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { logError, logInfo, logWarn } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -17,6 +16,7 @@ import {
 } from "./queries";
 import { checkCollisions, type CollisionResult } from "./collision";
 import type { LearningRecord } from "./types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Valid state transitions
@@ -58,7 +58,7 @@ async function resolveWorkspace(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError(logEvent, "Failed to resolve workspace", error, { workspaceId });
+    log.error(logEvent, "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 }
@@ -131,7 +131,7 @@ async function handleCreateLearning(
         deps.config.embeddingDimension,
       );
     } catch (error) {
-      logWarn("learning.create.embedding_failed", "Embedding generation failed — collision detection will be skipped", {
+      log.warn("learning.create.embedding_failed", "Embedding generation failed — collision detection will be skipped", {
         workspaceId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -166,7 +166,7 @@ async function handleCreateLearning(
 
     const learningId = learningRecord.id as string;
 
-    logInfo("learning.created", "Learning created via HTTP", {
+    log.info("learning.created", "Learning created via HTTP", {
       workspaceId,
       learningId,
       learningType: body.learning_type,
@@ -183,7 +183,7 @@ async function handleCreateLearning(
       collisions: responseCollisions,
     }, 201);
   } catch (error) {
-    logError("learning.create.failed", "Failed to create learning", error, { workspaceId });
+    log.error("learning.create.failed", "Failed to create learning", error, { workspaceId });
     return jsonError("failed to create learning", 500);
   }
 }
@@ -235,7 +235,7 @@ async function handleListLearnings(
 
     return jsonResponse({ learnings: items }, 200);
   } catch (error) {
-    logError("learning.list.failed", "Failed to list learnings", error, { workspaceId });
+    log.error("learning.list.failed", "Failed to list learnings", error, { workspaceId });
     return jsonError("failed to list learnings", 500);
   }
 }
@@ -326,7 +326,7 @@ async function handleLearningAction(
       reason: body.reason,
     });
 
-    logInfo("learning.action.completed", "Learning action completed", {
+    log.info("learning.action.completed", "Learning action completed", {
       workspaceId,
       learningId,
       action,
@@ -336,7 +336,7 @@ async function handleLearningAction(
 
     return jsonResponse({ status: newStatus }, 200);
   } catch (error) {
-    logError("learning.action.failed", "Failed to perform learning action", error, {
+    log.error("learning.action.failed", "Failed to perform learning action", error, {
       workspaceId,
       learningId,
       action,
@@ -389,7 +389,7 @@ async function handleEditLearning(
         deps.config.embeddingDimension,
       );
     } catch (error) {
-      logWarn("learning.edit.embedding_failed", "Embedding regeneration failed, updating without", {
+      log.warn("learning.edit.embedding_failed", "Embedding regeneration failed, updating without", {
         workspaceId,
         learningId,
         error: error instanceof Error ? error.message : String(error),
@@ -411,7 +411,7 @@ async function handleEditLearning(
       embedding,
     });
 
-    logInfo("learning.edited", "Learning edited via HTTP", {
+    log.info("learning.edited", "Learning edited via HTTP", {
       workspaceId,
       learningId,
       fieldsChanged: Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined),
@@ -426,7 +426,7 @@ async function handleEditLearning(
     if (error instanceof LearningNotActiveError) {
       return jsonError(error.message, 409);
     }
-    logError("learning.edit.failed", "Failed to edit learning", error, {
+    log.error("learning.edit.failed", "Failed to edit learning", error, {
       workspaceId,
       learningId,
     });

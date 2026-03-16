@@ -5,9 +5,10 @@ import {
 } from "./schema";
 import { buildExtractionSystemPrompt } from "./prompt";
 import type { ExtractionGraphContextRow, MessageContextRow } from "./types";
-import { elapsedMs, logError, logInfo } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 export async function extractStructuredGraph(input: {
   extractionModel: any;
@@ -21,7 +22,7 @@ export async function extractStructuredGraph(input: {
   projectNames?: string[];
 }): Promise<ExtractionPromptOutput> {
   const startedAt = performance.now();
-  logInfo("extraction.generate.started", "Structured extraction started", {
+  log.info("extraction.generate.started", "Structured extraction started", {
     onboarding: input.onboarding,
     hasHeading: input.heading !== undefined,
     contextMessageCount: input.conversationHistory.length,
@@ -64,7 +65,7 @@ export async function extractStructuredGraph(input: {
     const output = extractionOutput.object as ExtractionPromptOutput;
     const durationMs = elapsedMs(startedAt);
     recordLlmMetrics(FUNCTION_IDS.EXTRACTION, extractionOutput.usage, durationMs);
-    logInfo("extraction.generate.completed", "Structured extraction completed", {
+    log.info("extraction.generate.completed", "Structured extraction completed", {
       onboarding: input.onboarding,
       entityCount: output.entities.length,
       relationshipCount: output.relationships.length,
@@ -75,7 +76,7 @@ export async function extractStructuredGraph(input: {
     return output;
   } catch (error) {
     recordLlmError(FUNCTION_IDS.EXTRACTION, error instanceof Error ? error.constructor.name : "unknown");
-    logError("extraction.generate.failed", "Structured extraction failed", error, {
+    log.error("extraction.generate.failed", "Structured extraction failed", error, {
       onboarding: input.onboarding,
       durationMs: elapsedMs(startedAt),
     });

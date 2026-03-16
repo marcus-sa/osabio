@@ -6,13 +6,14 @@ import { ingestAttachment } from "../extraction/document-ingestion";
 import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { appendExtractedTools } from "../extraction/persist-extraction";
 import type { ConversationRow, GraphEntityRecord, IncomingAttachment, WorkspaceRow } from "../extraction/types";
-import { elapsedMs, logError, logInfo, userFacingError } from "../http/observability";
+import { elapsedMs, userFacingError } from "../http/observability";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import type { ServerDependencies } from "../runtime/types";
 import { runChatAgent } from "./handler";
 import { getWorkspaceOwnerRecord } from "../graph/queries";
 import { refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../workspace/conversation-sidebar";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
+import { log } from "../telemetry/logger";
 
 export async function processChatMessage(input: {
   deps: ServerDependencies;
@@ -26,7 +27,7 @@ export async function processChatMessage(input: {
   identityRecord: RecordId<"identity", string>;
 }): Promise<void> {
   const startedAt = performance.now();
-  logInfo("chat.message.process.execution.started", "Chat message processing execution started", {
+  log.info("chat.message.process.execution.started", "Chat message processing execution started", {
     conversationId: input.conversationId,
     messageId: input.messageId,
     workspaceId: input.workspaceRecord.id as string,
@@ -273,7 +274,7 @@ export async function processChatMessage(input: {
       messageId: input.messageId,
     });
 
-    logInfo("chat.message.process.execution.completed", "Chat message processing execution completed", {
+    log.info("chat.message.process.execution.completed", "Chat message processing execution completed", {
       conversationId: input.conversationId,
       messageId: input.messageId,
       workspaceId: input.workspaceRecord.id as string,
@@ -282,7 +283,7 @@ export async function processChatMessage(input: {
       durationMs: elapsedMs(startedAt),
     });
   } catch (error) {
-    logError("chat.message.process.execution.failed", "Chat message processing execution failed", error, {
+    log.error("chat.message.process.execution.failed", "Chat message processing execution failed", error, {
       conversationId: input.conversationId,
       messageId: input.messageId,
       workspaceId: input.workspaceRecord.id as string,

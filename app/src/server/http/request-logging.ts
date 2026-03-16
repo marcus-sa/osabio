@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { runWithRequestContext } from "../request-context";
 import { jsonError, withRequestIdHeader } from "./response";
-import { elapsedMs, logDebug, logError, logInfo } from "./observability";
+import { elapsedMs } from "./observability";
+import { log } from "../telemetry/logger";
 
 export type RouteRequest = Request & {
   params: Record<string, string>;
@@ -24,18 +25,18 @@ export function withRequestLogging(route: string, method: string, handler: Route
         path,
       },
       async () => {
-        logDebug("http.request.received", "HTTP request received");
+        log.debug("http.request.received", "HTTP request received");
 
         try {
           const response = await handler(request);
           const responseWithRequestId = withRequestIdHeader(response, requestId);
-          logInfo("http.request.completed", "HTTP request completed", {
+          log.info("http.request.completed", "HTTP request completed", {
             statusCode: responseWithRequestId.status,
             durationMs: elapsedMs(startedAt),
           });
           return responseWithRequestId;
         } catch (error) {
-          logError("http.request.failed", "HTTP request failed", error, {
+          log.error("http.request.failed", "HTTP request failed", error, {
             durationMs: elapsedMs(startedAt),
           });
           const fallback = jsonError("internal server error", 500);

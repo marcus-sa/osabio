@@ -1,7 +1,6 @@
 import appHtml from "../../client/index.html";
 import { withTracing } from "../http/instrumentation";
 import { jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { createSseRegistry } from "../streaming/sse-registry";
 import { createRuntimeDependencies } from "./dependencies";
 import { loadServerConfig } from "./config";
@@ -44,6 +43,7 @@ import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { initTelemetry } from "../telemetry/init";
+import { log } from "../telemetry/logger";
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -742,7 +742,7 @@ function detectTransport(url: string): string {
 
 export async function startServer(): Promise<void> {
   const telemetry = initTelemetry();
-  logInfo("telemetry.init", "OpenTelemetry SDK initialized", { exporterType: telemetry.exporterType });
+  log.info("telemetry.init", "OpenTelemetry SDK initialized", { exporterType: telemetry.exporterType });
 
   const config = loadServerConfig();
   const runtime = await createRuntimeDependencies(config);
@@ -773,23 +773,23 @@ export async function startServer(): Promise<void> {
   deps.inflight.track(
     vetoManager.recoverExpiredWindows({
       updateStatus: (intentId, status) => updateIntentStatus(deps.surreal, intentId, status),
-      emitVetoEvent: (event) => logInfo("intent.veto.recovery", "Recovered expired veto window", { event }),
+      emitVetoEvent: (event) => log.info("intent.veto.recovery", "Recovered expired veto window", { event }),
       queryExpiredVetoIntents: () => queryExpiredVetoIntents(deps.surreal),
     }).catch((err) => {
-      logError("intent.veto.recovery", "Failed to recover expired veto windows", err);
+      log.error("intent.veto.recovery", "Failed to recover expired veto windows", err);
     }),
   );
 
   // Graceful shutdown: flush telemetry on SIGTERM/SIGINT
   const handleShutdownSignal = async (signal: string) => {
-    logInfo("server.shutdown", `Received ${signal}, draining telemetry...`);
+    log.info("server.shutdown", `Received ${signal}, draining telemetry...`);
     await telemetry.shutdown();
     process.exit(0);
   };
   process.on("SIGTERM", () => handleShutdownSignal("SIGTERM"));
   process.on("SIGINT", () => handleShutdownSignal("SIGINT"));
 
-  logInfo("server.started", "Brain app server started", {
+  log.info("server.started", "Brain app server started", {
     port: server.port,
     host: "127.0.0.1",
     chatAgentModelId: config.chatAgentModelId,

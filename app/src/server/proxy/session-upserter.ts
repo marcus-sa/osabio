@@ -13,7 +13,7 @@
 
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
-import { logInfo, logError } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,14 +65,14 @@ export async function upsertProxySession(
 
     const record = results[0]?.[0];
     if (record) {
-      logInfo("proxy.session.upserted", "Proxy session upserted via content hash", {
+      log.info("proxy.session.upserted", "Proxy session upserted via content hash", {
         session_id: input.sessionId,
         workspace_id: input.workspaceId,
       });
       return record.id.id as string;
     }
   } catch (error) {
-    logError(
+    log.error(
       "proxy.session.upsert_failed",
       "Failed to upsert proxy session record",
       error,

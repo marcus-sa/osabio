@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
 import type { ChatMessageResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs, logDebug, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { parseIncomingMessageRequest } from "../http/parsing";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
@@ -11,6 +11,7 @@ import { parseRecordIdString } from "../graph/queries";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import { deriveMessageTitle } from "../workspace/conversation-sidebar";
 import { processChatMessage } from "./chat-processor";
+import { log } from "../telemetry/logger";
 
 export function createChatIngressHandlers(deps: ServerDependencies): {
   handlePostChatMessage: (request: Request) => Promise<Response>;
@@ -24,13 +25,13 @@ export function createChatIngressHandlers(deps: ServerDependencies): {
 
 async function handlePostChatMessage(deps: ServerDependencies, request: Request): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("chat.message.ingress.started", "Chat message ingress started");
+  log.info("chat.message.ingress.started", "Chat message ingress started");
 
   let parsed: Awaited<ReturnType<typeof parseIncomingMessageRequest>>;
   try {
     parsed = await parseIncomingMessageRequest(request);
   } catch (error) {
-    logError("chat.message.parse.failed", "Parsing incoming chat message failed", error);
+    log.error("chat.message.parse.failed", "Parsing incoming chat message failed", error);
     const errorText = error instanceof Error ? error.message : "invalid request body";
     return jsonError(errorText, 400);
   }
@@ -47,7 +48,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   const messageText = userText.length > 0 ? userText : `Uploaded document: ${parsed.data.attachment?.fileName ?? "attachment"}`;
   const userMessageRecord = new RecordId("message", randomUUID());
 
-  logDebug("http.request.validated", "Chat message request validated", {
+  log.debug("http.request.validated", "Chat message request validated", {
     workspaceId,
     conversationId,
     hasAttachment: parsed.data.attachment !== undefined,
@@ -56,7 +57,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   let workspaceRecord: RecordId<"workspace", string>;
 
   try {
-    logInfo("chat.message.persist.started", "Persisting user chat message", {
+    log.info("chat.message.persist.started", "Persisting user chat message", {
       workspaceId,
       conversationId,
       messageId,
@@ -124,7 +125,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
       throw error;
     }
 
-    logInfo("chat.message.persist.completed", "User chat message persisted", {
+    log.info("chat.message.persist.completed", "User chat message persisted", {
       workspaceId,
       conversationId,
       messageId,
@@ -132,7 +133,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     });
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("chat.message.persist.http_error", "Chat message persistence failed with client-facing error", {
+      log.warn("chat.message.persist.http_error", "Chat message persistence failed with client-facing error", {
         workspaceId,
         conversationId,
         messageId,
@@ -141,7 +142,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
       return jsonError(error.message, error.status);
     }
 
-    logError("chat.message.persist.failed", "Persisting user chat message failed", error, {
+    log.error("chat.message.persist.failed", "Persisting user chat message failed", error, {
       workspaceId,
       conversationId,
       messageId,
@@ -168,7 +169,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     return jsonError("identity not found for user", 500);
   }
 
-  logInfo("chat.message.process.started", "Async chat processing started", {
+  log.info("chat.message.process.started", "Async chat processing started", {
     workspaceId,
     conversationId,
     messageId,
@@ -194,7 +195,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     streamUrl: `/api/chat/stream/${messageId}`,
   };
 
-  logInfo("chat.message.ingress.completed", "Chat message ingress completed", {
+  log.info("chat.message.ingress.completed", "Chat message ingress completed", {
     workspaceId,
     conversationId,
     messageId,

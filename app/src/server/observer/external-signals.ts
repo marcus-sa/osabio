@@ -6,7 +6,7 @@
  */
 import type { Surreal } from "surrealdb";
 import { RecordId } from "surrealdb";
-import { logError, logInfo } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +92,7 @@ export async function checkCiStatus(
     });
 
     if (!response.ok) {
-      logInfo("observer.ci_check.http_error", "GitHub API returned non-OK", {
+      log.info("observer.ci_check.http_error", "GitHub API returned non-OK", {
         status: response.status,
         sha,
         repository,
@@ -105,7 +105,7 @@ export async function checkCiStatus(
 
     return { sha, repository, ciStatus, source: "github" };
   } catch (error) {
-    logError("observer.ci_check.failed", "Failed to check CI status", error);
+    log.error("observer.ci_check.failed", "Failed to check CI status", error);
     return { sha, repository, ciStatus: "unknown", source: "github" };
   }
 }

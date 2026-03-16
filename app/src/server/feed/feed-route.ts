@@ -9,13 +9,14 @@ import type {
   ObservationSeverity,
 } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { jsonError, jsonResponse, toIsoString } from "../http/response";
 import { listWorkspaceOpenObservations } from "../observation/queries";
 import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import { listWorkspacePendingLearnings } from "../learning/queries";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
+import { log } from "../telemetry/logger";
 import {
   listAgentAttentionSessions,
   listBlockedTasks,
@@ -47,20 +48,20 @@ export function createFeedRouteHandler(
 
 async function handleFeed(deps: ServerDependencies, workspaceId: string): Promise<Response> {
   const startedAt = performance.now();
-  logInfo("feed.started", "Governance feed request started", { workspaceId });
+  log.info("feed.started", "Governance feed request started", { workspaceId });
 
   let workspaceRecord: RecordId<"workspace", string>;
   try {
     workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("feed.workspace_resolve.http_error", "Feed workspace resolve failed", {
+      log.warn("feed.workspace_resolve.http_error", "Feed workspace resolve failed", {
         workspaceId,
         statusCode: error.status,
       });
       return jsonError(error.message, error.status);
     }
-    logError("feed.workspace_resolve.failed", "Feed workspace resolve failed", error, { workspaceId });
+    log.error("feed.workspace_resolve.failed", "Feed workspace resolve failed", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -343,7 +344,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       updatedAt: new Date().toISOString(),
     };
 
-    logInfo("feed.completed", "Governance feed request completed", {
+    log.info("feed.completed", "Governance feed request completed", {
       workspaceId,
       blockingCount: blocking.length,
       reviewCount: review.length,
@@ -353,7 +354,7 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
 
     return jsonResponse(payload, 200);
   } catch (error) {
-    logError("feed.failed", "Governance feed request failed", error, { workspaceId });
+    log.error("feed.failed", "Governance feed request failed", error, { workspaceId });
     const message = error instanceof Error ? error.message : "feed request failed";
     return jsonError(message, 500);
   }

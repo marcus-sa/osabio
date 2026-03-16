@@ -3,7 +3,7 @@ import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 
 import { RecordId } from "surrealdb";
 import type { OnboardingAction, SubagentTrace } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs, logError, logInfo, logWarn } from "../http/observability";
+import { elapsedMs } from "../http/observability";
 import { jsonError } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import type { ConversationRow, WorkspaceRow } from "../extraction/types";
@@ -20,6 +20,7 @@ import { loadBranchChain } from "./branch-chain";
 import { persistSubagentTrace } from "./trace-loader";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 type ChatRequestBody = {
   messages: UIMessage[];
@@ -230,7 +231,7 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       stopWhen: stepCountIs(5),
     });
 
-    logInfo("chat.route.streaming", "Streaming chat response", {
+    log.info("chat.route.streaming", "Streaming chat response", {
       conversationId,
       messageId,
       workspaceId: body.workspaceId,
@@ -277,7 +278,7 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
                 persistSubagentTrace(deps.surreal, assistantMessageRecord, workspaceRecord, actorRecord, trace),
               ),
             ).catch((err) => {
-              logError("chat.route.trace_persist_failed", "Failed to persist subagent traces", { error: String(err) });
+              log.error("chat.route.trace_persist_failed", "Failed to persist subagent traces", { error: String(err) });
             }),
           );
         }
@@ -298,7 +299,7 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
           entities: [],
         }).catch(() => undefined));
 
-        logInfo("chat.route.completed", "Chat response completed", {
+        log.info("chat.route.completed", "Chat response completed", {
           conversationId,
           messageId,
           workspaceId: body.workspaceId,
@@ -314,13 +315,13 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
     });
   } catch (error) {
     if (error instanceof HttpError) {
-      logWarn("chat.route.http_error", "Chat route failed with client-facing error", {
+      log.warn("chat.route.http_error", "Chat route failed with client-facing error", {
         statusCode: error.status,
       });
       return jsonError(error.message, error.status);
     }
 
-    logError("chat.route.failed", "Chat route failed", error, {
+    log.error("chat.route.failed", "Chat route failed", error, {
       conversationId,
       messageId,
       durationMs: elapsedMs(startedAt),
