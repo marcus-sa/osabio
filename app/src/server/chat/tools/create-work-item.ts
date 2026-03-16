@@ -13,8 +13,8 @@ import { seedDescriptionEntry } from "../../descriptions/persist";
 import { fireDescriptionUpdates } from "../../descriptions/triggers";
 import { ensureProjectFeatureEdge } from "../../workspace/workspace-scope";
 import { requireAuthorizedContext } from "../../iam/authority";
-import { logError } from "../../http/observability";
 import type { ChatToolDeps } from "./types";
+import { log } from "../../telemetry/logger";
 
 export function createCreateWorkItemTool(deps: ChatToolDeps) {
   return tool({
@@ -118,7 +118,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
               })
               .output("after");
           } catch (err) {
-            logError("create_work_item", `failed to link task to project "${input.project}"`, err);
+            log.error("create_work_item", `failed to link task to project "${input.project}"`, err);
           }
         }
 
@@ -178,7 +178,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
             },
           }).catch(() => undefined);
         } catch (err) {
-          logError("create_work_item", `failed to link feature to project "${input.project}"`, err);
+          log.error("create_work_item", `failed to link feature to project "${input.project}"`, err);
         }
       }
 

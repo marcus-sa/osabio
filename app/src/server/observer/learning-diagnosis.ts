@@ -14,15 +14,17 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import { generateObject, type LanguageModel } from "ai";
-import { logError, logInfo } from "../http/observability";
 import { rootCauseSchema, type RootCauseClassification } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
 import { cosineSimilarity, createEmbeddingVector } from "../graph/embeddings";
 import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
 import type { embed } from "ai";
+import { log } from "../telemetry/logger";
 
 type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
@@ -305,7 +307,7 @@ async function checkLearningCoverage(
   );
 
   if (learningStatus === "active") {
-    logInfo("observer.learning.coverage_fallback", "Fallback coverage check", {
+    log.info("observer.learning.coverage_fallback", "Fallback coverage check", {
       activeLearningsCount: (learnings ?? []).length,
       workspaceId: workspaceRecord.id,
     });
@@ -429,12 +431,14 @@ export async function classifyRootCause(
       model,
       system: OBSERVER_IDENTITY,
       schema: rootCauseSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS),
       prompt,
       abortSignal: AbortSignal.timeout(CLASSIFICATION_TIMEOUT_MS),
     });
 
     const latencyMs = Date.now() - start;
-    logInfo("observer.llm.root_cause", "Root cause classification completed", {
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS, result.usage, latencyMs);
+    log.info("observer.llm.root_cause", "Root cause classification completed", {
       latencyMs,
       category: result.object.category,
       confidence: result.object.confidence,
@@ -444,7 +448,8 @@ export async function classifyRootCause(
     return result.object;
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.root_cause_error", "Root cause classification failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_LEARNING_DIAGNOSIS, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.root_cause_error", "Root cause classification failed", {
       error,
       latencyMs,
     });
@@ -653,7 +658,7 @@ export async function proposeBehaviorLearning(
   });
 
   if (result.created) {
-    logInfo("observer.behavior.learning_proposed", "Learning proposed from behavior trend", {
+    log.info("observer.behavior.learning_proposed", "Learning proposed from behavior trend", {
       identityId: input.identityId,
       metricType: input.metricType,
       trendPattern: input.trendPattern,
@@ -662,7 +667,7 @@ export async function proposeBehaviorLearning(
     return { created: true, learningRecord: result.learningRecord };
   }
 
-  logInfo("observer.behavior.learning_blocked", "Behavior learning proposal blocked", {
+  log.info("observer.behavior.learning_blocked", "Behavior learning proposal blocked", {
     identityId: input.identityId,
     metricType: input.metricType,
     reason: result.reason,
@@ -711,7 +716,7 @@ async function processUncoveredCluster(
   const classification = await classifyRootCause(model, cluster, existingLearnings);
 
   if (!classification) {
-    logInfo("observer.learning.classification_skipped", "Skipping cluster due to failed LLM classification", {
+    log.info("observer.learning.classification_skipped", "Skipping cluster due to failed LLM classification", {
       clusterSize: cluster.clusterSize,
       representativeText: cluster.representativeText.slice(0, 100),
     });
@@ -736,7 +741,7 @@ async function processUncoveredCluster(
     });
 
     if (result.created) {
-      logInfo("observer.learning.proposed", "Learning proposed from root cause analysis", {
+      log.info("observer.learning.proposed", "Learning proposed from root cause analysis", {
         category: classification.category,
         confidence: classification.confidence,
         learningType: classification.proposed_learning_type,
@@ -745,7 +750,7 @@ async function processUncoveredCluster(
       return { proposed: true };
     }
 
-    logInfo("observer.learning.gate_blocked", "Learning proposal blocked by safety gate", {
+    log.info("observer.learning.gate_blocked", "Learning proposal blocked by safety gate", {
       reason: result.reason,
     });
     return { proposed: false };
@@ -762,7 +767,7 @@ async function processUncoveredCluster(
     now: new Date(),
   });
 
-  logInfo("observer.learning.low_confidence", "Pattern observed but confidence too low for learning proposal", {
+  log.info("observer.learning.low_confidence", "Pattern observed but confidence too low for learning proposal", {
     category: classification.category,
     confidence: classification.confidence,
     shouldPropose: classification.should_propose_learning,
@@ -846,7 +851,7 @@ export async function runDiagnosticClustering(
     );
 
     if (coverage.covered) {
-      logInfo("observer.learning.coverage_skip", "Cluster pattern already covered by active learning", {
+      log.info("observer.learning.coverage_skip", "Cluster pattern already covered by active learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: coverage.matchedLearningText,
         similarity: coverage.similarity,
@@ -863,7 +868,7 @@ export async function runDiagnosticClustering(
     );
 
     if (dismissedCheck.covered) {
-      logInfo("observer.learning.dismissed_skip", "Cluster pattern matches a previously dismissed learning", {
+      log.info("observer.learning.dismissed_skip", "Cluster pattern matches a previously dismissed learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: dismissedCheck.matchedLearningText,
         similarity: dismissedCheck.similarity,

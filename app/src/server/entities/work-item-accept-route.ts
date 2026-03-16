@@ -3,7 +3,6 @@ import { RecordId } from "surrealdb";
 import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { logError, logInfo } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import { createEmbeddingVector } from "../graph/embeddings";
 import { createProjectRecord, resolveWorkspaceProjectRecord } from "../graph/queries";
@@ -12,6 +11,7 @@ import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import type { ServerDependencies } from "../runtime/types";
 import { seedDescriptionEntry } from "../descriptions/persist";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
+import { log } from "../telemetry/logger";
 
 const acceptWorkItemSchema = z.object({
   kind: z.enum(["task", "feature", "project"]),
@@ -55,7 +55,7 @@ async function handleAcceptWorkItem(
     if (error instanceof HttpError) {
       return jsonError(error.message, error.status);
     }
-    logError("work-item.accept.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
+    log.error("work-item.accept.workspace_resolve.failed", "Failed to resolve workspace", error, { workspaceId });
     return jsonError("failed to resolve workspace", 500);
   }
 
@@ -105,7 +105,7 @@ async function handleAcceptWorkItem(
         text: item.rationale,
       }).catch(() => undefined));
 
-      logInfo("work-item.accept.task.created", "Task created from work item suggestion", {
+      log.info("work-item.accept.task.created", "Task created from work item suggestion", {
         workspaceId,
         entityId,
         title: item.title,
@@ -133,7 +133,7 @@ async function handleAcceptWorkItem(
         text: item.rationale,
       }).catch(() => undefined));
 
-      logInfo("work-item.accept.project.created", "Project created from work item suggestion", {
+      log.info("work-item.accept.project.created", "Project created from work item suggestion", {
         workspaceId,
         entityId: projectRecord.id as string,
         title: item.title,
@@ -183,7 +183,7 @@ async function handleAcceptWorkItem(
       text: item.rationale,
     }).catch(() => undefined));
 
-    logInfo("work-item.accept.feature.created", "Feature created from work item suggestion", {
+    log.info("work-item.accept.feature.created", "Feature created from work item suggestion", {
       workspaceId,
       entityId,
       title: item.title,
@@ -191,7 +191,7 @@ async function handleAcceptWorkItem(
 
     return jsonResponse({ entityId: `feature:${entityId}` }, 201);
   } catch (error) {
-    logError("work-item.accept.failed", "Failed to accept work item", error, {
+    log.error("work-item.accept.failed", "Failed to accept work item", error, {
       workspaceId,
       kind: item.kind,
       title: item.title,

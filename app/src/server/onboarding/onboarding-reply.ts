@@ -3,6 +3,8 @@ import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import type { EntityKind, OnboardingState } from "../../shared/contracts";
 import { loadOnboardingSummary } from "./onboarding-state";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
 
 type MessageContextRow = {
   id: RecordId<"message", string>;
@@ -113,6 +115,7 @@ export async function generateOnboardingAssistantReply(input: {
   const assistantResponse = await generateObject({
     model: input.chatAgentModel,
     schema: assistantReplySchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.ONBOARDING),
     system: systemPrompt,
     prompt: [
       "Return JSON with this shape: { message: string, suggestions: string[] }.",

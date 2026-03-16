@@ -1,0 +1,191 @@
+journey:
+  name: "Investigating a Failed Agent Action"
+  goal: "Determine whether an agent's autonomous action was justified by sound reasoning, and take corrective action if not"
+  persona: "Carla Navarro, workspace admin managing 3 projects, reviews Observer findings daily"
+  jobs_served:
+    - "J1: Forensic Debugging"
+    - "J2: Drift Detection"
+    - "J3: Audit/Compliance"
+
+  emotional_arc:
+    start: "Frustrated/Confused -- agent took unexpected action, no visibility into why"
+    middle: "Focused/Hopeful -- reasoning is available, reading chain-of-thought"
+    end: "Relieved/Confident -- root cause identified, corrective action clear"
+
+steps:
+  - id: 1
+    name: "Trigger: Conflict Observation in Feed"
+    action: "Carla reviews governance feed and sees conflict-severity observation"
+    actor: "workspace_admin"
+
+    shared_artifacts:
+      - name: "observation_id"
+        source: "observation table (SurrealDB)"
+        displayed_as: "${observation_id}"
+        consumers: ["feed card", "observation detail", "trace navigation"]
+      - name: "observation_text"
+        source: "observation.text field"
+        displayed_as: "${observation_text}"
+        consumers: ["feed card", "observation detail"]
+      - name: "severity"
+        source: "observation.severity field"
+        displayed_as: "${severity}"
+        consumers: ["feed card badge", "observation detail header"]
+      - name: "confidence"
+        source: "observation.confidence field"
+        displayed_as: "${confidence}"
+        consumers: ["feed card", "observation detail", "drift analysis"]
+
+    emotional_state:
+      entry: "Frustrated/Concerned -- agent flagged something, unclear if real"
+      exit: "Curious -- wants to investigate deeper"
+
+    integration_checkpoint: |
+      Feed card must display observation severity, text preview, confidence, and evidence ref count.
+      Data source: listWorkspaceOpenObservations() in observation/queries.ts.
+
+  - id: 2
+    name: "Locate: Open Observation Detail"
+    action: "Carla clicks into observation detail view"
+    actor: "workspace_admin"
+
+    shared_artifacts:
+      - name: "evidence_refs"
+        source: "observation.evidence_refs field (array<record>)"
+        displayed_as: "${evidence_refs}"
+        consumers: ["observation detail", "reasoning panel cross-reference"]
+      - name: "linked_decision_id"
+        source: "evidence_refs[n] where table = decision"
+        displayed_as: "${linked_decision_id}"
+        consumers: ["observation detail", "decision navigation"]
+      - name: "linked_task_id"
+        source: "evidence_refs[n] where table = task"
+        displayed_as: "${linked_task_id}"
+        consumers: ["observation detail", "task navigation"]
+
+    emotional_state:
+      entry: "Focused -- reading the observation scope"
+      exit: "Anticipating -- 'View Logic' button visible"
+
+    integration_checkpoint: |
+      Observation detail must show: text, severity, confidence, evidence_refs resolved to entity titles,
+      observation_type, verified status, source agent, source (llm/deterministic_fallback/github).
+      'View Logic' toggle visible when observation has reasoning field.
+
+  - id: 3
+    name: "Examine: Toggle View Logic"
+    action: "Carla clicks 'View Logic' to reveal LLM chain-of-thought"
+    actor: "workspace_admin"
+
+    shared_artifacts:
+      - name: "llm_reasoning_text"
+        source: "observation.reasoning field (NEW)"
+        displayed_as: "${llm_reasoning_text}"
+        consumers: ["reasoning panel", "Observer self-calibration queries"]
+      - name: "trace_link"
+        source: "observation -> trace linkage (via source_session -> invoked -> trace)"
+        displayed_as: "${trace_link}"
+        consumers: ["reasoning panel model stats link"]
+
+    emotional_state:
+      entry: "Anticipating -- about to see the 'why'"
+      exit: "Relieved/Illuminated -- reasoning is specific and references evidence"
+
+    integration_checkpoint: |
+      Reasoning panel must display: full reasoning text, model identifier (from linked trace),
+      trace link for model stats. Handle gracefully: missing reasoning (legacy),
+      deterministic_fallback source (no LLM reasoning), missing trace.
+
+  - id: 4
+    name: "Diagnose: Evaluate Reasoning Validity"
+    action: "Carla reads reasoning, cross-references with linked entities"
+    actor: "workspace_admin"
+
+    emotional_state:
+      entry: "Analytical -- applying judgment"
+      exit: "Decided -- knows whether finding is valid or false positive"
+
+    integration_checkpoint: |
+      Linked entity titles in evidence_refs must be clickable to navigate to entity detail.
+      Reasoning text must reference entity IDs that match evidence_refs.
+
+  - id: 5a
+    name: "Resolve: Acknowledge Valid Finding"
+    action: "Carla acknowledges observation and creates remediation task"
+    actor: "workspace_admin"
+
+    emotional_state:
+      entry: "Productive -- acting on valid finding"
+      exit: "Satisfied -- system caught a real issue"
+
+    integration_checkpoint: |
+      Acknowledge action calls acknowledgeObservation() in observation/queries.ts.
+      Task creation links back to observation via observes edge.
+
+  - id: 5b
+    name: "Correct: Resolve False Positive"
+    action: "Carla resolves observation as false positive"
+    actor: "workspace_admin"
+
+    emotional_state:
+      entry: "Mildly frustrated -- false positive"
+      exit: "Constructive -- diagnosis was fast, pattern noted"
+
+    integration_checkpoint: |
+      Resolve action calls resolveObservation() in observation/queries.ts.
+      False positive resolution should be trackable for drift detection.
+
+parallel_journeys:
+  - name: "Observer Self-Calibration"
+    actor: "observer_agent"
+    trigger: "Scheduled graph scan or behavior scoring cycle"
+    steps:
+      - "Query recent observations with reasoning field populated"
+      - "Analyze reasoning quality metrics (length, evidence density, confidence distribution)"
+      - "Compare against historical baseline"
+      - "If degradation detected, create observation about own drift"
+    shared_artifacts_consumed:
+      - "observation.reasoning (query: WHERE reasoning != NONE)"
+      - "observation.confidence"
+      - "observation.source"
+
+  - name: "Behavior Scorer Audit"
+    actor: "behavior_scorer"
+    trigger: "Behavior scoring cycle for Observer agent"
+    steps:
+      - "Load recent observations with reasoning"
+      - "Evaluate reasoning against behavior definition criteria"
+      - "Score and record trend"
+    shared_artifacts_consumed:
+      - "observation.reasoning"
+      - "observation.evidence_refs"
+
+error_paths:
+  - id: "E1"
+    name: "Legacy Observation Without Reasoning"
+    trigger: "Observation created before feature deployment"
+    behavior: "View Logic shows 'No reasoning recorded' message with trace link fallback"
+
+  - id: "E2"
+    name: "LLM Call Failed During Verification"
+    trigger: "generateVerificationVerdict() returned undefined"
+    behavior: "Observation has source='deterministic_fallback', View Logic shows fallback explanation"
+
+  - id: "E3"
+    name: "Trace Record Missing"
+    trigger: "Trace pruned or failed to persist"
+    behavior: "Model stats unavailable, reasoning panel shows reasoning text without trace link"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "observation_id"
+      must_match_across: [1, 2, 3, 4, "5a", "5b"]
+      failure_message: "Observation ID must be consistent from feed through detail through resolution"
+
+    - artifact: "reasoning"
+      must_match_across: [3, "parallel:observer_self_calibration", "parallel:behavior_scorer_audit"]
+      failure_message: "Reasoning field read by UI and programmatic consumers must be the same field on the observation table"
+
+    - artifact: "evidence_refs"
+      must_match_across: [2, 3, 4]
+      failure_message: "Evidence refs shown in detail must match those referenced in reasoning text"

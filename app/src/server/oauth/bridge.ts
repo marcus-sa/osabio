@@ -24,9 +24,9 @@ import {
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
 import { jsonResponse } from "../http/response";
-import { logError, logInfo } from "../http/observability";
 import { logAuditEvent, createAuditEvent } from "./audit";
 import { oauthErrorResponse } from "./oauth-errors";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -300,7 +300,7 @@ export function createBridgeExchangeHandler(
         evaluation: evaluationRecord,
       });
 
-      logInfo("bridge.exchange.authorized", "Bridge intent auto-approved", {
+      log.info("bridge.exchange.authorized", "Bridge intent auto-approved", {
         intentId,
       });
 
@@ -322,7 +322,7 @@ export function createBridgeExchangeHandler(
       const now = new Date();
       await recordTokenIssuance(surreal, intentId, now, tokenResult.expiresAt)
         .catch((err) => {
-          logError("bridge.exchange.update_intent", "Failed to update intent with token timestamps", err);
+          log.error("bridge.exchange.update_intent", "Failed to update intent with token timestamps", err);
         });
 
       await logAuditEvent(surreal, createAuditEvent("token_issued", {
@@ -351,7 +351,7 @@ export function createBridgeExchangeHandler(
         200,
       );
     } catch (error) {
-      logError("bridge.exchange.error", "Bridge exchange failed", error, {
+      log.error("bridge.exchange.error", "Bridge exchange failed", error, {
         personId,
       });
       return oauthErrorResponse("server_error", "Internal server error", 500);

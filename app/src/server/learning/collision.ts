@@ -12,7 +12,9 @@
 import { generateObject } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
-import { logInfo, logWarn } from "../http/observability";
+import { createTelemetryConfig } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -155,7 +157,7 @@ export async function checkCollisions(input: {
 
   const hasBlockingCollision = collisions.some((c) => c.blocking);
 
-  logInfo("learning.collision.checked", "Collision check completed", {
+  log.info("learning.collision.checked", "Collision check completed", {
     totalCollisions: collisions.length,
     hasBlockingCollision,
     learningCollisions: collisions.filter((c) => c.targetKind === "learning").length,
@@ -180,6 +182,7 @@ async function classifyWithLlm(
       model: model as any,
       schema: classificationSchema,
       temperature: 0.1,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.EXTRACTION),
       abortSignal: AbortSignal.timeout(30_000),
       prompt: [
         `Given learning A: "${learningText}"`,
@@ -194,7 +197,7 @@ async function classifyWithLlm(
     return result.object;
   } catch (error) {
     // Fail-safe: default to "contradicts" when LLM unavailable
-    logWarn("learning.collision.llm_failed", "LLM classification failed, defaulting to contradicts", {
+    log.warn("learning.collision.llm_failed", "LLM classification failed, defaulting to contradicts", {
       error: error instanceof Error ? error.message : String(error),
     });
     return {

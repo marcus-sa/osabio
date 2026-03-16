@@ -1,0 +1,197 @@
+events:
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:34:34Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:34:48Z'
+- d: 'NOT_APPLICABLE: acceptance tests exercise full persistence round-trip for reasoning
+    field; pure pipeline threading is minimal wiring'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-01
+  t: '2026-03-16T15:35:02Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:36:43Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-01
+  t: '2026-03-16T15:37:19Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-16T15:40:58Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-16T15:41:00Z'
+- d: 'NOT_APPLICABLE: peer review reasoning already wired by step 01-01'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-02
+  t: '2026-03-16T15:41:15Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-02
+  t: '2026-03-16T15:41:16Z'
+- d: 'NOT_APPLICABLE: no code changes made, peer review reasoning already wired by
+    step 01-01'
+  p: COMMIT
+  s: SKIPPED
+  sid: 01-02
+  t: '2026-03-16T15:41:17Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-16T15:44:30Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-16T15:44:45Z'
+- d: 'NOT_APPLICABLE: changes are pure wiring in graph-scan.ts threading existing LLM
+    reasoning fields to createObservation calls; acceptance tests cover persistence
+    round-trip'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-03
+  t: '2026-03-16T15:44:50Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-16T15:45:20Z'
+- d: 'PASS: commit dc3248c2'
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-16T15:45:40Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-16T15:48:00Z'
+- d: 'PASS: 9 fail, 4 pass — schema rejects llm_reasoning field (not yet defined)'
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-16T15:48:16Z'
+- d: 'NOT_APPLICABLE: acceptance tests cover full DB round-trip for llm_reasoning persistence,
+    policy-only absence, status transitions, and multi-intent independence; no additional
+    unit properties needed'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-16T15:48:20Z'
+- d: 'PASS: 13 pass, 0 fail — migration 0051, schema field, types, evaluator schema,
+    query wiring'
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-16T15:50:10Z'
+- d: 'PASS: commit f595d153'
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-16T15:50:30Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-16T15:53:00Z'
+- d: 'PASS: 12 pass, 0 fail — existing observation-reasoning tests confirm createObservation
+    reasoning parameter works'
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-16T15:53:20Z'
+- d: 'NOT_APPLICABLE: changes are pure wiring in trace-response-analyzer.ts threading
+    LLM verification reasoning to createObservation calls; acceptance tests cover persistence
+    round-trip'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-04
+  t: '2026-03-16T15:53:25Z'
+- d: 'PASS: 12 pass, 0 fail — threaded verdict.reasoning and missingResult.reasoning
+    to createObservation, added reasoning field to verifyMissingDecision schema'
+  p: GREEN
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-16T15:53:40Z'
+- d: 'PASS: commit 4e8455bc'
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-16T15:53:50Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:56:00Z'
+- d: 'PASS: 13 pass, 2 skip, 0 fail — all non-skipped reasoning query tests green'
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:56:30Z'
+- d: 'NOT_APPLICABLE: acceptance tests exercise full DB round-trip for reasoning queries
+    including filtering, ordering, limits, time-range, workspace scope, and edge cases;
+    no additional unit properties needed'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 03-01
+  t: '2026-03-16T15:56:35Z'
+- d: 'PASS: 13 pass, 2 skip, 0 fail — added listObservationsWithReasoning and listObservationsWithoutReasoning
+    production query functions to observation/queries.ts, typecheck clean'
+  p: GREEN
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:57:30Z'
+- d: 'PASS: commit 0e7174fd'
+  p: COMMIT
+  s: EXECUTED
+  sid: 03-01
+  t: '2026-03-16T15:58:00Z'
+- d: 'PASS: explored client component structure, identified EntityDetailPanel as integration
+    point, confirmed @base-ui/react collapsible primitive available'
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-16T16:00:00Z'
+- d: 'NOT_APPLICABLE: UI component step — no acceptance test file view-logic-panel.test.ts
+    exists, project has no React component testing infrastructure'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-16T16:00:10Z'
+- d: 'NOT_APPLICABLE: UI component with no component testing setup; deriveReasoningSource
+    is pure but tested implicitly through visual integration'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-16T16:00:15Z'
+- d: 'PASS: created collapsible.tsx UI primitive, reasoning-panel.tsx shared component
+    with three states (available/deterministic/legacy), integrated into EntityDetailPanel
+    for observation and intent kinds, typecheck clean'
+  p: GREEN
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-16T16:02:00Z'
+- d: 'PASS: commit 767a9712'
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-16T16:02:30Z'
+project_id: intent-llm-traces
+schema_version: '3.0'

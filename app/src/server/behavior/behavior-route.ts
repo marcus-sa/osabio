@@ -4,7 +4,6 @@
  * Thin composition layer: parses HTTP requests, delegates to query functions,
  * returns JSON responses. No domain logic lives here.
  */
-import { logError } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import {
@@ -23,6 +22,7 @@ import type {
 } from "./definition-types";
 import { matchDefinitions } from "./definition-matcher";
 import { dispatchScoring, type ScoredResult } from "./scorer-dispatcher";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Response serialization (pure)
@@ -110,7 +110,7 @@ async function handleListBehaviors(
       behaviors: records.map(serializeBehavior),
     }, 200);
   } catch (error) {
-    logError("behavior.list.failed", "Failed to list behaviors", error, { workspaceId });
+    log.error("behavior.list.failed", "Failed to list behaviors", error, { workspaceId });
     return jsonError("failed to list behaviors", 500);
   }
 }
@@ -180,7 +180,7 @@ async function handleScoreTelemetry(
       matched_definitions: matched.length,
     }, 200);
   } catch (error) {
-    logError("behavior.score.failed", "Failed to score telemetry", error, { workspaceId });
+    log.error("behavior.score.failed", "Failed to score telemetry", error, { workspaceId });
     return jsonError("failed to score telemetry", 500);
   }
 }
@@ -235,7 +235,7 @@ async function handleCreateDefinition(
 
     return jsonResponse({ definition: serializeDefinition(record) }, 201);
   } catch (error) {
-    logError("behavior.definition.create.failed", "Failed to create behavior definition", error, { workspaceId });
+    log.error("behavior.definition.create.failed", "Failed to create behavior definition", error, { workspaceId });
     return jsonError("failed to create behavior definition", 500);
   }
 }
@@ -259,7 +259,7 @@ async function handleListDefinitions(
       definitions: records.map(serializeDefinition),
     }, 200);
   } catch (error) {
-    logError("behavior.definition.list.failed", "Failed to list behavior definitions", error, { workspaceId });
+    log.error("behavior.definition.list.failed", "Failed to list behavior definitions", error, { workspaceId });
     return jsonError("failed to list behavior definitions", 500);
   }
 }
@@ -279,7 +279,7 @@ async function handleGetDefinition(
 
     return jsonResponse({ definition: serializeDefinition(record) }, 200);
   } catch (error) {
-    logError("behavior.definition.get.failed", "Failed to get behavior definition", error, { definitionId });
+    log.error("behavior.definition.get.failed", "Failed to get behavior definition", error, { definitionId });
     return jsonError("failed to get behavior definition", 500);
   }
 }
@@ -317,7 +317,7 @@ async function handleUpdateDefinition(
     const message = error instanceof Error ? error.message : "unknown error";
     if (message.includes("not found")) return jsonError(message, 404);
     if (message.includes("Invalid status transition")) return jsonError(message, 422);
-    logError("behavior.definition.update.failed", "Failed to update behavior definition", error, { definitionId });
+    log.error("behavior.definition.update.failed", "Failed to update behavior definition", error, { definitionId });
     return jsonError("failed to update behavior definition", 500);
   }
 }

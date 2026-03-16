@@ -7,9 +7,11 @@
  */
 
 import { generateObject, type LanguageModel } from "ai";
-import { logError, logInfo } from "../http/observability";
 import { anomalyEvaluationResultSchema, contradictionDetectionResultSchema, synthesisResultSchema, type AnomalyEvaluation, type DetectedContradiction, type SynthesisPattern } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 export type Anomaly = {
   type: "contradiction" | "stale_blocked" | "status_drift";
@@ -41,6 +43,7 @@ export async function synthesizePatterns(
     const result = await generateObject({
       model,
       schema: synthesisResultSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_SYNTHESIS),
       prompt: `You are a pattern synthesis agent analyzing workspace anomalies to identify systemic patterns.
 
 ## Anomalies Detected
@@ -63,7 +66,8 @@ Rules:
     });
 
     const latencyMs = Date.now() - start;
-    logInfo("observer.llm.synthesis", "LLM pattern synthesis completed", {
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
+    log.info("observer.llm.synthesis", "LLM pattern synthesis completed", {
       latencyMs,
       patternCount: result.object.patterns.length,
     });
@@ -72,7 +76,8 @@ Rules:
     return result.object.patterns.filter((p) => p.contributing_entities.length >= 2);
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.synthesis_error", "LLM pattern synthesis failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.synthesis_error", "LLM pattern synthesis failed", {
       error,
       latencyMs,
     });
@@ -121,6 +126,7 @@ export async function detectContradictions(
     const result = await generateObject({
       model,
       schema: contradictionDetectionResultSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_SYNTHESIS),
       prompt: `You are an observer agent scanning a workspace knowledge graph for contradictions between confirmed decisions and completed tasks.
 
 ## Confirmed Decisions
@@ -146,7 +152,8 @@ Rules:
     });
 
     const latencyMs = Date.now() - start;
-    logInfo("observer.llm.contradiction_detection", "LLM contradiction detection completed", {
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
+    log.info("observer.llm.contradiction_detection", "LLM contradiction detection completed", {
       latencyMs,
       contradictionCount: result.object.contradictions.length,
     });
@@ -154,7 +161,8 @@ Rules:
     return result.object.contradictions;
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.contradiction_detection_error", "LLM contradiction detection failed", {
       error,
       latencyMs,
     });
@@ -196,6 +204,7 @@ export async function evaluateAnomalies(
       model,
       system: OBSERVER_IDENTITY,
       schema: anomalyEvaluationResultSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_SYNTHESIS),
       prompt: `You are evaluating workspace anomalies to determine which ones genuinely warrant human attention and which are likely false positives.
 
 ## Anomaly Candidates
@@ -219,8 +228,9 @@ Return an evaluation for EVERY candidate. Use the exact entity_ref from the list
     });
 
     const latencyMs = Date.now() - start;
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_SYNTHESIS, result.usage, latencyMs);
     const relevantCount = result.object.evaluations.filter((e) => e.relevant).length;
-    logInfo("observer.llm.anomaly_evaluation", "LLM anomaly evaluation completed", {
+    log.info("observer.llm.anomaly_evaluation", "LLM anomaly evaluation completed", {
       latencyMs,
       candidateCount: candidates.length,
       relevantCount,
@@ -230,7 +240,8 @@ Return an evaluation for EVERY candidate. Use the exact entity_ref from the list
     return result.object.evaluations;
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.anomaly_evaluation_error", "LLM anomaly evaluation failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_SYNTHESIS, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.anomaly_evaluation_error", "LLM anomaly evaluation failed", {
       error,
       latencyMs,
     });

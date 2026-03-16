@@ -14,7 +14,6 @@
  */
 import { RecordId } from "surrealdb";
 import { jsonResponse } from "../http/response";
-import { logInfo } from "../http/observability";
 import {
   generateProxyToken,
   hashProxyToken,
@@ -22,6 +21,7 @@ import {
   readProxyTokenTtlDays,
 } from "./proxy-token-core";
 import type { ServerDependencies } from "../runtime/types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Request Parsing (pure)
@@ -184,7 +184,7 @@ export function createProxyTokenHandler(
 
     await rotateProxyToken(deps.surreal, tokenHash, identityId, workspaceId, expiresAt);
 
-    logInfo("proxy.token.issued", "Proxy token issued", {
+    log.info("proxy.token.issued", "Proxy token issued", {
       workspace_id: workspaceId,
       identity_id: identityId,
       ttl_days: ttlDays,

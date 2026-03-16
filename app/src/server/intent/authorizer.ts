@@ -204,7 +204,10 @@ const evaluationResultSchema = z.object({
     "Risk score from 0 (no risk) to 100 (maximum risk). Consider: scope breadth, resource cost, reversibility, privilege level.",
   ),
   reason: z.string().describe(
-    "Brief explanation of the evaluation decision and risk factors.",
+    "Brief one-line summary of the evaluation decision and risk factors.",
+  ),
+  reasoning: z.string().describe(
+    "Full chain-of-thought reasoning: walk through each risk factor, explain your analysis step by step, then state your conclusion. This is persisted for audit and forensic review.",
   ),
 });
 

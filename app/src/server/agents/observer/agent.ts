@@ -12,7 +12,6 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel, embed } from "ai";
 import { createObservation, type ObserveTargetRecord } from "../../observation/queries";
 import { queryExistingObserverObservationsForEntity } from "../../observer/graph-scan";
-import { logInfo, logError } from "../../http/observability";
 import { gatherTaskSignals } from "../../observer/external-signals";
 import { checkCiStatus } from "../../observer/external-signals";
 import {
@@ -32,6 +31,7 @@ import { buildEntityContext } from "../../observer/context-loader";
 import { generateVerificationVerdict, generatePeerReviewVerdict } from "../../observer/llm-reasoning";
 import { parseEntityRef } from "../../observer/evidence-validator";
 import { runDiagnosticClustering } from "../../observer/learning-diagnosis";
+import { log } from "../../telemetry/logger";
 
 type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
@@ -149,7 +149,7 @@ async function verifyTask(input: ObserverAgentInput): Promise<ObserverAgentOutpu
     const skipDeterministic = await loadWorkspaceSkipSetting(surreal, workspaceRecord);
 
     if (shouldSkipLlm(deterministicResult, skipDeterministic)) {
-      logInfo("observer.llm.skip", "LLM skipped: deterministic match + CI passing", { taskId });
+      log.info("observer.llm.skip", "LLM skipped: deterministic match + CI passing", { taskId });
     } else {
       const context = await buildEntityContext(surreal, workspaceRecord, "task", taskId, body);
 
@@ -157,7 +157,7 @@ async function verifyTask(input: ObserverAgentInput): Promise<ObserverAgentOutpu
       // Without decisions, semantic verification has nothing to compare --
       // the deterministic CI-based verdict should stand.
       if (context.relatedDecisions.length === 0) {
-        logInfo("observer.llm.skip", "LLM skipped: no related decisions to verify against", { taskId });
+        log.info("observer.llm.skip", "LLM skipped: no related decisions to verify against", { taskId });
         await persistObservation(surreal, workspaceRecord, [taskRecord as ObserveTargetRecord], deterministicResult);
         return {
           observations_created: 1,
@@ -245,7 +245,7 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
 
   // Skip initial CREATE events — only verify status transitions
   if (!body?.updated_at) {
-    logInfo("observer.decision.skipped_create", "Skipping decision CREATE event", { decisionId });
+    log.info("observer.decision.skipped_create", "Skipping decision CREATE event", { decisionId });
     return { observations_created: 0, verdict: "inconclusive", evidence: ["Skipped: CREATE event"] };
   }
 
@@ -278,7 +278,7 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
     for (let i = 0; i < verdicts.length; i++) {
       const settled = verdicts[i];
       if (settled.status === "rejected") {
-        logInfo("observer.llm.error", "LLM verification failed for task", {
+        log.info("observer.llm.error", "LLM verification failed for task", {
           taskId: taskContexts[i].taskId,
           error: String(settled.reason),
         });
@@ -296,7 +296,7 @@ async function verifyDecision(input: ObserverAgentInput): Promise<ObserverAgentO
         surreal, workspaceRecord, taskRecord as RecordId<string, string>,
       );
       if (existing.length > 0) {
-        logInfo("observer.decision.dedup", "Skipping duplicate mismatch observation", {
+        log.info("observer.decision.dedup", "Skipping duplicate mismatch observation", {
           decisionId, taskId: taskContexts[i].taskId,
         });
         continue;
@@ -349,6 +349,7 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
           source: "llm",
           confidence: llmVerdict.confidence,
           observationType: "validation",
+          reasoning: llmVerdict.reasoning,
         };
 
         await persistObservation(surreal, workspaceRecord, [observationRecord as ObserveTargetRecord], reviewResult, "llm");
@@ -360,9 +361,9 @@ async function peerReviewObservation(input: ObserverAgentInput): Promise<Observe
         };
       }
 
-      logInfo("observer.llm.fallback", "LLM peer review failed, using deterministic", { observationId });
+      log.info("observer.llm.fallback", "LLM peer review failed, using deterministic", { observationId });
     } else {
-      logInfo("observer.llm.skip", "LLM peer review skipped: no linked entities", { observationId });
+      log.info("observer.llm.skip", "LLM peer review skipped: no linked entities", { observationId });
     }
   }
 
@@ -538,6 +539,7 @@ async function persistObservation(
     evidenceRefs: evidenceRefRecords.length > 0 ? evidenceRefRecords : undefined,
     verified: result.verified,
     source: result.source ?? defaultSource,
+    reasoning: result.reasoning,
   });
 }
 
@@ -604,7 +606,7 @@ export async function checkAndEscalate(
       return;
     }
 
-    logInfo("observer.escalation.threshold_met", "Entity observation threshold met, triggering diagnostic pipeline", {
+    log.info("observer.escalation.threshold_met", "Entity observation threshold met, triggering diagnostic pipeline", {
       entityTable,
       entityId,
       observationCount,
@@ -624,7 +626,7 @@ export async function checkAndEscalate(
     );
 
     if (recentPending && recentPending.length > 0) {
-      logInfo("observer.escalation.dedup_skip", "Skipping escalation — pending observer learning exists from last 24h", {
+      log.info("observer.escalation.dedup_skip", "Skipping escalation — pending observer learning exists from last 24h", {
         entityTable,
         entityId,
         pendingLearningId: recentPending[0].id.id,
@@ -642,13 +644,13 @@ export async function checkAndEscalate(
       embeddingDimension,
     );
 
-    logInfo("observer.escalation.completed", "Event-driven diagnostic pipeline completed", {
+    log.info("observer.escalation.completed", "Event-driven diagnostic pipeline completed", {
       entityTable,
       entityId,
     });
   } catch (error) {
     // Graceful failure -- escalation is best-effort, never crashes the agent
-    logError("observer.escalation.error", "Event-driven escalation failed gracefully", {
+    log.error("observer.escalation.error", "Event-driven escalation failed gracefully", {
       entityTable,
       entityId,
       error: error instanceof Error ? error.message : String(error),

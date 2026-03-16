@@ -16,9 +16,9 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
-import { logInfo, logError } from "../http/observability";
 import { withRetry } from "./retry";
 import type { ServerDependencies } from "../runtime/types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -531,7 +531,7 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
       // Async: anomaly detection
       deps.inflight.track(
         runAnomalyDetection(deps.surreal, workspaceId).catch((err) => {
-          logError("proxy.spend.anomaly_detection_failed", "Anomaly detection failed", err);
+          log.error("proxy.spend.anomaly_detection_failed", "Anomaly detection failed", err);
         }),
       );
 
@@ -547,7 +547,7 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
               budgetCheck.budget,
               budgetCheck.pct,
             ).catch((err) => {
-              logError("proxy.spend.budget_alert_failed", "Budget alert creation failed", err);
+              log.error("proxy.spend.budget_alert_failed", "Budget alert creation failed", err);
             }),
           );
         }
@@ -555,7 +555,7 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
 
       return jsonResponse(overview, 200);
     } catch (error) {
-      logError("proxy.spend.query_failed", "Failed to build spend overview", error);
+      log.error("proxy.spend.query_failed", "Failed to build spend overview", error);
       return jsonResponse({ error: "spend_query_failed" }, 500);
     }
   };
@@ -566,7 +566,7 @@ export function createSpendApiHandlers(deps: ServerDependencies): SpendApiHandle
       const breakdown: SessionBreakdown = { sessions };
       return jsonResponse(breakdown, 200);
     } catch (error) {
-      logError("proxy.sessions.query_failed", "Failed to build session breakdown", error);
+      log.error("proxy.sessions.query_failed", "Failed to build session breakdown", error);
       return jsonResponse({ error: "session_query_failed" }, 500);
     }
   };
@@ -597,11 +597,11 @@ async function runAnomalyDetection(
   for (const anomaly of anomalies) {
     await createAnomalyObservation(surreal, workspaceId, anomaly, averageCalls)
       .catch((err) => {
-        logError("proxy.spend.anomaly_observation_failed", "Failed to create anomaly observation", err);
+        log.error("proxy.spend.anomaly_observation_failed", "Failed to create anomaly observation", err);
       });
   }
 
-  logInfo("proxy.spend.anomaly_detected", "Anomalous sessions detected", {
+  log.info("proxy.spend.anomaly_detected", "Anomalous sessions detected", {
     workspace_id: workspaceId,
     anomaly_count: anomalies.length,
   });
@@ -623,7 +623,7 @@ async function createBudgetThresholdObservationIfNew(
 
   await createBudgetThresholdObservation(surreal, workspaceId, currentSpend, budget, pct);
 
-  logInfo("proxy.spend.budget_threshold_alert", "Budget threshold alert created", {
+  log.info("proxy.spend.budget_threshold_alert", "Budget threshold alert created", {
     workspace_id: workspaceId,
     current_spend_usd: currentSpend,
     daily_budget_usd: budget,

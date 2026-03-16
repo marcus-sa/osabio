@@ -19,7 +19,7 @@ import type { embed } from "ai";
 import { z } from "zod";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
 import { createEmbeddingVector } from "../graph/embeddings";
-import { logInfo, logError } from "../http/observability";
+import { log } from "../telemetry/logger";
 
 type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
@@ -163,6 +163,8 @@ async function verifyContradiction(
   decision: DecisionCandidate,
 ): Promise<ContradictionVerdict> {
   const { generateObject } = await import("ai");
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
 
   const contradictionSchema = z.object({
     is_contradiction: z.boolean().describe("Whether the response contradicts the decision"),
@@ -173,6 +175,7 @@ async function verifyContradiction(
   const { object } = await generateObject({
     model,
     schema: contradictionSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
     prompt: `You are an AI governance observer. Determine if this LLM response contradicts a confirmed workspace decision.
 
 CONFIRMED DECISION:
@@ -204,18 +207,22 @@ Respond with is_contradiction (true/false), confidence (0.0-1.0), and brief reas
 async function verifyMissingDecision(
   model: LanguageModel,
   responseText: string,
-): Promise<{ isDecision: boolean; confidence: number; summary: string }> {
+): Promise<{ isDecision: boolean; confidence: number; summary: string; reasoning: string }> {
   const { generateObject } = await import("ai");
+  const { createTelemetryConfig } = await import("../telemetry/ai-telemetry");
+  const { FUNCTION_IDS } = await import("../telemetry/function-ids");
 
   const missingDecisionSchema = z.object({
     is_decision: z.boolean().describe("Whether the response contains an unrecorded architectural/strategic decision"),
     confidence: z.number().describe("Confidence score 0.0-1.0"),
     summary: z.string().describe("Brief summary of the decision found, or empty string"),
+    reasoning: z.string().describe("Brief explanation of why this is or is not an unrecorded decision"),
   });
 
   const { object } = await generateObject({
     model,
     schema: missingDecisionSchema,
+    experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
     prompt: `You are an AI governance observer. Determine if this LLM response contains an architectural or strategic decision that should be tracked.
 
 LLM RESPONSE:
@@ -232,13 +239,14 @@ NOT decisions:
 - Following existing instructions/conventions
 - Asking questions or presenting options without choosing
 
-Does this response contain a decision-shaped statement? Respond with is_decision, confidence (0.0-1.0), and a summary of the decision if found.`,
+Does this response contain a decision-shaped statement? Respond with is_decision, confidence (0.0-1.0), a summary of the decision if found, and reasoning explaining your analysis.`,
   });
 
   return {
     isDecision: object.is_decision,
     confidence: object.confidence,
     summary: object.summary,
+    reasoning: object.reasoning,
   };
 }
 
@@ -264,11 +272,11 @@ async function detectContradictions(
   );
 
   if (candidates.length === 0) {
-    logInfo("observer.trace.no_candidates", "No similar decisions found for trace", { traceId });
+    log.info("observer.trace.no_candidates", "No similar decisions found for trace", { traceId });
     return 0;
   }
 
-  logInfo("observer.trace.candidates_found", "KNN candidates for contradiction check", {
+  log.info("observer.trace.candidates_found", "KNN candidates for contradiction check", {
     traceId,
     candidateCount: candidates.length,
   });
@@ -281,7 +289,7 @@ async function detectContradictions(
       const verdict = await verifyContradiction(observerModel, responseText, candidate);
 
       if (!verdict.isContradiction || verdict.confidence < config.tier2ConfidenceMin) {
-        logInfo("observer.trace.not_contradicted", "Candidate not contradicted or low confidence", {
+        log.info("observer.trace.not_contradicted", "Candidate not contradicted or low confidence", {
           traceId,
           decisionId: candidate.id.id,
           isContradiction: verdict.isContradiction,
@@ -305,17 +313,18 @@ async function detectContradictions(
         confidence: verdict.confidence,
         verified: true,
         source: "llm",
+        reasoning: verdict.reasoning,
       });
 
       observationsCreated += 1;
 
-      logInfo("observer.trace.contradiction_found", "Contradiction observation created", {
+      log.info("observer.trace.contradiction_found", "Contradiction observation created", {
         traceId,
         decisionId: candidate.id.id,
         confidence: verdict.confidence,
       });
     } catch (error) {
-      logError("observer.trace.verification_error", "Tier 2 verification failed for candidate", {
+      log.error("observer.trace.verification_error", "Tier 2 verification failed for candidate", {
         traceId,
         decisionId: candidate.id.id,
         error: error instanceof Error ? error.message : String(error),
@@ -358,7 +367,7 @@ async function detectMissingDecisions(
 
     // If we found a similar existing decision, it's not "missing"
     if (existingDecisions.length > 0) {
-      logInfo("observer.trace.decision_exists", "Decision-shaped content matches existing decision", {
+      log.info("observer.trace.decision_exists", "Decision-shaped content matches existing decision", {
         traceId,
         matchedDecisionId: existingDecisions[0].id.id,
       });
@@ -378,16 +387,17 @@ async function detectMissingDecisions(
       confidence: missingResult.confidence,
       verified: true,
       source: "llm",
+      reasoning: missingResult.reasoning,
     });
 
-    logInfo("observer.trace.missing_decision", "Unrecorded decision observation created", {
+    log.info("observer.trace.missing_decision", "Unrecorded decision observation created", {
       traceId,
       summary: missingResult.summary,
     });
 
     return 1;
   } catch (error) {
-    logError("observer.trace.missing_detection_error", "Missing decision detection failed", {
+    log.error("observer.trace.missing_detection_error", "Missing decision detection failed", {
       traceId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -451,7 +461,7 @@ export async function analyzeTraceResponse(
 
   // Step 1: Check stop_reason
   if (!shouldAnalyzeTrace(undefined, traceBody)) {
-    logInfo("observer.trace.skipped", "Trace skipped: tool_use stop_reason", { traceId });
+    log.info("observer.trace.skipped", "Trace skipped: tool_use stop_reason", { traceId });
     return { observations_created: 0, skipped: true, reason: "tool_use" };
   }
 
@@ -460,14 +470,14 @@ export async function analyzeTraceResponse(
   const responseText = extractResponseText(output);
 
   if (responseText.trim().length === 0) {
-    logInfo("observer.trace.empty", "Trace skipped: no extractable text", { traceId });
+    log.info("observer.trace.empty", "Trace skipped: no extractable text", { traceId });
     return { observations_created: 0, skipped: true, reason: "empty_response" };
   }
 
   // Load intelligence config
   const config = await loadIntelligenceConfig(surreal, workspaceRecord);
   if (!config || !config.enabled) {
-    logInfo("observer.trace.config_disabled", "Trace analysis skipped: not enabled", { traceId });
+    log.info("observer.trace.config_disabled", "Trace analysis skipped: not enabled", { traceId });
     return { observations_created: 0, skipped: true, reason: "not_enabled" };
   }
 
@@ -479,7 +489,7 @@ export async function analyzeTraceResponse(
   );
 
   if (!responseEmbedding) {
-    logError("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
+    log.error("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
     return { observations_created: 0, skipped: true, reason: "embedding_failed" };
   }
 
@@ -491,7 +501,7 @@ export async function analyzeTraceResponse(
 
   const totalObservations = contradictionCount + missingCount;
 
-  logInfo("observer.trace.analysis_complete", "Trace analysis complete", {
+  log.info("observer.trace.analysis_complete", "Trace analysis complete", {
     traceId,
     contradictions: contradictionCount,
     missingDecisions: missingCount,

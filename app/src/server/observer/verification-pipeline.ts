@@ -26,6 +26,7 @@ export type VerificationResult = {
   confidence?: number;
   evidenceRefs?: string[];
   observationType?: "contradiction" | "validation";
+  reasoning?: string;
 };
 
 export type IntentStatus = "completed" | "failed" | string;
@@ -373,6 +374,7 @@ export function applyLlmVerdict(
       source: "llm",
       confidence: llmVerdict.confidence,
       evidenceRefs: llmVerdict.evidence_refs,
+      reasoning: llmVerdict.reasoning,
     };
   }
 
@@ -387,6 +389,7 @@ export function applyLlmVerdict(
       confidence: llmVerdict.confidence,
       evidenceRefs: llmVerdict.evidence_refs,
       observationType: "contradiction",
+      reasoning: llmVerdict.reasoning,
     };
   }
 
@@ -401,6 +404,7 @@ export function applyLlmVerdict(
       confidence: llmVerdict.confidence,
       evidenceRefs: llmVerdict.evidence_refs,
       observationType: "validation",
+      reasoning: llmVerdict.reasoning,
     };
   }
 
@@ -413,5 +417,6 @@ export function applyLlmVerdict(
     source: "llm",
     confidence: llmVerdict.confidence,
     evidenceRefs: llmVerdict.evidence_refs,
+    reasoning: llmVerdict.reasoning,
   };
 }

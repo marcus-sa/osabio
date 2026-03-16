@@ -16,8 +16,8 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import { jsonResponse } from "../http/response";
-import { logError } from "../http/observability";
 import type { ServerDependencies } from "../runtime/types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -332,7 +332,7 @@ export function createAuditApiHandlers(deps: ServerDependencies): AuditApiHandle
       }
       return jsonResponse(detail, 200);
     } catch (error) {
-      logError("proxy.audit.trace_detail_failed", "Failed to query trace detail", error);
+      log.error("proxy.audit.trace_detail_failed", "Failed to query trace detail", error);
       return jsonResponse({ error: "trace_detail_query_failed" }, 500);
     }
   };
@@ -360,7 +360,7 @@ export function createAuditApiHandlers(deps: ServerDependencies): AuditApiHandle
 
       return jsonResponse({ traces }, 200);
     } catch (error) {
-      logError("proxy.audit.traces_query_failed", "Failed to query traces by project", error);
+      log.error("proxy.audit.traces_query_failed", "Failed to query traces by project", error);
       return jsonResponse({ error: "traces_query_failed" }, 500);
     }
   };
@@ -386,7 +386,7 @@ export function createAuditApiHandlers(deps: ServerDependencies): AuditApiHandle
 
       return jsonResponse(summary, 200);
     } catch (error) {
-      logError("proxy.audit.compliance_check_failed", "Failed to run compliance check", error);
+      log.error("proxy.audit.compliance_check_failed", "Failed to run compliance check", error);
       return jsonResponse({ error: "compliance_check_failed" }, 500);
     }
   };

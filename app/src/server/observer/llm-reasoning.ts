@@ -7,12 +7,14 @@
  */
 
 import { generateObject, type LanguageModel } from "ai";
-import { logError, logInfo } from "../http/observability";
 import { llmVerdictSchema, parseLlmVerdict, peerReviewVerdictSchema, type LlmVerdict, type PeerReviewVerdict } from "./schemas";
 import { validateEvidenceRefs } from "./evidence-validator";
 import type { EntityContext } from "./context-loader";
 import type { VerificationResult } from "./verification-pipeline";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
+import { FUNCTION_IDS } from "../telemetry/function-ids";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Verification verdict (semantic verification)
@@ -36,6 +38,7 @@ export async function generateVerificationVerdict(
       model,
       system: OBSERVER_IDENTITY,
       schema: llmVerdictSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
       prompt: `Verify whether this entity aligns with or contradicts the confirmed decisions in its project.
 
 ## Entity Under Review
@@ -65,7 +68,8 @@ Set confidence >= 0.7 when evidence clearly supports your verdict. Use < 0.5 onl
     });
 
     const latencyMs = Date.now() - start;
-    logInfo("observer.llm.call", "LLM verification verdict generated", {
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_VERIFICATION, result.usage, latencyMs);
+    log.info("observer.llm.call", "LLM verification verdict generated", {
       latencyMs,
       verdict: result.object.verdict,
       confidence: result.object.confidence,
@@ -85,7 +89,8 @@ Set confidence >= 0.7 when evidence clearly supports your verdict. Use < 0.5 onl
     };
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.error", "LLM verification verdict failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_VERIFICATION, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.error", "LLM verification verdict failed", {
       error,
       latencyMs,
     });
@@ -117,6 +122,7 @@ export async function generatePeerReviewVerdict(
       model,
       system: OBSERVER_IDENTITY,
       schema: peerReviewVerdictSchema,
+      experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.OBSERVER_VERIFICATION),
       prompt: `Peer-review this observation from another agent. Evaluate whether its claims are grounded in the cited evidence.
 
 ## Observation Under Review
@@ -137,7 +143,8 @@ If no entities are linked, the observation has no cited evidence — verdict sho
     });
 
     const latencyMs = Date.now() - start;
-    logInfo("observer.llm.peer_review", "LLM peer review verdict generated", {
+    recordLlmMetrics(FUNCTION_IDS.OBSERVER_VERIFICATION, result.usage, latencyMs);
+    log.info("observer.llm.peer_review", "LLM peer review verdict generated", {
       latencyMs,
       verdict: result.object.verdict,
       confidence: result.object.confidence,
@@ -146,7 +153,8 @@ If no entities are linked, the observation has no cited evidence — verdict sho
     return result.object;
   } catch (error) {
     const latencyMs = Date.now() - start;
-    logError("observer.llm.peer_review_error", "LLM peer review verdict failed", {
+    recordLlmError(FUNCTION_IDS.OBSERVER_VERIFICATION, error instanceof Error ? error.constructor.name : "unknown");
+    log.error("observer.llm.peer_review_error", "LLM peer review verdict failed", {
       error,
       latencyMs,
     });

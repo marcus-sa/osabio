@@ -7,8 +7,8 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { countRecentSuggestionsByAgent, createLearning } from "./queries";
 import { cosineSimilarity } from "../graph/embeddings";
-import { logInfo } from "../http/observability";
 import type { CreateLearningInput, LearningRecord } from "./types";
+import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
 // Result types
@@ -99,7 +99,7 @@ export async function checkDismissedSimilarity(input: {
 
   for (const learning of dismissedLearnings ?? []) {
     const similarity = cosineSimilarity(input.proposedEmbedding, learning.embedding);
-    logInfo("learning.dismissed.similarity_check", "Dismissed similarity check", {
+    log.info("learning.dismissed.similarity_check", "Dismissed similarity check", {
       similarity,
       threshold: DISMISSED_SIMILARITY_THRESHOLD,
       dismissedText: learning.text.slice(0, 80),

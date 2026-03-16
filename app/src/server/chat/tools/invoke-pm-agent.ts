@@ -1,9 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { runPmAgent } from "../../agents/pm/agent";
-import { logError } from "../../http/observability";
 import { requireToolContext } from "./helpers";
 import type { ChatAgentToolDeps } from "./types";
+import { log } from "../../telemetry/logger";
 
 export function createInvokePmAgentTool(deps: ChatAgentToolDeps) {
   return tool({
@@ -28,7 +28,7 @@ export function createInvokePmAgentTool(deps: ChatAgentToolDeps) {
           conversationContext: input.context,
         });
       } catch (error) {
-        logError("tool.invoke_pm_agent.failed", "PM agent invocation failed", error, {
+        log.error("tool.invoke_pm_agent.failed", "PM agent invocation failed", error, {
           intent: input.intent,
           workspace: context.workspaceRecord.toString(),
           conversation: context.conversationRecord.toString(),
