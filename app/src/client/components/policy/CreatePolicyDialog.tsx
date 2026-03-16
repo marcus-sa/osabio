@@ -104,6 +104,7 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
       setErrors((prev) => {
         const next = { ...prev };
         if (field === "title") delete next.title;
+        if (field === "description") delete next.description;
         if (field === "rules") delete next.rules;
         delete next.submit;
         return next;
@@ -195,6 +196,7 @@ export function CreatePolicyDialog({ open, onClose }: CreatePolicyDialogProps) {
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
             />
+            {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
