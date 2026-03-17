@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7d362863fd0c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/reactive/live-select-manager.ts",
+    "schema/surreal-schema.surql",
+    "tests/unit/feed-sse-bridge.test.ts",
+    "tests/unit/reactive/agent-activator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7d/362863fd0c/0/metadata.json",
+      "transcript": "/7d/362863fd0c/0/full.jsonl",
+      "context": "/7d/362863fd0c/0/context.md",
+      "content_hash": "/7d/362863fd0c/0/content_hash.txt",
+      "prompt": "/7d/362863fd0c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 867,
+    "cache_creation_tokens": 2441025,
+    "cache_read_tokens": 88653304,
+    "output_tokens": 186967,
+    "api_call_count": 538
+  }
+}
