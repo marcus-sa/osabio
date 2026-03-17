@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ecb21072edaa",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/heartbeats-vs-live-queries",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/feature/graph-reactive-coordination/execution-log.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/b21072edaa/0/metadata.json",
+      "transcript": "/ec/b21072edaa/0/full.jsonl",
+      "context": "/ec/b21072edaa/0/context.md",
+      "content_hash": "/ec/b21072edaa/0/content_hash.txt",
+      "prompt": "/ec/b21072edaa/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 255,
+    "cache_creation_tokens": 350054,
+    "cache_read_tokens": 15388677,
+    "output_tokens": 66855,
+    "api_call_count": 167
+  }
+}

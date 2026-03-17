@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ecb21072edaa",
+  "session_id": "a6916833-03a7-4c21-a856-b088bf18ffc8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T13:13:07.958832Z",
+  "branch": "marcus-sa/heartbeats-vs-live-queries",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/feature/graph-reactive-coordination/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6bcc84e7212e",
+  "token_usage": {
+    "input_tokens": 255,
+    "cache_creation_tokens": 350054,
+    "cache_read_tokens": 15388677,
+    "output_tokens": 66855,
+    "api_call_count": 167
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T13:13:03.907202Z",
+    "agent_lines": 53,
+    "human_added": 1490,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1543,
+    "agent_percentage": 3.434867141931303
+  }
+}
