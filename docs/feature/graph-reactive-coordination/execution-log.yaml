@@ -244,5 +244,26 @@ events:
   s: SKIPPED
   sid: 03-02
   t: '2026-03-17T15:26:39Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-17T16:21:59Z'
+- d: 'NOT_APPLICABLE: pure functions tested via unit tests, acceptance test deferred
+    to integration step'
+  p: RED_ACCEPTANCE
+  s: SKIPPED
+  sid: 04-01
+  t: '2026-03-17T16:22:50Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-17T16:22:50Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-01
+  t: '2026-03-17T16:25:02Z'
 project_id: graph-reactive-coordination
 schema_version: '3.0'
