@@ -98,6 +98,33 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       contextStr.includes("billing") ||
       contextStr.includes("superseded");
     expect(mentionsRelevantChange).toBe(true);
+
+    // 04-03: Response must include urgent_updates and context_updates arrays
+    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>> | undefined;
+    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>> | undefined;
+    expect(Array.isArray(urgentUpdates)).toBe(true);
+    expect(Array.isArray(contextUpdates)).toBe(true);
+
+    // The superseded decision should appear in one of the update arrays
+    const allUpdates = [...(urgentUpdates ?? []), ...(contextUpdates ?? [])];
+    const hasRelevantUpdate = allUpdates.some(
+      (u) =>
+        typeof u.change_description === "string" &&
+        (u.change_description.includes("REST") ||
+          u.change_description.includes("tRPC") ||
+          u.change_description.includes("billing") ||
+          u.change_description.includes("superseded")),
+    );
+    expect(hasRelevantUpdate).toBe(true);
+
+    // Each update item must have the required shape
+    for (const update of allUpdates) {
+      expect(typeof update.entity_id).toBe("string");
+      expect(typeof update.entity_type).toBe("string");
+      expect(typeof update.change_description).toBe("string");
+      expect(typeof update.similarity).toBe("number");
+      expect(update.level === "urgent" || update.level === "update").toBe(true);
+    }
   }, 60_000);
 
   // ---------------------------------------------------------------------------
@@ -145,6 +172,22 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       contextStr.includes("documentation") ||
       contextStr.includes("API");
     expect(mentionsBlockedTask).toBe(true);
+
+    // 04-03: Response must include urgent_updates and context_updates arrays
+    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>> | undefined;
+    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>> | undefined;
+    expect(Array.isArray(urgentUpdates)).toBe(true);
+    expect(Array.isArray(contextUpdates)).toBe(true);
+
+    // If updates are found, they must have the correct shape
+    const allUpdates = [...(urgentUpdates ?? []), ...(contextUpdates ?? [])];
+    for (const update of allUpdates) {
+      expect(typeof update.entity_id).toBe("string");
+      expect(typeof update.entity_type).toBe("string");
+      expect(typeof update.change_description).toBe("string");
+      expect(typeof update.similarity).toBe("number");
+      expect(update.level === "urgent" || update.level === "update").toBe(true);
+    }
   }, 60_000);
 
   // ---------------------------------------------------------------------------

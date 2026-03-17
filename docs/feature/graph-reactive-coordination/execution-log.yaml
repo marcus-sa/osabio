@@ -290,5 +290,30 @@ events:
   s: EXECUTED
   sid: 04-02
   t: '2026-03-17T16:45:34Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 04-02
+  t: '2026-03-17T16:46:52Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-17T16:49:10Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-17T16:50:38Z'
+- d: 'NOT_APPLICABLE: pure reuse of 04-01 functions already tested'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 04-03
+  t: '2026-03-17T16:50:47Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 04-03
+  t: '2026-03-17T16:57:33Z'
 project_id: graph-reactive-coordination
 schema_version: '3.0'
