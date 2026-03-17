@@ -40,9 +40,9 @@ describe("withTracing", () => {
     } as unknown as Span;
   });
 
-  // Lazy import to allow mock setup
+  // Lazy import — mocks must be registered before first import of instrumentation.
+  // We mock both metrics and the OTel tracer so mockSpan is used in all tests.
   async function loadWithTracing() {
-    // Mock the metrics module
     mock.module("../../app/src/server/telemetry/metrics", () => ({
       httpDurationHistogram: {
         record: (value: number, attributes: Record<string, unknown>) => {
@@ -50,12 +50,22 @@ describe("withTracing", () => {
         },
       },
       httpRequestsCounter: {
-        add: (value: number, attributes: Record<string, unknown>) => {
+        add: (_value: number, attributes: Record<string, unknown>) => {
           metricsRecorded.requests.push({ attributes });
         },
       },
     }));
-
+    mock.module("@opentelemetry/api", () => ({
+      SpanStatusCode,
+      trace: {
+        getTracer: () => ({
+          startActiveSpan: (_name: string, cb: (span: Span) => unknown) => cb(mockSpan),
+        }),
+        setSpan: trace.setSpan,
+        getActiveSpan: () => mockSpan,
+      },
+      context,
+    }));
     const mod = await import("../../app/src/server/http/instrumentation");
     return mod.withTracing;
   }
@@ -144,12 +154,10 @@ describe("withTracing", () => {
   it("defers span.end() for streaming responses until stream is fully consumed", async () => {
     const withTracing = await loadWithTracing();
 
-    // Create a streaming response that we control
     const { readable, writable } = new TransformStream<Uint8Array>();
     const writer = writable.getWriter();
 
     const handler = withTracing("POST /api/chat", "POST", async () => {
-      // Simulate a streaming handler: return immediately, write later
       writer.write(new TextEncoder().encode("chunk1"));
       return new Response(readable, { status: 200 });
     });
@@ -157,17 +165,25 @@ describe("withTracing", () => {
     const request = makeRequest("http://localhost:3000/api/chat");
     const response = await handler(request);
 
-    // Response is returned but stream is still open — read first chunk
+    // Span must still be open while stream is in-flight
+    expect(spanEnded).toBe(false);
+
     const reader = response.body!.getReader();
     const firstChunk = await reader.read();
     expect(new TextDecoder().decode(firstChunk.value)).toBe("chunk1");
 
-    // Now close the stream and consume the final read
-    await writer.close();
-    await reader.read(); // { done: true }
+    // Still open — stream not yet closed
+    expect(spanEnded).toBe(false);
 
-    // After stream closes, response headers/status should be preserved
-    expect(response.status).toBe(200);
+    await writer.close();
+    await reader.read(); // { done: true } — triggers flush()
+
+    // Span must be ended after stream closes
+    expect(spanEnded).toBe(true);
+    expect(spanAttributes["duration_ms"]).toBeDefined();
+    expect(spanAttributes["http.status_code"]).toBe(200);
+    expect(metricsRecorded.duration.length).toBe(1);
+    expect(metricsRecorded.requests.length).toBe(1);
   });
 
   it("ends span when streaming client cancels (disconnect)", async () => {
@@ -184,14 +200,19 @@ describe("withTracing", () => {
     const request = makeRequest("http://localhost:3000/api/chat");
     const response = await handler(request);
 
-    // Read first chunk, then cancel (simulates client disconnect)
+    // Span must still be open while stream is in-flight
+    expect(spanEnded).toBe(false);
+
     const reader = response.body!.getReader();
     const firstChunk = await reader.read();
     expect(new TextDecoder().decode(firstChunk.value)).toBe("chunk1");
 
     await reader.cancel("client disconnected");
 
-    // Stream was cancelled, not cleanly closed — span should still end
-    expect(response.status).toBe(200);
+    // Span must be ended after cancellation
+    expect(spanEnded).toBe(true);
+    expect(spanAttributes["stream.cancelled"]).toBe(true);
+    expect(spanAttributes["duration_ms"]).toBeDefined();
+    expect(metricsRecorded.duration.length).toBe(1);
   });
 });

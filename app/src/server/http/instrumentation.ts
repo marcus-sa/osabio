@@ -85,13 +85,25 @@ export function withTracing(route: string, method: string, handler: RouteHandler
           // For streaming responses, defer span.end() until the stream closes.
           // This allows onFinish callbacks (e.g. Vercel AI SDK) to set attributes
           // on the span after the stream is fully consumed.
-          // flush() handles clean close; cancel() handles client disconnect / abort.
+          // We use ReadableStream wrapping (not TransformStream) because Bun does
+          // not propagate cancel() through TransformStream transformer callbacks.
           if (responseWithRequestId.body && !responseWithRequestId.bodyUsed) {
-            const originalBody = responseWithRequestId.body;
-            const wrappedStream = originalBody.pipeThrough(new TransformStream({
-              flush() { finalizeSpan(); },
-              cancel() { finalizeSpan(true); },
-            } as Transformer & { cancel(): void }));
+            const reader = responseWithRequestId.body.getReader();
+            const wrappedStream = new ReadableStream({
+              async pull(controller) {
+                const { done, value } = await reader.read();
+                if (done) {
+                  controller.close();
+                  finalizeSpan();
+                } else {
+                  controller.enqueue(value);
+                }
+              },
+              cancel() {
+                reader.cancel().catch(() => undefined);
+                finalizeSpan(true);
+              },
+            });
             return new Response(wrappedStream, {
               status: responseWithRequestId.status,
               statusText: responseWithRequestId.statusText,
