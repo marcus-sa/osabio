@@ -105,6 +105,26 @@ export function buildProxyHeaders(options: ProxyRequestOptions): Record<string, 
 }
 
 /**
+ * Retry a fetch call on transient upstream errors (rate limiting).
+ * OpenRouter may return 401 or 429 under concurrent load.
+ */
+async function withUpstreamRetry(
+  fn: () => Promise<Response>,
+  maxRetries = 2,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fn();
+    const isTransient = response.status === 429
+      || (response.status === 401 && attempt < maxRetries);
+    if (!isTransient) return response;
+    // Consume body before retry to avoid resource leaks
+    await response.text().catch(() => undefined);
+    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+  }
+  return fn();
+}
+
+/**
  * Send a request through the LLM proxy endpoint.
  * Returns the raw Response for flexible assertion.
  */
@@ -114,12 +134,11 @@ export async function sendProxyRequest(
 ): Promise<Response> {
   const body = buildProxyRequestBody(options);
   const headers = buildProxyHeaders(options);
+  const url = `${baseUrl}/proxy/llm/anthropic/v1/messages`;
 
-  return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
-    method: "POST",
-    headers,
-    body,
-  });
+  return withUpstreamRetry(() =>
+    fetch(url, { method: "POST", headers, body }),
+  );
 }
 
 /**
@@ -131,12 +150,11 @@ export async function sendCountTokensRequest(
 ): Promise<Response> {
   const body = buildProxyRequestBody(options);
   const headers = buildProxyHeaders(options);
+  const url = `${baseUrl}/proxy/llm/anthropic/v1/messages/count_tokens`;
 
-  return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages/count_tokens`, {
-    method: "POST",
-    headers,
-    body,
-  });
+  return withUpstreamRetry(() =>
+    fetch(url, { method: "POST", headers, body }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -976,11 +994,12 @@ export async function sendProxyRequestWithIntelligence(
     headers["X-Brain-Session-End"] = "true";
   }
 
-  return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+  const url = `${baseUrl}/proxy/llm/anthropic/v1/messages`;
+  const serializedBody = JSON.stringify(body);
+
+  return withUpstreamRetry(() =>
+    fetch(url, { method: "POST", headers, body: serializedBody }),
+  );
 }
 
 // ---------------------------------------------------------------------------
