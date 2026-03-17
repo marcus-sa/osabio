@@ -3,8 +3,9 @@
   "checkpoint_id": "8f13fd69d4f7",
   "strategy": "manual-commit",
   "branch": "marcus-sa/otel-observability",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
+    "AGENTS.md",
     "app/src/server/http/instrumentation.ts",
     "tests/unit/http-instrumentation.test.ts"
   ],
@@ -15,13 +16,20 @@
       "context": "/8f/13fd69d4f7/0/context.md",
       "content_hash": "/8f/13fd69d4f7/0/content_hash.txt",
       "prompt": "/8f/13fd69d4f7/0/prompt.txt"
+    },
+    {
+      "metadata": "/8f/13fd69d4f7/1/metadata.json",
+      "transcript": "/8f/13fd69d4f7/1/full.jsonl",
+      "context": "/8f/13fd69d4f7/1/context.md",
+      "content_hash": "/8f/13fd69d4f7/1/content_hash.txt",
+      "prompt": "/8f/13fd69d4f7/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1,
-    "cache_creation_tokens": 273,
-    "cache_read_tokens": 129514,
-    "output_tokens": 11,
-    "api_call_count": 1
+    "input_tokens": 37,
+    "cache_creation_tokens": 63180,
+    "cache_read_tokens": 1208617,
+    "output_tokens": 5023,
+    "api_call_count": 19
   }
 }
