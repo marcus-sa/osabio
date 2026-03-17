@@ -10,6 +10,8 @@
  * All functions are pure -- no IO, no side effects.
  * The orchestration (embedding, cache, DB queries) lives in the proxy route.
  */
+import { RecordId } from "surrealdb";
+import { cosineSimilarity } from "../graph/embeddings";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,8 +58,6 @@ export type RecentChangeCandidate = {
 export type ClassifiedChange = RecentChangeCandidate & {
   readonly classification: "urgent-context" | "context-update";
 };
-
-import { cosineSimilarity } from "../graph/embeddings";
 
 // ---------------------------------------------------------------------------
 // Token Estimation (pure, ~4 chars per token)
@@ -383,8 +383,6 @@ export function buildRecentChangesXml(changes: ClassifiedChange[]): string {
 // ---------------------------------------------------------------------------
 // Recent Changes Vector Search (04-01: adapter boundary -- DB side effect)
 // ---------------------------------------------------------------------------
-
-import { RecordId } from "surrealdb";
 
 /**
  * Port signature for searching recent graph changes by vector similarity.

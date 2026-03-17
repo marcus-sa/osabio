@@ -16,7 +16,7 @@
  * Step: 03-02 (Graph-Reactive Coordination)
  */
 import { RecordId, type Surreal } from "surrealdb";
-import { generateObject } from "ai";
+import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import type { LoopDampener, DampenerEvent } from "./loop-dampener";
 
@@ -63,7 +63,7 @@ export type AgentActivatorDeps = {
   surreal: Surreal;
   loopDampener: LoopDampener;
   inflight: InflightTracker;
-  classifierModel: unknown; // AI SDK LanguageModel (Haiku)
+  classifierModel: LanguageModel;
   onAgentActivation: OnAgentActivation;
 };
 
@@ -426,7 +426,7 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     // LLM classification: which agents should handle this observation?
     const prompt = buildClassificationPrompt({ text, severity }, agents);
     const classification = await generateObject({
-      model: classifierModel as any,
+      model: classifierModel,
       schema: classificationSchema,
       prompt,
     });

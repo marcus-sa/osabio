@@ -96,7 +96,7 @@ export function createLoopDampener(
   clock?: Clock,
   onDampen?: OnDampenActivated,
 ): LoopDampener {
-  const getClock = clock ?? (() => Date.now());
+  const readClock = clock ?? (() => Date.now());
   const windows = new Map<string, number[]>();
   const activeDampening = new Set<string>();
 
@@ -106,7 +106,7 @@ export function createLoopDampener(
       event.entityId,
       event.sourceAgent,
     );
-    const now = getClock();
+    const now = readClock();
 
     // Get or create timestamp list for this key
     let timestamps = windows.get(key);

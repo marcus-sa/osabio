@@ -10,6 +10,7 @@
  *
  * Step: 01-04 (Graph-Reactive Coordination)
  */
+import { RecordId } from "surrealdb";
 import type { GovernanceTier } from "../../shared/contracts";
 import type { LiveSelectEvent } from "./live-select-manager";
 import type { WorkspaceStreamEvent, SseRegistry } from "../streaming/sse-registry";
@@ -112,7 +113,7 @@ export function transformToFeedItem(event: LiveSelectEvent): FeedBridgeItem | un
   const createdAt = toIsoSafe(value.created_at) ?? new Date().toISOString();
 
   return {
-    id: buildFeedItemId(table, recordId, status),
+    id: buildFeedItemId(recordId, status),
     tier,
     entityId: recordId,
     entityKind: table,
@@ -276,7 +277,7 @@ export function createBatcher(config: BatcherConfig): Batcher {
 // Internal Helpers
 // ---------------------------------------------------------------------------
 
-function buildFeedItemId(_table: string, recordId: string, status: string): string {
+function buildFeedItemId(recordId: string, status: string): string {
   return `${recordId}:${status}`;
 }
 
@@ -376,16 +377,7 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
     if (!item) return;
 
     const batcher = getOrCreateBatcher(workspaceId);
-
-    // For UPDATE events, check if there's a tier transition that needs a removal
-    if (event.action === "UPDATE") {
-      // We can infer the previous feed item ID pattern for removal
-      // The previous status is unknown here, so we emit the new item
-      // and let the client reconcile based on entityId
-      batcher.add(item);
-    } else {
-      batcher.add(item);
-    }
+    batcher.add(item);
   }
 
   function subscribe(workspaceId: string): () => void {
@@ -427,8 +419,6 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
 // ---------------------------------------------------------------------------
 // Workspace ID Extraction
 // ---------------------------------------------------------------------------
-
-import { RecordId } from "surrealdb";
 
 /**
  * Extracts the workspace ID string from a LiveSelectEvent value.

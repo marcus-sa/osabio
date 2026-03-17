@@ -248,7 +248,9 @@ function extractNonStreamingUsage(
     const parsed = JSON.parse(responseBody) as NonStreamingResponse;
     if (!parsed.usage) return undefined;
 
-    const traceData: TraceData = {
+    const responseContent = extractResponseContent(responseBody);
+
+    return {
       model: parsed.model ?? requestModel ?? "unknown",
       inputTokens: parsed.usage.input_tokens ?? 0,
       outputTokens: parsed.usage.output_tokens ?? 0,
@@ -261,20 +263,9 @@ function extractNonStreamingUsage(
       sessionId,
       taskId: identity.taskId,
       policyDecision,
+      ...(injectionResult ? { intelligenceMetadata: buildIntelligenceMetadata(injectionResult) } : {}),
+      ...(responseContent ? { responseContent } : {}),
     };
-
-    // Add intelligence metadata if injection occurred
-    if (injectionResult) {
-      (traceData as any).intelligenceMetadata = buildIntelligenceMetadata(injectionResult);
-    }
-
-    // Capture response content (opaque, per ADR-051)
-    const responseContent = extractResponseContent(responseBody);
-    if (responseContent) {
-      (traceData as any).responseContent = responseContent;
-    }
-
-    return traceData;
   } catch {
     return undefined;
   }
