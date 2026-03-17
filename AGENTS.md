@@ -126,11 +126,13 @@ This codebase uses OpenTelemetry for observability. The instrumentation follows 
 
 ### Streaming responses and span lifetime
 
-- `withTracing()` detects streaming responses (Response with a ReadableStream body) and defers `span.end()` until the stream is fully consumed (via `TransformStream.flush()`).
+- `withTracing()` defers `span.end()` only for SSE responses (`content-type: text/event-stream`). Non-streaming responses (JSON, etc.) finalize the span immediately when `handler()` returns.
+- The stream wrapper uses `ReadableStream` (not `TransformStream`) because Bun does not propagate `cancel()` through `TransformStream` transformer callbacks.
+- Three termination paths are handled: clean close (`pull` sees `done`), client disconnect (`cancel` callback), and upstream error (`pull` catch block). All three call `finalizeSpan()` with a guard flag to prevent double-finalization.
 - This means `onFinish` callbacks (e.g. Vercel AI SDK `toUIMessageStreamResponse({ onFinish })`) can safely call `trace.getActiveSpan()?.setAttribute()` — the span is still open.
 - Do NOT manually end the span in streaming handlers. `withTracing()` handles it.
-- For non-streaming responses, `span.end()` fires immediately as before.
 - `duration_ms` on streaming spans measures the full stream lifetime, not just Response construction time.
+- Do NOT wrap non-SSE response bodies in `ReadableStream` — it inflates `duration_ms` with HTTP transmission time and risks span leaks if the body is never consumed.
 
 ### HttpError propagation
 
