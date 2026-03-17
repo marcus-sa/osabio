@@ -18,6 +18,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
+import { log } from "../telemetry/logger";
 import type { LoopDampener, DampenerEvent } from "./loop-dampener";
 
 // ---------------------------------------------------------------------------
@@ -91,7 +92,8 @@ export function parseWebhookPayload(
     typeof observation_id !== "string" ||
     typeof text !== "string" ||
     typeof severity !== "string" ||
-    typeof source_agent !== "string"
+    typeof source_agent !== "string" ||
+    !workspace
   ) {
     return undefined;
   }
@@ -373,10 +375,10 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     // Process async — return 200 immediately (same pattern as observer-route.ts)
     inflight.track(
       processObservation(payload).catch((err) => {
-        console.error(
-          `[AgentActivator] Failed to process observation ${payload.observation_id}:`,
-          err instanceof Error ? err.message : String(err),
-        );
+        log.error("activator.process_failed", "Failed to process observation", {
+          observationId: payload.observation_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }),
     );
 
@@ -399,10 +401,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
         dampenerEntityKey,
         source_agent,
       ).catch((err) => {
-        console.error(
-          `[AgentActivator] Failed to create dampening meta-observation:`,
-          err instanceof Error ? err.message : String(err),
-        );
+        log.error("activator.dampening_meta_failed", "Failed to create dampening meta-observation", {
+          workspaceId: workspace,
+          entityId: dampenerEntityKey,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
       return;
     }
@@ -411,7 +414,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     if (target) {
       const covered = await hasActiveCoverage(surreal, target, workspace);
       if (covered) {
-        console.log(`[AgentActivator] Skipping observation ${observation_id}: target ${target.table}:${target.id} has active agent coverage`);
+        log.info("activator.skipped_active_coverage", "Skipping observation — target has active agent session", {
+          observationId: observation_id,
+          target: `${target.table}:${target.id}`,
+          workspaceId: workspace,
+        });
         return;
       }
     }
@@ -419,7 +426,10 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     // Load registered agents for this workspace
     const agents = await loadWorkspaceAgents(surreal, workspace);
     if (agents.length === 0) {
-      console.log(`[AgentActivator] No registered agents with descriptions in workspace ${workspace}`);
+      log.warn("activator.no_agents", "No agents registered with descriptions in workspace", {
+          workspaceId: workspace,
+          observationId: observation_id,
+        });
       return;
     }
 
@@ -432,7 +442,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     });
 
     const activations = classification.object.activations;
-    console.log(`[AgentActivator] LLM classified ${activations.length} agents for observation ${observation_id}`);
+    log.info("activator.classified", "LLM classified agents for observation", {
+      observationId: observation_id,
+      agentCount: activations.length,
+      workspaceId: workspace,
+    });
 
     // Validate agent IDs against registered agents
     const agentMap = new Map(agents.map((a) => [a.agentId, a]));
@@ -441,7 +455,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     for (const activation of activations) {
       const agent = agentMap.get(activation.agent_id);
       if (!agent) {
-        console.log(`[AgentActivator] LLM returned unknown agent_id "${activation.agent_id}", skipping`);
+        log.warn("activator.hallucinated_agent", "LLM returned unknown agent_id", {
+          agentId: activation.agent_id,
+          observationId: observation_id,
+          workspaceId: workspace,
+        });
         continue;
       }
       validActivations.push({ agent, reason: activation.reason });
@@ -457,10 +475,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
         severity,
         validActivations.map((v) => ({ agentType: v.agent.agentType, reason: v.reason })),
       ).catch((err) => {
-        console.error(
-          `[AgentActivator] Failed to create activation decision:`,
-          err instanceof Error ? err.message : String(err),
-        );
+        log.error("activator.decision_failed", "Failed to create activation decision", {
+          observationId: observation_id,
+          workspaceId: workspace,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
     }
 
@@ -471,10 +490,12 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
         workspaceId: workspace,
         observationId: observation_id,
       }).catch((err) => {
-        console.error(
-          `[AgentActivator] Failed to create activated session for ${agent.agentType}:`,
-          err instanceof Error ? err.message : String(err),
-        );
+        log.error("activator.session_failed", "Failed to create activated session", {
+          agentType: agent.agentType,
+          observationId: observation_id,
+          workspaceId: workspace,
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
       onAgentActivation({
