@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0d7d3497b757",
+  "session_id": "a6916833-03a7-4c21-a856-b088bf18ffc8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T17:42:18.362303Z",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".nwave/des/deliver-session.json",
+    ".nwave/des/des-task-active-graph-reactive-coordination--04-02",
+    "docs/feature/graph-reactive-coordination/execution-log.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "3b8029540160",
+  "token_usage": {
+    "input_tokens": 879,
+    "cache_creation_tokens": 2449362,
+    "cache_read_tokens": 91163713,
+    "output_tokens": 188660,
+    "api_call_count": 548
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T17:42:14.269145Z",
+    "agent_lines": 15,
+    "human_added": 134,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 149,
+    "agent_percentage": 10.06711409395973
+  }
+}
