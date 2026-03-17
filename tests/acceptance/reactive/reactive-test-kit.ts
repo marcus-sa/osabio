@@ -207,20 +207,17 @@ export async function createObservationWithCoordinator(
   const result = await createObservation(surreal, workspaceId, options);
 
   // Simulate DEFINE EVENT webhook — POST to agent activator endpoint
-  if (options.embedding) {
-    await fetch(`${baseUrl}/api/internal/activator/observation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        observation_id: result.observationId,
-        workspace: workspaceId,
-        embedding: options.embedding,
-        text: options.text,
-        severity: options.severity,
-        source_agent: options.sourceAgent,
-      }),
-    });
-  }
+  await fetch(`${baseUrl}/api/internal/activator/observation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      observation_id: result.observationId,
+      workspace: workspaceId,
+      text: options.text,
+      severity: options.severity,
+      source_agent: options.sourceAgent,
+    }),
+  });
 
   return result;
 }
@@ -424,7 +421,7 @@ export async function linkTaskToDecision(
 
 /**
  * Creates an agent with a description, simulating agent registration.
- * The description_embedding field is needed for coordinator vector search routing.
+ * The description (text) is used by the agent activator's LLM classification (ADR-061).
  */
 export async function registerAgent(
   surreal: Surreal,
@@ -446,6 +443,9 @@ export async function registerAgent(
     created_at: new Date(),
   };
 
+  if (options.description) {
+    content.description = options.description;
+  }
   if (options.descriptionEmbedding) {
     content.description_embedding = options.descriptionEmbedding;
   }
@@ -765,6 +765,27 @@ export async function getSessionLastRequestAt(
     { sess: sessionRecord },
   )) as Array<Array<{ last_request_at?: string }>>;
   return rows[0]?.[0]?.last_request_at;
+}
+
+/**
+ * Queries agent sessions created by the activator (orchestrator_status = "spawning").
+ * These are sessions started by the agent activator when LLM classification
+ * matched an agent type to an observation.
+ */
+export async function getActivatedSessions(
+  surreal: Surreal,
+  workspaceId: string,
+): Promise<Array<{ id: RecordId; agent: string; orchestrator_status: string; triggered_by?: RecordId }>> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const rows = (await surreal.query(
+    `SELECT id, agent, orchestrator_status, triggered_by, created_at FROM agent_session
+     WHERE workspace = $ws AND source = "activator"
+     ORDER BY created_at DESC;`,
+    { ws: workspaceRecord },
+  )) as Array<
+    Array<{ id: RecordId; agent: string; orchestrator_status: string; triggered_by?: RecordId }>
+  >;
+  return rows[0] ?? [];
 }
 
 /**

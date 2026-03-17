@@ -83,29 +83,28 @@ Then the dampener has reset
 And the event is classified normally
 
 ## Acceptance Criteria
-- [ ] Coordinator listens to observation events via LIVE SELECT
-- [ ] Coordinator routes observations via vector search: observation embedding → KNN against agent description embeddings
-- [ ] KNN search is scoped to agents with active sessions in the same workspace
-- [ ] Configurable similarity threshold filters low-relevance matches
-- [ ] Agents without active sessions are never invoked — observation stays in graph for future context
-- [ ] Adding a new agent type requires no classifier rule changes — semantic matching handles it
+- [ ] Activator receives observation events via DEFINE EVENT webhook (POST endpoint)
+- [ ] Activator uses LLM classification (fast model) to determine which agents should act on the observation (ADR-061)
+- [ ] LLM receives observation text + severity + all registered agent descriptions for the workspace
+- [ ] Observations targeting entities with active agent sessions are skipped (proxy handles those — ADR-059)
+- [ ] Adding a new agent type requires no rule changes — LLM judges capability from description
+- [ ] Activated sessions stored with `triggered_by` pointing to the observation (polymorphic record reference)
 - [ ] Loop dampening: >3 events on same entity from same source in 60 seconds triggers dampening
-- [ ] Dampened events are logged but do not trigger agent invocations
+- [ ] Dampened events are logged but do not trigger agent activations
 - [ ] Meta-observation created when dampening activates (visible in feed)
-- [ ] KNN search completes within 50ms for typical agent counts (< 100 agents)
 
 ## Technical Notes
-- **Coordinator is a POST endpoint** (`/api/internal/coordinator/observation`), called by a SurrealDB `DEFINE EVENT` webhook on observation CREATE. Not an always-on LIVE SELECT listener. Same pattern as the 8 existing observer webhooks.
-- **DEFINE EVENT trigger**: `DEFINE EVENT coordinator_observation_routed ON observation WHEN $event = "CREATE" AND $after.embedding IS NOT NONE AND $after.source_agent != "agent_coordinator" THEN { http::post(...) } ASYNC RETRY 3;`
-- **Active coverage check**: Before KNN routing, the coordinator checks if the observation's target entity already has an active agent session. If so, it skips — the proxy handles enriching active sessions via its own vector search (US-GRC-04).
-- **Vector search routing**: Observations already have embeddings. Agents need `description_embedding` (HNSW indexed). Coordinator runs KNN against `agent` table (agent types, not sessions).
-- **KNN + WHERE bug**: Per CLAUDE.md, use the two-step pattern: KNN in LET subquery, then filter by workspace in second query.
-- **No `context_queue` table, no deterministic classifier**: the graph is the delivery mechanism. Semantic similarity replaces rule tables.
+- **Activator is a POST endpoint** (`/api/internal/activator/observation`), called by a SurrealDB `DEFINE EVENT` webhook on observation CREATE. Same pattern as the 8 existing observer webhooks.
+- **DEFINE EVENT trigger**: `DEFINE EVENT activator_observation_created ON observation WHEN $event = "CREATE" AND $after.source_agent != "agent_activator" THEN { http::post(...) } ASYNC RETRY 3;`
+- **Active coverage check**: Before LLM classification, the activator checks if the observation's target entity already has an active agent session. If so, it skips — the proxy handles enriching active sessions via its own vector search (US-GRC-04).
+- **LLM classification** (ADR-061): Loads all registered agent descriptions (text) for the workspace. Sends observation text + severity + agent list to a fast model (Haiku). LLM returns which agents should be activated and why. Agent IDs validated against registered agents.
+- **`triggered_by` field**: Polymorphic `option<record<observation | task | decision | question>>` on `agent_session`. Records which entity caused the activator to start this session.
+- **No `context_queue` table, no deterministic classifier, no KNN**: the graph is the delivery mechanism. LLM judgment replaces both rule tables and vector similarity.
 - Loop dampening state is per-workspace, per-entity, per-source-agent. Implemented as in-memory sliding window counter.
-- Phase: 4 (Coordinator -- depends on Phase 3 foundation)
+- Phase: 4 (Agent Activator -- depends on Phase 3 foundation)
 
 ## Dependencies
 - Existing DEFINE EVENT webhook pattern (observer-route.ts, 8 existing webhooks)
 - Existing agent session lifecycle (orchestrator/session-lifecycle.ts)
-- `agent` table with `description_embedding` field + HNSW index
-- Existing embedding infrastructure (extraction pipeline already produces embeddings)
+- `agent` table with `description` field (text, for LLM classification)
+- Fast LLM model (Haiku) for classification — uses existing `extractionModel` from runtime deps

@@ -1,15 +1,18 @@
 /**
- * Milestone 2: Agent Activator with Vector Search Routing (US-GRC-03)
+ * Milestone 2: Agent Activator with LLM Classification (US-GRC-03)
  *
  * Traces: US-GRC-03 acceptance criteria
  *
- * Tests the Agent Activator's observation -> vector search -> start new agent pipeline.
+ * Tests the Agent Activator's observation -> LLM classification -> start new agent pipeline.
  * The activator is a POST endpoint called by SurrealDB DEFINE EVENT webhooks.
  * In tests, we simulate the webhook by calling the endpoint directly.
  *
  * The activator only starts NEW agents for observations that don't have active
  * coverage. Observations targeting entities with active agent sessions are skipped
  * (the LLM proxy handles enriching those via its own vector search).
+ *
+ * LLM classification replaces KNN because the question is "which agents can ACT
+ * on this?" — a judgment problem, not a proximity problem. See ADR-061.
  *
  * Driving ports:
  *   POST /api/internal/activator/observation   (agent activator webhook endpoint)
@@ -27,17 +30,16 @@ import {
   createTask,
   registerAgent,
   startAgentSession,
-  endAgentSession,
   getObservations,
   getMetaObservations,
-  generateEmbedding,
+  getActivatedSessions,
   openFeedStream,
   type FeedStreamController,
 } from "./reactive-test-kit";
 
 const getRuntime = setupReactiveSuite("agent_activator");
 
-describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
+describe("US-GRC-03: Agent Activator with LLM Classification", () => {
   let feedStream: FeedStreamController | undefined;
 
   afterEach(() => {
@@ -46,44 +48,45 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // AC: Coordinator routes observations to semantically matched agent TYPES
+  // AC: Activator starts new agent for observation without active coverage
   // ---------------------------------------------------------------------------
-  it("observation without active coverage routed to semantically matched agent type", async () => {
+  it("observation without active coverage activates relevant agent type", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const { workspaceId, identityId } = await createTestWorkspace(surreal, "coord-route");
-    const agentDescription = "Coding agent working on billing API migration";
-    const descriptionEmbedding = await generateEmbedding(agentDescription);
+    const { workspaceId, identityId } = await createTestWorkspace(surreal, "act-route");
 
     await registerAgent(surreal, workspaceId, identityId, {
       agentType: "code_agent",
-      description: agentDescription,
-      descriptionEmbedding,
+      description: "Coding agent working on billing API migration and tRPC standardization",
     });
 
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Migrate billing API to tRPC",
     });
 
-    // No active session on this task — activator should route
+    // No active session on this task — activator should classify and start agent
     const observationText = "Task T-47 implementation contradicts confirmed decision to standardize on tRPC for billing API";
-    const observationEmbedding = await generateEmbedding(observationText);
 
     await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
       text: observationText,
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: observationEmbedding,
       targetEntity: { table: "task", id: taskId },
     });
 
-    // Allow inflight work to complete
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const observations = await getObservations(surreal, workspaceId, { status: "open" });
     const conflictObs = observations.find((o) => o.text.includes("contradicts confirmed decision"));
     expect(conflictObs).toBeDefined();
     expect(conflictObs!.severity).toBe("conflict");
+
+    // LLM should classify the billing/tRPC agent as relevant
+    const sessions = await getActivatedSessions(surreal, workspaceId);
+    expect(sessions.length).toBeGreaterThanOrEqual(1);
+    const matchedSession = sessions.find((s) => s.agent === "code_agent");
+    expect(matchedSession).toBeDefined();
+    expect(matchedSession!.orchestrator_status).toBe("spawning");
   }, 30_000);
 
   // ---------------------------------------------------------------------------
@@ -92,14 +95,11 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
   it("observation targeting entity with active agent session is skipped", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const { workspaceId, identityId } = await createTestWorkspace(surreal, "coord-skip");
-    const agentDescription = "Coding agent working on billing API migration";
-    const descriptionEmbedding = await generateEmbedding(agentDescription);
+    const { workspaceId, identityId } = await createTestWorkspace(surreal, "act-skip");
 
     await registerAgent(surreal, workspaceId, identityId, {
       agentType: "code_agent",
-      description: agentDescription,
-      descriptionEmbedding,
+      description: "Coding agent working on billing API migration",
     });
 
     const { taskId } = await createTask(surreal, workspaceId, {
@@ -110,133 +110,108 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
     await startAgentSession(surreal, workspaceId, {
       agentType: "code_agent",
       taskId,
-      description: agentDescription,
-      descriptionEmbedding,
+      description: "Coding agent working on billing API migration",
     });
 
-    const observationText = "Billing API migration contradicts tRPC decision";
-    const observationEmbedding = await generateEmbedding(observationText);
-
     await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
-      text: observationText,
+      text: "Billing API migration contradicts tRPC decision",
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: observationEmbedding,
       targetEntity: { table: "task", id: taskId },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const observations = await getObservations(surreal, workspaceId, { status: "open" });
-    expect(observations.some((o) => o.text.includes("contradicts tRPC"))).toBe(true);
+    // No spawning sessions — proxy handles the active session
+    const sessions = await getActivatedSessions(surreal, workspaceId);
+    const spawning = sessions.filter((s) => s.orchestrator_status === "spawning");
+    expect(spawning.length).toBe(0);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // AC: Routes observation to multiple semantically matched agent types
+  // AC: LLM classifies multiple agents as relevant
   // ---------------------------------------------------------------------------
-  it("observation routed to multiple agent types with matching descriptions", async () => {
+  it("observation activates multiple agent types when LLM classifies both as relevant", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const { workspaceId, identityId } = await createTestWorkspace(surreal, "coord-multi");
-
-    const infraDesc = "Infrastructure and reliability engineering";
-    const supportDesc = "Customer communication and incident response";
-    const [infraEmbedding, supportEmbedding] = await Promise.all([
-      generateEmbedding(infraDesc),
-      generateEmbedding(supportDesc),
-    ]);
+    const { workspaceId, identityId } = await createTestWorkspace(surreal, "act-multi");
 
     await registerAgent(surreal, workspaceId, identityId, {
       agentType: "code_agent",
-      description: infraDesc,
-      descriptionEmbedding: infraEmbedding,
+      description: "Infrastructure and reliability engineering — monitors uptime, investigates outages, manages cloud resources",
     });
     await registerAgent(surreal, workspaceId, identityId, {
       agentType: "code_agent",
-      description: supportDesc,
-      descriptionEmbedding: supportEmbedding,
+      description: "Customer communication and incident response — drafts status updates, notifies affected customers",
     });
-
-    const obsText = "Production API latency exceeding SLA threshold, p99 response time above 2 seconds";
-    const obsEmbedding = await generateEmbedding(obsText);
 
     await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
-      text: obsText,
-      severity: "warning",
-      sourceAgent: "observer_agent",
-      embedding: obsEmbedding,
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const observations = await getObservations(surreal, workspaceId, { status: "open" });
-    expect(observations.some((o) => o.text.includes("latency exceeding SLA"))).toBe(true);
-  }, 30_000);
-
-  // ---------------------------------------------------------------------------
-  // AC: Agents below similarity threshold are not invoked
-  // ---------------------------------------------------------------------------
-  it("irrelevant agent type not matched when observation is semantically unrelated", async () => {
-    const { baseUrl, surreal } = getRuntime();
-
-    const { workspaceId, identityId } = await createTestWorkspace(surreal, "coord-threshold");
-
-    const marketingDesc = "Marketing content creation and campaign management";
-    const marketingEmbedding = await generateEmbedding(marketingDesc);
-
-    await registerAgent(surreal, workspaceId, identityId, {
-      agentType: "code_agent",
-      description: marketingDesc,
-      descriptionEmbedding: marketingEmbedding,
-    });
-
-    const obsText = "Database connection pool exhausted, all 50 connections in use";
-    const obsEmbedding = await generateEmbedding(obsText);
-
-    await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
-      text: obsText,
+      text: "Production API latency exceeding SLA threshold, p99 response time above 2 seconds, affecting customer-facing endpoints",
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: obsEmbedding,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // LLM classification takes ~500ms, session creation adds more — allow 5s
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const observations = await getObservations(surreal, workspaceId, { status: "open" });
-    expect(observations.some((o) => o.text.includes("connection pool"))).toBe(true);
+    // LLM should classify both infra (investigate) and support (notify customers)
+    const sessions = await getActivatedSessions(surreal, workspaceId);
+    const spawning = sessions.filter((s) => s.orchestrator_status === "spawning");
+    expect(spawning.length).toBeGreaterThanOrEqual(2);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // AC: New agent type matched by semantic similarity alone (no rule table)
+  // AC: Irrelevant agent not activated
   // ---------------------------------------------------------------------------
-  it("newly registered agent type is automatically matched by semantic similarity", async () => {
+  it("irrelevant agent type not activated when LLM judges it cannot act", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const { workspaceId, identityId } = await createTestWorkspace(surreal, "coord-new-type");
-
-    const securityDesc = "Security auditor reviewing code for vulnerabilities and compliance";
-    const securityEmbedding = await generateEmbedding(securityDesc);
+    const { workspaceId, identityId } = await createTestWorkspace(surreal, "act-threshold");
 
     await registerAgent(surreal, workspaceId, identityId, {
       agentType: "code_agent",
-      description: securityDesc,
-      descriptionEmbedding: securityEmbedding,
+      description: "Marketing content creation and campaign management — writes blog posts, manages social media",
     });
-
-    const obsText = "SQL injection vulnerability detected in user input handling for login endpoint";
-    const obsEmbedding = await generateEmbedding(obsText);
 
     await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
-      text: obsText,
+      text: "Database connection pool exhausted, all 50 connections in use, queries timing out",
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: obsEmbedding,
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const observations = await getObservations(surreal, workspaceId, { status: "open" });
-    expect(observations.some((o) => o.text.includes("SQL injection"))).toBe(true);
+    // LLM should NOT activate marketing agent for a database issue
+    const sessions = await getActivatedSessions(surreal, workspaceId);
+    const spawning = sessions.filter((s) => s.orchestrator_status === "spawning");
+    expect(spawning.length).toBe(0);
+  }, 30_000);
+
+  // ---------------------------------------------------------------------------
+  // AC: New agent type activated without rule changes
+  // ---------------------------------------------------------------------------
+  it("newly registered agent type activated by LLM judgment alone", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    const { workspaceId, identityId } = await createTestWorkspace(surreal, "act-new-type");
+
+    await registerAgent(surreal, workspaceId, identityId, {
+      agentType: "code_agent",
+      description: "Security auditor — reviews code for vulnerabilities, SQL injection, XSS, and compliance violations",
+    });
+
+    await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
+      text: "SQL injection vulnerability detected in user input handling for login endpoint",
+      severity: "conflict",
+      sourceAgent: "observer_agent",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // LLM should activate the security auditor — no rule table update needed
+    const sessions = await getActivatedSessions(surreal, workspaceId);
+    const spawning = sessions.filter((s) => s.orchestrator_status === "spawning");
+    expect(spawning.length).toBeGreaterThanOrEqual(1);
   }, 30_000);
 
   // ---------------------------------------------------------------------------
@@ -246,7 +221,7 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
     const { baseUrl, surreal } = getRuntime();
 
     const user = await createTestUser(baseUrl, `dampen-${crypto.randomUUID()}`);
-    const { workspaceId } = await createTestWorkspace(surreal, "coord-dampen");
+    const { workspaceId } = await createTestWorkspace(surreal, "act-dampen");
 
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Implement rate limiting for billing API",
@@ -255,7 +230,6 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
     feedStream = openFeedStream(baseUrl, workspaceId, user);
     await feedStream.connect();
 
-    // Create 4 observations — the 4th triggers dampening
     await createObservationBurstWithCoordinator(surreal, baseUrl, workspaceId, {
       count: 4,
       sourceAgent: "observer_agent",
@@ -264,29 +238,27 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
       textPrefix: "Cascading issue on rate limiting task",
     });
 
-    // Allow inflight meta-observation creation to complete
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const metaObs = await getMetaObservations(surreal, workspaceId);
     const dampeningMeta = metaObs.find(
-      (o) => o.text.includes("dampened") || o.category === "loop_dampening",
+      (o) => o.text.includes("dampened"),
     );
     expect(dampeningMeta).toBeDefined();
   }, 30_000);
 
   // ---------------------------------------------------------------------------
-  // AC: Dampening resets after window expires (60 seconds)
+  // AC: Dampening resets after window expires
   // ---------------------------------------------------------------------------
   it("dampening resets after 60 seconds allowing normal processing", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    const { workspaceId } = await createTestWorkspace(surreal, "coord-reset");
+    const { workspaceId } = await createTestWorkspace(surreal, "act-reset");
 
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Database migration task",
     });
 
-    // Create 4 observations to trigger dampening
     await createObservationBurstWithCoordinator(surreal, baseUrl, workspaceId, {
       count: 4,
       sourceAgent: "observer_agent",
@@ -297,8 +269,6 @@ describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // New observation after dampening (window hasn't expired yet in real time,
-    // but we verify the observation is still created in the graph regardless)
     await createObservation(surreal, workspaceId, {
       text: "New observation after dampening window should have passed",
       severity: "warning",

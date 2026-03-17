@@ -98,13 +98,14 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     surreal: deps.surreal,
     loopDampener: activatorDampener,
     inflight: deps.inflight,
-    onAgentMatch: (match) => {
-      log.info("activator.agent_matched", "Observation matched agent type for new session", {
-        agentId: match.agentId,
-        agentType: match.agentType,
-        workspaceId: match.workspaceId,
-        similarity: match.similarity,
-        observationId: match.observationId,
+    classifierModel: deps.extractionModel,
+    onAgentActivation: (activation) => {
+      log.info("activator.agent_activated", "LLM classified agent for activation", {
+        agentId: activation.agentId,
+        agentType: activation.agentType,
+        workspaceId: activation.workspaceId,
+        reason: activation.reason,
+        observationId: activation.observationId,
       });
     },
   });

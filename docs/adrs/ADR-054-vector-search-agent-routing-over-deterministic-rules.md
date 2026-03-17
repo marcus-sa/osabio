@@ -1,7 +1,7 @@
 # ADR-054: Vector Search Agent Routing Over Deterministic Rules
 
 ## Status
-Accepted
+Superseded by ADR-061 (LLM classification over KNN for agent activation)
 
 ## Context
 The Agent Coordinator needs to route observations to relevant agents. Observations are created by the Observer, extraction pipeline, or external webhooks. The system must determine which agents should act on each observation.

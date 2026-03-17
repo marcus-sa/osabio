@@ -2,22 +2,22 @@
  * Agent Activator
  *
  * POST endpoint handler called by SurrealDB DEFINE EVENT webhook when
- * observations are created. Routes observations to semantically matched
- * agent types via KNN vector search (observation embedding vs agent
- * description embeddings), then signals to start new agent sessions.
+ * observations are created. Uses LLM classification to determine which
+ * registered agent types should be activated for a given observation,
+ * then starts new agent sessions for matched agents.
  *
  * Observations targeting entities with active agent sessions are skipped —
  * the LLM proxy handles enriching those sessions via its own vector search.
  *
- * Uses the same DEFINE EVENT webhook pattern as the 8 existing observer
- * webhooks (session_ended, task_completed, decision_confirmed, etc.).
- *
- * Pure core: filterAboveThreshold, parseWebhookPayload
- * Stateful shell: createAgentActivator
+ * LLM classification over KNN because the question is "which agents can
+ * ACT on this observation?" — a judgment problem, not a proximity problem.
+ * See ADR-061.
  *
  * Step: 03-02 (Graph-Reactive Coordination)
  */
 import { RecordId, type Surreal } from "surrealdb";
+import { generateObject } from "ai";
+import { z } from "zod";
 import type { LoopDampener, DampenerEvent } from "./loop-dampener";
 
 // ---------------------------------------------------------------------------
@@ -28,30 +28,30 @@ import type { LoopDampener, DampenerEvent } from "./loop-dampener";
 export type ObservationWebhookPayload = {
   observation_id: string;
   workspace: string;
-  embedding: number[];
   text: string;
   severity: string;
   source_agent: string;
 };
 
-/** A matched agent type that should be started for an observation. */
-export type AgentMatch = {
+/** A registered agent type with its description. */
+export type RegisteredAgent = {
+  agentId: string;
+  agentType: string;
+  description: string;
+};
+
+/** An agent matched by LLM classification for activation. */
+export type AgentActivation = {
   agentId: string;
   agentType: string;
   workspaceId: string;
-  similarity: number;
+  reason: string;
   observationId: string;
   observationText: string;
 };
 
-/** Callback invoked when the router decides to start a new agent. */
-export type OnAgentMatch = (match: AgentMatch) => void;
-
-/** Configuration for the agent activator's KNN search. */
-export type AgentActivatorConfig = {
-  similarityThreshold: number;
-  knnCandidates: number;
-};
+/** Callback invoked when the activator decides to start a new agent. */
+export type OnAgentActivation = (activation: AgentActivation) => void;
 
 /** Inflight tracker for background async work. */
 export type InflightTracker = {
@@ -63,28 +63,13 @@ export type AgentActivatorDeps = {
   surreal: Surreal;
   loopDampener: LoopDampener;
   inflight: InflightTracker;
-  onAgentMatch: OnAgentMatch;
-  config?: Partial<AgentActivatorConfig>;
+  classifierModel: unknown; // AI SDK LanguageModel (Haiku)
+  onAgentActivation: OnAgentActivation;
 };
 
 // ---------------------------------------------------------------------------
 // Pure Functions
 // ---------------------------------------------------------------------------
-
-const DEFAULT_CONFIG: AgentActivatorConfig = {
-  similarityThreshold: 0.3,
-  knnCandidates: 20,
-};
-
-/**
- * Filters KNN candidates above the similarity threshold.
- */
-export function filterAboveThreshold(
-  candidates: ReadonlyArray<{ agentId: string; similarity: number }>,
-  threshold: number,
-): Array<{ agentId: string; similarity: number }> {
-  return candidates.filter((c) => c.similarity >= threshold);
-}
 
 /**
  * Parses and validates the webhook payload from SurrealDB DEFINE EVENT.
@@ -98,7 +83,6 @@ export function parseWebhookPayload(
 
   const observation_id = b.observation_id;
   const workspace = b.workspace;
-  const embedding = b.embedding;
   const text = b.text;
   const severity = b.severity;
   const source_agent = b.source_agent;
@@ -107,9 +91,7 @@ export function parseWebhookPayload(
     typeof observation_id !== "string" ||
     typeof text !== "string" ||
     typeof severity !== "string" ||
-    typeof source_agent !== "string" ||
-    !Array.isArray(embedding) ||
-    embedding.length === 0
+    typeof source_agent !== "string"
   ) {
     return undefined;
   }
@@ -129,7 +111,6 @@ export function parseWebhookPayload(
       ? observation_id.split(":").slice(1).join(":")
       : observation_id,
     workspace: workspaceId,
-    embedding: embedding as number[],
     text,
     severity,
     source_agent,
@@ -147,63 +128,75 @@ export function buildDampenerEvent(
   return { workspaceId, entityId, sourceAgent };
 }
 
+/**
+ * Builds the LLM classification prompt from observation + agent descriptions.
+ */
+export function buildClassificationPrompt(
+  observation: { text: string; severity: string },
+  agents: ReadonlyArray<RegisteredAgent>,
+): string {
+  const agentList = agents
+    .map((a) => `- Agent "${a.agentId}" (type: ${a.agentType}): ${a.description}`)
+    .join("\n");
+
+  return `You are an agent activator. Given an observation from a knowledge graph, determine which registered agents should be started to handle it.
+
+## Observation
+Severity: ${observation.severity}
+Text: ${observation.text}
+
+## Registered Agents
+${agentList}
+
+## Instructions
+- Select agents that can TAKE ACTION on this observation (not just agents with related keywords)
+- Consider the severity: conflict observations need immediate action, info observations may not need any agent
+- If no agent is relevant, return an empty list
+- For each selected agent, explain briefly why it should be activated`;
+}
+
+// ---------------------------------------------------------------------------
+// LLM Classification Schema
+// ---------------------------------------------------------------------------
+
+const classificationSchema = z.object({
+  activations: z.array(z.object({
+    agent_id: z.string().describe("The agent ID to activate"),
+    reason: z.string().describe("Brief explanation of why this agent should handle the observation"),
+  })),
+});
+
 // ---------------------------------------------------------------------------
 // DB Queries (Side-Effect Boundary)
 // ---------------------------------------------------------------------------
 
-type KnnCandidate = {
-  agentId: string;
-  agentType: string;
-  similarity: number;
-};
-
 /**
- * Two-step KNN: observation embedding vs agent.description_embedding.
- * Step 1: KNN candidates from agent table (HNSW index, no WHERE)
- * Step 2: Filter application-side by similarity threshold
+ * Loads all registered agents for a workspace (via identity membership).
  */
-async function findMatchingAgentTypes(
+async function loadWorkspaceAgents(
   surreal: Surreal,
-  observationEmbedding: number[],
-  config: AgentActivatorConfig,
-): Promise<KnnCandidate[]> {
-  const knnResult = await surreal.query<[Array<{
+  workspaceId: string,
+): Promise<RegisteredAgent[]> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  // Two-step: get workspace member identities, then find their agents
+  const result = await surreal.query<[unknown, Array<{
     id: RecordId;
     agent_type: string;
-    similarity: number;
+    description: string;
   }>]>(
-    `SELECT
-      id,
-      agent_type,
-      vector::similarity::cosine(description_embedding, $embedding) AS similarity
-    FROM agent
-    WHERE description_embedding <|${config.knnCandidates}, COSINE|> $embedding
-    ORDER BY similarity DESC;`,
-    { embedding: observationEmbedding },
+    `LET $members = (SELECT VALUE in FROM member_of WHERE out = $ws);
+     SELECT id, agent_type, description FROM agent
+     WHERE managed_by IN $members
+     AND description IS NOT NONE;`,
+    { ws: workspaceRecord },
   );
 
-  const candidates = knnResult[0] ?? [];
-  if (candidates.length === 0) {
-    console.log(`[AgentActivator] KNN returned 0 agent candidates`);
-    return [];
-  }
-  console.log(`[AgentActivator] KNN returned ${candidates.length} candidates, top similarity: ${candidates[0]?.similarity}`);
-
-  const aboveThreshold = candidates
-    .filter((c) => c.similarity >= config.similarityThreshold)
-    .map((c) => ({
-      agentId: c.id.id as string,
-      agentType: c.agent_type,
-      similarity: c.similarity,
-    }));
-
-  if (aboveThreshold.length === 0) {
-    console.log(`[AgentActivator] No candidates above threshold ${config.similarityThreshold}`);
-  } else {
-    console.log(`[AgentActivator] ${aboveThreshold.length} candidates above threshold`);
-  }
-
-  return aboveThreshold;
+  return (result[1] ?? []).map((a) => ({
+    agentId: a.id.id as string,
+    agentType: a.agent_type,
+    description: a.description,
+  }));
 }
 
 /**
@@ -249,6 +242,34 @@ async function hasActiveCoverage(
 }
 
 /**
+ * Creates a new agent session for a matched agent, marking it as "spawning".
+ */
+async function createActivatedSession(
+  surreal: Surreal,
+  match: { agentType: string; workspaceId: string; observationId: string },
+): Promise<string> {
+  const sessionId = `sess-${crypto.randomUUID()}`;
+  const sessionRecord = new RecordId("agent_session", sessionId);
+  const workspaceRecord = new RecordId("workspace", match.workspaceId);
+  const observationRecord = new RecordId("observation", match.observationId);
+
+  await surreal.query(`CREATE $sess CONTENT $content;`, {
+    sess: sessionRecord,
+    content: {
+      agent: match.agentType,
+      started_at: new Date(),
+      workspace: workspaceRecord,
+      orchestrator_status: "spawning",
+      source: "activator",
+      triggered_by: observationRecord,
+      created_at: new Date(),
+    },
+  });
+
+  return sessionId;
+}
+
+/**
  * Creates a meta-observation when the loop dampener activates.
  */
 async function createDampeningMetaObservation(
@@ -285,21 +306,17 @@ async function createDampeningMetaObservation(
  *
  * Called by SurrealDB DEFINE EVENT webhook on observation CREATE.
  * Parses the webhook payload, checks loop dampener, checks active coverage,
- * runs KNN against agent description embeddings, invokes matched agents.
+ * uses LLM to classify which agents should handle the observation,
+ * starts new agent sessions for matched agents.
  */
 export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
-  const { surreal, loopDampener, inflight, onAgentMatch } = deps;
-  const config: AgentActivatorConfig = {
-    ...DEFAULT_CONFIG,
-    ...deps.config,
-  };
+  const { surreal, loopDampener, inflight, classifierModel, onAgentActivation } = deps;
 
   return async function handleObservationWebhook(request: Request): Promise<Response> {
     const body = await request.json().catch(() => undefined);
     const payload = parseWebhookPayload(body);
 
     if (!payload) {
-      // Return 200 to prevent SurrealDB retries for invalid payloads
       return new Response("invalid payload", { status: 200 });
     }
 
@@ -317,7 +334,7 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
   };
 
   async function processObservation(payload: ObservationWebhookPayload): Promise<void> {
-    const { observation_id, workspace, embedding, text, source_agent } = payload;
+    const { observation_id, workspace, text, severity, source_agent } = payload;
 
     // Resolve target entity for dampener keying and active coverage check
     const target = await resolveObservationTarget(surreal, observation_id);
@@ -349,14 +366,54 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
       }
     }
 
-    const matches = await findMatchingAgentTypes(surreal, embedding, config);
+    // Load registered agents for this workspace
+    const agents = await loadWorkspaceAgents(surreal, workspace);
+    if (agents.length === 0) {
+      console.log(`[AgentActivator] No registered agents with descriptions in workspace ${workspace}`);
+      return;
+    }
 
-    for (const match of matches) {
-      onAgentMatch({
-        agentId: match.agentId,
-        agentType: match.agentType,
+    // LLM classification: which agents should handle this observation?
+    const prompt = buildClassificationPrompt({ text, severity }, agents);
+    const classification = await generateObject({
+      model: classifierModel as any,
+      schema: classificationSchema,
+      prompt,
+    });
+
+    const activations = classification.object.activations;
+    if (activations.length === 0) {
+      console.log(`[AgentActivator] LLM classified no agents for observation ${observation_id}`);
+      return;
+    }
+    console.log(`[AgentActivator] LLM classified ${activations.length} agents for observation ${observation_id}`);
+
+    // Validate agent IDs against registered agents
+    const agentMap = new Map(agents.map((a) => [a.agentId, a]));
+
+    for (const activation of activations) {
+      const agent = agentMap.get(activation.agent_id);
+      if (!agent) {
+        console.log(`[AgentActivator] LLM returned unknown agent_id "${activation.agent_id}", skipping`);
+        continue;
+      }
+
+      await createActivatedSession(surreal, {
+        agentType: agent.agentType,
         workspaceId: workspace,
-        similarity: match.similarity,
+        observationId: observation_id,
+      }).catch((err) => {
+        console.error(
+          `[AgentActivator] Failed to create activated session for ${agent.agentType}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+
+      onAgentActivation({
+        agentId: agent.agentId,
+        agentType: agent.agentType,
+        workspaceId: workspace,
+        reason: activation.reason,
         observationId: observation_id,
         observationText: text,
       });

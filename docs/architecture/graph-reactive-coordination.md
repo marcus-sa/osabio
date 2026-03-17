@@ -13,8 +13,8 @@ This feature replaces poll-based reactivity with push-based coordination powered
 
 These are NOT open for re-decision:
 
-1. SurrealDB LIVE SELECT as event source (push-based, native to stack)
-2. Coordinator routes observations to agents via vector search (observation embedding → KNN against agent description embeddings)
+1. SurrealDB LIVE SELECT as event source for feed (push-based, native to stack)
+2. Agent Activator uses LLM classification to decide which agents to start for observations (ADR-061)
 3. Proxy enriches running agents via vector search (new message embeddings → KNN against recent graph entity embeddings)
 4. LLM proxy injects as `<urgent-context>` / `<context-update>` XML blocks
 5. Never cancel current generation -- interrupts wait for next turn
@@ -56,7 +56,7 @@ C4Container
   Container_Boundary(brain, "Brain Server (Bun)") {
     Container(feedRoute, "Feed Route", "GET handler", "Serves initial feed state via 14 parallel queries")
     Container(feedSseBridge, "Feed SSE Bridge", "NEW", "Subscribes LIVE SELECT, transforms to GovernanceFeedItem, pushes via SSE")
-    Container(activator, "Agent Activator", "NEW", "DEFINE EVENT webhook endpoint: starts new agents for unhandled observations via vector search against agent description embeddings")
+    Container(activator, "Agent Activator", "NEW", "DEFINE EVENT webhook endpoint: starts new agents for unhandled observations via LLM classification of agent descriptions")
     Container(proxyRoute, "LLM Proxy Route", "Existing", "Forwards LLM requests with context injection")
     Container(contextInjector, "Context Injector", "Existing+Extended", "Builds brain-context XML, NEW: vector search for relevant recent graph changes")
     Container(sseRegistry, "SSE Registry", "Existing+Extended", "Manages SSE streams, NEW: per-workspace feed streams")
@@ -71,8 +71,7 @@ C4Container
   Rel(proxyRoute, contextInjector, "Injects brain-context + relevant recent changes")
   Rel(surreal, feedSseBridge, "Pushes graph changes", "LIVE SELECT")
   Rel(surreal, activator, "DEFINE EVENT webhook on observation CREATE", "HTTP POST")
-  Rel(activator, surreal, "KNN search: observation embedding vs agent description embeddings")
-  Rel(activator, surreal, "Starts new agent sessions for matches")
+  Rel(activator, surreal, "Loads agent descriptions, starts new sessions for matches")
   Rel(contextInjector, surreal, "KNN search: message embeddings vs recent graph entity embeddings")
   Rel(feedSseBridge, sseRegistry, "Emits feed events")
 ```
@@ -88,7 +87,7 @@ C4Component
   Container_Boundary(reactive, "Reactive Layer") {
     Component(liveSelectMgr, "Live Select Manager", "Manages LIVE SELECT subscriptions per workspace per table (feed only)")
     Component(feedBridge, "Feed SSE Bridge", "Transforms graph events to GovernanceFeedItem, simple rules for tier assignment, batches within 500ms window")
-    Component(activator, "Agent Activator", "POST endpoint called by DEFINE EVENT webhook on observation CREATE. Vector search against agent description embeddings, starts new agent sessions.")
+    Component(activator, "Agent Activator", "POST endpoint called by DEFINE EVENT webhook on observation CREATE. LLM classification of agent descriptions (ADR-061), starts new agent sessions.")
     Component(dampener, "Loop Dampener", "Sliding window counter: per-entity, per-source, per-workspace")
   }
 
@@ -99,7 +98,7 @@ C4Component
   Rel(surreal, activator, "DEFINE EVENT webhook on observation CREATE", "HTTP POST")
   Rel(liveSelectMgr, feedBridge, "Forwards graph events for feed")
   Rel(activator, dampener, "Checks dampening before processing")
-  Rel(activator, surreal, "KNN: observation embedding vs agent description embeddings")
+  Rel(activator, surreal, "Loads agent descriptions for LLM classification")
   Rel(feedBridge, sseReg, "Emits batched feed_update SSE events")
   Rel(dampener, surreal, "Creates meta-observation on activation")
 ```
@@ -112,7 +111,7 @@ C4Component
 |--------|------|---------------|
 | Live Select Manager | `app/src/server/reactive/live-select-manager.ts` | Create/manage LIVE SELECT subscriptions per workspace for feed tables only. Uses existing `surreal` WebSocket connection. |
 | Feed SSE Bridge | `app/src/server/reactive/feed-sse-bridge.ts` | Subscribes to graph events via Live Select Manager, simple rules for feed tier assignment (display only), transforms to `GovernanceFeedItem`, batches within 500ms window, pushes via SSE registry. |
-| Agent Activator | `app/src/server/reactive/agent-activator.ts` | POST endpoint handler called by SurrealDB DEFINE EVENT webhook on observation CREATE. Vector search (observation embedding → KNN against agent description embeddings), starts new agent sessions. Skips observations targeting entities with active agent sessions (proxy handles those — see ADR-059). |
+| Agent Activator | `app/src/server/reactive/agent-activator.ts` | POST endpoint handler called by SurrealDB DEFINE EVENT webhook on observation CREATE. LLM classification (observation text + agent descriptions → fast model judges which agents can act, ADR-061), starts new agent sessions. Skips observations targeting entities with active agent sessions (proxy handles those — ADR-059). |
 | Loop Dampener | `app/src/server/reactive/loop-dampener.ts` | Pure function + state container: sliding window event counter. Threshold check returns dampen/allow. |
 
 ### Extended Existing Modules
@@ -202,17 +201,17 @@ data: { "items": GovernanceFeedItem[], "removals": string[] }
 SurrealDB observation CREATE
   |
   v
-DEFINE EVENT coordinator_observation_routed (fires ASYNC RETRY 3)
-  |-- WHERE: embedding IS NOT NONE, excludes source_agent="agent_activator"
+DEFINE EVENT activator_observation_created (fires ASYNC RETRY 3)
+  |-- WHERE: excludes source_agent="agent_activator"
   |
   v
 POST /api/internal/activator/observation (HTTP webhook)
   |-- Checks loop dampener (skip if dampened)
   |-- Checks if target entity has active agent session (skip if covered — proxy handles, ADR-059)
-  |-- KNN search: observation.embedding <|K, COSINE|> agent.description_embedding
-  |   (two-step pattern: HNSW candidates, then workspace filter)
-  |-- Similarity threshold filters low-relevance matches
-  |-- Starts new agent sessions for matches
+  |-- Loads registered agent descriptions for workspace
+  |-- LLM classification (fast model): observation text + agent descriptions → which agents can act? (ADR-061)
+  |-- Validates returned agent IDs against registered agents
+  |-- Starts new agent sessions for classified matches (triggered_by = observation)
 ```
 
 Uses the same DEFINE EVENT webhook pattern as the existing 8 observer webhooks (session_ended, task_completed, decision_confirmed, etc.). The activator is a POST endpoint, not an always-on LIVE SELECT listener. No subscription management, no application-side filtering — the EVENT condition handles it.
@@ -250,13 +249,19 @@ No new tables. Changes to existing tables:
 -- Track when proxy last enriched this session's context
 DEFINE FIELD OVERWRITE last_request_at ON agent_session TYPE option<datetime>;
 
--- Agent description embedding for activator KNN routing
+-- Track which entity caused the activator to start this session (polymorphic)
+DEFINE FIELD OVERWRITE triggered_by ON agent_session TYPE option<record<observation | task | decision | question>>;
+
+-- Agent description embedding (kept for future use, no longer used by activator — ADR-061)
 DEFINE FIELD OVERWRITE description_embedding ON agent TYPE option<array<float>>;
 DEFINE INDEX OVERWRITE idx_agent_desc_embedding ON agent FIELDS description_embedding
   HNSW DIMENSION 1536 DIST COSINE;
+
+-- Agent description (text) — used by LLM classification in the activator
+DEFINE FIELD OVERWRITE description ON agent TYPE option<string>;
 ```
 
-Observations already have `embedding` fields with HNSW indexes. The activator uses the existing observation embedding to KNN search against agent description embeddings. The proxy uses message/entity embeddings already produced by the extraction pipeline.
+The activator loads agent descriptions as text and sends them to a fast LLM (Haiku) for classification (ADR-061). The proxy uses message/entity embeddings already produced by the extraction pipeline for vector search context enrichment.
 
 ## Deployment Architecture
 
@@ -270,7 +275,7 @@ No new services. All components run in-process within the existing Bun server:
 ## Quality Attribute Strategies
 
 ### Performance
-- Coordinator agent routing: KNN search on HNSW index, sub-50ms for typical agent counts
+- Agent activation: LLM classification via fast model (Haiku), ~200-500ms per activation (async, non-blocking)
 - Feed SSE delivery: < 2 seconds from graph write (95th percentile)
 - 500ms batching window prevents client-side event flooding
 - LIVE SELECT runs on existing WS connection (SurrealDB SDK multiplexes)
@@ -283,7 +288,7 @@ No new services. All components run in-process within the existing Bun server:
 - Agent Activator is fail-safe: if it crashes, agents still work (new sessions just won't be started for unhandled observations)
 
 ### Maintainability
-- Agent routing is semantic — add new agent types without updating rules
+- Agent routing is LLM-judged — add new agent types without updating rules or tuning thresholds
 - Feed SSE Bridge reuses existing `GovernanceFeedItem` contract -- no schema drift
 - No separate messaging table -- graph is the single source of truth for both activator and proxy
 - All new modules in `app/src/server/reactive/` -- clear module boundary
@@ -296,7 +301,7 @@ No new services. All components run in-process within the existing Bun server:
 
 ### Observability
 - Log every LIVE SELECT subscription start/stop
-- Log every activator KNN match (observation, matched agents, similarity scores)
+- Log every activator LLM classification (observation, matched agents, reasons)
 - Log every proxy context injection (relevant changes found, similarity scores)
 - Log loop dampener activations (+ meta-observation in graph)
 - SSE connection status tracked per workspace
