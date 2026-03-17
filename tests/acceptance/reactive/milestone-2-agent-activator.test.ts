@@ -19,7 +19,7 @@
  *   SurrealDB direct queries                   (seed data + verification)
  *   GET  /api/workspaces/:workspaceId/feed/stream (verify meta-observation in feed)
  */
-import { describe, expect, it, afterEach } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import {
   setupReactiveSuite,
   createTestUser,
@@ -35,18 +35,11 @@ import {
   getActivatedSessions,
   getActivationDecisions,
   openFeedStream,
-  type FeedStreamController,
 } from "./reactive-test-kit";
 
 const getRuntime = setupReactiveSuite("agent_activator");
 
 describe("US-GRC-03: Agent Activator with LLM Classification", () => {
-  let feedStream: FeedStreamController | undefined;
-
-  afterEach(() => {
-    feedStream?.close();
-    feedStream = undefined;
-  });
 
   // ---------------------------------------------------------------------------
   // AC: Activator starts new agent for observation without active coverage
@@ -236,24 +229,28 @@ describe("US-GRC-03: Agent Activator with LLM Classification", () => {
       title: "Implement rate limiting for billing API",
     });
 
-    feedStream = openFeedStream(baseUrl, workspaceId, user);
-    await feedStream.connect();
+    const feedStream = openFeedStream(baseUrl, workspaceId, user);
+    try {
+      await feedStream.connect();
 
-    await createObservationBurstWithCoordinator(surreal, baseUrl, workspaceId, {
-      count: 4,
-      sourceAgent: "observer_agent",
-      targetEntity: { table: "task", id: taskId },
-      severity: "warning",
-      textPrefix: "Cascading issue on rate limiting task",
-    });
+      await createObservationBurstWithCoordinator(surreal, baseUrl, workspaceId, {
+        count: 4,
+        sourceAgent: "observer_agent",
+        targetEntity: { table: "task", id: taskId },
+        severity: "warning",
+        textPrefix: "Cascading issue on rate limiting task",
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const metaObs = await getMetaObservations(surreal, workspaceId);
-    const dampeningMeta = metaObs.find(
-      (o) => o.text.includes("dampened"),
-    );
-    expect(dampeningMeta).toBeDefined();
+      const metaObs = await getMetaObservations(surreal, workspaceId);
+      const dampeningMeta = metaObs.find(
+        (o) => o.text.includes("dampened"),
+      );
+      expect(dampeningMeta).toBeDefined();
+    } finally {
+      feedStream.close();
+    }
   }, 30_000);
 
   // ---------------------------------------------------------------------------
