@@ -94,5 +94,109 @@ events:
   s: EXECUTED
   sid: 01-04
   t: '2026-03-17T13:19:34Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-17T13:20:24Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-05
+  t: '2026-03-17T13:23:02Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-05
+  t: '2026-03-17T13:23:39Z'
+- d: 'NOT_APPLICABLE: SSE endpoint already registered in step 01-02 with correct headers
+    in sse-registry.ts handleWorkspaceStreamRequest'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 01-05
+  t: '2026-03-17T13:24:09Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-05
+  t: '2026-03-17T13:26:09Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-05
+  t: '2026-03-17T13:27:13Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-17T13:29:20Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-17T13:29:21Z'
+- d: 'NOT_APPLICABLE: keep-alive already implemented in 01-02, no new unit behavior
+    needed'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-01
+  t: '2026-03-17T13:29:28Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-17T13:29:29Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-01
+  t: '2026-03-17T13:29:55Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-17T13:33:59Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-17T13:34:00Z'
+- d: 'NOT_APPLICABLE: existing pure functions from step 01-04 already handle tier
+    assignment, transform, and transition detection -- no new pure functions needed'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-02
+  t: '2026-03-17T13:34:07Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-17T13:34:08Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 02-02
+  t: '2026-03-17T13:34:35Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-17T13:38:48Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-17T13:38:49Z'
+- d: 'NOT_APPLICABLE: delta sync is IO wiring through existing batcher/SSE infrastructure,
+    not domain logic requiring unit properties'
+  p: RED_UNIT
+  s: SKIPPED
+  sid: 02-03
+  t: '2026-03-17T13:38:56Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 02-03
+  t: '2026-03-17T13:47:50Z'
 project_id: graph-reactive-coordination
 schema_version: '3.0'

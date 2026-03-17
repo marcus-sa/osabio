@@ -449,8 +449,9 @@ export function openFeedStream(
   baseUrl: string,
   workspaceId: string,
   user: TestUser,
+  options?: { lastEventId?: string },
 ): FeedStreamController {
-  return new FeedStreamController(baseUrl, workspaceId, user);
+  return new FeedStreamController(baseUrl, workspaceId, user, options);
 }
 
 export class FeedStreamController {
@@ -462,12 +463,16 @@ export class FeedStreamController {
   private decoder = new TextDecoder();
   private connected = false;
   private connectionPromise: Promise<void> | undefined;
+  private lastEventId: string | undefined;
 
   constructor(
     private baseUrl: string,
     private workspaceId: string,
     private user: TestUser,
-  ) {}
+    private options?: { lastEventId?: string },
+  ) {
+    this.lastEventId = options?.lastEventId;
+  }
 
   /** Start listening for SSE events. */
   async connect(): Promise<void> {
@@ -476,10 +481,22 @@ export class FeedStreamController {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
 
+  /** Get the last event ID received from the server. */
+  getLastEventId(): string | undefined {
+    return this.lastEventId;
+  }
+
   private async _connect(): Promise<void> {
     const url = `${this.baseUrl}/api/workspaces/${this.workspaceId}/feed/stream`;
+    const headers: Record<string, string> = {
+      Accept: "text/event-stream",
+      ...this.user.headers,
+    };
+    if (this.lastEventId) {
+      headers["Last-Event-ID"] = this.lastEventId;
+    }
     const response = await fetch(url, {
-      headers: { Accept: "text/event-stream", ...this.user.headers },
+      headers,
       signal: this.abortController.signal,
     });
 
@@ -500,8 +517,15 @@ export class FeedStreamController {
         this.buffer = segments.pop() ?? "";
 
         for (const segment of segments) {
-          const dataLine = segment.split("\n").find((line) => line.startsWith("data: "));
+          const lines = segment.split("\n");
+          const idLine = lines.find((line) => line.startsWith("id: "));
+          const dataLine = lines.find((line) => line.startsWith("data: "));
           if (!dataLine) continue;
+
+          // Track the last event ID for reconnection
+          if (idLine) {
+            this.lastEventId = idLine.slice("id: ".length).trim();
+          }
 
           const raw = dataLine.slice("data: ".length);
           this.rawEvents.push(raw);

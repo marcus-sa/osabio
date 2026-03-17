@@ -19,9 +19,17 @@ type WorkspaceClient = {
   keepAliveId?: ReturnType<typeof setInterval>;
 };
 
+type BufferedEvent = {
+  eventId: number;
+  encoded: Uint8Array;
+};
+
+const EVENT_BUFFER_MAX_SIZE = 1000;
+
 type WorkspaceStreamState = {
   clients: Map<string, WorkspaceClient>;
   eventCounter: number;
+  eventBuffer: BufferedEvent[];
   graceTimerId?: ReturnType<typeof setTimeout>;
 };
 
@@ -47,10 +55,43 @@ export type SseRegistry = {
   registerMessage: (messageId: string) => void;
   handleStreamRequest: (messageId: string) => Response;
   emitEvent: (messageId: string, event: StreamEvent) => void;
-  handleWorkspaceStreamRequest: (workspaceId: string) => Response;
+  handleWorkspaceStreamRequest: (workspaceId: string, lastEventId?: string) => Response;
   emitWorkspaceEvent: (workspaceId: string, event: WorkspaceStreamEvent) => void;
   getWorkspaceClientCount: (workspaceId: string) => number;
 };
+
+/**
+ * Resolves which buffered events to replay on reconnection.
+ *
+ * If lastEventId is provided and found in the buffer, returns events after it.
+ * If lastEventId is not found (too old / buffer rotated), returns empty array
+ * (caller should treat as no delta available -- client uses GET for full state).
+ * If no lastEventId, returns empty array (fresh connection, no replay needed).
+ */
+function resolveReplayEvents(
+  eventBuffer: BufferedEvent[],
+  lastEventId: string | undefined,
+): BufferedEvent[] {
+  if (!lastEventId) return [];
+
+  const parsedId = parseInt(lastEventId, 10);
+  if (isNaN(parsedId)) return [];
+
+  // Find the index of the event matching lastEventId
+  const lastSeenIndex = eventBuffer.findIndex((e) => e.eventId === parsedId);
+
+  if (lastSeenIndex === -1) {
+    // ID not in buffer -- too old or unknown. No delta available.
+    // If buffer has events and they're all newer, replay all of them
+    if (eventBuffer.length > 0 && eventBuffer[0].eventId > parsedId) {
+      return [...eventBuffer];
+    }
+    return [];
+  }
+
+  // Return everything after the last seen event
+  return eventBuffer.slice(lastSeenIndex + 1);
+}
 
 export function createSseRegistry(): SseRegistry {
   const streams = new Map<string, StreamState>();
@@ -83,7 +124,7 @@ export function createSseRegistry(): SseRegistry {
   function getOrCreateWorkspaceState(workspaceId: string): WorkspaceStreamState {
     let state = workspaceStreams.get(workspaceId);
     if (!state) {
-      state = { clients: new Map(), eventCounter: 0 };
+      state = { clients: new Map(), eventCounter: 0, eventBuffer: [] };
       workspaceStreams.set(workspaceId, state);
     }
     // Cancel grace period if new client joins
@@ -200,11 +241,14 @@ export function createSseRegistry(): SseRegistry {
     // Workspace stream methods
     // -----------------------------------------------------------------------
 
-    handleWorkspaceStreamRequest(workspaceId: string): Response {
+    handleWorkspaceStreamRequest(workspaceId: string, lastEventId?: string): Response {
       const state = getOrCreateWorkspaceState(workspaceId);
       const clientId = `client-${crypto.randomUUID()}`;
       const client: WorkspaceClient = { id: clientId };
       state.clients.set(clientId, client);
+
+      // Determine which buffered events to replay on reconnection
+      const eventsToReplay = resolveReplayEvents(state.eventBuffer, lastEventId);
 
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
@@ -214,10 +258,17 @@ export function createSseRegistry(): SseRegistry {
             workspaceId,
             clientId,
             totalClients: state.clients.size,
+            lastEventId: lastEventId ?? "none",
+            replayCount: eventsToReplay.length,
           });
 
           // Send immediate keep-alive so EventSource confirms the connection
           controller.enqueue(encoder.encode(": keep-alive\n\n"));
+
+          // Replay missed events from the buffer (delta sync)
+          for (const buffered of eventsToReplay) {
+            controller.enqueue(buffered.encoded);
+          }
 
           client.keepAliveId = setInterval(() => {
             try {
@@ -250,6 +301,12 @@ export function createSseRegistry(): SseRegistry {
       state.eventCounter += 1;
       const eventId = state.eventCounter;
       const encoded = encodeWorkspaceSse(eventId, event);
+
+      // Store in bounded event buffer for delta sync on reconnection
+      state.eventBuffer.push({ eventId, encoded });
+      if (state.eventBuffer.length > EVENT_BUFFER_MAX_SIZE) {
+        state.eventBuffer.splice(0, state.eventBuffer.length - EVENT_BUFFER_MAX_SIZE);
+      }
 
       for (const client of state.clients.values()) {
         if (client.controller) {

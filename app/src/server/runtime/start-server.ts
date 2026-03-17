@@ -375,7 +375,10 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         GET: withTracing(
           "GET /api/workspaces/:workspaceId/feed/stream",
           "GET",
-          (request) => deps.sse.handleWorkspaceStreamRequest(request.params.workspaceId),
+          (request) => deps.sse.handleWorkspaceStreamRequest(
+            request.params.workspaceId,
+            request.headers.get("Last-Event-ID") ?? undefined,
+          ),
         ),
       },
       "/api/workspaces/:workspaceId/webhooks/github": {

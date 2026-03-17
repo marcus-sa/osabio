@@ -217,7 +217,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: On reconnection, missed events are replayed (delta sync)
   // ---------------------------------------------------------------------------
-  it.skip("missed events are delivered after brief reconnection", async () => {
+  it("missed events are delivered after brief reconnection", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given the admin had the feed open and received some events
@@ -236,6 +236,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
     await feedStream.waitForEvents(1, 5000);
 
     // When the SSE connection drops (simulate by closing)
+    const lastEventId = feedStream.getLastEventId();
     feedStream.close();
 
     // And during disconnection, new graph changes occur
@@ -249,14 +250,18 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
       status: "provisional",
     });
 
-    // When the connection recovers (reconnect)
-    feedStream = openFeedStream(baseUrl, workspaceId, user);
+    // Allow batcher to flush events while disconnected
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // When the connection recovers with Last-Event-ID (delta sync)
+    feedStream = openFeedStream(baseUrl, workspaceId, user, { lastEventId });
     await feedStream.connect();
 
-    // Then the missed events are delivered
+    // Then the missed events are replayed via delta sync
     const events = await feedStream.waitForEvents(1, 5000);
-    // At minimum, the feed state should reflect the changes made during disconnect
-    // (either via delta sync or full refresh)
+    expect(events.length).toBeGreaterThanOrEqual(1);
+
+    // And the feed state reflects all changes including those during disconnect
     const feedState = await getFeedState(baseUrl, workspaceId, user);
     expect(feedState).toBeDefined();
   }, 30_000);
@@ -264,7 +269,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: No duplicate feed items after reconnection
   // ---------------------------------------------------------------------------
-  it.skip("feed items are not duplicated after reconnection", async () => {
+  it("feed items are not duplicated after reconnection", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with an observation already in the feed
@@ -298,7 +303,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: High-volume event bursts are batched (500ms window)
   // ---------------------------------------------------------------------------
-  it.skip("rapid graph changes are batched into fewer SSE events", async () => {
+  it("rapid graph changes are batched into fewer SSE events", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given the admin has the governance feed open
