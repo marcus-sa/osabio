@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ecb12ac11677",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-058-define-event-webhooks-over-live-select-for-coordinator.md",
+    "docs/architecture/graph-reactive-coordination.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/b12ac11677/0/metadata.json",
+      "transcript": "/ec/b12ac11677/0/full.jsonl",
+      "context": "/ec/b12ac11677/0/context.md",
+      "content_hash": "/ec/b12ac11677/0/content_hash.txt",
+      "prompt": "/ec/b12ac11677/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 559,
+    "cache_creation_tokens": 1213672,
+    "cache_read_tokens": 50570358,
+    "output_tokens": 134366,
+    "api_call_count": 364
+  }
+}
