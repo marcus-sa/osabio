@@ -218,6 +218,7 @@ type BatcherConfig = {
 
 type Batcher = {
   add: (item: FeedBridgeItem, removalId?: string) => void;
+  addRemoval: (removalId: string) => void;
   dispose: () => void;
 };
 
@@ -260,6 +261,14 @@ export function createBatcher(config: BatcherConfig): Batcher {
     }
   }
 
+  function addRemoval(removalId: string): void {
+    if (disposed) return;
+    pendingRemovals.push(removalId);
+    if (timerId === undefined) {
+      timerId = setTimeout(flush, config.windowMs);
+    }
+  }
+
   function dispose(): void {
     disposed = true;
     if (timerId !== undefined) {
@@ -270,7 +279,7 @@ export function createBatcher(config: BatcherConfig): Batcher {
     pendingRemovals = [];
   }
 
-  return { add, dispose };
+  return { add, addRemoval, dispose };
 }
 
 // ---------------------------------------------------------------------------
@@ -353,23 +362,10 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
   }
 
   function handleEvent(workspaceId: string, event: LiveSelectEvent): void {
-    // For DELETE events, emit removal only
+    // For DELETE events, emit removal only — no item payload
     if (event.action === "DELETE") {
       const batcher = getOrCreateBatcher(workspaceId);
-      // Create a minimal item for the removal notification
-      batcher.add(
-        {
-          id: event.recordId,
-          tier: "awareness",
-          entityId: event.recordId,
-          entityKind: event.table,
-          entityName: "",
-          reason: "Deleted",
-          status: "deleted",
-          createdAt: new Date().toISOString(),
-        },
-        event.recordId,
-      );
+      batcher.addRemoval(event.recordId);
       return;
     }
 

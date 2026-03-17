@@ -5,13 +5,24 @@
  *
  * Step: 03-02 (Graph-Reactive Coordination)
  */
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import {
   parseWebhookPayload,
   buildDampenerEvent,
   buildClassificationPrompt,
   validateWebhookSecret,
+  createAgentActivatorHandler,
+  type AgentActivation,
+  type AgentActivatorDeps,
 } from "../../../app/src/server/reactive/agent-activator";
+
+// Mock the `ai` module's generateObject before the activator module resolves it.
+// This lets us control LLM classification output in handler tests.
+mock.module("ai", () => ({
+  generateObject: async () => ({
+    object: { activations: [{ agent_id: "agent-1", reason: "test reason" }] },
+  }),
+}));
 
 describe("Agent Activator Pure Functions", () => {
   // ---------------------------------------------------------------------------
@@ -168,5 +179,85 @@ describe("Agent Activator Pure Functions", () => {
     it("accepts requests with matching Bearer token", () => {
       expect(validateWebhookSecret("Bearer my-secret", "my-secret")).toBe(true);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression: onAgentActivation must NOT fire when session creation fails
+// ---------------------------------------------------------------------------
+
+describe("createAgentActivatorHandler", () => {
+  it("does not call onAgentActivation when createActivatedSession fails (regression)", async () => {
+    const activations: AgentActivation[] = [];
+    let queryCallCount = 0;
+
+    // Mock surreal that succeeds for loadWorkspaceAgents, resolveObservationTarget,
+    // hasActiveCoverage, but throws on the CREATE agent_session query.
+    const mockSurreal = {
+      query: async (sql: string, _bindings?: unknown) => {
+        queryCallCount++;
+        // loadWorkspaceAgents: LET + SELECT agent
+        if (sql.includes("SELECT id, agent_type, description FROM agent")) {
+          return [
+            undefined, // LET result
+            [{ id: { id: "agent-1", table: { name: "agent" } }, agent_type: "code_agent", description: "Coding agent" }],
+          ];
+        }
+        // resolveObservationTarget
+        if (sql.includes("SELECT out FROM observes")) {
+          return [[]]; // no target — skip active coverage check
+        }
+        // createActivatedSession — simulate DB failure
+        if (sql.includes("CREATE $sess")) {
+          throw new Error("SurrealDB connection unavailable");
+        }
+        // createActivationDecision / createHallucinationObservation — succeed silently
+        return [[]];
+      },
+    } as unknown as import("surrealdb").Surreal;
+
+    const mockLoopDampener = {
+      record: () => ({ dampened: false, count: 1 }),
+    };
+
+    const trackedPromises: Promise<unknown>[] = [];
+    const mockInflight = {
+      track: (p: Promise<unknown>) => { trackedPromises.push(p); },
+    };
+
+    // Mock LLM classifier that always returns agent-1
+    const mockClassifierModel = {} as import("ai").LanguageModel;
+
+    const deps: AgentActivatorDeps = {
+      surreal: mockSurreal,
+      loopDampener: mockLoopDampener as unknown as import("../../../app/src/server/reactive/loop-dampener").LoopDampener,
+      inflight: mockInflight,
+      classifierModel: mockClassifierModel,
+      onAgentActivation: (activation) => { activations.push(activation); },
+    };
+
+    const handler = createAgentActivatorHandler(deps);
+
+    const request = new Request("http://localhost/webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        observation_id: "obs-test-1",
+        workspace: "ws-test-1",
+        text: "conflict detected in billing module",
+        severity: "conflict",
+        source_agent: "observer_agent",
+      }),
+    });
+
+    const response = await handler(request);
+    expect(response.status).toBe(200);
+
+    // Wait for the tracked async work to complete
+    await Promise.allSettled(trackedPromises);
+
+    // The key assertion: onAgentActivation must NOT have been called
+    // because createActivatedSession threw
+    expect(activations.length).toBe(0);
   });
 });

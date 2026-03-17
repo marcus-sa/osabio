@@ -415,6 +415,26 @@ describe("createBatcher", () => {
     batcher.dispose();
   });
 
+  it("addRemoval emits only removals with no items (regression: DELETE must not emit item)", async () => {
+    const emitted: Array<{ items: FeedBridgeItem[]; removals: string[] }> = [];
+    const batcher = createBatcher({
+      windowMs: 50,
+      onFlush: (items, removals) => {
+        emitted.push({ items: [...items], removals: [...removals] });
+      },
+    });
+
+    batcher.addRemoval("decision:d1");
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(emitted.length).toBe(1);
+    expect(emitted[0].items.length).toBe(0);
+    expect(emitted[0].removals).toEqual(["decision:d1"]);
+
+    batcher.dispose();
+  });
+
   it("dispose cancels pending flush", async () => {
     const emitted: Array<{ items: FeedBridgeItem[] }> = [];
     const batcher = createBatcher({

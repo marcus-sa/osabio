@@ -223,8 +223,8 @@ export function injectBrainContext(
 export function injectRecentChanges(
   system: SystemPrompt,
   recentChangesXml: string,
-): SystemPrompt {
-  if (!recentChangesXml) return system;
+): InjectionResult["system"] {
+  if (!recentChangesXml) return system ?? "";
 
   // Extract urgent-context and context-update blocks from the XML
   const urgentMatch = recentChangesXml.match(/<urgent-context>[\s\S]*?<\/urgent-context>/);
@@ -233,7 +233,7 @@ export function injectRecentChanges(
   const urgentBlock = urgentMatch?.[0] ?? "";
   const updateBlock = updateMatch?.[0] ?? "";
 
-  if (!urgentBlock && !updateBlock) return system;
+  if (!urgentBlock && !updateBlock) return system ?? "";
 
   if (Array.isArray(system)) {
     const result = [...system];

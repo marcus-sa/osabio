@@ -560,18 +560,21 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
 
     // Start agent sessions for matched agents
     for (const { agent, reason } of validActivations) {
-      await createActivatedSession(surreal, {
-        agentType: agent.agentType,
-        workspaceId: workspace,
-        observationId: observation_id,
-      }).catch((err) => {
+      try {
+        await createActivatedSession(surreal, {
+          agentType: agent.agentType,
+          workspaceId: workspace,
+          observationId: observation_id,
+        });
+      } catch (err) {
         log.error("activator.session_failed", "Failed to create activated session", {
           agentType: agent.agentType,
           observationId: observation_id,
           workspaceId: workspace,
           error: err instanceof Error ? err.message : String(err),
         });
-      });
+        continue; // skip activation callback — no DB record exists
+      }
 
       onAgentActivation({
         agentId: agent.agentId,
