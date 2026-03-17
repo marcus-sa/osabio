@@ -279,7 +279,7 @@ describe("US-GRC-03: Agent Coordinator with Vector Search Routing", () => {
   // ---------------------------------------------------------------------------
   // AC: Loop dampening activates after >3 events on same entity from same source in 60s
   // ---------------------------------------------------------------------------
-  it.skip("loop dampener activates after 3 rapid observations on the same entity", async () => {
+  it("loop dampener activates after 3 rapid observations on the same entity", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a task that is generating cascading observations
@@ -327,7 +327,7 @@ describe("US-GRC-03: Agent Coordinator with Vector Search Routing", () => {
   // ---------------------------------------------------------------------------
   // AC: Dampening resets after window expires (60 seconds)
   // ---------------------------------------------------------------------------
-  it.skip("dampening resets after 60 seconds allowing normal processing", async () => {
+  it("dampening resets after 60 seconds allowing normal processing", async () => {
     const { surreal } = getRuntime();
 
     // Given dampening was activated on a task
