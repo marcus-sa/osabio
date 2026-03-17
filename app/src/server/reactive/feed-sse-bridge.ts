@@ -113,7 +113,7 @@ export function transformToFeedItem(event: LiveSelectEvent): FeedBridgeItem | un
   const createdAt = toIsoSafe(value.created_at) ?? new Date().toISOString();
 
   return {
-    id: buildFeedItemId(recordId, status),
+    id: buildFeedItemId(recordId),
     tier,
     entityId: recordId,
     entityKind: table,
@@ -277,8 +277,8 @@ export function createBatcher(config: BatcherConfig): Batcher {
 // Internal Helpers
 // ---------------------------------------------------------------------------
 
-function buildFeedItemId(recordId: string, status: string): string {
-  return `${recordId}:${status}`;
+function buildFeedItemId(recordId: string): string {
+  return recordId;
 }
 
 function capitalize(value: string): string {
@@ -359,7 +359,7 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
       // Create a minimal item for the removal notification
       batcher.add(
         {
-          id: `${event.recordId}:deleted`,
+          id: event.recordId,
           tier: "awareness",
           entityId: event.recordId,
           entityKind: event.table,
@@ -377,6 +377,20 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
     if (!item) return;
 
     const batcher = getOrCreateBatcher(workspaceId);
+
+    // On UPDATE, detect tier transitions and emit removal by entity ID
+    // so the client replaces the old tier item instead of accumulating duplicates
+    if (event.action === "UPDATE") {
+      const previousStatus = (event.value._previous_status as string) ?? undefined;
+      if (previousStatus) {
+        const transition = classifyTierTransition(event.table, previousStatus, item.status);
+        if (transition.isTransition) {
+          batcher.add(item, item.entityId);
+          return;
+        }
+      }
+    }
+
     batcher.add(item);
   }
 

@@ -10,6 +10,7 @@ import {
   parseWebhookPayload,
   buildDampenerEvent,
   buildClassificationPrompt,
+  validateWebhookSecret,
 } from "../../../app/src/server/reactive/agent-activator";
 
 describe("Agent Activator Pure Functions", () => {
@@ -144,6 +145,28 @@ describe("Agent Activator Pure Functions", () => {
       );
 
       expect(prompt).toContain("test");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // validateWebhookSecret
+  // ---------------------------------------------------------------------------
+  describe("validateWebhookSecret", () => {
+    it("allows all requests when secret is undefined (dev mode)", () => {
+      expect(validateWebhookSecret(undefined, undefined)).toBe(true);
+      expect(validateWebhookSecret("Bearer anything", undefined)).toBe(true);
+    });
+
+    it("rejects requests with no auth header when secret is configured", () => {
+      expect(validateWebhookSecret(undefined, "my-secret")).toBe(false);
+    });
+
+    it("rejects requests with wrong auth header", () => {
+      expect(validateWebhookSecret("Bearer wrong", "my-secret")).toBe(false);
+    });
+
+    it("accepts requests with matching Bearer token", () => {
+      expect(validateWebhookSecret("Bearer my-secret", "my-secret")).toBe(true);
     });
   });
 });

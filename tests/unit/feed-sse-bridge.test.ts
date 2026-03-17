@@ -307,7 +307,7 @@ describe("createBatcher", () => {
     });
 
     const item1: FeedBridgeItem = {
-      id: "decision:d1:provisional",
+      id: "decision:d1",
       tier: "blocking",
       entityId: "decision:d1",
       entityKind: "decision",
@@ -318,7 +318,7 @@ describe("createBatcher", () => {
     };
 
     const item2: FeedBridgeItem = {
-      id: "observation:o1:warning",
+      id: "observation:o1",
       tier: "review",
       entityId: "observation:o1",
       entityKind: "observation",
@@ -351,7 +351,7 @@ describe("createBatcher", () => {
     });
 
     const item1: FeedBridgeItem = {
-      id: "decision:d1:provisional",
+      id: "decision:d1",
       tier: "blocking",
       entityId: "decision:d1",
       entityKind: "decision",
@@ -365,7 +365,7 @@ describe("createBatcher", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const item2: FeedBridgeItem = {
-      id: "observation:o1:warning",
+      id: "observation:o1",
       tier: "review",
       entityId: "observation:o1",
       entityKind: "observation",
@@ -395,7 +395,7 @@ describe("createBatcher", () => {
     });
 
     const item: FeedBridgeItem = {
-      id: "decision:d1:confirmed",
+      id: "decision:d1",
       tier: "awareness",
       entityId: "decision:d1",
       entityKind: "decision",
@@ -405,12 +405,12 @@ describe("createBatcher", () => {
       createdAt: "2026-03-17T10:00:00Z",
     };
 
-    batcher.add(item, "decision:d1:provisional");
+    batcher.add(item, "decision:d1");
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     expect(emitted.length).toBe(1);
-    expect(emitted[0].removals).toContain("decision:d1:provisional");
+    expect(emitted[0].removals).toContain("decision:d1");
 
     batcher.dispose();
   });
@@ -425,7 +425,7 @@ describe("createBatcher", () => {
     });
 
     batcher.add({
-      id: "decision:d1:provisional",
+      id: "decision:d1",
       tier: "blocking",
       entityId: "decision:d1",
       entityKind: "decision",

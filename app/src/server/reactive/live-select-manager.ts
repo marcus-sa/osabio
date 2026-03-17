@@ -176,6 +176,8 @@ export type LiveSelectManager = {
   stop: () => Promise<void>;
   onEvent: (workspaceId: string, consumer: EventConsumer) => () => void;
   onAnyEvent: (consumer: EventConsumer) => () => void;
+  /** Number of active subscriptions after start(). */
+  subscriptionCount: () => number;
 };
 
 const defaultLogger: LiveSelectLogger = {
@@ -197,40 +199,60 @@ export function createLiveSelectManager(deps: LiveSelectManagerDeps): LiveSelect
   const subscriptions: LiveSubscription[] = [];
   const unsubscribeFns: Array<() => void> = [];
 
-  async function start(): Promise<void> {
-    for (const tableName of GOVERNANCE_TABLES) {
-      try {
-        const subscription = await surreal.live<Record<string, unknown>>(
-          new Table(tableName),
+  async function subscribeToTable(
+    tableName: string,
+    attempt: number,
+    maxAttempts: number,
+  ): Promise<boolean> {
+    try {
+      const subscription = await surreal.live<Record<string, unknown>>(
+        new Table(tableName),
+      );
+
+      subscriptions.push(subscription);
+
+      const unsubscribe = subscription.subscribe((message) => {
+        // KILLED action means the subscription was terminated
+        if (message.action === "KILLED") {
+          logger.warn(`LIVE SELECT subscription killed for table: ${tableName}`);
+          return;
+        }
+
+        const event: LiveSelectEvent = {
+          table: tableName,
+          action: message.action,
+          recordId: extractRecordIdString(message.recordId),
+          value: message.value ?? {},
+        };
+
+        router.route(event);
+      });
+
+      unsubscribeFns.push(unsubscribe);
+
+      logger.info(`LIVE SELECT subscribed to table: ${tableName}`);
+      return true;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (attempt < maxAttempts) {
+        const delayMs = Math.min(1000 * Math.pow(2, attempt), 8000);
+        logger.warn(
+          `Failed to subscribe to table ${tableName} (attempt ${attempt + 1}/${maxAttempts}), retrying in ${delayMs}ms: ${errorMsg}`,
         );
-
-        subscriptions.push(subscription);
-
-        const unsubscribe = subscription.subscribe((message) => {
-          // KILLED action means the subscription was terminated
-          if (message.action === "KILLED") {
-            logger.warn(`LIVE SELECT subscription killed for table: ${tableName}`);
-            return;
-          }
-
-          const event: LiveSelectEvent = {
-            table: tableName,
-            action: message.action,
-            recordId: extractRecordIdString(message.recordId),
-            value: message.value ?? {},
-          };
-
-          router.route(event);
-        });
-
-        unsubscribeFns.push(unsubscribe);
-
-        logger.info(`LIVE SELECT subscribed to table: ${tableName}`);
-      } catch (err) {
-        logger.error(
-          `Failed to subscribe to table ${tableName}: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return subscribeToTable(tableName, attempt + 1, maxAttempts);
       }
+      logger.warn(
+        `Failed to subscribe to table ${tableName} after ${maxAttempts} attempts: ${errorMsg}. Events for this table will be lost.`,
+      );
+      return false;
+    }
+  }
+
+  async function start(): Promise<void> {
+    const maxAttempts = 3;
+    for (const tableName of GOVERNANCE_TABLES) {
+      await subscribeToTable(tableName, 0, maxAttempts);
     }
 
     logger.info(
@@ -270,5 +292,9 @@ export function createLiveSelectManager(deps: LiveSelectManagerDeps): LiveSelect
     return router.addGlobalConsumer(consumer);
   }
 
-  return { start, stop, onEvent, onAnyEvent };
+  function subscriptionCount(): number {
+    return subscriptions.length;
+  }
+
+  return { start, stop, onEvent, onAnyEvent, subscriptionCount };
 }

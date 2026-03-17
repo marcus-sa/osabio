@@ -322,6 +322,9 @@ DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'ar
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
+-- description_embedding: Kept for future vector search use cases (e.g., agent discovery UI,
+-- semantic agent search). Not used by the agent activator, which uses LLM classification
+-- per ADR-061. The HNSW index remains defined for when vector-based agent matching is needed.
 DEFINE FIELD description_embedding ON agent TYPE option<array<float>>;
 DEFINE FIELD created_at ON agent TYPE datetime;
 DEFINE INDEX idx_agent_description_embedding ON agent FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;

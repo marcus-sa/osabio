@@ -66,6 +66,8 @@ export type AgentActivatorDeps = {
   inflight: InflightTracker;
   classifierModel: LanguageModel;
   onAgentActivation: OnAgentActivation;
+  /** Shared secret for webhook authentication. If undefined, all requests are allowed (dev mode). */
+  internalWebhookSecret?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -117,6 +119,19 @@ export function parseWebhookPayload(
     severity,
     source_agent,
   };
+}
+
+/**
+ * Validates the webhook request's Authorization header against the shared secret.
+ * Returns true if the secret is not configured (dev mode) or if the header matches.
+ */
+export function validateWebhookSecret(
+  authHeader: string | undefined,
+  secret: string | undefined,
+): boolean {
+  if (!secret) return true; // dev mode: no secret configured, allow all
+  if (!authHeader) return false;
+  return authHeader === `Bearer ${secret}`;
 }
 
 /**
@@ -322,6 +337,42 @@ async function createActivationDecision(
 }
 
 /**
+ * Creates a governance observation when the LLM hallucinates unknown agent IDs.
+ * Makes the hallucination visible in the feed for human oversight.
+ */
+async function createHallucinationObservation(
+  surreal: Surreal,
+  workspaceId: string,
+  observationId: string,
+  hallucinatedIds: string[],
+): Promise<void> {
+  const metaId = `meta-halluc-${crypto.randomUUID()}`;
+  const metaRecord = new RecordId("observation", metaId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const sourceObsRecord = new RecordId("observation", observationId);
+
+  await surreal.query(`CREATE $obs CONTENT $content;`, {
+    obs: metaRecord,
+    content: {
+      text: `Agent activator LLM hallucinated ${hallucinatedIds.length} agent ID(s) for observation ${observationId}: ${hallucinatedIds.join(", ")}`,
+      severity: "info",
+      status: "open",
+      category: "engineering",
+      source_agent: "agent_activator",
+      workspace: workspaceRecord,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+
+  // Link to the source observation
+  await surreal.query(
+    `RELATE $meta->observes->$obs SET created_at = time::now();`,
+    { meta: metaRecord, obs: sourceObsRecord },
+  );
+}
+
+/**
  * Creates a meta-observation when the loop dampener activates.
  */
 async function createDampeningMetaObservation(
@@ -362,9 +413,15 @@ async function createDampeningMetaObservation(
  * starts new agent sessions for matched agents.
  */
 export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
-  const { surreal, loopDampener, inflight, classifierModel, onAgentActivation } = deps;
+  const { surreal, loopDampener, inflight, classifierModel, onAgentActivation, internalWebhookSecret } = deps;
 
   return async function handleObservationWebhook(request: Request): Promise<Response> {
+    // Validate shared secret if configured
+    const authHeader = request.headers.get("authorization") ?? undefined;
+    if (!validateWebhookSecret(authHeader, internalWebhookSecret)) {
+      return new Response("unauthorized", { status: 401 });
+    }
+
     const body = await request.json().catch(() => undefined);
     const payload = parseWebhookPayload(body);
 
@@ -451,6 +508,7 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     // Validate agent IDs against registered agents
     const agentMap = new Map(agents.map((a) => [a.agentId, a]));
     const validActivations: Array<{ agent: RegisteredAgent; reason: string }> = [];
+    const hallucinatedIds: string[] = [];
 
     for (const activation of activations) {
       const agent = agentMap.get(activation.agent_id);
@@ -460,9 +518,26 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
           observationId: observation_id,
           workspaceId: workspace,
         });
+        hallucinatedIds.push(activation.agent_id);
         continue;
       }
       validActivations.push({ agent, reason: activation.reason });
+    }
+
+    // Create governance observation for hallucinated agent IDs
+    if (hallucinatedIds.length > 0) {
+      await createHallucinationObservation(
+        surreal,
+        workspace,
+        observation_id,
+        hallucinatedIds,
+      ).catch((err) => {
+        log.error("activator.hallucination_obs_failed", "Failed to create hallucination observation", {
+          observationId: observation_id,
+          workspaceId: workspace,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     }
 
     // Record the routing decision for conflict/warning observations (governance trail)
