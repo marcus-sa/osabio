@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5c4393743326",
+  "session_id": "bf75607a-9955-4ef8-8384-1c4b9b736243",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T16:46:38.091026Z",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/context-injector.ts",
+    "docs/feature/graph-reactive-coordination/execution-log.yaml",
+    "tests/acceptance/reactive/milestone-3-proxy-context-enrichment.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "78033fe19450",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 34739,
+    "cache_read_tokens": 53962,
+    "output_tokens": 290,
+    "api_call_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T16:46:38.082175Z",
+    "agent_lines": 62,
+    "human_added": 97,
+    "human_modified": 44,
+    "human_removed": 0,
+    "total_committed": 203,
+    "agent_percentage": 30.541871921182267
+  }
+}
