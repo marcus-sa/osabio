@@ -735,6 +735,25 @@ export async function getObservations(
 }
 
 /**
+ * Queries provisional decisions created by the agent activator.
+ */
+export async function getActivationDecisions(
+  surreal: Surreal,
+  workspaceId: string,
+): Promise<Array<{ id: RecordId; summary: string; rationale: string; status: string; category?: string }>> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const rows = (await surreal.query(
+    `SELECT id, summary, rationale, status, category, created_at FROM decision
+     WHERE workspace = $ws AND category = "operations" AND inferred_by = "agent_activator"
+     ORDER BY created_at DESC;`,
+    { ws: workspaceRecord },
+  )) as Array<
+    Array<{ id: RecordId; summary: string; rationale: string; status: string; category?: string }>
+  >;
+  return rows[0] ?? [];
+}
+
+/**
  * Gets the current feed state via the existing GET endpoint.
  */
 export async function getFeedState(

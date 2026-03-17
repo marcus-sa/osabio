@@ -33,6 +33,7 @@ import {
   getObservations,
   getMetaObservations,
   getActivatedSessions,
+  getActivationDecisions,
   openFeedStream,
   type FeedStreamController,
 } from "./reactive-test-kit";
@@ -87,6 +88,14 @@ describe("US-GRC-03: Agent Activator with LLM Classification", () => {
     const matchedSession = sessions.find((s) => s.agent === "code_agent");
     expect(matchedSession).toBeDefined();
     expect(matchedSession!.orchestrator_status).toBe("spawning");
+
+    // Activator should record a provisional decision for the routing choice
+    const decisions = await getActivationDecisions(surreal, workspaceId);
+    expect(decisions.length).toBeGreaterThanOrEqual(1);
+    const routingDecision = decisions[0];
+    expect(routingDecision.status).toBe("provisional");
+    expect(routingDecision.category).toBe("operations");
+    expect(routingDecision.rationale).toContain(observationText);
   }, 30_000);
 
   // ---------------------------------------------------------------------------

@@ -270,6 +270,56 @@ async function createActivatedSession(
 }
 
 /**
+ * Creates a provisional decision recording the activator's routing choice.
+ * Only for conflict/warning severity observations. Links to the observation
+ * via relates_to edge. Appears in the governance feed for human oversight.
+ */
+async function createActivationDecision(
+  surreal: Surreal,
+  workspaceId: string,
+  observationId: string,
+  observationText: string,
+  severity: string,
+  activatedAgents: Array<{ agentType: string; reason: string }>,
+): Promise<string> {
+  const decisionId = `dec-act-${crypto.randomUUID()}`;
+  const decisionRecord = new RecordId("decision", decisionId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const observationRecord = new RecordId("observation", observationId);
+
+  const agentSummary = activatedAgents.length > 0
+    ? activatedAgents.map((a) => `${a.agentType}: ${a.reason}`).join("; ")
+    : "No agents matched — observation logged for future context";
+
+  const summary = activatedAgents.length > 0
+    ? `Activated ${activatedAgents.length} agent(s) for ${severity} observation`
+    : `No agents activated for ${severity} observation`;
+
+  await surreal.query(`CREATE $dec CONTENT $content;`, {
+    dec: decisionRecord,
+    content: {
+      summary,
+      rationale: `Observation: "${observationText}"\n\nRouting: ${agentSummary}`,
+      status: "provisional",
+      inferred_by: "agent_activator",
+      category: "operations",
+      workspace: workspaceRecord,
+      based_on: [observationRecord],
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+  });
+
+  // Link decision to observation
+  await surreal.query(
+    `RELATE $dec->relates_to->$obs SET created_at = time::now();`,
+    { dec: decisionRecord, obs: observationRecord },
+  );
+
+  return decisionId;
+}
+
+/**
  * Creates a meta-observation when the loop dampener activates.
  */
 async function createDampeningMetaObservation(
@@ -382,14 +432,11 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
     });
 
     const activations = classification.object.activations;
-    if (activations.length === 0) {
-      console.log(`[AgentActivator] LLM classified no agents for observation ${observation_id}`);
-      return;
-    }
     console.log(`[AgentActivator] LLM classified ${activations.length} agents for observation ${observation_id}`);
 
     // Validate agent IDs against registered agents
     const agentMap = new Map(agents.map((a) => [a.agentId, a]));
+    const validActivations: Array<{ agent: RegisteredAgent; reason: string }> = [];
 
     for (const activation of activations) {
       const agent = agentMap.get(activation.agent_id);
@@ -397,7 +444,28 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
         console.log(`[AgentActivator] LLM returned unknown agent_id "${activation.agent_id}", skipping`);
         continue;
       }
+      validActivations.push({ agent, reason: activation.reason });
+    }
 
+    // Record the routing decision for conflict/warning observations (governance trail)
+    if (severity === "conflict" || severity === "warning") {
+      await createActivationDecision(
+        surreal,
+        workspace,
+        observation_id,
+        text,
+        severity,
+        validActivations.map((v) => ({ agentType: v.agent.agentType, reason: v.reason })),
+      ).catch((err) => {
+        console.error(
+          `[AgentActivator] Failed to create activation decision:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+    }
+
+    // Start agent sessions for matched agents
+    for (const { agent, reason } of validActivations) {
       await createActivatedSession(surreal, {
         agentType: agent.agentType,
         workspaceId: workspace,
@@ -413,7 +481,7 @@ export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
         agentId: agent.agentId,
         agentType: agent.agentType,
         workspaceId: workspace,
-        reason: activation.reason,
+        reason,
         observationId: observation_id,
         observationText: text,
       });
