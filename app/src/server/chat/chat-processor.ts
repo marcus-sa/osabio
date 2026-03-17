@@ -1,4 +1,5 @@
 import { RecordId } from "surrealdb";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 import type { ExtractedEntity, ExtractedRelationship, OnboardingAction } from "../../shared/contracts";
 import { loadAssistantConversationContext } from "../extraction/context-loaders";
 import { loadBranchChain, loadMessagesWithInheritance } from "./branch-chain";
@@ -6,7 +7,7 @@ import { ingestAttachment } from "../extraction/document-ingestion";
 import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { appendExtractedTools } from "../extraction/persist-extraction";
 import type { ConversationRow, GraphEntityRecord, IncomingAttachment, WorkspaceRow } from "../extraction/types";
-import { elapsedMs, userFacingError } from "../http/observability";
+import { userFacingError } from "../http/observability";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import type { ServerDependencies } from "../runtime/types";
 import { runChatAgent } from "./handler";
@@ -14,6 +15,8 @@ import { getWorkspaceOwnerRecord } from "../graph/queries";
 import { refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../workspace/conversation-sidebar";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 import { log } from "../telemetry/logger";
+
+const tracer = trace.getTracer("brain-server");
 
 export async function processChatMessage(input: {
   deps: ServerDependencies;
@@ -27,12 +30,15 @@ export async function processChatMessage(input: {
   identityRecord: RecordId<"identity", string>;
 }): Promise<void> {
   const startedAt = performance.now();
-  log.info("chat.message.process.execution.started", "Chat message processing execution started", {
-    conversationId: input.conversationId,
-    messageId: input.messageId,
-    workspaceId: input.workspaceRecord.id as string,
-    hasAttachment: input.attachment !== undefined,
-  });
+  const workspaceId = input.workspaceRecord.id as string;
+
+  return tracer.startActiveSpan("brain.chat.process", async (span) => {
+    // Wide event: seed with all known business context upfront
+    span.setAttribute("workspace.id", workspaceId);
+    span.setAttribute("conversation.id", input.conversationId);
+    span.setAttribute("message.id", input.messageId);
+    span.setAttribute("chat.has_attachment", input.attachment !== undefined);
+    span.setAttribute("chat.text_length", input.userText.length);
 
   try {
     const now = new Date();
@@ -274,20 +280,30 @@ export async function processChatMessage(input: {
       messageId: input.messageId,
     });
 
-    log.info("chat.message.process.execution.completed", "Chat message processing execution completed", {
-      conversationId: input.conversationId,
-      messageId: input.messageId,
-      workspaceId: input.workspaceRecord.id as string,
-      entityCount: persistedEntities.length,
-      relationshipCount: persistedRelationships.length,
-      durationMs: elapsedMs(startedAt),
-    });
+    // Wide event: enrich span with outcome metrics
+    const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    span.setAttribute("chat.entity_count", persistedEntities.length);
+    span.setAttribute("chat.relationship_count", persistedRelationships.length);
+    span.setAttribute("chat.is_branch", isBranch);
+    span.setAttribute("chat.onboarding_before", onboardingBefore);
+    span.setAttribute("chat.onboarding_after", onboardingAfter);
+    span.setAttribute("chat.assistant_text_length", assistantText.length);
+    span.setAttribute("chat.suggestion_count", assistantSuggestions.length);
+    span.setAttribute("duration_ms", durationMs);
+    span.setStatus({ code: SpanStatusCode.OK });
+    span.end();
   } catch (error) {
-    log.error("chat.message.process.execution.failed", "Chat message processing execution failed", error, {
+    const durationMs = Number((performance.now() - startedAt).toFixed(2));
+    span.setAttribute("duration_ms", durationMs);
+    span.setAttribute("error", true);
+    span.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown error" });
+    span.recordException(error instanceof Error ? error : new Error(String(error)));
+    span.end();
+
+    log.error("chat.message.process.failed", "Chat message processing failed", error, {
       conversationId: input.conversationId,
       messageId: input.messageId,
-      workspaceId: input.workspaceRecord.id as string,
-      durationMs: elapsedMs(startedAt),
+      workspaceId,
     });
     const errorText = userFacingError(error, "chat processing failed");
     input.deps.sse.emitEvent(input.messageId, {
@@ -296,6 +312,7 @@ export async function processChatMessage(input: {
       error: errorText,
     });
   }
+  });
 }
 
 function sanitizeAssistantSuggestions(suggestions: string[], limit: number): string[] {
