@@ -1,5 +1,5 @@
 project_id: graph-reactive-coordination
-description: "Replace poll-based reactivity with LIVE SELECT -> SSE feed, vector search agent routing, and proxy context enrichment"
+description: "Replace poll-based reactivity with LIVE SELECT -> SSE feed, LLM-classified agent activation, and proxy context enrichment"
 paradigm: functional
 validation:
   status: approved
@@ -130,16 +130,18 @@ milestones:
           - "milestone-1: rapid graph changes batched into fewer SSE events"
 
   # ---------------------------------------------------------------------------
-  # Milestone 3: Agent Coordinator (US-GRC-03)
+  # Milestone 3: Agent Activator (US-GRC-03)
+  # Observation → DEFINE EVENT webhook → LLM classification → start new agents
   # ---------------------------------------------------------------------------
   - id: "03"
-    name: "Agent coordinator with vector search routing"
+    name: "Agent activator with LLM classification"
     steps:
       - step_id: "03-01"
         description: "Loop dampener: pure sliding window counter per entity, per source, per workspace with configurable threshold and window"
+        status: complete
         acceptance_criteria:
           - ">3 events on same entity from same source in 60s triggers dampening"
-          - "Dampened events return dampen signal (logged, no agent invocation)"
+          - "Dampened events return dampen signal (logged, no agent activation)"
           - "Window resets after expiry allowing normal processing"
           - "Meta-observation created when dampening activates"
         files_to_modify:
@@ -150,34 +152,30 @@ milestones:
           - "milestone-2: dampening resets after window expires"
 
       - step_id: "03-02"
-        description: "Agent Coordinator: always-on service listening to observation LIVE SELECT events, routes via KNN (observation embedding vs agent description embeddings), invokes matched agents"
+        description: "Agent Activator: POST endpoint called by SurrealDB DEFINE EVENT webhook on observation CREATE. LLM classification (observation text + agent descriptions → fast model judges which agents can act, ADR-061). Skips observations with active coverage (proxy handles those, ADR-059). Records provisional decisions for conflict/warning routing choices."
+        status: complete
         acceptance_criteria:
-          - "Observation routed to semantically matched agent with active session"
-          - "Multiple agents matched when observation is relevant to both"
-          - "Agents below similarity threshold not invoked"
-          - "Agents without active sessions never invoked"
-          - "KNN uses two-step pattern (HNSW candidates, then workspace + active session filter)"
+          - "Observation activates relevant agent type via LLM classification"
+          - "Multiple agents activated when LLM judges both relevant"
+          - "Irrelevant agents not activated (LLM judgment)"
+          - "Observations targeting entities with active sessions skipped (proxy handles)"
+          - "Newly registered agent type activated by LLM judgment alone (no rule changes)"
+          - "Provisional decision created for conflict/warning routing choices"
+          - "Activated sessions stored with triggered_by pointing to observation"
         files_to_modify:
-          - "app/src/server/reactive/agent-coordinator.ts"
-        depends_on: ["01-03", "03-01"]
-        test_scenarios:
-          - "milestone-2: observation routed to semantically matched agent"
-          - "milestone-2: observation routed to multiple matching agents"
-          - "milestone-2: irrelevant agent not matched below threshold"
-          - "milestone-2: agent with completed session not invoked"
-
-      - step_id: "03-03"
-        description: "Wire coordinator into server startup and verify new agent types auto-match via semantic similarity"
-        acceptance_criteria:
-          - "Coordinator started as always-on service in startServer()"
-          - "New agent type matched by semantic similarity alone (no rule table update)"
-          - "Dampener meta-observation visible in governance feed"
-        files_to_modify:
+          - "app/src/server/reactive/agent-activator.ts"
           - "app/src/server/runtime/start-server.ts"
-          - "app/src/server/runtime/dependencies.ts"
-        depends_on: ["03-02"]
+          - "schema/migrations/0055_agent_session_triggered_by.surql"
+          - "schema/surreal-schema.surql"
+        depends_on: ["03-01"]
         test_scenarios:
-          - "milestone-2: new agent type matched by semantic similarity alone"
+          - "milestone-2: observation without active coverage activates relevant agent type"
+          - "milestone-2: observation targeting entity with active session is skipped"
+          - "milestone-2: observation activates multiple agent types"
+          - "milestone-2: irrelevant agent type not activated"
+          - "milestone-2: newly registered agent type activated by LLM judgment alone"
+          - "milestone-2: loop dampener activates after 3 rapid observations"
+          - "milestone-2: dampening resets after window expires"
 
   # ---------------------------------------------------------------------------
   # Milestone 4: Proxy Context Enrichment (US-GRC-04)
@@ -239,9 +237,10 @@ milestones:
 implementation_scope:
   new_files:
     - "schema/migrations/0053_reactive_coordination_fields.surql"
+    - "schema/migrations/0055_agent_session_triggered_by.surql"
     - "app/src/server/reactive/live-select-manager.ts"
     - "app/src/server/reactive/feed-sse-bridge.ts"
-    - "app/src/server/reactive/agent-coordinator.ts"
+    - "app/src/server/reactive/agent-activator.ts"
     - "app/src/server/reactive/loop-dampener.ts"
   modified_files:
     - "schema/surreal-schema.surql"
@@ -249,12 +248,8 @@ implementation_scope:
     - "app/src/server/proxy/context-injector.ts"
     - "app/src/server/proxy/anthropic-proxy-route.ts"
     - "app/src/server/runtime/start-server.ts"
-    - "app/src/server/runtime/dependencies.ts"
     - "app/src/server/mcp/mcp-route.ts"
   excluded_tables:
     - "trace (too high volume, uses DEFINE EVENT webhooks)"
     - "message (not relevant for governance feed)"
     - "extracted_from (relation table, high write volume)"
-  production_file_count: 12
-  step_count: 12
-  decomposition_ratio: 1.0
