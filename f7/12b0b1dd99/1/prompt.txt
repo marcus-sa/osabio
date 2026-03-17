@@ -1,0 +1,134 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/montreal directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 3 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: 
+Line: undefined
+User comment: "<h3>Confidence Score: 3/5</h3>
+
+- This PR is not ready to merge as-is — two logic bugs can cause incorrect agent activation signals and contradictory SSE feed events to clients.
+- Two logic bugs need fixing before merge: (1) `onAgentActivation` fires even when `createActivatedSession` fails, triggering phantom agent launches with no DB record; (2) the DELETE path in the feed bridge sends both an item and a removal for the same ID, causing conflicting client state updates. The rest of the implementation is architecturally sound and well-tested. The XML escaping and memory issues are lower priority but should be addressed to avoid subtle production issues.
+- `app/src/server/reactive/agent-activator.ts` (lines 562–584) and `app/src/server/reactive/feed-sse-bridge.ts` (lines 355–374) contain the logic bugs that must be resolved before merge.
+
+<!-- greptile_other_comments_section -->
+
+<sub>Last reviewed commit: 78d4eb5</sub>"
+
+Comment metadata:
+This comment was left on a file.
+This comment was left on GitHub by @greptile-apps.
+
+
+Comment #2:
+
+File: app/src/server/reactive/agent-activator.ts
+Line: 584
+User comment: "<a href="#"><img alt="P2" src="https://greptile-static-assets.s3.amazonaws.com/badges/p2.svg?v=7" align="top"></a> **`onAgentActivation` fires even when session creation fails**
+
+The `onAgentActivation` callback is called unconditionally after `createActivatedSession`, even when that call throws and is silently swallowed by `.catch`. If the DB write fails (e.g. SurrealDB is momentarily unavailable), the callback still fires — signalling "start this agent" to the caller while no session record exists in the database. Any downstream code that subsequently tries to look up or update the session by ID will find nothing.
+
+The fix is to track whether the session was created successfully and only call `onAgentActivation` when it was:
+
+```typescript
+for (const { agent, reason } of validActivations) {
+  let sessionId: string | undefined;
+  try {
+    sessionId = await createActivatedSession(surreal, {
+      agentType: agent.agentType,
+      workspaceId: workspace,
+      observationId: observation_id,
+    });
+  } catch (err) {
+    log.error("activator.session_failed", "Failed to create activated session", {
+      agentType: agent.agentType,
+      observationId: observation_id,
+      workspaceId: workspace,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    continue; // skip activation callback — no DB record exists
+  }
+
+  onAgentActivation({
+    agentId: agent.agentId,
+    agentType: agent.agentType,
+    workspaceId: workspace,
+    reason,
+    observationId: observation_id,
+    observationText: text,
+  });
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c508XjO. 
+
+
+Comment #3:
+
+File: app/src/server/reactive/feed-sse-bridge.ts
+Line: 374
+User comment: "<a href="#"><img alt="P2" src="https://greptile-static-assets.s3.amazonaws.com/badges/p2.svg?v=7" align="top"></a> **DELETE handler emits both an item and a removal for the same ID**
+
+The comment says "emit removal only", but the implementation calls `batcher.add(item, event.recordId)`, which pushes the synthetic deleted item into `pendingItems` _and_ also pushes `event.recordId` into `pendingRemovals`. When the batcher flushes, the client receives both:
+
+- `items` containing a record with `status: "deleted"` and `id === event.recordId`
+- `removals` containing the same `event.recordId`
+
+This contradicts the intent. Depending on client rendering order, the item will either flicker in briefly then disappear or cause a no-op removal attempt on an ID that was just added. The correct approach for a DELETE is to emit only the removal signal (no item):
+
+```typescript
+if (event.action === "DELETE") {
+  const batcher = getOrCreateBatcher(workspaceId);
+  // Signal removal only — do NOT include the record in items
+  batcher.addRemoval(event.recordId);
+  return;
+}
+```
+
+This requires splitting `batcher.add` so that removals can be enqueued independently, or passing `undefined` as the item:
+
+```typescript
+// In createBatcher, add an addRemoval helper:
+function addRemoval(removalId: string): void {
+  if (disposed) return;
+  pendingRemovals.push(removalId);
+  if (timerId === undefined) {
+    timerId = setTimeout(flush, config.windowMs);
+  }
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c508Xkk. 
+
+</system-instruction>
+
+---
+
+commit these
+
+---
+
+Continue from where you left off.
+
+---
+
+add regression tests

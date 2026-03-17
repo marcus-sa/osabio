@@ -3,9 +3,11 @@
   "checkpoint_id": "f712b0b1dd99",
   "strategy": "manual-commit",
   "branch": "marcus-sa/reactive-agent-activator",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
-    "app/src/server/proxy/context-injector.ts"
+    "app/src/server/proxy/context-injector.ts",
+    "app/src/server/reactive/agent-activator.ts",
+    "app/src/server/reactive/feed-sse-bridge.ts"
   ],
   "sessions": [
     {
@@ -14,13 +16,20 @@
       "context": "/f7/12b0b1dd99/0/context.md",
       "content_hash": "/f7/12b0b1dd99/0/content_hash.txt",
       "prompt": "/f7/12b0b1dd99/0/prompt.txt"
+    },
+    {
+      "metadata": "/f7/12b0b1dd99/1/metadata.json",
+      "transcript": "/f7/12b0b1dd99/1/full.jsonl",
+      "context": "/f7/12b0b1dd99/1/context.md",
+      "content_hash": "/f7/12b0b1dd99/1/content_hash.txt",
+      "prompt": "/f7/12b0b1dd99/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 73,
-    "cache_creation_tokens": 166185,
-    "cache_read_tokens": 2508670,
-    "output_tokens": 32372,
-    "api_call_count": 33
+    "input_tokens": 125,
+    "cache_creation_tokens": 260592,
+    "cache_read_tokens": 4026233,
+    "output_tokens": 40050,
+    "api_call_count": 63
   }
 }
