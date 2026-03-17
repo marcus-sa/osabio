@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "665ee21450d3",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/reactive/agent-activator.ts",
+    "app/src/server/runtime/start-server.ts",
+    "docs/adrs/ADR-054-vector-search-agent-routing-over-deterministic-rules.md",
+    "docs/feature/graph-reactive-coordination/execution-log.yaml",
+    "docs/requirements/graph-reactive-coordination/US-GRC-03-agent-coordinator.md",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/reactive/milestone-2-agent-activator.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/66/5ee21450d3/0/metadata.json",
+      "transcript": "/66/5ee21450d3/0/full.jsonl",
+      "context": "/66/5ee21450d3/0/context.md",
+      "content_hash": "/66/5ee21450d3/0/content_hash.txt",
+      "prompt": "/66/5ee21450d3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 735,
+    "cache_creation_tokens": 1888222,
+    "cache_read_tokens": 70098135,
+    "output_tokens": 161506,
+    "api_call_count": 460
+  }
+}
