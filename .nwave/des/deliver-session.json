@@ -1,0 +1,12 @@
+{
+  "project_id": "graph-reactive-coordination",
+  "started_at": "2026-03-17T18:30:00Z",
+  "paradigm": "functional",
+  "crafter": "nw-functional-software-crafter",
+  "rigor": {
+    "agent_model": "inherit",
+    "reviewer_model": "inherit",
+    "review_enabled": true,
+    "mutation_enabled": false
+  }
+}

@@ -206,9 +206,9 @@ export async function createObservationWithCoordinator(
 ): Promise<{ observationId: string }> {
   const result = await createObservation(surreal, workspaceId, options);
 
-  // Simulate DEFINE EVENT webhook — POST to coordinator endpoint
+  // Simulate DEFINE EVENT webhook — POST to agent activator endpoint
   if (options.embedding) {
-    await fetch(`${baseUrl}/api/internal/coordinator/observation`, {
+    await fetch(`${baseUrl}/api/internal/activator/observation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -777,7 +777,7 @@ export async function getMetaObservations(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const rows = (await surreal.query(
     `SELECT id, text, category, created_at FROM observation
-     WHERE workspace = $ws AND source_agent = "agent_coordinator"
+     WHERE workspace = $ws AND source_agent = "agent_activator"
      ORDER BY created_at DESC;`,
     { ws: workspaceRecord },
   )) as Array<Array<{ id: RecordId; text: string; category: string }>>;

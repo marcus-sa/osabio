@@ -1,5 +1,5 @@
 /**
- * Agent Coordinator
+ * Agent Activator
  *
  * POST endpoint handler called by SurrealDB DEFINE EVENT webhook when
  * observations are created. Routes observations to semantically matched
@@ -13,7 +13,7 @@
  * webhooks (session_ended, task_completed, decision_confirmed, etc.).
  *
  * Pure core: filterAboveThreshold, parseWebhookPayload
- * Stateful shell: createCoordinatorHandler
+ * Stateful shell: createAgentActivator
  *
  * Step: 03-02 (Graph-Reactive Coordination)
  */
@@ -44,11 +44,11 @@ export type AgentMatch = {
   observationText: string;
 };
 
-/** Callback invoked when the coordinator decides to start a new agent. */
+/** Callback invoked when the router decides to start a new agent. */
 export type OnAgentMatch = (match: AgentMatch) => void;
 
-/** Configuration for the coordinator's KNN search. */
-export type CoordinatorConfig = {
+/** Configuration for the agent activator's KNN search. */
+export type AgentActivatorConfig = {
   similarityThreshold: number;
   knnCandidates: number;
 };
@@ -58,20 +58,20 @@ export type InflightTracker = {
   track: (promise: Promise<unknown>) => void;
 };
 
-/** Dependencies injected into the coordinator handler. */
-export type CoordinatorDeps = {
+/** Dependencies injected into the agent activator. */
+export type AgentActivatorDeps = {
   surreal: Surreal;
   loopDampener: LoopDampener;
   inflight: InflightTracker;
   onAgentMatch: OnAgentMatch;
-  config?: Partial<CoordinatorConfig>;
+  config?: Partial<AgentActivatorConfig>;
 };
 
 // ---------------------------------------------------------------------------
 // Pure Functions
 // ---------------------------------------------------------------------------
 
-const DEFAULT_CONFIG: CoordinatorConfig = {
+const DEFAULT_CONFIG: AgentActivatorConfig = {
   similarityThreshold: 0.3,
   knnCandidates: 20,
 };
@@ -165,7 +165,7 @@ type KnnCandidate = {
 async function findMatchingAgentTypes(
   surreal: Surreal,
   observationEmbedding: number[],
-  config: CoordinatorConfig,
+  config: AgentActivatorConfig,
 ): Promise<KnnCandidate[]> {
   const knnResult = await surreal.query<[Array<{
     id: RecordId;
@@ -184,10 +184,10 @@ async function findMatchingAgentTypes(
 
   const candidates = knnResult[0] ?? [];
   if (candidates.length === 0) {
-    console.log(`[AgentCoordinator] KNN returned 0 agent candidates`);
+    console.log(`[AgentActivator] KNN returned 0 agent candidates`);
     return [];
   }
-  console.log(`[AgentCoordinator] KNN returned ${candidates.length} candidates, top similarity: ${candidates[0]?.similarity}`);
+  console.log(`[AgentActivator] KNN returned ${candidates.length} candidates, top similarity: ${candidates[0]?.similarity}`);
 
   const aboveThreshold = candidates
     .filter((c) => c.similarity >= config.similarityThreshold)
@@ -198,9 +198,9 @@ async function findMatchingAgentTypes(
     }));
 
   if (aboveThreshold.length === 0) {
-    console.log(`[AgentCoordinator] No candidates above threshold ${config.similarityThreshold}`);
+    console.log(`[AgentActivator] No candidates above threshold ${config.similarityThreshold}`);
   } else {
-    console.log(`[AgentCoordinator] ${aboveThreshold.length} candidates above threshold`);
+    console.log(`[AgentActivator] ${aboveThreshold.length} candidates above threshold`);
   }
 
   return aboveThreshold;
@@ -268,7 +268,7 @@ async function createDampeningMetaObservation(
       severity: "info",
       status: "open",
       category: "engineering",
-      source_agent: "agent_coordinator",
+      source_agent: "agent_activator",
       workspace: workspaceRecord,
       created_at: new Date(),
       updated_at: new Date(),
@@ -277,19 +277,19 @@ async function createDampeningMetaObservation(
 }
 
 // ---------------------------------------------------------------------------
-// Coordinator Handler (Side-Effect Shell)
+// Agent Activator Handler (Side-Effect Shell)
 // ---------------------------------------------------------------------------
 
 /**
- * Creates the coordinator POST endpoint handler.
+ * Creates the agent activator POST endpoint handler.
  *
  * Called by SurrealDB DEFINE EVENT webhook on observation CREATE.
  * Parses the webhook payload, checks loop dampener, checks active coverage,
  * runs KNN against agent description embeddings, invokes matched agents.
  */
-export function createCoordinatorHandler(deps: CoordinatorDeps) {
+export function createAgentActivatorHandler(deps: AgentActivatorDeps) {
   const { surreal, loopDampener, inflight, onAgentMatch } = deps;
-  const config: CoordinatorConfig = {
+  const config: AgentActivatorConfig = {
     ...DEFAULT_CONFIG,
     ...deps.config,
   };
@@ -307,7 +307,7 @@ export function createCoordinatorHandler(deps: CoordinatorDeps) {
     inflight.track(
       processObservation(payload).catch((err) => {
         console.error(
-          `[AgentCoordinator] Failed to process observation ${payload.observation_id}:`,
+          `[AgentActivator] Failed to process observation ${payload.observation_id}:`,
           err instanceof Error ? err.message : String(err),
         );
       }),
@@ -333,7 +333,7 @@ export function createCoordinatorHandler(deps: CoordinatorDeps) {
         source_agent,
       ).catch((err) => {
         console.error(
-          `[AgentCoordinator] Failed to create dampening meta-observation:`,
+          `[AgentActivator] Failed to create dampening meta-observation:`,
           err instanceof Error ? err.message : String(err),
         );
       });
@@ -344,7 +344,7 @@ export function createCoordinatorHandler(deps: CoordinatorDeps) {
     if (target) {
       const covered = await hasActiveCoverage(surreal, target, workspace);
       if (covered) {
-        console.log(`[AgentCoordinator] Skipping observation ${observation_id}: target ${target.table}:${target.id} has active agent coverage`);
+        console.log(`[AgentActivator] Skipping observation ${observation_id}: target ${target.table}:${target.id} has active agent coverage`);
         return;
       }
     }

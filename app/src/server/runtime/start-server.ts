@@ -40,7 +40,7 @@ import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
-import { createCoordinatorHandler } from "../reactive/agent-coordinator";
+import { createAgentActivatorHandler } from "../reactive/agent-activator";
 import { createLoopDampener } from "../reactive/loop-dampener";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
@@ -82,24 +82,24 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const observerHandler = createObserverRouteHandler(deps);
   const graphScanHandler = createGraphScanRouteHandler(deps);
 
-  // Agent Coordinator: POST endpoint called by SurrealDB DEFINE EVENT webhook
-  const coordinatorDampener = createLoopDampener(
+  // Agent Activator: POST endpoint called by SurrealDB DEFINE EVENT webhook
+  const activatorDampener = createLoopDampener(
     { threshold: 4, windowMs: 60_000 },
     undefined,
     (_key, event) => {
-      log.info("coordinator.dampened", "Loop dampener activated", {
+      log.info("activator.dampened", "Loop dampener activated", {
         workspaceId: event.workspaceId,
         entityId: event.entityId,
         sourceAgent: event.sourceAgent,
       });
     },
   );
-  const coordinatorHandler = createCoordinatorHandler({
+  const activatorHandler = createAgentActivatorHandler({
     surreal: deps.surreal,
-    loopDampener: coordinatorDampener,
+    loopDampener: activatorDampener,
     inflight: deps.inflight,
     onAgentMatch: (match) => {
-      log.info("coordinator.agent_matched", "Observation matched agent type for new session", {
+      log.info("activator.agent_matched", "Observation matched agent type for new session", {
         agentId: match.agentId,
         agentType: match.agentType,
         workspaceId: match.workspaceId,
@@ -612,10 +612,10 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           observerHandler(request.params.table, request.params.id, request),
         ),
       },
-      // Agent Coordinator — observation routing (called by SurrealQL EVENT via http::post)
-      "/api/internal/coordinator/observation": {
-        POST: withTracing("POST /api/internal/coordinator/observation", "POST", (request) =>
-          coordinatorHandler(request),
+      // Agent Activator — starts new agents from observation events (called by SurrealQL EVENT via http::post)
+      "/api/internal/activator/observation": {
+        POST: withTracing("POST /api/internal/activator/observation", "POST", (request) =>
+          activatorHandler(request),
         ),
       },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)

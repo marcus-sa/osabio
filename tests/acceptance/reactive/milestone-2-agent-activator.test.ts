@@ -1,19 +1,19 @@
 /**
- * Milestone 2: Agent Coordinator with Vector Search Routing (US-GRC-03)
+ * Milestone 2: Agent Activator with Vector Search Routing (US-GRC-03)
  *
  * Traces: US-GRC-03 acceptance criteria
  *
- * Tests the Coordinator's observation -> vector search -> start new agent pipeline.
- * The coordinator is a POST endpoint called by SurrealDB DEFINE EVENT webhooks.
+ * Tests the Agent Activator's observation -> vector search -> start new agent pipeline.
+ * The activator is a POST endpoint called by SurrealDB DEFINE EVENT webhooks.
  * In tests, we simulate the webhook by calling the endpoint directly.
  *
- * The coordinator only starts NEW agents for observations that don't have active
+ * The activator only starts NEW agents for observations that don't have active
  * coverage. Observations targeting entities with active agent sessions are skipped
  * (the LLM proxy handles enriching those via its own vector search).
  *
  * Driving ports:
- *   POST /api/internal/coordinator/observation   (coordinator webhook endpoint)
- *   SurrealDB direct queries                     (seed data + verification)
+ *   POST /api/internal/activator/observation   (agent activator webhook endpoint)
+ *   SurrealDB direct queries                   (seed data + verification)
  *   GET  /api/workspaces/:workspaceId/feed/stream (verify meta-observation in feed)
  */
 import { describe, expect, it, afterEach } from "bun:test";
@@ -35,9 +35,9 @@ import {
   type FeedStreamController,
 } from "./reactive-test-kit";
 
-const getRuntime = setupReactiveSuite("agent_coordinator");
+const getRuntime = setupReactiveSuite("agent_activator");
 
-describe("US-GRC-03: Agent Coordinator with Vector Search Routing", () => {
+describe("US-GRC-03: Agent Activator with Vector Search Routing", () => {
   let feedStream: FeedStreamController | undefined;
 
   afterEach(() => {
@@ -65,7 +65,7 @@ describe("US-GRC-03: Agent Coordinator with Vector Search Routing", () => {
       title: "Migrate billing API to tRPC",
     });
 
-    // No active session on this task — coordinator should route
+    // No active session on this task — activator should route
     const observationText = "Task T-47 implementation contradicts confirmed decision to standardize on tRPC for billing API";
     const observationEmbedding = await generateEmbedding(observationText);
 
@@ -106,7 +106,7 @@ describe("US-GRC-03: Agent Coordinator with Vector Search Routing", () => {
       title: "Migrate billing API to tRPC",
     });
 
-    // Active session on the target task — coordinator should SKIP
+    // Active session on the target task — activator should SKIP
     await startAgentSession(surreal, workspaceId, {
       agentType: "code_agent",
       taskId,

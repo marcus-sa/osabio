@@ -10,9 +10,9 @@ import {
   filterAboveThreshold,
   parseWebhookPayload,
   buildDampenerEvent,
-} from "../../../app/src/server/reactive/agent-coordinator";
+} from "../../../app/src/server/reactive/agent-activator";
 
-describe("Agent Coordinator Pure Functions", () => {
+describe("Agent Activator Pure Functions", () => {
   // ---------------------------------------------------------------------------
   // filterAboveThreshold
   // ---------------------------------------------------------------------------
