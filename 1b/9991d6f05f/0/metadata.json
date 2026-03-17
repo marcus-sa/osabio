@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1b9991d6f05f",
+  "session_id": "7f558c21-20ad-4239-94d3-2b538167c96c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T09:32:22.162688Z",
+  "branch": "marcus-sa/otel-observability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7dd8b93d698b",
+  "token_usage": {
+    "input_tokens": 124,
+    "cache_creation_tokens": 529965,
+    "cache_read_tokens": 5319714,
+    "output_tokens": 23514,
+    "api_call_count": 65
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T09:32:21.890607Z",
+    "agent_lines": 37,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 37,
+    "agent_percentage": 100
+  }
+}
