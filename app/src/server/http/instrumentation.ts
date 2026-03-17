@@ -65,22 +65,32 @@ export function withTracing(route: string, method: string, handler: RouteHandler
           span.setAttribute("http.status_code", statusCode);
           span.setStatus({ code: statusCode >= 500 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
 
-          const finalizeSpan = () => {
-            const durationMs = Number((performance.now() - startedAt).toFixed(2));
-            span.setAttribute("duration_ms", durationMs);
-            span.end();
-            const metricAttrs = { "http.method": method, "http.route": route, "http.status_code": statusCode };
-            httpDurationHistogram.record(durationMs, metricAttrs);
-            httpRequestsCounter.add(1, metricAttrs);
-          };
+          const finalizeSpan = (() => {
+            let finalized = false;
+            return (cancelled = false) => {
+              if (finalized) return;
+              finalized = true;
+              if (cancelled) {
+                span.setAttribute("stream.cancelled", true);
+              }
+              const durationMs = Number((performance.now() - startedAt).toFixed(2));
+              span.setAttribute("duration_ms", durationMs);
+              span.end();
+              const metricAttrs = { "http.method": method, "http.route": route, "http.status_code": statusCode };
+              httpDurationHistogram.record(durationMs, metricAttrs);
+              httpRequestsCounter.add(1, metricAttrs);
+            };
+          })();
 
           // For streaming responses, defer span.end() until the stream closes.
           // This allows onFinish callbacks (e.g. Vercel AI SDK) to set attributes
           // on the span after the stream is fully consumed.
+          // flush() handles clean close; cancel() handles client disconnect / abort.
           if (responseWithRequestId.body && !responseWithRequestId.bodyUsed) {
             const originalBody = responseWithRequestId.body;
             const wrappedStream = originalBody.pipeThrough(new TransformStream({
               flush() { finalizeSpan(); },
+              cancel() { finalizeSpan(true); },
             }));
             return new Response(wrappedStream, {
               status: responseWithRequestId.status,

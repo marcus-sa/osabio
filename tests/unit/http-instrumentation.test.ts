@@ -169,4 +169,29 @@ describe("withTracing", () => {
     // After stream closes, response headers/status should be preserved
     expect(response.status).toBe(200);
   });
+
+  it("ends span when streaming client cancels (disconnect)", async () => {
+    const withTracing = await loadWithTracing();
+
+    const { readable, writable } = new TransformStream<Uint8Array>();
+    const writer = writable.getWriter();
+
+    const handler = withTracing("POST /api/chat", "POST", async () => {
+      writer.write(new TextEncoder().encode("chunk1"));
+      return new Response(readable, { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/api/chat");
+    const response = await handler(request);
+
+    // Read first chunk, then cancel (simulates client disconnect)
+    const reader = response.body!.getReader();
+    const firstChunk = await reader.read();
+    expect(new TextDecoder().decode(firstChunk.value)).toBe("chunk1");
+
+    await reader.cancel("client disconnected");
+
+    // Stream was cancelled, not cleanly closed — span should still end
+    expect(response.status).toBe(200);
+  });
 });
