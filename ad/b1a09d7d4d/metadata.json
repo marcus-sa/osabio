@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "adb1a09d7d4d",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-coord-webhooks",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/reactive/agent-coordinator.ts",
+    "app/src/server/runtime/start-server.ts",
+    "docs/architecture/graph-reactive-coordination.md",
+    "docs/feature/graph-reactive-coordination/execution-log.yaml",
+    "docs/requirements/graph-reactive-coordination/US-GRC-03-agent-coordinator.md",
+    "docs/requirements/graph-reactive-coordination/US-GRC-04-interrupt-context-injection.md",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/reactive/milestone-2-agent-coordinator.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/unit/reactive/agent-coordinator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ad/b1a09d7d4d/0/metadata.json",
+      "transcript": "/ad/b1a09d7d4d/0/full.jsonl",
+      "context": "/ad/b1a09d7d4d/0/context.md",
+      "content_hash": "/ad/b1a09d7d4d/0/content_hash.txt",
+      "prompt": "/ad/b1a09d7d4d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 404,
+    "cache_creation_tokens": 841479,
+    "cache_read_tokens": 31185589,
+    "output_tokens": 114376,
+    "api_call_count": 260
+  }
+}

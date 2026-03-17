@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "adb1a09d7d4d",
+  "session_id": "a6916833-03a7-4c21-a856-b088bf18ffc8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T14:42:15.354005Z",
+  "branch": "marcus-sa/reactive-coord-webhooks",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/reactive/agent-coordinator.ts",
+    "app/src/server/runtime/start-server.ts",
+    "docs/architecture/graph-reactive-coordination.md",
+    "docs/feature/graph-reactive-coordination/execution-log.yaml",
+    "docs/requirements/graph-reactive-coordination/US-GRC-03-agent-coordinator.md",
+    "docs/requirements/graph-reactive-coordination/US-GRC-04-interrupt-context-injection.md",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/reactive/milestone-2-agent-coordinator.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/unit/reactive/agent-coordinator.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "99d6d8c83f7d",
+  "token_usage": {
+    "input_tokens": 404,
+    "cache_creation_tokens": 841479,
+    "cache_read_tokens": 31185589,
+    "output_tokens": 114376,
+    "api_call_count": 260
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T14:42:10.206904Z",
+    "agent_lines": 79,
+    "human_added": 396,
+    "human_modified": 654,
+    "human_removed": 0,
+    "total_committed": 932,
+    "agent_percentage": 8.47639484978541
+  }
+}
