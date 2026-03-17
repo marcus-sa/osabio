@@ -1,17 +1,17 @@
 /**
- * HTTP request tracing wrapper using OpenTelemetry.
+ * HTTP request tracing — wide event instrumentation.
  *
- * Replaces withRequestLogging with OTEL-native instrumentation:
- * - Root span "brain.http.request" with method/route/status_code attributes
- * - x-request-id response header (preserved from incoming or generated)
- * - Error responses set span status ERROR and record exception
- * - httpDuration and httpRequests metrics recorded per request
+ * Each request gets a single root span enriched throughout its lifecycle.
+ * Handlers call trace.getActiveSpan()?.setAttribute() to attach business
+ * context (workspace, user, conversation, entity counts, model info).
  *
- * Same signature as withRequestLogging for mechanical replacement.
+ * At span end, one comprehensive event carries everything — replacing
+ * scattered log.info("started")/log.info("completed") pairs.
  */
 
 import { randomUUID } from "node:crypto";
 import { trace, context, SpanStatusCode } from "@opentelemetry/api";
+import { HttpError } from "./errors";
 import { jsonError, withRequestIdHeader } from "./response";
 import { httpDurationHistogram, httpRequestsCounter } from "../telemetry/metrics";
 
@@ -28,58 +28,73 @@ function extractRequestId(request: Request): string {
   return headerValue && headerValue.length > 0 ? headerValue : randomUUID();
 }
 
-function recordMetrics(
-  durationMs: number,
-  method: string,
-  route: string,
-  statusCode: number,
-): void {
-  const attributes = {
-    "http.method": method,
-    "http.route": route,
-    "http.status_code": statusCode,
-  };
-  httpDurationHistogram.record(durationMs, attributes);
-  httpRequestsCounter.add(1, attributes);
-}
-
 export function withTracing(route: string, method: string, handler: RouteHandler): RouteHandler {
   return async (request: RouteRequest) => {
     const startedAt = performance.now();
     const requestId = extractRequestId(request);
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
 
     return tracer.startActiveSpan("brain.http.request", (span) => {
+      // Base HTTP attributes — always present
       span.setAttribute("http.method", method);
       span.setAttribute("http.route", route);
-      span.setAttribute("http.target", path);
-      span.setAttribute("requestId", requestId);
+      span.setAttribute("http.target", url.pathname);
+      span.setAttribute("request.id", requestId);
+
+      // Business context from URL params (available before handler runs)
+      if (request.params?.workspaceId) {
+        span.setAttribute("workspace.id", request.params.workspaceId);
+      }
+      if (request.params?.conversationId) {
+        span.setAttribute("conversation.id", request.params.conversationId);
+      }
+
+      // Client identification
+      const userAgent = request.headers.get("user-agent");
+      if (userAgent) span.setAttribute("http.user_agent", userAgent);
+
+      const contentLength = request.headers.get("content-length");
+      if (contentLength) span.setAttribute("http.request.content_length", Number(contentLength));
 
       return context.with(trace.setSpan(context.active(), span), async () => {
         try {
           const response = await handler(request);
           const responseWithRequestId = withRequestIdHeader(response, requestId);
           const statusCode = responseWithRequestId.status;
+          const durationMs = Number((performance.now() - startedAt).toFixed(2));
 
           span.setAttribute("http.status_code", statusCode);
-          span.setStatus({ code: SpanStatusCode.OK });
+          span.setAttribute("duration_ms", durationMs);
+          span.setStatus({ code: statusCode >= 400 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
           span.end();
 
-          const durationMs = performance.now() - startedAt;
-          recordMetrics(durationMs, method, route, statusCode);
+          const metricAttrs = { "http.method": method, "http.route": route, "http.status_code": statusCode };
+          httpDurationHistogram.record(durationMs, metricAttrs);
+          httpRequestsCounter.add(1, metricAttrs);
 
           return responseWithRequestId;
         } catch (error) {
-          span.setAttribute("http.status_code", 500);
-          span.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown error" });
+          const durationMs = Number((performance.now() - startedAt).toFixed(2));
+          const statusCode = error instanceof HttpError ? error.status : 500;
+
+          span.setAttribute("http.status_code", statusCode);
+          span.setAttribute("duration_ms", durationMs);
+          span.setAttribute("error", true);
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error instanceof Error ? error.message : "unknown error",
+          });
           span.recordException(error instanceof Error ? error : new Error(String(error)));
           span.end();
 
-          const durationMs = performance.now() - startedAt;
-          recordMetrics(durationMs, method, route, 500);
+          const metricAttrs = { "http.method": method, "http.route": route, "http.status_code": statusCode };
+          httpDurationHistogram.record(durationMs, metricAttrs);
+          httpRequestsCounter.add(1, metricAttrs);
 
-          const fallback = jsonError("internal server error", 500);
-          return withRequestIdHeader(fallback, requestId);
+          if (error instanceof HttpError) {
+            return withRequestIdHeader(jsonError(error.message, error.status), requestId);
+          }
+          return withRequestIdHeader(jsonError("internal server error", 500), requestId);
         }
       });
     });
