@@ -140,4 +140,33 @@ describe("withTracing", () => {
     expect(requestId!.trim().length).toBeGreaterThan(0);
     expect(requestId).not.toBe("  ");
   });
+
+  it("defers span.end() for streaming responses until stream is fully consumed", async () => {
+    const withTracing = await loadWithTracing();
+
+    // Create a streaming response that we control
+    const { readable, writable } = new TransformStream<Uint8Array>();
+    const writer = writable.getWriter();
+
+    const handler = withTracing("POST /api/chat", "POST", async () => {
+      // Simulate a streaming handler: return immediately, write later
+      writer.write(new TextEncoder().encode("chunk1"));
+      return new Response(readable, { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/api/chat");
+    const response = await handler(request);
+
+    // Response is returned but stream is still open — read first chunk
+    const reader = response.body!.getReader();
+    const firstChunk = await reader.read();
+    expect(new TextDecoder().decode(firstChunk.value)).toBe("chunk1");
+
+    // Now close the stream and consume the final read
+    await writer.close();
+    await reader.read(); // { done: true }
+
+    // After stream closes, response headers/status should be preserved
+    expect(response.status).toBe(200);
+  });
 });

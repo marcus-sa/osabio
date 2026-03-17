@@ -124,6 +124,14 @@ This codebase uses OpenTelemetry for observability. The instrumentation follows 
 - Use snake_case within segments: `chat.text_length` not `chat.textLength`
 - Prefix domain-specific attributes: `chat.*`, `search.*`, `mcp.*`, `extraction.*`, `observer.*`
 
+### Streaming responses and span lifetime
+
+- `withTracing()` detects streaming responses (Response with a ReadableStream body) and defers `span.end()` until the stream is fully consumed (via `TransformStream.flush()`).
+- This means `onFinish` callbacks (e.g. Vercel AI SDK `toUIMessageStreamResponse({ onFinish })`) can safely call `trace.getActiveSpan()?.setAttribute()` — the span is still open.
+- Do NOT manually end the span in streaming handlers. `withTracing()` handles it.
+- For non-streaming responses, `span.end()` fires immediately as before.
+- `duration_ms` on streaming spans measures the full stream lifetime, not just Response construction time.
+
 ### HttpError propagation
 
 - `withTracing()` catches `HttpError` and maps it to the correct `http.status_code` on the span. Handlers should `throw error` (re-throw) for `HttpError` instead of manually returning `jsonError()` — this ensures the span records the error status.
