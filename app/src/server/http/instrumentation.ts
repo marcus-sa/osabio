@@ -91,7 +91,7 @@ export function withTracing(route: string, method: string, handler: RouteHandler
             const wrappedStream = originalBody.pipeThrough(new TransformStream({
               flush() { finalizeSpan(); },
               cancel() { finalizeSpan(true); },
-            }));
+            } as Transformer & { cancel(): void }));
             return new Response(wrappedStream, {
               status: responseWithRequestId.status,
               statusText: responseWithRequestId.statusText,
