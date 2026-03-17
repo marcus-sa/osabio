@@ -3,7 +3,7 @@
   "checkpoint_id": "a0a1aa0dcd41",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 9,
   "files_touched": [
     ".agents/skills/ai-seo/SKILL.md",
     ".agents/skills/ai-seo/evals/evals.json",
@@ -91,13 +91,20 @@
       "context": "/a0/a1aa0dcd41/1/context.md",
       "content_hash": "/a0/a1aa0dcd41/1/content_hash.txt",
       "prompt": "/a0/a1aa0dcd41/1/prompt.txt"
+    },
+    {
+      "metadata": "/a0/a1aa0dcd41/2/metadata.json",
+      "transcript": "/a0/a1aa0dcd41/2/full.jsonl",
+      "context": "/a0/a1aa0dcd41/2/context.md",
+      "content_hash": "/a0/a1aa0dcd41/2/content_hash.txt",
+      "prompt": "/a0/a1aa0dcd41/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 80,
-    "cache_creation_tokens": 213896,
-    "cache_read_tokens": 2372789,
-    "output_tokens": 11873,
-    "api_call_count": 36
+    "input_tokens": 205,
+    "cache_creation_tokens": 297957,
+    "cache_read_tokens": 3396801,
+    "output_tokens": 16390,
+    "api_call_count": 52
   }
 }

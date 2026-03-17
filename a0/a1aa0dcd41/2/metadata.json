@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a0a1aa0dcd41",
+  "session_id": "b84ce5b8-295b-47bc-916d-572d47e624db",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T12:40:34.990737Z",
+  "branch": "main",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "docs/linkedin-oauth-rar-dpop-article.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9b34f074cf95",
+  "token_usage": {
+    "input_tokens": 125,
+    "cache_creation_tokens": 84061,
+    "cache_read_tokens": 1024012,
+    "output_tokens": 4517,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T12:40:34.77994Z",
+    "agent_lines": 119,
+    "human_added": 125419,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 125539,
+    "agent_percentage": 0.09479126008650698
+  }
+}
