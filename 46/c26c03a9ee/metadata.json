@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "46c26c03a9ee",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/deliver-session.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/46/c26c03a9ee/0/metadata.json",
+      "transcript": "/46/c26c03a9ee/0/full.jsonl",
+      "context": "/46/c26c03a9ee/0/context.md",
+      "content_hash": "/46/c26c03a9ee/0/content_hash.txt",
+      "prompt": "/46/c26c03a9ee/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 500,
+    "cache_creation_tokens": 1195208,
+    "cache_read_tokens": 42905830,
+    "output_tokens": 126220,
+    "api_call_count": 326
+  }
+}
