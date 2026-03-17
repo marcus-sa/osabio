@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5c4393743326",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/graph-reactive-coordination/execution-log.yaml",
+    "tests/acceptance/reactive/milestone-3-proxy-context-enrichment.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5c/4393743326/0/metadata.json",
+      "transcript": "/5c/4393743326/0/full.jsonl",
+      "context": "/5c/4393743326/0/context.md",
+      "content_hash": "/5c/4393743326/0/content_hash.txt",
+      "prompt": "/5c/4393743326/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 794,
+    "cache_creation_tokens": 1918643,
+    "cache_read_tokens": 78121581,
+    "output_tokens": 173259,
+    "api_call_count": 493
+  }
+}
