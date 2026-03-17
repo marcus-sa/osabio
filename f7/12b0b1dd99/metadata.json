@@ -3,11 +3,15 @@
   "checkpoint_id": "f712b0b1dd99",
   "strategy": "manual-commit",
   "branch": "marcus-sa/reactive-agent-activator",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "app/src/server/proxy/context-injector.ts",
     "app/src/server/reactive/agent-activator.ts",
-    "app/src/server/reactive/feed-sse-bridge.ts"
+    "app/src/server/reactive/feed-sse-bridge.ts",
+    "tests/acceptance/reactive/live-select-manager.test.ts",
+    "tests/acceptance/reactive/milestone-1-feed-sse-bridge.test.ts",
+    "tests/acceptance/reactive/walking-skeleton.test.ts",
+    "tests/unit/reactive/agent-activator.test.ts"
   ],
   "sessions": [
     {
@@ -23,13 +27,20 @@
       "context": "/f7/12b0b1dd99/1/context.md",
       "content_hash": "/f7/12b0b1dd99/1/content_hash.txt",
       "prompt": "/f7/12b0b1dd99/1/prompt.txt"
+    },
+    {
+      "metadata": "/f7/12b0b1dd99/2/metadata.json",
+      "transcript": "/f7/12b0b1dd99/2/full.jsonl",
+      "context": "/f7/12b0b1dd99/2/context.md",
+      "content_hash": "/f7/12b0b1dd99/2/content_hash.txt",
+      "prompt": "/f7/12b0b1dd99/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 125,
-    "cache_creation_tokens": 260592,
-    "cache_read_tokens": 4026233,
-    "output_tokens": 40050,
-    "api_call_count": 63
+    "input_tokens": 1016,
+    "cache_creation_tokens": 2951780,
+    "cache_read_tokens": 96447047,
+    "output_tokens": 230145,
+    "api_call_count": 618
   }
 }
