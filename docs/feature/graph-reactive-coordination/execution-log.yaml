@@ -69,5 +69,30 @@ events:
   s: EXECUTED
   sid: 01-03
   t: '2026-03-17T13:12:35Z'
+- d: PASS
+  p: COMMIT
+  s: EXECUTED
+  sid: 01-03
+  t: '2026-03-17T13:13:20Z'
+- d: PASS
+  p: PREPARE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-17T13:15:26Z'
+- d: PASS
+  p: RED_ACCEPTANCE
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-17T13:15:42Z'
+- d: PASS
+  p: RED_UNIT
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-17T13:16:55Z'
+- d: PASS
+  p: GREEN
+  s: EXECUTED
+  sid: 01-04
+  t: '2026-03-17T13:19:34Z'
 project_id: graph-reactive-coordination
 schema_version: '3.0'
