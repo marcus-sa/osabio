@@ -65,7 +65,7 @@ export function withTracing(route: string, method: string, handler: RouteHandler
 
           span.setAttribute("http.status_code", statusCode);
           span.setAttribute("duration_ms", durationMs);
-          span.setStatus({ code: statusCode >= 400 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
+          span.setStatus({ code: statusCode >= 500 ? SpanStatusCode.ERROR : SpanStatusCode.OK });
           span.end();
 
           const metricAttrs = { "http.method": method, "http.route": route, "http.status_code": statusCode };
