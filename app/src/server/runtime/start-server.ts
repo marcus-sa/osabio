@@ -369,6 +369,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => feedHandler(request.params.workspaceId),
         ),
       },
+      "/api/workspaces/:workspaceId/feed/stream": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/feed/stream",
+          "GET",
+          (request) => deps.sse.handleWorkspaceStreamRequest(request.params.workspaceId),
+        ),
+      },
       "/api/workspaces/:workspaceId/webhooks/github": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/webhooks/github",

@@ -9,16 +9,52 @@ type StreamState = {
   keepAliveId?: ReturnType<typeof setInterval>;
 };
 
+// ---------------------------------------------------------------------------
+// Workspace stream types
+// ---------------------------------------------------------------------------
+
+type WorkspaceClient = {
+  id: string;
+  controller?: ReadableStreamDefaultController<Uint8Array>;
+  keepAliveId?: ReturnType<typeof setInterval>;
+};
+
+type WorkspaceStreamState = {
+  clients: Map<string, WorkspaceClient>;
+  eventCounter: number;
+  graceTimerId?: ReturnType<typeof setTimeout>;
+};
+
+export type WorkspaceStreamEvent = {
+  items: Array<{
+    id: string;
+    type: string;
+    tier: string;
+    title: string;
+    severity?: string;
+    source?: string;
+    created_at: string;
+  }>;
+  removals?: string[];
+};
+
 const encoder = new TextEncoder();
+
+const KEEP_ALIVE_INTERVAL_MS = 15_000;
+const GRACE_PERIOD_MS = 30_000;
 
 export type SseRegistry = {
   registerMessage: (messageId: string) => void;
   handleStreamRequest: (messageId: string) => Response;
   emitEvent: (messageId: string, event: StreamEvent) => void;
+  handleWorkspaceStreamRequest: (workspaceId: string) => Response;
+  emitWorkspaceEvent: (workspaceId: string, event: WorkspaceStreamEvent) => void;
+  getWorkspaceClientCount: (workspaceId: string) => number;
 };
 
 export function createSseRegistry(): SseRegistry {
   const streams = new Map<string, StreamState>();
+  const workspaceStreams = new Map<string, WorkspaceStreamState>();
 
   function cleanupStream(messageId: string, reason: string): void {
     const state = streams.get(messageId);
@@ -36,6 +72,54 @@ export function createSseRegistry(): SseRegistry {
 
   function encodeSse(event: StreamEvent): Uint8Array {
     return encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
+  }
+
+  function encodeWorkspaceSse(eventId: number, event: WorkspaceStreamEvent): Uint8Array {
+    return encoder.encode(
+      `id: ${eventId}\nevent: feed_update\ndata: ${JSON.stringify(event)}\n\n`,
+    );
+  }
+
+  function getOrCreateWorkspaceState(workspaceId: string): WorkspaceStreamState {
+    let state = workspaceStreams.get(workspaceId);
+    if (!state) {
+      state = { clients: new Map(), eventCounter: 0 };
+      workspaceStreams.set(workspaceId, state);
+    }
+    // Cancel grace period if new client joins
+    if (state.graceTimerId) {
+      clearTimeout(state.graceTimerId);
+      state.graceTimerId = undefined;
+    }
+    return state;
+  }
+
+  function removeWorkspaceClient(workspaceId: string, clientId: string): void {
+    const state = workspaceStreams.get(workspaceId);
+    if (!state) return;
+
+    const client = state.clients.get(clientId);
+    if (client?.keepAliveId) {
+      clearInterval(client.keepAliveId);
+    }
+    state.clients.delete(clientId);
+
+    log.info("sse.workspace.client_removed", "Workspace SSE client removed", {
+      workspaceId,
+      clientId,
+      remainingClients: state.clients.size,
+    });
+
+    if (state.clients.size === 0) {
+      // Start grace period before full cleanup
+      state.graceTimerId = setTimeout(() => {
+        const current = workspaceStreams.get(workspaceId);
+        if (current && current.clients.size === 0) {
+          workspaceStreams.delete(workspaceId);
+          log.info("sse.workspace.cleaned_up", "Workspace stream cleaned up after grace period", { workspaceId });
+        }
+      }, GRACE_PERIOD_MS);
+    }
   }
 
   return {
@@ -110,6 +194,78 @@ export function createSseRegistry(): SseRegistry {
           cleanupStream(messageId, event.type === "done" ? "completed" : "error_event");
         }
       }
+    },
+
+    // -----------------------------------------------------------------------
+    // Workspace stream methods
+    // -----------------------------------------------------------------------
+
+    handleWorkspaceStreamRequest(workspaceId: string): Response {
+      const state = getOrCreateWorkspaceState(workspaceId);
+      const clientId = `client-${crypto.randomUUID()}`;
+      const client: WorkspaceClient = { id: clientId };
+      state.clients.set(clientId, client);
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          client.controller = controller;
+
+          log.info("sse.workspace.client_connected", "Workspace SSE client connected", {
+            workspaceId,
+            clientId,
+            totalClients: state.clients.size,
+          });
+
+          // Send immediate keep-alive so EventSource confirms the connection
+          controller.enqueue(encoder.encode(": keep-alive\n\n"));
+
+          client.keepAliveId = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(": keep-alive\n\n"));
+            } catch {
+              // Controller may be closed; cleanup will handle it
+              removeWorkspaceClient(workspaceId, clientId);
+            }
+          }, KEEP_ALIVE_INTERVAL_MS);
+        },
+        cancel() {
+          removeWorkspaceClient(workspaceId, clientId);
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    },
+
+    emitWorkspaceEvent(workspaceId: string, event: WorkspaceStreamEvent): void {
+      const state = workspaceStreams.get(workspaceId);
+      if (!state) return;
+
+      state.eventCounter += 1;
+      const eventId = state.eventCounter;
+      const encoded = encodeWorkspaceSse(eventId, event);
+
+      for (const client of state.clients.values()) {
+        if (client.controller) {
+          try {
+            client.controller.enqueue(encoded);
+          } catch {
+            // Client controller closed; remove on next tick
+            removeWorkspaceClient(workspaceId, client.id);
+          }
+        }
+      }
+    },
+
+    getWorkspaceClientCount(workspaceId: string): number {
+      const state = workspaceStreams.get(workspaceId);
+      return state ? state.clients.size : 0;
     },
   };
 }
