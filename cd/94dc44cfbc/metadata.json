@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cd94dc44cfbc",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/reactive/agent-activator.ts",
+    "app/src/server/reactive/feed-sse-bridge.ts",
+    "app/src/server/reactive/loop-dampener.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/94dc44cfbc/0/metadata.json",
+      "transcript": "/cd/94dc44cfbc/0/full.jsonl",
+      "context": "/cd/94dc44cfbc/0/context.md",
+      "content_hash": "/cd/94dc44cfbc/0/content_hash.txt",
+      "prompt": "/cd/94dc44cfbc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 809,
+    "cache_creation_tokens": 2412442,
+    "cache_read_tokens": 80221331,
+    "output_tokens": 176356,
+    "api_call_count": 505
+  }
+}
