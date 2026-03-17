@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ab1f57752775",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/unit/reactive/agent-activator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ab/1f57752775/0/metadata.json",
+      "transcript": "/ab/1f57752775/0/full.jsonl",
+      "context": "/ab/1f57752775/0/context.md",
+      "content_hash": "/ab/1f57752775/0/content_hash.txt",
+      "prompt": "/ab/1f57752775/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 825,
+    "cache_creation_tokens": 2421955,
+    "cache_read_tokens": 82219938,
+    "output_tokens": 180015,
+    "api_call_count": 513
+  }
+}
