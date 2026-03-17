@@ -1,0 +1,287 @@
+journey:
+  name: "Real-Time Governance Feed"
+  goal: "Workspace admin sees graph changes reflected in the governance feed within seconds, without manual refresh"
+  persona: "Marcus Oliveira (Workspace Admin)"
+  traces_to_jobs:
+    - JS-GRC-01  # Real-Time Governance Awareness
+    - JS-GRC-03  # Real-Time Conflict Detection
+
+  emotional_arc:
+    start: "Uncertain -- is this feed current? Do I need to refresh?"
+    middle: "Engaged -- items appearing live, I see the system working"
+    end: "Confident -- nothing missed, governance is real-time, I trust the feed"
+
+steps:
+  - id: 1
+    name: "Open Feed with Live Connection"
+    action: "Navigate to /workspaces/:id/feed"
+
+    ui_mockup: |
+      +-- Governance Feed -------------------------------------------+
+      |                                                               |
+      |  Workspace: ${workspace_name}   Connected [*] live  ${time}   |
+      |                                                               |
+      |  BLOCKING (${blocking_count})                                 |
+      |  +----------------------------------------------------------+ |
+      |  | [!] ${item.entityKind}: "${item.entityName}"              | |
+      |  |     ${item.reason}                                        | |
+      |  |     Project: ${item.project}    ${item.relativeTime}      | |
+      |  |     ${item.actions}                                       | |
+      |  +----------------------------------------------------------+ |
+      |                                                               |
+      |  REVIEW (${review_count})                                     |
+      |  ...                                                          |
+      +---------------------------------------------------------------+
+
+    shared_artifacts:
+      - name: workspace_name
+        source: "workspace record in SurrealDB"
+        displayed_as: "${workspace_name}"
+        consumers:
+          - "feed page header"
+          - "SSE channel subscription key"
+
+      - name: sse_connection_status
+        source: "EventSource readyState"
+        displayed_as: "Connected [*] live / Reconnecting... / Disconnected"
+        consumers:
+          - "feed page header status indicator"
+
+      - name: feed_items
+        source: "initial GET /api/workspaces/:id/feed + SSE delta events"
+        displayed_as: "tier-grouped list of GovernanceFeedItem"
+        consumers:
+          - "blocking tier list"
+          - "review tier list"
+          - "awareness tier list"
+          - "tier count badges"
+
+    emotional_state:
+      entry: "Uncertain -- page just loaded, is this current?"
+      exit: "Oriented -- live indicator visible, feed populated, I know the state"
+
+    integration_checkpoint: |
+      SSE connection established within 1 second of page load.
+      Initial feed data loaded via GET request.
+      Live indicator shows "Connected" state.
+
+    gherkin: |
+      Scenario: Feed connects with live updates on page load
+        Given Marcus navigates to the governance feed for workspace "montreal"
+        When the feed page finishes loading
+        Then the feed shows a "Connected" live indicator
+        And the SSE connection is established to the workspace event stream
+        And the feed displays current blocking, review, and awareness items
+
+  - id: 2
+    name: "Receive Real-Time Feed Update"
+    action: "Graph change triggers SSE push to feed"
+
+    ui_mockup: |
+      +-- Governance Feed -------------------------------------------+
+      |                                                               |
+      |  BLOCKING (${blocking_count})  [${delta_indicator}]           |
+      |  +----------------------------------------------------------+ |
+      |  | [NEW!] ${new_item.entityKind}: "${new_item.entityName}"   | |
+      |  |     ${new_item.reason}                                    | |
+      |  |     ${new_item.source}          just now                  | |
+      |  |     ${new_item.actions}                                   | |
+      |  +----------------------------------------------------------+ |
+      +---------------------------------------------------------------+
+
+    shared_artifacts:
+      - name: graph_change_event
+        source: "SurrealDB LIVE SELECT notification"
+        displayed_as: "not directly displayed -- transformed into feed item"
+        consumers:
+          - "event classifier"
+          - "SSE bridge"
+
+      - name: notification_level
+        source: "event classifier output"
+        displayed_as: "determines tier placement and badge style"
+        consumers:
+          - "feed tier routing"
+          - "agent coordinator (Phase 4)"
+          - "SSE event payload"
+
+      - name: delta_indicator
+        source: "client-side count of SSE-delivered items since page load"
+        displayed_as: "${delta_indicator} e.g. [+1 just now]"
+        consumers:
+          - "tier count badge"
+
+    emotional_state:
+      entry: "Engaged -- reading existing feed items"
+      exit: "Informed -- new item appeared, I see the system reacting in real time"
+
+    integration_checkpoint: |
+      Feed item appears within 2 seconds of the graph write.
+      Item is placed in the correct tier based on notification level.
+      Tier count badge updates with delta indicator.
+      NEW badge is visible on items delivered via SSE.
+
+    gherkin: |
+      Scenario: Decision confirmation appears in feed within 2 seconds
+        Given Marcus has the governance feed open for workspace "montreal"
+        And the feed shows 2 blocking items
+        When the chat agent confirms decision "Standardize on tRPC for all APIs"
+        Then within 2 seconds the feed shows the decision moved to awareness tier
+        And the blocking count decreases to 1
+        And the awareness tier shows a new item with [NEW] badge
+
+  - id: 3
+    name: "Cascading Conflict Detection"
+    action: "Coordinator detects dependency conflict from decision confirmation"
+
+    shared_artifacts:
+      - name: affected_agents
+        source: "graph traversal: agents with active tasks depending on changed entity"
+        displayed_as: "not directly displayed -- used by coordinator"
+        consumers:
+          - "agent coordinator routing"
+          - "feed item reason text"
+
+      - name: conflict_observation
+        source: "Observer agent verification output"
+        displayed_as: "review tier feed item"
+        consumers:
+          - "governance feed review tier"
+          - "agent context injection queue"
+
+    emotional_state:
+      entry: "Informed -- saw the decision confirmation"
+      exit: "Confident -- system caught the dependency impact automatically"
+
+    integration_checkpoint: |
+      Observer triggered within 5 seconds of decision confirmation.
+      Conflict observation created and visible in feed within 10 seconds.
+      Affected agent identified via graph dependency traversal.
+
+    gherkin: |
+      Scenario: Conflict detected and surfaced after decision confirmation
+        Given Marcus has the governance feed open for workspace "montreal"
+        And Agent B has an active session on task "Migrate billing API" which depends on decision "API transport standard"
+        When the chat agent confirms decision "Standardize on tRPC for all APIs"
+        Then the Observer agent verifies the decision against active tasks
+        And within 10 seconds a new review item appears: "Task at risk: Migrate billing API"
+        And the review item explains the dependency on the confirmed decision
+
+  - id: 4
+    name: "Act on Feed Item"
+    action: "Marcus acknowledges a review item"
+
+    ui_mockup: |
+      +-- Governance Feed -------------------------------------------+
+      |  REVIEW                                                       |
+      |  +----------------------------------------------------------+ |
+      |  | [~] Task at risk: "Migrate billing API to tRPC"          | |
+      |  |     Status: Acknowledged by Marcus        just now        | |
+      |  |     Agent B notified: context update on next turn         | |
+      |  |     [ Resolve ]  [ Discuss ]                              | |
+      |  +----------------------------------------------------------+ |
+      +---------------------------------------------------------------+
+
+    shared_artifacts:
+      - name: acknowledgment_action
+        source: "user click on Acknowledge button"
+        displayed_as: "status update on feed item"
+        consumers:
+          - "feed item status text"
+          - "agent coordinator (enqueue notification to Agent B)"
+          - "observation status in SurrealDB"
+
+    emotional_state:
+      entry: "Decisive -- I need to act on this"
+      exit: "Satisfied -- action taken, agent will adjust"
+
+    integration_checkpoint: |
+      Acknowledge action updates observation status in graph.
+      Agent B receives enqueue notification within 5 seconds.
+      Feed item updates in-place without full page refresh.
+
+    gherkin: |
+      Scenario: Acknowledging a feed item notifies affected agent
+        Given Marcus sees a review item "Task at risk: Migrate billing API"
+        When Marcus clicks "Acknowledge" on the item
+        Then the item status updates to "Acknowledged by Marcus"
+        And Agent B receives an enqueue notification with the conflict context
+        And the acknowledge action is recorded in the observation's graph node
+
+  - id: 5
+    name: "Connection Loss and Recovery"
+    action: "SSE disconnects and reconnects"
+
+    ui_mockup: |
+      +-- Governance Feed -------------------------------------------+
+      |  Workspace: ${workspace_name}   Reconnecting...  ${time}      |
+      |                                                               |
+      |  [i] Connection lost. Reconnecting...                         |
+      |      Changes since ${last_event_time} will appear             |
+      |      when reconnected.                                        |
+      +---------------------------------------------------------------+
+
+      After reconnection:
+
+      +-- Governance Feed -------------------------------------------+
+      |  Workspace: ${workspace_name}   Connected [*] live  ${time}   |
+      |                                                               |
+      |  [i] Reconnected. ${missed_count} updates since              |
+      |      ${last_event_time}.                                      |
+      |                                                               |
+      |  BLOCKING (${blocking_count})  [+${delta} while away]         |
+      +---------------------------------------------------------------+
+
+    shared_artifacts:
+      - name: last_event_id
+        source: "client-side tracking of last SSE event ID received"
+        displayed_as: "not displayed -- used for reconnection delta sync"
+        consumers:
+          - "SSE reconnect query parameter"
+          - "server-side delta calculation"
+
+      - name: missed_event_count
+        source: "server response on reconnection"
+        displayed_as: "${missed_count} updates since ${last_event_time}"
+        consumers:
+          - "reconnection banner"
+          - "tier delta badges"
+
+    emotional_state:
+      entry: "Anxious -- did I miss something while disconnected?"
+      exit: "Reassured -- system caught up, I see what changed"
+
+    integration_checkpoint: |
+      SSE reconnects automatically within 5 seconds of network recovery.
+      Missed events are replayed from last_event_id.
+      Reconnection banner shows count of missed updates.
+      Feed state is fully consistent after reconnection.
+
+    gherkin: |
+      Scenario: Feed recovers from connection loss without data loss
+        Given Marcus has the governance feed open with 5 items
+        And Marcus received events up to event ID "evt-42"
+        When the SSE connection drops for 30 seconds
+        And during disconnection 3 new graph changes occur
+        Then the feed shows "Reconnecting..." status
+        And when the connection recovers the feed shows "Reconnected. 3 updates received"
+        And the 3 missed items appear with appropriate tier placement
+        And the live indicator returns to "Connected"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: workspace_name
+      must_match_across: [1, 2, 3, 4, 5]
+      failure_message: "Workspace name must be consistent across all feed views"
+
+    - artifact: feed_items
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "Feed items from initial GET and SSE updates must merge into single consistent list"
+
+    - artifact: sse_connection_status
+      must_match_across: [1, 5]
+      failure_message: "Connection status must accurately reflect EventSource state"
+
+    - artifact: notification_level
+      must_match_across: [2, 3]
+      failure_message: "Event classifier must produce consistent notification levels for same entity types"

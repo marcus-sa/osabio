@@ -1,0 +1,222 @@
+journey:
+  name: "Reactive Agent Coordination"
+  goal: "Agents automatically receive context when graph changes affect their active work, without human relay"
+  persona: "Chat Agent (Orchestrator) + Observer Agent + Marcus Oliveira (oversight)"
+  traces_to_jobs:
+    - JS-GRC-02  # Reactive Agent Wake-Up
+    - JS-GRC-03  # Real-Time Conflict Detection
+
+  emotional_arc:
+    start: "Isolated -- agents work in silos, human is the integration layer"
+    middle: "Connected -- agents react to each other's outputs through the graph"
+    end: "Trustworthy -- system self-corrects, human only intervenes for governance"
+
+steps:
+  - id: 1
+    name: "Graph Change Triggers Event Classification"
+    action: "LIVE SELECT fires on table change, event classifier determines notification levels"
+
+    shared_artifacts:
+      - name: graph_change_event
+        source: "SurrealDB LIVE SELECT notification"
+        displayed_as: "internal event payload"
+        consumers:
+          - "event classifier"
+          - "SSE bridge (for feed)"
+          - "audit log"
+
+      - name: notification_level
+        source: "event classifier rules engine"
+        displayed_as: "interrupt | enqueue | log"
+        consumers:
+          - "agent coordinator routing"
+          - "feed SSE tier classification"
+          - "loop dampening tracker"
+
+      - name: classification_rules
+        source: "workspace-configurable rule set"
+        displayed_as: "not displayed -- drives classifier behavior"
+        consumers:
+          - "event classifier"
+
+    emotional_state:
+      entry: "N/A (system-internal)"
+      exit: "N/A (system-internal)"
+
+    integration_checkpoint: |
+      LIVE SELECT event delivered to classifier within 500ms of graph write commit.
+      Classifier produces at least one notification target (feed is always included).
+      Classification is deterministic for same input (no LLM in the classification path).
+
+    gherkin: |
+      Scenario: Decision confirmation is classified with correct notification levels
+        Given workspace "montreal" has LIVE SELECT active on the decision table
+        When decision "Standardize on tRPC" transitions from "provisional" to "confirmed"
+        Then the event classifier produces notification level "log" for the feed
+        And notification level "log" for the Observer (verification trigger)
+        And notification level "enqueue" for agents with active tasks depending on this decision
+
+  - id: 2
+    name: "Coordinator Resolves Affected Agents"
+    action: "Graph traversal finds agents whose active work depends on the changed entity"
+
+    shared_artifacts:
+      - name: affected_agents
+        source: "graph traversal: depends_on, relates_to, belongs_to edges from changed entity to active agent sessions"
+        displayed_as: "list of agent_session records with dependency context"
+        consumers:
+          - "notification delivery"
+          - "feed item enrichment"
+
+      - name: dependency_chain
+        source: "graph traversal result"
+        displayed_as: "entity -> edge -> task -> session chain"
+        consumers:
+          - "context injection message"
+          - "feed item reason text"
+
+      - name: loop_dampening_state
+        source: "in-memory counter per entity per time window"
+        displayed_as: "not displayed unless dampening triggers meta-observation"
+        consumers:
+          - "coordinator routing decision"
+          - "meta-observation creation"
+
+    emotional_state:
+      entry: "N/A (system-internal)"
+      exit: "N/A (system-internal)"
+
+    integration_checkpoint: |
+      Graph traversal completes within 100ms for typical workspace (< 1000 entities).
+      Only agents with ACTIVE sessions are targeted (idle/completed sessions ignored).
+      Loop dampening state is per-workspace, per-entity, with 60-second sliding window.
+
+    gherkin: |
+      Scenario: Coordinator identifies agent with dependent active task
+        Given Agent B has an active session on task "Migrate billing API" (task:t-47)
+        And task:t-47 has a depends_on edge to decision:d-99
+        When the coordinator processes a change event for decision:d-99
+        Then the coordinator identifies Agent B's session as affected
+        And prepares an enqueue notification with the decision change context
+
+      Scenario: Coordinator skips agents without active sessions
+        Given Agent C completed its session on task:t-102 thirty minutes ago
+        And task:t-102 depends on decision:d-99
+        When the coordinator processes a change event for decision:d-99
+        Then Agent C is not notified (no active session)
+
+  - id: 3
+    name: "Agent Receives Enqueue Context Update"
+    action: "On next tool-use turn, agent reads context update from queue"
+
+    shared_artifacts:
+      - name: context_update_message
+        source: "coordinator notification payload"
+        displayed_as: "injected into agent system context before next turn"
+        consumers:
+          - "agent reasoning (next turn)"
+          - "agent session audit log"
+
+      - name: agent_context_queue
+        source: "per-agent-session in-memory queue with TTL"
+        displayed_as: "not displayed -- consumed by agent on next turn"
+        consumers:
+          - "agent context loader"
+
+    emotional_state:
+      entry: "Agent unaware of external change"
+      exit: "Agent has updated context, can adjust reasoning"
+
+    integration_checkpoint: |
+      Context update available to agent within 5 seconds of coordinator decision.
+      Queue items have TTL (default: 30 minutes). Stale items are discarded.
+      Agent acknowledges receipt (logged to audit trail).
+      Context update is clearly framed as "mid-session update" distinct from original task context.
+
+    gherkin: |
+      Scenario: Agent receives enqueued context on next tool turn
+        Given Agent B has an active session on task "Migrate billing API"
+        And the coordinator has enqueued a context update about decision:d-99 confirmation
+        When Agent B makes its next tool call
+        Then the context update is injected into Agent B's system prompt
+        And the update includes: entity reference, change description, impact on current task
+        And Agent B acknowledges receipt in the session audit log
+
+  - id: 4
+    name: "Agent Receives Interrupt for Hard Conflict"
+    action: "For interrupt-level events, context is injected immediately into agent's current turn"
+
+    shared_artifacts:
+      - name: interrupt_context
+        source: "coordinator interrupt payload"
+        displayed_as: "injected as urgent system message in agent's current conversation"
+        consumers:
+          - "agent reasoning (current turn)"
+          - "agent session audit log"
+          - "feed (blocking tier item)"
+
+    emotional_state:
+      entry: "Agent working with invalid assumptions"
+      exit: "Agent pauses, re-evaluates against new context"
+
+    integration_checkpoint: |
+      Interrupt delivered within 2 seconds of coordinator decision.
+      Agent's current generation is NOT cancelled (completes current response).
+      Interrupt context is prepended to the NEXT system message.
+      Only hard conflicts trigger interrupt (decision superseded + active dependency).
+
+    gherkin: |
+      Scenario: Agent receives interrupt when dependency is superseded
+        Given Agent B is actively generating a response for task "Migrate billing API"
+        And task:t-47 depends on decision:d-55 which was just superseded by decision:d-99
+        When the coordinator classifies this as an interrupt-level event
+        Then on Agent B's next turn the interrupt context is injected
+        And the context says "URGENT: Decision superseded. Your current work may be invalid."
+        And Agent B's next response acknowledges the context change
+
+  - id: 5
+    name: "Loop Detection and Dampening"
+    action: "System detects and dampens cascading notification loops"
+
+    shared_artifacts:
+      - name: cascade_tracker
+        source: "in-memory per-entity event counter with sliding window"
+        displayed_as: "meta-observation when dampening activates"
+        consumers:
+          - "coordinator routing decision"
+          - "meta-observation in feed"
+
+    emotional_state:
+      entry: "System processing cascading events"
+      exit: "Cascade dampened, stability maintained"
+
+    integration_checkpoint: |
+      Dampening activates when same entity triggers > 3 events in 60 seconds.
+      Dampened events are logged (not lost) but do not trigger agent notifications.
+      Meta-observation created: "Cascading event loop dampened on ${entity}."
+      Meta-observation is visible in feed for human awareness.
+
+    gherkin: |
+      Scenario: Cascading observation loop is dampened
+        Given the Observer agent creates observation obs-1 targeting task:t-47
+        And the Observer agent peer-reviews obs-1 and creates obs-2 targeting task:t-47
+        And the Observer agent peer-reviews obs-2 and creates obs-3 targeting task:t-47
+        When obs-3 triggers the event classifier
+        Then the classifier detects 3 events on task:t-47 within 60 seconds from observer_agent
+        And the notification level is downgraded to "log" only
+        And a meta-observation is created: "Cascading event loop dampened on task:t-47"
+        And no further agent notifications are sent for task:t-47 for 60 seconds
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: notification_level
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "Notification level from classifier must be honored throughout the delivery chain"
+
+    - artifact: affected_agents
+      must_match_across: [2, 3, 4]
+      failure_message: "Agent list from coordinator must match actual notification recipients"
+
+    - artifact: graph_change_event
+      must_match_across: [1, 2]
+      failure_message: "Event payload must be passed unmodified from LIVE SELECT to coordinator"
