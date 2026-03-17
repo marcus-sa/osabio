@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a9b0bc8661f9",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/heartbeats-vs-live-queries",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/acceptance/reactive/milestone-1-feed-sse-bridge.test.ts",
+    "tests/acceptance/reactive/milestone-2-agent-coordinator.test.ts",
+    "tests/acceptance/reactive/milestone-3-proxy-context-enrichment.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/reactive/test-scenarios.md",
+    "tests/acceptance/reactive/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/b0bc8661f9/0/metadata.json",
+      "transcript": "/a9/b0bc8661f9/0/full.jsonl",
+      "context": "/a9/b0bc8661f9/0/context.md",
+      "content_hash": "/a9/b0bc8661f9/0/content_hash.txt",
+      "prompt": "/a9/b0bc8661f9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 217,
+    "cache_creation_tokens": 322739,
+    "cache_read_tokens": 12420429,
+    "output_tokens": 57015,
+    "api_call_count": 147
+  }
+}

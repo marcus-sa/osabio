@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a9b0bc8661f9",
+  "session_id": "a6916833-03a7-4c21-a856-b088bf18ffc8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T12:46:39.475684Z",
+  "branch": "marcus-sa/heartbeats-vs-live-queries",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "tests/acceptance/reactive/milestone-1-feed-sse-bridge.test.ts",
+    "tests/acceptance/reactive/milestone-2-agent-coordinator.test.ts",
+    "tests/acceptance/reactive/milestone-3-proxy-context-enrichment.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/reactive/test-scenarios.md",
+    "tests/acceptance/reactive/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1751014bce0d",
+  "token_usage": {
+    "input_tokens": 217,
+    "cache_creation_tokens": 322739,
+    "cache_read_tokens": 12420429,
+    "output_tokens": 57015,
+    "api_call_count": 147
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T12:46:38.144942Z",
+    "agent_lines": 2006,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2006,
+    "agent_percentage": 100
+  }
+}
