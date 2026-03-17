@@ -40,6 +40,8 @@ import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
+import { createCoordinatorHandler } from "../reactive/agent-coordinator";
+import { createLoopDampener } from "../reactive/loop-dampener";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
@@ -79,6 +81,33 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const bridgeExchangeHandler = createBridgeExchangeHandler(deps);
   const observerHandler = createObserverRouteHandler(deps);
   const graphScanHandler = createGraphScanRouteHandler(deps);
+
+  // Agent Coordinator: POST endpoint called by SurrealDB DEFINE EVENT webhook
+  const coordinatorDampener = createLoopDampener(
+    { threshold: 4, windowMs: 60_000 },
+    undefined,
+    (_key, event) => {
+      log.info("coordinator.dampened", "Loop dampener activated", {
+        workspaceId: event.workspaceId,
+        entityId: event.entityId,
+        sourceAgent: event.sourceAgent,
+      });
+    },
+  );
+  const coordinatorHandler = createCoordinatorHandler({
+    surreal: deps.surreal,
+    loopDampener: coordinatorDampener,
+    inflight: deps.inflight,
+    onAgentMatch: (match) => {
+      log.info("coordinator.agent_matched", "Observation matched agent type for new session", {
+        agentId: match.agentId,
+        agentType: match.agentType,
+        workspaceId: match.workspaceId,
+        similarity: match.similarity,
+        observationId: match.observationId,
+      });
+    },
+  });
   const learningHandlers = createLearningRouteHandlers(deps);
   const policyHandlers = createPolicyRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
@@ -583,6 +612,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           observerHandler(request.params.table, request.params.id, request),
         ),
       },
+      // Agent Coordinator — observation routing (called by SurrealQL EVENT via http::post)
+      "/api/internal/coordinator/observation": {
+        POST: withTracing("POST /api/internal/coordinator/observation", "POST", (request) =>
+          coordinatorHandler(request),
+        ),
+      },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)
       "/api/intents/:intentId/evaluate": {
         POST: withTracing("POST /api/intents/:intentId/evaluate", "POST", (request) =>
@@ -795,6 +830,7 @@ export async function startServer(): Promise<void> {
     sseRegistry: deps.sse,
   });
   feedSseBridge.subscribeAll();
+
   deps.inflight.track(
     liveSelectManager.start().catch((err) => {
       log.error("reactive.start", "Failed to start Live Select Manager", err);

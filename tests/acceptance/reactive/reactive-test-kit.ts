@@ -178,12 +178,83 @@ export async function createObservation(
   if (options.targetEntity) {
     const targetRecord = new RecordId(options.targetEntity.table, options.targetEntity.id);
     await surreal.query(
-      `RELATE $obs->observes->$target SET created_at = time::now();`,
+      `RELATE $obs->observes->$target SET added_at = time::now();`,
       { obs: observationRecord, target: targetRecord },
     );
   }
 
   return { observationId };
+}
+
+/**
+ * Creates an observation AND triggers the coordinator webhook endpoint.
+ * In production, the SurrealDB DEFINE EVENT fires the webhook automatically.
+ * In tests, we simulate this by POSTing to the coordinator endpoint directly.
+ */
+export async function createObservationWithCoordinator(
+  surreal: Surreal,
+  baseUrl: string,
+  workspaceId: string,
+  options: {
+    text: string;
+    severity: ObservationSeverity;
+    sourceAgent: string;
+    category?: string;
+    embedding?: number[];
+    targetEntity?: { table: string; id: string };
+  },
+): Promise<{ observationId: string }> {
+  const result = await createObservation(surreal, workspaceId, options);
+
+  // Simulate DEFINE EVENT webhook — POST to coordinator endpoint
+  if (options.embedding) {
+    await fetch(`${baseUrl}/api/internal/coordinator/observation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        observation_id: result.observationId,
+        workspace: workspaceId,
+        embedding: options.embedding,
+        text: options.text,
+        severity: options.severity,
+        source_agent: options.sourceAgent,
+      }),
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Creates multiple observations in rapid succession with coordinator webhook calls.
+ */
+export async function createObservationBurstWithCoordinator(
+  surreal: Surreal,
+  baseUrl: string,
+  workspaceId: string,
+  options: {
+    count: number;
+    sourceAgent: string;
+    targetEntity: { table: string; id: string };
+    severity: ObservationSeverity;
+    textPrefix: string;
+    embedding?: number[];
+  },
+): Promise<string[]> {
+  // Use provided embedding or generate a fake one so the coordinator webhook accepts the payload
+  const embedding = options.embedding ?? fakeEmbedding(42);
+  const ids: string[] = [];
+  for (let i = 0; i < options.count; i++) {
+    const { observationId } = await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
+      text: `${options.textPrefix} (${i + 1} of ${options.count})`,
+      severity: options.severity,
+      sourceAgent: options.sourceAgent,
+      targetEntity: options.targetEntity,
+      embedding,
+    });
+    ids.push(observationId);
+  }
+  return ids;
 }
 
 /**
@@ -397,6 +468,7 @@ export async function startAgentSession(
     agentType: string;
     taskId?: string;
     description?: string;
+    descriptionEmbedding?: number[];
   },
 ): Promise<{ sessionId: string }> {
   const sessionId = `sess-${crypto.randomUUID()}`;
@@ -413,6 +485,10 @@ export async function startAgentSession(
 
   if (options.taskId) {
     content.task_id = new RecordId("task", options.taskId);
+  }
+
+  if (options.descriptionEmbedding) {
+    content.description_embedding = options.descriptionEmbedding;
   }
 
   await surreal.query(`CREATE $sess CONTENT $content;`, {
@@ -638,7 +714,7 @@ export async function getObservations(
   options?: { status?: ObservationStatus; category?: string },
 ): Promise<Array<{ id: RecordId; text: string; severity: string; status: string; category?: string }>> {
   const workspaceRecord = new RecordId("workspace", workspaceId);
-  let query = `SELECT id, text, severity, status, category FROM observation WHERE workspace = $ws`;
+  let query = `SELECT id, text, severity, status, category, created_at FROM observation WHERE workspace = $ws`;
   const params: Record<string, unknown> = { ws: workspaceRecord };
 
   if (options?.status) {
@@ -700,8 +776,8 @@ export async function getMetaObservations(
 ): Promise<Array<{ id: RecordId; text: string; category: string }>> {
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const rows = (await surreal.query(
-    `SELECT id, text, category FROM observation
-     WHERE workspace = $ws AND category = "loop_dampening"
+    `SELECT id, text, category, created_at FROM observation
+     WHERE workspace = $ws AND source_agent = "agent_coordinator"
      ORDER BY created_at DESC;`,
     { ws: workspaceRecord },
   )) as Array<Array<{ id: RecordId; text: string; category: string }>>;

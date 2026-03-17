@@ -213,10 +213,12 @@ DEFINE FIELD last_event_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD error_message ON agent_session TYPE option<string>;
 DEFINE FIELD last_feedback ON agent_session TYPE option<string>;
 DEFINE FIELD last_request_at ON agent_session TYPE option<datetime>;
+DEFINE FIELD description_embedding ON agent_session TYPE option<array<float>>;
 DEFINE FIELD created_at ON agent_session TYPE datetime;
 DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
 DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
+DEFINE INDEX idx_agent_session_description_embedding ON agent_session FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
 DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
 

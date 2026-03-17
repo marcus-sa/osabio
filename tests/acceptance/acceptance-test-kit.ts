@@ -19,6 +19,7 @@ import { createInflightTracker } from "../../app/src/server/runtime/types";
 import { createNonceCache } from "../../app/src/server/oauth/nonce-cache";
 import { createLiveSelectManager } from "../../app/src/server/reactive/live-select-manager";
 import { createFeedSseBridge } from "../../app/src/server/reactive/feed-sse-bridge";
+// Agent coordinator + loop dampener are created inside createBrainServer
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
 
@@ -172,6 +173,11 @@ export function setupAcceptanceSuite(
       sseRegistry: serverDeps.sse,
     });
     feedSseBridge.subscribeAll();
+
+    // Agent Coordinator is created inside createBrainServer (called above).
+    // In prod, DEFINE EVENT webhooks call the coordinator endpoint.
+    // In acceptance tests, observations trigger the coordinator via the same HTTP endpoint.
+
     inflight.track(
       liveSelectManager.start().catch(() => undefined),
     );

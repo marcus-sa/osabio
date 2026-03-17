@@ -95,15 +95,17 @@ And the event is classified normally
 - [ ] KNN search completes within 50ms for typical agent counts (< 100 agents)
 
 ## Technical Notes
-- **Coordinator is always-on**: started in `start-server.ts` alongside the HTTP server. Subscribes to LIVE SELECT on observation table.
-- **Vector search routing**: Observations already have embeddings. Agents need `description_embedding` (HNSW indexed). Coordinator runs KNN: `SELECT id, vector::similarity::cosine(description_embedding, $obs_embedding) AS similarity FROM agent WHERE description_embedding <|K, COSINE|> $obs_embedding`. Then filters by active session + workspace + similarity threshold.
-- **KNN + WHERE bug**: Per CLAUDE.md, SurrealDB v3.0 has issues combining KNN with WHERE on indexed fields. Use the two-step pattern: KNN in LET subquery, then filter by workspace/active status in second query.
+- **Coordinator is a POST endpoint** (`/api/internal/coordinator/observation`), called by a SurrealDB `DEFINE EVENT` webhook on observation CREATE. Not an always-on LIVE SELECT listener. Same pattern as the 8 existing observer webhooks.
+- **DEFINE EVENT trigger**: `DEFINE EVENT coordinator_observation_routed ON observation WHEN $event = "CREATE" AND $after.embedding IS NOT NONE AND $after.source_agent != "agent_coordinator" THEN { http::post(...) } ASYNC RETRY 3;`
+- **Active coverage check**: Before KNN routing, the coordinator checks if the observation's target entity already has an active agent session. If so, it skips — the proxy handles enriching active sessions via its own vector search (US-GRC-04).
+- **Vector search routing**: Observations already have embeddings. Agents need `description_embedding` (HNSW indexed). Coordinator runs KNN against `agent` table (agent types, not sessions).
+- **KNN + WHERE bug**: Per CLAUDE.md, use the two-step pattern: KNN in LET subquery, then filter by workspace in second query.
 - **No `context_queue` table, no deterministic classifier**: the graph is the delivery mechanism. Semantic similarity replaces rule tables.
-- Loop dampening state is per-workspace, per-entity, per-source-agent. Implemented as in-memory sliding window counter in the Coordinator process.
+- Loop dampening state is per-workspace, per-entity, per-source-agent. Implemented as in-memory sliding window counter.
 - Phase: 4 (Coordinator -- depends on Phase 3 foundation)
 
 ## Dependencies
-- US-GRC-01: LIVE SELECT → SSE bridge (provides the event stream infrastructure)
+- Existing DEFINE EVENT webhook pattern (observer-route.ts, 8 existing webhooks)
 - Existing agent session lifecycle (orchestrator/session-lifecycle.ts)
 - `agent` table with `description_embedding` field + HNSW index
 - Existing embedding infrastructure (extraction pipeline already produces embeddings)

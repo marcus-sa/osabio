@@ -1,7 +1,7 @@
-# US-GRC-04: Proxy Context Queue Delivery
+# US-GRC-04: Proxy Context Enrichment via Vector Search
 
 ## Problem
-Marcus Oliveira is a workspace admin whose coding agent (Agent B) sometimes works for 15+ minutes on a task whose foundational decision was just superseded by another agent. By the time Marcus notices the inconsistency, Agent B has produced significant work that must be discarded. The Agent Coordinator (US-GRC-03) writes context updates to the `context_queue` table, but nothing delivers them to the agent yet.
+Marcus Oliveira is a workspace admin whose coding agent (Agent B) sometimes works for 15+ minutes on a task whose foundational decision was just superseded by another agent. By the time Marcus notices the inconsistency, Agent B has produced significant work that must be discarded. Graph changes (decisions superseded, tasks blocked, conflict observations) are already in the graph, but the proxy does not surface them to running agents between session start and end.
 
 ## Who
 - Workspace admin | Oversees agent coordination | Wants zero wasted agent work on provably invalid tasks
