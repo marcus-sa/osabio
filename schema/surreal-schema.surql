@@ -212,6 +212,7 @@ DEFINE FIELD stream_id ON agent_session TYPE option<string>;
 DEFINE FIELD last_event_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD error_message ON agent_session TYPE option<string>;
 DEFINE FIELD last_feedback ON agent_session TYPE option<string>;
+DEFINE FIELD last_request_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD created_at ON agent_session TYPE datetime;
 DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
@@ -317,7 +318,9 @@ DEFINE TABLE agent SCHEMAFULL;
 DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp'];
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
+DEFINE FIELD description_embedding ON agent TYPE option<array<float>>;
 DEFINE FIELD created_at ON agent TYPE datetime;
+DEFINE INDEX idx_agent_description_embedding ON agent FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;

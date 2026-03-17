@@ -1,0 +1,260 @@
+project_id: graph-reactive-coordination
+description: "Replace poll-based reactivity with LIVE SELECT -> SSE feed, vector search agent routing, and proxy context enrichment"
+paradigm: functional
+validation:
+  status: approved
+  reviewed_by: nw-software-crafter-reviewer
+  approved_at: "2026-03-17T18:45:00Z"
+
+milestones:
+  # ---------------------------------------------------------------------------
+  # Milestone 1: Walking Skeleton (E2E proof)
+  # Proves: graph write -> LIVE SELECT -> Feed SSE Bridge -> SSE -> browser
+  # ---------------------------------------------------------------------------
+  - id: "01"
+    name: "Walking skeleton: graph write to SSE feed event"
+    steps:
+      - step_id: "01-01"
+        description: "Schema migration adding last_request_at to agent_session and description_embedding with HNSW index to agent table"
+        type: infrastructure
+        acceptance_criteria:
+          - "Migration applies atomically via bun migrate"
+          - "agent_session has optional last_request_at datetime field"
+          - "agent has optional description_embedding field with HNSW COSINE index"
+        files_to_modify:
+          - "schema/migrations/0053_reactive_coordination_fields.surql"
+          - "schema/surreal-schema.surql"
+        depends_on: []
+        test_scenarios:
+          - "Schema migration applies without error and fields are queryable"
+
+      - step_id: "01-02"
+        description: "Extend SSE Registry with per-workspace stream management for long-lived feed connections"
+        acceptance_criteria:
+          - "Workspace streams registered, emit events, and clean up on disconnect"
+          - "Keep-alive sent every 15 seconds to prevent timeout"
+          - "Multiple clients on same workspace receive same events"
+        files_to_modify:
+          - "app/src/server/streaming/sse-registry.ts"
+        depends_on: ["01-01"]
+        test_scenarios:
+          - "walking-skeleton: admin sees new observation in feed without refreshing"
+
+      - step_id: "01-03"
+        description: "Live Select Manager: subscribe to governance tables via LIVE SELECT on existing surreal WS connection, route events to consumers"
+        acceptance_criteria:
+          - "Subscriptions created per workspace for decision, task, observation, question, suggestion, learning, agent_session tables"
+          - "Events filtered application-side by workspace (LIVE SELECT WHERE limitation)"
+          - "Subscription start/stop logged for observability"
+        files_to_modify:
+          - "app/src/server/reactive/live-select-manager.ts"
+        depends_on: ["01-01"]
+        test_scenarios:
+          - "LIVE SELECT subscription starts and receives events for governance tables"
+          - "Events filtered application-side by workspace"
+
+      - step_id: "01-04"
+        description: "Feed SSE Bridge: transform graph events to GovernanceFeedItem, assign tier via simple rules, batch within 500ms window, push via SSE Registry"
+        acceptance_criteria:
+          - "Graph events transformed to same GovernanceFeedItem contract as GET feed endpoint"
+          - "Tier assignment based on entity type and severity (display concern only)"
+          - "Events batched within 500ms window to prevent client flooding"
+          - "Monotonic event IDs assigned for reconnection delta sync"
+        files_to_modify:
+          - "app/src/server/reactive/feed-sse-bridge.ts"
+        depends_on: ["01-02", "01-03"]
+        test_scenarios:
+          - "walking-skeleton: admin sees confirmed decision move between tiers"
+
+      - step_id: "01-05"
+        description: "Register feed stream SSE endpoint and start reactive layer in server bootstrap"
+        acceptance_criteria:
+          - "GET /api/workspaces/:id/feed/stream returns SSE response"
+          - "Live Select Manager started after surreal connection established"
+          - "Feed SSE Bridge wired to Live Select Manager output"
+        files_to_modify:
+          - "app/src/server/runtime/start-server.ts"
+        depends_on: ["01-03", "01-04"]
+        test_scenarios:
+          - "walking-skeleton: admin sees new observation in feed without refreshing"
+          - "walking-skeleton: admin sees confirmed decision move between tiers"
+
+  # ---------------------------------------------------------------------------
+  # Milestone 2: Feed SSE Bridge (US-GRC-01 complete)
+  # ---------------------------------------------------------------------------
+  - id: "02"
+    name: "Live governance feed via SSE"
+    steps:
+      - step_id: "02-01"
+        description: "Feed SSE connection lifecycle: establish on page load, maintain with keep-alive, report connection status"
+        acceptance_criteria:
+          - "SSE connection established and returns connected status"
+          - "Connection survives 20+ seconds of idle via 15s keep-alive"
+        files_to_modify:
+          - "app/src/server/reactive/feed-sse-bridge.ts"
+          - "app/src/server/streaming/sse-registry.ts"
+        depends_on: ["01-05"]
+        test_scenarios:
+          - "milestone-1: feed establishes SSE connection for workspace"
+          - "milestone-1: SSE keep-alive maintains connection"
+
+      - step_id: "02-02"
+        description: "Feed item delivery within 2 seconds and contract parity with GET endpoint"
+        acceptance_criteria:
+          - "New observation appears in feed within 2s of graph write (95th percentile)"
+          - "SSE feed items have same shape as GET /feed response items (id, type, tier, title, created_at)"
+          - "Decision confirmation moves item from blocking to awareness tier"
+          - "Blocked task surfaces in review tier"
+        files_to_modify:
+          - "app/src/server/reactive/feed-sse-bridge.ts"
+        depends_on: ["02-01"]
+        test_scenarios:
+          - "milestone-1: new observation appears within 2 seconds"
+          - "milestone-1: SSE feed items match GET endpoint contract"
+          - "milestone-1: decision confirmation moves item between tiers"
+          - "milestone-1: blocked task surfaces in review tier"
+
+      - step_id: "02-03"
+        description: "Reconnection with delta sync, deduplication, and event batching"
+        acceptance_criteria:
+          - "Missed events replayed from Last-Event-ID on reconnection (<10 min gap)"
+          - "No duplicate feed items after reconnection"
+          - "Rapid graph changes (10+ writes in 500ms) batched into fewer SSE events"
+        files_to_modify:
+          - "app/src/server/reactive/feed-sse-bridge.ts"
+          - "app/src/server/streaming/sse-registry.ts"
+        depends_on: ["02-02"]
+        test_scenarios:
+          - "milestone-1: missed events delivered after reconnection"
+          - "milestone-1: no duplicate feed items after reconnection"
+          - "milestone-1: rapid graph changes batched into fewer SSE events"
+
+  # ---------------------------------------------------------------------------
+  # Milestone 3: Agent Coordinator (US-GRC-03)
+  # ---------------------------------------------------------------------------
+  - id: "03"
+    name: "Agent coordinator with vector search routing"
+    steps:
+      - step_id: "03-01"
+        description: "Loop dampener: pure sliding window counter per entity, per source, per workspace with configurable threshold and window"
+        acceptance_criteria:
+          - ">3 events on same entity from same source in 60s triggers dampening"
+          - "Dampened events return dampen signal (logged, no agent invocation)"
+          - "Window resets after expiry allowing normal processing"
+          - "Meta-observation created when dampening activates"
+        files_to_modify:
+          - "app/src/server/reactive/loop-dampener.ts"
+        depends_on: ["01-05"]
+        test_scenarios:
+          - "milestone-2: loop dampener activates after 3 rapid observations"
+          - "milestone-2: dampening resets after window expires"
+
+      - step_id: "03-02"
+        description: "Agent Coordinator: always-on service listening to observation LIVE SELECT events, routes via KNN (observation embedding vs agent description embeddings), invokes matched agents"
+        acceptance_criteria:
+          - "Observation routed to semantically matched agent with active session"
+          - "Multiple agents matched when observation is relevant to both"
+          - "Agents below similarity threshold not invoked"
+          - "Agents without active sessions never invoked"
+          - "KNN uses two-step pattern (HNSW candidates, then workspace + active session filter)"
+        files_to_modify:
+          - "app/src/server/reactive/agent-coordinator.ts"
+        depends_on: ["01-03", "03-01"]
+        test_scenarios:
+          - "milestone-2: observation routed to semantically matched agent"
+          - "milestone-2: observation routed to multiple matching agents"
+          - "milestone-2: irrelevant agent not matched below threshold"
+          - "milestone-2: agent with completed session not invoked"
+
+      - step_id: "03-03"
+        description: "Wire coordinator into server startup and verify new agent types auto-match via semantic similarity"
+        acceptance_criteria:
+          - "Coordinator started as always-on service in startServer()"
+          - "New agent type matched by semantic similarity alone (no rule table update)"
+          - "Dampener meta-observation visible in governance feed"
+        files_to_modify:
+          - "app/src/server/runtime/start-server.ts"
+          - "app/src/server/runtime/dependencies.ts"
+        depends_on: ["03-02"]
+        test_scenarios:
+          - "milestone-2: new agent type matched by semantic similarity alone"
+
+  # ---------------------------------------------------------------------------
+  # Milestone 4: Proxy Context Enrichment (US-GRC-04)
+  # ---------------------------------------------------------------------------
+  - id: "04"
+    name: "Proxy context enrichment via vector search"
+    steps:
+      - step_id: "04-01"
+        description: "Build relevant changes vector search: message embedding -> KNN against recent graph entity embeddings filtered by workspace and last_request_at, classify by similarity into urgent vs context-update"
+        acceptance_criteria:
+          - "High similarity matches (>0.85) classified as urgent-context"
+          - "Moderate matches (0.65-0.85) classified as context-update"
+          - "KNN uses two-step pattern for workspace filtering"
+          - "Query scoped to entities updated since session last_request_at"
+        files_to_modify:
+          - "app/src/server/proxy/context-injector.ts"
+        depends_on: ["01-01"]
+        test_scenarios:
+          - "Vector search returns empty when no recent changes match"
+          - "High similarity (>0.85) match classified as urgent-context"
+          - "Moderate similarity (0.65-0.85) match classified as context-update"
+          - "Below threshold (<0.65) matches filtered out"
+          - "Recency filter excludes entities updated before last_request_at"
+          - "Workspace scope excludes entities from other workspaces"
+
+      - step_id: "04-02"
+        description: "Inject urgent-context and context-update XML blocks into proxy pipeline, update session last_request_at after each request"
+        acceptance_criteria:
+          - "Urgent context injected as <urgent-context> before <brain-context>"
+          - "Context updates injected as <context-update> after <brain-context>"
+          - "Multiple urgent updates consolidated into single block"
+          - "agent_session.last_request_at updated after each proxy request"
+          - "Current agent generation never cancelled"
+        files_to_modify:
+          - "app/src/server/proxy/anthropic-proxy-route.ts"
+          - "app/src/server/proxy/context-injector.ts"
+        depends_on: ["04-01"]
+        test_scenarios:
+          - "milestone-3: superseded decision as urgent context"
+          - "milestone-3: blocked task as urgent context"
+          - "milestone-3: conflict observation on active task as urgent context"
+          - "milestone-3: multiple urgent updates consolidated"
+          - "milestone-3: session timestamp updated after proxy request"
+          - "milestone-3: no cancellation of current agent work"
+
+      - step_id: "04-03"
+        description: "Extend MCP context endpoint with urgent_updates and context_updates arrays. Reuses vector search logic from 04-01 — no duplicate search implementation."
+        acceptance_criteria:
+          - "POST /api/mcp/:workspaceId/context response includes urgent_updates array"
+          - "POST /api/mcp/:workspaceId/context response includes context_updates array"
+          - "Same similarity thresholds and vector search as proxy pipeline (reuses 04-01)"
+        files_to_modify:
+          - "app/src/server/mcp/mcp-route.ts"
+        depends_on: ["04-01"]
+        test_scenarios:
+          - "milestone-3: superseded decision as urgent context"
+          - "milestone-3: blocked task as urgent context"
+
+implementation_scope:
+  new_files:
+    - "schema/migrations/0053_reactive_coordination_fields.surql"
+    - "app/src/server/reactive/live-select-manager.ts"
+    - "app/src/server/reactive/feed-sse-bridge.ts"
+    - "app/src/server/reactive/agent-coordinator.ts"
+    - "app/src/server/reactive/loop-dampener.ts"
+  modified_files:
+    - "schema/surreal-schema.surql"
+    - "app/src/server/streaming/sse-registry.ts"
+    - "app/src/server/proxy/context-injector.ts"
+    - "app/src/server/proxy/anthropic-proxy-route.ts"
+    - "app/src/server/runtime/start-server.ts"
+    - "app/src/server/runtime/dependencies.ts"
+    - "app/src/server/mcp/mcp-route.ts"
+  excluded_tables:
+    - "trace (too high volume, uses DEFINE EVENT webhooks)"
+    - "message (not relevant for governance feed)"
+    - "extracted_from (relation table, high write volume)"
+  production_file_count: 12
+  step_count: 12
+  decomposition_ratio: 1.0
