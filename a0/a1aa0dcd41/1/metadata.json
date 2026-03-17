@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a0a1aa0dcd41",
+  "session_id": "ae06af1e-811a-4eeb-bba0-b19ccff57aec",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-17T12:40:33.033572Z",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/linkedin-credential-vault-article.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5bb1a623f006",
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 213896,
+    "cache_read_tokens": 2372789,
+    "output_tokens": 11873,
+    "api_call_count": 36
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-17T12:40:32.769242Z",
+    "agent_lines": 158,
+    "human_added": 108736,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 108894,
+    "agent_percentage": 0.14509523022388746
+  }
+}

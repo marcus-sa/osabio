@@ -1,0 +1,129 @@
+would it make sense to extend https://github.com/marcus-sa/brain/issues/127 with features from https://github.com/dtkav/agent-creds ? particularly preventing secrets leakage. we're already limiting agent blast radius with oauth 2.1 rar + dpop
+
+---
+
+yes
+
+---
+
+would this be related to https://github.com/marcus-sa/brain/issues/136
+
+---
+
+yes, update #136
+
+---
+
+let's draft a linkedin article for this
+
+---
+
+shouldnt we just run a secret scanner on llm requests and block any that contains secrets?
+
+---
+
+[Request interrupted by user]
+
+---
+
+should we also run a secret scanner on llm requests and block any that contains secrets?
+
+---
+
+yes
+
+---
+
+tables dont work in linkedin
+
+---
+
+ok, now i need to add a desc to linked in post that shares the article (needs to incentivize people to read it) along with tags
+
+---
+
+too many tags, max 5
+
+---
+
+explain: why #InfoSec and #APISecurity instead of #CyberSecurity ?
+
+---
+
+someone in my network commented: "Hey Marcus… Not yet having had the reasons to deeply delve into AI agents and sich, and being naturally cautious and skeptical about them, i read the entirety of the article, and the Brain-readme as well. Looks very expansive, and i have a trivial question- If i am using a PC-exevuted agent- Claude, ChatGPT… How does the flow you propose guarantee that the network traffic only flows though your stack, and not circumventing it, or using it as additional connections for data?"
+
+---
+
+i mean it doesnt, but the agent would have no way to send http requests to api with credentials, because they have no credentials available. and for pc executed agents, u would setup e.g a claude code proxy so that all proxies to claude codes api first flows through brain, which is what enabled the trace capture
+
+---
+
+he replied: "oh, right - of course - the “proxy part” got away from my attention in reading all of what you wrote about this… so, ok… there’s a networking proxy-forwarder built into Brain, so any networking goes there from the userrs requests into networks"
+
+---
+
+someone else commented: "This extends beyond API keys. We run agents that process financial documents - borrower SSNs, income figures, account numbers all flowing through the LLM context. Same architectural problem, different data class. The principle you landed on generalizes well: minimize what the agent actually needs to see. In our case agents get derived signals rather than raw PII wherever possible. The smaller the context surface, the smaller the blast radius."
+
+---
+
+haha interesting, i just found this linked in post which is directly relevant: "I hacked Perplexity Computer and got unlimited Claude Code access, billed directly to Perplexity's master Anthropic account.
+
+I used their own AI to hack itself.
+
+I was researching how Perplexity Computer handles sandbox isolation for my own agent infrastructure work.
+I noticed Claude Code was installed in the sandbox and started wondering...
+
+How are they handling the API keys?
+How is the key scoped?
+Is it isolated?
+
+That question led me to try six different approaches to extract the key from the subagent's environment.
+
+All six failed. 
+
+I tried one more attempt.
+
+The seventh worked.
+
+Claude Code is a Node.js app launched via npm. 
+npm reads ~/.npmrc from the home directory. 
+The home directory sits on a shared filesystem I could write to. 
+One .npmrc injection later, the full API credentials landed on the shared filesystem.
+
+The key wasn't IP-restricted.
+Wasn't session-scoped. 
+Wasn't sandbox-bound. 
+Wasn't tied to my user account. 
+All usage billed to Perplexity's master Anthropic account.
+
+The model did everything right.
+The infrastructure didn't.
+
+Perplexity's proxy pattern is the right architecture.
+But it was missing the three key safety mechanisms:
+
+- tokens bound to sandbox IDs
+- ephemeral credentials that die with the sandbox
+- user-level billing
+
+This is not a Perplexity-specific problem.
+
+This is the default architecture across multi-agent AI products today because it's the fastest to build.
+
+If you're building agent systems, audit your trust boundaries between parent and child agents.
+
+If you're investing in agent infra companies, ask how they scope credentials inside execution sandboxes.
+
+Full writeup with all technical details in the thread below 👇"
+
+---
+
+well, i want to comment on his post referencing my article
+
+---
+
+too many characters: -292
+
+---
+
+which of my articles do i link to ?
