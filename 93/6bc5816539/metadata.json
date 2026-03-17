@@ -3,7 +3,7 @@
   "checkpoint_id": "936bc5816539",
   "strategy": "manual-commit",
   "branch": "marcus-sa/reactive-agent-activator",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "tests/acceptance/reactive/milestone-2-agent-activator.test.ts"
   ],
@@ -21,13 +21,20 @@
       "context": "/93/6bc5816539/1/context.md",
       "content_hash": "/93/6bc5816539/1/content_hash.txt",
       "prompt": "/93/6bc5816539/1/prompt.txt"
+    },
+    {
+      "metadata": "/93/6bc5816539/2/metadata.json",
+      "transcript": "/93/6bc5816539/2/full.jsonl",
+      "context": "/93/6bc5816539/2/context.md",
+      "content_hash": "/93/6bc5816539/2/content_hash.txt",
+      "prompt": "/93/6bc5816539/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 17,
-    "cache_creation_tokens": 8822,
-    "cache_read_tokens": 1868288,
-    "output_tokens": 2634,
-    "api_call_count": 15
+    "input_tokens": 908,
+    "cache_creation_tokens": 2700010,
+    "cache_read_tokens": 94289102,
+    "output_tokens": 192729,
+    "api_call_count": 570
   }
 }
