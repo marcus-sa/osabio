@@ -159,7 +159,10 @@ describe("withTracing", () => {
 
     const handler = withTracing("POST /api/chat", "POST", async () => {
       writer.write(new TextEncoder().encode("chunk1"));
-      return new Response(readable, { status: 200 });
+      return new Response(readable, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
     });
 
     const request = makeRequest("http://localhost:3000/api/chat");
@@ -194,7 +197,10 @@ describe("withTracing", () => {
 
     const handler = withTracing("POST /api/chat", "POST", async () => {
       writer.write(new TextEncoder().encode("chunk1"));
-      return new Response(readable, { status: 200 });
+      return new Response(readable, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
     });
 
     const request = makeRequest("http://localhost:3000/api/chat");
@@ -230,7 +236,10 @@ describe("withTracing", () => {
     });
 
     const handler = withTracing("POST /api/chat", "POST", async () => {
-      return new Response(readable, { status: 200 });
+      return new Response(readable, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
     });
 
     const request = makeRequest("http://localhost:3000/api/chat");
@@ -251,6 +260,27 @@ describe("withTracing", () => {
 
     expect(spanEnded).toBe(true);
     expect(spanAttributes["stream.cancelled"]).toBe(true);
+    expect(spanAttributes["duration_ms"]).toBeDefined();
+    expect(metricsRecorded.duration.length).toBe(1);
+  });
+
+  it("finalizes span immediately for non-streaming JSON responses", async () => {
+    const withTracing = await loadWithTracing();
+
+    const handler = withTracing("GET /api/data", "GET", async () => {
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const request = makeRequest("http://localhost:3000/api/data");
+    const response = await handler(request);
+
+    // Span must be ended immediately — not deferred to stream consumption
+    expect(spanEnded).toBe(true);
+    expect(response.status).toBe(200);
+    expect(spanAttributes["http.status_code"]).toBe(200);
     expect(spanAttributes["duration_ms"]).toBeDefined();
     expect(metricsRecorded.duration.length).toBe(1);
   });

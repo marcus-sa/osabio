@@ -87,7 +87,16 @@ export function withTracing(route: string, method: string, handler: RouteHandler
           // on the span after the stream is fully consumed.
           // We use ReadableStream wrapping (not TransformStream) because Bun does
           // not propagate cancel() through TransformStream transformer callbacks.
-          if (responseWithRequestId.body && !responseWithRequestId.bodyUsed) {
+          const isStreamingResponse =
+            responseWithRequestId.headers
+              .get("content-type")
+              ?.includes("text/event-stream") ?? false;
+
+          if (
+            isStreamingResponse &&
+            responseWithRequestId.body &&
+            !responseWithRequestId.bodyUsed
+          ) {
             const reader = responseWithRequestId.body.getReader();
             const wrappedStream = new ReadableStream({
               async pull(controller) {
