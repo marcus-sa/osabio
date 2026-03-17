@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { signIn, signUp, useSession } from "../lib/auth-client";
+import { usePublicConfig } from "../hooks/use-public-config";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Separator } from "../components/ui/separator";
@@ -9,8 +10,11 @@ export function SignInPage() {
   const { data: session, isPending } = useSession();
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as Record<string, string>;
+  const config = usePublicConfig();
 
+  const signupAllowed = !config.selfHosted;
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const effectiveMode = signupAllowed ? mode : "signin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -39,7 +43,7 @@ export function SignInPage() {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
+      if (effectiveMode === "signup") {
         const result = await signUp.email({ email, password, name });
         if (result.error) {
           setError(result.error.message ?? "Sign up failed");
@@ -84,11 +88,11 @@ export function SignInPage() {
       <div className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-card p-6">
         <h1 className="text-center text-xl font-bold text-accent">Brain</h1>
         <p className="text-center text-sm text-muted-foreground">
-          {mode === "signin" ? "Sign in to your workspace" : "Create an account"}
+          {effectiveMode === "signin" ? "Sign in to your workspace" : "Create an account"}
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {mode === "signup" && (
+          {effectiveMode === "signup" && (
             <Input
               type="text"
               placeholder="Name"
@@ -116,7 +120,7 @@ export function SignInPage() {
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" disabled={loading}>
-            {loading ? "..." : mode === "signin" ? "Sign in" : "Create account"}
+            {loading ? "..." : effectiveMode === "signin" ? "Sign in" : "Create account"}
           </Button>
         </form>
 
@@ -130,23 +134,25 @@ export function SignInPage() {
           Sign in with GitHub
         </Button>
 
-        <p className="text-center text-xs text-muted-foreground">
-          {mode === "signin" ? (
-            <>
-              No account?{" "}
-              <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signup"); setError(""); }}>
-                Create one
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signin"); setError(""); }}>
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
+        {signupAllowed && (
+          <p className="text-center text-xs text-muted-foreground">
+            {effectiveMode === "signin" ? (
+              <>
+                No account?{" "}
+                <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signup"); setError(""); }}>
+                  Create one
+                </button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button type="button" className="text-ring hover:underline" onClick={() => { setMode("signin"); setError(""); }}>
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );

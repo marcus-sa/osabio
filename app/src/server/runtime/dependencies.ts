@@ -49,6 +49,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     betterAuthUrl: config.betterAuthUrl,
     githubClientId: config.githubClientId,
     githubClientSecret: config.githubClientSecret,
+    selfHosted: config.selfHosted,
   });
 
   const asSigningKey = await bootstrapSigningKeyFromSurreal(surreal);

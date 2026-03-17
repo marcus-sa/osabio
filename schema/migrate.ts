@@ -1,6 +1,121 @@
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
 
+// --- Admin seed types and pure functions (exported for testing) ---
+
+export type AdminSeedConfig = {
+  email: string;
+  password: string;
+};
+
+export function parseSeedConfig(
+  env: Record<string, string | undefined>,
+): AdminSeedConfig | undefined {
+  const selfHosted = env.SELF_HOSTED?.trim().toLowerCase() === "true";
+  if (!selfHosted) return undefined;
+
+  const email = env.ADMIN_EMAIL?.trim();
+  const password = env.ADMIN_PASSWORD;
+  if (!email) throw new Error("ADMIN_EMAIL is required when SELF_HOSTED=true");
+  if (!password) throw new Error("ADMIN_PASSWORD is required when SELF_HOSTED=true");
+
+  return { email, password };
+}
+
+export function buildPersonRecord(
+  email: string,
+  now: Date,
+): {
+  name: string;
+  contact_email: string;
+  email_verified: boolean;
+  created_at: Date;
+  updated_at: Date;
+} {
+  return {
+    name: "Admin",
+    contact_email: email,
+    email_verified: true,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+export function buildAccountRecord(
+  personId: string,
+  hashedPassword: string,
+  now: Date,
+): {
+  account_id: string;
+  provider_id: string;
+  password: string;
+  created_at: Date;
+  updated_at: Date;
+} {
+  return {
+    account_id: personId,
+    provider_id: "credential",
+    password: hashedPassword,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+async function seedAdminUser(
+  surreal: Surreal,
+  config: AdminSeedConfig,
+): Promise<void> {
+  const [existing] = await surreal.query<[Array<{ id: RecordId }>]>(
+    "SELECT id FROM person WHERE contact_email = $email LIMIT 1;",
+    { email: config.email },
+  );
+
+  if (existing.length > 0) {
+    console.log(`Admin user already exists, skipping seed`);
+    return;
+  }
+
+  const hashedPassword = await Bun.password.hash(config.password);
+  const now = new Date();
+
+  const personContent = buildPersonRecord(config.email, now);
+
+  // Atomic transaction: create person + account together
+  const [createdPersons] = await surreal.query<[Array<{ id: RecordId }>]>(
+    `BEGIN TRANSACTION;
+     LET $person = CREATE person CONTENT $personContent;
+     LET $pid = $person[0].id;
+     LET $rawId = record::id($pid);
+     CREATE type::record("account", $rawId) CONTENT {
+       account_id: $rawId,
+       provider_id: $providerId,
+       password: $hashedPw,
+       person_id: $pid,
+       created_at: $createdAt,
+       updated_at: $updatedAt
+     };
+     RETURN $person;
+     COMMIT TRANSACTION;`,
+    {
+      personContent,
+      providerId: "credential",
+      hashedPw: hashedPassword,
+      createdAt: now,
+      updatedAt: now,
+    },
+  );
+
+  console.log(`Admin user seeded: ${config.email}`);
+}
+
+async function maybeSeedAdmin(surreal: Surreal): Promise<void> {
+  const seedConfig = parseSeedConfig(process.env);
+  if (!seedConfig) return;
+  await seedAdminUser(surreal, seedConfig);
+}
+
+// --- Migration runner ---
+
 const MIGRATIONS_DIR = join(import.meta.dir, "migrations");
 const migrationGlob = new Bun.Glob("*.surql");
 
@@ -38,6 +153,7 @@ async function main() {
 
   if (files.length === 0) {
     console.log("No migration files found.");
+    await maybeSeedAdmin(surreal);
     await surreal.close();
     return;
   }
@@ -52,6 +168,7 @@ async function main() {
 
   if (pending.length === 0) {
     console.log("No pending migrations.");
+    await maybeSeedAdmin(surreal);
     await surreal.close();
     return;
   }
@@ -90,10 +207,13 @@ async function main() {
   }
 
   console.log(`\nDone. ${pending.length} migration(s) applied.`);
+  await maybeSeedAdmin(surreal);
   await surreal.close();
 }
 
-main().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("Migration failed:", err);
+    process.exit(1);
+  });
+}

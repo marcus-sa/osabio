@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { jwt } from "better-auth/plugins";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { RecordId, type Surreal } from "surrealdb";
@@ -10,7 +10,51 @@ export type AuthConfig = {
   betterAuthUrl: string;
   githubClientId: string;
   githubClientSecret: string;
+  selfHosted: boolean;
 };
+
+type EmailAndPasswordConfig = {
+  enabled: boolean;
+  password?: {
+    hash: (password: string) => Promise<string>;
+    verify: (params: { hash: string; password: string }) => Promise<boolean>;
+  };
+};
+
+type SignupGuardHooks = {
+  user: {
+    create: {
+      before: (user: Record<string, unknown>, context: unknown) => never;
+    };
+  };
+};
+
+export function buildSignupGuard(selfHosted: boolean): SignupGuardHooks | undefined {
+  if (!selfHosted) return undefined;
+
+  return {
+    user: {
+      create: {
+        before: () => {
+          throw new APIError("FORBIDDEN", {
+            message: "Registration is disabled",
+          });
+        },
+      },
+    },
+  };
+}
+
+export function buildEmailAndPasswordConfig(): EmailAndPasswordConfig {
+  return {
+    enabled: true,
+    password: {
+      hash: (password: string) => Bun.password.hash(password, "argon2id"),
+      verify: ({ hash, password }: { hash: string; password: string }) =>
+        Bun.password.verify(password, hash),
+    },
+  };
+}
 
 export function createAuth(surreal: Surreal, config: AuthConfig) {
   const allScopes = [
@@ -21,11 +65,14 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
     ...Object.keys(BRAIN_SCOPES),
   ];
 
+  const signupGuard = buildSignupGuard(config.selfHosted);
+
   return betterAuth({
     secret: config.betterAuthSecret,
     baseURL: config.betterAuthUrl,
     basePath: "/api/auth",
     database: surrealdbAdapter(surreal),
+    ...(signupGuard ? { databaseHooks: signupGuard } : {}),
     user: {
       modelName: "person",
       fields: {
@@ -67,9 +114,7 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
         updatedAt: "updated_at",
       },
     },
-    emailAndPassword: {
-      enabled: true,
-    },
+    emailAndPassword: buildEmailAndPasswordConfig(),
     socialProviders: {
       github: {
         clientId: config.githubClientId,

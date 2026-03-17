@@ -103,6 +103,14 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/healthz": {
         GET: withTracing("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
       },
+      "/config": {
+        GET: withTracing("GET /config", "GET", async () =>
+          jsonResponse({
+            selfHosted: config.selfHosted,
+            worktreeManagerEnabled: config.worktreeManagerEnabled,
+          }, 200),
+        ),
+      },
       "/api/workspaces": {
         POST: withTracing("POST /api/workspaces", "POST", (request) => workspaceHandlers.handleCreateWorkspace(request)),
       },
