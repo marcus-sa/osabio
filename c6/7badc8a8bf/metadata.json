@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c67badc8a8bf",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/heartbeats-vs-live-queries",
+  "checkpoints_count": 18,
+  "files_touched": [
+    "docs/adrs/ADR-054-vector-search-agent-routing-over-deterministic-rules.md",
+    "docs/adrs/ADR-055-graph-native-context-over-context-queue.md",
+    "docs/adrs/ADR-056-single-surreal-connection-for-live-select.md",
+    "docs/adrs/ADR-057-per-workspace-sse-streams-for-feed.md",
+    "docs/architecture/graph-reactive-coordination.md",
+    "docs/requirements/graph-reactive-coordination/US-GRC-01-live-feed-sse-bridge.md",
+    "docs/requirements/graph-reactive-coordination/US-GRC-03-agent-coordinator.md",
+    "docs/requirements/graph-reactive-coordination/US-GRC-04-interrupt-context-injection.md",
+    "docs/requirements/graph-reactive-coordination/dor-validation.md",
+    "docs/requirements/graph-reactive-coordination/index.md",
+    "docs/ux/graph-reactive-coordination/journey-agent-coordination-visual.md",
+    "docs/ux/graph-reactive-coordination/journey-agent-coordination.feature",
+    "docs/ux/graph-reactive-coordination/journey-agent-coordination.yaml",
+    "docs/ux/graph-reactive-coordination/journey-reactive-feed-visual.md",
+    "docs/ux/graph-reactive-coordination/journey-reactive-feed.feature",
+    "docs/ux/graph-reactive-coordination/journey-reactive-feed.yaml",
+    "docs/ux/graph-reactive-coordination/jtbd-analysis.md",
+    "docs/ux/graph-reactive-coordination/shared-artifacts-registry.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c6/7badc8a8bf/0/metadata.json",
+      "transcript": "/c6/7badc8a8bf/0/full.jsonl",
+      "context": "/c6/7badc8a8bf/0/context.md",
+      "content_hash": "/c6/7badc8a8bf/0/content_hash.txt",
+      "prompt": "/c6/7badc8a8bf/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 209,
+    "cache_creation_tokens": 317586,
+    "cache_read_tokens": 11757911,
+    "output_tokens": 54973,
+    "api_call_count": 141
+  }
+}
