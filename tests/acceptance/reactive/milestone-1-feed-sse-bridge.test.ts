@@ -192,7 +192,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: SSE keep-alive maintains connection
   // ---------------------------------------------------------------------------
-  it.skip("SSE connection sends keep-alive and stays open during idle periods", async () => {
+  it("SSE connection sends keep-alive and stays open during idle periods", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given the admin has the governance feed open with no graph changes
