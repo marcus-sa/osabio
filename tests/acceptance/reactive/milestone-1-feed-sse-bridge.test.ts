@@ -59,7 +59,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: New items appear in the correct tier within 2 seconds
   // ---------------------------------------------------------------------------
-  it.skip("new observation appears in feed within 2 seconds of graph write", async () => {
+  it("new observation appears in feed within 2 seconds of graph write", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given the admin has the governance feed open for a workspace
@@ -88,7 +88,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: Feed items use same GovernanceFeedItem contract as GET endpoint
   // ---------------------------------------------------------------------------
-  it.skip("SSE feed items match the same contract as the initial feed load", async () => {
+  it("SSE feed items match the same contract as the initial feed load", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with existing feed data
@@ -124,7 +124,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: Decision confirmation moves item between tiers
   // ---------------------------------------------------------------------------
-  it.skip("confirming a decision removes it from blocking tier and adds awareness item", async () => {
+  it("confirming a decision removes it from blocking tier and adds awareness item", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a provisional decision in the blocking tier
@@ -160,7 +160,7 @@ describe("US-GRC-01: Live Governance Feed via SSE", () => {
   // ---------------------------------------------------------------------------
   // AC: Task blocked appears in correct tier
   // ---------------------------------------------------------------------------
-  it.skip("blocking a task surfaces it in the review tier", async () => {
+  it("blocking a task surfaces it in the review tier", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with an open task
