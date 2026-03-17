@@ -91,12 +91,17 @@ export function withTracing(route: string, method: string, handler: RouteHandler
             const reader = responseWithRequestId.body.getReader();
             const wrappedStream = new ReadableStream({
               async pull(controller) {
-                const { done, value } = await reader.read();
-                if (done) {
-                  controller.close();
-                  finalizeSpan();
-                } else {
-                  controller.enqueue(value);
+                try {
+                  const { done, value } = await reader.read();
+                  if (done) {
+                    controller.close();
+                    finalizeSpan();
+                  } else {
+                    controller.enqueue(value);
+                  }
+                } catch (err) {
+                  controller.error(err);
+                  finalizeSpan(true);
                 }
               },
               cancel() {

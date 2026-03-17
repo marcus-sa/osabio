@@ -215,4 +215,43 @@ describe("withTracing", () => {
     expect(spanAttributes["duration_ms"]).toBeDefined();
     expect(metricsRecorded.duration.length).toBe(1);
   });
+
+  it("ends span when upstream stream errors", async () => {
+    const withTracing = await loadWithTracing();
+
+    // Create a stream that will error after the first chunk
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("chunk1"));
+      },
+      pull(controller) {
+        controller.error(new Error("upstream network failure"));
+      },
+    });
+
+    const handler = withTracing("POST /api/chat", "POST", async () => {
+      return new Response(readable, { status: 200 });
+    });
+
+    const request = makeRequest("http://localhost:3000/api/chat");
+    const response = await handler(request);
+
+    expect(spanEnded).toBe(false);
+
+    const reader = response.body!.getReader();
+    const firstChunk = await reader.read();
+    expect(new TextDecoder().decode(firstChunk.value)).toBe("chunk1");
+
+    // Next read triggers the upstream error
+    try {
+      await reader.read();
+    } catch {
+      // expected — stream errored
+    }
+
+    expect(spanEnded).toBe(true);
+    expect(spanAttributes["stream.cancelled"]).toBe(true);
+    expect(spanAttributes["duration_ms"]).toBeDefined();
+    expect(metricsRecorded.duration.length).toBe(1);
+  });
 });
