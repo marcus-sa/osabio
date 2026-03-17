@@ -275,6 +275,18 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         cwd: body.cwd,
         paths: body.paths,
       });
+
+      // Update agent_session.last_request_at if session_id provided (04-02)
+      if (body.session_id) {
+        const sessionRecord = new RecordId("agent_session", body.session_id);
+        deps.inflight.track(
+          surreal.query(
+            `UPDATE $sess SET last_request_at = time::now();`,
+            { sess: sessionRecord },
+          ).catch(() => undefined),
+        );
+      }
+
       log.info("mcp.intent-context.resolved", "Intent context resolved", { workspaceId, level: result.level });
       return jsonResponse(result, 200);
     } catch (error) {

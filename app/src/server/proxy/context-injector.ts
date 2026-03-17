@@ -209,6 +209,107 @@ export function injectBrainContext(
 }
 
 // ---------------------------------------------------------------------------
+// Recent Changes Injection into System Prompt (04-02: pure)
+// ---------------------------------------------------------------------------
+
+/**
+ * Injects recent changes XML into a system prompt with correct ordering:
+ * - <urgent-context> is injected BEFORE <brain-context>
+ * - <context-update> is injected AFTER <brain-context>
+ *
+ * For array-form system prompts, each block becomes a separate text element
+ * with cache_control: ephemeral.
+ */
+export function injectRecentChanges(
+  system: SystemPrompt,
+  recentChangesXml: string,
+): SystemPrompt {
+  if (!recentChangesXml) return system;
+
+  // Extract urgent-context and context-update blocks from the XML
+  const urgentMatch = recentChangesXml.match(/<urgent-context>[\s\S]*?<\/urgent-context>/);
+  const updateMatch = recentChangesXml.match(/<context-update>[\s\S]*?<\/context-update>/);
+
+  const urgentBlock = urgentMatch?.[0] ?? "";
+  const updateBlock = updateMatch?.[0] ?? "";
+
+  if (!urgentBlock && !updateBlock) return system;
+
+  if (Array.isArray(system)) {
+    const result = [...system];
+
+    // Find the brain-context block index for insertion ordering
+    const brainContextIdx = result.findIndex(
+      (block) => typeof block.text === "string" && block.text.includes("<brain-context>"),
+    );
+
+    if (brainContextIdx >= 0) {
+      // Insert urgent BEFORE brain-context, update AFTER
+      if (updateBlock) {
+        result.splice(brainContextIdx + 1, 0, {
+          type: "text",
+          text: updateBlock,
+          cache_control: { type: "ephemeral" },
+        });
+      }
+      if (urgentBlock) {
+        result.splice(brainContextIdx, 0, {
+          type: "text",
+          text: urgentBlock,
+          cache_control: { type: "ephemeral" },
+        });
+      }
+    } else {
+      // No brain-context block -- append both at end (urgent first, then update)
+      if (urgentBlock) {
+        result.push({ type: "text", text: urgentBlock, cache_control: { type: "ephemeral" } });
+      }
+      if (updateBlock) {
+        result.push({ type: "text", text: updateBlock, cache_control: { type: "ephemeral" } });
+      }
+    }
+
+    return result;
+  }
+
+  if (typeof system === "string") {
+    // String-form: find <brain-context> position for ordering
+    const brainContextPos = system.indexOf("<brain-context>");
+
+    if (brainContextPos >= 0) {
+      const brainContextEnd = system.indexOf("</brain-context>");
+      const afterBrainContext = brainContextEnd >= 0
+        ? brainContextEnd + "</brain-context>".length
+        : system.length;
+
+      const before = system.slice(0, brainContextPos);
+      const brainSection = system.slice(brainContextPos, afterBrainContext);
+      const after = system.slice(afterBrainContext);
+
+      const parts = [before.trimEnd()];
+      if (urgentBlock) parts.push(urgentBlock);
+      parts.push(brainSection);
+      if (updateBlock) parts.push(updateBlock);
+      parts.push(after.trimStart());
+
+      return parts.filter(Boolean).join("\n\n");
+    }
+
+    // No brain-context -- append both
+    const parts = [system];
+    if (urgentBlock) parts.push(urgentBlock);
+    if (updateBlock) parts.push(updateBlock);
+    return parts.join("\n\n");
+  }
+
+  // No existing system prompt -- combine blocks
+  const parts: string[] = [];
+  if (urgentBlock) parts.push(urgentBlock);
+  if (updateBlock) parts.push(updateBlock);
+  return parts.join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
 // Recent Changes Classification (04-01: pure)
 // ---------------------------------------------------------------------------
 

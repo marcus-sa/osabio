@@ -50,8 +50,13 @@ import {
   selectWithinBudget,
   buildBrainContextXml,
   injectBrainContext,
+  injectRecentChanges,
+  classifyBySimilarity,
+  buildRecentChangesXml,
+  createSearchRecentChanges,
   type ContextCandidate,
   type InjectionResult,
+  type SearchRecentChanges,
 } from "./context-injector";
 import {
   resolveProxyAuth,
@@ -377,6 +382,8 @@ async function runContextInjection(
   originalBody: string,
   contextCache: ContextCache,
   intelligenceConfig: IntelligenceConfig,
+  recentChangesSearch?: SearchRecentChanges,
+  lastRequestAt?: Date,
 ): Promise<ContextInjectionResult> {
   if (!intelligenceConfig.contextInjectionEnabled) {
     return { body: originalBody };
@@ -452,10 +459,29 @@ async function runContextInjection(
   // 8. Inject into system prompt
   const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
 
-  // 9. Build modified request body
+  // 9. Search and inject recent changes (04-02)
+  let enrichedSystem = injectionResult.system;
+  if (recentChangesSearch && lastRequestAt && queryEmbedding) {
+    try {
+      const recentCandidates = await recentChangesSearch(queryEmbedding, workspaceId, lastRequestAt);
+      const classified = classifyBySimilarity(recentCandidates);
+      const recentChangesXml = buildRecentChangesXml(classified);
+      if (recentChangesXml) {
+        enrichedSystem = injectRecentChanges(enrichedSystem, recentChangesXml);
+      }
+    } catch (error) {
+      // Fail-open: log and continue without recent changes
+      log.warn("proxy.context_injection.recent_changes_failed", "Recent changes search failed", {
+        workspace_id: workspaceId,
+        error: String(error),
+      });
+    }
+  }
+
+  // 10. Build modified request body
   const modifiedBody = {
     ...parsedBody,
-    system: injectionResult.system,
+    system: enrichedSystem,
   };
 
   return {
@@ -580,6 +606,9 @@ export function createAnthropicProxyHandler(
   // Proxy auth: per-handler cache + DB lookup function (not module-level singletons)
   const proxyTokenCache: TokenCache = createTokenCache();
   const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
+
+  // Recent changes adapter for vector search (04-02)
+  const searchRecentChanges: SearchRecentChanges = createSearchRecentChanges(deps.surreal);
 
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
@@ -729,6 +758,22 @@ export function createAnthropicProxyHandler(
     let effectiveBody = body;
     let injectionResult: InjectionResult | undefined;
 
+    // Resolve session's last_request_at for recent changes search
+    let sessionLastRequestAt: Date | undefined;
+    if (effectiveSessionId) {
+      try {
+        const sessionRecord = new RecordId("agent_session", effectiveSessionId);
+        const rows = await deps.surreal.query<[Array<{ last_request_at?: string }>]>(
+          `SELECT last_request_at FROM $sess;`,
+          { sess: sessionRecord },
+        );
+        const rawTs = rows[0]?.[0]?.last_request_at;
+        if (rawTs) sessionLastRequestAt = new Date(rawTs);
+      } catch {
+        // Non-critical -- continue without recent changes
+      }
+    }
+
     if (parsed && identitySignals.workspaceId && !isCountTokens) {
       try {
         const intelligenceConfig = await loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId);
@@ -739,6 +784,8 @@ export function createAnthropicProxyHandler(
           body,
           contextCache,
           intelligenceConfig,
+          searchRecentChanges,
+          sessionLastRequestAt,
         );
         effectiveBody = contextResult.body;
         injectionResult = contextResult.injectionResult;
@@ -758,6 +805,17 @@ export function createAnthropicProxyHandler(
           error: String(error),
         });
       }
+    }
+
+    // --- Step 5.5: Update agent_session.last_request_at (fire-and-forget) ---
+    if (effectiveSessionId && !isCountTokens) {
+      const sessionRecord = new RecordId("agent_session", effectiveSessionId);
+      deps.inflight.track(
+        deps.surreal.query(
+          `UPDATE $sess SET last_request_at = time::now();`,
+          { sess: sessionRecord },
+        ).catch(() => undefined),
+      );
     }
 
     // --- API key validation ---
