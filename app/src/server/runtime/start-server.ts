@@ -38,6 +38,8 @@ import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
+import { createLiveSelectManager } from "../reactive/live-select-manager";
+import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
@@ -782,6 +784,19 @@ export async function startServer(): Promise<void> {
   };
 
   const server = createBrainServer(deps);
+
+  // Start reactive coordination layer: LIVE SELECT -> Feed SSE Bridge -> SSE Registry
+  const liveSelectManager = createLiveSelectManager({ surreal: runtime.surreal });
+  const feedSseBridge = createFeedSseBridge({
+    liveSelectManager,
+    sseRegistry: deps.sse,
+  });
+  feedSseBridge.subscribeAll();
+  deps.inflight.track(
+    liveSelectManager.start().catch((err) => {
+      log.error("reactive.start", "Failed to start Live Select Manager", err);
+    }),
+  );
 
   // Recover intents stuck in pending_veto with expired windows (fire-and-forget)
   const vetoManager = createVetoManager();

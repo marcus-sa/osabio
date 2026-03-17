@@ -17,6 +17,8 @@ import { createRuntimeDependencies } from "../../app/src/server/runtime/dependen
 import { createSseRegistry } from "../../app/src/server/streaming/sse-registry";
 import { createInflightTracker } from "../../app/src/server/runtime/types";
 import { createNonceCache } from "../../app/src/server/oauth/nonce-cache";
+import { createLiveSelectManager } from "../../app/src/server/reactive/live-select-manager";
+import { createFeedSseBridge } from "../../app/src/server/reactive/feed-sse-bridge";
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
 
@@ -162,6 +164,17 @@ export function setupAcceptanceSuite(
 
     server = createBrainServer(serverDeps);
     const port = server.port;
+
+    // Start reactive coordination layer: LIVE SELECT -> Feed SSE Bridge -> SSE Registry
+    const liveSelectManager = createLiveSelectManager({ surreal: deps.surreal });
+    const feedSseBridge = createFeedSseBridge({
+      liveSelectManager,
+      sseRegistry: serverDeps.sse,
+    });
+    feedSseBridge.subscribeAll();
+    inflight.track(
+      liveSelectManager.start().catch(() => undefined),
+    );
 
     runtime = { baseUrl, surreal, namespace, database, port };
     setupSucceeded = true;

@@ -62,7 +62,7 @@ describe("Walking Skeleton: Workspace admin sees graph changes in real-time feed
       text: "Schema migration missing for new field on task table",
       severity: "warning",
       sourceAgent: "observer_agent",
-      category: "schema_drift",
+      category: "engineering",
     });
 
     // Then within a few seconds, a feed update appears via SSE
