@@ -32,6 +32,13 @@ type ChatRequestBody = {
 
 const onboardingActions = new Set(["finalize_onboarding", "continue_onboarding"]);
 
+export function selectConversationDiscussesRecord(input: {
+  existingConversation?: Pick<ConversationRow, "discusses">;
+  incomingDiscussesRecord?: RecordId;
+}): RecordId | undefined {
+  return input.existingConversation?.discusses ?? input.incomingDiscussesRecord;
+}
+
 export function createChatRouteHandler(deps: ServerDependencies) {
   return (request: Request) => handleChatRequest(deps, request);
 }
@@ -107,7 +114,10 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
         if (existingConversation.workspace.id !== workspaceRecord.id) {
           throw new HttpError(400, "conversation scope does not match workspaceId");
         }
-        await transaction.update(conversationRecord).merge({ updatedAt: now });
+        await transaction.update(conversationRecord).merge({
+          updatedAt: now,
+          ...(existingConversation.discusses || !discussesRecord ? {} : { discusses: discussesRecord }),
+        });
       } else {
         await transaction.create(conversationRecord).content({
           createdAt: now,
@@ -188,7 +198,13 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       workspaceRecord,
       ...(userMessageEmbedding ? { userMessageEmbedding } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
-      ...(existingConversation?.discusses ? { discussesRecord: existingConversation.discusses } : {}),
+      ...(() => {
+        const conversationDiscussesRecord = selectConversationDiscussesRecord({
+          existingConversation,
+          incomingDiscussesRecord: discussesRecord,
+        });
+        return conversationDiscussesRecord ? { discussesRecord: conversationDiscussesRecord } : {};
+      })(),
     });
 
     // Load workspace learnings for chat agent prompt injection

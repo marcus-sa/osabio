@@ -87,6 +87,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
 
         await transaction.update(conversationRecord).merge({
           updatedAt: now,
+          ...(existingConversation.discusses || !discussesRecord ? {} : { discusses: discussesRecord }),
         });
       } else {
         await transaction.create(conversationRecord).content({

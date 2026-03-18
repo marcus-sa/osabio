@@ -207,6 +207,37 @@ describe("create_work_item has_feature edge regression", () => {
     expect(edgeCount).toBe(1);
   });
 
+  it("creates has_task and belongs_to(feature) edges when task references existing feature", async () => {
+    const tool = makeTool();
+    const options = makeOptions();
+
+    const projectResult = await tool.execute!(
+      { kind: "project", title: "Checkout", rationale: "Checkout system" },
+      options,
+    );
+    expect(projectResult.kind).toBe("project");
+
+    const featureResult = await tool.execute!(
+      { kind: "feature", title: "Coupon Support", rationale: "Apply coupons at checkout", project: "Checkout" },
+      options,
+    );
+    expect(featureResult.kind).toBe("feature");
+
+    const taskResult = await tool.execute!(
+      { kind: "task", title: "Validate coupon rules", rationale: "Reject expired coupons", feature: "Coupon Support" },
+      options,
+    );
+    expect(taskResult.kind).toBe("task");
+
+    const featureRecord = parseEntityId(featureResult.entity_id);
+    const taskRecord = parseEntityId(taskResult.entity_id);
+    const hasTaskEdgeCount = await countEdges("has_task", featureRecord, taskRecord);
+    const belongsToFeatureEdgeCount = await countEdges("belongs_to", taskRecord, featureRecord);
+
+    expect(hasTaskEdgeCount).toBe(1);
+    expect(belongsToFeatureEdgeCount).toBe(1);
+  });
+
   it("logs error when feature references nonexistent project (no silent swallow)", async () => {
     const tool = makeTool();
     const options = makeOptions();

@@ -5,7 +5,7 @@ import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
 import { jsonError, jsonResponse } from "../http/response";
 import { createEmbeddingVector } from "../graph/embeddings";
-import { createProjectRecord, resolveWorkspaceProjectRecord } from "../graph/queries";
+import { createProjectRecord, resolveWorkspaceFeatureRecord, resolveWorkspaceProjectRecord } from "../graph/queries";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import type { ServerDependencies } from "../runtime/types";
@@ -18,6 +18,7 @@ const acceptWorkItemSchema = z.object({
   title: z.string().min(1),
   rationale: z.string().min(1),
   project: z.string().optional(),
+  feature: z.string().optional(),
   priority: z.enum(ENTITY_PRIORITIES).optional(),
   category: z.enum(ENTITY_CATEGORIES).optional(),
 });
@@ -96,6 +97,28 @@ async function handleAcceptWorkItem(
             .output("after");
         } catch {
           // project resolution is best-effort; task still created
+        }
+      }
+
+      if (item.feature) {
+        try {
+          const featureRecord = await resolveWorkspaceFeatureRecord({
+            surreal: deps.surreal,
+            workspaceRecord,
+            featureInput: item.feature,
+          });
+          await deps.surreal
+            .relate(featureRecord, new RecordId("has_task", randomUUID()), taskRecord, {
+              added_at: now,
+            })
+            .output("after");
+          await deps.surreal
+            .relate(taskRecord, new RecordId("belongs_to", randomUUID()), featureRecord, {
+              added_at: now,
+            })
+            .output("after");
+        } catch {
+          // feature resolution is best-effort; task still created
         }
       }
 
