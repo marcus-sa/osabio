@@ -83,7 +83,7 @@ export async function setupAuth(
   gitRoot: string,
   options?: SetupAuthOptions,
 ): Promise<void> {
-  const oauthResource = `${serverUrl}/api/auth`;
+  const oauthResource = serverUrl.replace(/\/$/, "");
   const global = await loadGlobalConfig();
   const existing = global?.repos[gitRoot];
   if (existing && existing.workspace === workspaceId && existing.access_token) {

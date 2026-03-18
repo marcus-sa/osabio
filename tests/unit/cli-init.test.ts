@@ -280,6 +280,7 @@ describe("setupAuth", () => {
   let callbackServerStopped = false;
   let registerBodies: Array<{ redirect_uris?: string[] }> = [];
   let tokenRequestResource: string | undefined;
+  let authorizeRequestResource: string | undefined;
 
   beforeEach(() => {
     originalFetch = globalThis.fetch;
@@ -288,6 +289,7 @@ describe("setupAuth", () => {
     callbackServerStopped = false;
     registerBodies = [];
     tokenRequestResource = undefined;
+    authorizeRequestResource = undefined;
   });
 
   afterEach(() => {
@@ -367,6 +369,7 @@ describe("setupAuth", () => {
         const authUrl = new URL(url);
         const redirectUri = authUrl.searchParams.get("redirect_uri");
         const state = authUrl.searchParams.get("state");
+        authorizeRequestResource = authUrl.searchParams.get("resource") ?? undefined;
         if (!redirectUri || !state) throw new Error("missing redirect uri or state");
 
         const callbackUrl = new URL(redirectUri);
@@ -381,7 +384,8 @@ describe("setupAuth", () => {
     expect(registerBodies[0]?.redirect_uris).toHaveLength(1);
     expect(registerBodies[0]?.redirect_uris?.[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/callback$/);
     expect(registerBodies[0]?.redirect_uris?.[0]).not.toBe("http://127.0.0.1/callback");
-    expect(tokenRequestResource).toBe(`${baseUrl}/api/auth`);
+    expect(authorizeRequestResource).toBe(baseUrl);
+    expect(tokenRequestResource).toBe(baseUrl);
     expect(callbackServerStopped).toBe(true);
 
     const globalConfig = await loadGlobalConfig();

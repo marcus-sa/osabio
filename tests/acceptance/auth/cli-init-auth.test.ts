@@ -119,49 +119,46 @@ describe("CLI init setupAuth", () => {
 
     // 4. Run setupAuth with injectable openUrl that simulates the browser
     await setupAuth(baseUrl, workspaceId, gitRoot, {
-      openUrl: (url: string) => {
-        // Fire-and-forget async: programmatically complete the OAuth dance
-        (async () => {
-          try {
-            // Parse the auth URL to extract client_id for skipConsent
-            const authUrl = new URL(url);
-            const clientId = authUrl.searchParams.get("client_id")!;
+      openUrl: async (url: string) => {
+        // Parse the auth URL to extract client_id for skipConsent
+        const authUrl = new URL(url);
+        const clientId = authUrl.searchParams.get("client_id")!;
+        const resource = authUrl.searchParams.get("resource");
+        if (resource !== baseUrl) {
+          throw new Error(`authorize resource mismatch: expected '${baseUrl}', got '${resource ?? "undefined"}'`);
+        }
 
-            // Skip consent screen in test
-            await surreal.query(`UPDATE oauthClient SET skipConsent = true WHERE clientId = $cid;`, {
-              cid: clientId,
-            });
+        // Skip consent screen in test
+        await surreal.query(`UPDATE oauthClient SET skipConsent = true WHERE clientId = $cid;`, {
+          cid: clientId,
+        });
 
-            // Sign in again to get fresh session (signup session may have expired)
-            const signInRes = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: "cli-init-test@example.com", password: "test-password-123!" }),
-            });
-            const signInData = (await signInRes.json()) as { token: string };
-            const cookies = signInRes.headers.getSetCookie();
-            const sessionCookie = cookies.find((c) => c.startsWith("better-auth.session_token="));
-            const token = sessionCookie
-              ? decodeURIComponent(sessionCookie.split("=")[1].split(";")[0])
-              : signInData.token;
+        // Sign in again to get fresh session (signup session may have expired)
+        const signInRes = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: "cli-init-test@example.com", password: "test-password-123!" }),
+        });
+        const signInData = (await signInRes.json()) as { token: string };
+        const cookies = signInRes.headers.getSetCookie();
+        const sessionCookie = cookies.find((c) => c.startsWith("better-auth.session_token="));
+        const token = sessionCookie
+          ? decodeURIComponent(sessionCookie.split("=")[1].split(";")[0])
+          : signInData.token;
 
-            // Hit the authorize endpoint — server redirects to the callback URL with the code
-            const authRes = await fetch(url, {
-              headers: { Cookie: `better-auth.session_token=${token}` },
-              redirect: "manual",
-            });
+        // Hit the authorize endpoint — server redirects to the callback URL with the code
+        const authRes = await fetch(url, {
+          headers: { Cookie: `better-auth.session_token=${token}` },
+          redirect: "manual",
+        });
 
-            if (authRes.status !== 302) {
-              throw new Error(`Authorize did not redirect: ${authRes.status}`);
-            }
+        if (authRes.status !== 302) {
+          throw new Error(`Authorize did not redirect: ${authRes.status}`);
+        }
 
-            // Follow the redirect to setupAuth's local callback server
-            const location = authRes.headers.get("location")!;
-            await fetch(location);
-          } catch (err) {
-            console.error("openUrl simulation failed:", err);
-          }
-        })();
+        // Follow the redirect to setupAuth's local callback server
+        const location = authRes.headers.get("location")!;
+        await fetch(location);
       },
     });
 
