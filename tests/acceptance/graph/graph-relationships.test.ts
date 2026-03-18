@@ -33,6 +33,9 @@ let featureRecord: RecordId<"feature", string>;
 let taskRecord: RecordId<"task", string>;
 let standaloneFeatureRecord: RecordId<"feature", string>;
 let standaloneFeatureTaskRecord: RecordId<"task", string>;
+let relatedTaskRecord: RecordId<"task", string>;
+let legacyFeatureRecord: RecordId<"feature", string>;
+let legacyFeatureTaskRecord: RecordId<"task", string>;
 let decisionRecord: RecordId<"decision", string>;
 let questionRecord: RecordId<"question", string>;
 let personRecord: RecordId<"person", string>;
@@ -136,6 +139,64 @@ beforeAll(async () => {
   await surreal.query("RELATE $task->belongs_to->$feature SET added_at = $now;", {
     task: standaloneFeatureTaskRecord,
     feature: standaloneFeatureRecord,
+    now,
+  });
+
+  // Create an additional task not structurally linked to the project.
+  relatedTaskRecord = new RecordId("task", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: relatedTaskRecord,
+    content: {
+      title: "Related External Task",
+      status: "open",
+      workspace: workspaceRecord,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+  // Link project task -> related task through a task-to-task dependency edge.
+  await surreal.query("RELATE $task->depends_on->$related SET type = 'needs', added_at = $now;", {
+    task: taskRecord,
+    related: relatedTaskRecord,
+    now,
+  });
+
+  // Legacy feature shape: linked to project but missing workspace field.
+  legacyFeatureRecord = new RecordId("feature", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: legacyFeatureRecord,
+    content: {
+      name: "Legacy Feature Missing Workspace",
+      status: "active",
+      created_at: now,
+      updated_at: now,
+    },
+  });
+  await surreal.query("RELATE $project->has_feature->$feature SET added_at = $now;", {
+    project: projectRecord,
+    feature: legacyFeatureRecord,
+    now,
+  });
+
+  legacyFeatureTaskRecord = new RecordId("task", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: legacyFeatureTaskRecord,
+    content: {
+      title: "Legacy Feature Missing Workspace",
+      status: "open",
+      workspace: workspaceRecord,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+  await surreal.query("RELATE $task->belongs_to->$feature SET added_at = $now;", {
+    task: legacyFeatureTaskRecord,
+    feature: legacyFeatureRecord,
+    now,
+  });
+  await surreal.query("RELATE $task->belongs_to->$project SET added_at = $now;", {
+    task: legacyFeatureTaskRecord,
+    project: projectRecord,
     now,
   });
 
@@ -397,6 +458,22 @@ describe("RC1: entity detail shows structural relationships", () => {
     expect(kinds).toContain("owns");
     expect(kinds).toContain("depends_on");
   });
+
+  it("task detail prefers feature relationship over project for legacy features missing workspace", async () => {
+    const detail = await getEntityDetail({
+      surreal,
+      workspaceRecord,
+      entityRecord: legacyFeatureTaskRecord as GraphEntityRecord,
+    });
+
+    const featureRel = detail.relationships.find((r) => r.kind === "feature" && r.name === "Legacy Feature Missing Workspace");
+    const projectBelongsToRel = detail.relationships.find(
+      (r) => r.kind === "project" && r.relationKind === "belongs_to" && r.direction === "outgoing",
+    );
+
+    expect(featureRel).toBeDefined();
+    expect(projectBelongsToRel).toBeUndefined();
+  });
 });
 
 describe("RC2: workspace graph overview includes all entity types", () => {
@@ -573,6 +650,25 @@ describe("RC3: graph edges include structural relationships", () => {
 
     const depsEdge = graph.edges.find((e) => e.kind === "depends_on");
     expect(depsEdge).toBeDefined();
+  });
+
+  it("project graph view includes related task neighbors for task-to-task edges", async () => {
+    const graph = await getProjectGraphView({
+      surreal,
+      workspaceRecord,
+      projectRecord,
+    });
+
+    const relatedTask = graph.entities.find((e) => e.id === (relatedTaskRecord.id as string));
+    const relationEdge = graph.edges.find(
+      (e) =>
+        e.kind === "depends_on"
+        && e.fromId === (taskRecord.id as string)
+        && e.toId === (relatedTaskRecord.id as string),
+    );
+
+    expect(relatedTask).toBeDefined();
+    expect(relationEdge).toBeDefined();
   });
 
   it("project graph view includes triggered_by edges from intents", async () => {

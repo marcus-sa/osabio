@@ -317,7 +317,25 @@ export async function isEntityInWorkspace(
       )
       .collect<[Array<{ id: RecordId<"feature", string> }>]>();
 
-    return rows.length > 0;
+    if (rows.length > 0) {
+      return true;
+    }
+
+    // Backward-compatible scope fallback for legacy features that may be
+    // linked into workspace projects but are missing the workspace field.
+    const [linkedRows] = await surreal
+      .query<[Array<{ id: RecordId<"has_feature", string> }>]>(
+        [
+          "SELECT id FROM has_feature",
+          "WHERE out = $feature",
+          "AND `in` IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace)",
+          "LIMIT 1;",
+        ].join(" "),
+        { workspace: workspaceRecord, feature: entityRecord },
+      )
+      .collect<[Array<{ id: RecordId<"has_feature", string> }>]>();
+
+    return linkedRows.length > 0;
   }
 
   if (table === "task" || table === "decision" || table === "question" || table === "suggestion" || table === "intent" || table === "agent_session") {
@@ -975,7 +993,59 @@ export async function listEntityNeighbors(input: {
     });
   }
 
-  return neighbors;
+  if (input.entityRecord.table.name !== "task") {
+    return neighbors;
+  }
+
+  const hasDirectFeatureRelation = neighbors.some((neighbor) =>
+    neighbor.kind === "feature" && (neighbor.relationKind === "belongs_to" || neighbor.relationKind === "has_task")
+  );
+  if (hasDirectFeatureRelation) {
+    return neighbors.filter((neighbor) =>
+      !(neighbor.kind === "project" && neighbor.relationKind === "belongs_to" && neighbor.direction === "outgoing")
+    );
+  }
+
+  const projectRelation = neighbors.find((neighbor) =>
+    neighbor.kind === "project" && neighbor.relationKind === "belongs_to" && neighbor.direction === "outgoing"
+  );
+  if (!projectRelation) {
+    return neighbors;
+  }
+
+  const taskName = await readEntityName(input.surreal, input.entityRecord);
+  if (!taskName) {
+    return neighbors;
+  }
+
+  const projectRecord = new RecordId("project", projectRelation.id);
+  const [featureRows] = await input.surreal
+    .query<[Array<{ id: RecordId<"feature", string>; name: string }>]>(
+      "SELECT out AS id, out.name AS name FROM has_feature WHERE `in` = $project;",
+      { project: projectRecord },
+    )
+    .collect<[Array<{ id: RecordId<"feature", string>; name: string }>]>();
+
+  const matches = featureRows.filter((row) => normalizeSearchValue(row.name) === normalizeSearchValue(taskName));
+  if (matches.length !== 1) {
+    return neighbors;
+  }
+
+  const featureMatch = matches[0];
+  const withoutProject = neighbors.filter((neighbor) =>
+    !(neighbor.kind === "project" && neighbor.relationKind === "belongs_to" && neighbor.direction === "outgoing")
+  );
+
+  withoutProject.push({
+    id: toRecordIdString(featureMatch.id),
+    kind: "feature",
+    name: featureMatch.name,
+    relationKind: "belongs_to",
+    direction: "outgoing",
+    confidence: 1.0,
+  });
+
+  return withoutProject;
 }
 
 /** Maps entity tables to their identity-referencing owner field */
@@ -1658,6 +1728,79 @@ async function collectEntityRelationEdges(
   }));
 }
 
+export function preferTaskFeatureEdges(raw: GraphViewRawResult): GraphViewRawResult {
+  const entityById = new Map(raw.entities.map((entity) => [entity.id, entity] as const));
+  const taskHasFeatureLink = new Set<string>();
+  const projectToFeatures = new Map<string, string[]>();
+
+  for (const edge of raw.edges) {
+    const fromKind = entityById.get(edge.fromId)?.kind;
+    const toKind = entityById.get(edge.toId)?.kind;
+
+    if (edge.kind === "has_task" && fromKind === "feature" && toKind === "task") {
+      taskHasFeatureLink.add(edge.toId);
+    }
+
+    if (edge.kind === "belongs_to" && fromKind === "task" && toKind === "feature") {
+      taskHasFeatureLink.add(edge.fromId);
+    }
+
+    if (edge.kind === "has_feature" && fromKind === "project" && toKind === "feature") {
+      const existing = projectToFeatures.get(edge.fromId) ?? [];
+      existing.push(edge.toId);
+      projectToFeatures.set(edge.fromId, existing);
+    }
+  }
+
+  const normalizedName = (value: string): string => normalizeSearchValue(value);
+  const nextEdges: GraphViewRawEdge[] = [];
+  const syntheticEdges = new Map<string, GraphViewRawEdge>();
+
+  for (const edge of raw.edges) {
+    const fromKind = entityById.get(edge.fromId)?.kind;
+    const toKind = entityById.get(edge.toId)?.kind;
+
+    if (edge.kind === "belongs_to" && fromKind === "task" && toKind === "project") {
+      const taskId = edge.fromId;
+      if (taskHasFeatureLink.has(taskId)) {
+        continue;
+      }
+
+      const taskName = entityById.get(taskId)?.name;
+      if (!taskName) {
+        nextEdges.push(edge);
+        continue;
+      }
+
+      const featureCandidates = (projectToFeatures.get(edge.toId) ?? []).filter((featureId) => {
+        const featureName = entityById.get(featureId)?.name;
+        return featureName ? normalizedName(featureName) === normalizedName(taskName) : false;
+      });
+
+      if (featureCandidates.length === 1) {
+        const featureId = featureCandidates[0];
+        const syntheticId = `inferred_task_feature_${taskId}_${featureId}`;
+        syntheticEdges.set(syntheticId, {
+          id: syntheticId,
+          kind: "belongs_to",
+          fromId: taskId,
+          toId: featureId,
+          confidence: 1.0,
+        });
+        taskHasFeatureLink.add(taskId);
+        continue;
+      }
+    }
+
+    nextEdges.push(edge);
+  }
+
+  return {
+    entities: raw.entities,
+    edges: [...nextEdges, ...syntheticEdges.values()],
+  };
+}
+
 async function resolveEntityNames(
   surreal: Surreal,
   records: GraphEntityRecord[],
@@ -1700,7 +1843,7 @@ export async function getProjectGraphView(input: {
   const entities = await resolveEntityNames(input.surreal, allRecords);
   const edges = await collectEntityRelationEdges(input.surreal, allRecords);
 
-  return { entities, edges };
+  return preferTaskFeatureEdges({ entities, edges });
 }
 
 export async function getFocusedGraphView(input: {
@@ -1755,7 +1898,7 @@ export async function getFocusedGraphView(input: {
   const entities = await resolveEntityNames(input.surreal, allRecords);
   const edges = await collectEntityRelationEdges(input.surreal, allRecords);
 
-  return { entities, edges };
+  return preferTaskFeatureEdges({ entities, edges });
 }
 
 export async function getWorkspaceGraphOverview(input: {
@@ -1772,5 +1915,5 @@ export async function getWorkspaceGraphOverview(input: {
   const entities = await resolveEntityNames(input.surreal, allRecords);
   const edges = await collectEntityRelationEdges(input.surreal, allRecords);
 
-  return { entities, edges };
+  return preferTaskFeatureEdges({ entities, edges });
 }

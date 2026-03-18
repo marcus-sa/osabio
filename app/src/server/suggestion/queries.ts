@@ -259,6 +259,7 @@ export async function convertSuggestion(input: {
     await input.surreal.create(targetRecord as RecordId<"feature", string>).content({
       name: entityName,
       status: "active",
+      workspace: input.workspaceRecord,
       ...(embedding ? { embedding } : {}),
       created_at: input.now,
       updated_at: input.now,
