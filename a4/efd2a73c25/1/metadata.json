@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a4efd2a73c25",
+  "session_id": "b84ce5b8-295b-47bc-916d-572d47e624db",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T10:42:37.96682Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9b34f074cf95",
+  "token_usage": {
+    "input_tokens": 125,
+    "cache_creation_tokens": 84061,
+    "cache_read_tokens": 1024012,
+    "output_tokens": 4517,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T10:42:37.221959Z",
+    "agent_lines": 0,
+    "human_added": 7396,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 7396,
+    "agent_percentage": 0
+  }
+}
