@@ -260,7 +260,7 @@ type SessionRow = {
   last_event_at?: string;
   task_id?: RecordId<"task", string>;
   workspace?: RecordId<"workspace", string>;
-  error?: string;
+  error_message?: string;
 };
 
 type SessionLookup =
@@ -535,7 +535,7 @@ export async function getOrchestratorSessionStatus(
         worktreePath: session.worktree_path,
         startedAt: session.started_at,
         lastEventAt: session.last_event_at,
-        error: session.error,
+        error: session.error_message,
       }),
     },
   };

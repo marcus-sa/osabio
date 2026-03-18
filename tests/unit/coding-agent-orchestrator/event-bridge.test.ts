@@ -228,6 +228,35 @@ describe("transformSdkMessage", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("returns empty array for assistant messages without content", () => {
+    const message = {
+      type: "assistant",
+    } as SdkMessage;
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([]);
+  });
+
+  it("reads assistant content from nested message.content payloads", () => {
+    const message = {
+      type: "assistant",
+      message: {
+        content: [{ type: "text", text: "from nested payload" }],
+      },
+    } as SdkMessage;
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([
+      {
+        type: "agent_token",
+        sessionId,
+        token: "from nested payload",
+      },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -344,6 +344,27 @@ describe("getOrchestratorSessionStatus", () => {
       expect(result.error.code).toBe("SESSION_NOT_FOUND");
     }
   });
+
+  test("maps error_message from agent_session to API status error field", async () => {
+    const surrealSpy = createSurrealSpy({
+      sessionSelect: {
+        id: new RecordId("agent_session", "sess-err"),
+        orchestrator_status: "error",
+        error_message: "Agent stream crashed",
+      },
+    });
+
+    const result = await getOrchestratorSessionStatus({
+      surreal: surrealSpy.stub as any,
+      sessionId: "sess-err",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.orchestratorStatus).toBe("error");
+      expect(result.value.error).toBe("Agent stream crashed");
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

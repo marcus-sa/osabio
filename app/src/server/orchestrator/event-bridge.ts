@@ -24,7 +24,13 @@ export type ContentBlock =
   | { type: "tool_result"; tool_use_id: string; content: string };
 
 export type SdkMessage =
-  | { type: "assistant"; content: ContentBlock[] }
+  | {
+      type: "assistant";
+      content?: unknown;
+      message?: {
+        content?: unknown;
+      };
+    }
   | { type: "result"; subtype: "success"; duration_ms: number }
   | { type: "result"; subtype: "error"; error: string }
   | { type: "system"; subtype: string; [key: string]: unknown }
@@ -119,6 +125,70 @@ function transformAssistantContent(
   return events;
 }
 
+function toContentBlocks(content: unknown): ContentBlock[] {
+  if (!Array.isArray(content)) return [];
+
+  const blocks: ContentBlock[] = [];
+  for (const raw of content) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const block = raw as {
+      type?: unknown;
+      text?: unknown;
+      id?: unknown;
+      name?: unknown;
+      input?: unknown;
+      tool_use_id?: unknown;
+      content?: unknown;
+    };
+
+    if (block.type === "text" && typeof block.text === "string") {
+      blocks.push({ type: "text", text: block.text });
+      continue;
+    }
+
+    if (
+      block.type === "tool_use"
+      && typeof block.id === "string"
+      && typeof block.name === "string"
+      && typeof block.input === "object"
+      && block.input !== null
+    ) {
+      blocks.push({
+        type: "tool_use",
+        id: block.id,
+        name: block.name,
+        input: block.input as Record<string, unknown>,
+      });
+      continue;
+    }
+
+    if (
+      block.type === "tool_result"
+      && typeof block.tool_use_id === "string"
+      && typeof block.content === "string"
+    ) {
+      blocks.push({
+        type: "tool_result",
+        tool_use_id: block.tool_use_id,
+        content: block.content,
+      });
+    }
+  }
+
+  return blocks;
+}
+
+function extractAssistantContent(message: {
+  content?: unknown;
+  message?: {
+    content?: unknown;
+  };
+}): ContentBlock[] {
+  const direct = toContentBlocks(message.content);
+  if (direct.length > 0) return direct;
+  return toContentBlocks(message.message?.content);
+}
+
 function transformResultMessage(
   message: { type: "result"; subtype: "success"; duration_ms: number } | { type: "result"; subtype: "error"; error: string },
   sessionId: string,
@@ -165,7 +235,7 @@ export function transformSdkMessage(
 ): StreamEvent[] {
   switch (message.type) {
     case "assistant":
-      return transformAssistantContent(message.content, sessionId);
+      return transformAssistantContent(extractAssistantContent(message), sessionId);
 
     case "result":
       return [transformResultMessage(message, sessionId)];
@@ -187,7 +257,8 @@ export function transformSdkMessage(
 /** Returns true if the message contains tool_use blocks for file operations. */
 function containsFileOperationStep(message: SdkMessage): boolean {
   if (message.type !== "assistant") return false;
-  return message.content.some(
+  const content = extractAssistantContent(message);
+  return content.some(
     (block) => block.type === "tool_use" && isFileOperationTool(block.name),
   );
 }

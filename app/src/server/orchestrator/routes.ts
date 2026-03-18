@@ -393,7 +393,7 @@ export function wireOrchestratorRoutes(
                 const rec = new RecordId("agent_session", sid);
                 await wiringDeps.surreal.update(rec).merge({
                   orchestrator_status: status,
-                  ...(error !== undefined ? { error } : {}),
+                  ...(error !== undefined ? { error_message: error } : {}),
                 });
               },
               updateLastEventAt: async (sid) => {
