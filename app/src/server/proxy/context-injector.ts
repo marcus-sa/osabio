@@ -313,15 +313,15 @@ export function injectRecentChanges(
 // Recent Changes Classification (04-01: pure)
 // ---------------------------------------------------------------------------
 
-const URGENT_CONTEXT_THRESHOLD = 0.85;
-const CONTEXT_UPDATE_THRESHOLD = 0.65;
+const URGENT_CONTEXT_THRESHOLD = 0.7;
+const CONTEXT_UPDATE_THRESHOLD = 0.4;
 
 /**
  * Classifies KNN search results by similarity into urgent-context or context-update.
  *
- * - >= 0.85 similarity -> urgent-context (agent should act on this immediately)
- * - >= 0.65 similarity -> context-update (background awareness)
- * - < 0.65 similarity  -> filtered out (not relevant)
+ * - >= 0.7 similarity  -> urgent-context (agent should act on this immediately)
+ * - >= 0.4 similarity  -> context-update (background awareness)
+ * - < 0.4 similarity   -> filtered out (not relevant)
  *
  * Preserves input order for candidates that pass the threshold.
  */
@@ -432,9 +432,9 @@ export function createSearchRecentChanges(
     // Single round-trip: all three two-step KNN queries combined
     // Each table needs LET + SELECT (HNSW index cannot combine with B-tree WHERE)
     const results = await surreal.query<[KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[]]>(
-      `LET $dec_candidates = SELECT id, summary AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
+      `LET $dec_candidates = SELECT id, summary AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace, status
          FROM decision WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $dec_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;
+       SELECT * FROM $dec_candidates WHERE workspace = $ws AND updated_at > $since AND status != "superseded" ORDER BY similarity DESC LIMIT $limit;
        LET $task_candidates = SELECT id, title AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
          FROM task WHERE embedding <|${knnLimit}, COSINE|> $vec;
        SELECT * FROM $task_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;
