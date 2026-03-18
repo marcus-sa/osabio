@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8bd2bd6eab85",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/context-injector.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8b/d2bd6eab85/0/metadata.json",
+      "transcript": "/8b/d2bd6eab85/0/full.jsonl",
+      "context": "/8b/d2bd6eab85/0/context.md",
+      "content_hash": "/8b/d2bd6eab85/0/content_hash.txt",
+      "prompt": "/8b/d2bd6eab85/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 157,
+    "cache_creation_tokens": 9942,
+    "cache_read_tokens": 704816,
+    "output_tokens": 2826,
+    "api_call_count": 9
+  }
+}
