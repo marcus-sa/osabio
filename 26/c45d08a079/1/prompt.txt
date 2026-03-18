@@ -1,0 +1,207 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/montreal directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks in parallel, you can suggest they start new workspaces.
+If the user asks for help with Conductor, ask them to email [humans@conductor.build](mailto:humans@conductor.build) or
+click on the comment icon in the bottom left to send feedback.
+</system_instruction>
+
+
+
+<system-instruction>
+The user has added 5 comments to the diff for this workspace. Please review and address these comments as part of your response. When addressing comments on the "original" side or on specific commits, read the file from that version (not the current version). Below are the comments, including metadata about what git state they were left on:
+
+Comment #1:
+
+File: app/src/server/reactive/feed-sse-bridge.ts
+Line: 388
+User comment: "<a href="#"><img alt="P1" src="https://greptile-static-assets.s3.amazonaws.com/badges/p1.svg?v=7" align="top"></a> **`_previous_status` never populated — tier transition detection is dead code**
+
+SurrealDB LIVE SELECT `UPDATE` events send the **current** record state in `value`, not a diff. The `_previous_status` key is never included by SurrealDB in live event payloads, so `previousStatus` will always be `undefined` and the `if (previousStatus)` block never executes.
+
+This means when a record transitions tiers (e.g. a decision moves from `"provisional"` → `"confirmed"`, changing from `"blocking"` to `"awareness"`), the old item is **never added to `removals`**. The client accumulates both versions under different tiers instead of replacing the old one.
+
+To fix this, either:
+1. Use SurrealDB's `LIVE SELECT DIFF` to get the diff (and extract the old status from the diff), or
+2. Store the record's previous status in a separate field (e.g. `previous_status`) when updating it at the application layer, or
+3. Track record status server-side in a Map keyed by `recordId` to detect transitions:
+
+```typescript
+// In createFeedSseBridge, maintain a status cache:
+const recordStatusCache = new Map<string, string>(); // recordId -> last known status
+
+// In handleEvent, before dispatching:
+if (event.action === "UPDATE") {
+  const previousStatus = recordStatusCache.get(item.entityId);
+  recordStatusCache.set(item.entityId, item.status);
+  if (previousStatus && previousStatus !== item.status) {
+    const transition = classifyTierTransition(event.table, previousStatus, item.status);
+    if (transition.isTransition) {
+      batcher.add(item, item.entityId);
+      return;
+    }
+  }
+}
+if (event.action === "DELETE") {
+  recordStatusCache.delete(event.recordId);
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c508-ZM. 
+
+
+Comment #2:
+
+File: app/src/server/mcp/mcp-route.ts
+Line: 317
+User comment: "<a href="#"><img alt="P1" src="https://greptile-static-assets.s3.amazonaws.com/badges/p1.svg?v=7" align="top"></a> **`last_request_at` updated before it is read — recent changes search returns nothing**
+
+The fire-and-forget `UPDATE` (lines 281–289) and the subsequent `SELECT` (lines 304–314) both go over the same SurrealDB WebSocket connection. The SDK queues requests in dispatch order, so the `UPDATE` is queued **first** and will commit before the `SELECT` executes. As a result, the `SELECT` reads back `last_request_at = time::now()` (just set), `lastRequestAt` becomes the current timestamp, and `searchRecentChanges(embedding, workspaceId, now)` finds **nothing** — no entity was updated "since now".
+
+The proxy route (`anthropic-proxy-route.ts`, lines 754–810) handles this correctly: it **reads** `last_request_at` first, uses that value for the search, then **updates** it afterward. The MCP route has the order reversed.
+
+Fix: move the `UPDATE` to after the search has completed.
+
+```typescript
+// 1. Read last_request_at FIRST
+let lastRequestAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+if (body.session_id) {
+  const sessionRecord = new RecordId("agent_session", body.session_id);
+  const rows = await surreal.query<[Array<{ last_request_at?: string }>]>(
+    `SELECT last_request_at FROM $sess;`,
+    { sess: sessionRecord },
+  );
+  if (rows[0]?.[0]?.last_request_at) {
+    lastRequestAt = new Date(rows[0][0].last_request_at);
+  }
+}
+
+// 2. Search recent changes using the old timestamp
+const candidates = await searchRecentChanges(intentEmbedding, workspaceId, lastRequestAt);
+
+// 3. THEN update last_request_at (fire-and-forget)
+if (body.session_id) {
+  const sessionRecord = new RecordId("agent_session", body.session_id);
+  deps.inflight.track(
+    surreal.query(`UPDATE $sess SET last_request_at = time::now();`, { sess: sessionRecord })
+      .catch(() => undefined),
+  );
+}
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c508-bd. 
+
+
+Comment #3:
+
+File: app/src/server/reactive/agent-activator.ts
+Line: 101
+User comment: "<a href="#"><img alt="P2" src="https://greptile-static-assets.s3.amazonaws.com/badges/p2.svg?v=7" align="top"></a> **`workspace` validation skips type-check before the `string` branch**
+
+In `parseWebhookPayload`, the guard at line 93–101 checks `typeof workspace === "string"` is NOT performed explicitly — the `!workspace` check (line 98) only catches falsy values. After the guard block, the code then tests `typeof workspace === "string"` again at line 105.
+
+More importantly, the `typeof workspace !== "string"` condition at line 98 is missing — the combined guard:
+
+```typescript
+typeof observation_id !== "string" ||
+typeof text !== "string" ||
+typeof severity !== "string" ||
+typeof source_agent !== "string" ||
+!workspace
+```
+
+passes even if `workspace` is a number or object that's truthy, but then falls through to `return undefined` only at line 110. This is fine in practice since the `else` path handles it, but the intent is clearer if the early-return guard also validates `workspace` type explicitly.
+
+More importantly, if `observation_id` is a RecordId object (not a string), the `typeof observation_id !== "string"` guard returns `undefined` — but the comment at line 103 only mentions that `workspace` may be a RecordId. `observation_id` from a SurrealDB webhook might also be delivered as a RecordId object, which would silently reject valid payloads.
+
+```typescript
+// Consider also handling RecordId for observation_id:
+const rawObsId = typeof observation_id === "string"
+  ? observation_id
+  : observation_id instanceof RecordId
+    ? `${observation_id.table}:${observation_id.id}`
+    : undefined;
+if (!rawObsId) return undefined;
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c508-dK. 
+
+
+Comment #4:
+
+File: app/src/server/proxy/context-injector.ts
+Line: 378
+User comment: "<a href="#"><img alt="P1" src="https://greptile-static-assets.s3.amazonaws.com/badges/p1.svg?v=7" align="top"></a> **Unescaped user content breaks XML structure and can truncate context blocks**
+
+`c.text` contains raw database content (`decision.summary`, `task.title`, `observation.text`) interpolated directly into XML without escaping. Two concrete failure modes:
+
+1. **Malformed XML for any entity with `<` or `>` in its text.** A task titled `"Fix <memory leak> in server"` produces `<item type="task">Fix <memory leak> in server</item>`, which is invalid XML.
+
+2. **Tag injection truncates the context block.** If an observation's text is `"The </urgent-context> guard was bypassed"`, the produced XML is:
+   ```xml
+   <urgent-context>
+     <item type="observation">The </urgent-context> guard was bypassed</item>
+   </urgent-context>
+   ```
+   The non-greedy regex `/<urgent-context>[\s\S]*?<\/urgent-context>/` in `injectRecentChanges` matches up to the injected closing tag, so the captured block is truncated and the rest is silently dropped. This can be triggered by any observation, task, or decision whose text happens to contain the closing tag string.
+
+The fix is to escape XML special characters before interpolation:
+
+```typescript
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Then in buildRecentChangesXml:
+.map((c) => `  <item type="${c.table}">${escapeXml(c.text)}</item>`)
+```"
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c51CfER. 
+
+
+Comment #5:
+
+File: app/src/server/runtime/start-server.ts
+Line: 111
+User comment: "<a href="#"><img alt="P1" src="https://greptile-static-assets.s3.amazonaws.com/badges/p1.svg?v=7" align="top"></a> **Internal activator endpoint is permanently unauthenticated**
+
+`createAgentActivatorHandler` is called without an `internalWebhookSecret`, so `deps.internalWebhookSecret` is always `undefined`. The `validateWebhookSecret` function explicitly allows all requests in this case:
+
+```typescript
+if (!secret) return true; // dev mode: no secret configured, allow all
+```
+
+There is no separate network-level guard here — the `/api/internal/activator/observation` route is served on the same port as the public API. Any external party who can reach the server can POST crafted payloads that trigger LLM classification calls and spawn `agent_session` records, consuming tokens and polluting the session store with no authentication.
+
+The `AgentActivatorDeps` type already has the optional `internalWebhookSecret` field, so the fix is to wire a value from server config and pass it through to this call. Without this, the "dev mode" bypass is the only mode that ever runs."
+
+Comment metadata:
+This comment was left on the modified branch.
+This comment was left on GitHub by @greptile-apps.
+This comment is the start of thread PRRT_kwDORZgy6c51CfE1. 
+
+</system-instruction>
+
+---
+
+there are many performance optimization improvements possible in @app/src/server/proxy/anthropic-proxy-route.ts 
+e.g loadCandidatePool is executing three separate queries sequentially when they can all be combined into a single query
