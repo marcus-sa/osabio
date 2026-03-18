@@ -3,7 +3,7 @@
   "checkpoint_id": "26c45d08a079",
   "strategy": "manual-commit",
   "branch": "marcus-sa/reactive-agent-activator",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/server/mcp/mcp-route.ts",
     "app/src/server/proxy/anthropic-proxy-route.ts",
@@ -27,13 +27,20 @@
       "context": "/26/c45d08a079/1/context.md",
       "content_hash": "/26/c45d08a079/1/content_hash.txt",
       "prompt": "/26/c45d08a079/1/prompt.txt"
+    },
+    {
+      "metadata": "/26/c45d08a079/2/metadata.json",
+      "transcript": "/26/c45d08a079/2/full.jsonl",
+      "context": "/26/c45d08a079/2/context.md",
+      "content_hash": "/26/c45d08a079/2/content_hash.txt",
+      "prompt": "/26/c45d08a079/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 36,
-    "cache_creation_tokens": 96157,
-    "cache_read_tokens": 1125598,
-    "output_tokens": 8119,
-    "api_call_count": 21
+    "input_tokens": 52,
+    "cache_creation_tokens": 157488,
+    "cache_read_tokens": 1600543,
+    "output_tokens": 13201,
+    "api_call_count": 29
   }
 }
