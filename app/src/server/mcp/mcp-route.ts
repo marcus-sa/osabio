@@ -277,17 +277,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         paths: body.paths,
       });
 
-      // Update agent_session.last_request_at if session_id provided (04-02)
-      if (body.session_id) {
-        const sessionRecord = new RecordId("agent_session", body.session_id);
-        deps.inflight.track(
-          surreal.query(
-            `UPDATE $sess SET last_request_at = time::now();`,
-            { sess: sessionRecord },
-          ).catch(() => undefined),
-        );
-      }
-
       // 04-03: Search recent graph changes and classify by similarity
       let urgentUpdates: Array<{ entity_id: string; entity_type: string; change_description: string; similarity: number; level: "urgent" | "update" }> = [];
       let contextUpdates: Array<{ entity_id: string; entity_type: string; change_description: string; similarity: number; level: "urgent" | "update" }> = [];
@@ -298,7 +287,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         );
         if (!intentEmbedding) throw new Error("Failed to create intent embedding");
 
-        // Resolve last_request_at from session if available, otherwise use 24h ago
+        // Read last_request_at FIRST, then update — otherwise we search "since now" and find nothing.
         let lastRequestAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
         if (body.session_id) {
           const sessionRecord = new RecordId("agent_session", body.session_id);
@@ -315,6 +304,17 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
         const searchRecentChanges = createSearchRecentChanges(surreal);
         const candidates = await searchRecentChanges(intentEmbedding, workspaceId, lastRequestAt);
+
+        // Update agent_session.last_request_at AFTER search (04-02)
+        if (body.session_id) {
+          const sessionRecord = new RecordId("agent_session", body.session_id);
+          deps.inflight.track(
+            surreal.query(
+              `UPDATE $sess SET last_request_at = time::now();`,
+              { sess: sessionRecord },
+            ).catch(() => undefined),
+          );
+        }
         const classified = classifyBySimilarity(candidates);
 
         function toUpdateItem(change: ClassifiedChange) {

@@ -355,6 +355,14 @@ export function classifyBySimilarity(
  *   </context-update>
  * </recent-changes>
  */
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function buildRecentChangesXml(changes: ClassifiedChange[]): string {
   if (changes.length === 0) return "";
 
@@ -365,14 +373,14 @@ export function buildRecentChangesXml(changes: ClassifiedChange[]): string {
 
   if (urgent.length > 0) {
     const items = urgent
-      .map((c) => `  <item type="${c.table}">${c.text}</item>`)
+      .map((c) => `  <item type="${escapeXml(c.table)}">${escapeXml(c.text)}</item>`)
       .join("\n");
     sections.push(`<urgent-context>\n${items}\n</urgent-context>`);
   }
 
   if (updates.length > 0) {
     const items = updates
-      .map((c) => `  <item type="${c.table}">${c.text}</item>`)
+      .map((c) => `  <item type="${escapeXml(c.table)}">${escapeXml(c.text)}</item>`)
       .join("\n");
     sections.push(`<context-update>\n${items}\n</context-update>`);
   }

@@ -99,6 +99,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     loopDampener: activatorDampener,
     inflight: deps.inflight,
     classifierModel: deps.extractionModel,
+    internalWebhookSecret: config.internalWebhookSecret,
     onAgentActivation: (activation) => {
       log.info("activator.agent_activated", "LLM classified agent for activation", {
         agentId: activation.agentId,

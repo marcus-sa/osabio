@@ -84,23 +84,33 @@ export function parseWebhookPayload(
   if (!body || typeof body !== "object") return undefined;
   const b = body as Record<string, unknown>;
 
-  const observation_id = b.observation_id;
+  const rawObsId = b.observation_id;
   const workspace = b.workspace;
   const text = b.text;
   const severity = b.severity;
   const source_agent = b.source_agent;
 
   if (
-    typeof observation_id !== "string" ||
     typeof text !== "string" ||
     typeof severity !== "string" ||
     typeof source_agent !== "string" ||
+    !rawObsId ||
     !workspace
   ) {
     return undefined;
   }
 
-  // workspace may be a string "workspace:id" or just the id
+  // observation_id may be a string "observation:id", a bare id, or a RecordId object
+  let observationId: string;
+  if (typeof rawObsId === "string") {
+    observationId = rawObsId.includes(":") ? rawObsId.split(":").slice(1).join(":") : rawObsId;
+  } else if (rawObsId instanceof RecordId) {
+    observationId = rawObsId.id as string;
+  } else {
+    return undefined;
+  }
+
+  // workspace may be a string "workspace:id", a bare id, or a RecordId object
   let workspaceId: string;
   if (typeof workspace === "string") {
     workspaceId = workspace.includes(":") ? workspace.split(":").slice(1).join(":") : workspace;
@@ -111,9 +121,7 @@ export function parseWebhookPayload(
   }
 
   return {
-    observation_id: typeof observation_id === "string" && observation_id.includes(":")
-      ? observation_id.split(":").slice(1).join(":")
-      : observation_id,
+    observation_id: observationId,
     workspace: workspaceId,
     text,
     severity,

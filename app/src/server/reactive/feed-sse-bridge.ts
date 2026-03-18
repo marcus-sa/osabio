@@ -335,6 +335,9 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
   const { liveSelectManager, sseRegistry } = deps;
   const batchWindowMs = deps.batchWindowMs ?? 500;
   const batchers = new Map<string, Batcher>();
+  // Track last-known status per record to detect tier transitions.
+  // SurrealDB LIVE SELECT UPDATE events only send current state, not diffs.
+  const recordStatusCache = new Map<string, string>();
 
   function getOrCreateBatcher(workspaceId: string): Batcher {
     let batcher = batchers.get(workspaceId);
@@ -366,6 +369,7 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
     if (event.action === "DELETE") {
       const batcher = getOrCreateBatcher(workspaceId);
       batcher.addRemoval(event.recordId);
+      recordStatusCache.delete(event.recordId);
       return;
     }
 
@@ -374,17 +378,20 @@ export function createFeedSseBridge(deps: FeedSseBridgeDeps): FeedSseBridge {
 
     const batcher = getOrCreateBatcher(workspaceId);
 
-    // On UPDATE, detect tier transitions and emit removal by entity ID
-    // so the client replaces the old tier item instead of accumulating duplicates
+    // On UPDATE, detect tier transitions using server-side status cache.
+    // SurrealDB LIVE SELECT only sends current state — no _previous_status field.
     if (event.action === "UPDATE") {
-      const previousStatus = (event.value._previous_status as string) ?? undefined;
-      if (previousStatus) {
+      const previousStatus = recordStatusCache.get(item.entityId);
+      recordStatusCache.set(item.entityId, item.status);
+      if (previousStatus && previousStatus !== item.status) {
         const transition = classifyTierTransition(event.table, previousStatus, item.status);
         if (transition.isTransition) {
           batcher.add(item, item.entityId);
           return;
         }
       }
+    } else if (event.action === "CREATE") {
+      recordStatusCache.set(item.entityId, item.status);
     }
 
     batcher.add(item);
