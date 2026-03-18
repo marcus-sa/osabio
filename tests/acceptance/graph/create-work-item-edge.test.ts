@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
 import { createCreateWorkItemTool } from "../../../app/src/server/chat/tools/create-work-item";
+import { createEditWorkItemTool } from "../../../app/src/server/chat/tools/edit-work-item";
 import { testAI } from "../acceptance-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -121,6 +122,17 @@ function makeTool(opts?: { stubEmbedding?: boolean }) {
   });
 }
 
+function makeEditTool() {
+  return createEditWorkItemTool({
+    surreal,
+    embeddingModel: testAI.embeddingModel as any,
+    embeddingDimension: testAI.embeddingDimension,
+    extractionModelId: testAI.extractionModelId,
+    extractionModel: testAI.extractionModel,
+    extractionStoreThreshold: 0.5,
+  });
+}
+
 function makeOptions() {
   return {
     toolCallId: "call-1",
@@ -145,6 +157,15 @@ async function countEdges(table: string, from: RecordId, to: RecordId): Promise<
     )
     .collect<[Array<{ count: number }>]>();
   return rows.length > 0 ? rows[0].count : 0;
+}
+
+async function countTasks(): Promise<number> {
+  const [rows] = await surreal
+    .query<[Array<{ count: number }>]>(
+      "SELECT count() AS count FROM task GROUP ALL;",
+    )
+    .collect<[Array<{ count: number }>]>();
+  return rows[0]?.count ?? 0;
 }
 
 function parseEntityId(entityId: string): RecordId {
@@ -236,6 +257,36 @@ describe("create_work_item has_feature edge regression", () => {
 
     expect(hasTaskEdgeCount).toBe(1);
     expect(belongsToFeatureEdgeCount).toBe(1);
+  });
+
+  it("renames an existing task via edit_work_item without creating a duplicate task", async () => {
+    const createTool = makeTool();
+    const editTool = makeEditTool();
+    const options = makeOptions();
+
+    const taskResult = await createTool.execute!(
+      { kind: "task", title: "Customer slot selection at checkout", rationale: "Initial task title", project: "CHECKOUT" },
+      options,
+    );
+    expect(taskResult.kind).toBe("task");
+    const taskRecord = parseEntityId(taskResult.entity_id);
+
+    const beforeTaskCount = await countTasks();
+
+    const editResult = await editTool.execute!(
+      { id: taskResult.entity_id, title: "Implement customer slot selection at checkout" },
+      options,
+    );
+
+    expect(editResult.entity_id).toBe(taskResult.entity_id);
+    expect(editResult.kind).toBe("task");
+    expect(editResult.updated_fields).toContain("title");
+
+    const afterTaskCount = await countTasks();
+    expect(afterTaskCount).toBe(beforeTaskCount);
+
+    const updatedTask = await surreal.select<{ title: string }>(taskRecord as RecordId<"task", string>);
+    expect(updatedTask?.title).toBe("Implement customer slot selection at checkout");
   });
 
   it("logs error when feature references nonexistent project (no silent swallow)", async () => {

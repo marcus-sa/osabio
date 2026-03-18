@@ -17,8 +17,8 @@ const acceptWorkItemSchema = z.object({
   kind: z.enum(["task", "feature", "project"]),
   title: z.string().min(1),
   rationale: z.string().min(1),
-  project: z.string().optional(),
-  feature: z.string().optional(),
+  project: z.string().min(1).optional(),
+  feature: z.string().min(1).optional(),
   priority: z.enum(ENTITY_PRIORITIES).optional(),
   category: z.enum(ENTITY_CATEGORIES).optional(),
 });

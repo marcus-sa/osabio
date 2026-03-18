@@ -68,7 +68,7 @@ export type PmAgentInput = {
 
 const INTENT_INSTRUCTIONS: Record<PmAgentInput["intent"], string> = {
   check_status: "Primary action: call get_project_status when a project scope is available.",
-  plan_work: "Primary action: create tasks/features/projects with create_work_item for each clearly described item. You MUST call create_work_item before generating output. Create projects FIRST in their own tool call step before creating their features/tasks. Only use suggest_work_items when items are vague or you need to check for duplicates against many existing entities.",
+  plan_work: "Primary action: for net-new items use create_work_item; for edits/renames to existing items use edit_work_item. You MUST call the appropriate tool before generating output. Create projects FIRST in their own tool call step before creating their features/tasks. Only use suggest_work_items when items are vague or you need duplicate analysis against many existing entities.",
   track_dependencies: "Primary action: identify blockers/dependencies and create observations for high-risk paths.",
   organize: "Primary action: organize work into clear, deduplicated next steps. When moving items between projects, use search_entities to find existing items, then move_items_to_project to reassign them. Do NOT recreate items that already exist.",
 };
@@ -97,7 +97,7 @@ export async function runPmAgent(input: PmAgentInput): Promise<PmAgentOutput> {
       "You are handling a PM request.",
       `Intent: ${input.intent}`,
       INTENT_INSTRUCTIONS[input.intent],
-      "IMPORTANT: You MUST call your tools (create_work_item, suggest_work_items, etc.) BEFORE generating your final output. Do NOT skip tool calls — your output summary must reflect actual tool execution results.",
+      "IMPORTANT: You MUST call your tools (create_work_item, edit_work_item, suggest_work_items, etc.) BEFORE generating your final output. Do NOT skip tool calls — your output summary must reflect actual tool execution results.",
       "Context:",
       input.conversationContext,
     ].join("\n"),

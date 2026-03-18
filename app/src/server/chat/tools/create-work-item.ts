@@ -29,8 +29,8 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
       rationale: z.string().min(1).describe("Why this entity is needed — seeds the description"),
       category: z.enum(ENTITY_CATEGORIES).optional().describe("Category classification"),
       priority: z.enum(ENTITY_PRIORITIES).optional().describe("critical: blocking/urgent. high: important, needs attention soon. medium: normal priority. low: nice-to-have, deferred."),
-      project: z.string().optional().describe("Project name to scope the entity under"),
-      feature: z.string().optional().describe("Feature name or record id to scope a task under"),
+      project: z.string().min(1).optional().describe("Project name to scope the entity under"),
+      feature: z.string().min(1).optional().describe("Feature name or record id to scope a task under"),
     }),
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_task", deps);
