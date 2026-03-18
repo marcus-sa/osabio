@@ -22,6 +22,7 @@ import {
 } from "./proxy-token-core";
 import type { ServerDependencies } from "../runtime/types";
 import { log } from "../telemetry/logger";
+import { createJwtValidator } from "../mcp/token-validation";
 
 // ---------------------------------------------------------------------------
 // Request Parsing (pure)
@@ -97,9 +98,46 @@ function workspaceRecord(workspaceId: string): RecordId {
 async function validateSession(
   auth: ServerDependencies["auth"],
   headers: Headers,
+  bearerToken: string,
+  betterAuthUrl: string,
 ): Promise<string | undefined> {
   const session = await auth.api.getSession({ headers });
-  return session?.user?.id;
+  if (session?.user?.id) {
+    return session.user.id;
+  }
+
+  // Fallback for CLI OAuth bearer tokens (no browser session cookie).
+  // Accept both common audience variants:
+  //  - <server base URL>
+  //  - <server base URL>/api/auth
+  const validatePrimaryAudience = createJwtValidator(betterAuthUrl);
+  try {
+    const claims = await validatePrimaryAudience(bearerToken);
+    if (typeof claims.sub === "string" && claims.sub.length > 0) {
+      return claims.sub;
+    }
+  } catch {
+    // Try secondary audience below.
+  }
+
+  const authAudience = betterAuthUrl.endsWith("/api/auth")
+    ? betterAuthUrl
+    : `${betterAuthUrl}/api/auth`;
+  if (authAudience === betterAuthUrl) {
+    return undefined;
+  }
+
+  const validateAuthAudience = createJwtValidator(authAudience);
+  try {
+    const claims = await validateAuthAudience(bearerToken);
+    if (typeof claims.sub === "string" && claims.sub.length > 0) {
+      return claims.sub;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -163,10 +201,15 @@ export function createProxyTokenHandler(
       return jsonResponse({ error: parseResult.error }, parseResult.status);
     }
 
-    const { workspaceId } = parseResult.value;
+    const { workspaceId, bearerToken } = parseResult.value;
 
     // 2. Validate bearer token via Better Auth session
-    const personId = await validateSession(deps.auth, request.headers);
+    const personId = await validateSession(
+      deps.auth,
+      request.headers,
+      bearerToken,
+      deps.config.betterAuthUrl,
+    );
     if (!personId) {
       return jsonResponse({ error: "invalid_session" }, 401);
     }
