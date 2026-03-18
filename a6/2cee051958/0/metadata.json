@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a62cee051958",
+  "session_id": "19591c3e-df27-44d4-b7dd-68594a531681",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T10:54:42.998879Z",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "cea85393a31f",
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 35238,
+    "cache_read_tokens": 231836,
+    "output_tokens": 842,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T10:54:42.953872Z",
+    "agent_lines": 1,
+    "human_added": 20535,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 20536,
+    "agent_percentage": 0.004869497467861317
+  }
+}
