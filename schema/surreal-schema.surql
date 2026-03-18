@@ -501,6 +501,14 @@ DEFINE TABLE superseded_by TYPE RELATION IN decision OUT decision SCHEMAFULL;
 DEFINE FIELD reason ON superseded_by TYPE option<string>;
 DEFINE FIELD superseded_at ON superseded_by TYPE datetime;
 
+-- Automatically set decision status to "superseded" when edge is created.
+-- The edge is the source of truth; status is a derived consequence.
+DEFINE EVENT OVERWRITE decision_superseded ON superseded_by
+  WHEN $event = "CREATE"
+  THEN {
+    UPDATE $after.in SET status = "superseded", updated_at = time::now();
+  };
+
 DEFINE TABLE branched_from TYPE RELATION IN conversation OUT conversation SCHEMAFULL;
 DEFINE FIELD branched_at ON branched_from TYPE datetime;
 DEFINE FIELD branch_point_message ON branched_from TYPE record<message>;

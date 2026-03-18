@@ -340,13 +340,11 @@ export async function supersedeDecision(
 ): Promise<void> {
   const oldRecord = new RecordId("decision", oldDecisionId);
   const newRecord = new RecordId("decision", newDecisionId);
+  // The DEFINE EVENT on superseded_by automatically sets
+  // status = "superseded" on the old decision when the edge is created.
   await surreal.query(
-    `UPDATE $old SET status = "superseded", updated_at = time::now();`,
-    { old: oldRecord },
-  );
-  await surreal.query(
-    `RELATE $new->supersedes->$old SET created_at = time::now();`,
-    { new: newRecord, old: oldRecord },
+    `RELATE $old->superseded_by->$new SET superseded_at = time::now();`,
+    { old: oldRecord, new: newRecord },
   );
 }
 

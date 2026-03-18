@@ -26,12 +26,14 @@ import {
   createTestUserWithMcp,
   createTestWorkspace,
   createDecision,
+  supersedeDecision,
   createTask,
   createObservation,
   blockTask,
   startAgentSession,
   getSessionLastRequestAt,
   generateEmbedding,
+  generateEmbeddings,
 } from "./reactive-test-kit";
 
 const getRuntime = setupReactiveSuite("proxy_context_enrichment");
@@ -50,72 +52,66 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    // Seed a superseded decision with embedding close to "billing API"
-    const restDecisionEmbedding = await generateEmbedding("Use REST for billing API -- superseded by tRPC standardization");
-    await createDecision(surreal, workspaceId, {
-      summary: "Use REST for billing API -- SUPERSEDED: replaced by tRPC standardization decision",
-      status: "superseded",
-      embedding: restDecisionEmbedding,
+    // Batch-generate embeddings so all vectors come from the same model call
+    const embeddingTexts = [
+      "Migrate billing API to new service architecture",
+      "Use REST for billing API endpoints",
+      "Use GraphQL for billing API endpoints",
+    ];
+    const embeddingMap = await generateEmbeddings(embeddingTexts);
+
+    // Seed the in_progress task the agent is working on
+    const { taskId } = await createTask(surreal, workspaceId, {
+      title: "Migrate billing API to new architecture",
+      status: "in_progress",
+      embedding: embeddingMap.get(embeddingTexts[0])!,
     });
 
-    const taskEmbedding = await generateEmbedding("Migrate billing API to new architecture");
-    const { taskId } = await createTask(surreal, workspaceId, {
-      title: "Migrate billing API",
-      status: "in_progress",
-      embedding: taskEmbedding,
+    // Seed a confirmed decision, then supersede it with a new one (creates edge)
+    const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
+      summary: "Use REST for billing API endpoints",
+      status: "confirmed",
+      embedding: embeddingMap.get(embeddingTexts[1])!,
     });
+    const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
+      summary: "Use GraphQL for billing API endpoints",
+      status: "confirmed",
+      embedding: embeddingMap.get(embeddingTexts[2])!,
+    });
+    await supersedeDecision(surreal, oldDecId, newDecId);
 
     await startAgentSession(surreal, workspaceId, {
       agentType: "code_agent",
       taskId,
     });
 
-    // Also seed the new tRPC decision so context includes it
-    const trpcEmbedding = await generateEmbedding("Standardize on tRPC for all APIs including billing");
-    await createDecision(surreal, workspaceId, {
-      summary: "Standardize on tRPC for all APIs",
-      status: "confirmed",
-      embedding: trpcEmbedding,
-    });
-
-    // Then the MCP context endpoint includes the superseded decision as an urgent update
+    // When the MCP context endpoint is queried with an intent matching both entities
     const contextResponse = await user.mcpFetch(`/api/mcp/${workspaceId}/context`, {
       body: {
-        intent: "working on billing API migration task",
+        intent: "migrate billing API to new service architecture",
       },
     });
 
-    // The response should include relevant context about the superseded decision
     expect(contextResponse.ok).toBe(true);
     const contextData = (await contextResponse.json()) as Record<string, unknown>;
-    expect(contextData).toBeDefined();
-
-    // Verification: context should reference the tRPC decision or the superseded REST decision
-    const contextStr = JSON.stringify(contextData);
-    const mentionsRelevantChange =
-      contextStr.includes("tRPC") ||
-      contextStr.includes("REST") ||
-      contextStr.includes("billing") ||
-      contextStr.includes("superseded");
-    expect(mentionsRelevantChange).toBe(true);
 
     // 04-03: Response must include urgent_updates and context_updates arrays
-    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>> | undefined;
-    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>> | undefined;
+    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>>;
+    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>>;
     expect(Array.isArray(urgentUpdates)).toBe(true);
     expect(Array.isArray(contextUpdates)).toBe(true);
 
-    // The superseded decision should appear in one of the update arrays
-    const allUpdates = [...(urgentUpdates ?? []), ...(contextUpdates ?? [])];
-    const hasRelevantUpdate = allUpdates.some(
-      (u) =>
-        typeof u.change_description === "string" &&
-        (u.change_description.includes("REST") ||
-          u.change_description.includes("tRPC") ||
-          u.change_description.includes("billing") ||
-          u.change_description.includes("superseded")),
-    );
-    expect(hasRelevantUpdate).toBe(true);
+    // Must return exactly 2 updates: the superseded decision + the in_progress task
+    const allUpdates = [...urgentUpdates, ...contextUpdates];
+    expect(allUpdates.length).toBe(2);
+
+    const entityTypes = allUpdates.map((u) => u.entity_type).sort();
+    expect(entityTypes).toEqual(["decision", "task"]);
+
+    // The decision update must reference a billing API decision
+    const decisionUpdate = allUpdates.find((u) => u.entity_type === "decision")!;
+    expect(typeof decisionUpdate.change_description).toBe("string");
+    expect((decisionUpdate.change_description as string).toLowerCase()).toContain("billing");
 
     // Each update item must have the required shape
     for (const update of allUpdates) {
@@ -140,9 +136,11 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    const taskEmbedding = await generateEmbedding("Update API documentation for authentication endpoints");
+    // Use the same text for embedding and intent to guarantee high similarity
+    const sharedText = "Update API documentation for authentication endpoints";
+    const taskEmbedding = await generateEmbedding(sharedText);
     const { taskId } = await createTask(surreal, workspaceId, {
-      title: "Update API documentation",
+      title: "Update API documentation for authentication endpoints",
       status: "in_progress",
       embedding: taskEmbedding,
     });
@@ -155,39 +153,30 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
     // When Marcus marks the task as blocked
     await blockTask(surreal, taskId);
 
-    // Then the MCP context endpoint includes the blocked task as an urgent update
+    // Then the MCP context endpoint includes the blocked task as an update
     const contextResponse = await user.mcpFetch(`/api/mcp/${workspaceId}/context`, {
       body: {
-        intent: "working on API documentation updates",
+        intent: "update API documentation for authentication endpoints",
       },
     });
 
     expect(contextResponse.ok).toBe(true);
     const contextData = (await contextResponse.json()) as Record<string, unknown>;
-    const contextStr = JSON.stringify(contextData);
-
-    // Context should reference the blocked task
-    const mentionsBlockedTask =
-      contextStr.includes("blocked") ||
-      contextStr.includes("documentation") ||
-      contextStr.includes("API");
-    expect(mentionsBlockedTask).toBe(true);
 
     // 04-03: Response must include urgent_updates and context_updates arrays
-    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>> | undefined;
-    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>> | undefined;
+    const urgentUpdates = contextData.urgent_updates as Array<Record<string, unknown>>;
+    const contextUpdates = contextData.context_updates as Array<Record<string, unknown>>;
     expect(Array.isArray(urgentUpdates)).toBe(true);
     expect(Array.isArray(contextUpdates)).toBe(true);
 
-    // If updates are found, they must have the correct shape
-    const allUpdates = [...(urgentUpdates ?? []), ...(contextUpdates ?? [])];
-    for (const update of allUpdates) {
-      expect(typeof update.entity_id).toBe("string");
-      expect(typeof update.entity_type).toBe("string");
-      expect(typeof update.change_description).toBe("string");
-      expect(typeof update.similarity).toBe("number");
-      expect(update.level === "urgent" || update.level === "update").toBe(true);
-    }
+    // Blocked task must appear as exactly 1 update (only entity in the workspace)
+    const allUpdates = [...urgentUpdates, ...contextUpdates];
+    expect(allUpdates.length).toBe(1);
+    expect(allUpdates[0].entity_type).toBe("task");
+    expect(typeof allUpdates[0].entity_id).toBe("string");
+    expect(typeof allUpdates[0].change_description).toBe("string");
+    expect(typeof allUpdates[0].similarity).toBe("number");
+    expect(allUpdates[0].level === "urgent" || allUpdates[0].level === "update").toBe(true);
   }, 60_000);
 
   // ---------------------------------------------------------------------------
@@ -270,20 +259,21 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       taskId,
     });
 
-    // Seed a superseded decision related to billing API migration
-    const restEmbedding = await generateEmbedding("Use REST for billing API endpoints -- superseded by tRPC");
-    await createDecision(surreal, workspaceId, {
-      summary: "Use REST for all API endpoints -- SUPERSEDED by tRPC standardization",
-      status: "superseded",
+    // Seed a decision, then supersede it with a new one (creates edge)
+    const restEmbedding = await generateEmbedding("Use REST for all billing API endpoints");
+    const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
+      summary: "Use REST for all API endpoints",
+      status: "confirmed",
       embedding: restEmbedding,
     });
 
     const trpcEmbedding = await generateEmbedding("Standardize on tRPC framework for billing");
-    await createDecision(surreal, workspaceId, {
+    const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
       summary: "Standardize on tRPC framework",
       status: "confirmed",
       embedding: trpcEmbedding,
     });
+    await supersedeDecision(surreal, oldDecId, newDecId);
 
     // Create conflict observation
     const conflictEmbedding = await generateEmbedding(
@@ -311,7 +301,7 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
 
     // The consolidated context should reference both the superseded decision and the conflict
     const mentionsBothIssues =
-      (contextStr.includes("tRPC") || contextStr.includes("superseded")) &&
+      (contextStr.includes("tRPC") || contextStr.includes("REST") || contextStr.includes("superseded")) &&
       (contextStr.includes("conflict") || contextStr.includes("contradicts"));
     // Soft assertion: at minimum, relevant context about the task should be present
     expect(contextStr.includes("billing") || contextStr.includes("API")).toBe(true);
@@ -399,19 +389,20 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
     });
 
     // When a decision is superseded while the agent is working
-    const decEmbedding = await generateEmbedding("Use REST for all services -- superseded");
-    await createDecision(surreal, workspaceId, {
-      summary: "Use REST for all services -- SUPERSEDED by GraphQL",
-      status: "superseded",
+    const decEmbedding = await generateEmbedding("Use REST for all services");
+    const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
+      summary: "Use REST for all services",
+      status: "confirmed",
       embedding: decEmbedding,
     });
 
     const newDecEmbedding = await generateEmbedding("Switch to GraphQL for all services");
-    await createDecision(surreal, workspaceId, {
+    const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
       summary: "Switch to GraphQL for all services",
       status: "confirmed",
       embedding: newDecEmbedding,
     });
+    await supersedeDecision(surreal, oldDecId, newDecId);
 
     // Then the agent's session is still active (not cancelled or interrupted)
     // The interrupt will be delivered on the NEXT context request, not retroactively
