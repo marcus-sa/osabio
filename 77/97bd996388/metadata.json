@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7797bd996388",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/agents/pm/agent.ts",
+    "app/src/server/agents/pm/prompt.ts",
+    "app/src/server/agents/pm/tools.ts",
+    "app/src/server/chat/tools/create-work-item.ts",
+    "app/src/server/chat/tools/edit-work-item.ts",
+    "app/src/server/entities/work-item-accept-route.ts",
+    "tests/acceptance/graph/create-work-item-edge.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/77/97bd996388/0/metadata.json",
+      "transcript": "/77/97bd996388/0/full.jsonl",
+      "context": "/77/97bd996388/0/context.md",
+      "content_hash": "/77/97bd996388/0/content_hash.txt",
+      "prompt": "/77/97bd996388/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
