@@ -51,6 +51,16 @@
       "sourceType": "github",
       "computedHash": "9d935c024e0768c8b805852fbf9419c2e8c56be2b9e62e89d43a390008bd1229"
     },
+    "otel-instrumentation": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "computedHash": "e9818842664ee3323a389abc02e81abd0fa2ade89a01e92acdbed61fbd589941"
+    },
+    "otel-semantic-conventions": {
+      "source": "dash0hq/agent-skills",
+      "sourceType": "github",
+      "computedHash": "5c320411e0cbe3f3216277abda315b40cfd243a42a5d6e18e9aafd0d31c6d8e4"
+    },
     "page-cro": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
