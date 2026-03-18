@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { RecordId } from "surrealdb";
+import { trace } from "@opentelemetry/api";
 import type { OnboardingAction, SubagentTrace } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs } from "../http/observability";
 import { jsonError } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import type { ConversationRow, WorkspaceRow } from "../extraction/types";
@@ -37,7 +37,7 @@ export function createChatRouteHandler(deps: ServerDependencies) {
 }
 
 async function handleChatRequest(deps: ServerDependencies, request: Request): Promise<Response> {
-  const startedAt = performance.now();
+  const span = trace.getActiveSpan();
 
   let body: ChatRequestBody;
   try {
@@ -69,6 +69,15 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
   const conversationId = body.conversationId ?? randomUUID();
   const messageId = randomUUID();
   const userMessageRecord = new RecordId("message", randomUUID());
+
+  // Wide event: enrich HTTP span with business context
+  span?.setAttribute("conversation.id", conversationId);
+  span?.setAttribute("message.id", messageId);
+  span?.setAttribute("workspace.id", body.workspaceId);
+  span?.setAttribute("chat.text_length", userText.length);
+  span?.setAttribute("chat.message_count", body.messages.length);
+  if (body.onboardingAction) span?.setAttribute("chat.onboarding_action", body.onboardingAction);
+  if (body.discussEntityId) span?.setAttribute("chat.discusses_entity", body.discussEntityId);
 
   let workspaceRecord: RecordId<"workspace", string>;
 
@@ -231,12 +240,10 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       stopWhen: stepCountIs(5),
     });
 
-    log.info("chat.route.streaming", "Streaming chat response", {
-      conversationId,
-      messageId,
-      workspaceId: body.workspaceId,
-      durationMs: elapsedMs(startedAt),
-    });
+    span?.setAttribute("chat.is_onboarding", onboardingAfter !== "complete");
+    span?.setAttribute("chat.onboarding_state", onboardingAfter);
+    span?.setAttribute("chat.is_branch", branchChain.length > 0);
+    span?.setAttribute("chat.learning_count", learningsResult.learnings.length);
 
     return result.toUIMessageStreamResponse({
       sendReasoning: true,
@@ -299,12 +306,8 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
           entities: [],
         }).catch(() => undefined));
 
-        log.info("chat.route.completed", "Chat response completed", {
-          conversationId,
-          messageId,
-          workspaceId: body.workspaceId,
-          durationMs: elapsedMs(startedAt),
-        });
+        span?.setAttribute("chat.assistant_text_length", assistantText.length);
+        span?.setAttribute("chat.subagent_trace_count", subagentTraces.length);
       },
       messageMetadata: ({ part }) => {
         if (part.type === "finish") {
@@ -315,16 +318,11 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
     });
   } catch (error) {
     if (error instanceof HttpError) {
-      log.warn("chat.route.http_error", "Chat route failed with client-facing error", {
-        statusCode: error.status,
-      });
-      return jsonError(error.message, error.status);
+      throw error; // withTracing handles HttpError → proper status code + span attributes
     }
-
     log.error("chat.route.failed", "Chat route failed", error, {
       conversationId,
       messageId,
-      durationMs: elapsedMs(startedAt),
     });
     return jsonError("chat processing failed", 500);
   }

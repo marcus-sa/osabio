@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
+import { trace } from "@opentelemetry/api";
 import type { ChatMessageResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs } from "../http/observability";
 import { parseIncomingMessageRequest } from "../http/parsing";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
@@ -24,8 +24,7 @@ export function createChatIngressHandlers(deps: ServerDependencies): {
 }
 
 async function handlePostChatMessage(deps: ServerDependencies, request: Request): Promise<Response> {
-  const startedAt = performance.now();
-  log.info("chat.message.ingress.started", "Chat message ingress started");
+  const span = trace.getActiveSpan();
 
   let parsed: Awaited<ReturnType<typeof parseIncomingMessageRequest>>;
   try {
@@ -48,20 +47,17 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
   const messageText = userText.length > 0 ? userText : `Uploaded document: ${parsed.data.attachment?.fileName ?? "attachment"}`;
   const userMessageRecord = new RecordId("message", randomUUID());
 
-  log.debug("http.request.validated", "Chat message request validated", {
-    workspaceId,
-    conversationId,
-    hasAttachment: parsed.data.attachment !== undefined,
-  });
+  // Wide event: enrich the HTTP span with business context
+  span?.setAttribute("conversation.id", conversationId);
+  span?.setAttribute("message.id", messageId);
+  span?.setAttribute("workspace.id", workspaceId);
+  span?.setAttribute("chat.has_attachment", parsed.data.attachment !== undefined);
+  span?.setAttribute("chat.text_length", userText.length);
+  if (onboardingAction) span?.setAttribute("chat.onboarding_action", onboardingAction);
 
   let workspaceRecord: RecordId<"workspace", string>;
 
   try {
-    log.info("chat.message.persist.started", "Persisting user chat message", {
-      workspaceId,
-      conversationId,
-      messageId,
-    });
 
     workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
     const workspace = await deps.surreal.select<WorkspaceRow>(workspaceRecord);
@@ -125,23 +121,12 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
       throw error;
     }
 
-    log.info("chat.message.persist.completed", "User chat message persisted", {
-      workspaceId,
-      conversationId,
-      messageId,
-      userMessageId: userMessageRecord.id as string,
-    });
+    span?.setAttribute("chat.user_message_id", userMessageRecord.id as string);
+    span?.setAttribute("chat.is_new_conversation", !existingConversation);
   } catch (error) {
     if (error instanceof HttpError) {
-      log.warn("chat.message.persist.http_error", "Chat message persistence failed with client-facing error", {
-        workspaceId,
-        conversationId,
-        messageId,
-        statusCode: error.status,
-      });
-      return jsonError(error.message, error.status);
+      throw error;
     }
-
     log.error("chat.message.persist.failed", "Persisting user chat message failed", error, {
       workspaceId,
       conversationId,
@@ -169,11 +154,7 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     return jsonError("identity not found for user", 500);
   }
 
-  log.info("chat.message.process.started", "Async chat processing started", {
-    workspaceId,
-    conversationId,
-    messageId,
-  });
+  span?.setAttribute("chat.user_id", session.user.id);
 
   deps.inflight.track(processChatMessage({
     deps,
@@ -194,13 +175,6 @@ async function handlePostChatMessage(deps: ServerDependencies, request: Request)
     workspaceId,
     streamUrl: `/api/chat/stream/${messageId}`,
   };
-
-  log.info("chat.message.ingress.completed", "Chat message ingress completed", {
-    workspaceId,
-    conversationId,
-    messageId,
-    durationMs: elapsedMs(startedAt),
-  });
 
   return jsonResponse(response, 200);
 }

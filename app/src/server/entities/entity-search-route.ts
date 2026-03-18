@@ -1,7 +1,7 @@
 import { RecordId } from "surrealdb";
+import { trace } from "@opentelemetry/api";
 import type { EntityKind, SearchEntityResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { elapsedMs } from "../http/observability";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceProjectRecord, resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -88,7 +88,7 @@ export function createEntitySearchHandler(deps: ServerDependencies): (url: URL) 
 }
 
 async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<Response> {
-  const startedAt = performance.now();
+  const span = trace.getActiveSpan();
   const workspaceId = url.searchParams.get("workspaceId")?.trim();
   if (!workspaceId) {
     return jsonError("workspaceId is required", 400);
@@ -108,17 +108,12 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
   }
 
   const limit = Math.min(Math.floor(parsedLimit), 100);
-  log.debug("http.request.validated", "Entity search request validated", {
-    workspaceId,
-    projectId,
-    limit,
-    queryLength: query.length,
-  });
-  log.info("entity.search.started", "Entity search started", {
-    workspaceId,
-    projectId,
-    limit,
-  });
+
+  // Wide event: enrich span with search context
+  span?.setAttribute("workspace.id", workspaceId);
+  span?.setAttribute("search.query_length", query.length);
+  span?.setAttribute("search.limit", limit);
+  if (projectId) span?.setAttribute("search.project_id", projectId);
 
   let workspaceRecord: RecordId<"workspace", string>;
   let projectRecord: RecordId<"project", string> | undefined;
@@ -130,14 +125,8 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     }
   } catch (error) {
     if (error instanceof HttpError) {
-      log.warn("entity.search.http_error", "Entity search failed with client-facing error", {
-        workspaceId,
-        projectId,
-        statusCode: error.status,
-      });
-      return jsonError(error.message, error.status);
+      throw error; // withTracing handles HttpError → proper status code + span attributes
     }
-
     log.error("entity.search.scope_validation.failed", "Entity search scope validation failed", error, {
       workspaceId,
       projectId,
@@ -174,13 +163,8 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     sourceKind: "message",
   } satisfies SearchEntityResponse));
 
-  log.info("entity.search.completed", "Entity search completed", {
-    workspaceId,
-    projectId,
-    limit,
-    resultCount: responseRows.length,
-    durationMs: elapsedMs(startedAt),
-  });
+  span?.setAttribute("search.result_count", responseRows.length);
+  span?.setAttribute("search.scope", projectRecord ? "project" : "workspace");
 
   return jsonResponse(responseRows, 200);
 }
