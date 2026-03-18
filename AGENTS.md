@@ -314,6 +314,13 @@ When the PM agent suggests work items, the chat agent renders them as `WorkItemS
   - polymorphic parse/validation (`table:id -> RecordId`)
   - rejection of prefixed input in fixed-table fields.
 
+## SurrealDB Query Batching
+
+- Do NOT issue multiple sequential `surreal.query()` calls when the queries share the same bound parameters. Combine them into a single `.query()` call with multiple statements separated by semicolons — this executes in one round-trip.
+- The SDK returns a typed tuple matching the statement order: `surreal.query<[ResultA[], ResultB[], ResultC[]]>("SELECT ...; SELECT ...; SELECT ...;", vars)`.
+- For `LET` + `SELECT` pairs (e.g. two-step KNN pattern), `LET` occupies result indices too: a query with `LET $a = ...; SELECT FROM $a; LET $b = ...; SELECT FROM $b;` returns results at indices `[0, 1, 2, 3]` where the `SELECT` results are at odd indices `[1, 3]`.
+- The old comment "sequential queries to avoid SurrealDB SDK WebSocket concurrency issues" was a misunderstanding — multiple statements in a single `.query()` call do not trigger WebSocket concurrency issues; those only apply to multiple parallel `.query()` calls on the same connection.
+
 ## SurrealDB KNN + WHERE Bug (v3.0)
 
 - SurrealDB v3.0 query planner silently returns empty results when a WHERE clause combines a KNN operator (`<|K, COSINE|>`, which uses the HNSW index) with a condition covered by a regular B-tree index (e.g. `workspace = $ws` when a `workspace` index exists).
