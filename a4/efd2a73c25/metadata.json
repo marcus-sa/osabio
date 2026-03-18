@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a4efd2a73c25",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".agents/skills/otel-instrumentation/README.md",
+    ".agents/skills/otel-instrumentation/SKILL.md",
+    ".agents/skills/otel-instrumentation/rules/_sections.md",
+    ".agents/skills/otel-instrumentation/rules/_template.md",
+    ".agents/skills/otel-instrumentation/rules/logs.md",
+    ".agents/skills/otel-instrumentation/rules/metrics.md",
+    ".agents/skills/otel-instrumentation/rules/platforms/k8s.md",
+    ".agents/skills/otel-instrumentation/rules/resolve-values.md",
+    ".agents/skills/otel-instrumentation/rules/resources.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/browser.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/dotnet.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/go.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/java.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/nextjs.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/nodejs.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/php.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/python.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/ruby.md",
+    ".agents/skills/otel-instrumentation/rules/sdks/scala.md",
+    ".agents/skills/otel-instrumentation/rules/spans.md",
+    ".agents/skills/otel-instrumentation/rules/telemetry.md",
+    ".agents/skills/otel-semantic-conventions/SKILL.md",
+    ".agents/skills/otel-semantic-conventions/rules/_sections.md",
+    ".agents/skills/otel-semantic-conventions/rules/_template.md",
+    ".agents/skills/otel-semantic-conventions/rules/attributes.md",
+    ".agents/skills/otel-semantic-conventions/rules/dash0.md",
+    ".agents/skills/otel-semantic-conventions/rules/versioning.md",
+    ".claude/skills/otel-instrumentation",
+    ".claude/skills/otel-semantic-conventions",
+    ".nwave/des-config.json",
+    "skills-lock.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a4/efd2a73c25/0/metadata.json",
+      "transcript": "/a4/efd2a73c25/0/full.jsonl",
+      "context": "/a4/efd2a73c25/0/context.md",
+      "content_hash": "/a4/efd2a73c25/0/content_hash.txt",
+      "prompt": "/a4/efd2a73c25/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
