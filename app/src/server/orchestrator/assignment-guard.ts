@@ -63,7 +63,7 @@ function taskNotAssignable(taskId: string, status: string): AssignmentResult {
     ok: false,
     error: {
       code: "TASK_NOT_ASSIGNABLE",
-      message: `Task ${taskId} has status '${status}' and cannot be assigned (must be ready or todo)`,
+      message: `Task ${taskId} has status '${status}' and cannot be assigned (must be open, ready, or todo)`,
       httpStatus: 409,
     },
   };

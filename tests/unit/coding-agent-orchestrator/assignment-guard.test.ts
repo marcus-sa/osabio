@@ -82,8 +82,8 @@ function activeSession(): ActiveSessionRow[] {
 // ---------------------------------------------------------------------------
 
 describe("Assignment Guard: status classification", () => {
-  test("assignable statuses include only ready and todo", () => {
-    expect(ASSIGNABLE_TASK_STATUSES).toEqual(["ready", "todo"]);
+  test("assignable statuses include open, ready, and todo", () => {
+    expect(ASSIGNABLE_TASK_STATUSES).toEqual(["open", "ready", "todo"]);
   });
 
   test("active orchestrator statuses include spawning, active, idle", () => {
@@ -108,6 +108,25 @@ describe("Assignment Guard: status classification", () => {
 // ---------------------------------------------------------------------------
 
 describe("Assignment Guard: task eligibility", () => {
+  test("accepts a task with status 'open'", async () => {
+    const surreal = createSurrealStub({
+      taskQuery: taskRow({ status: "open" }),
+      sessionQuery: [],
+      workspaceQuery: workspaceRow({ repoPath: "/some/repo" }),
+    });
+
+    const result = await validateAssignment(
+      surreal as any,
+      "ws-1",
+      "task-123",
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.validation.taskStatus).toBe("open");
+    }
+  });
+
   test("accepts a task with status 'ready'", async () => {
     const surreal = createSurrealStub({
       taskQuery: taskRow({ status: "ready" }),

@@ -10,6 +10,16 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("AgentStatusSection (acceptance)", () => {
+  it("shows assign button for task with open status and no session", () => {
+    const view = deriveAgentStatusView({
+      entityKind: "task",
+      entityStatus: "open",
+      agentSession: undefined,
+    });
+
+    expect(view.variant).toBe("assign");
+  });
+
   it("shows assign button for task with ready status and no session", () => {
     const view = deriveAgentStatusView({
       entityKind: "task",

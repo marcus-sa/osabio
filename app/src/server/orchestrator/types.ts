@@ -4,7 +4,7 @@ import type { RecordId } from "surrealdb";
 // Task status classification
 // ---------------------------------------------------------------------------
 
-export const ASSIGNABLE_TASK_STATUSES = ["ready", "todo"] as const;
+export const ASSIGNABLE_TASK_STATUSES = ["open", "ready", "todo"] as const;
 export type AssignableTaskStatus = (typeof ASSIGNABLE_TASK_STATUSES)[number];
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ import { Badge } from "../ui/badge";
 // Pure core: view derivation
 // ---------------------------------------------------------------------------
 
-const ASSIGNABLE_STATUSES = new Set(["ready", "todo"]);
+const ASSIGNABLE_STATUSES = new Set(["open", "ready", "todo"]);
 
 export type AgentStatusViewHidden = { variant: "hidden" };
 export type AgentStatusViewAssign = { variant: "assign" };

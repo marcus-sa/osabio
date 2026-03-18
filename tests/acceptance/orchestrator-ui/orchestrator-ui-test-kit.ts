@@ -101,7 +101,7 @@ export async function openTaskPopup(
 
 /**
  * Checks whether the task popup would show an assign button.
- * Business rule: assign button visible when task status is "ready" or "todo"
+ * Business rule: assign button visible when task status is "open", "ready", or "todo"
  * and no active agent session exists.
  */
 export function isAssignButtonVisible(
@@ -111,7 +111,7 @@ export function isAssignButtonVisible(
   const hasActiveSession = detail.agentSession !== undefined;
   return (
     detail.entity.kind === "task" &&
-    (status === "ready" || status === "todo") &&
+    (status === "open" || status === "ready" || status === "todo") &&
     !hasActiveSession
   );
 }
