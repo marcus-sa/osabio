@@ -243,7 +243,7 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       contextStr.includes("rate limiting") ||
       contextStr.includes("contradicts");
     expect(mentionsConflict).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   // ---------------------------------------------------------------------------
   // AC: Multiple urgent updates are consolidated

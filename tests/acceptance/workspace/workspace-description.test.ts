@@ -198,9 +198,9 @@ describe("workspace description in onboarding", () => {
         workspaceId: create.workspaceId,
         conversationId: create.conversationId,
         text: [
-          "DASHBOARD",
+          "Project: Dashboard",
           "",
-          "Your business at a glance.",
+          "A complete admin dashboard for managing your cannabis delivery business.",
           "",
           "The moment you log in, you see exactly where your business stands. Product counts, active delivery zones, today's orders, and revenue — all on a single screen. Low stock alerts surface problems before they cost you sales.",
           "",

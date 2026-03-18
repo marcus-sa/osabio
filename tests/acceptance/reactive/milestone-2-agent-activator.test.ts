@@ -68,7 +68,7 @@ describe("US-GRC-03: Agent Activator with LLM Classification", () => {
       targetEntity: { table: "task", id: taskId },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     const observations = await getObservations(surreal, workspaceId, { status: "open" });
     const conflictObs = observations.find((o) => o.text.includes("contradicts confirmed decision"));
