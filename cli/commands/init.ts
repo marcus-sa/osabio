@@ -60,6 +60,12 @@ export async function runInit(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_SCOPES = "graph:read graph:reason decision:write task:write observation:write question:write session:write offline_access";
+const DEFAULT_AUTH_CALLBACK_TIMEOUT_MS = 300_000;
+
+type SetupAuthOptions = {
+  openUrl?: (url: string) => void | Promise<void>;
+  callbackTimeoutMs?: number;
+};
 
 function base64url(buf: Buffer): string {
   return buf.toString("base64url");
@@ -75,8 +81,9 @@ export async function setupAuth(
   serverUrl: string,
   workspaceId: string,
   gitRoot: string,
-  options?: { openUrl?: (url: string) => void },
+  options?: SetupAuthOptions,
 ): Promise<void> {
+  const oauthResource = `${serverUrl}/api/auth`;
   const global = await loadGlobalConfig();
   const existing = global?.repos[gitRoot];
   if (existing && existing.workspace === workspaceId && existing.access_token) {
@@ -92,28 +99,11 @@ export async function setupAuth(
     process.exit(1);
   }
 
-  // 2. Dynamic Client Registration
-  const dcrRes = await fetch(`${serverUrl}/api/auth/oauth2/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_name: `brain-cli-${workspaceId.slice(0, 8)}`,
-      redirect_uris: ["http://127.0.0.1/callback"],
-      grant_types: ["authorization_code", "refresh_token"],
-      response_types: ["code"],
-      token_endpoint_auth_method: "none",
-    }),
-  });
-  if (!dcrRes.ok) {
-    throw new Error(`Client registration failed: ${dcrRes.status} ${await dcrRes.text()}`);
-  }
-  const { client_id } = await dcrRes.json() as { client_id: string };
-
-  // 3. PKCE
+  // 2. PKCE
   const pkce = generatePkce();
   const state = base64url(randomBytes(16));
 
-  // 4. Start local callback server
+  // 3. Start local callback server
   const { promise: codePromise, resolve: resolveCode, reject: rejectCode } = Promise.withResolvers<string>();
 
   const callbackServer = Bun.serve({
@@ -155,8 +145,8 @@ export async function setupAuth(
 
   const redirectUri = `http://127.0.0.1:${callbackServer.port}/callback`;
 
-  // Update redirect_uris with actual port (re-register)
-  const dcrUpdateRes = await fetch(`${serverUrl}/api/auth/oauth2/register`, {
+  // 4. Dynamic Client Registration
+  const dcrRes = await fetch(`${serverUrl}/api/auth/oauth2/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -167,12 +157,12 @@ export async function setupAuth(
       token_endpoint_auth_method: "none",
     }),
   });
-  if (!dcrUpdateRes.ok) {
+  if (!dcrRes.ok) {
     callbackServer.stop();
-    throw new Error(`Client re-registration failed: ${dcrUpdateRes.status} ${await dcrUpdateRes.text()}`);
+    throw new Error(`Client registration failed: ${dcrRes.status} ${await dcrRes.text()}`);
   }
-  const dcrUpdate = await dcrUpdateRes.json() as { client_id: string };
-  const actualClientId = dcrUpdate.client_id;
+  const dcr = await dcrRes.json() as { client_id: string };
+  const actualClientId = dcr.client_id;
 
   // 5. Open browser
   const authUrl = new URL(`${serverUrl}/api/auth/oauth2/authorize`);
@@ -184,7 +174,7 @@ export async function setupAuth(
   authUrl.searchParams.set("code_challenge_method", "S256");
   authUrl.searchParams.set("state", state);
   // Pass resource so better-auth issues a JWT access token (not opaque)
-  authUrl.searchParams.set("resource", `${serverUrl}/api/auth`);
+  authUrl.searchParams.set("resource", oauthResource);
 
   console.log("Opening browser for authentication...");
   console.log(`If the browser doesn't open, visit: ${authUrl.toString()}\n`);
@@ -193,15 +183,31 @@ export async function setupAuth(
     const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
     Bun.spawn([openCmd, url], { stdout: "ignore", stderr: "ignore" });
   });
-  openUrl(authUrl.toString());
+  await openUrl(authUrl.toString());
 
   // 6. Wait for callback
   let code: string;
+  let callbackTimeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const callbackTimeoutMs = options?.callbackTimeoutMs ?? DEFAULT_AUTH_CALLBACK_TIMEOUT_MS;
+  const callbackOrTimeout = new Promise<string>((resolve, reject) => {
+    callbackTimeoutHandle = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out waiting for OAuth callback on ${redirectUri}. Complete browser auth, then retry brain init.`,
+        ),
+      );
+    }, callbackTimeoutMs);
+
+    codePromise.then(resolve).catch(reject);
+  });
+
   try {
-    code = await codePromise;
+    code = await callbackOrTimeout;
   } catch (error) {
     callbackServer.stop();
     throw error;
+  } finally {
+    if (callbackTimeoutHandle) clearTimeout(callbackTimeoutHandle);
   }
 
   // 7. Exchange code for tokens
@@ -214,7 +220,7 @@ export async function setupAuth(
       redirect_uri: redirectUri,
       client_id: actualClientId,
       code_verifier: pkce.verifier,
-      resource: serverUrl,
+      resource: oauthResource,
     }),
   });
 
@@ -537,4 +543,3 @@ export async function setupCommands(gitRoot: string): Promise<void> {
 
   console.log(`✓ Commands: ${count} slash commands installed to .claude/commands/`);
 }
-

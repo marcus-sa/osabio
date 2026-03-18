@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
 import {
+  setupAuth,
   setupMcpJson,
   setupClaudeHooks,
   setupClaudeMd,
@@ -12,6 +13,7 @@ import {
   MARKER_START,
   MARKER_END,
 } from "../../cli/commands/init";
+import { loadGlobalConfig } from "../../cli/config";
 import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS } from "../../cli/commands/init-content";
 
 let gitRoot: string;
@@ -262,5 +264,184 @@ describe("installGitHooks", () => {
     expect(existsSync(hookPath)).toBe(true);
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain("my-custom-post-commit");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setupAuth
+// ---------------------------------------------------------------------------
+
+describe("setupAuth", () => {
+  let configDir: string;
+  const originalConfigDir = process.env.BRAIN_CONFIG_DIR;
+  let originalFetch: typeof fetch;
+  let originalServe: typeof Bun.serve;
+  let callbackHandler: ((request: Request) => Response) | undefined;
+  let callbackServerStopped = false;
+  let registerBodies: Array<{ redirect_uris?: string[] }> = [];
+  let tokenRequestResource: string | undefined;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalServe = Bun.serve;
+    callbackHandler = undefined;
+    callbackServerStopped = false;
+    registerBodies = [];
+    tokenRequestResource = undefined;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    Bun.serve = originalServe;
+
+    if (originalConfigDir) {
+      process.env.BRAIN_CONFIG_DIR = originalConfigDir;
+    } else {
+      delete process.env.BRAIN_CONFIG_DIR;
+    }
+
+    if (configDir) rmSync(configDir, { recursive: true, force: true });
+  });
+
+  it("registers OAuth client once using the real loopback callback URI", async () => {
+    configDir = mkdtempSync(join(tmpdir(), "brain-init-config-"));
+    process.env.BRAIN_CONFIG_DIR = configDir;
+
+    const workspaceId = crypto.randomUUID();
+    const baseUrl = "http://brain.local";
+
+    globalThis.fetch = (async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const url = new URL(request.url);
+
+      if (url.pathname === `/api/mcp/${workspaceId}/projects`) {
+        return Response.json({
+          workspace: { id: workspaceId, name: "Test Workspace" },
+          projects: [{ id: crypto.randomUUID(), name: "Test Project" }],
+        });
+      }
+
+      if (url.pathname === "/api/auth/oauth2/register" && request.method === "POST") {
+        const body = await request.json() as { redirect_uris?: string[] };
+        registerBodies.push(body);
+        return Response.json({ client_id: "test-client-id" });
+      }
+
+      if (url.pathname === "/api/auth/oauth2/token" && request.method === "POST") {
+        const form = new URLSearchParams(await request.text());
+        if (form.get("code") !== "test-code") {
+          return new Response("invalid code", { status: 400 });
+        }
+        tokenRequestResource = form.get("resource") ?? undefined;
+
+        return Response.json({
+          access_token: "test-access-token",
+          refresh_token: "test-refresh-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+        });
+      }
+
+      if (url.pathname === `/api/auth/identity/${workspaceId}`) {
+        return Response.json({ identity_id: "identity:test-owner" });
+      }
+
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    Bun.serve = ((options: Parameters<typeof Bun.serve>[0]) => {
+      const routes = (options as { routes?: Record<string, (request: Request) => Response> }).routes;
+      callbackHandler = routes?.["/callback"];
+      return {
+        port: 61009,
+        stop: () => {
+          callbackServerStopped = true;
+        },
+      } as ReturnType<typeof Bun.serve>;
+    }) as typeof Bun.serve;
+
+    await setupAuth(baseUrl, workspaceId, gitRoot, {
+      openUrl: (url) => {
+        if (!callbackHandler) throw new Error("callback handler not registered");
+
+        const authUrl = new URL(url);
+        const redirectUri = authUrl.searchParams.get("redirect_uri");
+        const state = authUrl.searchParams.get("state");
+        if (!redirectUri || !state) throw new Error("missing redirect uri or state");
+
+        const callbackUrl = new URL(redirectUri);
+        callbackUrl.searchParams.set("code", "test-code");
+        callbackUrl.searchParams.set("state", state);
+
+        callbackHandler(new Request(callbackUrl.toString()));
+      },
+    });
+
+    expect(registerBodies).toHaveLength(1);
+    expect(registerBodies[0]?.redirect_uris).toHaveLength(1);
+    expect(registerBodies[0]?.redirect_uris?.[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/callback$/);
+    expect(registerBodies[0]?.redirect_uris?.[0]).not.toBe("http://127.0.0.1/callback");
+    expect(tokenRequestResource).toBe(`${baseUrl}/api/auth`);
+    expect(callbackServerStopped).toBe(true);
+
+    const globalConfig = await loadGlobalConfig();
+    expect(globalConfig?.repos[gitRoot]).toBeDefined();
+    expect(globalConfig?.repos[gitRoot]?.client_id).toBe("test-client-id");
+    expect(globalConfig?.repos[gitRoot]?.access_token).toBe("test-access-token");
+  });
+
+  it("fails fast when callback is never received", async () => {
+    configDir = mkdtempSync(join(tmpdir(), "brain-init-config-"));
+    process.env.BRAIN_CONFIG_DIR = configDir;
+
+    const workspaceId = crypto.randomUUID();
+    const baseUrl = "http://brain.local";
+
+    globalThis.fetch = (async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const url = new URL(request.url);
+
+      if (url.pathname === `/api/mcp/${workspaceId}/projects`) {
+        return Response.json({
+          workspace: { id: workspaceId, name: "Test Workspace" },
+          projects: [{ id: crypto.randomUUID(), name: "Test Project" }],
+        });
+      }
+
+      if (url.pathname === "/api/auth/oauth2/register" && request.method === "POST") {
+        return Response.json({ client_id: "test-client-id" });
+      }
+
+      return new Response("not found", { status: 404 });
+    }) as typeof fetch;
+
+    Bun.serve = ((options: Parameters<typeof Bun.serve>[0]) => {
+      const routes = (options as { routes?: Record<string, (request: Request) => Response> }).routes;
+      callbackHandler = routes?.["/callback"];
+      return {
+        port: 61010,
+        stop: () => {
+          callbackServerStopped = true;
+        },
+      } as ReturnType<typeof Bun.serve>;
+    }) as typeof Bun.serve;
+
+    const outcome = await Promise.race([
+      setupAuth(baseUrl, workspaceId, gitRoot, {
+        openUrl: () => {
+          // No callback dispatch: simulates browser/auth flow never returning.
+        },
+        callbackTimeoutMs: 50,
+      }).then(() => "resolved").catch((error) => error),
+      new Promise((resolve) => setTimeout(() => resolve("hung"), 500)),
+    ]);
+
+    expect(callbackHandler).toBeDefined();
+    expect(outcome).not.toBe("hung");
+    expect(outcome).toBeInstanceOf(Error);
+    expect(callbackServerStopped).toBe(true);
+    if (outcome instanceof Error) {
+      expect(outcome.message).toContain("Timed out waiting for OAuth callback");
+    }
   });
 });

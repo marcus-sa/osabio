@@ -206,6 +206,7 @@ export class BrainHttpClient {
 
   private async refreshBearerTokenIfNeeded(): Promise<void> {
     if (Date.now() < (this.tokenExpiresAt - 60) * 1000) return;
+    const oauthResource = `${this.baseUrl}/api/auth`;
 
     const res = await fetch(`${this.baseUrl}/api/auth/oauth2/token`, {
       method: "POST",
@@ -214,7 +215,7 @@ export class BrainHttpClient {
         grant_type: "refresh_token",
         refresh_token: this.refreshToken,
         client_id: this.clientId,
-        resource: this.baseUrl,
+        resource: oauthResource,
       }),
     });
 
