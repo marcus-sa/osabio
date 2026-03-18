@@ -13,6 +13,7 @@ export type IntentContextInput = {
   intent: string;
   cwd?: string;
   paths?: string[];
+  session_id?: string;
 };
 
 export type LearningContext = {

@@ -57,6 +57,7 @@ import { z } from "zod";
 import { createIntent, createTrace, updateIntentStatus, getIntentById } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 import { log } from "../telemetry/logger";
+import { createSearchRecentChanges, classifyBySimilarity, type ClassifiedChange } from "../proxy/context-injector";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -275,8 +276,74 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         cwd: body.cwd,
         paths: body.paths,
       });
-      log.info("mcp.intent-context.resolved", "Intent context resolved", { workspaceId, level: result.level });
-      return jsonResponse(result, 200);
+
+      // 04-03: Search recent graph changes and classify by similarity
+      let urgentUpdates: Array<{ entity_id: string; entity_type: string; change_description: string; similarity: number; level: "urgent" | "update" }> = [];
+      let contextUpdates: Array<{ entity_id: string; entity_type: string; change_description: string; similarity: number; level: "urgent" | "update" }> = [];
+
+      try {
+        const intentEmbedding = await createEmbeddingVector(
+          deps.embeddingModel, body.intent, config.embeddingDimension,
+        );
+        if (!intentEmbedding) throw new Error("Failed to create intent embedding");
+
+        // Read last_request_at FIRST, then update — otherwise we search "since now" and find nothing.
+        let lastRequestAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        if (body.session_id) {
+          const sessionRecord = new RecordId("agent_session", body.session_id);
+          const [sessionRows] = await surreal
+            .query<[Array<{ last_request_at?: string }>]>(
+              `SELECT last_request_at FROM $sess;`,
+              { sess: sessionRecord },
+            )
+            .collect<[Array<{ last_request_at?: string }>]>();
+          if (sessionRows[0]?.last_request_at) {
+            lastRequestAt = new Date(sessionRows[0].last_request_at);
+          }
+        }
+
+        const searchRecentChanges = createSearchRecentChanges(surreal);
+        const candidates = await searchRecentChanges(intentEmbedding, workspaceId, lastRequestAt);
+
+        // Update agent_session.last_request_at AFTER search (04-02)
+        if (body.session_id) {
+          const sessionRecord = new RecordId("agent_session", body.session_id);
+          deps.inflight.track(
+            surreal.query(
+              `UPDATE $sess SET last_request_at = time::now();`,
+              { sess: sessionRecord },
+            ).catch(() => undefined),
+          );
+        }
+        const classified = classifyBySimilarity(candidates);
+
+        function toUpdateItem(change: ClassifiedChange) {
+          return {
+            entity_id: change.id,
+            entity_type: change.table,
+            change_description: change.text,
+            similarity: change.similarity,
+            level: (change.classification === "urgent-context" ? "urgent" : "update") as "urgent" | "update",
+          };
+        }
+
+        urgentUpdates = classified
+          .filter((c) => c.classification === "urgent-context")
+          .map(toUpdateItem);
+        contextUpdates = classified
+          .filter((c) => c.classification === "context-update")
+          .map(toUpdateItem);
+      } catch (error) {
+        log.warn("mcp.intent-context.recent-changes-failed", "Failed to search recent changes", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      log.info("mcp.intent-context.resolved", "Intent context resolved", {
+        workspaceId, level: result.level,
+        urgentCount: urgentUpdates.length, contextCount: contextUpdates.length,
+      });
+      return jsonResponse({ ...result, urgent_updates: urgentUpdates, context_updates: contextUpdates }, 200);
     } catch (error) {
       log.error("mcp.intent-context.failed", "Failed to resolve intent context", error);
       return jsonError("failed to resolve intent context", 500);

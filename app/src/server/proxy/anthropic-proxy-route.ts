@@ -50,8 +50,13 @@ import {
   selectWithinBudget,
   buildBrainContextXml,
   injectBrainContext,
+  injectRecentChanges,
+  classifyBySimilarity,
+  buildRecentChangesXml,
+  createSearchRecentChanges,
   type ContextCandidate,
   type InjectionResult,
+  type SearchRecentChanges,
 } from "./context-injector";
 import {
   resolveProxyAuth,
@@ -243,7 +248,9 @@ function extractNonStreamingUsage(
     const parsed = JSON.parse(responseBody) as NonStreamingResponse;
     if (!parsed.usage) return undefined;
 
-    const traceData: TraceData = {
+    const responseContent = extractResponseContent(responseBody);
+
+    return {
       model: parsed.model ?? requestModel ?? "unknown",
       inputTokens: parsed.usage.input_tokens ?? 0,
       outputTokens: parsed.usage.output_tokens ?? 0,
@@ -256,20 +263,9 @@ function extractNonStreamingUsage(
       sessionId,
       taskId: identity.taskId,
       policyDecision,
+      ...(injectionResult ? { intelligenceMetadata: buildIntelligenceMetadata(injectionResult) } : {}),
+      ...(responseContent ? { responseContent } : {}),
     };
-
-    // Add intelligence metadata if injection occurred
-    if (injectionResult) {
-      (traceData as any).intelligenceMetadata = buildIntelligenceMetadata(injectionResult);
-    }
-
-    // Capture response content (opaque, per ADR-051)
-    const responseContent = extractResponseContent(responseBody);
-    if (responseContent) {
-      (traceData as any).responseContent = responseContent;
-    }
-
-    return traceData;
   } catch {
     return undefined;
   }
@@ -293,18 +289,11 @@ async function loadCandidatePool(
   type LearningRow = { id: RecordId; text: string; embedding?: number[] };
   type ObservationRow = { id: RecordId; text: string; embedding?: number[] };
 
-  // Sequential queries to avoid SurrealDB SDK concurrency issues with
-  // multiple parallel queries on a single WebSocket connection
-  const decisionResults = await surreal.query<[DecisionRow[]]>(
-    `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;`,
-    { ws: workspaceRecord },
-  );
-  const learningResults = await surreal.query<[LearningRow[]]>(
-    `SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;`,
-    { ws: workspaceRecord },
-  );
-  const observationResults = await surreal.query<[ObservationRow[]]>(
-    `SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND observation_type NOT IN ['proxy_no_policy'] LIMIT 20;`,
+  // Single round-trip: multiple statements in one .query() call
+  const results = await surreal.query<[DecisionRow[], LearningRow[], ObservationRow[]]>(
+    `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;
+     SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;
+     SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND observation_type NOT IN ['proxy_no_policy'] LIMIT 20;`,
     { ws: workspaceRecord },
   );
 
@@ -323,9 +312,9 @@ async function loadCandidatePool(
     }));
   }
 
-  const decisions = toCandidates(decisionResults[0] ?? [], "decision", DECISION_WEIGHT, (d) => d.summary);
-  const learnings = toCandidates(learningResults[0] ?? [], "learning", LEARNING_WEIGHT, (l) => l.text);
-  const observations = toCandidates(observationResults[0] ?? [], "observation", OBSERVATION_WEIGHT, (o) => o.text);
+  const decisions = toCandidates(results[0] ?? [], "decision", DECISION_WEIGHT, (d) => d.summary);
+  const learnings = toCandidates(results[1] ?? [], "learning", LEARNING_WEIGHT, (l) => l.text);
+  const observations = toCandidates(results[2] ?? [], "observation", OBSERVATION_WEIGHT, (o) => o.text);
 
   return {
     decisions,
@@ -377,23 +366,42 @@ async function runContextInjection(
   originalBody: string,
   contextCache: ContextCache,
   intelligenceConfig: IntelligenceConfig,
+  recentChangesSearch?: SearchRecentChanges,
+  lastRequestAt?: Date,
 ): Promise<ContextInjectionResult> {
   if (!intelligenceConfig.contextInjectionEnabled) {
     return { body: originalBody };
   }
 
-  // 1. Get or populate candidate pool (with cache)
-  let pool: CachedCandidatePool;
+  // 1. Extract last user message for embedding (needed for early-exit check)
+  const messages = parsedBody.messages ?? [];
+  let lastUserMessage: { role: string; content: string } | undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") { lastUserMessage = messages[i]; break; }
+  }
+  if (!lastUserMessage) {
+    return { body: originalBody };
+  }
+
+  // 2. Get or populate candidate pool + embed user message in parallel
   let fromCache = false;
-  if (contextCache.has(workspaceId)) {
-    pool = contextCache.get(workspaceId)!;
-    fromCache = true;
-  } else {
-    pool = await loadCandidatePool(deps.surreal, workspaceId);
+  const poolPromise = contextCache.has(workspaceId)
+    ? (fromCache = true, Promise.resolve(contextCache.get(workspaceId)!))
+    : loadCandidatePool(deps.surreal, workspaceId);
+
+  const embeddingPromise = embedUserMessage(
+    deps.embeddingModel,
+    deps.config.embeddingDimension,
+    lastUserMessage.content,
+  );
+
+  const [pool, queryEmbedding] = await Promise.all([poolPromise, embeddingPromise]);
+
+  if (!fromCache) {
     contextCache.set(workspaceId, pool);
   }
 
-  // 2. Check if pool is empty
+  // 3. Check if pool is empty
   const allCandidates: ContextCandidate[] = [
     ...pool.decisions,
     ...pool.learnings,
@@ -411,19 +419,6 @@ async function runContextInjection(
     total: allCandidates.length,
     cached: fromCache,
   });
-
-  // 3. Extract last user message for embedding
-  const lastUserMessage = [...(parsedBody.messages ?? [])].reverse().find((m) => m.role === "user");
-  if (!lastUserMessage) {
-    return { body: originalBody };
-  }
-
-  // 4. Embed last user message
-  const queryEmbedding = await embedUserMessage(
-    deps.embeddingModel,
-    deps.config.embeddingDimension,
-    lastUserMessage.content,
-  );
 
   let selectedCandidates;
   if (queryEmbedding) {
@@ -452,10 +447,29 @@ async function runContextInjection(
   // 8. Inject into system prompt
   const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
 
-  // 9. Build modified request body
+  // 9. Search and inject recent changes (04-02)
+  let enrichedSystem = injectionResult.system;
+  if (recentChangesSearch && lastRequestAt && queryEmbedding) {
+    try {
+      const recentCandidates = await recentChangesSearch(queryEmbedding, workspaceId, lastRequestAt);
+      const classified = classifyBySimilarity(recentCandidates);
+      const recentChangesXml = buildRecentChangesXml(classified);
+      if (recentChangesXml) {
+        enrichedSystem = injectRecentChanges(enrichedSystem, recentChangesXml);
+      }
+    } catch (error) {
+      // Fail-open: log and continue without recent changes
+      log.warn("proxy.context_injection.recent_changes_failed", "Recent changes search failed", {
+        workspace_id: workspaceId,
+        error: String(error),
+      });
+    }
+  }
+
+  // 10. Build modified request body
   const modifiedBody = {
     ...parsedBody,
-    system: injectionResult.system,
+    system: enrichedSystem,
   };
 
   return {
@@ -580,6 +594,9 @@ export function createAnthropicProxyHandler(
   // Proxy auth: per-handler cache + DB lookup function (not module-level singletons)
   const proxyTokenCache: TokenCache = createTokenCache();
   const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
+
+  // Recent changes adapter for vector search (04-02)
+  const searchRecentChanges: SearchRecentChanges = createSearchRecentChanges(deps.surreal);
 
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
@@ -731,7 +748,22 @@ export function createAnthropicProxyHandler(
 
     if (parsed && identitySignals.workspaceId && !isCountTokens) {
       try {
-        const intelligenceConfig = await loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId);
+        // Resolve session's last_request_at and intelligence config in parallel
+        const lastRequestAtPromise = effectiveSessionId
+          ? deps.surreal.query<[Array<{ last_request_at?: string }>]>(
+              `SELECT last_request_at FROM $sess;`,
+              { sess: new RecordId("agent_session", effectiveSessionId) },
+            ).then(
+              (rows) => { const rawTs = rows[0]?.[0]?.last_request_at; return rawTs ? new Date(rawTs) : undefined; },
+              () => undefined,
+            )
+          : Promise.resolve(undefined);
+
+        const [sessionLastRequestAt, intelligenceConfig] = await Promise.all([
+          lastRequestAtPromise,
+          loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId),
+        ]);
+
         const contextResult = await runContextInjection(
           deps,
           identitySignals.workspaceId,
@@ -739,6 +771,8 @@ export function createAnthropicProxyHandler(
           body,
           contextCache,
           intelligenceConfig,
+          searchRecentChanges,
+          sessionLastRequestAt,
         );
         effectiveBody = contextResult.body;
         injectionResult = contextResult.injectionResult;
@@ -758,6 +792,17 @@ export function createAnthropicProxyHandler(
           error: String(error),
         });
       }
+    }
+
+    // --- Step 5.5: Update agent_session.last_request_at (fire-and-forget) ---
+    if (effectiveSessionId && !isCountTokens) {
+      const sessionRecord = new RecordId("agent_session", effectiveSessionId);
+      deps.inflight.track(
+        deps.surreal.query(
+          `UPDATE $sess SET last_request_at = time::now();`,
+          { sess: sessionRecord },
+        ).catch(() => undefined),
+      );
     }
 
     // --- API key validation ---

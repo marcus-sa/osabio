@@ -41,6 +41,7 @@ export type ServerConfig = {
   adminEmail?: string;
   adminPassword?: string;
   worktreeManagerEnabled: boolean;
+  internalWebhookSecret?: string;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -98,6 +99,7 @@ export function loadServerConfig(): ServerConfig {
 
   const selfHosted = parseBooleanEnv("SELF_HOSTED");
   const worktreeManagerEnabled = parseBooleanEnv("WORKTREE_MANAGER_ENABLED");
+  const internalWebhookSecret = optionalEnv("INTERNAL_WEBHOOK_SECRET");
 
   const adminEmail = selfHosted
     ? requireSelfHostedEnv("ADMIN_EMAIL")
@@ -138,6 +140,7 @@ export function loadServerConfig(): ServerConfig {
     ...(adminEmail ? { adminEmail } : {}),
     ...(adminPassword ? { adminPassword } : {}),
     worktreeManagerEnabled,
+    ...(internalWebhookSecret ? { internalWebhookSecret } : {}),
   };
 }
 

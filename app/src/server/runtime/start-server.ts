@@ -38,6 +38,10 @@ import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
+import { createLiveSelectManager } from "../reactive/live-select-manager";
+import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
+import { createAgentActivatorHandler } from "../reactive/agent-activator";
+import { createLoopDampener } from "../reactive/loop-dampener";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
@@ -77,6 +81,35 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const bridgeExchangeHandler = createBridgeExchangeHandler(deps);
   const observerHandler = createObserverRouteHandler(deps);
   const graphScanHandler = createGraphScanRouteHandler(deps);
+
+  // Agent Activator: POST endpoint called by SurrealDB DEFINE EVENT webhook
+  const activatorDampener = createLoopDampener(
+    { threshold: 4, windowMs: 60_000 },
+    undefined,
+    (_key, event) => {
+      log.info("activator.dampened", "Loop dampener activated", {
+        workspaceId: event.workspaceId,
+        entityId: event.entityId,
+        sourceAgent: event.sourceAgent,
+      });
+    },
+  );
+  const activatorHandler = createAgentActivatorHandler({
+    surreal: deps.surreal,
+    loopDampener: activatorDampener,
+    inflight: deps.inflight,
+    classifierModel: deps.extractionModel,
+    internalWebhookSecret: config.internalWebhookSecret,
+    onAgentActivation: (activation) => {
+      log.info("activator.agent_activated", "LLM classified agent for activation", {
+        agentId: activation.agentId,
+        agentType: activation.agentType,
+        workspaceId: activation.workspaceId,
+        reason: activation.reason,
+        observationId: activation.observationId,
+      });
+    },
+  });
   const learningHandlers = createLearningRouteHandlers(deps);
   const policyHandlers = createPolicyRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
@@ -369,6 +402,16 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => feedHandler(request.params.workspaceId),
         ),
       },
+      "/api/workspaces/:workspaceId/feed/stream": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/feed/stream",
+          "GET",
+          (request) => deps.sse.handleWorkspaceStreamRequest(
+            request.params.workspaceId,
+            request.headers.get("Last-Event-ID") ?? undefined,
+          ),
+        ),
+      },
       "/api/workspaces/:workspaceId/webhooks/github": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/webhooks/github",
@@ -569,6 +612,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/api/observe/:table/:id": {
         POST: withTracing("POST /api/observe/:table/:id", "POST", (request) =>
           observerHandler(request.params.table, request.params.id, request),
+        ),
+      },
+      // Agent Activator — starts new agents from observation events (called by SurrealQL EVENT via http::post)
+      "/api/internal/activator/observation": {
+        POST: withTracing("POST /api/internal/activator/observation", "POST", (request) =>
+          activatorHandler(request),
         ),
       },
       // Intent — evaluate (called by SurrealQL EVENT via http::post)
@@ -775,6 +824,20 @@ export async function startServer(): Promise<void> {
   };
 
   const server = createBrainServer(deps);
+
+  // Start reactive coordination layer: LIVE SELECT -> Feed SSE Bridge -> SSE Registry
+  const liveSelectManager = createLiveSelectManager({ surreal: runtime.surreal });
+  const feedSseBridge = createFeedSseBridge({
+    liveSelectManager,
+    sseRegistry: deps.sse,
+  });
+  feedSseBridge.subscribeAll();
+
+  deps.inflight.track(
+    liveSelectManager.start().catch((err) => {
+      log.error("reactive.start", "Failed to start Live Select Manager", err);
+    }),
+  );
 
   // Recover intents stuck in pending_veto with expired windows (fire-and-forget)
   const vetoManager = createVetoManager();

@@ -212,10 +212,14 @@ DEFINE FIELD stream_id ON agent_session TYPE option<string>;
 DEFINE FIELD last_event_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD error_message ON agent_session TYPE option<string>;
 DEFINE FIELD last_feedback ON agent_session TYPE option<string>;
+DEFINE FIELD last_request_at ON agent_session TYPE option<datetime>;
+DEFINE FIELD description_embedding ON agent_session TYPE option<array<float>>;
+DEFINE FIELD triggered_by ON agent_session TYPE option<record<observation | task | decision | question>>;
 DEFINE FIELD created_at ON agent_session TYPE datetime;
 DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
 DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
+DEFINE INDEX idx_agent_session_description_embedding ON agent_session FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
 DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
 
@@ -316,8 +320,14 @@ DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 DEFINE TABLE agent SCHEMAFULL;
 DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp'];
 DEFINE FIELD model ON agent TYPE option<string>;
+DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
+-- description_embedding: Kept for future vector search use cases (e.g., agent discovery UI,
+-- semantic agent search). Not used by the agent activator, which uses LLM classification
+-- per ADR-061. The HNSW index remains defined for when vector-based agent matching is needed.
+DEFINE FIELD description_embedding ON agent TYPE option<array<float>>;
 DEFINE FIELD created_at ON agent TYPE datetime;
+DEFINE INDEX idx_agent_description_embedding ON agent FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;
@@ -490,6 +500,14 @@ DEFINE FIELD added_at ON progressed TYPE datetime;
 DEFINE TABLE superseded_by TYPE RELATION IN decision OUT decision SCHEMAFULL;
 DEFINE FIELD reason ON superseded_by TYPE option<string>;
 DEFINE FIELD superseded_at ON superseded_by TYPE datetime;
+
+-- Automatically set decision status to "superseded" when edge is created.
+-- The edge is the source of truth; status is a derived consequence.
+DEFINE EVENT OVERWRITE decision_superseded ON superseded_by
+  WHEN $event = "CREATE"
+  THEN {
+    UPDATE $after.in SET status = "superseded", updated_at = time::now();
+  };
 
 DEFINE TABLE branched_from TYPE RELATION IN conversation OUT conversation SCHEMAFULL;
 DEFINE FIELD branched_at ON branched_from TYPE datetime;
