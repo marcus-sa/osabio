@@ -323,6 +323,78 @@ describe("description entries", () => {
     expect(project.description).toBe("New feature added: Notifications");
   });
 
+  it("persists feature_created entry even when synthesis fails", async () => {
+    const projectRecord = await createProject("Checkout");
+    const featureRecord = await createFeature("Apple Pay");
+
+    await seedDescriptionEntry({
+      surreal,
+      targetRecord: projectRecord,
+      text: "Checkout handles card payments.",
+    });
+    await linkHasFeature(projectRecord, featureRecord);
+
+    await fireDescriptionUpdates({
+      surreal,
+      extractionModel: undefined as any, // synthesis fails on entry #2
+      trigger: {
+        kind: "feature_created",
+        entity: featureRecord,
+        summary: "Feature added: Apple Pay",
+      },
+    });
+
+    const project = await fetchEntity(projectRecord, "project");
+    expect(project.description_entries).toHaveLength(2);
+    expect(project.description_entries![1]!.text).toBe("Feature added: Apple Pay");
+    expect((project.description_entries![1]!.source as RecordId).table.name).toBe("feature");
+
+    // Description text remains the last successful synthesis/seed value.
+    expect(project.description).toBe("Checkout handles card payments.");
+  });
+
+  it("preserves all project description entries for concurrent feature_created updates", async () => {
+    const projectRecord = await createProject("Orders");
+    const featureA = await createFeature("Live Order Tracking");
+    const featureB = await createFeature("Refund Workflow");
+
+    await linkHasFeature(projectRecord, featureA);
+    await linkHasFeature(projectRecord, featureB);
+
+    await Promise.all([
+      fireDescriptionUpdates({
+        surreal,
+        extractionModel: undefined as any, // synthesis failures should not drop appended entries
+        trigger: {
+          kind: "feature_created",
+          entity: featureA,
+          summary: "Feature added: Live Order Tracking",
+        },
+      }),
+      fireDescriptionUpdates({
+        surreal,
+        extractionModel: undefined as any, // synthesis failures should not drop appended entries
+        trigger: {
+          kind: "feature_created",
+          entity: featureB,
+          summary: "Feature added: Refund Workflow",
+        },
+      }),
+    ]);
+
+    const project = await fetchEntity(projectRecord, "project");
+    expect(project.description_entries).toHaveLength(2);
+
+    const texts = project.description_entries!.map((entry) => entry.text);
+    expect(texts).toContain("Feature added: Live Order Tracking");
+    expect(texts).toContain("Feature added: Refund Workflow");
+
+    const sourceTables = project.description_entries!.map(
+      (entry) => (entry.source as RecordId).table.name,
+    );
+    expect(sourceTables).toEqual(["feature", "feature"]);
+  });
+
   it("source contains the trigger entity reference", async () => {
     const projectRecord = await createProject("Trigger ref project");
     const decisionRecord = await createDecision("Pick PostgreSQL");

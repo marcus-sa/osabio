@@ -20,12 +20,22 @@ export async function appendDescriptionEntry(input: {
   targetType: DescriptionTarget;
   entry: DescriptionEntry;
 }): Promise<void> {
-  const [rows] = await input.surreal
-    .query<[EntityWithDescriptionEntries[]]>(
-      "SELECT name, title, description_entries FROM $record LIMIT 1;",
-      { record: input.targetRecord },
+  const now = new Date();
+  const [, rows] = await input.surreal
+    .query<[Record<string, unknown>[], EntityWithDescriptionEntries[]]>(
+      [
+        "UPDATE $record",
+        "SET description_entries = array::concat(description_entries ?? [], [$entry]),",
+        "updated_at = $now;",
+        "SELECT name, title, description_entries FROM $record LIMIT 1;",
+      ].join(" "),
+      {
+        record: input.targetRecord,
+        entry: input.entry,
+        now,
+      },
     )
-    .collect<[EntityWithDescriptionEntries[]]>();
+    .collect<[Record<string, unknown>[], EntityWithDescriptionEntries[]]>();
 
   const existing = rows[0];
   if (!existing) {
@@ -35,7 +45,7 @@ export async function appendDescriptionEntry(input: {
     return;
   }
 
-  const entries = [...(existing.description_entries ?? []), input.entry];
+  const entries = existing.description_entries ?? [];
   const entityName = resolveEntityName(existing);
 
   let description: string;
@@ -52,7 +62,6 @@ export async function appendDescriptionEntry(input: {
 
   await input.surreal.update(input.targetRecord).merge({
     description,
-    description_entries: entries,
     updated_at: new Date(),
   });
 
