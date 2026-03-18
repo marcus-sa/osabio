@@ -3,10 +3,13 @@
   "checkpoint_id": "fbe36c5ce651",
   "strategy": "manual-commit",
   "branch": "marcus-sa/reactive-agent-activator",
-  "checkpoints_count": 2,
+  "checkpoints_count": 7,
   "files_touched": [
+    "schema/migrations/0056_superseded_by_auto_status.surql",
+    "schema/surreal-schema.surql",
     "tests/acceptance/reactive/milestone-3-proxy-context-enrichment.test.ts",
-    "tests/acceptance/reactive/reactive-test-kit.ts"
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/reactive/superseded-by-event.test.ts"
   ],
   "sessions": [
     {
@@ -15,13 +18,20 @@
       "context": "/fb/e36c5ce651/0/context.md",
       "content_hash": "/fb/e36c5ce651/0/content_hash.txt",
       "prompt": "/fb/e36c5ce651/0/prompt.txt"
+    },
+    {
+      "metadata": "/fb/e36c5ce651/1/metadata.json",
+      "transcript": "/fb/e36c5ce651/1/full.jsonl",
+      "context": "/fb/e36c5ce651/1/context.md",
+      "content_hash": "/fb/e36c5ce651/1/content_hash.txt",
+      "prompt": "/fb/e36c5ce651/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 100,
-    "cache_creation_tokens": 303524,
-    "cache_read_tokens": 2413076,
-    "output_tokens": 20818,
-    "api_call_count": 44
+    "input_tokens": 168,
+    "cache_creation_tokens": 384264,
+    "cache_read_tokens": 4828834,
+    "output_tokens": 32208,
+    "api_call_count": 79
   }
 }
