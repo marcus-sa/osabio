@@ -31,6 +31,8 @@ let workspaceRecord: RecordId<"workspace", string>;
 let projectRecord: RecordId<"project", string>;
 let featureRecord: RecordId<"feature", string>;
 let taskRecord: RecordId<"task", string>;
+let standaloneFeatureRecord: RecordId<"feature", string>;
+let standaloneFeatureTaskRecord: RecordId<"task", string>;
 let decisionRecord: RecordId<"decision", string>;
 let questionRecord: RecordId<"question", string>;
 let personRecord: RecordId<"person", string>;
@@ -103,6 +105,37 @@ beforeAll(async () => {
   await surreal.query("RELATE $task->belongs_to->$project SET added_at = $now;", {
     task: taskRecord,
     project: projectRecord,
+    now,
+  });
+
+  // Create a workspace-scoped feature and a task that belongs to that feature,
+  // without linking the feature to a project.
+  standaloneFeatureRecord = new RecordId("feature", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: standaloneFeatureRecord,
+    content: {
+      name: "Standalone Feature",
+      status: "active",
+      workspace: workspaceRecord,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+
+  standaloneFeatureTaskRecord = new RecordId("task", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: standaloneFeatureTaskRecord,
+    content: {
+      title: "Task Under Standalone Feature",
+      status: "open",
+      workspace: workspaceRecord,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+  await surreal.query("RELATE $task->belongs_to->$feature SET added_at = $now;", {
+    task: standaloneFeatureTaskRecord,
+    feature: standaloneFeatureRecord,
     now,
   });
 
@@ -373,9 +406,29 @@ describe("RC2: workspace graph overview includes all entity types", () => {
       workspaceRecord,
     });
 
-    const taskEntity = graph.entities.find((e) => e.kind === "task");
+    const taskEntity = graph.entities.find((e) => e.id === (taskRecord.id as string));
     expect(taskEntity).toBeDefined();
     expect(taskEntity!.name).toBe("Test Task");
+  });
+
+  it("workspace graph overview includes tasks belonging to workspace features", async () => {
+    const graph = await getWorkspaceGraphOverview({
+      surreal,
+      workspaceRecord,
+    });
+
+    const featureEntity = graph.entities.find((e) => e.id === (standaloneFeatureRecord.id as string));
+    const taskEntity = graph.entities.find((e) => e.id === (standaloneFeatureTaskRecord.id as string));
+    const relationEdge = graph.edges.find(
+      (e) =>
+        e.kind === "belongs_to"
+        && e.fromId === (standaloneFeatureTaskRecord.id as string)
+        && e.toId === (standaloneFeatureRecord.id as string),
+    );
+
+    expect(featureEntity).toBeDefined();
+    expect(taskEntity).toBeDefined();
+    expect(relationEdge).toBeDefined();
   });
 
   it("workspace graph overview includes decisions", async () => {
