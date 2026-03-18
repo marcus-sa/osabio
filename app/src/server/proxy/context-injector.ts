@@ -429,29 +429,22 @@ export function createSearchRecentChanges(
     const workspaceRecord = new RecordId("workspace", workspaceId);
     const knnLimit = 20;
 
-    // Two-step KNN pattern for each table (HNSW index cannot combine with B-tree WHERE)
-    // Sequential queries to avoid SurrealDB SDK WebSocket concurrency issues
-    const decisionResults = await surreal.query<[KnnRow[], KnnRow[]]>(
-      `LET $candidates = SELECT id, summary AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
+    // Single round-trip: all three two-step KNN queries combined
+    // Each table needs LET + SELECT (HNSW index cannot combine with B-tree WHERE)
+    const results = await surreal.query<[KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[]]>(
+      `LET $dec_candidates = SELECT id, summary AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
          FROM decision WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;`,
-      { vec: messageEmbedding, ws: workspaceRecord, since: lastRequestAt, limit: knnLimit },
-    );
-
-    const taskResults = await surreal.query<[KnnRow[], KnnRow[]]>(
-      `LET $candidates = SELECT id, title AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
+       SELECT * FROM $dec_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;
+       LET $task_candidates = SELECT id, title AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
          FROM task WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;`,
-      { vec: messageEmbedding, ws: workspaceRecord, since: lastRequestAt, limit: knnLimit },
-    );
-
-    const observationResults = await surreal.query<[KnnRow[], KnnRow[]]>(
-      `LET $candidates = SELECT id, text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
+       SELECT * FROM $task_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;
+       LET $obs_candidates = SELECT id, text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
          FROM observation WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;`,
+       SELECT * FROM $obs_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;`,
       { vec: messageEmbedding, ws: workspaceRecord, since: lastRequestAt, limit: knnLimit },
     );
 
+    // LET statements return at indices 0, 2, 4; SELECT results at 1, 3, 5
     function toRecentChangeCandidates(
       rows: KnnRow[],
       table: RecentChangeCandidate["table"],
@@ -466,9 +459,9 @@ export function createSearchRecentChanges(
     }
 
     return [
-      ...toRecentChangeCandidates(decisionResults[1] ?? [], "decision"),
-      ...toRecentChangeCandidates(taskResults[1] ?? [], "task"),
-      ...toRecentChangeCandidates(observationResults[1] ?? [], "observation"),
+      ...toRecentChangeCandidates(results[1] ?? [], "decision"),
+      ...toRecentChangeCandidates(results[3] ?? [], "task"),
+      ...toRecentChangeCandidates(results[5] ?? [], "observation"),
     ];
   };
 }
