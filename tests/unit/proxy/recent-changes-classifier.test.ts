@@ -32,7 +32,7 @@ describe("classifyBySimilarity", () => {
     ...overrides,
   });
 
-  it("classifies high similarity (>0.85) as urgent-context", () => {
+  it("classifies high similarity (>=0.7) as urgent-context", () => {
     const candidates = [makeCandidate(0.90)];
     const result = classifyBySimilarity(candidates);
 
@@ -40,31 +40,31 @@ describe("classifyBySimilarity", () => {
     expect(result[0].classification).toBe("urgent-context");
   });
 
-  it("classifies moderate similarity (0.65-0.85) as context-update", () => {
-    const candidates = [makeCandidate(0.75)];
+  it("classifies moderate similarity (0.4-0.7) as context-update", () => {
+    const candidates = [makeCandidate(0.55)];
     const result = classifyBySimilarity(candidates);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("context-update");
   });
 
-  it("filters out below threshold (<0.65) matches", () => {
-    const candidates = [makeCandidate(0.60)];
+  it("filters out below threshold (<0.4) matches", () => {
+    const candidates = [makeCandidate(0.35)];
     const result = classifyBySimilarity(candidates);
 
     expect(result.length).toBe(0);
   });
 
-  it("handles boundary at 0.85 as urgent-context", () => {
-    const candidates = [makeCandidate(0.85)];
+  it("handles boundary at 0.7 as urgent-context", () => {
+    const candidates = [makeCandidate(0.70)];
     const result = classifyBySimilarity(candidates);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("urgent-context");
   });
 
-  it("handles boundary at 0.65 as context-update", () => {
-    const candidates = [makeCandidate(0.65)];
+  it("handles boundary at 0.4 as context-update", () => {
+    const candidates = [makeCandidate(0.40)];
     const result = classifyBySimilarity(candidates);
 
     expect(result.length).toBe(1);
@@ -86,8 +86,8 @@ describe("classifyBySimilarity", () => {
   it("classifies mixed similarities correctly and preserves order", () => {
     const candidates = [
       makeCandidate(0.95, { table: "task", text: "urgent task" }),
-      makeCandidate(0.75, { table: "observation", text: "moderate obs" }),
-      makeCandidate(0.50, { table: "decision", text: "low decision" }),
+      makeCandidate(0.55, { table: "observation", text: "moderate obs" }),
+      makeCandidate(0.30, { table: "decision", text: "low decision" }),
       makeCandidate(0.88, { table: "decision", text: "urgent decision" }),
     ];
 
