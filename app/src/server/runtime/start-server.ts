@@ -124,6 +124,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     surreal: deps.surreal,
     shellExec,
     brainBaseUrl: `http://127.0.0.1:${config.port}`,
+    extractionModel: deps.extractionModel,
     asSigningKey: deps.asSigningKey,
     sseRegistry: deps.sse,
     queryFn: query,

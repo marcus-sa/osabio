@@ -8,13 +8,14 @@ import { jsonError, jsonResponse } from "../http/response";
 import { withTracing, type RouteHandler } from "../http/instrumentation";
 import { RecordId } from "surrealdb";
 import { generateKeyPair } from "../../../shared/dpop";
+import { submitIntentForAuthorization } from "../oauth/intent-submission";
+import { exchangeIntentForToken } from "../oauth/token-endpoint";
 import {
   computeExpiresAt,
   generateProxyToken,
   hashProxyToken,
   readProxyTokenTtlDays,
 } from "../proxy/proxy-token-core";
-import { issueMcpBootstrapToken } from "../oauth/mcp-bootstrap";
 import type {
   OrchestratorSessionResult,
   SessionStatusResult,
@@ -332,6 +333,7 @@ export type OrchestratorWiringDeps = {
   surreal: import("surrealdb").Surreal;
   shellExec: import("./worktree-manager").ShellExec;
   brainBaseUrl: string;
+  extractionModel: unknown;
   asSigningKey: import("../oauth/as-key-management").AsSigningKey;
   sseRegistry?: SseRegistry;
   queryFn: import("./spawn-agent").QueryFn;
@@ -407,17 +409,40 @@ export function wireOrchestratorRoutes(
     identityId: string,
   ): Promise<Record<string, string>> => {
     const dpopKeys = await generateKeyPair();
-    const tokenResult = await issueMcpBootstrapToken({
+    const intentResult = await submitIntentForAuthorization(
+      {
+        workspace_id: workspaceId,
+        identity_id: identityId,
+        authorization_details: CLI_AUTHORIZATION_DETAILS,
+        dpop_jwk_thumbprint: dpopKeys.thumbprint,
+        goal: "Orchestrator MCP bootstrap",
+        reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
+      },
+      {
+        surreal: wiringDeps.surreal,
+        extractionModel: wiringDeps.extractionModel,
+      },
+    );
+
+    if (intentResult.status !== "authorized") {
+      throw new Error(`MCP auth intent is "${intentResult.status}" (expected "authorized")`);
+    }
+
+    const tokenResult = await exchangeIntentForToken({
       surreal: wiringDeps.surreal,
       asSigningKey: wiringDeps.asSigningKey,
-      workspaceId,
-      identityId,
-      dpopJwkThumbprint: dpopKeys.thumbprint,
+      intentId: intentResult.intentId,
       authorizationDetails: CLI_AUTHORIZATION_DETAILS,
-      goal: "Orchestrator MCP bootstrap",
-      reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
+      proofThumbprint: dpopKeys.thumbprint,
     });
-    const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenResult.expiresIn;
+
+    if (!tokenResult.ok) {
+      throw new Error(
+        `Failed to exchange MCP auth token: ${tokenResult.httpStatus} ${tokenResult.errorDescription}`,
+      );
+    }
+
+    const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenResult.value.expiresIn;
 
     return {
       BRAIN_CLIENT_ID: "orchestrator-session",
@@ -427,7 +452,7 @@ export function wireOrchestratorRoutes(
       BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
       BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
       BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
-      BRAIN_DPOP_ACCESS_TOKEN: tokenResult.accessToken,
+      BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
       BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
     };
   };

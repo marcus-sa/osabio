@@ -50,6 +50,32 @@ type AuthorizationDetailsMatch =
   | { ok: true }
   | { ok: false; error: string; errorDescription: string };
 
+export type ExchangeIntentForTokenInput = {
+  surreal: Surreal;
+  asSigningKey: import("./as-key-management").AsSigningKey;
+  intentId: string;
+  authorizationDetails: BrainAction[];
+  proofThumbprint: string;
+};
+
+export type ExchangeIntentForTokenResult =
+  | {
+      ok: true;
+      value: {
+        accessToken: string;
+        expiresIn: number;
+        expiresAt: Date;
+        intent: IntentRecord;
+      };
+    }
+  | {
+      ok: false;
+      error: string;
+      errorDescription: string;
+      httpStatus: number;
+      intent?: IntentRecord;
+    };
+
 // ---------------------------------------------------------------------------
 // Pure Validation: Request Body
 // ---------------------------------------------------------------------------
@@ -202,6 +228,107 @@ export function matchAuthorizationDetails(
   return { ok: true };
 }
 
+export async function exchangeIntentForToken(
+  input: ExchangeIntentForTokenInput,
+): Promise<ExchangeIntentForTokenResult> {
+  const intent = await getIntentById(input.surreal, input.intentId);
+  if (!intent) {
+    return {
+      ok: false,
+      error: "invalid_grant",
+      errorDescription: "Intent not found",
+      httpStatus: 400,
+    };
+  }
+
+  const requesterId = typeof intent.requester === "object" && intent.requester !== undefined
+    ? (intent.requester.id as string)
+    : String(intent.requester);
+
+  const lookupIdentity = createSurrealIdentityLookupForToken(input.surreal);
+  const lookupManager = createSurrealManagerLookupForToken(input.surreal);
+  const identityCheck = await checkIdentityAllowed(
+    requesterId,
+    lookupIdentity,
+    lookupManager,
+  );
+  if (!identityCheck.allowed) {
+    log.info("token.endpoint.identity_blocked", "Token request blocked by identity check", {
+      intentId: input.intentId,
+      reason: identityCheck.reason,
+    });
+    return {
+      ok: false,
+      error: "invalid_grant",
+      errorDescription: identityCheck.reason,
+      httpStatus: 403,
+      intent,
+    };
+  }
+
+  const intentVerification = verifyIntentForTokenIssuance(intent, input.proofThumbprint);
+  if (!intentVerification.ok) {
+    return {
+      ok: false,
+      error: intentVerification.error,
+      errorDescription: intentVerification.errorDescription,
+      httpStatus: 400,
+      intent,
+    };
+  }
+
+  const detailsMatch = matchAuthorizationDetails(
+    input.authorizationDetails,
+    intent.authorization_details,
+  );
+  if (!detailsMatch.ok) {
+    return {
+      ok: false,
+      error: detailsMatch.error,
+      errorDescription: detailsMatch.errorDescription,
+      httpStatus: 400,
+      intent,
+    };
+  }
+
+  const tokenResult = await issueAccessToken(input.asSigningKey, {
+    sub: `identity:${intent.requester.id as string}`,
+    thumbprint: input.proofThumbprint,
+    authorizationDetails: input.authorizationDetails,
+    intentId: input.intentId,
+    workspace: intent.workspace.id as string,
+  });
+  if (!tokenResult.ok) {
+    return {
+      ok: false,
+      error: "server_error",
+      errorDescription: tokenResult.error,
+      httpStatus: 500,
+      intent,
+    };
+  }
+
+  const now = new Date();
+  await recordTokenIssuance(input.surreal, input.intentId, now, tokenResult.expiresAt)
+    .catch((err) => {
+      log.error("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
+    });
+
+  const expiresIn = Math.floor(
+    (tokenResult.expiresAt.getTime() - now.getTime()) / 1000,
+  );
+
+  return {
+    ok: true,
+    value: {
+      accessToken: tokenResult.token,
+      expiresAt: tokenResult.expiresAt,
+      expiresIn,
+      intent,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // HTTP Handler Factory
 // ---------------------------------------------------------------------------
@@ -248,127 +375,59 @@ export function createTokenEndpointHandler(
       return oauthErrorResponse("invalid_dpop_proof", dpopResult.error, 400);
     }
 
-    // 3. Load intent from SurrealDB
-    const intent = await getIntentById(surreal, data.intentId);
-    if (!intent) {
-      return oauthErrorResponse(
-        "invalid_grant",
-        "Intent not found",
-        400,
-      );
-    }
-
-    // 3b. Check identity lifecycle (revocation + manager status)
-    const requesterId = typeof intent.requester === "object" && intent.requester !== undefined
-      ? (intent.requester.id as string)
-      : String(intent.requester);
-
-    const lookupIdentity = createSurrealIdentityLookupForToken(surreal);
-    const lookupManager = createSurrealManagerLookupForToken(surreal);
-    const identityCheck = await checkIdentityAllowed(
-      requesterId,
-      lookupIdentity,
-      lookupManager,
-    );
-
-    if (!identityCheck.allowed) {
-      log.info("token.endpoint.identity_blocked", "Token request blocked by identity check", {
-        intentId: data.intentId,
-        reason: identityCheck.reason,
-      });
-      return oauthErrorResponse("invalid_grant", identityCheck.reason, 403);
-    }
-
-    // 4. Verify intent status and thumbprint match
-    const intentVerification = verifyIntentForTokenIssuance(
-      intent,
-      dpopResult.thumbprint,
-    );
-    if (!intentVerification.ok) {
-      log.info("token.endpoint.rejected", "Token request rejected", {
-        intentId: data.intentId,
-        reason: intentVerification.errorDescription,
-      });
-
-      await logAuditEvent(surreal, createAuditEvent("token_rejected", {
-        actor: intent.requester,
-        workspace: intent.workspace,
-        intent_id: intent.id,
-        dpop_thumbprint: dpopResult.thumbprint,
-        payload: { reason: intentVerification.errorDescription },
-      })).catch(() => {});
-
-      return oauthErrorResponse(
-        intentVerification.error,
-        intentVerification.errorDescription,
-        400,
-      );
-    }
-
-    // 5. Verify authorization_details match
-    const detailsMatch = matchAuthorizationDetails(
-      data.authorizationDetails,
-      intent.authorization_details,
-    );
-    if (!detailsMatch.ok) {
-      log.info("token.endpoint.rejected", "Authorization details mismatch", {
-        intentId: data.intentId,
-      });
-
-      return oauthErrorResponse(
-        detailsMatch.error,
-        detailsMatch.errorDescription,
-        400,
-      );
-    }
-
-    // 6. Issue token
     try {
-      const tokenResult = await issueAccessToken(asSigningKey, {
-        sub: `identity:${intent.requester.id as string}`,
-        thumbprint: dpopResult.thumbprint,
-        authorizationDetails: data.authorizationDetails,
+      const exchangeResult = await exchangeIntentForToken({
+        surreal,
+        asSigningKey,
         intentId: data.intentId,
-        workspace: intent.workspace.id as string,
+        authorizationDetails: data.authorizationDetails,
+        proofThumbprint: dpopResult.thumbprint,
       });
 
-      if (!tokenResult.ok) {
-        return oauthErrorResponse("server_error", tokenResult.error, 500);
-      }
+      if (!exchangeResult.ok) {
+        if (exchangeResult.intent && exchangeResult.error === "invalid_grant") {
+          log.info("token.endpoint.rejected", "Token request rejected", {
+            intentId: data.intentId,
+            reason: exchangeResult.errorDescription,
+          });
 
-      // 7. Update intent with token issuance timestamps
-      const now = new Date();
-      await recordTokenIssuance(surreal, data.intentId, now, tokenResult.expiresAt)
-        .catch((err) => {
-          log.error("token.endpoint.update_intent", "Failed to update intent with token timestamps", err);
-        });
+          await logAuditEvent(surreal, createAuditEvent("token_rejected", {
+            actor: exchangeResult.intent.requester,
+            workspace: exchangeResult.intent.workspace,
+            intent_id: exchangeResult.intent.id,
+            dpop_thumbprint: dpopResult.thumbprint,
+            payload: { reason: exchangeResult.errorDescription },
+          })).catch(() => {});
+        }
+
+        return oauthErrorResponse(
+          exchangeResult.error,
+          exchangeResult.errorDescription,
+          exchangeResult.httpStatus,
+        );
+      }
 
       log.info("token.endpoint.issued", "DPoP-bound access token issued", {
         intentId: data.intentId,
-        expiresAt: tokenResult.expiresAt.toISOString(),
+        expiresAt: exchangeResult.value.expiresAt.toISOString(),
       });
 
       await logAuditEvent(surreal, createAuditEvent("token_issued", {
-        actor: intent.requester,
-        workspace: intent.workspace,
-        intent_id: intent.id,
+        actor: exchangeResult.value.intent.requester,
+        workspace: exchangeResult.value.intent.workspace,
+        intent_id: exchangeResult.value.intent.id,
         dpop_thumbprint: dpopResult.thumbprint,
         payload: {
-          expires_at: tokenResult.expiresAt.toISOString(),
+          expires_at: exchangeResult.value.expiresAt.toISOString(),
           authorization_details: data.authorizationDetails,
         },
       })).catch(() => {});
 
-      // 8. Return token response
-      const expiresIn = Math.floor(
-        (tokenResult.expiresAt.getTime() - now.getTime()) / 1000,
-      );
-
       return jsonResponse(
         {
-          access_token: tokenResult.token,
+          access_token: exchangeResult.value.accessToken,
           token_type: "DPoP",
-          expires_in: expiresIn,
+          expires_in: exchangeResult.value.expiresIn,
         },
         200,
       );

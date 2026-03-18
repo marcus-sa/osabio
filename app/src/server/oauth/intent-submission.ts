@@ -148,17 +148,146 @@ export type IntentSubmissionDeps = {
   lookupManager: LookupManager;
 };
 
+export type SubmitIntentForAuthorizationDeps = {
+  surreal: import("surrealdb").Surreal;
+  extractionModel: unknown;
+  identityDeps?: IntentSubmissionDeps;
+};
+
+export type SubmitIntentForAuthorizationResult = {
+  intentId: string;
+  status: "authorized" | "pending_auth";
+  traceId: string;
+};
+
+export async function submitIntentForAuthorization(
+  input: IntentSubmissionInput,
+  deps: SubmitIntentForAuthorizationDeps,
+): Promise<SubmitIntentForAuthorizationResult> {
+  const { surreal } = deps;
+  const llmEvaluator = createLlmEvaluator(deps.extractionModel);
+  const lookupIdentity: LookupIdentity = deps.identityDeps?.lookupIdentity ?? createSurrealIdentityLookup(surreal);
+  const lookupManager: LookupManager = deps.identityDeps?.lookupManager ?? createSurrealManagerLookup(surreal);
+
+  const requester = new RecordId("identity", input.identity_id);
+  const workspace = new RecordId("workspace", input.workspace_id);
+
+  const identityCheck = await checkIdentityAllowed(
+    input.identity_id,
+    lookupIdentity,
+    lookupManager,
+  );
+
+  if (!identityCheck.allowed) {
+    log.info("intent.submission.identity_blocked", "Intent submission blocked by identity check", {
+      identityId: input.identity_id,
+      reason: identityCheck.reason,
+      code: identityCheck.code,
+    });
+    throw new Error(identityCheck.reason);
+  }
+
+  const actionSpec = deriveActionSpec(input.authorization_details);
+
+  const traceRecord = await createTrace(surreal, {
+    type: "intent_submission",
+    actor: requester,
+    workspace,
+    input: { authorization_details: input.authorization_details, goal: input.goal },
+  });
+
+  const intentId = await createIntent(surreal, {
+    goal: input.goal,
+    reasoning: input.reasoning,
+    priority: input.priority ?? 0,
+    action_spec: actionSpec,
+    trace_id: traceRecord,
+    requester,
+    workspace,
+    authorization_details: input.authorization_details,
+    dpop_jwk_thumbprint: input.dpop_jwk_thumbprint,
+  });
+
+  log.info("intent.submission.created", "Intent created via OAuth submission", {
+    intentId: intentId.id as string,
+    traceId: traceRecord.id as string,
+    workspaceId: input.workspace_id,
+  });
+
+  const transitionResult = await updateIntentStatus(
+    surreal,
+    intentId.id as string,
+    "pending_auth",
+  );
+
+  if (!transitionResult.ok) {
+    log.error(
+      "intent.submission.transition_failed",
+      "Failed to transition intent to pending_auth",
+      new Error(transitionResult.error),
+      { intentId: intentId.id as string },
+    );
+    throw new Error("Failed to submit intent for evaluation");
+  }
+
+  if (isLowRiskReadAction(input.authorization_details)) {
+    try {
+      const evaluation = await evaluateIntent({
+        intent: {
+          goal: input.goal,
+          reasoning: input.reasoning,
+          action_spec: actionSpec,
+        },
+        surreal,
+        identityId: requester,
+        workspaceId: workspace,
+        requesterType: "agent",
+        llmEvaluator,
+        timeoutMs: 10_000,
+      });
+
+      const routing = routeByRisk(evaluation);
+      const evaluationRecord = {
+        ...evaluation,
+        evaluated_at: new Date(),
+      };
+
+      if (routing.route === "auto_approve" || (routing.route === "veto_window")) {
+        await updateIntentStatus(surreal, intentId.id as string, "authorized", {
+          evaluation: evaluationRecord,
+        });
+
+        log.info("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
+          intentId: intentId.id as string,
+        });
+
+        return {
+          intentId: intentId.id as string,
+          status: "authorized",
+          traceId: traceRecord.id as string,
+        };
+      }
+    } catch (error) {
+      log.error(
+        "intent.submission.inline_eval_failed",
+        "Inline evaluation failed, falling back to async",
+        error,
+        { intentId: intentId.id as string },
+      );
+    }
+  }
+
+  return {
+    intentId: intentId.id as string,
+    status: "pending_auth",
+    traceId: traceRecord.id as string,
+  };
+}
+
 export function createIntentSubmissionHandler(
   deps: ServerDependencies,
   identityDeps?: IntentSubmissionDeps,
 ): (request: Request) => Promise<Response> {
-  const { surreal } = deps;
-  const llmEvaluator = createLlmEvaluator(deps.extractionModel);
-
-  // Default identity lookup from SurrealDB when no explicit ports provided
-  const lookupIdentity: LookupIdentity = identityDeps?.lookupIdentity ?? createSurrealIdentityLookup(surreal);
-  const lookupManager: LookupManager = identityDeps?.lookupManager ?? createSurrealManagerLookup(surreal);
-
   return async (request: Request): Promise<Response> => {
     let body: unknown;
     try {
@@ -172,130 +301,27 @@ export function createIntentSubmissionHandler(
       return jsonError(validation.error, 400);
     }
 
-    const { data } = validation;
-    const requester = new RecordId("identity", data.identity_id);
-    const workspace = new RecordId("workspace", data.workspace_id);
-
     try {
-      // Check identity lifecycle before creating intent
-      const identityCheck = await checkIdentityAllowed(
-        data.identity_id,
-        lookupIdentity,
-        lookupManager,
-      );
-
-      if (!identityCheck.allowed) {
-        log.info("intent.submission.identity_blocked", "Intent submission blocked by identity check", {
-          identityId: data.identity_id,
-          reason: identityCheck.reason,
-          code: identityCheck.code,
-        });
-        return jsonError(identityCheck.reason, 403);
-      }
-
-      const actionSpec = deriveActionSpec(data.authorization_details);
-
-      // Create trace record for forensic call tree
-      const traceRecord = await createTrace(surreal, {
-        type: "intent_submission",
-        actor: requester,
-        workspace,
-        input: { authorization_details: data.authorization_details, goal: data.goal },
+      const result = await submitIntentForAuthorization(validation.data, {
+        surreal: deps.surreal,
+        extractionModel: deps.extractionModel,
+        ...(identityDeps ? { identityDeps } : {}),
       });
-
-      // Create intent record linked to trace
-      const intentId = await createIntent(surreal, {
-        goal: data.goal,
-        reasoning: data.reasoning,
-        priority: data.priority ?? 0,
-        action_spec: actionSpec,
-        trace_id: traceRecord,
-        requester,
-        workspace,
-        authorization_details: data.authorization_details,
-        dpop_jwk_thumbprint: data.dpop_jwk_thumbprint,
-      });
-
-      log.info("intent.submission.created", "Intent created via OAuth submission", {
-        intentId: intentId.id as string,
-        traceId: traceRecord.id as string,
-        workspaceId: data.workspace_id,
-      });
-
-      // Transition to pending_auth to trigger evaluation
-      const transitionResult = await updateIntentStatus(
-        surreal,
-        intentId.id as string,
-        "pending_auth",
-      );
-
-      if (!transitionResult.ok) {
-        log.error(
-          "intent.submission.transition_failed",
-          "Failed to transition intent to pending_auth",
-          new Error(transitionResult.error),
-          { intentId: intentId.id as string },
-        );
-        return jsonError("Failed to submit intent for evaluation", 500);
-      }
-
-      // For low-risk read actions, trigger inline evaluation for auto-approve
-      if (isLowRiskReadAction(data.authorization_details)) {
-        try {
-          const evaluation = await evaluateIntent({
-            intent: {
-              goal: data.goal,
-              reasoning: data.reasoning,
-              action_spec: actionSpec,
-            },
-            surreal,
-            identityId: requester,
-            workspaceId: workspace,
-            requesterType: "agent",
-            llmEvaluator,
-            timeoutMs: 10_000,
-          });
-
-          const routing = routeByRisk(evaluation);
-          const evaluationRecord = {
-            ...evaluation,
-            evaluated_at: new Date(),
-          };
-
-          // For low-risk read actions, auto-approve unless explicitly rejected
-          // (mirrors bridge exchange behavior: low-risk reads skip veto window)
-          if (routing.route === "auto_approve" || (routing.route === "veto_window")) {
-            await updateIntentStatus(surreal, intentId.id as string, "authorized", {
-              evaluation: evaluationRecord,
-            });
-
-            log.info("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
-              intentId: intentId.id as string,
-            });
-
-            return jsonResponse({
-              intent_id: intentId.id as string,
-              status: "authorized",
-              trace_id: traceRecord.id as string,
-            }, 201);
-          }
-        } catch (error) {
-          log.error(
-            "intent.submission.inline_eval_failed",
-            "Inline evaluation failed, falling back to async",
-            error,
-            { intentId: intentId.id as string },
-          );
-          // Fall through to pending_auth response
-        }
-      }
-
       return jsonResponse({
-        intent_id: intentId.id as string,
-        status: "pending_auth",
-        trace_id: traceRecord.id as string,
+        intent_id: result.intentId,
+        status: result.status,
+        trace_id: result.traceId,
       }, 201);
     } catch (error) {
+      if (error instanceof Error && (
+        error.message === "Identity not found" ||
+        error.message === "Identity has been revoked" ||
+        error.message === "Identity is suspended" ||
+        error.message === "Managing human identity not found" ||
+        error.message === "Managing human is inactive"
+      )) {
+        return jsonError(error.message, 403);
+      }
       log.error("intent.submission.error", "Intent submission failed", error);
       return jsonError("Internal server error", 500);
     }
@@ -318,7 +344,7 @@ type SurrealIdentityRow = {
   revokedAt?: string;
 };
 
-function createSurrealIdentityLookup(surreal: Surreal): LookupIdentity {
+export function createSurrealIdentityLookup(surreal: Surreal): LookupIdentity {
   return async (identityId: string) => {
     const rows = await surreal.query<[SurrealIdentityRow[]]>(
       `SELECT meta::id(id) AS identityId, type AS identityType, identity_status AS identityStatus, managed_by AS managedBy, revoked_at AS revokedAt FROM $identity;`,
@@ -338,7 +364,7 @@ function createSurrealIdentityLookup(surreal: Surreal): LookupIdentity {
   };
 }
 
-function createSurrealManagerLookup(surreal: Surreal): LookupManager {
+export function createSurrealManagerLookup(surreal: Surreal): LookupManager {
   return async (managerId: string) => {
     // Manager ID stored as raw string reference; look up identity by searching
     const rows = await surreal.query<[Array<{ identityStatus?: string }>]>(
