@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   createSpawnAgent,
   type AgentHandle,
@@ -57,7 +60,9 @@ describe("createSpawnAgent", () => {
       messages: [{ type: "assistant" }, { type: "result" }],
     });
 
-    const spawnAgent = createSpawnAgent(queryFn);
+    const spawnAgent = createSpawnAgent(queryFn, {
+      ensureBrainCliAvailable: () => {},
+    });
     const handle = spawnAgent(defaultConfig);
 
     expect(handle.messages).toBeDefined();
@@ -78,7 +83,9 @@ describe("createSpawnAgent", () => {
   test("passes config through buildAgentOptions to query", () => {
     const { queryFn, calls } = createFakeQuery();
 
-    const spawnAgent = createSpawnAgent(queryFn);
+    const spawnAgent = createSpawnAgent(queryFn, {
+      ensureBrainCliAvailable: () => {},
+    });
     spawnAgent(defaultConfig);
 
     expect(calls).toHaveLength(1);
@@ -97,7 +104,9 @@ describe("createSpawnAgent", () => {
   test("abort triggers the abort controller", () => {
     const { queryFn, calls } = createFakeQuery();
 
-    const spawnAgent = createSpawnAgent(queryFn);
+    const spawnAgent = createSpawnAgent(queryFn, {
+      ensureBrainCliAvailable: () => {},
+    });
     const handle = spawnAgent(defaultConfig);
 
     // The abort controller should have been passed to query
@@ -121,10 +130,46 @@ describe("createSpawnAgent", () => {
       shouldThrow: new Error("SDK initialization failed"),
     });
 
-    const spawnAgent = createSpawnAgent(queryFn);
+    const spawnAgent = createSpawnAgent(queryFn, {
+      ensureBrainCliAvailable: () => {},
+    });
 
     expect(() => spawnAgent(defaultConfig)).toThrow(
       "SDK initialization failed"
     );
+  });
+
+  test("fails before query when Brain CLI is unavailable", () => {
+    const { queryFn, calls } = createFakeQuery();
+    const spawnAgent = createSpawnAgent(queryFn, {
+      ensureBrainCliAvailable: () => {
+        throw new Error('Brain CLI "brain" was not found on PATH.');
+      },
+    });
+
+    expect(() => spawnAgent(defaultConfig)).toThrow(
+      'Brain CLI "brain" was not found on PATH.',
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  test("uses BRAIN_MCP_PATH_OVERRIDE for preflight resolution", () => {
+    const { queryFn, calls } = createFakeQuery();
+    const previous = process.env.BRAIN_MCP_PATH_OVERRIDE;
+    process.env.BRAIN_MCP_PATH_OVERRIDE = mkdtempSync(join(tmpdir(), "brain-mcp-path-"));
+
+    try {
+      const spawnAgent = createSpawnAgent(queryFn);
+      expect(() => spawnAgent(defaultConfig)).toThrow(
+        'Brain CLI "brain" was not found on BRAIN_MCP_PATH_OVERRIDE.',
+      );
+      expect(calls).toHaveLength(0);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.BRAIN_MCP_PATH_OVERRIDE;
+      } else {
+        process.env.BRAIN_MCP_PATH_OVERRIDE = previous;
+      }
+    }
   });
 });

@@ -79,6 +79,16 @@ Usage:
 Environment:
   BRAIN_SERVER_URL      Brain server URL (default: http://localhost:3000)
   BRAIN_WORKSPACE_ID    Workspace ID (required for init)
+  BRAIN_IDENTITY_ID     Identity ID override for env-only MCP auth
+  BRAIN_CLIENT_ID       OAuth client ID override (optional in env-only mode)
+  BRAIN_ACCESS_TOKEN    Access token override (optional in env-only mode)
+  BRAIN_REFRESH_TOKEN   Refresh token override (optional in env-only mode)
+  BRAIN_TOKEN_EXPIRES_AT Unix timestamp override (optional)
+  BRAIN_DPOP_PRIVATE_JWK JSON string override (optional)
+  BRAIN_DPOP_PUBLIC_JWK JSON string override (optional)
+  BRAIN_DPOP_THUMBPRINT DPoP thumbprint override (optional)
+  BRAIN_DPOP_ACCESS_TOKEN DPoP access token override (optional)
+  BRAIN_DPOP_TOKEN_EXPIRES_AT DPoP token expiry unix timestamp override (optional)
 
 Config:
   ~/.brain/config.json  Per-repo workspace credentials

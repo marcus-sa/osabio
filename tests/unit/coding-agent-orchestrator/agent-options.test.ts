@@ -43,12 +43,31 @@ describe("buildAgentOptions", () => {
       ...defaultConfig,
       brainBaseUrl: "https://brain.example.com",
       workspaceId: "workspace-456",
+      brainIdentityId: "identity-789",
     });
 
     const env = options.options.mcpServers?.brain?.env;
     expect(env).toBeDefined();
     expect(env!.BRAIN_SERVER_URL).toBe("https://brain.example.com");
     expect(env!.BRAIN_WORKSPACE_ID).toBe("workspace-456");
+    expect(env!.BRAIN_IDENTITY_ID).toBe("identity-789");
+  });
+
+  test("passes PATH override to MCP server env when configured", () => {
+    const previous = process.env.BRAIN_MCP_PATH_OVERRIDE;
+    process.env.BRAIN_MCP_PATH_OVERRIDE = "/custom/bin:/usr/bin";
+    try {
+      const options = buildAgentOptions(defaultConfig);
+      const env = options.options.mcpServers?.brain?.env;
+      expect(env).toBeDefined();
+      expect(env!.PATH).toBe("/custom/bin:/usr/bin");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.BRAIN_MCP_PATH_OVERRIDE;
+      } else {
+        process.env.BRAIN_MCP_PATH_OVERRIDE = previous;
+      }
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -85,5 +104,39 @@ describe("buildAgentOptions", () => {
     const options = buildAgentOptions(defaultConfig);
 
     expect(options.options.settingSources).toEqual(["project"]);
+  });
+
+  test("injects proxy settings env when provided in spawn config", () => {
+    const options = buildAgentOptions({
+      ...defaultConfig,
+      anthropicBaseUrl: "http://127.0.0.1:3000/proxy/llm/anthropic",
+      anthropicCustomHeaders: "X-Brain-Auth: brp_testtoken",
+    });
+
+    const settings = options.options.settings as
+      | { env?: Record<string, string> }
+      | undefined;
+    expect(settings).toBeDefined();
+    expect(settings?.env?.ANTHROPIC_BASE_URL).toBe(
+      "http://127.0.0.1:3000/proxy/llm/anthropic",
+    );
+    expect(settings?.env?.ANTHROPIC_CUSTOM_HEADERS).toBe(
+      "X-Brain-Auth: brp_testtoken",
+    );
+  });
+
+  test("passes orchestrator-provided Brain auth env vars to MCP server", () => {
+    const options = buildAgentOptions({
+      ...defaultConfig,
+      brainEnv: {
+        BRAIN_DPOP_ACCESS_TOKEN: "token-123",
+        BRAIN_DPOP_TOKEN_EXPIRES_AT: "1735689600",
+      },
+    });
+
+    const env = options.options.mcpServers?.brain?.env;
+    expect(env).toBeDefined();
+    expect(env?.BRAIN_DPOP_ACCESS_TOKEN).toBe("token-123");
+    expect(env?.BRAIN_DPOP_TOKEN_EXPIRES_AT).toBe("1735689600");
   });
 });

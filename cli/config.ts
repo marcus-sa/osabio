@@ -47,6 +47,30 @@ export type BrainGlobalConfig = {
   repos: Record<string, RepoConfig>;
 };
 
+function nonEmpty(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function parseNumber(value: string | undefined): number | undefined {
+  const normalized = nonEmpty(value);
+  if (!normalized) return undefined;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return undefined;
+  return parsed;
+}
+
+function parseJsonWebKey(value: string | undefined): JsonWebKey | undefined {
+  const normalized = nonEmpty(value);
+  if (!normalized) return undefined;
+  try {
+    return JSON.parse(normalized) as JsonWebKey;
+  } catch {
+    return undefined;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Git root
 // ---------------------------------------------------------------------------
@@ -129,34 +153,36 @@ export async function saveRepoConfig(serverUrl: string, gitRoot: string, repo: R
 export async function loadConfig(): Promise<BrainConfig | undefined> {
   const gitRoot = findGitRoot(process.cwd());
   const global = await loadGlobalConfig();
-  if (global && gitRoot && global.repos[gitRoot]) {
-    const repo = global.repos[gitRoot];
-    const serverUrl = process.env.BRAIN_SERVER_URL ?? global.server_url;
-    return {
-      server_url: serverUrl,
-      workspace: repo.workspace,
-      client_id: repo.client_id,
-      access_token: repo.access_token,
-      refresh_token: repo.refresh_token,
-      token_expires_at: repo.token_expires_at,
-      dpop_private_jwk: repo.dpop_private_jwk,
-      dpop_public_jwk: repo.dpop_public_jwk,
-      dpop_thumbprint: repo.dpop_thumbprint,
-      dpop_access_token: repo.dpop_access_token,
-      dpop_token_expires_at: repo.dpop_token_expires_at,
-      identity_id: repo.identity_id,
-      proxy_token_expires_at: repo.proxy_token_expires_at,
-    };
-  }
-  return undefined;
+  const repo = global && gitRoot ? global.repos[gitRoot] : undefined;
+
+  const serverUrl = nonEmpty(process.env.BRAIN_SERVER_URL) ?? global?.server_url;
+  const workspaceId = nonEmpty(process.env.BRAIN_WORKSPACE_ID) ?? repo?.workspace;
+  if (!serverUrl || !workspaceId) return undefined;
+
+  const defaultTokenExpiresAt = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+
+  return {
+    server_url: serverUrl,
+    workspace: workspaceId,
+    client_id: nonEmpty(process.env.BRAIN_CLIENT_ID) ?? repo?.client_id ?? "brain-env-client",
+    access_token: nonEmpty(process.env.BRAIN_ACCESS_TOKEN) ?? repo?.access_token ?? "brain-env-access-token",
+    refresh_token: nonEmpty(process.env.BRAIN_REFRESH_TOKEN) ?? repo?.refresh_token ?? "brain-env-refresh-token",
+    token_expires_at: parseNumber(process.env.BRAIN_TOKEN_EXPIRES_AT) ?? repo?.token_expires_at ?? defaultTokenExpiresAt,
+    dpop_private_jwk: parseJsonWebKey(process.env.BRAIN_DPOP_PRIVATE_JWK) ?? repo?.dpop_private_jwk,
+    dpop_public_jwk: parseJsonWebKey(process.env.BRAIN_DPOP_PUBLIC_JWK) ?? repo?.dpop_public_jwk,
+    dpop_thumbprint: nonEmpty(process.env.BRAIN_DPOP_THUMBPRINT) ?? repo?.dpop_thumbprint,
+    dpop_access_token: nonEmpty(process.env.BRAIN_DPOP_ACCESS_TOKEN) ?? repo?.dpop_access_token,
+    dpop_token_expires_at: parseNumber(process.env.BRAIN_DPOP_TOKEN_EXPIRES_AT) ?? repo?.dpop_token_expires_at,
+    identity_id: nonEmpty(process.env.BRAIN_IDENTITY_ID) ?? repo?.identity_id,
+    proxy_token_expires_at: nonEmpty(process.env.BRAIN_PROXY_TOKEN_EXPIRES_AT) ?? repo?.proxy_token_expires_at,
+  };
 }
 
 export async function requireConfig(): Promise<BrainConfig> {
   const config = await loadConfig();
   if (!config) {
-    console.error("Brain not configured. Run: brain init");
+    console.error("Brain not configured. Run: brain init or set BRAIN_SERVER_URL and BRAIN_WORKSPACE_ID.");
     process.exit(1);
   }
   return config;
 }
-

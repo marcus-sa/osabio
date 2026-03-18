@@ -6,6 +6,14 @@
  */
 import { jsonError, jsonResponse } from "../http/response";
 import { withTracing, type RouteHandler } from "../http/instrumentation";
+import { RecordId } from "surrealdb";
+import { createDPoPProof, generateKeyPair } from "../../../shared/dpop";
+import {
+  computeExpiresAt,
+  generateProxyToken,
+  hashProxyToken,
+  readProxyTokenTtlDays,
+} from "../proxy/proxy-token-core";
 import type {
   OrchestratorSessionResult,
   SessionStatusResult,
@@ -16,6 +24,40 @@ import type {
   PromptSessionResult,
 } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
+
+type BrainAction = {
+  type: "brain_action";
+  action: string;
+  resource: string;
+};
+
+const CLI_AUTHORIZATION_DETAILS: BrainAction[] = [
+  { type: "brain_action", action: "read", resource: "workspace" },
+  { type: "brain_action", action: "read", resource: "project" },
+  { type: "brain_action", action: "read", resource: "task" },
+  { type: "brain_action", action: "read", resource: "decision" },
+  { type: "brain_action", action: "read", resource: "constraint" },
+  { type: "brain_action", action: "read", resource: "change_log" },
+  { type: "brain_action", action: "read", resource: "entity" },
+  { type: "brain_action", action: "read", resource: "suggestion" },
+  { type: "brain_action", action: "read", resource: "intent" },
+  { type: "brain_action", action: "reason", resource: "decision" },
+  { type: "brain_action", action: "reason", resource: "constraint" },
+  { type: "brain_action", action: "reason", resource: "commit" },
+  { type: "brain_action", action: "create", resource: "decision" },
+  { type: "brain_action", action: "create", resource: "question" },
+  { type: "brain_action", action: "create", resource: "task" },
+  { type: "brain_action", action: "create", resource: "note" },
+  { type: "brain_action", action: "create", resource: "observation" },
+  { type: "brain_action", action: "create", resource: "suggestion" },
+  { type: "brain_action", action: "create", resource: "session" },
+  { type: "brain_action", action: "create", resource: "commit" },
+  { type: "brain_action", action: "create", resource: "intent" },
+  { type: "brain_action", action: "update", resource: "task" },
+  { type: "brain_action", action: "update", resource: "session" },
+  { type: "brain_action", action: "update", resource: "suggestion" },
+  { type: "brain_action", action: "submit", resource: "intent" },
+];
 
 // ---------------------------------------------------------------------------
 // Port: Dependencies as function signatures
@@ -306,6 +348,138 @@ export function wireOrchestratorRoutes(
   prompt: RouteHandler;
   stream?: RouteHandler;
 } {
+  const proxyTokenTtlDays = readProxyTokenTtlDays();
+
+  const issueProxyTokenForWorkspace = async (
+    workspaceId: string,
+    authToken: string,
+  ): Promise<{ proxyToken: string; identityId: string }> => {
+    const sessionHeaders = new Headers(authToken ? { Cookie: authToken } : undefined);
+    const session = await wiringDeps.auth.api.getSession({ headers: sessionHeaders });
+    const personId = session?.user?.id;
+    if (!personId) {
+      throw new Error("Failed to issue proxy token: authentication required");
+    }
+
+    const personRecord = new RecordId("person", personId);
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+    const [identityRows] = await wiringDeps.surreal.query<[Array<RecordId<"identity", string>>]>(
+      `SELECT VALUE in FROM member_of WHERE in IN (SELECT VALUE in FROM identity_person WHERE out = $person) AND out = $ws LIMIT 1;`,
+      { person: personRecord, ws: workspaceRecord },
+    );
+    const identityRecord = identityRows[0];
+    if (!identityRecord) {
+      throw new Error(`Failed to issue proxy token: workspace membership required for ${workspaceId}`);
+    }
+    const identityId = identityRecord.id as string;
+
+    const rawToken = generateProxyToken();
+    const tokenHash = hashProxyToken(rawToken);
+    const expiresAt = computeExpiresAt(proxyTokenTtlDays);
+
+    await wiringDeps.surreal.query(
+      `BEGIN TRANSACTION;
+       UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;
+       CREATE proxy_token CONTENT {
+         token_hash: $hash,
+         workspace: $ws,
+         identity: $identity,
+         expires_at: $expires,
+         created_at: time::now(),
+         revoked: false
+       };
+       COMMIT TRANSACTION;`,
+      {
+        hash: tokenHash,
+        ws: workspaceRecord,
+        identity: identityRecord,
+        expires: expiresAt,
+      },
+    );
+
+    return { proxyToken: rawToken, identityId };
+  };
+
+  const issueBrainMcpAuthEnv = async (
+    workspaceId: string,
+    identityId: string,
+  ): Promise<Record<string, string>> => {
+    const dpopKeys = await generateKeyPair();
+
+    const intentRes = await fetch(`${wiringDeps.brainBaseUrl}/api/auth/intents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workspace_id: workspaceId,
+        identity_id: identityId,
+        authorization_details: CLI_AUTHORIZATION_DETAILS,
+        dpop_jwk_thumbprint: dpopKeys.thumbprint,
+        goal: "Orchestrator MCP bootstrap",
+        reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
+      }),
+    });
+
+    if (!intentRes.ok) {
+      const text = await intentRes.text();
+      throw new Error(`Failed to issue MCP auth intent: ${intentRes.status} ${text}`);
+    }
+
+    const intentData = await intentRes.json() as {
+      intent_id: string;
+      status: string;
+    };
+
+    if (intentData.status !== "authorized") {
+      throw new Error(`MCP auth intent is "${intentData.status}" (expected "authorized")`);
+    }
+
+    const tokenUrl = `${wiringDeps.brainBaseUrl}/api/auth/token`;
+    const dpopProof = await createDPoPProof(
+      dpopKeys.privateJwk,
+      dpopKeys.publicJwk,
+      "POST",
+      tokenUrl,
+    );
+
+    const tokenRes = await fetch(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        DPoP: dpopProof,
+      },
+      body: JSON.stringify({
+        grant_type: "urn:brain:intent-authorization",
+        intent_id: intentData.intent_id,
+        authorization_details: CLI_AUTHORIZATION_DETAILS,
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const text = await tokenRes.text();
+      throw new Error(`Failed to exchange MCP auth token: ${tokenRes.status} ${text}`);
+    }
+
+    const tokenData = await tokenRes.json() as {
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    };
+
+    const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
+
+    return {
+      BRAIN_CLIENT_ID: "orchestrator-session",
+      BRAIN_ACCESS_TOKEN: "orchestrator-session",
+      BRAIN_REFRESH_TOKEN: "orchestrator-session",
+      BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+      BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
+      BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
+      BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
+      BRAIN_DPOP_ACCESS_TOKEN: tokenData.access_token,
+      BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+    };
+  };
+
   // Workspace access guard — resolves user from session cookie, checks membership
   const validateWorkspaceAccess = async (request: Request, workspaceId: string): Promise<Response | undefined> => {
     const session = await wiringDeps.auth.api.getSession({ headers: request.headers });
@@ -365,11 +539,35 @@ export function wireOrchestratorRoutes(
         spawnAgentImport,
         stallDetectorImport,
       ]);
+
+      let proxyToken: string;
+      let brainIdentityId: string;
+      let brainAuthEnv: Record<string, string>;
+      try {
+        const tokenResult = await issueProxyTokenForWorkspace(workspaceId, authToken);
+        proxyToken = tokenResult.proxyToken;
+        brainIdentityId = tokenResult.identityId;
+        brainAuthEnv = await issueBrainMcpAuthEnv(workspaceId, brainIdentityId);
+      } catch (err) {
+        return {
+          ok: false,
+          error: {
+            code: "SESSION_ERROR",
+            message: err instanceof Error ? err.message : "Failed to issue proxy token",
+            httpStatus: 500,
+          },
+        };
+      }
+
       const spawnAgent = createSpawnAgent(wiringDeps.queryFn);
       const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
         brainBaseUrl: wiringDeps.brainBaseUrl,
+        brainIdentityId,
+        brainEnv: brainAuthEnv,
+        anthropicBaseUrl: `${wiringDeps.brainBaseUrl}/proxy/llm/anthropic`,
+        anthropicCustomHeaders: `X-Brain-Auth: ${proxyToken}`,
         workspaceId,
         taskId,
         authToken,

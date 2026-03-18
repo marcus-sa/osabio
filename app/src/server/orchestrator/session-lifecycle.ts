@@ -310,6 +310,10 @@ type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
+  brainIdentityId?: string;
+  brainEnv?: Record<string, string>;
+  anthropicBaseUrl?: string;
+  anthropicCustomHeaders?: string;
   workspaceId: string;
   taskId: string;
   intentId?: string;
@@ -386,6 +390,10 @@ export async function createOrchestratorSession(
     workDir: worktreePath,
     workspaceId: input.workspaceId,
     brainBaseUrl: input.brainBaseUrl,
+    brainIdentityId: input.brainIdentityId,
+    brainEnv: input.brainEnv,
+    anthropicBaseUrl: input.anthropicBaseUrl,
+    anthropicCustomHeaders: input.anthropicCustomHeaders,
   };
 
   const spawnFn = input.spawnAgent ?? defaultSpawnAgent;
