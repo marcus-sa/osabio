@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f4192c836443",
+  "session_id": "0e0af845-1a6b-4680-b0c6-e473db71b2ff",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T10:31:03.659152Z",
+  "branch": "marcus-sa/reactive-agent-activator",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/acceptance/reactive/schema-reactive-fields.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d586605ba0ae",
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 423074,
+    "cache_read_tokens": 3770421,
+    "output_tokens": 25604,
+    "api_call_count": 69
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T10:31:03.005645Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  }
+}
