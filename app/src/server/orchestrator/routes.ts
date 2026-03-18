@@ -7,13 +7,14 @@
 import { jsonError, jsonResponse } from "../http/response";
 import { withTracing, type RouteHandler } from "../http/instrumentation";
 import { RecordId } from "surrealdb";
-import { createDPoPProof, generateKeyPair } from "../../../shared/dpop";
+import { generateKeyPair } from "../../../shared/dpop";
 import {
   computeExpiresAt,
   generateProxyToken,
   hashProxyToken,
   readProxyTokenTtlDays,
 } from "../proxy/proxy-token-core";
+import { issueMcpBootstrapToken } from "../oauth/mcp-bootstrap";
 import type {
   OrchestratorSessionResult,
   SessionStatusResult,
@@ -331,6 +332,7 @@ export type OrchestratorWiringDeps = {
   surreal: import("surrealdb").Surreal;
   shellExec: import("./worktree-manager").ShellExec;
   brainBaseUrl: string;
+  asSigningKey: import("../oauth/as-key-management").AsSigningKey;
   sseRegistry?: SseRegistry;
   queryFn: import("./spawn-agent").QueryFn;
   auth: { api: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string } } | null> } };
@@ -405,67 +407,17 @@ export function wireOrchestratorRoutes(
     identityId: string,
   ): Promise<Record<string, string>> => {
     const dpopKeys = await generateKeyPair();
-
-    const intentRes = await fetch(`${wiringDeps.brainBaseUrl}/api/auth/intents`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        workspace_id: workspaceId,
-        identity_id: identityId,
-        authorization_details: CLI_AUTHORIZATION_DETAILS,
-        dpop_jwk_thumbprint: dpopKeys.thumbprint,
-        goal: "Orchestrator MCP bootstrap",
-        reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
-      }),
+    const tokenResult = await issueMcpBootstrapToken({
+      surreal: wiringDeps.surreal,
+      asSigningKey: wiringDeps.asSigningKey,
+      workspaceId,
+      identityId,
+      dpopJwkThumbprint: dpopKeys.thumbprint,
+      authorizationDetails: CLI_AUTHORIZATION_DETAILS,
+      goal: "Orchestrator MCP bootstrap",
+      reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
     });
-
-    if (!intentRes.ok) {
-      const text = await intentRes.text();
-      throw new Error(`Failed to issue MCP auth intent: ${intentRes.status} ${text}`);
-    }
-
-    const intentData = await intentRes.json() as {
-      intent_id: string;
-      status: string;
-    };
-
-    if (intentData.status !== "authorized") {
-      throw new Error(`MCP auth intent is "${intentData.status}" (expected "authorized")`);
-    }
-
-    const tokenUrl = `${wiringDeps.brainBaseUrl}/api/auth/token`;
-    const dpopProof = await createDPoPProof(
-      dpopKeys.privateJwk,
-      dpopKeys.publicJwk,
-      "POST",
-      tokenUrl,
-    );
-
-    const tokenRes = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        DPoP: dpopProof,
-      },
-      body: JSON.stringify({
-        grant_type: "urn:brain:intent-authorization",
-        intent_id: intentData.intent_id,
-        authorization_details: CLI_AUTHORIZATION_DETAILS,
-      }),
-    });
-
-    if (!tokenRes.ok) {
-      const text = await tokenRes.text();
-      throw new Error(`Failed to exchange MCP auth token: ${tokenRes.status} ${text}`);
-    }
-
-    const tokenData = await tokenRes.json() as {
-      access_token: string;
-      token_type: string;
-      expires_in: number;
-    };
-
-    const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenData.expires_in;
+    const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenResult.expiresIn;
 
     return {
       BRAIN_CLIENT_ID: "orchestrator-session",
@@ -475,7 +427,7 @@ export function wireOrchestratorRoutes(
       BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
       BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
       BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
-      BRAIN_DPOP_ACCESS_TOKEN: tokenData.access_token,
+      BRAIN_DPOP_ACCESS_TOKEN: tokenResult.accessToken,
       BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
     };
   };
