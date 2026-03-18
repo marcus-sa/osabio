@@ -3,7 +3,7 @@
   "checkpoint_id": "a4efd2a73c25",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 7,
   "files_touched": [
     ".agents/skills/otel-instrumentation/README.md",
     ".agents/skills/otel-instrumentation/SKILL.md",
@@ -51,13 +51,20 @@
       "context": "/a4/efd2a73c25/1/context.md",
       "content_hash": "/a4/efd2a73c25/1/content_hash.txt",
       "prompt": "/a4/efd2a73c25/1/prompt.txt"
+    },
+    {
+      "metadata": "/a4/efd2a73c25/2/metadata.json",
+      "transcript": "/a4/efd2a73c25/2/full.jsonl",
+      "context": "/a4/efd2a73c25/2/context.md",
+      "content_hash": "/a4/efd2a73c25/2/content_hash.txt",
+      "prompt": "/a4/efd2a73c25/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 125,
-    "cache_creation_tokens": 84061,
-    "cache_read_tokens": 1024012,
-    "output_tokens": 4517,
-    "api_call_count": 16
+    "input_tokens": 143,
+    "cache_creation_tokens": 131848,
+    "cache_read_tokens": 1329246,
+    "output_tokens": 5580,
+    "api_call_count": 22
   }
 }
