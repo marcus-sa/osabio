@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a8cf7c884ba1",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/graph/queries.ts",
+    "app/src/server/suggestion/queries.ts",
+    "schema/migrations/0058_project_graph_include_related_tasks.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/graph/graph-relationships.test.ts",
+    "tests/unit/graph-task-feature-link-preference.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a8/cf7c884ba1/0/metadata.json",
+      "transcript": "/a8/cf7c884ba1/0/full.jsonl",
+      "context": "/a8/cf7c884ba1/0/context.md",
+      "content_hash": "/a8/cf7c884ba1/0/content_hash.txt",
+      "prompt": "/a8/cf7c884ba1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}

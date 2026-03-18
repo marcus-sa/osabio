@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a8cf7c884ba1",
+  "session_id": "93a489c3-e4e9-4f72-98f0-ee4bac728d98",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-18T16:23:59.763867Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/graph/queries.ts",
+    "app/src/server/suggestion/queries.ts",
+    "schema/migrations/0058_project_graph_include_related_tasks.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/graph/graph-relationships.test.ts",
+    "tests/unit/graph-task-feature-link-preference.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d69cadc1dad8",
+  "checkpoint_transcript_start": 78,
+  "transcript_lines_at_start": 78,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-18T16:23:59.682355Z",
+    "agent_lines": 362,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 362,
+    "agent_percentage": 100
+  }
+}
