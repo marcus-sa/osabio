@@ -41,6 +41,7 @@ export type ServerConfig = {
   adminEmail?: string;
   adminPassword?: string;
   worktreeManagerEnabled: boolean;
+  orchestratorMockAgent: boolean;
   internalWebhookSecret?: string;
 };
 
@@ -99,6 +100,7 @@ export function loadServerConfig(): ServerConfig {
 
   const selfHosted = parseBooleanEnv("SELF_HOSTED");
   const worktreeManagerEnabled = parseBooleanEnv("WORKTREE_MANAGER_ENABLED");
+  const orchestratorMockAgent = parseBooleanEnv("ORCHESTRATOR_MOCK_AGENT");
   const internalWebhookSecret = optionalEnv("INTERNAL_WEBHOOK_SECRET");
 
   const adminEmail = selfHosted
@@ -140,6 +142,7 @@ export function loadServerConfig(): ServerConfig {
     ...(adminEmail ? { adminEmail } : {}),
     ...(adminPassword ? { adminPassword } : {}),
     worktreeManagerEnabled,
+    orchestratorMockAgent,
     ...(internalWebhookSecret ? { internalWebhookSecret } : {}),
   };
 }

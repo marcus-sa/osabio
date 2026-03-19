@@ -339,6 +339,7 @@ export type OrchestratorWiringDeps = {
   sseRegistry?: SseRegistry;
   queryFn: import("./spawn-agent").QueryFn;
   auth: { api: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string } } | null> } };
+  mockAgent: boolean;
 };
 
 export function wireOrchestratorRoutes(
@@ -546,7 +547,7 @@ export function wireOrchestratorRoutes(
   };
 
   // Use mock spawn for acceptance tests, production spawn otherwise
-  const spawnAgentImport = process.env.ORCHESTRATOR_MOCK_AGENT === "true"
+  const spawnAgentImport = wiringDeps.mockAgent
     ? Promise.resolve({
         createSpawnAgent: (_qfn: import("./spawn-agent").QueryFn): import("./spawn-agent").SpawnAgentFn =>
           () => ({

@@ -2,9 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { setupAcceptanceSuite } from "../acceptance-test-kit";
 
 const getRuntime = setupAcceptanceSuite("signup-guard", {
-  env: {
-    SELF_HOSTED: "true",
-  },
+  configOverrides: { selfHosted: true },
 });
 
 describe("POST /api/auth/sign-up/email (SELF_HOSTED=true)", () => {

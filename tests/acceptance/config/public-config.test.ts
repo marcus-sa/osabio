@@ -2,10 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { setupAcceptanceSuite } from "../acceptance-test-kit";
 
 const getRuntime = setupAcceptanceSuite("public-config", {
-  env: {
-    SELF_HOSTED: "true",
-    WORKTREE_MANAGER_ENABLED: "true",
-  },
+  configOverrides: { selfHosted: true, worktreeManagerEnabled: true },
 });
 
 describe("GET /config", () => {

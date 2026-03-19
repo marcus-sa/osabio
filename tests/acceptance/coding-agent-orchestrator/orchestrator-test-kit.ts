@@ -109,7 +109,7 @@ export function setupOrchestratorSuite(
   suiteName: string,
 ): () => OrchestratorTestRuntime {
   return setupAcceptanceSuite(suiteName, {
-    env: { ORCHESTRATOR_MOCK_AGENT: "true" },
+    configOverrides: { orchestratorMockAgent: true },
   });
 }
 

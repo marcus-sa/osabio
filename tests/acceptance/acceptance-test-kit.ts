@@ -50,8 +50,8 @@ export type AcceptanceTestRuntime = {
 export type SmokeTestRuntime = AcceptanceTestRuntime;
 
 export type AcceptanceSuiteOptions = {
-  /** Extra env vars to set before the server boots (e.g. ORCHESTRATOR_MOCK_AGENT). */
-  env?: Record<string, string>;
+  /** Direct config overrides — applied to the ServerConfig object without touching process.env. */
+  configOverrides?: Partial<ServerConfig>;
 };
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -78,13 +78,6 @@ export function setupAcceptanceSuite(
   let setupSucceeded = false;
 
   beforeAll(async () => {
-    // Apply env overrides before server boot
-    if (options?.env) {
-      for (const [k, v] of Object.entries(options.env)) {
-        process.env[k] = v;
-      }
-    }
-
     const surreal = new Surreal();
     await withTimeout(() => surreal.connect(surrealUrl), 10_000, "connect to SurrealDB");
     await withTimeout(
@@ -136,8 +129,9 @@ export function setupAcceptanceSuite(
       anthropicApiUrl: process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
       ...(process.env.ANTHROPIC_API_KEY?.trim() ? { anthropicApiKey: process.env.ANTHROPIC_API_KEY.trim() } : {}),
       inferenceProvider: "openrouter",
-      selfHosted: process.env.SELF_HOSTED?.trim().toLowerCase() === "true",
-      worktreeManagerEnabled: process.env.WORKTREE_MANAGER_ENABLED?.trim().toLowerCase() === "true",
+      selfHosted: false,
+      worktreeManagerEnabled: false,
+      ...options?.configOverrides,
     };
 
     const deps = await createRuntimeDependencies(config);

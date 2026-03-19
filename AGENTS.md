@@ -188,6 +188,13 @@ This codebase uses OpenTelemetry for observability. The instrumentation follows 
 - If acceptance tests fail, fix the issue before moving on. Do NOT skip or defer failing tests.
 - This applies to each individual step in the roadmap, not just the final step.
 
+### No process.env in Application Code
+
+- Application code must NEVER read `process.env` directly. All configuration is parsed once in `runtime/config.ts` (`loadServerConfig()`) and injected as `ServerConfig` through the dependency chain.
+- Reading `process.env` at runtime creates hidden coupling, breaks testability (Bun shares one process across all test files — env mutations in one suite poison others), and makes behavior non-deterministic.
+- If a behavior needs to be configurable, add a field to `ServerConfig`, wire it through dependencies, and let callers (including tests) provide it via typed config objects.
+- Acceptance tests use `configOverrides?: Partial<ServerConfig>` on `AcceptanceSuiteOptions` to vary server behavior per suite — no env mutation needed.
+
 ### Acceptance Test Isolation
 
 - Acceptance tests boot an in-process Brain server with an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
