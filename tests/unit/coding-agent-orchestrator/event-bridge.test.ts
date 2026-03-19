@@ -221,6 +221,76 @@ describe("transformSdkMessage", () => {
     expect(result).toEqual([]);
   });
 
+  it("suppresses system init messages", () => {
+    const message: SdkMessage = {
+      type: "system",
+      subtype: "init",
+      claude_code_version: "2.1.71",
+    };
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([]);
+  });
+
+  it("suppresses system task_started messages", () => {
+    const message: SdkMessage = {
+      type: "system",
+      subtype: "task_started",
+    };
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([]);
+  });
+
+  it("suppresses system task_progress messages", () => {
+    const message: SdkMessage = {
+      type: "system",
+      subtype: "task_progress",
+    };
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([]);
+  });
+
+  it("surfaces mcp_server_error system messages", () => {
+    const message: SdkMessage = {
+      type: "system",
+      subtype: "mcp_server_error",
+      server_name: "brain",
+      error: "connection refused",
+    };
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([
+      {
+        type: "agent_token",
+        sessionId,
+        token: '[system] MCP server "brain" failed: connection refused\n',
+      },
+    ]);
+  });
+
+  it("surfaces unknown system subtypes as informational tokens", () => {
+    const message: SdkMessage = {
+      type: "system",
+      subtype: "custom_event",
+    };
+
+    const result = transformSdkMessage(message, sessionId);
+
+    expect(result).toEqual([
+      {
+        type: "agent_token",
+        sessionId,
+        token: "[system] custom_event\n",
+      },
+    ]);
+  });
+
   it("returns empty array for unknown message types", () => {
     const message = { type: "user" } as SdkMessage;
 

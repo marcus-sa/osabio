@@ -208,16 +208,20 @@ function transformResultMessage(
   };
 }
 
+/** System subtypes that carry no user-visible information and should be suppressed. */
+const SUPPRESSED_SYSTEM_SUBTYPES = new Set([
+  "init",
+  "task_started",
+  "task_progress",
+]);
+
 function transformSystemMessage(
   message: { type: "system"; subtype: string; [key: string]: unknown },
   sessionId: string,
 ): AgentTokenEvent | undefined {
   const subtype = message.subtype;
 
-  if (subtype === "init") {
-    const version = message.claude_code_version ?? "unknown";
-    return { type: "agent_token", sessionId, token: `[system] Claude Code ${version} initialized\n` };
-  }
+  if (SUPPRESSED_SYSTEM_SUBTYPES.has(subtype)) return undefined;
 
   if (subtype === "mcp_server_error") {
     const server = (message as Record<string, unknown>).server_name ?? "unknown";
