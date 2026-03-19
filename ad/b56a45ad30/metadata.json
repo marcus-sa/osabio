@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "adb56a45ad30",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "schema/migrations/0061_remove_proxy_no_policy_type.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/llm-proxy/llm-proxy-policy.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ad/b56a45ad30/0/metadata.json",
+      "transcript": "/ad/b56a45ad30/0/full.jsonl",
+      "context": "/ad/b56a45ad30/0/context.md",
+      "content_hash": "/ad/b56a45ad30/0/content_hash.txt",
+      "prompt": "/ad/b56a45ad30/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 118484,
+    "cache_read_tokens": 2292493,
+    "output_tokens": 6762,
+    "api_call_count": 36
+  }
+}

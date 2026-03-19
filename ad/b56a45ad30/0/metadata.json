@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "adb56a45ad30",
+  "session_id": "8bdd77d0-1a21-4b0d-97d6-da4e18fb3646",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T10:28:32.163831Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "schema/migrations/0061_remove_proxy_no_policy_type.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/llm-proxy/llm-proxy-policy.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f4dc4ac14071",
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 118484,
+    "cache_read_tokens": 2292493,
+    "output_tokens": 6762,
+    "api_call_count": 36
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T10:28:31.962836Z",
+    "agent_lines": 9,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 9,
+    "agent_percentage": 100
+  }
+}
