@@ -5,7 +5,9 @@
   "branch": "main",
   "checkpoints_count": 2,
   "files_touched": [
-    "app/src/server/proxy/anthropic-proxy-route.ts"
+    "app/src/server/graph/embeddings.ts",
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "tests/unit/proxy-handler-auth.test.ts"
   ],
   "sessions": [
     {
@@ -14,6 +16,13 @@
       "context": "/1d/ea251c5086/0/context.md",
       "content_hash": "/1d/ea251c5086/0/content_hash.txt",
       "prompt": "/1d/ea251c5086/0/prompt.txt"
+    },
+    {
+      "metadata": "/1d/ea251c5086/1/metadata.json",
+      "transcript": "/1d/ea251c5086/1/full.jsonl",
+      "context": "/1d/ea251c5086/1/context.md",
+      "content_hash": "/1d/ea251c5086/1/content_hash.txt",
+      "prompt": "/1d/ea251c5086/1/prompt.txt"
     }
   ],
   "token_usage": {
