@@ -9,6 +9,16 @@
  *   POST /api/observe/scan/:workspaceId  (periodic graph scan)
  */
 import { RecordId, type Surreal } from "surrealdb";
+import {
+  createIdentity,
+  createIntentDirectly,
+  createGitCommitDirectly,
+  createDecisionDirectly,
+  createObservationDirectly,
+  queryWorkspaceObservations as sharedQueryWorkspaceObservations,
+  type ActionSpec,
+  type ObservationSeverity as SharedObservationSeverity,
+} from "../shared-fixtures";
 
 // Re-export everything from orchestrator-test-kit
 export {
@@ -88,7 +98,7 @@ export type CreateGitCommitOptions = {
 export type CreateCompletedIntentOptions = {
   goal: string;
   reasoning: string;
-  actionSpec: { provider: string; action: string; params: Record<string, unknown> };
+  actionSpec: ActionSpec;
   status?: "completed" | "failed";
 };
 
@@ -228,31 +238,18 @@ export async function createTaskWithCommit(
   workspaceId: string,
   opts: CreateTaskWithCommitOptions,
 ): Promise<{ taskId: string; commitId: string; sha: string }> {
-  const taskId = `task-${crypto.randomUUID()}`;
-  const commitId = `commit-${crypto.randomUUID()}`;
   const sha = opts.sha ?? `abc${crypto.randomUUID().replace(/-/g, "").slice(0, 37)}`;
+
+  const { commitId, commitRecord } = await createGitCommitDirectly(surreal, workspaceId, sha, {
+    repository: opts.repository,
+    message: `feat: ${opts.title}`,
+    authorName: "test-agent",
+  });
+
+  const taskId = `task-${crypto.randomUUID()}`;
   const taskRecord = new RecordId("task", taskId);
-  const commitRecord = new RecordId("git_commit", commitId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  // Create the git_commit record (but NOT via CREATE if we want to avoid triggering commit_created EVENT)
-  // Use a direct insert approach to seed without firing events
-  await surreal.query(
-    `CREATE $commit CONTENT $content;`,
-    {
-      commit: commitRecord,
-      content: {
-        sha,
-        repository: opts.repository ?? "org/repo",
-        message: `feat: ${opts.title}`,
-        author_name: "test-agent",
-        workspace: workspaceRecord,
-        created_at: new Date(),
-      },
-    },
-  );
-
-  // Create the task linked to the commit
   await surreal.query(
     `CREATE $task CONTENT $content;`,
     {
@@ -282,27 +279,8 @@ export async function createGitCommit(
   sha: string,
   opts?: CreateGitCommitOptions,
 ): Promise<{ commitId: string }> {
-  const commitId = `commit-${crypto.randomUUID()}`;
-  const commitRecord = new RecordId("git_commit", commitId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(
-    `CREATE $commit CONTENT $content;`,
-    {
-      commit: commitRecord,
-      content: {
-        sha,
-        repository: opts?.repository ?? "org/repo",
-        message: opts?.message ?? "chore: test commit",
-        author_name: opts?.authorName ?? "test-agent",
-        url: opts?.url,
-        workspace: workspaceRecord,
-        created_at: new Date(),
-      },
-    },
-  );
-
-  return { commitId };
+  const result = await createGitCommitDirectly(surreal, workspaceId, sha, opts);
+  return { commitId: result.commitId };
 }
 
 /**
@@ -315,46 +293,20 @@ export async function createCompletedIntent(
   requesterId: string,
   opts: CreateCompletedIntentOptions,
 ): Promise<{ intentId: string }> {
-  const intentId = `intent-${crypto.randomUUID()}`;
-  const intentRecord = new RecordId("intent", intentId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-  const requesterRecord = new RecordId("identity", requesterId);
-  const traceId = `trace-${intentId}`;
-  const traceRecord = new RecordId("trace", traceId);
-
-  await surreal.query(`CREATE $trace CONTENT $content;`, {
-    trace: traceRecord,
-    content: {
-      type: "intent_submission",
-      actor: requesterRecord,
-      workspace: workspaceRecord,
-      created_at: new Date(),
+  const result = await createIntentDirectly(surreal, workspaceId, requesterId, {
+    goal: opts.goal,
+    reasoning: opts.reasoning,
+    status: opts.status ?? "completed",
+    actionSpec: opts.actionSpec,
+    evaluation: {
+      decision: "APPROVE",
+      risk_score: 10,
+      reason: "Pre-approved for testing",
+      evaluated_at: new Date(),
+      policy_only: false,
     },
   });
-
-  await surreal.query(`CREATE $intent CONTENT $content;`, {
-    intent: intentRecord,
-    content: {
-      goal: opts.goal,
-      reasoning: opts.reasoning,
-      status: opts.status ?? "completed",
-      priority: 50,
-      action_spec: opts.actionSpec,
-      trace_id: traceRecord,
-      requester: requesterRecord,
-      workspace: workspaceRecord,
-      evaluation: {
-        decision: "APPROVE",
-        risk_score: 10,
-        reason: "Pre-approved for testing",
-        evaluated_at: new Date(),
-        policy_only: false,
-      },
-      created_at: new Date(),
-    },
-  });
-
-  return { intentId };
+  return { intentId: result.intentId };
 }
 
 /**
@@ -373,33 +325,15 @@ export async function createObservationByAgent(
     targetId?: string;
   },
 ): Promise<{ observationId: string }> {
-  const observationId = `obs-${crypto.randomUUID()}`;
-  const observationRecord = new RecordId("observation", observationId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $obs CONTENT $content;`, {
-    obs: observationRecord,
-    content: {
-      text: opts.text,
-      severity: opts.severity,
-      status: "open",
-      observation_type: opts.observationType,
-      source_agent: sourceAgent,
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
+  const result = await createObservationDirectly(surreal, workspaceId, {
+    text: opts.text,
+    severity: opts.severity,
+    observationType: opts.observationType,
+    sourceAgent,
+    targetTable: opts.targetTable,
+    targetId: opts.targetId,
   });
-
-  // Link observation to target entity if provided
-  if (opts.targetTable && opts.targetId) {
-    const targetRecord = new RecordId(opts.targetTable, opts.targetId);
-    await surreal.query(
-      `RELATE $obs->observes->$target SET added_at = time::now();`,
-      { obs: observationRecord, target: targetRecord },
-    );
-  }
-
-  return { observationId };
+  return { observationId: result.observationId };
 }
 
 /**
@@ -414,23 +348,12 @@ export async function createConfirmedDecision(
     status?: string;
   },
 ): Promise<{ decisionId: string }> {
-  const decisionId = `decision-${crypto.randomUUID()}`;
-  const decisionRecord = new RecordId("decision", decisionId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $dec CONTENT $content;`, {
-    dec: decisionRecord,
-    content: {
-      summary: opts.summary,
-      rationale: opts.rationale ?? "Confirmed for testing",
-      status: opts.status ?? "confirmed",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
+  const result = await createDecisionDirectly(surreal, workspaceId, {
+    summary: opts.summary,
+    rationale: opts.rationale ?? "Confirmed for testing",
+    status: opts.status,
   });
-
-  return { decisionId };
+  return { decisionId: result.decisionId };
 }
 
 /**
@@ -540,21 +463,7 @@ export async function getWorkspaceObservations(
   workspaceId: string,
   sourceAgent?: string,
 ): Promise<ObservationRecord[]> {
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  if (sourceAgent) {
-    const rows = (await surreal.query(
-      `SELECT * FROM observation WHERE workspace = $ws AND source_agent = $agent ORDER BY created_at DESC;`,
-      { ws: workspaceRecord, agent: sourceAgent },
-    )) as Array<ObservationRecord[]>;
-    return rows[0] ?? [];
-  }
-
-  const rows = (await surreal.query(
-    `SELECT * FROM observation WHERE workspace = $ws ORDER BY created_at DESC;`,
-    { ws: workspaceRecord },
-  )) as Array<ObservationRecord[]>;
-  return rows[0] ?? [];
+  return sharedQueryWorkspaceObservations(surreal, workspaceId, sourceAgent) as Promise<ObservationRecord[]>;
 }
 
 /**
@@ -629,20 +538,7 @@ export async function setupObserverWorkspace(
   const workspace = await createTestWorkspace(baseUrl, user);
 
   // Create an agent identity in this workspace
-  const identityId = `id-${crypto.randomUUID()}`;
-  const identityRecord = new RecordId("identity", identityId);
-  const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
+  const result = await createIdentity(surreal, workspace.workspaceId, `Observer Test Agent ${suffix}`, "agent");
 
-  await surreal.query(`CREATE $identity CONTENT $content;`, {
-    identity: identityRecord,
-    content: {
-      name: `Observer Test Agent ${suffix}`,
-      type: "agent",
-      identity_status: "active",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  return { user, workspaceId: workspace.workspaceId, identityId };
+  return { user, workspaceId: workspace.workspaceId, identityId: result.identityId };
 }

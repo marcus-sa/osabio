@@ -12,6 +12,11 @@
  */
 import { RecordId, type Surreal } from "surrealdb";
 import { embedMany } from "ai";
+import {
+  createWorkspaceDirectly,
+  createDecisionDirectly,
+  type DirectWorkspaceResult,
+} from "../shared-fixtures";
 
 // ---------------------------------------------------------------------------
 // Re-exports from shared kit
@@ -118,41 +123,10 @@ export async function createTestWorkspace(
   surreal: Surreal,
   suffix: string,
 ): Promise<{ workspaceId: string; identityId: string }> {
-  const workspaceId = `ws-${crypto.randomUUID()}`;
-  const identityId = `id-${crypto.randomUUID()}`;
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-  const identityRecord = new RecordId("identity", identityId);
-
-  await surreal.query(`CREATE $workspace CONTENT $content;`, {
-    workspace: workspaceRecord,
-    content: {
-      name: `Learning Test Workspace ${suffix}`,
-      status: "active",
-      onboarding_complete: true,
-      onboarding_turn_count: 0,
-      onboarding_summary_pending: false,
-      onboarding_started_at: new Date(),
-      created_at: new Date(),
-    },
+  const result = await createWorkspaceDirectly(surreal, suffix, {
+    workspaceName: `Learning Test Workspace ${suffix}`,
   });
-
-  await surreal.query(`CREATE $identity CONTENT $content;`, {
-    identity: identityRecord,
-    content: {
-      name: `Test User ${suffix}`,
-      type: "human",
-      identity_status: "active",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  await surreal.query(
-    `RELATE $identity->member_of->$workspace SET added_at = time::now();`,
-    { identity: identityRecord, workspace: workspaceRecord },
-  );
-
-  return { workspaceId, identityId };
+  return { workspaceId: result.workspaceId, identityId: result.identityId };
 }
 
 /**
@@ -322,24 +296,13 @@ export async function createTestDecision(
     embedding: number[];
   }> = {},
 ): Promise<{ decisionId: string }> {
-  const decisionId = `decision-${crypto.randomUUID()}`;
-  const decisionRecord = new RecordId("decision", decisionId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $dec CONTENT $content;`, {
-    dec: decisionRecord,
-    content: {
-      summary: overrides.summary ?? "Test decision for collision detection",
-      rationale: overrides.rationale ?? "Decided for testing purposes",
-      status: overrides.status ?? "confirmed",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-      updated_at: new Date(),
-      ...(overrides.embedding ? { embedding: overrides.embedding } : {}),
-    },
+  const result = await createDecisionDirectly(surreal, workspaceId, {
+    summary: overrides.summary ?? "Test decision for collision detection",
+    rationale: overrides.rationale ?? "Decided for testing purposes",
+    status: overrides.status,
+    embedding: overrides.embedding,
   });
-
-  return { decisionId };
+  return { decisionId: result.decisionId };
 }
 
 /**
