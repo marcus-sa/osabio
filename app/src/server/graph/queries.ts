@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { cosineSimilarity } from "./embeddings";
+export { searchEntitiesByBm25 } from "./bm25-search";
 
 export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session" | "objective" | "behavior";
 

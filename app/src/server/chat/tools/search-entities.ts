@@ -1,11 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { createEmbeddingVector } from "../../graph/embeddings";
+import { searchEntitiesByBm25 } from "../../graph/bm25-search";
 import {
   listEntityNeighbors,
   parseRecordIdString,
-  resolveWorkspaceProjectRecord,
-  searchEntitiesByEmbedding,
   type GraphEntityTable,
   type SearchEntityKind,
 } from "../../graph/queries";
@@ -15,36 +13,22 @@ import type { ChatToolDeps } from "./types";
 export function createSearchEntitiesTool(deps: ChatToolDeps) {
   return tool({
     description:
-      "Semantic search across the knowledge graph. Use for finding entities by topic or meaning (e.g. \"authentication decisions\", \"payment tasks\"). For listing entities by kind or status, use list_workspace_entities instead.",
+      "Full-text search across the knowledge graph. Use for finding entities by keyword or topic (e.g. \"authentication decisions\", \"payment tasks\"). For listing entities by kind or status, use list_workspace_entities instead.",
     inputSchema: z.object({
-      query: z.string().min(1).describe("Natural language search query"),
+      query: z.string().min(1).describe("Search query (keywords matched via BM25 full-text search)"),
       kinds: z.array(z.enum(["project", "feature", "task", "decision", "question", "suggestion"]))
         .optional()
         .describe("Optional filter by entity kinds"),
-      project: z.string().optional().describe("Optional project name or project record id"),
       limit: z.number().int().min(1).max(25).default(10).describe("Maximum number of results"),
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
-      const queryEmbedding = await createEmbeddingVector(deps.embeddingModel, input.query, deps.embeddingDimension);
-      if (!queryEmbedding) {
-        throw new Error("failed to create query embedding for search_entities");
-      }
 
-      const projectRecord = input.project
-        ? await resolveWorkspaceProjectRecord({
-            surreal: deps.surreal,
-            workspaceRecord: context.workspaceRecord,
-            projectInput: input.project,
-          })
-        : undefined;
-
-      const results = await searchEntitiesByEmbedding({
+      const results = await searchEntitiesByBm25({
         surreal: deps.surreal,
         workspaceRecord: context.workspaceRecord,
-        queryEmbedding,
+        query: input.query,
         ...(input.kinds ? { kinds: input.kinds as SearchEntityKind[] } : {}),
-        ...(projectRecord ? { projectRecord } : {}),
         limit: input.limit,
       });
 

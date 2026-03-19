@@ -1,7 +1,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
-import { searchEntitiesByEmbedding, type SearchEntityKind } from "../graph/queries";
-import { createEmbeddingVector } from "../graph/embeddings";
+import { type SearchEntityKind } from "../graph/queries";
+import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import type { ContextPacket, TaskContextPacket, WorkspaceOverview } from "./types";
 import { loadActiveLearnings } from "../learning/loader";
 
