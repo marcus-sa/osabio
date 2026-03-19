@@ -1,0 +1,20 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+how can we improve the messages streaming for the agent task assignment to exclude system messages?: [system] Claude Code 2.1.71 initialized
+Now let me explore the codebase to understand the current notification and settings infrastructure.[system] task_started
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[system] task_progress
+[syst...
+
