@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2367d414d48e",
+  "session_id": "6a1669dd-bdac-4ab6-8c41-ec0c0db3dd1d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T07:39:35.285618Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/agents/observer/agent.ts",
+    "app/src/server/observation/queries.ts",
+    "app/src/server/observer/graph-scan.ts",
+    "app/src/server/observer/learning-diagnosis.ts",
+    "app/src/server/observer/session-trace-analyzer.ts",
+    "app/src/server/observer/trace-response-analyzer.ts",
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/policy-evaluator.ts",
+    "app/src/server/webhook/github-commit-processor.ts",
+    "app/src/shared/contracts.ts",
+    "schema/migrations/0059_observation_dedup_fields.surql",
+    "schema/surreal-schema.surql",
+    "tests/unit/observation-queries.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5d66a6894267",
+  "token_usage": {
+    "input_tokens": 188,
+    "cache_creation_tokens": 219543,
+    "cache_read_tokens": 12382915,
+    "output_tokens": 33032,
+    "api_call_count": 102
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T07:39:32.445664Z",
+    "agent_lines": 246,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 246,
+    "agent_percentage": 100
+  }
+}
