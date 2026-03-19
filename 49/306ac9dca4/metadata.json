@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "49306ac9dca4",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/dynamic-behaviors/authorizer-integration.test.ts",
+    "tests/acceptance/dynamic-behaviors/walking-skeleton.test.ts",
+    "tests/acceptance/intent-llm-traces/intent-reasoning.test.ts",
+    "tests/acceptance/intent-llm-traces/reasoning-test-kit.ts",
+    "tests/acceptance/intent-node/milestone-1-authorization-pipeline.test.ts",
+    "tests/acceptance/intent-node/milestone-2-veto-and-execution.test.ts",
+    "tests/acceptance/intent-node/milestone-3-observability.test.ts",
+    "tests/acceptance/objective-behavior/behavior-policy.test.ts",
+    "tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts",
+    "tests/acceptance/observer-agent/milestone-2-verification-pipeline.test.ts",
+    "tests/acceptance/policy-crud-ui/milestone-6-policy-trace.test.ts",
+    "tests/acceptance/policy-node/milestone-2-policy-gate-evaluation.test.ts",
+    "tests/acceptance/policy-node/milestone-3-audit-and-authorization.test.ts",
+    "tests/unit/intent/authorizer.test.ts",
+    "tests/unit/intent/veto-manager.test.ts",
+    "tests/unit/policy-gate.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/49/306ac9dca4/0/metadata.json",
+      "transcript": "/49/306ac9dca4/0/full.jsonl",
+      "context": "/49/306ac9dca4/0/context.md",
+      "content_hash": "/49/306ac9dca4/0/content_hash.txt",
+      "prompt": "/49/306ac9dca4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
