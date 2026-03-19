@@ -1,0 +1,61 @@
+i am trying to dogfeed the product and use it to build the product, but it becomes confused:
+
+Brain
+Search...
+let's start mapping out the graph itself. I want there to be entities: Initiative -> Project -> Feature -> Task, and then questions, suggestions and decisions
+
+Thinking
+I can help you map out the graph structure and visualize the entity relationships. Let me first check what's currently in the workspace, then show you the relationship graph. Perfect! Now I have the data and can present it to the user. Let me render the relationship graph component and summarize what we have. Perfect! Here's the current graph structure visualized:
+
+Current Graph Entities & Relationships
+
+Current State
+Work Hierarchy:
+
+1 Project: "Agent-Native Business Operating System"
+0 Features: (none yet)
+0 Tasks: (none yet)
+Cross-cutting Entities:
+
+7 Decisions: All linked to the project
+5 confirmed (Observation lifecycle, IAM authority, Feed governance, Graph architecture, Target market)
+2 provisional (Haiku extraction, Evidence on edges)
+1 Question: Open question about observations workflow
+5 Observations: Info-level signals across engineering, operations, and marketing
+About Your Hierarchy
+You mentioned "Initiative → Project → Feature → Task". Currently we have:
+
+Project (top-level entity)
+Feature (hasn't been used yet)
+Task (hasn't been used yet)
+The current model doesn't have an explicit "Initiative" entity type, but that simply means:
+
+Project can function as your Initiative
+Feature → sub-capabilities
+Task → actionable work
+We can start creating the hierarchy. Would you like to:
+
+Create your first Feature under the current Project?
+Or map out Features and Tasks for the existing Decisions?
+Or do you want to introduce the Initiative level as a new entity type?
+What's the first piece of the hierarchy you want to build?
+
+2 tool calls, 3 messages
+I see the issue. The system prompt has this on line 261:
+
+“You do NOT need to ask the user whether to ‘create entity types’ or ‘set up the hierarchy’ — the data model already exists.”
+
+This line explicitly tells the agent to shut down schema-level conversations. When you’re dogfooding and say “I want there to be entities: Initiative -> Project -> Feature -> Task”, the agent reads that as either:
+
+A request to create instances (but you’re talking about the model itself)
+A schema discussion it’s told to deflect
+So it does this awkward hybrid — dumps current state, notes “Initiative” doesn’t exist, then asks 3 clarifying questions instead of acting. This violates its own “Act, Don’t Describe” directive.
+
+The root tension: the prompt assumes the user is always using Brain, never designing Brain. When dogfooding, that assumption breaks.
+
+What would you like to fix here? A few options:
+
+Remove the deflection line — let the agent engage naturally with schema discussions, and when the user describes a hierarchy that already exists, just confirm and start populating it
+Add dogfooding awareness — add a section that says “when the user discusses the data model itself, engage with the design discussion rather than deflecting”
+Reframe as action — when the user describes a hierarchy, the agent should map it to existing types and immediately start creating entities (e.g., “Initiative” → create it as a Project, then create Features/Tasks underneath)
+Which direction do you want to go?
