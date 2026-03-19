@@ -14,6 +14,7 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import type { InflightTracker } from "../runtime/types";
+import { createObservation, type EmbeddingDeps } from "../observation/queries";
 import { log } from "../telemetry/logger";
 import {
   type RateLimiterState,
@@ -90,6 +91,7 @@ export type ProxyPolicyDependencies = {
   readonly inflight: InflightTracker;
   readonly rateLimiterState: RateLimiterState;
   readonly spendCache: SpendCache;
+  readonly embeddingDeps?: EmbeddingDeps;
 };
 
 // ---------------------------------------------------------------------------
@@ -233,36 +235,6 @@ async function loadWorkspacePolicies(
 }
 
 // ---------------------------------------------------------------------------
-// Observation Writer (async, fire-and-forget)
-// ---------------------------------------------------------------------------
-
-async function createNoPolicyWarning(
-  surreal: Surreal,
-  workspaceId: string,
-): Promise<void> {
-  try {
-    const observationId = `obs-${crypto.randomUUID()}`;
-    const observationRecord = new RecordId("observation", observationId);
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-
-    await surreal.query(`CREATE $obs CONTENT $content;`, {
-      obs: observationRecord,
-      content: {
-        text: `No LLM proxy policies configured for workspace. All requests are being forwarded without model access restrictions. Consider creating policies to control which models each agent type can use.`,
-        severity: "warning",
-        status: "open",
-        observation_type: "proxy_no_policy",
-        source_agent: "llm-proxy",
-        workspace: workspaceRecord,
-        created_at: new Date(),
-      },
-    });
-  } catch (error) {
-    log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Policy Decision Logger (async)
 // ---------------------------------------------------------------------------
 
@@ -280,7 +252,6 @@ export type PolicyDecisionLog = {
 export async function evaluateProxyPolicy(
   context: ProxyPolicyContext,
   deps: ProxyPolicyDependencies,
-  noPolicyWarnedWorkspaces?: Set<string>,
 ): Promise<ProxyPolicyResult> {
   // Step 1: Rate limit check (in-memory, sub-ms)
   if (context.workspaceId) {
@@ -344,18 +315,23 @@ export async function evaluateProxyPolicy(
     const policies = await loadWorkspacePolicies(deps.surreal, context.workspaceId);
 
     if (policies.length === 0) {
-      // No policies: permissive default with async warning (deduplicated per process lifetime)
-      const alreadyWarned = noPolicyWarnedWorkspaces?.has(context.workspaceId) ?? false;
-      if (!alreadyWarned) {
-        noPolicyWarnedWorkspaces?.add(context.workspaceId);
-        deps.inflight.track(
-          createNoPolicyWarning(deps.surreal, context.workspaceId).catch(() => undefined),
-        );
-        log.warn("proxy.policy.no_policies", "No policies configured, permissive default", {
-          workspace_id: context.workspaceId,
-          first_observed: true,
-        });
-      }
+      // No policies: permissive default with async warning (deduplicated at DB level via embedding similarity)
+      const workspaceRecord = new RecordId("workspace", context.workspaceId);
+      deps.inflight.track(
+        createObservation({
+          surreal: deps.surreal,
+          workspaceRecord,
+          text: `No LLM proxy policies configured for workspace. All requests are being forwarded without model access restrictions. Consider creating policies to control which models each agent type can use.`,
+          severity: "warning",
+          observationType: "missing",
+          sourceAgent: "llm-proxy",
+          now: new Date(),
+          embeddingDeps: deps.embeddingDeps,
+        }).catch((error) => {
+          log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
+          return undefined as any;
+        }),
+      );
 
       return { decision: "allow", policyIds: [] };
     }

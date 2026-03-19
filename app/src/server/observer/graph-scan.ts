@@ -13,7 +13,7 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel, embed } from "ai";
-import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord } from "../observation/queries";
+import { createObservation, listWorkspaceOpenObservations, type ObserveTargetRecord, type EmbeddingDeps } from "../observation/queries";
 import { detectContradictions as defaultDetectContradictions, evaluateAnomalies as defaultEvaluateAnomalies, synthesizePatterns as defaultSynthesizePatterns, type Anomaly, type AnomalyCandidate } from "./llm-synthesis";
 import { parseEntityRef } from "./evidence-validator";
 import { runDiagnosticClustering, queryWorkspaceBehaviorTrends, proposeBehaviorLearning, checkBehaviorLearningRateLimit } from "./learning-diagnosis";
@@ -404,6 +404,7 @@ export async function queryImplementationsWithoutDecisions(
 export async function runCoherenceScans(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
+  embeddingDeps?: EmbeddingDeps,
 ): Promise<CoherenceScanResult> {
   const result: CoherenceScanResult = {
     orphaned_decisions_found: 0,
@@ -462,6 +463,7 @@ export async function runCoherenceScans(
       relatedRecords: [
         decision.id as ObserveTargetRecord,
       ],
+      embeddingDeps,
     });
     result.observations_created += 1;
   }
@@ -500,6 +502,7 @@ export async function runCoherenceScans(
       relatedRecords: [
         objective.id as ObserveTargetRecord,
       ],
+      embeddingDeps,
     });
     result.observations_created += 1;
   }
@@ -541,6 +544,7 @@ export async function runCoherenceScans(
       relatedRecords: [
         task.id as ObserveTargetRecord,
       ],
+      embeddingDeps,
     });
     result.observations_created += 1;
   }
@@ -565,6 +569,7 @@ export async function runGraphScan(
   embeddingDimension: number,
   llm: GraphScanLlm = defaultLlm,
 ): Promise<GraphScanResult> {
+  const scanEmbeddingDeps: EmbeddingDeps = { embeddingModel, embeddingDimension };
   const result: GraphScanResult = {
     contradictions_found: 0,
     stale_blocked_found: 0,
@@ -657,6 +662,7 @@ export async function runGraphScan(
         decision.id as ObserveTargetRecord,
         task.id as ObserveTargetRecord,
       ],
+      embeddingDeps: scanEmbeddingDeps,
     });
 
     result.observations_created += 1;
@@ -789,6 +795,7 @@ export async function runGraphScan(
       reasoning: evaluation?.reasoning,
       now,
       relatedRecords: [anomaly.taskRecord as ObserveTargetRecord],
+      embeddingDeps: scanEmbeddingDeps,
     });
 
     result.observations_created += 1;
@@ -872,6 +879,7 @@ export async function runGraphScan(
           observationType: "pattern",
           now,
           relatedRecords: relatedRecords.length > 0 ? relatedRecords : undefined,
+          embeddingDeps: scanEmbeddingDeps,
         });
 
         result.observations_created += 1;
@@ -888,7 +896,7 @@ export async function runGraphScan(
   }
 
   // 5. Coherence scans (deterministic, no LLM)
-  const coherenceResult = await runCoherenceScans(surreal, workspaceRecord);
+  const coherenceResult = await runCoherenceScans(surreal, workspaceRecord, scanEmbeddingDeps);
   result.orphaned_decisions_found = coherenceResult.orphaned_decisions_found;
   result.stale_objectives_found = coherenceResult.stale_objectives_found;
   result.implementations_without_decisions_found = coherenceResult.implementations_without_decisions_found;

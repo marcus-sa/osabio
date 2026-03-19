@@ -10,7 +10,7 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel, embed } from "ai";
-import { createObservation, type ObserveTargetRecord } from "../../observation/queries";
+import { createObservation, type ObserveTargetRecord, type EmbeddingDeps } from "../../observation/queries";
 import { queryExistingObserverObservationsForEntity } from "../../observer/graph-scan";
 import { gatherTaskSignals } from "../../observer/external-signals";
 import { checkCiStatus } from "../../observer/external-signals";
@@ -516,6 +516,7 @@ async function persistObservation(
   relatedRecords: ObserveTargetRecord[],
   result: VerificationResult,
   defaultSource = "none",
+  embeddingDeps?: EmbeddingDeps,
 ): Promise<void> {
   const now = new Date();
 
@@ -540,6 +541,7 @@ async function persistObservation(
     verified: result.verified,
     source: result.source ?? defaultSource,
     reasoning: result.reasoning,
+    embeddingDeps,
   });
 }
 

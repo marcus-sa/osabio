@@ -34,6 +34,8 @@ describe("observation queries", () => {
           output: async () => ({ id: edgeRecord }),
         };
       },
+      // Dedup KNN query: LET (index 0) + SELECT (index 1) — return no matches
+      query: async () => [null, []],
     };
 
     const workspaceRecord = new RecordId("workspace", "w-1");
@@ -64,6 +66,7 @@ describe("observation queries", () => {
       workspace: workspaceRecord,
       source_message: sourceMessageRecord,
       embedding: [0.1, 0.2, 0.3],
+      occurrence_count: 1,
     });
 
     expect(relateCalls).toHaveLength(1);
@@ -117,6 +120,103 @@ describe("observation queries", () => {
       status: "resolved",
       resolved_by: ownerRecord,
     });
+  });
+
+  it("deduplicates when KNN finds a similar open observation", async () => {
+    const existingId = new RecordId("observation", "existing-obs");
+    const updateQueries: Array<{ sql: string; vars: unknown }> = [];
+
+    const surrealMock = {
+      query: async (sql: string, vars: unknown) => {
+        // First call: KNN dedup query — return a match
+        if (sql.includes("embedding <|10, COSINE|>")) {
+          return [null, [{ id: existingId, occurrence_count: 2, similarity: 0.98 }]];
+        }
+        // Second call: UPDATE occurrence_count
+        updateQueries.push({ sql, vars });
+        return [];
+      },
+      // Should NOT be called — dedup should merge
+      create: () => { throw new Error("create should not be called during dedup merge"); },
+    };
+
+    const result = await createObservation({
+      surreal: surrealMock as any,
+      workspaceRecord: new RecordId("workspace", "w-1"),
+      text: "Duplicate observation text",
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      now: new Date("2026-02-01T12:00:00.000Z"),
+      embedding: [0.5, 0.6, 0.7],
+    });
+
+    // Should return existing ID, not create new
+    expect(result).toBe(existingId);
+    // Should have called UPDATE to increment occurrence_count
+    expect(updateQueries).toHaveLength(1);
+    expect(updateQueries[0].sql).toContain("occurrence_count = occurrence_count + 1");
+  });
+
+  it("does not deduplicate across different source agents", async () => {
+    const createdPayloads: unknown[] = [];
+
+    const surrealMock = {
+      query: async () => {
+        // KNN returns candidates but none match the source_agent filter
+        return [null, []];
+      },
+      create: () => ({
+        content: async (payload: unknown) => {
+          createdPayloads.push(payload);
+        },
+      }),
+      relate: () => ({
+        output: async () => ({}),
+      }),
+    };
+
+    const result = await createObservation({
+      surreal: surrealMock as any,
+      workspaceRecord: new RecordId("workspace", "w-1"),
+      text: "Same text different agent",
+      severity: "info",
+      sourceAgent: "different_agent",
+      now: new Date("2026-02-01T12:00:00.000Z"),
+      embedding: [0.5, 0.6, 0.7],
+    });
+
+    expect(result.table.name).toBe("observation");
+    expect(createdPayloads).toHaveLength(1);
+    expect(createdPayloads[0]).toMatchObject({ occurrence_count: 1 });
+  });
+
+  it("creates new observation without embedding (no dedup possible)", async () => {
+    const createdPayloads: unknown[] = [];
+
+    const surrealMock = {
+      create: () => ({
+        content: async (payload: unknown) => {
+          createdPayloads.push(payload);
+        },
+      }),
+      relate: () => ({
+        output: async () => ({}),
+      }),
+    };
+
+    const result = await createObservation({
+      surreal: surrealMock as any,
+      workspaceRecord: new RecordId("workspace", "w-1"),
+      text: "No embedding provided",
+      severity: "info",
+      sourceAgent: "chat_agent",
+      now: new Date("2026-02-01T12:00:00.000Z"),
+    });
+
+    // No query() call needed — no embedding means no dedup
+    expect(result.table.name).toBe("observation");
+    expect(createdPayloads).toHaveLength(1);
+    expect(createdPayloads[0]).toMatchObject({ occurrence_count: 1 });
   });
 
   it("lists open observations sorted by severity then recency", async () => {

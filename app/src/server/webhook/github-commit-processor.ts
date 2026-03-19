@@ -298,6 +298,7 @@ async function processCommit(input: {
         sourceAgent: "git_webhook",
         now: input.now,
         relatedRecords: [decisionRecord],
+        embeddingDeps: { embeddingModel: input.embeddingModel as any, embeddingDimension: input.embeddingDimension },
       });
 
       observationsCreated.push(observation.id as string);

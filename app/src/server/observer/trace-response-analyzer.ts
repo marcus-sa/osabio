@@ -314,6 +314,7 @@ async function detectContradictions(
         verified: true,
         source: "llm",
         reasoning: verdict.reasoning,
+        embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
       });
 
       observationsCreated += 1;
@@ -388,6 +389,7 @@ async function detectMissingDecisions(
       verified: true,
       source: "llm",
       reasoning: missingResult.reasoning,
+      embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
     });
 
     log.info("observer.trace.missing_decision", "Unrecorded decision observation created", {

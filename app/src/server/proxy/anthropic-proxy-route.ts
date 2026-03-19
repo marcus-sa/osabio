@@ -640,7 +640,6 @@ export function createAnthropicProxyHandler(
   const workspaceCache: WorkspaceCache = new Map();
   const rateLimiterState: RateLimiterState = createRateLimiterState();
   const spendCache: SpendCache = new Map();
-  const noPolicyWarnedWorkspaces = new Set<string>();
   const contextCache: ContextCache = createContextCache(300); // default TTL, overridden per-workspace
 
   // Proxy auth: per-handler cache + DB lookup function (not module-level singletons)
@@ -847,6 +846,9 @@ export function createAnthropicProxyHandler(
           inflight: deps.inflight,
           rateLimiterState,
           spendCache,
+          embeddingDeps: deps.embeddingModel && deps.config.embeddingDimension
+            ? { embeddingModel: deps.embeddingModel, embeddingDimension: deps.config.embeddingDimension }
+            : undefined,
         };
 
         policyResult = await evaluateProxyPolicy(
@@ -856,7 +858,6 @@ export function createAnthropicProxyHandler(
             model: parsed.model,
           },
           policyDeps,
-          noPolicyWarnedWorkspaces,
         );
         setSpanAttributes({
           "proxy.policy_decision": policyResult.decision,

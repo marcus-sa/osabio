@@ -765,6 +765,9 @@ async function processUncoveredCluster(
     sourceAgent: "observer_agent",
     observationType: "pattern",
     now: new Date(),
+    embeddingDeps: embeddingModel && embeddingDimension
+      ? { embeddingModel, embeddingDimension }
+      : undefined,
   });
 
   log.info("observer.learning.low_confidence", "Pattern observed but confidence too low for learning proposal", {
