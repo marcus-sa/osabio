@@ -10,6 +10,11 @@
  *   MCP tools: create_intent, submit_intent, get_intent_status
  */
 import { RecordId, type Surreal } from "surrealdb";
+import {
+  createIntentDirectly,
+  createIdentity,
+  type ActionSpec,
+} from "../shared-fixtures";
 
 // Re-export everything from orchestrator-test-kit
 export {
@@ -35,6 +40,9 @@ import {
   type TestUserWithToken,
 } from "../coding-agent-orchestrator/orchestrator-test-kit";
 
+// Re-export ActionSpec from shared-fixtures (single source of truth)
+export type { ActionSpec } from "../shared-fixtures";
+
 // ---------------------------------------------------------------------------
 // Intent-Specific Types
 // ---------------------------------------------------------------------------
@@ -48,12 +56,6 @@ export type IntentStatus =
   | "completed"
   | "vetoed"
   | "failed";
-
-export type ActionSpec = {
-  provider: string;
-  action: string;
-  params?: Record<string, unknown>;
-};
 
 export type BudgetLimit = {
   amount: number;
@@ -109,55 +111,16 @@ export async function createDraftIntent(
   requesterId: string,
   opts: CreateIntentOptions,
 ): Promise<{ intentId: string; intentRecord: RecordId<"intent"> }> {
-  const intentId = `intent-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-  const intentRecord = new RecordId("intent", intentId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-  const requesterRecord = new RecordId("identity", requesterId);
-
-  // Create trace record for the intent
-  const traceId = `trace-${intentId}`;
-  const traceRecord = new RecordId("trace", traceId);
-  await surreal.query(`CREATE $trace CONTENT $content;`, {
-    trace: traceRecord,
-    content: {
-      type: "intent_submission",
-      actor: requesterRecord,
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  const content: Record<string, unknown> = {
+  const result = await createIntentDirectly(surreal, workspaceId, requesterId, {
     goal: opts.goal,
     reasoning: opts.reasoning,
     status: "draft",
-    priority: opts.priority ?? 50,
-    action_spec: opts.action_spec,
-    trace_id: traceRecord,
-    requester: requesterRecord,
-    workspace: workspaceRecord,
-    created_at: new Date(),
-  };
-
-  if (opts.budget_limit) {
-    content.budget_limit = opts.budget_limit;
-  }
-
-  await surreal.query(`CREATE $intent CONTENT $content;`, {
-    intent: intentRecord,
-    content,
+    priority: opts.priority,
+    actionSpec: opts.action_spec,
+    budgetLimit: opts.budget_limit,
+    taskId: opts.taskId,
   });
-
-  // Link to originating task if provided
-  if (opts.taskId) {
-    const taskRecord = new RecordId("task", opts.taskId);
-    await surreal.query(
-      `RELATE $intent->triggered_by->$task SET created_at = time::now();`,
-      { intent: intentRecord, task: taskRecord },
-    );
-  }
-
-  return { intentId, intentRecord };
+  return { intentId: result.intentId, intentRecord: result.intentRecord };
 }
 
 /**
@@ -418,22 +381,16 @@ export async function createTestIdentity(
   type: "human" | "agent" = "agent",
   workspaceId?: string,
 ): Promise<string> {
-  const identityId = `id-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-  const identityRecord = new RecordId("identity", identityId);
-
-  const content: Record<string, unknown> = {
-    name,
-    type,
-    created_at: new Date(),
-  };
-
   if (workspaceId) {
-    content.workspace = new RecordId("workspace", workspaceId);
+    const result = await createIdentity(surreal, workspaceId, name, type);
+    return result.identityId;
   }
-
+  // Legacy: identity without workspace (no member_of edge)
+  const identityId = `id-${crypto.randomUUID()}`;
+  const identityRecord = new RecordId("identity", identityId);
   await surreal.query(`CREATE $identity CONTENT $content;`, {
     identity: identityRecord,
-    content,
+    content: { name, type, created_at: new Date() },
   });
   return identityId;
 }

@@ -25,6 +25,14 @@ import {
   type TestUser,
   type TestUserWithMcp,
 } from "../acceptance-test-kit";
+import {
+  createWorkspaceDirectly,
+  createIdentity,
+  createIntentDirectly,
+  createDecisionDirectly,
+  queryWorkspaceObservations as sharedQueryWorkspaceObservations,
+  type ActionSpec,
+} from "../shared-fixtures";
 
 // ---------------------------------------------------------------------------
 // Re-exports
@@ -120,44 +128,11 @@ export async function setupObjectiveWorkspace(
   workspaceId: string;
   identityId: string;
 }> {
-  const workspaceId = `ws-${crypto.randomUUID()}`;
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
   const user = await createTestUser(baseUrl, suffix);
-
-  await surreal.query(`CREATE $workspace CONTENT $content;`, {
-    workspace: workspaceRecord,
-    content: {
-      name: `Objective Test Workspace ${suffix}`,
-      status: "active",
-      onboarding_complete: true,
-      onboarding_turn_count: 0,
-      onboarding_summary_pending: false,
-      onboarding_started_at: new Date(),
-      created_at: new Date(),
-    },
+  const ws = await createWorkspaceDirectly(surreal, suffix, {
+    workspaceName: `Objective Test Workspace ${suffix}`,
   });
-
-  const identityId = `id-${crypto.randomUUID()}`;
-  const identityRecord = new RecordId("identity", identityId);
-
-  await surreal.query(`CREATE $identity CONTENT $content;`, {
-    identity: identityRecord,
-    content: {
-      name: `Test User ${suffix}`,
-      type: "human",
-      identity_status: "active",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  await surreal.query(`RELATE $identity->member_of->$workspace SET added_at = time::now();`, {
-    identity: identityRecord,
-    workspace: workspaceRecord,
-  });
-
-  return { user, workspaceId, identityId };
+  return { user, workspaceId: ws.workspaceId, identityId: ws.identityId };
 }
 
 /**
@@ -168,27 +143,8 @@ export async function createAgentIdentity(
   workspaceId: string,
   agentName: string,
 ): Promise<{ identityId: string }> {
-  const identityId = `id-${crypto.randomUUID()}`;
-  const identityRecord = new RecordId("identity", identityId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $identity CONTENT $content;`, {
-    identity: identityRecord,
-    content: {
-      name: agentName,
-      type: "agent",
-      identity_status: "active",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  await surreal.query(`RELATE $identity->member_of->$workspace SET added_at = time::now();`, {
-    identity: identityRecord,
-    workspace: workspaceRecord,
-  });
-
-  return { identityId };
+  const result = await createIdentity(surreal, workspaceId, agentName, "agent");
+  return { identityId: result.identityId };
 }
 
 /**
@@ -387,46 +343,18 @@ export async function createIntent(
     goal: string;
     reasoning?: string;
     status?: string;
-    action_spec?: { provider: string; action: string; params?: Record<string, unknown> };
+    action_spec?: ActionSpec;
     embedding?: number[];
   },
 ): Promise<{ intentId: string }> {
-  const intentId = `intent-${crypto.randomUUID()}`;
-  const intentRecord = new RecordId("intent", intentId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-  const requesterRecord = new RecordId("identity", requesterId);
-  const traceId = `trace-${intentId}`;
-  const traceRecord = new RecordId("trace", traceId);
-
-  await surreal.query(`CREATE $trace CONTENT $content;`, {
-    trace: traceRecord,
-    content: {
-      type: "intent_submission",
-      actor: requesterRecord,
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  const intentContent: Record<string, unknown> = {
+  const result = await createIntentDirectly(surreal, workspaceId, requesterId, {
     goal: opts.goal,
-    reasoning: opts.reasoning ?? "Test intent",
+    reasoning: opts.reasoning,
     status: opts.status ?? "pending_auth",
-    priority: 50,
-    action_spec: opts.action_spec ?? { provider: "test", action: "test", params: {} },
-    trace_id: traceRecord,
-    requester: requesterRecord,
-    workspace: workspaceRecord,
-    created_at: new Date(),
-  };
-  if (opts.embedding !== undefined) intentContent.embedding = opts.embedding;
-
-  await surreal.query(`CREATE $intent CONTENT $content;`, {
-    intent: intentRecord,
-    content: intentContent,
+    actionSpec: opts.action_spec,
+    embedding: opts.embedding,
   });
-
-  return { intentId };
+  return { intentId: result.intentId };
 }
 
 /**
@@ -522,23 +450,12 @@ export async function createDecision(
     created_at?: Date;
   },
 ): Promise<{ decisionId: string }> {
-  const decisionId = `decision-${crypto.randomUUID()}`;
-  const decisionRecord = new RecordId("decision", decisionId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $dec CONTENT $content;`, {
-    dec: decisionRecord,
-    content: {
-      summary: opts.summary,
-      rationale: "Test decision",
-      status: opts.status ?? "confirmed",
-      workspace: workspaceRecord,
-      created_at: opts.created_at ?? new Date(),
-      updated_at: new Date(),
-    },
+  const result = await createDecisionDirectly(surreal, workspaceId, {
+    summary: opts.summary,
+    status: opts.status,
+    created_at: opts.created_at,
   });
-
-  return { decisionId };
+  return { decisionId: result.decisionId };
 }
 
 /**
@@ -799,33 +716,7 @@ export async function getWorkspaceObservations(
   status: string;
   source_agent: string;
 }>> {
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  if (opts?.sourceAgent) {
-    const rows = (await surreal.query(
-      `SELECT * FROM observation WHERE workspace = $ws AND source_agent = $agent ORDER BY created_at DESC;`,
-      { ws: workspaceRecord, agent: opts.sourceAgent },
-    )) as Array<Array<{
-      id: RecordId;
-      text: string;
-      severity: string;
-      status: string;
-      source_agent: string;
-    }>>;
-    return rows[0] ?? [];
-  }
-
-  const rows = (await surreal.query(
-    `SELECT * FROM observation WHERE workspace = $ws ORDER BY created_at DESC;`,
-    { ws: workspaceRecord },
-  )) as Array<Array<{
-    id: RecordId;
-    text: string;
-    severity: string;
-    status: string;
-    source_agent: string;
-  }>>;
-  return rows[0] ?? [];
+  return sharedQueryWorkspaceObservations(surreal, workspaceId, opts?.sourceAgent);
 }
 
 /**
