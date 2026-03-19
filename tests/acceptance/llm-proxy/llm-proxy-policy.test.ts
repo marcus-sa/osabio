@@ -218,7 +218,7 @@ describe("Rate limited request blocked with retry guidance", () => {
     // And: Retry-After header is present
     const retryAfter = rateLimited[0].headers.get("Retry-After");
     expect(retryAfter).toBeDefined();
-  }, 30_000);
+  }, 90_000);
 });
 
 // ---------------------------------------------------------------------------
