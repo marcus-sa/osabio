@@ -14,6 +14,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildUpstreamHeaders,
+  buildProxyErrorPayload,
   type AuthMode,
 } from "../../app/src/server/proxy/anthropic-proxy-route";
 
@@ -158,6 +159,44 @@ describe("buildUpstreamHeaders", () => {
       const headers = buildUpstreamHeaders(request, brainAuthNoKey);
 
       expect(headers.get("authorization")).toBe("Bearer sk-ant-client-bearer-passthrough");
+    });
+  });
+});
+
+describe("buildProxyErrorPayload", () => {
+  it("returns required error fields only when no options are provided", () => {
+    const payload = buildProxyErrorPayload(
+      "authentication_error",
+      "Missing x-api-key or authorization header",
+    );
+
+    expect(payload).toEqual({
+      error: {
+        type: "authentication_error",
+        message: "Missing x-api-key or authorization header",
+      },
+    });
+  });
+
+  it("includes stage, trace_id, and upstream_status when provided", () => {
+    const payload = buildProxyErrorPayload(
+      "upstream_error",
+      "Anthropic returned 500",
+      {
+        stage: "read_non_streaming_response",
+        traceId: "trace-123",
+        upstreamStatus: 500,
+      },
+    );
+
+    expect(payload).toEqual({
+      error: {
+        type: "upstream_error",
+        message: "Anthropic returned 500",
+      },
+      stage: "read_non_streaming_response",
+      trace_id: "trace-123",
+      upstream_status: 500,
     });
   });
 });

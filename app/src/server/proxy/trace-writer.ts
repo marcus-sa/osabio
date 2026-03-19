@@ -95,9 +95,9 @@ async function createTraceNode(
     content.workspace = new RecordId("workspace", data.workspaceId);
   }
 
-  // Set identity directly on the trace node (Brain auth mode)
+  // Set actor directly on the trace node (Brain auth mode)
   if (data.identityId) {
-    content.identity = new RecordId("identity", data.identityId);
+    content.actor = new RecordId("identity", data.identityId);
   }
 
   if (data.requestId) {

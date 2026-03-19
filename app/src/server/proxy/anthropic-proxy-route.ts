@@ -69,6 +69,7 @@ import {
 } from "./proxy-auth";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
+import { trace } from "@opentelemetry/api";
 import { log } from "../telemetry/logger";
 
 const FORWARDED_HEADERS = [
@@ -155,6 +156,57 @@ type ParsedBody = {
   system?: string | Array<{ type: string; text: string }>;
   messages?: Array<{ role: string; content: string }>;
 };
+
+type ProxyStage =
+  | "parse_request"
+  | "resolve_auth"
+  | "resolve_identity"
+  | "resolve_session"
+  | "validate_workspace"
+  | "evaluate_policy"
+  | "inject_context"
+  | "validate_api_key"
+  | "forward_upstream"
+  | "read_non_streaming_response"
+  | "relay_stream"
+  | "complete";
+
+const ERROR_PREVIEW_MAX_CHARS = 240;
+
+function toErrorPreview(input: string): string {
+  const normalized = input.replace(/\s+/g, " ").trim();
+  if (normalized.length <= ERROR_PREVIEW_MAX_CHARS) {
+    return normalized;
+  }
+  return `${normalized.slice(0, ERROR_PREVIEW_MAX_CHARS)}...`;
+}
+
+type ProxyErrorPayload = {
+  error: {
+    type: string;
+    message: string;
+  };
+  stage?: string;
+  trace_id?: string;
+  upstream_status?: number;
+};
+
+export function buildProxyErrorPayload(
+  type: string,
+  message: string,
+  options?: {
+    stage?: string;
+    traceId?: string;
+    upstreamStatus?: number;
+  },
+): ProxyErrorPayload {
+  return {
+    error: { type, message },
+    ...(options?.stage ? { stage: options.stage } : {}),
+    ...(options?.traceId ? { trace_id: options.traceId } : {}),
+    ...(options?.upstreamStatus !== undefined ? { upstream_status: options.upstreamStatus } : {}),
+  };
+}
 
 function tryParseRequestBody(body: string): ParsedBody | undefined {
   try {
@@ -620,351 +672,511 @@ export function createAnthropicProxyHandler(
     const upstreamPath = url.pathname.replace(/^\/proxy\/llm\/anthropic/, "");
     const upstreamUrl = `${anthropicApiUrl}${upstreamPath}`;
     const isCountTokens = isCountTokensRequest(url.pathname);
+    const span = trace.getActiveSpan();
+    const traceId = span?.spanContext().traceId;
+    const requestMode = request.headers.get("X-Brain-Auth") ? "brain" : "direct";
 
-    // --- Step 1: Parse request body (malformed body forwarded as-is) ---
-    const body = await request.text();
-    const parsed = tryParseRequestBody(body);
-    const isStreaming = parsed?.stream === true;
-
-    // --- Step 1.5: Brain auth resolution (dual-mode) ---
-    let brainAuthResult: ProxyAuthResult | undefined;
-    let authMode: AuthMode = { mode: "direct" };
-
-    try {
-      brainAuthResult = await resolveProxyAuth(
-        request.headers,
-        lookupProxyToken,
-        proxyTokenCache,
-      );
-    } catch (error) {
-      if (error instanceof ProxyAuthError) {
-        return jsonResponse(
-          { error: { type: "authentication_error", message: error.message } },
-          401,
-        );
+    const setSpanAttributes = (attributes: Record<string, string | number | boolean | undefined>) => {
+      if (!span) return;
+      for (const [key, value] of Object.entries(attributes)) {
+        if (value !== undefined) {
+          span.setAttribute(key, value);
+        }
       }
-      throw error;
-    }
+    };
 
-    if (brainAuthResult) {
-      // Brain auth mode: use server API key if available, otherwise forward client auth headers
-      authMode = { mode: "brain", serverApiKey: deps.config.anthropicApiKey };
-    }
+    let currentStage: ProxyStage = "parse_request";
+    const setStage = (stage: ProxyStage) => {
+      currentStage = stage;
+      setSpanAttributes({ "proxy.stage": stage });
+    };
+    setStage("parse_request");
 
-    // --- Step 2: Identity resolution ---
-    // In Brain auth mode, workspace comes from the token (not from headers)
-    const identitySignals = resolveIdentity({
-      metadataUserId: parsed?.metadata?.user_id,
-      workspaceHeader: brainAuthResult?.workspaceId ?? (request.headers.get("X-Brain-Workspace") ?? undefined),
-      taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
-      agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
-      sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
-      proxyTokenIdentityId: brainAuthResult?.identityId,
-      userAgent: request.headers.get("User-Agent") ?? undefined,
+    setSpanAttributes({
+      "proxy.path": upstreamPath,
+      "proxy.upstream_url": upstreamUrl,
+      "proxy.is_count_tokens": isCountTokens,
+      "proxy.request_mode": requestMode,
     });
 
-    // --- Step 3: Session ID resolution ---
-    // resolveSessionId returns either the header PK or the external Claude Code
-    // session UUID. Resolve to the actual agent_session PK via DB lookup.
-    const rawSessionId = resolveSessionId(identitySignals);
-    let effectiveSessionId = rawSessionId
-      ? await resolveAgentSessionId(deps.surreal, rawSessionId)
-      : undefined;
+    // --- Step 1: Parse request body (malformed body forwarded as-is) ---
+    let body: string;
+    let parsed: ParsedBody | undefined;
+    let isStreaming = false;
+    let identitySignals:
+      | ReturnType<typeof resolveIdentity>
+      | undefined;
 
-    // --- Step 3.5: Session hash fallback ---
-    // When no explicit session signal exists, derive a deterministic session
-    // identity from request content (system_prompt + first_user_message).
-    if (!effectiveSessionId && identitySignals.workspaceId && parsed) {
-      const sessionHashInput: SessionHashInput = {
-        systemPrompt: typeof parsed.system === "string" ? parsed.system : undefined,
-        systemPromptBlocks: Array.isArray(parsed.system) ? parsed.system : undefined,
-        messages: parsed.messages ?? [],
-      };
-      const sessionHash = resolveSessionHash(sessionHashInput);
+    try {
+      body = await request.text();
+      parsed = tryParseRequestBody(body);
+      isStreaming = parsed?.stream === true;
+      setSpanAttributes({
+        "proxy.request_body_parsed": parsed !== undefined,
+        "proxy.request_body_bytes": body.length,
+        "proxy.request_model": parsed?.model,
+        "proxy.is_streaming": isStreaming,
+      });
 
-      if (sessionHash) {
-        try {
-          const upsertedSessionId = await upsertProxySession(
-            {
-              sessionId: sessionHash.sessionId,
-              workspaceId: identitySignals.workspaceId,
-              agent: resolveAgentName(identitySignals),
-            },
-            { surreal: deps.surreal },
+      // --- Step 1.5: Brain auth resolution (dual-mode) ---
+      setStage("resolve_auth");
+      let brainAuthResult: ProxyAuthResult | undefined;
+      let authMode: AuthMode = { mode: "direct" };
+
+      try {
+        brainAuthResult = await resolveProxyAuth(
+          request.headers,
+          lookupProxyToken,
+          proxyTokenCache,
+        );
+      } catch (error) {
+        if (error instanceof ProxyAuthError) {
+          setSpanAttributes({
+            "proxy.error.type": "authentication_error",
+            "proxy.error.stage": currentStage,
+          });
+          log.warn("proxy.anthropic.auth_failed", "Brain auth failed", {
+            stage: currentStage,
+            error: error.message,
+          });
+          return jsonResponse(
+            buildProxyErrorPayload(
+              "authentication_error",
+              error.message,
+              { stage: currentStage, traceId },
+            ),
+            401,
           );
-          if (upsertedSessionId) {
-            effectiveSessionId = upsertedSessionId;
+        }
+        throw error;
+      }
+
+      if (brainAuthResult) {
+        // Brain auth mode: use server API key if available, otherwise forward client auth headers
+        authMode = { mode: "brain", serverApiKey: deps.config.anthropicApiKey };
+      }
+      setSpanAttributes({ "proxy.auth_mode": authMode.mode });
+
+      // --- Step 2: Identity resolution ---
+      setStage("resolve_identity");
+      // In Brain auth mode, workspace comes from the token (not from headers)
+      identitySignals = resolveIdentity({
+        metadataUserId: parsed?.metadata?.user_id,
+        workspaceHeader: brainAuthResult?.workspaceId ?? (request.headers.get("X-Brain-Workspace") ?? undefined),
+        taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
+        agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
+        sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
+        proxyTokenIdentityId: brainAuthResult?.identityId,
+        userAgent: request.headers.get("User-Agent") ?? undefined,
+      });
+      setSpanAttributes({
+        "proxy.workspace_id": identitySignals.workspaceId,
+        "proxy.task_id": identitySignals.taskId,
+        "proxy.agent_type": identitySignals.agentType,
+        "proxy.session_header": identitySignals.sessionHeaderId,
+      });
+
+      // --- Step 3: Session ID resolution ---
+      setStage("resolve_session");
+      // resolveSessionId returns either the header PK or the external Claude Code
+      // session UUID. Resolve to the actual agent_session PK via DB lookup.
+      const rawSessionId = resolveSessionId(identitySignals);
+      let effectiveSessionId = rawSessionId
+        ? await resolveAgentSessionId(deps.surreal, rawSessionId)
+        : undefined;
+      setSpanAttributes({
+        "proxy.session_id.raw": rawSessionId,
+        "proxy.session_id.effective": effectiveSessionId,
+      });
+
+      // --- Step 3.5: Session hash fallback ---
+      // When no explicit session signal exists, derive a deterministic session
+      // identity from request content (system_prompt + first_user_message).
+      if (!effectiveSessionId && identitySignals.workspaceId && parsed) {
+        const sessionHashInput: SessionHashInput = {
+          systemPrompt: typeof parsed.system === "string" ? parsed.system : undefined,
+          systemPromptBlocks: Array.isArray(parsed.system) ? parsed.system : undefined,
+          messages: parsed.messages ?? [],
+        };
+        const sessionHash = resolveSessionHash(sessionHashInput);
+
+        if (sessionHash) {
+          try {
+            const upsertedSessionId = await upsertProxySession(
+              {
+                sessionId: sessionHash.sessionId,
+                workspaceId: identitySignals.workspaceId,
+                agent: resolveAgentName(identitySignals),
+              },
+              { surreal: deps.surreal },
+            );
+            if (upsertedSessionId) {
+              effectiveSessionId = upsertedSessionId;
+              setSpanAttributes({ "proxy.session_id.effective": effectiveSessionId });
+            }
+          } catch (error) {
+            log.warn("proxy.anthropic.session_hash_upsert_failed", "Session hash upsert failed — continuing without session link", {
+              error: String(error),
+            });
+          }
+        }
+      }
+
+      // --- Workspace validation (non-blocking) ---
+      setStage("validate_workspace");
+      if (identitySignals.workspaceId) {
+        const isValid = await validateWorkspace(
+          deps.surreal,
+          identitySignals.workspaceId,
+          workspaceCache,
+        );
+        setSpanAttributes({ "proxy.workspace_valid": isValid });
+        if (!isValid) {
+          log.warn("proxy.anthropic.invalid_workspace", "Workspace not found in database", {
+            workspaceId: identitySignals.workspaceId,
+          });
+        }
+      }
+
+      // --- Step 4: Policy evaluation ---
+      setStage("evaluate_policy");
+      let policyResult: ProxyPolicyResult | undefined;
+      if (parsed?.model && !isCountTokens) {
+        const policyDeps: ProxyPolicyDependencies = {
+          surreal: deps.surreal,
+          inflight: deps.inflight,
+          rateLimiterState,
+          spendCache,
+        };
+
+        policyResult = await evaluateProxyPolicy(
+          {
+            workspaceId: identitySignals.workspaceId ?? "",
+            agentType: identitySignals.agentType,
+            model: parsed.model,
+          },
+          policyDeps,
+          noPolicyWarnedWorkspaces,
+        );
+        setSpanAttributes({
+          "proxy.policy_decision": policyResult.decision,
+          "proxy.policy_ids_count": policyResult.decision === "allow" ? policyResult.policyIds.length : undefined,
+        });
+
+        if (policyResult.decision !== "allow") {
+          setSpanAttributes({
+            "proxy.error.type": policyResult.decision,
+            "proxy.error.stage": currentStage,
+          });
+          return buildPolicyDenialResponse(policyResult);
+        }
+      }
+
+      // --- Step 5: Context injection (fail-open) ---
+      setStage("inject_context");
+      let effectiveBody = body;
+      let injectionResult: InjectionResult | undefined;
+
+      if (parsed && identitySignals.workspaceId && !isCountTokens) {
+        try {
+          // Resolve session's last_request_at and intelligence config in parallel
+          const lastRequestAtPromise = effectiveSessionId
+            ? deps.surreal.query<[Array<{ last_request_at?: string }>]>(
+                `SELECT last_request_at FROM $sess;`,
+                { sess: new RecordId("agent_session", effectiveSessionId) },
+              ).then(
+                (rows) => { const rawTs = rows[0]?.[0]?.last_request_at; return rawTs ? new Date(rawTs) : undefined; },
+                () => undefined,
+              )
+            : Promise.resolve(undefined);
+
+          const [sessionLastRequestAt, intelligenceConfig] = await Promise.all([
+            lastRequestAtPromise,
+            loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId),
+          ]);
+
+          const contextResult = await runContextInjection(
+            deps,
+            identitySignals.workspaceId,
+            parsed,
+            body,
+            contextCache,
+            intelligenceConfig,
+            searchRecentChanges,
+            sessionLastRequestAt,
+          );
+          effectiveBody = contextResult.body;
+          injectionResult = contextResult.injectionResult;
+          if (intelligenceConfig.contextInjectionEnabled) {
+            log.info("proxy.context_injection.result", "Context injection completed", {
+              workspace_id: identitySignals.workspaceId,
+              injected: injectionResult?.injected ?? false,
+              decisions: injectionResult?.decisionsCount ?? 0,
+              learnings: injectionResult?.learningsCount ?? 0,
+              observations: injectionResult?.observationsCount ?? 0,
+            });
+            setSpanAttributes({
+              "proxy.context_injected": injectionResult?.injected ?? false,
+              "proxy.context_decision_count": injectionResult?.decisionsCount ?? 0,
+              "proxy.context_learning_count": injectionResult?.learningsCount ?? 0,
+              "proxy.context_observation_count": injectionResult?.observationsCount ?? 0,
+            });
           }
         } catch (error) {
-          log.warn("proxy.anthropic.session_hash_upsert_failed", "Session hash upsert failed — continuing without session link", {
+          // Fail-open: log warning and continue with original body
+          setSpanAttributes({
+            "proxy.context_injection_failed": true,
+            "proxy.error.stage": currentStage,
+          });
+          log.warn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
+            workspace_id: identitySignals.workspaceId,
             error: String(error),
           });
         }
       }
-    }
 
-    // --- Workspace validation (non-blocking) ---
-    if (identitySignals.workspaceId) {
-      const isValid = await validateWorkspace(
-        deps.surreal,
-        identitySignals.workspaceId,
-        workspaceCache,
-      );
-      if (!isValid) {
-        log.warn("proxy.anthropic.invalid_workspace", "Workspace not found in database", {
-          workspaceId: identitySignals.workspaceId,
-        });
-      }
-    }
-
-    // --- Step 4: Policy evaluation ---
-    let policyResult: ProxyPolicyResult | undefined;
-    if (parsed?.model && !isCountTokens) {
-      const policyDeps: ProxyPolicyDependencies = {
-        surreal: deps.surreal,
-        inflight: deps.inflight,
-        rateLimiterState,
-        spendCache,
-      };
-
-      policyResult = await evaluateProxyPolicy(
-        {
-          workspaceId: identitySignals.workspaceId ?? "",
-          agentType: identitySignals.agentType,
-          model: parsed.model,
-        },
-        policyDeps,
-        noPolicyWarnedWorkspaces,
-      );
-
-      if (policyResult.decision !== "allow") {
-        return buildPolicyDenialResponse(policyResult);
-      }
-    }
-
-    // --- Step 5: Context injection (fail-open) ---
-    let effectiveBody = body;
-    let injectionResult: InjectionResult | undefined;
-
-    if (parsed && identitySignals.workspaceId && !isCountTokens) {
-      try {
-        // Resolve session's last_request_at and intelligence config in parallel
-        const lastRequestAtPromise = effectiveSessionId
-          ? deps.surreal.query<[Array<{ last_request_at?: string }>]>(
-              `SELECT last_request_at FROM $sess;`,
-              { sess: new RecordId("agent_session", effectiveSessionId) },
-            ).then(
-              (rows) => { const rawTs = rows[0]?.[0]?.last_request_at; return rawTs ? new Date(rawTs) : undefined; },
-              () => undefined,
-            )
-          : Promise.resolve(undefined);
-
-        const [sessionLastRequestAt, intelligenceConfig] = await Promise.all([
-          lastRequestAtPromise,
-          loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId),
-        ]);
-
-        const contextResult = await runContextInjection(
-          deps,
-          identitySignals.workspaceId,
-          parsed,
-          body,
-          contextCache,
-          intelligenceConfig,
-          searchRecentChanges,
-          sessionLastRequestAt,
-        );
-        effectiveBody = contextResult.body;
-        injectionResult = contextResult.injectionResult;
-        if (intelligenceConfig.contextInjectionEnabled) {
-          log.info("proxy.context_injection.result", "Context injection completed", {
-            workspace_id: identitySignals.workspaceId,
-            injected: injectionResult?.injected ?? false,
-            decisions: injectionResult?.decisionsCount ?? 0,
-            learnings: injectionResult?.learningsCount ?? 0,
-            observations: injectionResult?.observationsCount ?? 0,
-          });
-        }
-      } catch (error) {
-        // Fail-open: log warning and continue with original body
-        log.warn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
-          workspace_id: identitySignals.workspaceId,
-          error: String(error),
-        });
-      }
-    }
-
-    // --- Step 5.5: Update agent_session.last_request_at (fire-and-forget) ---
-    if (effectiveSessionId && !isCountTokens) {
-      const sessionRecord = new RecordId("agent_session", effectiveSessionId);
-      deps.inflight.track(
-        deps.surreal.query(
-          `UPDATE $sess SET last_request_at = time::now();`,
-          { sess: sessionRecord },
-        ).catch(() => undefined),
-      );
-    }
-
-    // --- API key validation ---
-    if (authMode.mode === "brain") {
-      // Brain auth: server provides the API key — reject early if not configured
-      if (!authMode.serverApiKey) {
-        return jsonResponse(
-          { error: { type: "server_error", message: "API key not configured — server cannot proxy Brain-auth requests" } },
-          500,
+      // --- Step 5.5: Update agent_session.last_request_at (fire-and-forget) ---
+      if (effectiveSessionId && !isCountTokens) {
+        const sessionRecord = new RecordId("agent_session", effectiveSessionId);
+        deps.inflight.track(
+          deps.surreal.query(
+            `UPDATE $sess SET last_request_at = time::now();`,
+            { sess: sessionRecord },
+          ).catch(() => undefined),
         );
       }
-    } else {
-      // Direct auth: client must provide their own API key
+
+      // --- API key validation ---
+      setStage("validate_api_key");
       const hasApiKey = request.headers.has("x-api-key");
       const hasAuthHeader = request.headers.has("authorization");
-      if (!hasApiKey && !hasAuthHeader) {
+      const hasClientAuth = hasApiKey || hasAuthHeader;
+      const hasServerAuth = authMode.mode === "brain" && authMode.serverApiKey !== undefined;
+
+      if (hasServerAuth) {
+        setSpanAttributes({ "proxy.upstream_auth_source": "server" });
+      } else if (hasClientAuth) {
+        setSpanAttributes({ "proxy.upstream_auth_source": "client" });
+      } else {
+        setSpanAttributes({
+          "proxy.upstream_auth_source": "missing",
+          "proxy.error.type": "authentication_error",
+          "proxy.error.stage": currentStage,
+        });
         return jsonResponse(
-          { error: { type: "authentication_error", message: "Missing x-api-key or authorization header" } },
+          buildProxyErrorPayload(
+            "authentication_error",
+            authMode.mode === "brain"
+              ? "Missing x-api-key or authorization header for upstream request (or configure server ANTHROPIC_API_KEY)"
+              : "Missing x-api-key or authorization header",
+            { stage: currentStage, traceId },
+          ),
           401,
         );
       }
-    }
 
-    // --- Build identity context for logging ---
-    const identityContext = {
-      user_hash: identitySignals.userHash,
-      account_id: identitySignals.accountId,
-      session_id: effectiveSessionId,
-      workspace_id: identitySignals.workspaceId,
-      task_id: identitySignals.taskId,
-      agent_type: identitySignals.agentType,
-      identity_id: identitySignals.proxyTokenIdentityId,
-      is_count_tokens: isCountTokens || undefined,
-    };
+      // --- Build identity context for logging ---
+      const identityContext = {
+        user_hash: identitySignals.userHash,
+        account_id: identitySignals.accountId,
+        session_id: effectiveSessionId,
+        workspace_id: identitySignals.workspaceId,
+        task_id: identitySignals.taskId,
+        agent_type: identitySignals.agentType,
+        identity_id: identitySignals.proxyTokenIdentityId,
+        is_count_tokens: isCountTokens || undefined,
+      };
 
-    log.info("proxy.anthropic.request", "Forwarding to Anthropic", {
-      method: request.method,
-      url: upstreamUrl,
-      ...identityContext,
-    });
-
-    // --- Build policy decision for audit trail ---
-    const policyDecision: PolicyDecisionLog | undefined = policyResult
-      ? {
-          decision: "pass",
-          policy_refs: policyResult.decision === "allow" ? policyResult.policyIds : [],
-          timestamp: new Date().toISOString(),
-        }
-      : undefined;
-
-    // --- Step 6: Request forwarding ---
-    const upstreamHeaders = buildUpstreamHeaders(request, authMode);
-
-    let upstream: Response;
-    try {
-      upstream = await fetch(upstreamUrl, {
+      log.info("proxy.anthropic.request", "Forwarding to Anthropic", {
         method: request.method,
-        headers: upstreamHeaders,
-        body: request.method !== "GET" ? effectiveBody : undefined,
-      });
-    } catch (error) {
-      log.error("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error);
-      return jsonResponse({ error: "upstream_unreachable", source: "proxy" }, 502);
-    }
-
-    // --- Non-streaming response ---
-    if (!isStreaming) {
-      const responseBody = await upstream.text();
-      const latencyMs = elapsedMs(startedAt);
-
-      log.info("proxy.anthropic.response", "Anthropic response", {
-        status: upstream.status,
-        latency_ms: latencyMs,
+        url: upstreamUrl,
         ...identityContext,
       });
 
-      // Async trace capture for non-streaming (skip count_tokens)
-      if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-        const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
-        if (traceData) {
-          deps.inflight.track(
-            captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
-          );
-        }
-      }
+      // --- Build policy decision for audit trail ---
+      const policyDecision: PolicyDecisionLog | undefined = policyResult
+        ? {
+            decision: "pass",
+            policy_refs: policyResult.decision === "allow" ? policyResult.policyIds : [],
+            timestamp: new Date().toISOString(),
+          }
+        : undefined;
 
-      return new Response(responseBody, {
-        status: upstream.status,
-        headers: {
-          "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
-    }
+      // --- Step 6: Request forwarding ---
+      setStage("forward_upstream");
+      const upstreamHeaders = buildUpstreamHeaders(request, authMode);
 
-    // --- Streaming: pipe SSE events through ---
-    const { readable, writable } = new TransformStream<Uint8Array>();
-    const writer = writable.getWriter();
-    const reader = upstream.body!.getReader();
-    const decoder = new TextDecoder();
-
-    const streamContext: StreamContext = {
-      model: parsed?.model,
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheCreationTokens: 0,
-      cacheReadTokens: 0,
-      stopReason: undefined,
-    };
-
-    (async () => {
+      let upstream: Response;
       try {
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          await writer.write(value);
-
-          buffer += decoder.decode(value, { stream: true });
-          buffer = extractSSEUsage(buffer, streamContext);
-        }
+        upstream = await fetch(upstreamUrl, {
+          method: request.method,
+          headers: upstreamHeaders,
+          body: request.method !== "GET" ? effectiveBody : undefined,
+        });
       } catch (error) {
-        log.error("proxy.anthropic.stream_error", "SSE relay error", error);
-      } finally {
-        await writer.close();
+        setSpanAttributes({
+          "proxy.error.type": "upstream_unreachable",
+          "proxy.error.stage": currentStage,
+        });
+        log.error("proxy.anthropic.upstream_error", "Failed to reach Anthropic API", error, {
+          stage: currentStage,
+          ...identityContext,
+        });
+        return jsonResponse(
+          buildProxyErrorPayload(
+            "upstream_unreachable",
+            "Failed to reach Anthropic API",
+            { stage: currentStage, traceId },
+          ),
+          502,
+        );
+      }
+      setSpanAttributes({ "proxy.upstream_status_code": upstream.status });
 
+      // --- Non-streaming response ---
+      if (!isStreaming) {
+        setStage("read_non_streaming_response");
+        const responseBody = await upstream.text();
         const latencyMs = elapsedMs(startedAt);
 
-        log.info("proxy.anthropic.response", "Anthropic stream complete", {
-          model: streamContext.model,
-          input_tokens: streamContext.inputTokens,
-          output_tokens: streamContext.outputTokens,
-          cache_creation_tokens: streamContext.cacheCreationTokens,
-          cache_read_tokens: streamContext.cacheReadTokens,
-          stop_reason: streamContext.stopReason,
+        log.info("proxy.anthropic.response", "Anthropic response", {
+          status: upstream.status,
           latency_ms: latencyMs,
           ...identityContext,
         });
 
-        // Async trace capture for streaming (skip count_tokens)
-        if (!isCountTokens && streamContext.model) {
-          const traceData = buildStreamingTraceData(
-            streamContext, latencyMs, identitySignals,
-            effectiveSessionId, policyDecision, injectionResult,
-          );
-          deps.inflight.track(
-            captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
-          );
+        if (upstream.status >= 400) {
+          const errorPreview = toErrorPreview(responseBody);
+          setSpanAttributes({
+            "proxy.error.type": "upstream_error",
+            "proxy.error.stage": currentStage,
+            "proxy.upstream_error_status": upstream.status,
+            "proxy.upstream_error_preview": errorPreview,
+          });
+          log.warn("proxy.anthropic.upstream_non_2xx", "Upstream returned non-2xx response", {
+            upstream_status: upstream.status,
+            stage: currentStage,
+            upstream_error_preview: errorPreview,
+            ...identityContext,
+          });
         }
-      }
-    })();
 
-    return new Response(readable, {
-      status: upstream.status,
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+        // Async trace capture for non-streaming (skip count_tokens)
+        if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
+          const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
+          if (traceData) {
+            deps.inflight.track(
+              captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
+            );
+          }
+        }
+
+        setStage("complete");
+        return new Response(responseBody, {
+          status: upstream.status,
+          headers: {
+            "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+
+      // --- Streaming: pipe SSE events through ---
+      setStage("relay_stream");
+      const { readable, writable } = new TransformStream<Uint8Array>();
+      const writer = writable.getWriter();
+      const reader = upstream.body!.getReader();
+      const decoder = new TextDecoder();
+
+      const streamContext: StreamContext = {
+        model: parsed?.model,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        stopReason: undefined,
+      };
+
+      (async () => {
+        try {
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            await writer.write(value);
+
+            buffer += decoder.decode(value, { stream: true });
+            buffer = extractSSEUsage(buffer, streamContext);
+          }
+        } catch (error) {
+          setSpanAttributes({
+            "proxy.error.type": "stream_error",
+            "proxy.error.stage": currentStage,
+          });
+          log.error("proxy.anthropic.stream_error", "SSE relay error", error, {
+            stage: currentStage,
+            ...identityContext,
+          });
+        } finally {
+          await writer.close();
+
+          const latencyMs = elapsedMs(startedAt);
+
+          log.info("proxy.anthropic.response", "Anthropic stream complete", {
+            model: streamContext.model,
+            input_tokens: streamContext.inputTokens,
+            output_tokens: streamContext.outputTokens,
+            cache_creation_tokens: streamContext.cacheCreationTokens,
+            cache_read_tokens: streamContext.cacheReadTokens,
+            stop_reason: streamContext.stopReason,
+            latency_ms: latencyMs,
+            ...identityContext,
+          });
+
+          // Async trace capture for streaming (skip count_tokens)
+          if (!isCountTokens && streamContext.model) {
+            const traceData = buildStreamingTraceData(
+              streamContext, latencyMs, identitySignals,
+              effectiveSessionId, policyDecision, injectionResult,
+            );
+            deps.inflight.track(
+              captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
+            );
+          }
+
+          setStage("complete");
+        }
+      })();
+
+      return new Response(readable, {
+        status: upstream.status,
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (error) {
+      setSpanAttributes({
+        "proxy.error.type": "internal_error",
+        "proxy.error.stage": currentStage,
+      });
+      log.error("proxy.anthropic.unhandled_error", "Unhandled proxy route error", error, {
+        stage: currentStage,
+        workspace_id: identitySignals?.workspaceId,
+        task_id: identitySignals?.taskId,
+      });
+      return jsonResponse(
+        buildProxyErrorPayload(
+          "proxy_internal_error",
+          "Internal proxy error",
+          { stage: currentStage, traceId },
+        ),
+        500,
+      );
+    }
   };
 }

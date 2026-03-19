@@ -351,11 +351,11 @@ export async function evaluateProxyPolicy(
         deps.inflight.track(
           createNoPolicyWarning(deps.surreal, context.workspaceId).catch(() => undefined),
         );
+        log.warn("proxy.policy.no_policies", "No policies configured, permissive default", {
+          workspace_id: context.workspaceId,
+          first_observed: true,
+        });
       }
-
-      log.info("proxy.policy.no_policies", "No policies configured, permissive default", {
-        workspace_id: context.workspaceId,
-      });
 
       return { decision: "allow", policyIds: [] };
     }
@@ -390,4 +390,3 @@ export async function evaluateProxyPolicy(
   // No workspace: permissive (degraded mode)
   return { decision: "allow", policyIds: [] };
 }
-
