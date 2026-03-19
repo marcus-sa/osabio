@@ -102,7 +102,7 @@ export type SupportsEdge = {
   in: RecordId<"intent">;
   out: RecordId<"objective">;
   alignment_score: number;
-  alignment_method: "embedding" | "manual" | "rule";
+  alignment_method: "embedding" | "manual" | "rule" | "graph" | "bm25";
   reasoning?: string;
 };
 

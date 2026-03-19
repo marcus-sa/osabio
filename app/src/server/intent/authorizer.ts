@@ -4,8 +4,9 @@ import type { RecordId, Surreal } from "surrealdb";
 import type { ActionSpec, BudgetLimit, EvaluationResult } from "./types";
 import type { PolicyTraceEntry, IntentEvaluationContext } from "../policy/types";
 import { evaluatePolicyGate } from "../policy/policy-gate";
-import type { AlignmentResult, AlignmentCandidate } from "../objective/alignment";
+import type { AlignmentResult, AlignmentCandidate, AlignmentMethod } from "../objective/alignment";
 import { selectBestAlignment } from "../objective/alignment";
+import type { EntityReference } from "../objective/alignment-adapter";
 
 // --- LLM Evaluator Port ---
 
@@ -20,10 +21,25 @@ export type LlmEvaluator = (
  * Port: finds objective candidates matching an intent embedding.
  * Implementation uses KNN two-step query pattern.
  * Returns scored candidates for pure classification.
+ *
+ * @deprecated Use FindAlignedObjectivesViaGraph for new code.
  */
 export type FindAlignedObjectives = (
   intentEmbedding: number[],
   workspaceId: RecordId<"workspace">,
+) => Promise<AlignmentCandidate[]>;
+
+/**
+ * Port: finds aligned objectives via graph traversal + BM25 fallback.
+ *
+ * Primary path: graph traversal from entity reference to linked objectives.
+ * Fallback: BM25 fulltext search on objective title.
+ * No embedding vector required.
+ */
+export type FindAlignedObjectivesViaGraph = (
+  entityRef: EntityReference | undefined,
+  workspaceId: RecordId<"workspace">,
+  descriptionText: string,
 ) => Promise<AlignmentCandidate[]>;
 
 /**
@@ -34,7 +50,7 @@ export type CreateSupportsEdge = (
   intentId: RecordId<"intent">,
   objectiveId: string,
   alignmentScore: number,
-  alignmentMethod: "embedding" | "manual" | "rule",
+  alignmentMethod: AlignmentMethod,
 ) => Promise<void>;
 
 // --- Pipeline Types ---
@@ -61,12 +77,18 @@ export type EvaluateIntentInput = {
   requesterRole?: string;
   llmEvaluator: LlmEvaluator;
   timeoutMs?: number;
-  /** Optional: intent embedding for objective alignment (warning mode) */
+  /** Optional: intent embedding for objective alignment (warning mode) — legacy KNN path */
   intentEmbedding?: number[];
+  /** Optional: entity reference for graph-based alignment (task or project) */
+  entityRef?: EntityReference;
+  /** Optional: intent description text for BM25 fallback alignment */
+  intentDescription?: string;
   /** Optional: intent record ID for supports edge creation */
   intentId?: RecordId<"intent">;
-  /** Optional: port to find aligned objectives via KNN */
+  /** Optional: port to find aligned objectives via KNN — legacy */
   findAlignedObjectives?: FindAlignedObjectives;
+  /** Optional: port to find aligned objectives via graph traversal + BM25 */
+  findAlignedObjectivesViaGraph?: FindAlignedObjectivesViaGraph;
   /** Optional: port to create supports edge */
   createSupportsEdge?: CreateSupportsEdge;
   /** Optional: port to create warning observation for unaligned intents */
@@ -118,9 +140,55 @@ export async function evaluateIntent(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   // --- Alignment step (warning mode: never blocks authorization) ---
-  // Runs inside the timeout block so KNN + edge writes share the abort budget.
+  // Runs inside the timeout block so alignment + edge writes share the abort budget.
+  // Prefers graph-based alignment over legacy embedding-based alignment.
   let alignmentResult: AlignmentResult | undefined;
-  if (input.intentEmbedding && input.findAlignedObjectives) {
+  let alignmentMethod: AlignmentMethod = "embedding";
+
+  // Path 1: Graph traversal + BM25 fallback (preferred)
+  if (input.findAlignedObjectivesViaGraph) {
+    try {
+      const candidates = await input.findAlignedObjectivesViaGraph(
+        input.entityRef,
+        input.workspaceId,
+        input.intentDescription ?? input.intent.goal,
+      );
+      alignmentResult = selectBestAlignment(candidates);
+      // Determine method: graph candidates have score=1.0, BM25 have score<0.7
+      alignmentMethod = candidates.length > 0 && candidates[0].score === 1.0 ? "graph" : "bm25";
+
+      if (
+        alignmentResult.classification === "matched" &&
+        alignmentResult.objectiveId &&
+        input.intentId &&
+        input.createSupportsEdge
+      ) {
+        await input.createSupportsEdge(
+          input.intentId,
+          alignmentResult.objectiveId,
+          alignmentResult.score,
+          alignmentMethod,
+        );
+      }
+
+      if (
+        alignmentResult.classification === "none" &&
+        input.intentId &&
+        input.createAlignmentWarning
+      ) {
+        await input.createAlignmentWarning(
+          input.workspaceId,
+          input.intentId,
+          alignmentResult.score,
+        );
+      }
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      alignmentResult = { classification: "none", score: 0 };
+    }
+  }
+  // Path 2: Legacy embedding-based alignment (fallback)
+  else if (input.intentEmbedding && input.findAlignedObjectives) {
     try {
       const candidates = await input.findAlignedObjectives(
         input.intentEmbedding,
@@ -128,7 +196,6 @@ export async function evaluateIntent(
       );
       alignmentResult = selectBestAlignment(candidates);
 
-      // Create supports edge if matched and ports are available
       if (
         alignmentResult.classification === "matched" &&
         alignmentResult.objectiveId &&
@@ -143,7 +210,6 @@ export async function evaluateIntent(
         );
       }
 
-      // Create warning observation when no objective matches (warning mode)
       if (
         alignmentResult.classification === "none" &&
         candidates.length > 0 &&
@@ -158,7 +224,6 @@ export async function evaluateIntent(
       }
     } catch (error) {
       if (isAbortError(error)) throw error;
-      // Non-timeout alignment failure never blocks intent authorization
       alignmentResult = { classification: "none", score: 0 };
     }
   }

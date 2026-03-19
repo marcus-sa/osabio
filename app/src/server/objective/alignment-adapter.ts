@@ -1,21 +1,161 @@
 /**
  * Alignment Adapter — SurrealDB implementations of authorizer alignment ports.
  *
- * Implements FindAlignedObjectives and CreateSupportsEdge using SurrealDB
- * KNN vector search against the objective table's HNSW index.
+ * Primary path: Graph traversal (task->belongs_to->project<-has_objective<-objective)
+ * Fallback path: BM25 fulltext search on objective.title
+ * Legacy path: KNN vector search (retained for backward compatibility)
  *
- * Uses the two-step KNN query pattern required by the SurrealDB v3.0
- * KNN + WHERE bug (objective table has B-tree indexes on workspace/status).
+ * Graph traversal is preferred for typed, linked data (ADR-062).
+ * BM25 fallback handles unlinked intents where no entity reference is available.
  */
 import { RecordId, type Surreal } from "surrealdb";
-import type { FindAlignedObjectives, CreateSupportsEdge } from "../intent/authorizer";
+import type { FindAlignedObjectives, FindAlignedObjectivesViaGraph, CreateSupportsEdge } from "../intent/authorizer";
+import {
+  buildGraphTraversalCandidates,
+  buildBm25Candidates,
+  type AlignmentCandidate,
+} from "./alignment";
 
 // ---------------------------------------------------------------------------
-// FindAlignedObjectives Adapter
+// Entity Reference Type
+// ---------------------------------------------------------------------------
+
+export type EntityReference = {
+  table: "task" | "project";
+  id: string;
+};
+
+// ---------------------------------------------------------------------------
+// BM25 Query Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Escapes a search query string for safe interpolation into SurrealQL BM25 queries.
+ * BM25 @N@ operator does NOT work with SDK bound parameters — must be a string literal.
+ */
+function escapeSearchQuery(query: string): string {
+  return query.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+// ---------------------------------------------------------------------------
+// FindAlignedObjectivesViaGraph Adapter (Graph + BM25)
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a FindAlignedObjectivesViaGraph port backed by SurrealDB graph traversal
+ * with BM25 fulltext fallback.
+ *
+ * Primary path (graph traversal — deterministic):
+ *   1. Receive resolved entity reference (task or project RecordId)
+ *   2. Graph traversal: task -> belongs_to -> project <- has_objective <- objective
+ *      (or project <- has_objective <- objective for direct project refs)
+ *   3. Return linked active objectives with score = 1.0
+ *
+ * Fallback path (BM25 — for unresolved intents):
+ *   1. BM25 search on objective.title (index from migration 0034)
+ *   2. Return candidates with normalized BM25 scores
+ *   3. Classify as "ambiguous" (BM25 match is weaker signal than graph path)
+ */
+export function findAlignedObjectivesViaGraph(
+  surreal: Surreal,
+): FindAlignedObjectivesViaGraph {
+  return async (entityRef, workspaceId, descriptionText) => {
+    // Primary path: graph traversal when entity reference is available
+    if (entityRef) {
+      const graphCandidates = await findObjectivesViaGraphTraversal(
+        surreal,
+        entityRef,
+        workspaceId,
+      );
+      if (graphCandidates.length > 0) {
+        return graphCandidates;
+      }
+      // Graph traversal found no objectives — fall through to BM25
+    }
+
+    // Fallback path: BM25 fulltext search on objective.title
+    if (descriptionText && descriptionText.trim().length > 0) {
+      return await findObjectivesViaBm25(surreal, workspaceId, descriptionText);
+    }
+
+    return [];
+  };
+}
+
+/**
+ * Graph traversal: resolve objectives linked to a task or project.
+ *
+ * Uses SurrealDB arrow syntax for direct graph traversal:
+ *   task:  $entity->belongs_to->project->has_objective->objective
+ *   project: $entity->has_objective->objective
+ *
+ * Filters by workspace scope and active status.
+ */
+async function findObjectivesViaGraphTraversal(
+  surreal: Surreal,
+  entityRef: EntityReference,
+  workspaceId: RecordId<"workspace">,
+): Promise<AlignmentCandidate[]> {
+  const entityRecord = new RecordId(entityRef.table, entityRef.id);
+
+  const traversalPath = entityRef.table === "task"
+    ? "$entity->belongs_to->project->has_objective->objective"
+    : "$entity->has_objective->objective";
+
+  const rows = (await surreal.query(
+    `SELECT id, title FROM ${traversalPath} WHERE workspace = $ws AND status = 'active';`,
+    { entity: entityRecord, ws: workspaceId },
+  )) as [Array<{ id: RecordId<"objective">; title: string }>];
+
+  const graphRows = (rows[0] ?? []).map((row) => ({
+    objectiveId: row.id.id as string,
+    title: row.title,
+  }));
+
+  return buildGraphTraversalCandidates(graphRows);
+}
+
+/**
+ * BM25 fulltext search on objective.title within workspace scope.
+ *
+ * Uses string literal interpolation for the search term (SurrealDB limitation:
+ * @N@ does not work with SDK bound parameters).
+ */
+async function findObjectivesViaBm25(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+  searchText: string,
+): Promise<AlignmentCandidate[]> {
+  const escaped = escapeSearchQuery(searchText);
+
+  const rows = (await surreal.query(
+    `SELECT id, title, search::score(1) AS score
+     FROM objective
+     WHERE title @1@ '${escaped}'
+       AND workspace = $ws
+       AND status = 'active'
+     ORDER BY score DESC
+     LIMIT 10;`,
+    { ws: workspaceId },
+  )) as [Array<{ id: RecordId<"objective">; title: string; score: number }>];
+
+  const bm25Rows = (rows[0] ?? []).map((row) => ({
+    objectiveId: row.id.id as string,
+    title: row.title,
+    score: row.score,
+  }));
+
+  return buildBm25Candidates(bm25Rows);
+}
+
+// ---------------------------------------------------------------------------
+// FindAlignedObjectives Adapter (Legacy KNN — retained for backward compat)
 // ---------------------------------------------------------------------------
 
 /**
  * Creates a FindAlignedObjectives port backed by SurrealDB KNN search.
+ *
+ * @deprecated Use findAlignedObjectivesViaGraph for new code.
  *
  * Two-step query pattern:
  *   1. KNN on HNSW index (no WHERE filter)

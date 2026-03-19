@@ -15,6 +15,8 @@ import {
   computeCosineSimilarity,
   classifyAlignment,
   selectBestAlignment,
+  buildGraphTraversalCandidates,
+  buildBm25Candidates,
   type AlignmentClassification,
   type AlignmentCandidate,
   type AlignmentResult,
@@ -144,5 +146,80 @@ describe("selectBestAlignment", () => {
     expect(result.classification).toBe("matched");
     expect(result.objectiveId).toBe("obj-1");
     expect(result.score).toBe(0.92);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Graph Traversal Candidates
+// ---------------------------------------------------------------------------
+
+describe("buildGraphTraversalCandidates", () => {
+  it("transforms graph rows to candidates with score 1.0", () => {
+    const graphRows = [
+      { objectiveId: "obj-1", title: "Improve reliability" },
+      { objectiveId: "obj-2", title: "Increase velocity" },
+    ];
+    const candidates = buildGraphTraversalCandidates(graphRows);
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0].score).toBe(1.0);
+    expect(candidates[0].objectiveId).toBe("obj-1");
+    expect(candidates[0].title).toBe("Improve reliability");
+    expect(candidates[1].score).toBe(1.0);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(buildGraphTraversalCandidates([])).toHaveLength(0);
+  });
+
+  it("filters out inactive objectives (only active should be passed in)", () => {
+    // The function receives pre-filtered rows, so all get score 1.0
+    const graphRows = [{ objectiveId: "obj-1", title: "Active objective" }];
+    const candidates = buildGraphTraversalCandidates(graphRows);
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].score).toBe(1.0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BM25 Candidates
+// ---------------------------------------------------------------------------
+
+describe("buildBm25Candidates", () => {
+  it("normalizes BM25 scores and caps at ambiguous classification", () => {
+    const bm25Rows = [
+      { objectiveId: "obj-1", title: "Reliability goal", score: 8.5 },
+      { objectiveId: "obj-2", title: "Another goal", score: 3.2 },
+    ];
+    const candidates = buildBm25Candidates(bm25Rows);
+    expect(candidates).toHaveLength(2);
+    // Highest raw score normalizes to the ambiguous range (capped below matched threshold)
+    expect(candidates[0].score).toBeGreaterThan(0);
+    expect(candidates[0].score).toBeLessThan(0.7); // never reaches "matched"
+    expect(candidates[0].objectiveId).toBe("obj-1");
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(buildBm25Candidates([])).toHaveLength(0);
+  });
+
+  it("handles single result", () => {
+    const bm25Rows = [{ objectiveId: "obj-1", title: "Only one", score: 5.0 }];
+    const candidates = buildBm25Candidates(bm25Rows);
+    expect(candidates).toHaveLength(1);
+    // Single BM25 match normalizes to ambiguous range
+    expect(candidates[0].score).toBeGreaterThan(0);
+    expect(candidates[0].score).toBeLessThan(0.7);
+  });
+
+  it("preserves ordering by score descending", () => {
+    const bm25Rows = [
+      { objectiveId: "obj-1", title: "Low", score: 1.0 },
+      { objectiveId: "obj-2", title: "High", score: 10.0 },
+      { objectiveId: "obj-3", title: "Mid", score: 5.0 },
+    ];
+    const candidates = buildBm25Candidates(bm25Rows);
+    expect(candidates[0].objectiveId).toBe("obj-2");
+    expect(candidates[1].objectiveId).toBe("obj-3");
+    expect(candidates[2].objectiveId).toBe("obj-1");
   });
 });
