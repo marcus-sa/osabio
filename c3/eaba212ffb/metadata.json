@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c3eaba212ffb",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/graph/graph-relationships.test.ts",
+    "tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts",
+    "tests/acceptance/observer-agent/observer-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c3/eaba212ffb/0/metadata.json",
+      "transcript": "/c3/eaba212ffb/0/full.jsonl",
+      "context": "/c3/eaba212ffb/0/context.md",
+      "content_hash": "/c3/eaba212ffb/0/content_hash.txt",
+      "prompt": "/c3/eaba212ffb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
