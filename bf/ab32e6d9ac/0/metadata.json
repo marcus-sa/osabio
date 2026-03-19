@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "bfab32e6d9ac",
+  "session_id": "2c73634b-9f41-42e5-a864-bade7d55195b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T06:50:37.433118Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/orchestrator/event-bridge.ts",
+    "tests/unit/coding-agent-orchestrator/event-bridge.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1f10f01c1c41",
+  "checkpoint_transcript_start": 21,
+  "transcript_lines_at_start": 21,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 14865,
+    "cache_read_tokens": 799265,
+    "output_tokens": 2397,
+    "api_call_count": 12
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T06:50:37.337061Z",
+    "agent_lines": 78,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 78,
+    "agent_percentage": 100
+  }
+}
