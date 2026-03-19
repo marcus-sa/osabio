@@ -345,7 +345,7 @@ async function loadCandidatePool(
   const results = await surreal.query<[DecisionRow[], LearningRow[], ObservationRow[]]>(
     `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;
      SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;
-     SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND observation_type NOT IN ['proxy_no_policy'] LIMIT 20;`,
+     SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy' LIMIT 20;`,
     { ws: workspaceRecord },
   );
 

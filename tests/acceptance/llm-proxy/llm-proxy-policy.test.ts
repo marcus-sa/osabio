@@ -254,7 +254,7 @@ describe("No policies defaults to permissive with warning", () => {
 
     // And: warning observation is created
     const observations = await getObservationsForWorkspace(surreal, workspaceId, {
-      observationType: "proxy_no_policy",
+      observationType: "missing",
       sourceAgent: "llm-proxy",
     });
     expect(observations.length).toBeGreaterThanOrEqual(1);
