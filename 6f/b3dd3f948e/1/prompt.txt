@@ -1,0 +1,17 @@
+run acceptance tests and fix the broken ones. compare failing ones against latest 20-30 git commits
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+add this as learning to AGENTS.md
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+commit
