@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1dea251c5086",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1d/ea251c5086/0/metadata.json",
+      "transcript": "/1d/ea251c5086/0/full.jsonl",
+      "context": "/1d/ea251c5086/0/context.md",
+      "content_hash": "/1d/ea251c5086/0/content_hash.txt",
+      "prompt": "/1d/ea251c5086/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 130677,
+    "cache_read_tokens": 2951948,
+    "output_tokens": 8393,
+    "api_call_count": 44
+  }
+}

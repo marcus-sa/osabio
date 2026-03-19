@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1dea251c5086",
+  "session_id": "8bdd77d0-1a21-4b0d-97d6-da4e18fb3646",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-19T11:04:07.750041Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5338ada849a2",
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 130677,
+    "cache_read_tokens": 2951948,
+    "output_tokens": 8393,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-19T11:04:06.956478Z",
+    "agent_lines": 0,
+    "human_added": 18,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 18,
+    "agent_percentage": 0
+  }
+}
