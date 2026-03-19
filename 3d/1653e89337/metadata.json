@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3d1653e89337",
+  "strategy": "manual-commit",
+  "branch": "deduplicate-test-kit-helpers-168",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/agent-learnings/learning-test-kit.ts",
+    "tests/acceptance/intent-node/intent-test-kit.ts",
+    "tests/acceptance/objective-behavior/objective-behavior-test-kit.ts",
+    "tests/acceptance/observer-agent/observer-test-kit.ts",
+    "tests/acceptance/shared-fixtures.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3d/1653e89337/0/metadata.json",
+      "transcript": "/3d/1653e89337/0/full.jsonl",
+      "context": "/3d/1653e89337/0/context.md",
+      "content_hash": "/3d/1653e89337/0/content_hash.txt",
+      "prompt": "/3d/1653e89337/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
