@@ -574,7 +574,7 @@ DEFINE FIELD priority ON intent TYPE int
 DEFINE FIELD action_spec ON intent TYPE object;
 DEFINE FIELD action_spec.provider ON intent TYPE string;
 DEFINE FIELD action_spec.action ON intent TYPE string;
-DEFINE FIELD action_spec.params ON intent TYPE option<object> FLEXIBLE;
+DEFINE FIELD action_spec.params ON intent TYPE object FLEXIBLE;
 DEFINE FIELD budget_limit ON intent TYPE option<object>;
 DEFINE FIELD budget_limit.amount ON intent TYPE float;
 DEFINE FIELD budget_limit.currency ON intent TYPE string;

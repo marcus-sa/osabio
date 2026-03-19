@@ -294,6 +294,36 @@ function generateStreamId(sessionId: string): string {
   return `stream-${sessionId}`;
 }
 
+function appendOrchestratorProxyHeaders(
+  baseHeaders: string,
+  taskId: string,
+  sessionId: string,
+): string {
+  const lines = baseHeaders
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const headerMap = new Map<string, string>();
+  for (const line of lines) {
+    const sep = line.indexOf(":");
+    if (sep <= 0) {
+      continue;
+    }
+    const name = line.slice(0, sep).trim();
+    const value = line.slice(sep + 1).trim();
+    if (name.length === 0 || value.length === 0) {
+      continue;
+    }
+    headerMap.set(name.toLowerCase(), `${name}: ${value}`);
+  }
+
+  headerMap.set("x-brain-task", `X-Brain-Task: ${taskId}`);
+  headerMap.set("x-brain-session", `X-Brain-Session: ${sessionId}`);
+
+  return Array.from(headerMap.values()).join("\n");
+}
+
 function slugFromTitle(title: string): string {
   return title
     .toLowerCase()
@@ -383,6 +413,13 @@ export async function createOrchestratorSession(
   });
 
   const streamId = generateStreamId(agentSessionId);
+  const anthropicCustomHeaders = input.anthropicCustomHeaders
+    ? appendOrchestratorProxyHeaders(
+        input.anthropicCustomHeaders,
+        input.taskId,
+        agentSessionId,
+      )
+    : undefined;
 
   // 4. Build config and spawn agent
   const agentSpawnConfig: AgentSpawnConfig = {
@@ -393,7 +430,7 @@ export async function createOrchestratorSession(
     brainIdentityId: input.brainIdentityId,
     brainEnv: input.brainEnv,
     anthropicBaseUrl: input.anthropicBaseUrl,
-    anthropicCustomHeaders: input.anthropicCustomHeaders,
+    anthropicCustomHeaders,
   };
 
   const spawnFn = input.spawnAgent ?? defaultSpawnAgent;

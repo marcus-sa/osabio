@@ -255,4 +255,28 @@ describe("AgentHandle lifecycle (step 02-01)", () => {
     expect(capture.receivedConfig!.brainBaseUrl).toBe("http://localhost:3000");
     expect(capture.receivedConfig!.prompt).toContain("task-7");
   });
+
+  test("spawnAgent receives task and session headers in ANTHROPIC_CUSTOM_HEADERS", async () => {
+    const capture = createHandleCapture();
+    const surreal = createSurrealStub();
+
+    await createOrchestratorSession({
+      surreal: surreal.stub as any,
+      shellExec: successShellExec(),
+      brainBaseUrl: "http://localhost:3000",
+      workspaceId: "ws-1",
+      taskId: "task-header-1",
+      spawnAgent: capture.spawnFn,
+      anthropicCustomHeaders: "X-Brain-Auth: brp_testtoken",
+      validateAssignment: validateAssignmentOk("Header Task", "/repo"),
+      createAgentSession: createAgentSessionStub("agent-sess-header-1") as any,
+    });
+
+    expect(capture.receivedConfig).toBeDefined();
+    const headers = capture.receivedConfig!.anthropicCustomHeaders;
+    expect(headers).toBeDefined();
+    expect(headers).toContain("X-Brain-Auth: brp_testtoken");
+    expect(headers).toContain("X-Brain-Task: task-header-1");
+    expect(headers).toContain("X-Brain-Session: agent-sess-header-1");
+  });
 });
