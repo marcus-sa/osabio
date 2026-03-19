@@ -960,6 +960,22 @@ export function createAnthropicProxyHandler(
         setSpanAttributes({ "proxy.upstream_auth_source": "server" });
       } else if (hasClientAuth) {
         setSpanAttributes({ "proxy.upstream_auth_source": "client" });
+      } else if (authMode.mode === "brain") {
+        // Brain auth succeeded but server has no ANTHROPIC_API_KEY configured —
+        // this is a server misconfiguration, not a client auth error.
+        setSpanAttributes({
+          "proxy.upstream_auth_source": "missing",
+          "proxy.error.type": "server_error",
+          "proxy.error.stage": currentStage,
+        });
+        return jsonResponse(
+          buildProxyErrorPayload(
+            "server_error",
+            "API key not configured: server ANTHROPIC_API_KEY is required for Brain-authenticated proxy requests",
+            { stage: currentStage, traceId },
+          ),
+          500,
+        );
       } else {
         setSpanAttributes({
           "proxy.upstream_auth_source": "missing",
@@ -969,9 +985,7 @@ export function createAnthropicProxyHandler(
         return jsonResponse(
           buildProxyErrorPayload(
             "authentication_error",
-            authMode.mode === "brain"
-              ? "Missing x-api-key or authorization header for upstream request (or configure server ANTHROPIC_API_KEY)"
-              : "Missing x-api-key or authorization header",
+            "Missing x-api-key or authorization header",
             { stage: currentStage, traceId },
           ),
           401,

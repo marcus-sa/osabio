@@ -69,7 +69,7 @@ describe("createAnthropicProxyHandler auth behavior", () => {
     }
   });
 
-  it("returns 401 when neither server key nor client auth headers are present", async () => {
+  it("returns 500 when Brain auth succeeds but server has no API key configured", async () => {
     const handler = createAnthropicProxyHandler(createTestDeps());
     const originalFetch = globalThis.fetch;
     let fetchCalled = false;
@@ -93,9 +93,9 @@ describe("createAnthropicProxyHandler auth behavior", () => {
       const response = await handler(request);
       const payload = await response.json() as { error: { type: string }; stage?: string };
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(500);
       expect(fetchCalled).toBe(false);
-      expect(payload.error.type).toBe("authentication_error");
+      expect(payload.error.type).toBe("server_error");
       expect(payload.stage).toBe("validate_api_key");
     } finally {
       globalThis.fetch = originalFetch;
