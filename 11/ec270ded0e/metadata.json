@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "11ec270ded0e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/llm-proxy/llm-proxy-policy.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/11/ec270ded0e/0/metadata.json",
+      "transcript": "/11/ec270ded0e/0/full.jsonl",
+      "context": "/11/ec270ded0e/0/context.md",
+      "content_hash": "/11/ec270ded0e/0/content_hash.txt",
+      "prompt": "/11/ec270ded0e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 130677,
+    "cache_read_tokens": 2951948,
+    "output_tokens": 8393,
+    "api_call_count": 44
+  }
+}
