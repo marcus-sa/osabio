@@ -92,6 +92,7 @@ export type ProxyPolicyDependencies = {
   readonly rateLimiterState: RateLimiterState;
   readonly spendCache: SpendCache;
   readonly embeddingDeps?: EmbeddingDeps;
+  readonly noPolicyWarnedWorkspaces: Set<string>;
 };
 
 // ---------------------------------------------------------------------------
@@ -315,23 +316,26 @@ export async function evaluateProxyPolicy(
     const policies = await loadWorkspacePolicies(deps.surreal, context.workspaceId);
 
     if (policies.length === 0) {
-      // No policies: permissive default with async warning (deduplicated at DB level via embedding similarity)
-      const workspaceRecord = new RecordId("workspace", context.workspaceId);
-      deps.inflight.track(
-        createObservation({
-          surreal: deps.surreal,
-          workspaceRecord,
-          text: `No LLM proxy policies configured for workspace. All requests are being forwarded without model access restrictions. Consider creating policies to control which models each agent type can use.`,
-          severity: "warning",
-          observationType: "missing",
-          sourceAgent: "llm-proxy",
-          now: new Date(),
-          embeddingDeps: deps.embeddingDeps,
-        }).catch((error) => {
-          log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
-          return undefined as any;
-        }),
-      );
+      // No policies: permissive default with async warning (deduplicated per-process via Set)
+      if (!deps.noPolicyWarnedWorkspaces.has(context.workspaceId)) {
+        deps.noPolicyWarnedWorkspaces.add(context.workspaceId);
+        const workspaceRecord = new RecordId("workspace", context.workspaceId);
+        deps.inflight.track(
+          createObservation({
+            surreal: deps.surreal,
+            workspaceRecord,
+            text: `No LLM proxy policies configured for workspace. All requests are being forwarded without model access restrictions. Consider creating policies to control which models each agent type can use.`,
+            severity: "warning",
+            observationType: "missing",
+            sourceAgent: "llm-proxy",
+            now: new Date(),
+            embeddingDeps: deps.embeddingDeps,
+          }).catch((error) => {
+            log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
+            return undefined as any;
+          }),
+        );
+      }
 
       return { decision: "allow", policyIds: [] };
     }

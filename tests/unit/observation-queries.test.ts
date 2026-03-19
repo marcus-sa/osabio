@@ -34,8 +34,6 @@ describe("observation queries", () => {
           output: async () => ({ id: edgeRecord }),
         };
       },
-      // Dedup KNN query: LET (index 0) + SELECT (index 1) — return no matches
-      query: async () => [null, []],
     };
 
     const workspaceRecord = new RecordId("workspace", "w-1");
@@ -146,6 +144,7 @@ describe("observation queries", () => {
       text: "Duplicate observation text",
       severity: "warning",
       sourceAgent: "observer_agent",
+      sourceSessionRecord: new RecordId("agent_session", "s-1"),
       now: new Date("2026-02-01T12:00:00.000Z"),
       embedding: [0.5, 0.6, 0.7],
     });
@@ -157,14 +156,12 @@ describe("observation queries", () => {
     expect(updateQueries[0].sql).toContain("occurrence_count = occurrence_count + 1");
   });
 
-  it("does not deduplicate across different source agents", async () => {
+  it("skips dedup when no session is provided", async () => {
     const createdPayloads: unknown[] = [];
 
     const surrealMock = {
-      query: async () => {
-        // KNN returns candidates but none match the source_agent filter
-        return [null, []];
-      },
+      // query should NOT be called — no session means no dedup attempt
+      query: () => { throw new Error("query should not be called without session"); },
       create: () => ({
         content: async (payload: unknown) => {
           createdPayloads.push(payload);
@@ -178,9 +175,9 @@ describe("observation queries", () => {
     const result = await createObservation({
       surreal: surrealMock as any,
       workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "Same text different agent",
+      text: "Observation without session",
       severity: "info",
-      sourceAgent: "different_agent",
+      sourceAgent: "observer_agent",
       now: new Date("2026-02-01T12:00:00.000Z"),
       embedding: [0.5, 0.6, 0.7],
     });

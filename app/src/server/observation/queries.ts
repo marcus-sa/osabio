@@ -31,15 +31,17 @@ async function findSimilarOpenObservation(input: {
   surreal: Surreal;
   workspaceRecord: RecordId<"workspace", string>;
   sourceAgent: string;
+  sourceSessionRecord: RecordId<"agent_session", string>;
   embedding: number[];
 }): Promise<SimilarObservationRow | undefined> {
   // Two-step KNN pattern: avoids SurrealDB v3.0 HNSW + WHERE index conflict
+  // Dedup scope: same agent + same session + same workspace
   const sql = `
-    LET $candidates = SELECT id, occurrence_count, workspace, source_agent, status,
+    LET $candidates = SELECT id, occurrence_count, workspace, source_agent, source_session, status,
       vector::similarity::cosine(embedding, $vec) AS similarity
       FROM observation WHERE embedding <|10, COSINE|> $vec;
     SELECT id, occurrence_count, similarity FROM $candidates
-      WHERE workspace = $ws AND source_agent = $agent
+      WHERE workspace = $ws AND source_agent = $agent AND source_session = $sess
       AND status IN ['open', 'acknowledged']
       AND similarity > ${DEDUP_SIMILARITY_THRESHOLD}
       ORDER BY similarity DESC LIMIT 1;
@@ -49,6 +51,7 @@ async function findSimilarOpenObservation(input: {
     vec: input.embedding,
     ws: input.workspaceRecord,
     agent: input.sourceAgent,
+    sess: input.sourceSessionRecord,
   });
 
   return results[1]?.[0];
@@ -94,11 +97,13 @@ export async function createObservation(input: {
   }
 
   // Step 2: Check for similar open observation (dedup)
-  if (embedding) {
+  // Dedup requires both an embedding and a session — no session means each observation is distinct
+  if (embedding && input.sourceSessionRecord) {
     const existing = await findSimilarOpenObservation({
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
       sourceAgent: input.sourceAgent,
+      sourceSessionRecord: input.sourceSessionRecord,
       embedding,
     });
 

@@ -79,6 +79,7 @@ function createStubDeps(
     inflight: { track: () => {}, drain: async () => {} },
     rateLimiterState: createRateLimiterState(1000), // high limit for non-rate-limit tests
     spendCache: new Map() as SpendCache,
+    noPolicyWarnedWorkspaces: new Set<string>(),
   };
 }
 
