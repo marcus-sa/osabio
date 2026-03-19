@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "149a5628b96e",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/intent/intent-evaluation.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/oauth/intent-submission.ts",
+    "app/src/server/orchestrator/routes.ts",
+    "tests/acceptance/coding-agent-orchestrator/mcp-auth-intent-evaluation.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/14/9a5628b96e/0/metadata.json",
+      "transcript": "/14/9a5628b96e/0/full.jsonl",
+      "context": "/14/9a5628b96e/0/context.md",
+      "content_hash": "/14/9a5628b96e/0/content_hash.txt",
+      "prompt": "/14/9a5628b96e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
