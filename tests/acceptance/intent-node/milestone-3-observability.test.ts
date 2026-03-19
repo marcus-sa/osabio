@@ -50,7 +50,7 @@ describe("Milestone 3: Governance Feed (US-3)", () => {
         goal: "Delete stale feature branches from remote",
         reasoning: "Cleaning up old branches to reduce clutter",
         priority: 70,
-        action_spec: { provider: "git", action: "delete_remote_branches" },
+        action_spec: { provider: "git", action: "delete_remote_branches", params: {} },
       },
     );
 
@@ -102,7 +102,7 @@ describe("Milestone 3: Audit Trail (US-7)", () => {
       {
         goal: "Add autocomplete component to search bar",
         reasoning: "Task requires search autocomplete implementation",
-        action_spec: { provider: "file_editor", action: "create_file" },
+        action_spec: { provider: "file_editor", action: "create_file", params: {} },
         taskId: task.taskId,
       },
     );
@@ -164,7 +164,7 @@ describe("Milestone 3: SurrealQL EVENT (US-8)", () => {
       {
         goal: "Add logging to payment handler",
         reasoning: "Improve observability for payment processing",
-        action_spec: { provider: "file_editor", action: "edit_file" },
+        action_spec: { provider: "file_editor", action: "edit_file", params: {} },
       },
     );
 
@@ -203,7 +203,7 @@ describe("Milestone 3: Error Handling", () => {
       {
         goal: "Optimize database queries for dashboard",
         reasoning: "Dashboard loading slowly due to N+1 queries",
-        action_spec: { provider: "database", action: "optimize_queries" },
+        action_spec: { provider: "database", action: "optimize_queries", params: {} },
       },
     );
 

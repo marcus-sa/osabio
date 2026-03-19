@@ -131,7 +131,7 @@ describe("Walking Skeleton: Reflex circuit from definition to restriction (Featu
       goal: "Commit code changes to feature branch",
       reasoning: "Implementation complete",
       priority: 50,
-      action_spec: { provider: "code", action: "commit" },
+      action_spec: { provider: "code", action: "commit", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };

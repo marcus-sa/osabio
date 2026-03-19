@@ -249,7 +249,7 @@ describe("Edge Case: Policy in testing mode observes without blocking (US-OB-04)
       goal: "Implement feature toggle system",
       reasoning: "New feature request",
       priority: 50,
-      action_spec: { provider: "code", action: "implement" },
+      action_spec: { provider: "code", action: "implement", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -345,7 +345,7 @@ describe("Error Path: Agent with no behavior data encounters policy (US-OB-04)",
       goal: "Fix typo in readme",
       reasoning: "Minor documentation fix",
       priority: 10,
-      action_spec: { provider: "code", action: "fix" },
+      action_spec: { provider: "code", action: "fix", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };

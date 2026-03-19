@@ -257,7 +257,7 @@ describe("Milestone 2: Intent Completion Verification (Story 2)", () => {
         reasoning: "Pre-production validation required",
         status: "executing",
         priority: 60,
-        action_spec: { provider: "deploy", action: "staging" },
+        action_spec: { provider: "deploy", action: "staging", params: {} },
         trace_id: traceRecord,
         requester: requesterRecord,
         workspace: wsRecord,

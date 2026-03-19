@@ -113,7 +113,7 @@ describe("Happy Path: Intent denied when dynamic Honesty score below threshold (
       goal: "Commit code changes",
       reasoning: "Implementation complete",
       priority: 50,
-      action_spec: { provider: "code", action: "commit" },
+      action_spec: { provider: "code", action: "commit", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -184,7 +184,7 @@ describe("Happy Path: Intent allowed when dynamic Honesty score above threshold 
       goal: "Commit code changes",
       reasoning: "All tests passing",
       priority: 50,
-      action_spec: { provider: "code", action: "commit" },
+      action_spec: { provider: "code", action: "commit", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -249,7 +249,7 @@ describe("Happy Path: Missing score for new metric does not deny intent (US-DB-0
       goal: "Fix documentation typo",
       reasoning: "Minor documentation fix",
       priority: 10,
-      action_spec: { provider: "code", action: "fix" },
+      action_spec: { provider: "code", action: "fix", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -343,7 +343,7 @@ describe("Error Path: Multiple behavior scores evaluated together (US-DB-003)", 
       goal: "Propose architecture change",
       reasoning: "New approach identified",
       priority: 50,
-      action_spec: { provider: "code", action: "propose" },
+      action_spec: { provider: "code", action: "propose", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -436,7 +436,7 @@ describe("Happy Path: Recovery threshold is symmetric with restriction (US-DB-00
       goal: "Commit code",
       reasoning: "Changes ready",
       priority: 50,
-      action_spec: { provider: "code", action: "commit" },
+      action_spec: { provider: "code", action: "commit", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };
@@ -493,7 +493,7 @@ describe("Error Path: New agent with no scores is not blocked by behavior policy
       goal: "Fix typo in readme",
       reasoning: "Minor fix",
       priority: 10,
-      action_spec: { provider: "code", action: "fix" },
+      action_spec: { provider: "code", action: "fix", params: {} },
       requester_type: "agent",
       requester_role: "coder",
     };

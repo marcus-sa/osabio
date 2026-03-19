@@ -79,7 +79,7 @@ describe("Milestone 3: Policy Evaluation Trace (US-7)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Purchase API credits",
       reasoning: "Need more API calls for batch processing",
-      action_spec: { provider: "billing", action: "purchase" },
+      action_spec: { provider: "billing", action: "purchase", params: {} },
       budget_limit: { amount: 200, currency: "USD" },
     });
     await submitIntent(surreal, intentId);
@@ -142,7 +142,7 @@ describe("Milestone 3: Policy Evaluation Trace (US-7)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Run tests",
       reasoning: "Verify everything passes",
-      action_spec: { provider: "test_runner", action: "test" },
+      action_spec: { provider: "test_runner", action: "test", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -249,7 +249,7 @@ describe("Milestone 3: Rule Condition Error Handling (AC-11)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Read configuration file",
       reasoning: "Need to check current settings",
-      action_spec: { provider: "file_editor", action: "read_file" },
+      action_spec: { provider: "file_editor", action: "read_file", params: {} },
       // No budget_limit
     });
     await submitIntent(surreal, intentId);
@@ -361,7 +361,7 @@ describe("Milestone 3: AND-Joined Predicate Conditions", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Pay small invoice",
       reasoning: "Monthly SaaS subscription",
-      action_spec: { provider: "billing", action: "pay" },
+      action_spec: { provider: "billing", action: "pay", params: {} },
       budget_limit: { amount: 49.99, currency: "USD" },
     });
     await submitIntent(surreal, intentId);

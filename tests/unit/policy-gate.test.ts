@@ -42,7 +42,7 @@ const makeContext = (
   goal: "Test goal",
   reasoning: "Test reasoning",
   priority: 50,
-  action_spec: { provider: "test", action: "read" },
+  action_spec: { provider: "test", action: "read", params: {} },
   requester_type: "agent",
   ...overrides,
 });
@@ -130,7 +130,7 @@ describe("collectAndSortRules", () => {
 describe("evaluateRulesAgainstContext", () => {
   it("evaluates all rules when no deny matches", () => {
     const context = makeContext({
-      action_spec: { provider: "test", action: "read" },
+      action_spec: { provider: "test", action: "read", params: {} },
     });
     const rules = [
       {
@@ -166,7 +166,7 @@ describe("evaluateRulesAgainstContext", () => {
 
   it("short-circuits on first deny match (subsequent rules not evaluated)", () => {
     const context = makeContext({
-      action_spec: { provider: "infra", action: "deploy" },
+      action_spec: { provider: "infra", action: "deploy", params: {} },
     });
     const rules = [
       {

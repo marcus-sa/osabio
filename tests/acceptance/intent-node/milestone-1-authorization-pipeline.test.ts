@@ -51,7 +51,7 @@ describe("Milestone 1: Intent Schema and Creation (US-1)", () => {
           reasoning: "some reasoning",
           status: "draft",
           priority: 50,
-          action_spec: { provider: "file_editor", action: "read" },
+          action_spec: { provider: "file_editor", action: "read", params: {} },
           trace_id: new RecordId("trace", "trace-test"),
           requester: new RecordId("identity", "test"),
           workspace: new RecordId("workspace", "test"),
@@ -86,7 +86,7 @@ describe("Milestone 1: Intent Schema and Creation (US-1)", () => {
           reasoning: "Test reasoning",
           status: "invalid_status",
           priority: 50,
-          action_spec: { provider: "file_editor", action: "read" },
+          action_spec: { provider: "file_editor", action: "read", params: {} },
           trace_id: new RecordId("trace", "trace-test"),
           requester: new RecordId("identity", agentIdentityId),
           workspace: new RecordId("workspace", "test"),
@@ -122,7 +122,7 @@ describe("Milestone 1: Intent Schema and Creation (US-1)", () => {
       {
         goal: "Add feature toggle for dark mode",
         reasoning: "Task requires a feature toggle implementation",
-        action_spec: { provider: "file_editor", action: "create_file" },
+        action_spec: { provider: "file_editor", action: "create_file", params: {} },
         taskId: task.taskId,
       },
     );
@@ -161,7 +161,7 @@ describe("Milestone 1: Authorizer Evaluation (US-5)", () => {
       {
         goal: "Purchase premium API credits",
         reasoning: "Need higher rate limits for batch processing",
-        action_spec: { provider: "billing", action: "purchase_credits" },
+        action_spec: { provider: "billing", action: "purchase_credits", params: {} },
         budget_limit: { amount: 500.0, currency: "USD" },
       },
     );

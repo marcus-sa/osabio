@@ -401,7 +401,7 @@ describe("Milestone 1: SurrealDB EVENT Definitions (Story 6)", () => {
         reasoning: "Safe deployment of new feature",
         status: "authorized",
         priority: 50,
-        action_spec: { provider: "deploy", action: "toggle" },
+        action_spec: { provider: "deploy", action: "toggle", params: {} },
         trace_id: traceRecord,
         requester: requesterRecord,
         workspace: wsRecord,

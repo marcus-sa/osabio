@@ -66,7 +66,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Deploy feature branch to production",
       reasoning: "Feature is complete and tested",
-      action_spec: { provider: "infra", action: "deploy" },
+      action_spec: { provider: "infra", action: "deploy", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -141,7 +141,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Read project configuration",
       reasoning: "Need config for implementation",
-      action_spec: { provider: "file_reader", action: "read" },
+      action_spec: { provider: "file_reader", action: "read", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -204,7 +204,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Purchase expensive tool license",
       reasoning: "Team needs new tooling",
-      action_spec: { provider: "billing", action: "purchase" },
+      action_spec: { provider: "billing", action: "purchase", params: {} },
       budget_limit: { amount: 999, currency: "USD" },
     });
     await submitIntent(surreal, intentId);
@@ -257,7 +257,7 @@ describe("Milestone 6: Policy Trace on Intent Evaluation (US-PCUI-06)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Refactor utils module",
       reasoning: "Code cleanup",
-      action_spec: { provider: "file_editor", action: "edit_file" },
+      action_spec: { provider: "file_editor", action: "edit_file", params: {} },
     });
     await submitIntent(surreal, intentId);
 

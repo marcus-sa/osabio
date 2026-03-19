@@ -20,7 +20,7 @@ const mockWorkspaceId = new RecordId("workspace", "test-workspace");
 const defaultIntent: EvaluateIntentInput["intent"] = {
   goal: "Send a slack notification",
   reasoning: "User requested notification",
-  action_spec: { provider: "slack", action: "send_message" },
+  action_spec: { provider: "slack", action: "send_message", params: {} },
 };
 
 const approvedLlmResult: EvaluationResult = {
@@ -127,7 +127,7 @@ describe("evaluateIntent", () => {
       const result = await evaluateIntent(makeInput({
         intent: {
           ...defaultIntent,
-          action_spec: { provider: "infra", action: "deploy" },
+          action_spec: { provider: "infra", action: "deploy", params: {} },
         },
         surreal: denyPolicySurreal,
         llmEvaluator: spyEvaluator,

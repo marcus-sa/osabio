@@ -48,7 +48,7 @@ describe("Milestone 2: Veto Window Lifecycle (US-4)", () => {
       {
         goal: "Refactor CSS modules to Tailwind classes",
         reasoning: "Consolidating styling approach per team decision",
-        action_spec: { provider: "file_editor", action: "edit_file" },
+        action_spec: { provider: "file_editor", action: "edit_file", params: {} },
       },
     );
 
@@ -155,7 +155,7 @@ describe("Milestone 2: Veto Window Lifecycle (US-4)", () => {
       {
         goal: "Restructure entire project directory layout",
         reasoning: "Moving to monorepo structure for better code sharing",
-        action_spec: { provider: "file_editor", action: "move_files" },
+        action_spec: { provider: "file_editor", action: "move_files", params: {} },
       },
     );
 
@@ -214,7 +214,7 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
       {
         goal: "Implement payment processing",
         reasoning: "Need to add Stripe integration",
-        action_spec: { provider: "file_editor", action: "create_file" },
+        action_spec: { provider: "file_editor", action: "create_file", params: {} },
       },
     );
 
@@ -249,7 +249,7 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
       {
         goal: "Add input sanitization to form handler",
         reasoning: "Prevent XSS in user-submitted content",
-        action_spec: { provider: "file_editor", action: "edit_file" },
+        action_spec: { provider: "file_editor", action: "edit_file", params: {} },
       },
     );
 
@@ -295,7 +295,7 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
       {
         goal: "Write unit tests for auth module",
         reasoning: "Improve test coverage for authentication logic",
-        action_spec: { provider: "file_editor", action: "create_file" },
+        action_spec: { provider: "file_editor", action: "create_file", params: {} },
       },
     );
 
@@ -339,7 +339,7 @@ describe("Milestone 2: Execution Gate (US-6)", () => {
       {
         goal: "Migrate database to new schema",
         reasoning: "Schema evolution for v2 data model",
-        action_spec: { provider: "database", action: "execute_migration" },
+        action_spec: { provider: "database", action: "execute_migration", params: {} },
       },
     );
 

@@ -285,7 +285,7 @@ export async function createDraftIntent(
     goal: string;
     reasoning: string;
     priority?: number;
-    action_spec: { provider: string; action: string; params?: Record<string, unknown> };
+    action_spec: { provider: string; action: string; params: Record<string, unknown> };
   },
 ): Promise<{ intentId: string }> {
   const intentId = `intent-${crypto.randomUUID()}`;

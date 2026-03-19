@@ -88,7 +88,7 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Read project configuration",
       reasoning: "Need to check current project settings before making changes",
-      action_spec: { provider: "file_reader", action: "read_file" },
+      action_spec: { provider: "file_reader", action: "read_file", params: {} },
     });
 
     // When the evaluator approves with its reasoning
@@ -178,7 +178,7 @@ describe("Step 02: LLM reasoning persists across evaluation outcomes", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Update CI configuration",
       reasoning: humanReasoning,
-      action_spec: { provider: "ci", action: "update_config" },
+      action_spec: { provider: "ci", action: "update_config", params: {} },
     });
 
     // When the evaluator provides its own reasoning
@@ -215,7 +215,7 @@ describe("Step 02: Policy-only evaluations have no LLM reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Read workspace settings",
       reasoning: "Need workspace context for next task",
-      action_spec: { provider: "workspace", action: "read_settings" },
+      action_spec: { provider: "workspace", action: "read_settings", params: {} },
     });
 
     // When the policy gate approves without LLM evaluation
@@ -243,7 +243,7 @@ describe("Step 02: Policy-only evaluations have no LLM reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Delete workspace",
       reasoning: "Workspace is no longer needed",
-      action_spec: { provider: "workspace", action: "delete" },
+      action_spec: { provider: "workspace", action: "delete", params: {} },
     });
 
     // When the policy gate rejects without LLM evaluation
@@ -278,7 +278,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Refactor authentication module",
       reasoning: "Simplify auth flow for better maintainability",
-      action_spec: { provider: "file_editor", action: "refactor" },
+      action_spec: { provider: "file_editor", action: "refactor", params: {} },
     });
 
     await simulateEvaluationWithReasoning(surreal, intentId, {
@@ -312,7 +312,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Migrate database schema",
       reasoning: "Moving to new schema for performance improvements",
-      action_spec: { provider: "database", action: "migrate" },
+      action_spec: { provider: "database", action: "migrate", params: {} },
     });
 
     // When the evaluator produces extensive reasoning
@@ -345,7 +345,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Update API rate limits",
       reasoning: "Current limits too restrictive for partner integrations",
-      action_spec: { provider: "api", action: "update_rate_limits" },
+      action_spec: { provider: "api", action: "update_rate_limits", params: {} },
     });
 
     // When reasoning contains special characters
@@ -375,7 +375,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Pending task",
       reasoning: "Will submit when ready",
-      action_spec: { provider: "test", action: "noop" },
+      action_spec: { provider: "test", action: "noop", params: {} },
     });
 
     // Then the intent has no LLM reasoning since it was never evaluated
@@ -396,7 +396,7 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Complex multi-service operation",
       reasoning: "Need to coordinate across multiple services",
-      action_spec: { provider: "orchestrator", action: "multi_service" },
+      action_spec: { provider: "orchestrator", action: "multi_service", params: {} },
     });
 
     // When the LLM times out and falls back to policy-only
@@ -426,19 +426,19 @@ describe("Step 02: Error and edge cases for intent reasoning", () => {
     const { intentId: intent1 } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Read file",
       reasoning: "Need to read config",
-      action_spec: { provider: "file_reader", action: "read" },
+      action_spec: { provider: "file_reader", action: "read", params: {} },
     });
 
     const { intentId: intent2 } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "Write file",
       reasoning: "Need to update config",
-      action_spec: { provider: "file_editor", action: "write" },
+      action_spec: { provider: "file_editor", action: "write", params: {} },
     });
 
     const { intentId: intent3 } = await createDraftIntent(surreal, workspaceId, identityId, {
       goal: "List files",
       reasoning: "Need directory listing",
-      action_spec: { provider: "file_reader", action: "list" },
+      action_spec: { provider: "file_reader", action: "list", params: {} },
     });
 
     // When each is evaluated differently

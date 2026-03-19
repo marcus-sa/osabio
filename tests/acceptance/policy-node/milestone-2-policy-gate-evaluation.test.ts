@@ -163,7 +163,7 @@ describe("Milestone 2: Rule Evaluation Engine (US-5)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Deploy to staging",
       reasoning: "Feature branch is ready",
-      action_spec: { provider: "infra", action: "deploy" },
+      action_spec: { provider: "infra", action: "deploy", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -222,7 +222,7 @@ describe("Milestone 2: Rule Evaluation Engine (US-5)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Fix typo in README",
       reasoning: "Simple text correction",
-      action_spec: { provider: "file_editor", action: "edit_file" },
+      action_spec: { provider: "file_editor", action: "edit_file", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -274,7 +274,7 @@ describe("Milestone 2: Rule Evaluation Engine (US-5)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Run test suite",
       reasoning: "Verify all tests pass before merge",
-      action_spec: { provider: "test_runner", action: "run_tests" },
+      action_spec: { provider: "test_runner", action: "run_tests", params: {} },
     });
     await submitIntent(surreal, intentId);
 
@@ -329,7 +329,7 @@ describe("Milestone 2: Human Veto Gate Override (US-6)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Pay invoice #456",
       reasoning: "Routine monthly payment for SaaS subscription",
-      action_spec: { provider: "billing", action: "pay" },
+      action_spec: { provider: "billing", action: "pay", params: {} },
       budget_limit: { amount: 29.99, currency: "USD" },
     });
     await submitIntent(surreal, intentId);
@@ -382,7 +382,7 @@ describe("Milestone 2: Backward Compatibility (US-9)", () => {
     const { intentId } = await createDraftIntent(surreal, workspace.workspaceId, agentId, {
       goal: "Refactor utils module",
       reasoning: "Extract common functions into shared utility",
-      action_spec: { provider: "file_editor", action: "edit_file" },
+      action_spec: { provider: "file_editor", action: "edit_file", params: {} },
     });
     await submitIntent(surreal, intentId);
 

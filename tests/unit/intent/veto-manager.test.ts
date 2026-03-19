@@ -22,7 +22,7 @@ const makeIntentRecord = (
   reasoning: "Test reasoning",
   status,
   priority: 5,
-  action_spec: { provider: "test", action: "do_thing" },
+  action_spec: { provider: "test", action: "do_thing", params: {} },
   trace_id: new RecordId("trace", "trace-1"),
   requester: new RecordId("identity", "user-1"),
   workspace: new RecordId("workspace", "ws-1"),
