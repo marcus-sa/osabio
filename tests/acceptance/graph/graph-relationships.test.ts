@@ -161,13 +161,14 @@ beforeAll(async () => {
     now,
   });
 
-  // Legacy feature shape: linked to project but missing workspace field.
+  // Feature linked to project — used to verify task detail prefers feature over project.
   legacyFeatureRecord = new RecordId("feature", randomUUID());
   await surreal.query("CREATE $record CONTENT $content;", {
     record: legacyFeatureRecord,
     content: {
-      name: "Legacy Feature Missing Workspace",
+      name: "Feature Linked Via Project",
       status: "active",
+      workspace: workspaceRecord,
       created_at: now,
       updated_at: now,
     },
@@ -182,7 +183,7 @@ beforeAll(async () => {
   await surreal.query("CREATE $record CONTENT $content;", {
     record: legacyFeatureTaskRecord,
     content: {
-      title: "Legacy Feature Missing Workspace",
+      title: "Task Under Feature Linked Via Project",
       status: "open",
       workspace: workspaceRecord,
       created_at: now,
@@ -459,14 +460,14 @@ describe("RC1: entity detail shows structural relationships", () => {
     expect(kinds).toContain("depends_on");
   });
 
-  it("task detail prefers feature relationship over project for legacy features missing workspace", async () => {
+  it("task detail prefers feature relationship over project belongs_to", async () => {
     const detail = await getEntityDetail({
       surreal,
       workspaceRecord,
       entityRecord: legacyFeatureTaskRecord as GraphEntityRecord,
     });
 
-    const featureRel = detail.relationships.find((r) => r.kind === "feature" && r.name === "Legacy Feature Missing Workspace");
+    const featureRel = detail.relationships.find((r) => r.kind === "feature" && r.name === "Feature Linked Via Project");
     const projectBelongsToRel = detail.relationships.find(
       (r) => r.kind === "project" && r.relationKind === "belongs_to" && r.direction === "outgoing",
     );

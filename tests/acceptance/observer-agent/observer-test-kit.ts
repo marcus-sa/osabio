@@ -88,7 +88,7 @@ export type CreateGitCommitOptions = {
 export type CreateCompletedIntentOptions = {
   goal: string;
   reasoning: string;
-  actionSpec: { provider: string; action: string; params?: Record<string, unknown> };
+  actionSpec: { provider: string; action: string; params: Record<string, unknown> };
   status?: "completed" | "failed";
 };
 

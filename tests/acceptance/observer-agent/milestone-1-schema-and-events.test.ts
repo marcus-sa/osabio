@@ -227,7 +227,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     const { intentId } = await createCompletedIntent(surreal, workspaceId, identityId, {
       goal: "Deploy feature toggle",
       reasoning: "Safe deployment",
-      actionSpec: { provider: "deploy", action: "toggle" },
+      actionSpec: { provider: "deploy", action: "toggle", params: {} },
     });
 
     const { commitId } = await createGitCommit(surreal, workspaceId, `sha-${crypto.randomUUID().slice(0, 8)}`);
