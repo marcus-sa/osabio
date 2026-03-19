@@ -150,7 +150,7 @@ export type IntentSubmissionDeps = {
 
 export type SubmitIntentForAuthorizationDeps = {
   surreal: import("surrealdb").Surreal;
-  extractionModel: unknown;
+  extractionModel: ServerDependencies["extractionModel"];
   identityDeps?: IntentSubmissionDeps;
 };
 

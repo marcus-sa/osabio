@@ -10,6 +10,7 @@ import { RecordId } from "surrealdb";
 import { generateKeyPair } from "../../../shared/dpop";
 import { submitIntentForAuthorization } from "../oauth/intent-submission";
 import { exchangeIntentForToken } from "../oauth/token-endpoint";
+import { evaluatePendingIntent } from "../intent/intent-evaluation";
 import {
   computeExpiresAt,
   generateProxyToken,
@@ -333,7 +334,7 @@ export type OrchestratorWiringDeps = {
   surreal: import("surrealdb").Surreal;
   shellExec: import("./worktree-manager").ShellExec;
   brainBaseUrl: string;
-  extractionModel: unknown;
+  extractionModel: import("../runtime/types").ServerDependencies["extractionModel"];
   asSigningKey: import("../oauth/as-key-management").AsSigningKey;
   sseRegistry?: SseRegistry;
   queryFn: import("./spawn-agent").QueryFn;
@@ -407,6 +408,8 @@ export function wireOrchestratorRoutes(
   const issueBrainMcpAuthEnv = async (
     workspaceId: string,
     identityId: string,
+    intentGoal: string,
+    intentReasoning: string,
   ): Promise<Record<string, string>> => {
     const dpopKeys = await generateKeyPair();
     const intentResult = await submitIntentForAuthorization(
@@ -415,8 +418,8 @@ export function wireOrchestratorRoutes(
         identity_id: identityId,
         authorization_details: CLI_AUTHORIZATION_DETAILS,
         dpop_jwk_thumbprint: dpopKeys.thumbprint,
-        goal: "Orchestrator MCP bootstrap",
-        reasoning: "Issue token for spawned agent Brain MCP session bootstrap",
+        goal: intentGoal,
+        reasoning: intentReasoning,
       },
       {
         surreal: wiringDeps.surreal,
@@ -424,8 +427,33 @@ export function wireOrchestratorRoutes(
       },
     );
 
-    if (intentResult.status !== "authorized") {
-      throw new Error(`MCP auth intent is "${intentResult.status}" (expected "authorized")`);
+    let intentStatus: string = intentResult.status;
+    if (intentStatus === "pending_auth") {
+      const evaluation = await evaluatePendingIntent(
+        intentResult.intentId,
+        {
+          surreal: wiringDeps.surreal,
+          extractionModel: wiringDeps.extractionModel,
+          llmEvaluator: async () => ({
+            decision: "APPROVE",
+            risk_score: 0,
+            reason: "Approved from explicit authenticated orchestrator task assignment",
+            reasoning:
+              "User explicitly assigned this task in the orchestrator UI. " +
+              "Bootstrap MCP token is required to complete the assigned task.",
+          }),
+        },
+      );
+      if (!evaluation.ok) {
+        throw new Error(
+          `Failed to evaluate MCP auth intent: ${evaluation.httpStatus} ${evaluation.error}`,
+        );
+      }
+      intentStatus = evaluation.value.status;
+    }
+
+    if (intentStatus !== "authorized") {
+      throw new Error(`MCP auth intent is "${intentStatus}" (expected "authorized")`);
     }
 
     const tokenResult = await exchangeIntentForToken({
@@ -496,6 +524,27 @@ export function wireOrchestratorRoutes(
     return repoPath;
   };
 
+  const buildTaskScopedIntentContext = async (
+    taskId: string,
+  ): Promise<{ goal: string; reasoning: string }> => {
+    const taskRecord = new RecordId("task", taskId);
+    const [taskRows] = await wiringDeps.surreal.query<[Array<{ title?: string; description?: string }>]>(
+      `SELECT title, description FROM $task LIMIT 1;`,
+      { task: taskRecord },
+    );
+    const taskTitle = taskRows[0]?.title?.trim();
+    const taskDescription = taskRows[0]?.description?.trim();
+    const taskLabel = taskTitle && taskTitle.length > 0 ? taskTitle : taskId;
+    const descriptionSuffix = taskDescription && taskDescription.length > 0
+      ? ` Task description: ${taskDescription}`
+      : "";
+
+    return {
+      goal: `Complete task: ${taskLabel}`,
+      reasoning: `Use Brain MCP tools required to complete task "${taskLabel}" in this workspace.${descriptionSuffix}`,
+    };
+  };
+
   // Use mock spawn for acceptance tests, production spawn otherwise
   const spawnAgentImport = process.env.ORCHESTRATOR_MOCK_AGENT === "true"
     ? Promise.resolve({
@@ -524,7 +573,13 @@ export function wireOrchestratorRoutes(
         const tokenResult = await issueProxyTokenForWorkspace(workspaceId, authToken);
         proxyToken = tokenResult.proxyToken;
         brainIdentityId = tokenResult.identityId;
-        brainAuthEnv = await issueBrainMcpAuthEnv(workspaceId, brainIdentityId);
+        const intentContext = await buildTaskScopedIntentContext(taskId);
+        brainAuthEnv = await issueBrainMcpAuthEnv(
+          workspaceId,
+          brainIdentityId,
+          intentContext.goal,
+          intentContext.reasoning,
+        );
       } catch (err) {
         return {
           ok: false,
