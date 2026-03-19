@@ -216,6 +216,58 @@ describe("observation queries", () => {
     expect(createdPayloads[0]).toMatchObject({ occurrence_count: 1 });
   });
 
+  it("creates similar_to edges for cross-agent observations with embeddings", async () => {
+    const createdPayloads: unknown[] = [];
+    const relateCalls: Array<{ inTable: string; edgeTable: string; outTable: string; payload: unknown }> = [];
+    let queryCallCount = 0;
+
+    const similarObsId = new RecordId("observation", "similar-obs");
+
+    const surrealMock = {
+      query: async (sql: string) => {
+        queryCallCount++;
+        // Similarity linking query — return one similar observation
+        if (sql.includes("embedding <|10, COSINE|>")) {
+          return [null, [{ id: similarObsId, similarity: 0.90 }]];
+        }
+        return [];
+      },
+      create: () => ({
+        content: async (payload: unknown) => {
+          createdPayloads.push(payload);
+        },
+      }),
+      relate: (inRec: RecordId, edgeRec: RecordId, outRec: RecordId, payload: unknown) => {
+        relateCalls.push({
+          inTable: inRec.table.name,
+          edgeTable: edgeRec.table.name,
+          outTable: outRec.table.name,
+          payload,
+        });
+        return { output: async () => ({}) };
+      },
+    };
+
+    await createObservation({
+      surreal: surrealMock as any,
+      workspaceRecord: new RecordId("workspace", "w-1"),
+      text: "Cross-agent observation",
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      now: new Date("2026-02-01T12:00:00.000Z"),
+      embedding: [0.1, 0.2, 0.3],
+      // No session — dedup skipped, but similar_to linking still runs
+    });
+
+    expect(createdPayloads).toHaveLength(1);
+    // Should have a similar_to edge (in addition to no observes edges since no relatedRecords)
+    const similarEdges = relateCalls.filter((c) => c.edgeTable === "similar_to");
+    expect(similarEdges).toHaveLength(1);
+    expect(similarEdges[0].inTable).toBe("observation");
+    expect(similarEdges[0].outTable).toBe("observation");
+    expect((similarEdges[0].payload as any).similarity).toBe(0.90);
+  });
+
   it("lists open observations sorted by severity then recency", async () => {
     const surrealMock = {
       query: () => ({

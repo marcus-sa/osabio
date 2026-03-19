@@ -460,6 +460,10 @@ DEFINE FIELD added_at ON belongs_to TYPE datetime;
 DEFINE TABLE observes TYPE RELATION IN observation OUT project | feature | task | decision | question | intent | git_commit | observation | objective | behavior | trace SCHEMAFULL;
 DEFINE FIELD added_at ON observes TYPE option<datetime>;
 
+DEFINE TABLE similar_to TYPE RELATION IN observation OUT observation SCHEMAFULL;
+DEFINE FIELD similarity ON similar_to TYPE float;
+DEFINE FIELD created_at ON similar_to TYPE datetime;
+
 DEFINE TABLE observed_in TYPE RELATION IN observation OUT agent_session SCHEMAFULL;
 DEFINE FIELD added_at ON observed_in TYPE datetime;
 
