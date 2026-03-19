@@ -34,6 +34,8 @@ describe("observation queries", () => {
           output: async () => ({ id: edgeRecord }),
         };
       },
+      // Similarity linking query — return no matches
+      query: async () => [null, []],
     };
 
     const workspaceRecord = new RecordId("workspace", "w-1");
@@ -64,7 +66,6 @@ describe("observation queries", () => {
       workspace: workspaceRecord,
       source_message: sourceMessageRecord,
       embedding: [0.1, 0.2, 0.3],
-      occurrence_count: 1,
     });
 
     expect(relateCalls).toHaveLength(1);
@@ -120,117 +121,16 @@ describe("observation queries", () => {
     });
   });
 
-  it("deduplicates when KNN finds a similar open observation", async () => {
-    const existingId = new RecordId("observation", "existing-obs");
-    const updateQueries: Array<{ sql: string; vars: unknown }> = [];
-
-    const surrealMock = {
-      query: async (sql: string, vars: unknown) => {
-        // First call: KNN dedup query — return a match
-        if (sql.includes("embedding <|10, COSINE|>")) {
-          return [null, [{ id: existingId, occurrence_count: 2, similarity: 0.98 }]];
-        }
-        // Second call: UPDATE occurrence_count
-        updateQueries.push({ sql, vars });
-        return [];
-      },
-      // Should NOT be called — dedup should merge
-      create: () => { throw new Error("create should not be called during dedup merge"); },
-    };
-
-    const result = await createObservation({
-      surreal: surrealMock as any,
-      workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "Duplicate observation text",
-      severity: "warning",
-      sourceAgent: "observer_agent",
-      sourceSessionRecord: new RecordId("agent_session", "s-1"),
-      now: new Date("2026-02-01T12:00:00.000Z"),
-      embedding: [0.5, 0.6, 0.7],
-    });
-
-    // Should return existing ID, not create new
-    expect(result).toBe(existingId);
-    // Should have called UPDATE to increment occurrence_count
-    expect(updateQueries).toHaveLength(1);
-    expect(updateQueries[0].sql).toContain("occurrence_count = occurrence_count + 1");
-  });
-
-  it("skips dedup when no session is provided", async () => {
-    const createdPayloads: unknown[] = [];
-
-    const surrealMock = {
-      // query should NOT be called — no session means no dedup attempt
-      query: () => { throw new Error("query should not be called without session"); },
-      create: () => ({
-        content: async (payload: unknown) => {
-          createdPayloads.push(payload);
-        },
-      }),
-      relate: () => ({
-        output: async () => ({}),
-      }),
-    };
-
-    const result = await createObservation({
-      surreal: surrealMock as any,
-      workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "Observation without session",
-      severity: "info",
-      sourceAgent: "observer_agent",
-      now: new Date("2026-02-01T12:00:00.000Z"),
-      embedding: [0.5, 0.6, 0.7],
-    });
-
-    expect(result.table.name).toBe("observation");
-    expect(createdPayloads).toHaveLength(1);
-    expect(createdPayloads[0]).toMatchObject({ occurrence_count: 1 });
-  });
-
-  it("creates new observation without embedding (no dedup possible)", async () => {
-    const createdPayloads: unknown[] = [];
-
-    const surrealMock = {
-      create: () => ({
-        content: async (payload: unknown) => {
-          createdPayloads.push(payload);
-        },
-      }),
-      relate: () => ({
-        output: async () => ({}),
-      }),
-    };
-
-    const result = await createObservation({
-      surreal: surrealMock as any,
-      workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "No embedding provided",
-      severity: "info",
-      sourceAgent: "chat_agent",
-      now: new Date("2026-02-01T12:00:00.000Z"),
-    });
-
-    // No query() call needed — no embedding means no dedup
-    expect(result.table.name).toBe("observation");
-    expect(createdPayloads).toHaveLength(1);
-    expect(createdPayloads[0]).toMatchObject({ occurrence_count: 1 });
-  });
-
-  it("creates similar_to edges for cross-agent observations with embeddings", async () => {
+  it("creates similar_to edges for observations with embeddings", async () => {
     const createdPayloads: unknown[] = [];
     const relateCalls: Array<{ inTable: string; edgeTable: string; outTable: string; payload: unknown }> = [];
-    let queryCallCount = 0;
 
     const similarObsId = new RecordId("observation", "similar-obs");
 
     const surrealMock = {
-      query: async (sql: string) => {
-        queryCallCount++;
+      query: async () => {
         // Similarity linking query — return one similar observation
-        if (sql.includes("embedding <|10, COSINE|>")) {
-          return [null, [{ id: similarObsId, similarity: 0.90 }]];
-        }
-        return [];
+        return [null, [{ id: similarObsId, similarity: 0.90 }]];
       },
       create: () => ({
         content: async (payload: unknown) => {
@@ -256,16 +156,43 @@ describe("observation queries", () => {
       sourceAgent: "observer_agent",
       now: new Date("2026-02-01T12:00:00.000Z"),
       embedding: [0.1, 0.2, 0.3],
-      // No session — dedup skipped, but similar_to linking still runs
     });
 
     expect(createdPayloads).toHaveLength(1);
-    // Should have a similar_to edge (in addition to no observes edges since no relatedRecords)
     const similarEdges = relateCalls.filter((c) => c.edgeTable === "similar_to");
     expect(similarEdges).toHaveLength(1);
     expect(similarEdges[0].inTable).toBe("observation");
     expect(similarEdges[0].outTable).toBe("observation");
     expect((similarEdges[0].payload as any).similarity).toBe(0.90);
+  });
+
+  it("skips similarity linking when no embedding", async () => {
+    const createdPayloads: unknown[] = [];
+
+    const surrealMock = {
+      create: () => ({
+        content: async (payload: unknown) => {
+          createdPayloads.push(payload);
+        },
+      }),
+      relate: () => ({
+        output: async () => ({}),
+      }),
+      // query should NOT be called — no embedding means no linking
+      query: () => { throw new Error("query should not be called without embedding"); },
+    };
+
+    const result = await createObservation({
+      surreal: surrealMock as any,
+      workspaceRecord: new RecordId("workspace", "w-1"),
+      text: "No embedding provided",
+      severity: "info",
+      sourceAgent: "chat_agent",
+      now: new Date("2026-02-01T12:00:00.000Z"),
+    });
+
+    expect(result.table.name).toBe("observation");
+    expect(createdPayloads).toHaveLength(1);
   });
 
   it("lists open observations sorted by severity then recency", async () => {

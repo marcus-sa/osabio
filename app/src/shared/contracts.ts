@@ -55,8 +55,6 @@ export type ObservationSummary = {
   observationType?: ObservationType;
   sourceAgent: string;
   createdAt: string;
-  occurrenceCount?: number;
-  lastSeenAt?: string;
 };
 
 export const SUGGESTION_CATEGORIES = ["optimization", "risk", "opportunity", "conflict", "missing", "pivot"] as const;

@@ -261,8 +261,6 @@ DEFINE FIELD embedding ON observation TYPE option<array<float>>;
 DEFINE FIELD confidence ON observation TYPE option<float>;
 DEFINE FIELD evidence_refs ON observation TYPE option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>;
 DEFINE FIELD reasoning ON observation TYPE option<string>;
-DEFINE FIELD occurrence_count ON observation TYPE int DEFAULT 1;
-DEFINE FIELD last_seen_at ON observation TYPE option<datetime>;
 DEFINE INDEX observation_workspace_status ON observation FIELDS workspace, status;
 DEFINE INDEX observation_severity ON observation FIELDS severity;
 DEFINE INDEX observation_created_at ON observation FIELDS created_at;

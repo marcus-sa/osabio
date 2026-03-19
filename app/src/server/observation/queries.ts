@@ -16,48 +16,7 @@ const SEVERITY_PRIORITY: Record<ObservationSeverity, number> = {
   info: 2,
 };
 
-const DEDUP_SIMILARITY_THRESHOLD = 0.95;
-const CROSS_AGENT_SIMILARITY_THRESHOLD = 0.85;
-
-// ---------------------------------------------------------------------------
-// Dedup: find semantically similar open observation (two-step KNN pattern)
-// ---------------------------------------------------------------------------
-
-type SimilarObservationRow = {
-  id: RecordId<"observation", string>;
-  occurrence_count: number;
-  similarity: number;
-};
-
-async function findSimilarOpenObservation(input: {
-  surreal: Surreal;
-  workspaceRecord: RecordId<"workspace", string>;
-  sourceAgent: string;
-  sourceSessionRecord: RecordId<"agent_session", string>;
-  embedding: number[];
-}): Promise<SimilarObservationRow | undefined> {
-  // Two-step KNN pattern: avoids SurrealDB v3.0 HNSW + WHERE index conflict
-  // Dedup scope: same agent + same session + same workspace
-  const sql = `
-    LET $candidates = SELECT id, occurrence_count, workspace, source_agent, source_session, status,
-      vector::similarity::cosine(embedding, $vec) AS similarity
-      FROM observation WHERE embedding <|10, COSINE|> $vec;
-    SELECT id, occurrence_count, similarity FROM $candidates
-      WHERE workspace = $ws AND source_agent = $agent AND source_session = $sess
-      AND status IN ['open', 'acknowledged']
-      AND similarity > ${DEDUP_SIMILARITY_THRESHOLD}
-      ORDER BY similarity DESC LIMIT 1;
-  `;
-
-  const results = await input.surreal.query<[null, SimilarObservationRow[]]>(sql, {
-    vec: input.embedding,
-    ws: input.workspaceRecord,
-    agent: input.sourceAgent,
-    sess: input.sourceSessionRecord,
-  });
-
-  return results[1]?.[0];
-}
+const SIMILARITY_THRESHOLD = 0.85;
 
 // ---------------------------------------------------------------------------
 // Cross-agent similarity linking
@@ -82,7 +41,7 @@ async function linkSimilarObservations(input: {
     SELECT id, similarity FROM $candidates
       WHERE workspace = $ws AND id != $self
       AND status IN ['open', 'acknowledged']
-      AND similarity > ${CROSS_AGENT_SIMILARITY_THRESHOLD}
+      AND similarity > ${SIMILARITY_THRESHOLD}
       ORDER BY similarity DESC LIMIT 5;
   `;
 
@@ -149,28 +108,7 @@ export async function createObservation(input: {
     );
   }
 
-  // Step 2: Check for similar open observation (dedup)
-  // Dedup requires both an embedding and a session — no session means each observation is distinct
-  if (embedding && input.sourceSessionRecord) {
-    const existing = await findSimilarOpenObservation({
-      surreal: input.surreal,
-      workspaceRecord: input.workspaceRecord,
-      sourceAgent: input.sourceAgent,
-      sourceSessionRecord: input.sourceSessionRecord,
-      embedding,
-    });
-
-    if (existing) {
-      // Merge: increment occurrence count and update timestamp
-      await input.surreal.query(
-        `UPDATE $obs SET occurrence_count = occurrence_count + 1, last_seen_at = $now, updated_at = $now;`,
-        { obs: existing.id, now: input.now },
-      );
-      return existing.id;
-    }
-  }
-
-  // Step 3: Create new observation
+  // Step 2: Create new observation
   const observationRecord = new RecordId("observation", randomUUID());
 
   await input.surreal.create(observationRecord).content({
@@ -189,8 +127,6 @@ export async function createObservation(input: {
     ...(input.verified !== undefined ? { verified: input.verified } : {}),
     ...(input.source ? { source: input.source } : {}),
     ...(input.reasoning !== undefined ? { reasoning: input.reasoning } : {}),
-    occurrence_count: 1,
-    last_seen_at: input.now,
     created_at: input.now,
     updated_at: input.now,
   });
@@ -278,8 +214,6 @@ type OpenObservationRow = {
   category?: EntityCategory;
   source_agent: string;
   created_at: string | Date;
-  occurrence_count?: number;
-  last_seen_at?: string | Date;
 };
 
 // ---------------------------------------------------------------------------
@@ -402,7 +336,7 @@ export async function listWorkspaceOpenObservations(input: {
   const [rows] = await input.surreal
     .query<[OpenObservationRow[]]>(
       [
-        "SELECT id, text, severity, status, category, source_agent, created_at, occurrence_count, last_seen_at",
+        "SELECT id, text, severity, status, category, source_agent, created_at",
         "FROM observation",
         "WHERE workspace = $workspace",
         "AND status IN ['open', 'acknowledged']",
@@ -434,9 +368,5 @@ export async function listWorkspaceOpenObservations(input: {
       ...(row.category ? { category: row.category } : {}),
       sourceAgent: row.source_agent,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString(),
-      ...(row.occurrence_count !== undefined ? { occurrenceCount: row.occurrence_count } : {}),
-      ...(row.last_seen_at ? {
-        lastSeenAt: row.last_seen_at instanceof Date ? row.last_seen_at.toISOString() : new Date(row.last_seen_at).toISOString(),
-      } : {}),
     }));
 }
