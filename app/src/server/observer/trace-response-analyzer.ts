@@ -104,43 +104,39 @@ export function shouldAnalyzeTrace(
 }
 
 // ---------------------------------------------------------------------------
-// KNN decision search (two-step SurrealDB v3.0 workaround)
+// BM25 decision search
 // ---------------------------------------------------------------------------
 
+import { escapeSearchQuery } from "../graph/bm25-search";
+
 /**
- * Finds confirmed decisions similar to the given embedding using two-step
- * KNN query pattern (SurrealDB v3.0 workaround for KNN + WHERE bug).
- *
- * Step 1: KNN on HNSW index (no WHERE filter)
- * Step 2: Filter by workspace + confirmed status (B-tree index)
+ * Finds confirmed decisions similar to the given text using BM25 fulltext search.
  */
-async function findSimilarDecisions(
+async function findSimilarDecisionsByText(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  responseEmbedding: number[],
-  threshold: number,
+  searchText: string,
 ): Promise<DecisionCandidate[]> {
-  const results = await surreal.query(
-    `LET $candidates = SELECT id, summary, rationale, workspace, status,
-        vector::similarity::cosine(embedding, $vec) AS score
-      FROM decision WHERE embedding <|20, COSINE|> $vec;
-     SELECT id, summary, rationale, score FROM $candidates
-      WHERE workspace = $ws AND status = 'confirmed'
-        AND score >= $threshold
-      ORDER BY score DESC
-      LIMIT 10;`,
-    { vec: responseEmbedding, ws: workspaceRecord, threshold },
-  );
+  const escaped = escapeSearchQuery(searchText.slice(0, 200));
+  if (escaped.trim().length === 0) return [];
 
-  // Two-statement query: results[1] is the filtered result
-  const rows = (results[1] ?? []) as Array<{
+  const [rows] = await surreal.query<[Array<{
     id: RecordId<"decision", string>;
     summary: string;
     rationale?: string;
     score: number;
-  }>;
+  }>]>(
+    `SELECT id, summary, rationale, search::score(1) AS score
+     FROM decision
+     WHERE summary @1@ '${escaped}'
+     AND workspace = $ws
+     AND status = 'confirmed'
+     ORDER BY score DESC
+     LIMIT 10;`,
+    { ws: workspaceRecord },
+  );
 
-  return rows;
+  return rows ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -251,18 +247,16 @@ Does this response contain a decision-shaped statement? Respond with is_decision
 async function detectContradictions(
   input: TraceAnalysisInput,
   responseText: string,
-  responseEmbedding: number[],
-  config: { tier1Threshold: number; tier2ConfidenceMin: number },
+  config: { tier2ConfidenceMin: number },
 ): Promise<number> {
   const { surreal, workspaceRecord, traceId, observerModel } = input;
   const traceRecord = new RecordId("trace", traceId);
 
-  // Tier 1: KNN search for similar confirmed decisions
-  const candidates = await findSimilarDecisions(
+  // Tier 1: BM25 search for similar confirmed decisions
+  const candidates = await findSimilarDecisionsByText(
     surreal,
     workspaceRecord,
-    responseEmbedding,
-    config.tier1Threshold,
+    responseText,
   );
 
   if (candidates.length === 0) {
@@ -337,8 +331,7 @@ async function detectContradictions(
 async function detectMissingDecisions(
   input: TraceAnalysisInput,
   responseText: string,
-  responseEmbedding: number[],
-  config: { tier1Threshold: number; tier2ConfidenceMin: number },
+  config: { tier2ConfidenceMin: number },
 ): Promise<number> {
   const { surreal, workspaceRecord, traceId, observerModel } = input;
   const traceRecord = new RecordId("trace", traceId);
@@ -351,12 +344,11 @@ async function detectMissingDecisions(
       return 0;
     }
 
-    // Check if a similar decision already exists (KNN search)
-    const existingDecisions = await findSimilarDecisions(
+    // Check if a similar decision already exists (BM25 search)
+    const existingDecisions = await findSimilarDecisionsByText(
       surreal,
       workspaceRecord,
-      responseEmbedding,
-      config.tier1Threshold,
+      missingResult.summary,
     );
 
     // If we found a similar existing decision, it's not "missing"
@@ -475,19 +467,10 @@ export async function analyzeTraceResponse(
     return { observations_created: 0, skipped: true, reason: "not_enabled" };
   }
 
-  // Step 3: Embedding-based trace analysis removed (embeddings infrastructure dropped).
-  // TODO: Replace with BM25-based decision search for contradiction detection.
-  const responseEmbedding: number[] | undefined = undefined;
-
-  if (!responseEmbedding) {
-    log.info("observer.trace.embedding_removed", "Trace analysis skipped: embedding infrastructure removed", { traceId });
-    return { observations_created: 0, skipped: true, reason: "embedding_removed" };
-  }
-
-  // Step 4: Run both detection pipelines
+  // Step 3: Run both detection pipelines (BM25-based)
   const [contradictionCount, missingCount] = await Promise.all([
-    detectContradictions(input, responseText, responseEmbedding, config),
-    detectMissingDecisions(input, responseText, responseEmbedding, config),
+    detectContradictions(input, responseText, config),
+    detectMissingDecisions(input, responseText, config),
   ]);
 
   const totalObservations = contradictionCount + missingCount;

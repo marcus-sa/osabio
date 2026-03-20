@@ -143,14 +143,14 @@ function toLoadedLearning(row: LearningRow): LoadedLearning {
  * Loads active learnings for prompt injection, applying priority sort and token budget.
  *
  * 1. Queries constraints + instructions (non-semantic, priority-sorted)
- * 2. If contextEmbedding provided, queries precedents (semantic, similarity-sorted)
+ * 2. If contextText provided, queries precedents via BM25 fulltext search
  * 3. Applies token budget (~500 tokens)
  */
 export async function loadActiveLearnings(input: {
   surreal: Surreal;
   workspaceId: string;
   agentType: string;
-  contextEmbedding?: number[];
+  contextText?: string;
   tokenBudget?: number;
 }): Promise<TokenBudgetResult> {
   const workspaceRecord = new RecordId("workspace", input.workspaceId);
@@ -175,31 +175,27 @@ export async function loadActiveLearnings(input: {
 
   const nonSemanticLearnings = nonSemanticRows.map(toLoadedLearning);
 
-  // Query precedents only when contextEmbedding is provided
+  // Query precedents via BM25 fulltext search when context text is provided
   let precedentLearnings: LoadedLearning[] = [];
-  if (input.contextEmbedding) {
-    // Two-step KNN pattern (SurrealDB HNSW+WHERE bug workaround)
+  if (input.contextText && input.contextText.trim().length > 0) {
+    const escaped = input.contextText.trim().replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const [candidates] = await input.surreal
       .query<[LearningRow[]]>(
         [
-          "LET $candidates = SELECT id, text, learning_type, source, priority, target_agents, created_at, workspace,",
-          "vector::similarity::cosine(embedding, $contextEmbedding) AS similarity",
-          "FROM learning",
-          "WHERE embedding <|20, COSINE|> $contextEmbedding;",
-          "",
-          "SELECT * FROM $candidates",
-          "WHERE workspace = $workspace",
-          'AND status = "active"',
-          'AND learning_type = "precedent"',
-          "AND (array::len(target_agents) = 0 OR $agentType IN target_agents)",
-          "AND similarity > 0.70",
-          "ORDER BY similarity DESC",
-          "LIMIT 10;",
+          `SELECT id, text, learning_type, source, priority, target_agents, created_at, workspace,`,
+          `search::score(1) AS score`,
+          `FROM learning`,
+          `WHERE text @1@ '${escaped}'`,
+          `AND workspace = $workspace`,
+          `AND status = "active"`,
+          `AND learning_type = "precedent"`,
+          `AND (array::len(target_agents) = 0 OR $agentType IN target_agents)`,
+          `ORDER BY score DESC`,
+          `LIMIT 10;`,
         ].join(" "),
         {
           workspace: workspaceRecord,
           agentType: input.agentType,
-          contextEmbedding: input.contextEmbedding,
         },
       )
       .collect<[LearningRow[]]>();

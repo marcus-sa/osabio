@@ -2,12 +2,11 @@
  * Three-layer collision detection for agent learnings.
  *
  * Checks new learning text against:
- *   1. Existing active learnings (duplicate > 0.90, LLM classify 0.75-0.90)
- *   2. Active policies (LLM classify > 0.80, contradiction = hard block)
- *   3. Confirmed decisions (LLM classify > 0.80, contradiction = informational)
+ *   1. Existing active learnings (BM25 match + LLM classify)
+ *   2. Active policies (BM25 match + LLM classify, contradiction = hard block)
+ *   3. Confirmed decisions (BM25 match + LLM classify, contradiction = informational)
  *
- * Uses two-step KNN pattern to avoid SurrealDB HNSW + WHERE index conflict.
- * LLM classification defaults to "contradicts" on failure (fail-safe).
+ * Uses BM25 fulltext search for candidate retrieval, LLM for classification.
  */
 import { generateObject } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
@@ -15,6 +14,7 @@ import { z } from "zod";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { log } from "../telemetry/logger";
+import { escapeSearchQuery } from "../graph/bm25-search";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,18 +45,6 @@ export type CollisionCheckResult = {
 };
 
 // ---------------------------------------------------------------------------
-// Thresholds
-// ---------------------------------------------------------------------------
-
-const LEARNING_THRESHOLD = 0.75;
-const LEARNING_DUPLICATE_THRESHOLD = 0.90;
-// Cross-entity thresholds are lower because embeddings of different entity types
-// (learning text vs policy description vs decision summary) have lower cosine
-// similarity even when topically related. The LLM classifier handles accuracy.
-const POLICY_THRESHOLD = 0.40;
-const DECISION_THRESHOLD = 0.55;
-
-// ---------------------------------------------------------------------------
 // LLM classification schema
 // ---------------------------------------------------------------------------
 
@@ -76,79 +64,38 @@ export async function checkCollisions(input: {
   model: unknown;
   workspaceRecord: RecordId<"workspace", string>;
   learningText: string;
-  learningEmbedding?: number[];
   source: "human" | "agent";
 }): Promise<CollisionCheckResult> {
-  const { surreal, model, workspaceRecord, learningText, learningEmbedding } = input;
-
-  // Without embedding, collision check uses BM25 for learning-vs-learning only.
-  // Policy and decision cross-entity checks still require embeddings for now.
-  if (!learningEmbedding) {
-    // BM25-based learning-vs-learning collision check
-    const bm25Collisions = await findSimilarLearningsByBm25(surreal, workspaceRecord, learningText);
-    const collisions: CollisionResult[] = [];
-
-    for (const candidate of bm25Collisions) {
-      // BM25 match = at minimum a duplicate signal; use LLM for finer classification
-      const classification = await classifyWithLlm(model, learningText, candidate.text);
-      if (classification.classification !== "unrelated") {
-        collisions.push({
-          collisionType: classification.classification === "contradicts" ? "contradicts" : "duplicates",
-          targetKind: "learning",
-          targetId: candidate.id,
-          targetText: candidate.text,
-          similarity: candidate.score,
-          blocking: false,
-          reasoning: classification.reasoning,
-        });
-      }
-    }
-
-    const hasBlockingCollision = collisions.some((c) => c.blocking);
-
-    log.info("learning.collision.checked", "Collision check completed (BM25)", {
-      totalCollisions: collisions.length,
-      hasBlockingCollision,
-      learningCollisions: collisions.length,
-      policyCollisions: 0,
-      decisionCollisions: 0,
-    });
-
-    return { collisions, hasBlockingCollision };
-  }
-
+  const { surreal, model, workspaceRecord, learningText } = input;
   const collisions: CollisionResult[] = [];
 
-  // Layer 1: Learning-vs-learning
-  const learningCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, LEARNING_SPEC);
+  // Layer 1: Learning-vs-learning (BM25)
+  const learningCandidates = await findSimilarByBm25(surreal, workspaceRecord, learningText, {
+    table: "learning",
+    textField: "text",
+    extraFilter: 'AND status = "active"',
+  });
   for (const candidate of learningCandidates) {
-    if (candidate.similarity > LEARNING_DUPLICATE_THRESHOLD) {
+    const classification = await classifyWithLlm(model, learningText, candidate.text);
+    if (classification.classification !== "unrelated") {
       collisions.push({
-        collisionType: "duplicates",
+        collisionType: classification.classification === "contradicts" ? "contradicts" : "duplicates",
         targetKind: "learning",
         targetId: candidate.id,
         targetText: candidate.text,
-        similarity: candidate.similarity,
+        similarity: candidate.score,
         blocking: false,
+        reasoning: classification.reasoning,
       });
-    } else if (candidate.similarity > LEARNING_THRESHOLD) {
-      const classification = await classifyWithLlm(model, learningText, candidate.text);
-      if (classification.classification !== "unrelated") {
-        collisions.push({
-          collisionType: classification.classification,
-          targetKind: "learning",
-          targetId: candidate.id,
-          targetText: candidate.text,
-          similarity: candidate.similarity,
-          blocking: false,
-          reasoning: classification.reasoning,
-        });
-      }
     }
   }
 
   // Layer 2: Learning-vs-policy (contradiction = hard block)
-  const policyCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, POLICY_SPEC);
+  const policyCandidates = await findSimilarByBm25(surreal, workspaceRecord, learningText, {
+    table: "policy",
+    textField: "description",
+    extraFilter: 'AND status = "active"',
+  });
   for (const candidate of policyCandidates) {
     const classification = await classifyWithLlm(model, learningText, candidate.text);
     const isContradiction = classification.classification === "contradicts";
@@ -158,7 +105,7 @@ export async function checkCollisions(input: {
         targetKind: "policy",
         targetId: candidate.id,
         targetText: candidate.text,
-        similarity: candidate.similarity,
+        similarity: candidate.score,
         blocking: isContradiction,
         reasoning: classification.reasoning,
       });
@@ -166,7 +113,11 @@ export async function checkCollisions(input: {
   }
 
   // Layer 3: Learning-vs-decision (always informational)
-  const decisionCandidates = await findSimilarRecords(surreal, workspaceRecord, learningEmbedding, DECISION_SPEC);
+  const decisionCandidates = await findSimilarByBm25(surreal, workspaceRecord, learningText, {
+    table: "decision",
+    textField: "summary",
+    extraFilter: "",
+  });
   for (const candidate of decisionCandidates) {
     const classification = await classifyWithLlm(model, learningText, candidate.text);
     if (classification.classification !== "unrelated") {
@@ -175,7 +126,7 @@ export async function checkCollisions(input: {
         targetKind: "decision",
         targetId: candidate.id,
         targetText: candidate.text,
-        similarity: candidate.similarity,
+        similarity: candidate.score,
         blocking: false,
         reasoning: classification.reasoning,
       });
@@ -235,10 +186,8 @@ async function classifyWithLlm(
 }
 
 // ---------------------------------------------------------------------------
-// BM25 fulltext search for learning-vs-learning collision
+// BM25 fulltext search for cross-entity collision detection
 // ---------------------------------------------------------------------------
-
-import { escapeSearchQuery } from "../graph/bm25-search";
 
 type Bm25Candidate = {
   id: string;
@@ -246,17 +195,24 @@ type Bm25Candidate = {
   score: number;
 };
 
-async function findSimilarLearningsByBm25(
+type Bm25SearchSpec = {
+  table: string;
+  textField: string;
+  extraFilter: string;
+};
+
+async function findSimilarByBm25(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  learningText: string,
+  searchText: string,
+  spec: Bm25SearchSpec,
 ): Promise<Bm25Candidate[]> {
-  const escaped = escapeSearchQuery(learningText);
-  const sql = `SELECT id, text, search::score(1) AS score
-FROM learning
-WHERE text @1@ '${escaped}'
+  const escaped = escapeSearchQuery(searchText);
+  const sql = `SELECT id, ${spec.textField} AS text, search::score(1) AS score
+FROM ${spec.table}
+WHERE ${spec.textField} @1@ '${escaped}'
 AND workspace = $ws
-AND status = "active"
+${spec.extraFilter}
 ORDER BY score DESC
 LIMIT 10;`;
 
@@ -269,76 +225,5 @@ LIMIT 10;`;
     id: row.id.id as string,
     text: row.text,
     score: row.score,
-  }));
-}
-
-// ---------------------------------------------------------------------------
-// KNN queries (two-step pattern for SurrealDB HNSW + WHERE bug)
-// ---------------------------------------------------------------------------
-
-type SimilarityCandidate = {
-  id: string;
-  text: string;
-  similarity: number;
-};
-
-type KnnSearchSpec = {
-  table: string;
-  candidateFields: string;
-  filterFields: string;
-  textExtractor: (row: Record<string, unknown>) => string;
-  filterClause: string;
-  threshold: number;
-};
-
-const LEARNING_SPEC: KnnSearchSpec = {
-  table: "learning",
-  candidateFields: "id, text, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity",
-  filterFields: "id, text, similarity",
-  textExtractor: (row) => row.text as string,
-  filterClause: 'workspace = $ws AND status = "active"',
-  threshold: LEARNING_THRESHOLD,
-};
-
-const POLICY_SPEC: KnnSearchSpec = {
-  table: "policy",
-  candidateFields: "id, title, description, workspace, status, vector::similarity::cosine(embedding, $embedding) AS similarity",
-  filterFields: "id, title, description, similarity",
-  textExtractor: (row) => (row.description as string | undefined) ?? (row.title as string),
-  filterClause: 'workspace = $ws AND status = "active"',
-  threshold: POLICY_THRESHOLD,
-};
-
-const DECISION_SPEC: KnnSearchSpec = {
-  table: "decision",
-  candidateFields: "id, summary, workspace, vector::similarity::cosine(embedding, $embedding) AS similarity",
-  filterFields: "id, summary, similarity",
-  textExtractor: (row) => row.summary as string,
-  filterClause: "workspace = $ws",
-  threshold: DECISION_THRESHOLD,
-};
-
-async function findSimilarRecords(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
-  embedding: number[],
-  spec: KnnSearchSpec,
-): Promise<SimilarityCandidate[]> {
-  const sql = `
-    LET $candidates = SELECT ${spec.candidateFields}
-      FROM ${spec.table} WHERE embedding <|20, COSINE|> $embedding;
-    SELECT ${spec.filterFields} FROM $candidates
-      WHERE ${spec.filterClause} AND similarity > ${spec.threshold}
-      ORDER BY similarity DESC LIMIT 10;
-  `;
-  const results = await surreal.query<[null, Array<Record<string, unknown> & { id: RecordId; similarity: number }>]>(sql, {
-    embedding,
-    ws: workspaceRecord,
-  });
-  const rows = results[1] ?? [];
-  return rows.map((row) => ({
-    id: row.id.id as string,
-    text: spec.textExtractor(row),
-    similarity: row.similarity,
   }));
 }

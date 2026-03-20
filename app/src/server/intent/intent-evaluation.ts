@@ -131,7 +131,7 @@ export async function evaluatePendingIntent(
     requesterRole: identityInfo?.role,
     llmEvaluator,
     intentId: intentRecord,
-    intentEmbedding: intent.embedding,
+    intentText: intent.goal,
     findAlignedObjectives: findAlignedObjectivesSurreal(deps.surreal),
     createSupportsEdge: createSupportsEdgeSurreal(deps.surreal),
     createAlignmentWarning: (ws, iId, score) =>

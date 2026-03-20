@@ -25,7 +25,7 @@ export type LlmEvaluator = (
  * @deprecated Use FindAlignedObjectivesViaGraph for new code.
  */
 export type FindAlignedObjectives = (
-  intentEmbedding: number[],
+  intentText: string,
   workspaceId: RecordId<"workspace">,
 ) => Promise<AlignmentCandidate[]>;
 
@@ -77,8 +77,8 @@ export type EvaluateIntentInput = {
   requesterRole?: string;
   llmEvaluator: LlmEvaluator;
   timeoutMs?: number;
-  /** Optional: intent embedding for objective alignment (warning mode) — legacy KNN path */
-  intentEmbedding?: number[];
+  /** Optional: intent description for objective alignment (warning mode) — BM25 path */
+  intentText?: string;
   /** Optional: entity reference for graph-based alignment (task or project) */
   entityRef?: EntityReference;
   /** Optional: intent description text for BM25 fallback alignment */
@@ -187,11 +187,11 @@ export async function evaluateIntent(
       alignmentResult = { classification: "none", score: 0 };
     }
   }
-  // Path 2: Legacy embedding-based alignment (fallback)
-  else if (input.intentEmbedding && input.findAlignedObjectives) {
+  // Path 2: BM25 text-based alignment (fallback)
+  else if (input.intentText && input.findAlignedObjectives) {
     try {
       const candidates = await input.findAlignedObjectives(
-        input.intentEmbedding,
+        input.intentText,
         input.workspaceId,
       );
       alignmentResult = selectBestAlignment(candidates);

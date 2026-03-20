@@ -114,7 +114,7 @@ export async function buildChatContext(input: {
       surreal: input.surreal,
       workspaceId: input.workspaceRecord.id as string,
       agentType: "chat_agent",
-      ...(input.workspaceDescription ? { contextEmbedding: undefined } : {}),
+      ...(input.workspaceDescription ? { contextText: input.workspaceDescription } : {}),
     }),
   ]);
 

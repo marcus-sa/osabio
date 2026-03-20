@@ -149,38 +149,19 @@ async function findObjectivesViaBm25(
 }
 
 // ---------------------------------------------------------------------------
-// FindAlignedObjectives Adapter (Legacy KNN — retained for backward compat)
+// FindAlignedObjectives Adapter (BM25 — replaces legacy KNN)
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a FindAlignedObjectives port backed by SurrealDB KNN search.
- *
- * @deprecated Use findAlignedObjectivesViaGraph for new code.
- *
- * Two-step query pattern:
- *   1. KNN on HNSW index (no WHERE filter)
- *   2. Filter by workspace + active status (B-tree index)
+ * Creates a FindAlignedObjectives port backed by BM25 fulltext search.
+ * Accepts intent description text instead of embedding vector.
  */
 export function findAlignedObjectivesSurreal(
   surreal: Surreal,
 ): FindAlignedObjectives {
-  return async (intentEmbedding, workspaceId) => {
-    const rows = (await surreal.query(
-      `LET $candidates = SELECT id, title, workspace, status,
-          vector::similarity::cosine(embedding, $vec) AS score
-        FROM objective WHERE embedding <|20, COSINE|> $vec;
-       SELECT id, title, score FROM $candidates
-        WHERE workspace = $ws AND status = 'active'
-        ORDER BY score DESC LIMIT 10;`,
-      { vec: intentEmbedding, ws: workspaceId },
-    )) as [null, Array<{ id: RecordId<"objective">; title: string; score: number }>];
-
-    const candidates = rows[1] ?? [];
-    return candidates.map((row) => ({
-      objectiveId: row.id.id as string,
-      title: row.title,
-      score: row.score,
-    }));
+  return async (intentText, workspaceId) => {
+    if (!intentText || intentText.trim().length === 0) return [];
+    return findObjectivesViaBm25(surreal, workspaceId, intentText);
   };
 }
 
