@@ -630,7 +630,7 @@ export function createSearchRecentChanges(
   ): Promise<RecentChangeCandidate[]> => {
     // BM25 @N@ does AND matching — use OR across separate predicates per term.
     // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
-    const termList = extractSearchTerms(queryText, 4)
+    const termList = extractSearchTerms(queryText)
       .split(" ")
       .filter((t) => t.length > 0);
     if (termList.length === 0) return [];

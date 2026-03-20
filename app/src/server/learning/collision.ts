@@ -210,7 +210,7 @@ async function findSimilarByBm25(
   // BM25 @N@ does AND matching — all query terms must exist in the document.
   // Use OR across separate predicates for each term (one round-trip).
   // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
-  const termList = extractSearchTerms(searchText, 4)
+  const termList = extractSearchTerms(searchText)
     .split(" ")
     .filter((t) => t.length > 0);
   if (termList.length === 0) return [];

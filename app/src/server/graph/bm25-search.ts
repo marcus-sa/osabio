@@ -34,20 +34,20 @@ const BM25_STOP_WORDS = new Set([
 
 /**
  * Extracts key terms from text for BM25 matching.
- * Drops short/common words and limits to most significant terms.
+ * Drops short/common words (stopwords) and words ≤ 2 chars.
  *
- * SurrealDB BM25 @N@ performs AND matching — all query terms must exist
- * in the document. Queries with >4-5 terms silently return empty results.
+ * Callers use OR-predicate queries (`field @0@ $t0 OR field @1@ $t1 ...`)
+ * so more terms = broader recall, matching embedding-era behavior where
+ * every document got a similarity score.
  *
  * Pure function -- no IO.
  */
-export function extractSearchTerms(text: string, maxTerms: number = 4): string {
+export function extractSearchTerms(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((word) => word.length > 2 && !BM25_STOP_WORDS.has(word))
-    .slice(0, maxTerms)
     .join(" ");
 }
 

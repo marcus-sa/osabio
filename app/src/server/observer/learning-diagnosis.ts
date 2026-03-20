@@ -327,7 +327,7 @@ async function checkLearningCoverageBm25(
   // target document. Observation text often contains terms absent from learnings
   // (e.g. "failure" in observation but not in a learning about "pipeline health").
   // Search with individual key terms and take the best match across all queries.
-  const termList = extractSearchTerms(representativeText, 4)
+  const termList = extractSearchTerms(representativeText)
     .split(" ")
     .filter((t) => t.length > 0);
   if (termList.length === 0) return { covered: false };
