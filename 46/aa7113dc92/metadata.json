@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "46aa7113dc92",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/drop-embeddings",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "AGENTS.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/46/aa7113dc92/0/metadata.json",
+      "transcript": "/46/aa7113dc92/0/full.jsonl",
+      "context": "/46/aa7113dc92/0/context.md",
+      "content_hash": "/46/aa7113dc92/0/content_hash.txt",
+      "prompt": "/46/aa7113dc92/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 200,
+    "cache_creation_tokens": 527240,
+    "cache_read_tokens": 20884096,
+    "output_tokens": 38608,
+    "api_call_count": 106
+  }
+}
