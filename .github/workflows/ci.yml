@@ -54,7 +54,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - uses: surrealdb/setup-surreal@v2
         with:
-          surrealdb_version: v3.0.0
+          surrealdb_version: v3.0.4
           surrealdb_port: 8000
           surrealdb_username: root
           surrealdb_password: root
