@@ -682,8 +682,10 @@ DEFINE FIELD permission ON authority_scope TYPE string
   ASSERT $value IN ["auto", "provisional", "propose", "blocked"];
 DEFINE FIELD workspace ON authority_scope TYPE option<record<workspace>>;
 DEFINE FIELD created_at ON authority_scope TYPE datetime;
+-- No UNIQUE: SurrealDB v3.0.4 UNIQUE indexes on option<record<...>> fields
+-- silently return empty results for WHERE queries. Use plain index instead.
 DEFINE INDEX authority_scope_lookup ON authority_scope
-  FIELDS agent_type, action, workspace UNIQUE;
+  FIELDS agent_type, action, workspace;
 
 -- Seed: code_agent defaults
 CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_decision", permission: "provisional", created_at: time::now() };

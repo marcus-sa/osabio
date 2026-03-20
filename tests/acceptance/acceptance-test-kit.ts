@@ -59,6 +59,34 @@ const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
 const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
 
 /**
+ * Split SQL into statements respecting `{...}` block nesting.
+ * DEFINE FUNCTION / DEFINE EVENT bodies contain semicolons that are NOT
+ * statement terminators. Naively splitting on `;` breaks those bodies into
+ * orphaned fragments that corrupt the batch query.
+ */
+function splitSqlStatements(sql: string): string[] {
+  const stmts: string[] = [];
+  let current = "";
+  let depth = 0;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") depth--;
+
+    if (ch === ";" && depth === 0) {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) stmts.push(trimmed);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  const trimmed = current.trim();
+  if (trimmed.length > 0) stmts.push(trimmed);
+  return stmts;
+}
+
+/**
  * Apply the base schema to a SurrealDB instance.
  *
  * DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0+.
@@ -81,11 +109,10 @@ export async function applyTestSchema(surreal: Surreal): Promise<void> {
     .filter((line) => !line.trimStart().startsWith("--"))
     .join("\n");
 
-  // Split into individual statements
-  const statements = withoutComments
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  // Brace-aware split: only split on `;` outside `{...}` blocks.
+  // DEFINE FUNCTION and DEFINE EVENT bodies contain semicolons that must not
+  // be treated as statement terminators.
+  const statements = splitSqlStatements(withoutComments);
 
   // Phase 1: DEFINE ANALYZER (must be isolated)
   const analyzerStmts = statements.filter((s) => s.startsWith("DEFINE ANALYZER"));
@@ -93,7 +120,7 @@ export async function applyTestSchema(surreal: Surreal): Promise<void> {
     await surreal.query(stmt + ";");
   }
 
-  // Phase 2: Schema definitions (DEFINE TABLE/FIELD/INDEX)
+  // Phase 2: Schema definitions (DEFINE TABLE/FIELD/INDEX/FUNCTION/EVENT)
   const schemaStmts = statements.filter(
     (s) => !s.startsWith("DEFINE ANALYZER") && !s.startsWith("CREATE"),
   );
