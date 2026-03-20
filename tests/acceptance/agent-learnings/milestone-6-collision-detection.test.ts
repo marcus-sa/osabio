@@ -3,16 +3,16 @@
  *
  * Traces: US-AL-006 (learning collision detection)
  *
- * IMPORTANT: These tests call a real LLM for intent classification and
- * a real embedding model for vector similarity. Required env vars:
- * OPENROUTER_API_KEY, OPENROUTER_EMBEDDING_MODEL, EXTRACTION_MODEL.
+ * IMPORTANT: These tests call a real LLM for intent classification.
+ * Collision detection uses BM25 fulltext search instead of embeddings.
+ * Required env vars: OPENROUTER_API_KEY, EXTRACTION_MODEL.
  *
  * Validates:
- * - Learning-vs-learning collision: near-duplicate (>0.90), contradiction (0.75-0.90 + LLM), no collision (<0.75)
+ * - Learning-vs-learning collision: near-duplicate, contradiction (via LLM), no collision
  * - Policy collision is a hard block (learning cannot override governance)
  * - Decision collision is informational (reinforces or warns, never blocks)
  * - LLM intent classification distinguishes contradicts/reinforces/unrelated
- * - Fail-open for human-created learnings when embedding unavailable
+ * - Fail-open for human-created learnings
  * - Workspace boundary isolation for collision detection
  *
  * Driving ports:
@@ -24,12 +24,10 @@ import {
   setupLearningSuite,
   createTestWorkspace,
   createTestLearning,
-  createTestLearningWithEmbedding,
-  createTestPolicyWithEmbedding,
-  createTestDecisionWithEmbedding,
+  createTestPolicy,
+  createTestDecision,
   createLearningViaHttp,
   getLearningById,
-  generateEmbedding,
   createTestUser,
 } from "./learning-test-kit";
 
@@ -45,7 +43,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given a workspace with an active learning about null usage
     const { workspaceId } = await createTestWorkspace(surreal, "near-dup");
-    await createTestLearningWithEmbedding(surreal, workspaceId, {
+    await createTestLearning(surreal, workspaceId, {
       text: "Never use null for domain data values. Represent absence with omitted optional fields.",
       learning_type: "constraint",
       status: "active",
@@ -78,7 +76,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given an active learning recommending one approach
     const { workspaceId } = await createTestWorkspace(surreal, "llm-contra");
-    await createTestLearningWithEmbedding(surreal, workspaceId, {
+    await createTestLearning(surreal, workspaceId, {
       text: "Always use PostgreSQL for all new database services. No other databases allowed.",
       learning_type: "constraint",
       status: "active",
@@ -110,7 +108,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given an active learning about TypeScript
     const { workspaceId } = await createTestWorkspace(surreal, "llm-reinforce");
-    await createTestLearningWithEmbedding(surreal, workspaceId, {
+    await createTestLearning(surreal, workspaceId, {
       text: "Always use TypeScript strict mode for all backend services.",
       learning_type: "instruction",
       status: "active",
@@ -146,7 +144,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given an active learning about database conventions
     const { workspaceId } = await createTestWorkspace(surreal, "unrelated");
-    await createTestLearningWithEmbedding(surreal, workspaceId, {
+    await createTestLearning(surreal, workspaceId, {
       text: "Always use PostgreSQL for relational data storage in production.",
       learning_type: "constraint",
       status: "active",
@@ -175,7 +173,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given a workspace with an active policy requiring code review
     const { workspaceId } = await createTestWorkspace(surreal, "policy-block");
-    await createTestPolicyWithEmbedding(surreal, workspaceId, {
+    await createTestPolicy(surreal, workspaceId, {
       name: "Mandatory Code Review Policy",
       description: "All code changes must be reviewed by at least one other engineer before merging. No exceptions for any change size.",
     });
@@ -212,7 +210,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given a workspace with a confirmed decision about PostgreSQL
     const { workspaceId } = await createTestWorkspace(surreal, "decision-reinforce");
-    await createTestDecisionWithEmbedding(surreal, workspaceId, {
+    await createTestDecision(surreal, workspaceId, {
       summary: "Standardize on PostgreSQL for all relational database needs across the organization.",
       rationale: "Team expertise, JSON support, and ecosystem maturity.",
       status: "confirmed",
@@ -245,7 +243,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given a confirmed decision to standardize on PostgreSQL
     const { workspaceId } = await createTestWorkspace(surreal, "decision-contra");
-    await createTestDecisionWithEmbedding(surreal, workspaceId, {
+    await createTestDecision(surreal, workspaceId, {
       summary: "Standardize on PostgreSQL for all database services. No other databases.",
       rationale: "Consistency and operational simplicity.",
       status: "confirmed",
@@ -297,8 +295,6 @@ describe("Milestone 6: Collision Detection", () => {
     expect(learning).toBeDefined();
     expect(learning!.status).toBe("active");
     expect(learning!.source).toBe("human");
-    // And no embedding is stored
-    expect(learning!.embedding).toBeUndefined();
   }, 120_000);
 
   it("agent-suggested learning stays pending when embedding is unavailable", async () => {
@@ -332,7 +328,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given workspace A with a learning about REST APIs
     const { workspaceId: wsA } = await createTestWorkspace(surreal, "ws-a");
-    await createTestLearningWithEmbedding(surreal, wsA, {
+    await createTestLearning(surreal, wsA, {
       text: "Always use REST APIs for all external integrations. Never use GraphQL.",
       learning_type: "constraint",
       status: "active",
@@ -364,7 +360,7 @@ describe("Milestone 6: Collision Detection", () => {
 
     // Given an active agent-suggested learning about semicolons
     const { workspaceId } = await createTestWorkspace(surreal, "priority-weight");
-    await createTestLearningWithEmbedding(surreal, workspaceId, {
+    await createTestLearning(surreal, workspaceId, {
       text: "Always use semicolons at the end of every JavaScript and TypeScript statement.",
       learning_type: "instruction",
       status: "active",

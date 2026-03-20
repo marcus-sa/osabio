@@ -60,18 +60,43 @@ const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
 
 /**
  * Apply the base schema to a SurrealDB instance.
- * DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0,
- * and the SDK may treat a multi-statement .query() as an implicit transaction.
- * This helper splits the analyzer definition out and applies it first.
+ *
+ * DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0+.
+ * The SDK may treat a multi-statement .query() as an implicit transaction,
+ * causing the analyzer and dependent FULLTEXT indexes to fail silently.
+ *
+ * We split the schema into three phases:
+ * 1. DEFINE ANALYZER (must run outside any transaction)
+ * 2. Schema definitions (DEFINE TABLE/FIELD/INDEX) — batch is fine
+ * 3. Seed data (CREATE statements) — separate batch to isolate from index errors
  */
 export async function applyTestSchema(surreal: Surreal): Promise<void> {
   const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  const analyzerMatch = schemaSql.match(/DEFINE ANALYZER[\s\S]+?;/);
-  if (analyzerMatch) {
-    await surreal.query(analyzerMatch[0]);
-    await surreal.query(schemaSql.replace(analyzerMatch[0], ""));
-  } else {
-    await surreal.query(schemaSql);
+
+  // Split into individual statements
+  const statements = schemaSql
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !s.startsWith("--"));
+
+  // Phase 1: DEFINE ANALYZER (must be isolated)
+  const analyzerStmts = statements.filter((s) => s.startsWith("DEFINE ANALYZER"));
+  for (const stmt of analyzerStmts) {
+    await surreal.query(stmt + ";");
+  }
+
+  // Phase 2: Schema definitions (DEFINE TABLE/FIELD/INDEX)
+  const schemaStmts = statements.filter(
+    (s) => !s.startsWith("DEFINE ANALYZER") && !s.startsWith("CREATE"),
+  );
+  if (schemaStmts.length > 0) {
+    await surreal.query(schemaStmts.map((s) => s + ";").join("\n"));
+  }
+
+  // Phase 3: Seed data (CREATE statements) — isolated so index issues don't block seeds
+  const seedStmts = statements.filter((s) => s.startsWith("CREATE"));
+  if (seedStmts.length > 0) {
+    await surreal.query(seedStmts.map((s) => s + ";").join("\n"));
   }
 }
 
