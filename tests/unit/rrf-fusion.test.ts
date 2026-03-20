@@ -5,7 +5,7 @@
  * where rank_i(d) is 1-based rank of document d in list i.
  */
 import { describe, test, expect } from "bun:test";
-import { applyRrf, type RrfItem } from "../../app/src/server/graph/bm25-search";
+import { applyRrf, type RrfItem } from "../../app/src/server/graph/rrf";
 
 // Helper to create RRF items with minimal boilerplate
 function item<T extends Record<string, unknown>>(key: string, data: T): RrfItem<T> {

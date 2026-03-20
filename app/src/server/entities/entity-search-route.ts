@@ -2,7 +2,7 @@ import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
 import type { EntityKind, SearchEntityResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
-import { applyRrf, type RrfItem } from "../graph/bm25-search";
+import { applyRrf, type RrfItem } from "../graph/rrf";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceProjectRecord, resolveWorkspaceRecord } from "../workspace/workspace-scope";
