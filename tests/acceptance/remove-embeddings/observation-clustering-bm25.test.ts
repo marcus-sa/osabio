@@ -14,6 +14,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Direct SurrealDB setup (no full server needed -- tests clustering directly)
@@ -40,11 +41,7 @@ describe("BM25 observation clustering for learning diagnosis", () => {
     await surreal.use({ namespace, database });
 
     // Apply base schema
-    const schemaSql = readFileSync(
-      join(process.cwd(), "schema", "surreal-schema.surql"),
-      "utf8",
-    );
-    await surreal.query(schemaSql);
+    await applyTestSchema(surreal);
 
     // Apply fulltext search migrations (observation BM25 index)
     const migration0002 = readFileSync(

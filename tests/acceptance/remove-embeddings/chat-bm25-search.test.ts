@@ -14,6 +14,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 import { searchEntitiesByBm25 } from "../../../app/src/server/graph/queries";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -36,11 +37,7 @@ describe("Chat agent BM25 search (US-EMB-001)", () => {
     await surreal.use({ namespace, database });
 
     // Apply base schema
-    const schemaSql = readFileSync(
-      join(process.cwd(), "schema", "surreal-schema.surql"),
-      "utf8",
-    );
-    await surreal.query(schemaSql);
+    await applyTestSchema(surreal);
 
     // Apply fulltext search indexes migration
     const migration0002 = readFileSync(

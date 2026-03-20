@@ -12,6 +12,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
@@ -32,11 +33,7 @@ describe("BM25 fulltext indexes migration (0062)", () => {
     await surreal.use({ namespace, database });
 
     // Apply base schema
-    const schemaSql = readFileSync(
-      join(process.cwd(), "schema", "surreal-schema.surql"),
-      "utf8",
-    );
-    await surreal.query(schemaSql);
+    await applyTestSchema(surreal);
 
     // Apply migration 0002 (defines entity_search analyzer + existing fulltext indexes)
     const migration0002 = readFileSync(

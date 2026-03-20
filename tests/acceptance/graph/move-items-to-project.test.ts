@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 import { createMoveItemsToProjectTool } from "../../../app/src/server/chat/tools/move-items-to-project";
 import { testAI } from "../acceptance-test-kit";
 
@@ -31,8 +30,7 @@ beforeAll(async () => {
   await surreal.query(`DEFINE DATABASE ${database};`);
   await surreal.use({ namespace, database });
 
-  const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  await surreal.query(schemaSql);
+  await applyTestSchema(surreal);
 
   const now = new Date();
 

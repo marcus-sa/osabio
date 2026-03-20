@@ -1,10 +1,9 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { betterAuth } from "better-auth";
 import { testUtils } from "better-auth/plugins";
 import { Surreal, RecordId } from "surrealdb";
 import { surrealdbAdapter } from "../../../app/src/server/auth/adapter";
+import { applyTestSchema } from "../acceptance-test-kit";
 
 /**
  * Integration tests for the custom SurrealDB v2 better-auth adapter.
@@ -38,8 +37,7 @@ beforeAll(async () => {
   await surreal.use({ namespace, database });
 
   // Apply full schema (contains all table definitions including migrations)
-  const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  await surreal.query(schemaSql);
+  await applyTestSchema(surreal);
 
   // Create better-auth instance with testUtils plugin and our adapter
   auth = betterAuth({

@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Direct SurrealDB setup (no full server needed -- tests detector directly)
@@ -43,11 +44,7 @@ describe("BM25 collision detection for learnings", () => {
     await surreal.use({ namespace, database });
 
     // Apply base schema
-    const schemaSql = readFileSync(
-      join(process.cwd(), "schema", "surreal-schema.surql"),
-      "utf8",
-    );
-    await surreal.query(schemaSql);
+    await applyTestSchema(surreal);
 
     // Apply fulltext search migrations
     const migration0002 = readFileSync(

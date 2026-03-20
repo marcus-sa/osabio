@@ -58,6 +58,23 @@ const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
 const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
 
+/**
+ * Apply the base schema to a SurrealDB instance.
+ * DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0,
+ * and the SDK may treat a multi-statement .query() as an implicit transaction.
+ * This helper splits the analyzer definition out and applies it first.
+ */
+export async function applyTestSchema(surreal: Surreal): Promise<void> {
+  const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
+  const analyzerMatch = schemaSql.match(/^DEFINE ANALYZER[^;]+;/m);
+  if (analyzerMatch) {
+    await surreal.query(analyzerMatch[0]);
+    await surreal.query(schemaSql.replace(analyzerMatch[0], ""));
+  } else {
+    await surreal.query(schemaSql);
+  }
+}
+
 export function setupAcceptanceSuite(
   suiteName: string,
   options?: AcceptanceSuiteOptions,
@@ -95,8 +112,7 @@ export function setupAcceptanceSuite(
       "switch to test namespace/database",
     );
 
-    const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-    await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
+    await withTimeout(() => applyTestSchema(surreal), 20_000, "apply schema");
 
     // Reserve a port so betterAuth gets the real URL at init time
     const tempServer = Bun.serve({ port: 0, fetch: () => new Response() });

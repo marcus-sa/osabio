@@ -15,6 +15,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Isolated SurrealDB setup (same pattern as bm25-indexes.test.ts)
@@ -39,11 +40,7 @@ describe("Graph-based objective alignment (US-EMB-003)", () => {
     await surreal.use({ namespace, database });
 
     // Apply base schema
-    const schemaSql = readFileSync(
-      join(process.cwd(), "schema", "surreal-schema.surql"),
-      "utf8",
-    );
-    await surreal.query(schemaSql);
+    await applyTestSchema(surreal);
 
     // Apply migration 0002 (entity_search analyzer + fulltext indexes)
     const migration0002 = readFileSync(

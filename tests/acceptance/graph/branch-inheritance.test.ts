@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 import { loadBranchChain, loadMessagesWithInheritance } from "../../../app/src/server/chat/branch-chain";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -26,8 +25,7 @@ beforeAll(async () => {
   await surreal.query(`DEFINE DATABASE ${database};`);
   await surreal.use({ namespace, database });
 
-  const schema = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  await surreal.query(schema);
+  await applyTestSchema(surreal);
 }, 30_000);
 
 afterAll(async () => {
