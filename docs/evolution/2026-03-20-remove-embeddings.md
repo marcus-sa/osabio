@@ -80,9 +80,19 @@ Still-open SurrealDB issues (workarounds retained):
 - **No HNSW index overhead** — write path is faster (no index maintenance on entity creation)
 - **BM25 search is index-complete** — no brute-force fallback loading all entities into memory
 
+### Post-Phase: RRF Fusion (ADR-063)
+
+Replaced raw BM25 score concatenation with Reciprocal Rank Fusion (RRF, k=60) for cross-table result merging. BM25 scores are not comparable across tables with different corpus sizes — RRF normalizes by rank position, ensuring fair ranking regardless of per-table score distributions.
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Entity search merge (`bm25-search.ts`) | Flatten + sort by raw BM25 score | Per-table ranked lists fused via `applyRrf()` |
+| UI search merge (`entity-search-route.ts`) | Flatten + sort by raw BM25 score | Per-table ranked lists fused via `applyRrf()` |
+
 ## Remaining Considerations
 
 - If a workspace scales to thousands of active decisions, BM25 + LLM-generated query expansion covers the gap before needing to reintroduce embeddings
 - The Observer's cross-project coherence scan creates explicit graph edges that replace semantic discovery — the graph gets smarter over time, unlike stateless embedding search
 - `cosineSimilarity()` and `rankCandidates()` in `context-injector.ts` are dead code — `ContextCandidate` type is still used by the fallback pool in `anthropic-proxy-route.ts` but the embedding-based ranking function is not called
 - The `classifyByAge` 24h hard cutoff could be replaced by letting decay + token budget handle stale-item filtering naturally
+- RRF can be extended to fuse BM25 + graph-proximity + recency signals (hybrid retrieval) without requiring embeddings

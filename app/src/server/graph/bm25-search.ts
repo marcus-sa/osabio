@@ -5,7 +5,10 @@
  * Pattern:
  *   1. Per-table SELECT ... WHERE field @N@ $query AND workspace = $ws
  *   2. search::score(N) returns BM25 relevance score
- *   3. Merge results across tables, sort by score descending
+ *   3. Reciprocal Rank Fusion (RRF) merges per-table ranked lists
+ *
+ * RRF (Cormack et al., k=60) fuses results by rank position rather than
+ * raw score, eliminating cross-table BM25 score incomparability.
  *
  * SurrealDB 3.0.4+: @N@ works with SDK bound parameters ($query).
  * search::score() returns real BM25 scores with BM25(1.2, 0.75).
@@ -72,6 +75,60 @@ type Bm25SearchRow = {
 };
 
 // ---------------------------------------------------------------------------
+// Reciprocal Rank Fusion (RRF)
+// ---------------------------------------------------------------------------
+
+/** Default RRF constant — dampens influence of high-rank outliers (Cormack et al.) */
+const RRF_K = 60;
+
+/**
+ * Item in a per-table ranked list. Must carry enough identity to deduplicate
+ * across lists (same entity appearing in multiple table queries is unlikely
+ * for BM25 cross-table search, but the algorithm handles it correctly).
+ */
+export type RrfItem<T> = T & { readonly _rrfKey: string };
+
+/**
+ * Reciprocal Rank Fusion — merges multiple independently-ranked lists into
+ * a single fused ranking using rank position rather than raw scores.
+ *
+ * RRF_score(d) = Σ 1 / (k + rank_i(d))
+ *
+ * Each input list must already be sorted by relevance descending (rank 1 = best).
+ * Items are identified by `_rrfKey`; if the same key appears in multiple lists,
+ * its RRF contributions are summed (true fusion).
+ *
+ * Pure function — no IO, no side effects.
+ */
+export function applyRrf<T>(
+  rankedLists: ReadonlyArray<ReadonlyArray<RrfItem<T>>>,
+  limit: number,
+  k: number = RRF_K,
+): Array<T & { rrfScore: number }> {
+  const scores = new Map<string, { item: T; rrfScore: number }>();
+
+  for (const list of rankedLists) {
+    for (let rank = 0; rank < list.length; rank++) {
+      const entry = list[rank];
+      const contribution = 1 / (k + rank + 1); // rank is 0-based, RRF uses 1-based
+      const existing = scores.get(entry._rrfKey);
+      if (existing) {
+        existing.rrfScore += contribution;
+      } else {
+        // Strip _rrfKey from the stored item
+        const { _rrfKey, ...item } = entry;
+        scores.set(entry._rrfKey, { item: item as T, rrfScore: contribution });
+      }
+    }
+  }
+
+  return Array.from(scores.values())
+    .sort((a, b) => b.rrfScore - a.rrfScore)
+    .slice(0, limit)
+    .map(({ item, rrfScore }) => ({ ...item, rrfScore }));
+}
+
+// ---------------------------------------------------------------------------
 // Effect boundary: execute BM25 search against SurrealDB
 // ---------------------------------------------------------------------------
 
@@ -96,17 +153,26 @@ export async function searchEntitiesByBm25(input: {
 
   const results = await input.surreal.query(sql, bindings);
 
-  const allRows = (results as unknown as Bm25SearchRow[][])
-    .filter(Array.isArray)
-    .flat()
-    .sort((a, b) => b.score - a.score)
-    .slice(0, input.limit);
+  // Group results into per-table ranked lists for RRF fusion
+  const allArrays = (results as unknown as Bm25SearchRow[][]).filter(Array.isArray);
+  const rankedLists = allArrays.map((rows) =>
+    rows.map((row) => ({
+      _rrfKey: `${row.kind}:${row.id.id as string}`,
+      id: row.id,
+      kind: row.kind,
+      text: row.text,
+      status: row.status,
+      score: row.score,
+    } as const satisfies RrfItem<Bm25SearchRow>)),
+  );
 
-  return allRows.map((row) => ({
+  const fused = applyRrf(rankedLists, input.limit);
+
+  return fused.map((row) => ({
     id: row.id.id as string,
     kind: row.kind,
     name: row.text,
-    score: row.score,
+    score: row.rrfScore,
     ...(row.status ? { status: row.status } : {}),
   }));
 }

@@ -2,6 +2,7 @@ import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
 import type { EntityKind, SearchEntityResponse } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
+import { applyRrf, type RrfItem } from "../graph/bm25-search";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceProjectRecord, resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -141,17 +142,25 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
 
   const results = await deps.surreal.query(sql, bindings);
 
-  const allRows = (results as unknown as SearchEntityRow[][])
-    .filter(Array.isArray)
-    .flat()
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+  // Group into per-table ranked lists, then apply RRF fusion
+  const allArrays = (results as unknown as SearchEntityRow[][]).filter(Array.isArray);
+  const rankedLists = allArrays.map((rows) =>
+    rows.map((row): RrfItem<SearchEntityRow> => ({
+      _rrfKey: `${row.kind}:${row.id.id as string}`,
+      id: row.id,
+      kind: row.kind,
+      text: row.text,
+      score: row.score,
+    })),
+  );
 
-  const responseRows = allRows.map((row) => ({
+  const fused = applyRrf(rankedLists, limit);
+
+  const responseRows = fused.map((row) => ({
     id: row.id.id as string,
     kind: row.kind,
     text: row.text,
-    confidence: row.score,
+    confidence: row.rrfScore,
     sourceId: "",
     sourceKind: "message",
   } satisfies SearchEntityResponse));
