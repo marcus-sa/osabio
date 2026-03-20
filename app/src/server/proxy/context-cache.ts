@@ -17,7 +17,6 @@ export type CandidateItem = {
   readonly type: "decision" | "learning" | "observation";
   readonly text: string;
   readonly weight: number;
-  readonly embedding?: number[];
 };
 
 export type CachedCandidatePool = {

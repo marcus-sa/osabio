@@ -46,17 +46,19 @@ import {
   type CandidateItem,
 } from "./context-cache";
 import {
-  rankCandidates,
   selectWithinBudget,
+  rankByBm25WithRecency,
   buildBrainContextXml,
   injectBrainContext,
   injectRecentChanges,
   classifyBySimilarity,
   buildRecentChangesXml,
   createSearchRecentChanges,
+  createSearchContextByBm25,
   type ContextCandidate,
   type InjectionResult,
   type SearchRecentChanges,
+  type SearchContextByBm25,
 } from "./context-injector";
 import {
   resolveProxyAuth,
@@ -337,19 +339,19 @@ async function loadCandidatePool(
 ): Promise<CachedCandidatePool> {
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  type DecisionRow = { id: RecordId; summary: string; embedding?: number[] };
-  type LearningRow = { id: RecordId; text: string; embedding?: number[] };
-  type ObservationRow = { id: RecordId; text: string; embedding?: number[] };
+  type DecisionRow = { id: RecordId; summary: string };
+  type LearningRow = { id: RecordId; text: string };
+  type ObservationRow = { id: RecordId; text: string };
 
-  // Single round-trip: multiple statements in one .query() call
+  // Single round-trip: no embedding fields fetched (02-01)
   const results = await surreal.query<[DecisionRow[], LearningRow[], ObservationRow[]]>(
-    `SELECT id, summary, embedding FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;
-     SELECT id, text, embedding FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;
-     SELECT id, text, embedding FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy' LIMIT 20;`,
+    `SELECT id, summary FROM decision WHERE workspace = $ws AND status = 'confirmed' LIMIT 50;
+     SELECT id, text FROM learning WHERE workspace = $ws AND status = 'active' LIMIT 30;
+     SELECT id, text FROM observation WHERE workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy' LIMIT 20;`,
     { ws: workspaceRecord },
   );
 
-  function toCandidates<T extends { id: RecordId; embedding?: number[] }>(
+  function toCandidates<T extends { id: RecordId }>(
     rows: T[],
     type: CandidateItem["type"],
     weight: number,
@@ -360,7 +362,6 @@ async function loadCandidatePool(
       type,
       text: textFn(row),
       weight,
-      embedding: row.embedding,
     }));
   }
 
@@ -374,32 +375,6 @@ async function loadCandidatePool(
     observations,
     populatedAt: Date.now(),
   };
-}
-
-// ---------------------------------------------------------------------------
-// Embedding Helper (adapter boundary)
-// ---------------------------------------------------------------------------
-
-async function embedUserMessage(
-  embeddingModel: ServerDependencies["embeddingModel"],
-  embeddingDimension: number,
-  text: string,
-): Promise<number[] | undefined> {
-  try {
-    const { embed } = await import("ai");
-    const normalized = text.trim();
-    if (normalized.length === 0) return undefined;
-
-    const result = await embed({
-      model: embeddingModel,
-      value: normalized,
-    });
-
-    if (result.embedding.length !== embeddingDimension) return undefined;
-    return result.embedding;
-  } catch {
-    return undefined;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,12 +395,13 @@ async function runContextInjection(
   intelligenceConfig: IntelligenceConfig,
   recentChangesSearch?: SearchRecentChanges,
   lastRequestAt?: Date,
+  searchContextByBm25?: SearchContextByBm25,
 ): Promise<ContextInjectionResult> {
   if (!intelligenceConfig.contextInjectionEnabled) {
     return { body: originalBody };
   }
 
-  // 1. Extract last user message for embedding (needed for early-exit check)
+  // 1. Extract last user message text (for BM25 query)
   const messages = parsedBody.messages ?? [];
   let lastUserMessage: { role: string; content: string } | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -435,57 +411,36 @@ async function runContextInjection(
     return { body: originalBody };
   }
 
-  // 2. Get or populate candidate pool + embed user message in parallel
-  let fromCache = false;
-  const poolPromise = contextCache.has(workspaceId)
-    ? (fromCache = true, Promise.resolve(contextCache.get(workspaceId)!))
-    : loadCandidatePool(deps.surreal, workspaceId);
+  const queryText = lastUserMessage.content;
+  const now = new Date();
 
-  const embeddingPromise = embedUserMessage(
-    deps.embeddingModel,
-    deps.config.embeddingDimension,
-    lastUserMessage.content,
-  );
-
-  const [pool, queryEmbedding] = await Promise.all([poolPromise, embeddingPromise]);
-
-  if (!fromCache) {
-    contextCache.set(workspaceId, pool);
-  }
-
-  // 3. Check if pool is empty
-  const allCandidates: ContextCandidate[] = [
-    ...pool.decisions,
-    ...pool.learnings,
-    ...pool.observations,
-  ];
-  if (allCandidates.length === 0) {
-    return { body: originalBody };
-  }
-
-  log.info("proxy.context_injection.pool_loaded", "Candidate pool loaded", {
-    workspace_id: workspaceId,
-    decisions: pool.decisions.length,
-    learnings: pool.learnings.length,
-    observations: pool.observations.length,
-    total: allCandidates.length,
-    cached: fromCache,
-  });
-
+  // 2. Search context candidates via BM25 fulltext (no embeddings)
   let selectedCandidates;
-  if (queryEmbedding) {
-    // 5. Rank candidates by weighted cosine similarity
-    const ranked = rankCandidates(allCandidates, queryEmbedding);
-    // 6. Select within token budget
-    selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
+  if (searchContextByBm25) {
+    // BM25 path: query-time search ranked by relevance + recency
+    const bm25Candidates = await searchContextByBm25(queryText, workspaceId, 100);
+
+    if (bm25Candidates.length === 0) {
+      // Fallback: load cached pool without ranking (weight-based)
+      const pool = await loadFallbackPool(deps, workspaceId, contextCache);
+      if (!pool) return { body: originalBody };
+      const allCandidates = [...pool.decisions, ...pool.learnings, ...pool.observations];
+      const ranked = allCandidates.map((c) => ({ id: c.id, type: c.type, text: c.text, score: c.weight }));
+      selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
+    } else {
+      log.info("proxy.context_injection.bm25_search", "BM25 context search completed", {
+        workspace_id: workspaceId,
+        candidates: bm25Candidates.length,
+      });
+      const ranked = rankByBm25WithRecency(bm25Candidates, now);
+      selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
+    }
   } else {
-    // No embedding available -- fall back to all candidates within budget
-    const ranked = allCandidates.map((c) => ({
-      id: c.id,
-      type: c.type,
-      text: c.text,
-      score: c.weight,
-    }));
+    // Legacy fallback: cached pool with weight-based ranking (no embeddings)
+    const pool = await loadFallbackPool(deps, workspaceId, contextCache);
+    if (!pool) return { body: originalBody };
+    const allCandidates: ContextCandidate[] = [...pool.decisions, ...pool.learnings, ...pool.observations];
+    const ranked = allCandidates.map((c) => ({ id: c.id, type: c.type, text: c.text, score: c.weight }));
     selectedCandidates = selectWithinBudget(ranked, intelligenceConfig.contextInjectionTokenBudget);
   }
 
@@ -493,17 +448,17 @@ async function runContextInjection(
     return { body: originalBody };
   }
 
-  // 7. Build XML block
+  // 3. Build XML block
   const brainContextXml = buildBrainContextXml(selectedCandidates);
 
-  // 8. Inject into system prompt
+  // 4. Inject into system prompt
   const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
 
-  // 9. Search and inject recent changes (04-02)
+  // 5. Search and inject recent changes via BM25 (no embeddings)
   let enrichedSystem = injectionResult.system;
-  if (recentChangesSearch && lastRequestAt && queryEmbedding) {
+  if (recentChangesSearch && lastRequestAt) {
     try {
-      const recentCandidates = await recentChangesSearch(queryEmbedding, workspaceId, lastRequestAt);
+      const recentCandidates = await recentChangesSearch(queryText, workspaceId, lastRequestAt);
       const classified = classifyBySimilarity(recentCandidates);
       const recentChangesXml = buildRecentChangesXml(classified);
       if (recentChangesXml) {
@@ -518,7 +473,7 @@ async function runContextInjection(
     }
   }
 
-  // 10. Build modified request body
+  // 6. Build modified request body
   const modifiedBody = {
     ...parsedBody,
     system: enrichedSystem,
@@ -528,6 +483,36 @@ async function runContextInjection(
     body: JSON.stringify(modifiedBody),
     injectionResult,
   };
+}
+
+/** Load fallback candidate pool from cache or DB (legacy path). */
+async function loadFallbackPool(
+  deps: ServerDependencies,
+  workspaceId: string,
+  contextCache: ContextCache,
+): Promise<CachedCandidatePool | undefined> {
+  let fromCache = false;
+  const pool = contextCache.has(workspaceId)
+    ? (fromCache = true, contextCache.get(workspaceId)!)
+    : await loadCandidatePool(deps.surreal, workspaceId);
+
+  if (!fromCache) {
+    contextCache.set(workspaceId, pool);
+  }
+
+  const total = pool.decisions.length + pool.learnings.length + pool.observations.length;
+  if (total === 0) return undefined;
+
+  log.info("proxy.context_injection.pool_loaded", "Candidate pool loaded", {
+    workspace_id: workspaceId,
+    decisions: pool.decisions.length,
+    learnings: pool.learnings.length,
+    observations: pool.observations.length,
+    total,
+    cached: fromCache,
+  });
+
+  return pool;
 }
 
 // ---------------------------------------------------------------------------
@@ -647,8 +632,9 @@ export function createAnthropicProxyHandler(
   const proxyTokenCache: TokenCache = createTokenCache();
   const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
 
-  // Recent changes adapter for vector search (04-02)
+  // BM25 fulltext search adapters (02-01: replaces embedding-based ranking)
   const searchRecentChanges: SearchRecentChanges = createSearchRecentChanges(deps.surreal);
+  const searchContextByBm25: SearchContextByBm25 = createSearchContextByBm25(deps.surreal);
 
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
@@ -907,6 +893,7 @@ export function createAnthropicProxyHandler(
             intelligenceConfig,
             searchRecentChanges,
             sessionLastRequestAt,
+            searchContextByBm25,
           );
           effectiveBody = contextResult.body;
           injectionResult = contextResult.injectionResult;

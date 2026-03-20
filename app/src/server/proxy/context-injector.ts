@@ -11,7 +11,23 @@
  * The orchestration (embedding, cache, DB queries) lives in the proxy route.
  */
 import { RecordId } from "surrealdb";
-import { cosineSimilarity } from "../graph/embeddings";
+import { escapeSearchQuery } from "../graph/bm25-search";
+
+// ---------------------------------------------------------------------------
+// Local cosine similarity (kept for legacy rankCandidates; no external dep)
+// ---------------------------------------------------------------------------
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return -1;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return -1;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +39,14 @@ export type ContextCandidate = {
   readonly text: string;
   readonly embedding?: number[];
   readonly weight: number;
+};
+
+export type Bm25ContextCandidate = {
+  readonly id: string;
+  readonly type: "decision" | "learning" | "observation";
+  readonly text: string;
+  readonly bm25Score: number;
+  readonly updatedAt: string;
 };
 
 export type RankedCandidate = {
@@ -83,6 +107,57 @@ export function rankCandidates(
         : c.weight * 0.5;
       return { id: c.id, type: c.type, text: c.text, score };
     })
+    .sort((a, b) => b.score - a.score);
+}
+
+// ---------------------------------------------------------------------------
+// BM25 + Recency Ranking (02-01: pure functions)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_RECENCY_HALFLIFE_HOURS = 168; // 1 week
+
+/**
+ * Compute exponential recency decay factor.
+ * decayFactor = exp(-ageHours / halflife)
+ *
+ * Returns 1.0 for zero or negative age (future timestamps treated as fresh).
+ */
+export function computeRecencyDecay(ageHours: number, halflife: number): number {
+  if (ageHours <= 0) return 1.0;
+  return Math.exp(-ageHours / halflife);
+}
+
+/**
+ * Compute final context score: BM25 relevance weighted by recency decay.
+ * finalScore = bm25Score * exp(-ageHours / halflife)
+ */
+export function computeFinalScore(
+  bm25Score: number,
+  updatedAt: string,
+  now: Date,
+  halflife: number,
+): number {
+  const ageMs = now.getTime() - new Date(updatedAt).getTime();
+  const ageHours = ageMs / (1000 * 60 * 60);
+  return bm25Score * computeRecencyDecay(ageHours, halflife);
+}
+
+/**
+ * Rank BM25 context candidates by combined relevance and recency.
+ * Pure pipeline: map to final scores, sort descending.
+ */
+export function rankByBm25WithRecency(
+  candidates: Bm25ContextCandidate[],
+  now: Date,
+  halflife: number = DEFAULT_RECENCY_HALFLIFE_HOURS,
+): RankedCandidate[] {
+  return candidates
+    .map((c) => ({
+      id: c.id,
+      type: c.type,
+      text: c.text,
+      score: computeFinalScore(c.bm25Score, c.updatedAt, now, halflife),
+    }))
     .sort((a, b) => b.score - a.score);
 }
 
@@ -389,79 +464,156 @@ export function buildRecentChangesXml(changes: ClassifiedChange[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Recent Changes Vector Search (04-01: adapter boundary -- DB side effect)
+// Recent Changes BM25 Search (04-01 / 02-01: adapter boundary -- DB side effect)
 // ---------------------------------------------------------------------------
 
 /**
- * Port signature for searching recent graph changes by vector similarity.
+ * Port signature for searching recent graph changes by BM25 text relevance.
+ * No embedding API calls -- uses fulltext indexes with recency filtering.
  */
 export type SearchRecentChanges = (
-  messageEmbedding: number[],
+  queryText: string,
   workspaceId: string,
   lastRequestAt: Date,
 ) => Promise<RecentChangeCandidate[]>;
 
-type KnnRow = {
+type Bm25RecentRow = {
   id: RecordId;
   text: string;
-  similarity: number;
+  score: number;
   updated_at: string;
-  workspace: RecordId;
 };
 
 /**
- * Searches for recent graph entity changes relevant to a message embedding.
+ * Searches for recent graph entity changes relevant to a text query using BM25.
  *
- * Uses the two-step KNN pattern required by SurrealDB v3.0 (see CLAUDE.md):
- * - Step 1: KNN candidates via HNSW index (no WHERE filter)
- * - Step 2: filter by workspace + updated_at > last_request_at
- *
- * Queries decision, task, and observation tables independently then merges results.
+ * Replaces KNN vector search (02-01): no embedding generation needed.
+ * Uses BM25 fulltext indexes on decision.summary, task.title, observation.text.
+ * The @N@ operator requires string literal interpolation (not SDK bound params).
  */
 export function createSearchRecentChanges(
   surreal: { query: <T>(sql: string, vars?: Record<string, unknown>) => Promise<T> },
 ): SearchRecentChanges {
   return async (
-    messageEmbedding: number[],
+    queryText: string,
     workspaceId: string,
     lastRequestAt: Date,
   ): Promise<RecentChangeCandidate[]> => {
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-    const knnLimit = 20;
+    const trimmed = queryText.trim();
+    if (trimmed.length === 0) return [];
 
-    // Single round-trip: all three two-step KNN queries combined
-    // Each table needs LET + SELECT (HNSW index cannot combine with B-tree WHERE)
-    const results = await surreal.query<[KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[], KnnRow[]]>(
-      `LET $dec_candidates = SELECT id, summary AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace, status
-         FROM decision WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $dec_candidates WHERE workspace = $ws AND updated_at > $since AND status != "superseded" ORDER BY similarity DESC LIMIT $limit;
-       LET $task_candidates = SELECT id, title AS text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
-         FROM task WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $task_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;
-       LET $obs_candidates = SELECT id, text, vector::similarity::cosine(embedding, $vec) AS similarity, updated_at, workspace
-         FROM observation WHERE embedding <|${knnLimit}, COSINE|> $vec;
-       SELECT * FROM $obs_candidates WHERE workspace = $ws AND updated_at > $since ORDER BY similarity DESC LIMIT $limit;`,
-      { vec: messageEmbedding, ws: workspaceRecord, since: lastRequestAt, limit: knnLimit },
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+    const escaped = escapeSearchQuery(trimmed);
+    const q = `'${escaped}'`;
+    const limit = 20;
+
+    // BM25 fulltext search across three tables -- single round-trip
+    // @N@ must use string literal interpolation, not bound params
+    const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
+      `SELECT id, summary AS text, search::score(1) AS score, updated_at
+         FROM decision WHERE summary @1@ ${q} AND workspace = $ws AND updated_at > $since AND status != "superseded"
+         ORDER BY score DESC LIMIT $limit;
+       SELECT id, title AS text, search::score(1) AS score, updated_at
+         FROM task WHERE title @1@ ${q} AND workspace = $ws AND updated_at > $since
+         ORDER BY score DESC LIMIT $limit;
+       SELECT id, text, search::score(1) AS score, updated_at
+         FROM observation WHERE text @1@ ${q} AND workspace = $ws AND updated_at > $since
+         ORDER BY score DESC LIMIT $limit;`,
+      { ws: workspaceRecord, since: lastRequestAt, limit },
     );
 
-    // LET statements return at indices 0, 2, 4; SELECT results at 1, 3, 5
     function toRecentChangeCandidates(
-      rows: KnnRow[],
+      rows: Bm25RecentRow[],
       table: RecentChangeCandidate["table"],
     ): RecentChangeCandidate[] {
       return rows.map((row) => ({
         id: (row.id as RecordId).id as string,
         table,
         text: row.text,
-        similarity: row.similarity,
+        similarity: row.score, // BM25 score used in place of cosine similarity
         updatedAt: row.updated_at,
       }));
     }
 
     return [
-      ...toRecentChangeCandidates(results[1] ?? [], "decision"),
-      ...toRecentChangeCandidates(results[3] ?? [], "task"),
-      ...toRecentChangeCandidates(results[5] ?? [], "observation"),
+      ...toRecentChangeCandidates(results[0] ?? [], "decision"),
+      ...toRecentChangeCandidates(results[1] ?? [], "task"),
+      ...toRecentChangeCandidates(results[2] ?? [], "observation"),
+    ];
+  };
+}
+
+// ---------------------------------------------------------------------------
+// BM25 Context Search (02-01: adapter boundary -- DB side effect)
+// ---------------------------------------------------------------------------
+
+/**
+ * Port signature for searching context candidates by BM25 text relevance.
+ */
+export type SearchContextByBm25 = (
+  queryText: string,
+  workspaceId: string,
+  limit: number,
+) => Promise<Bm25ContextCandidate[]>;
+
+type Bm25ContextRow = {
+  id: RecordId;
+  text: string;
+  score: number;
+  updated_at: string;
+};
+
+/**
+ * Searches for context candidates (decisions, learnings, observations) using BM25 fulltext.
+ *
+ * Replaces embedding cosine similarity ranking (02-01).
+ * Returns candidates with BM25 scores and timestamps for recency-weighted ranking.
+ */
+export function createSearchContextByBm25(
+  surreal: { query: <T>(sql: string, vars?: Record<string, unknown>) => Promise<T> },
+): SearchContextByBm25 {
+  return async (
+    queryText: string,
+    workspaceId: string,
+    limit: number,
+  ): Promise<Bm25ContextCandidate[]> => {
+    const trimmed = queryText.trim();
+    if (trimmed.length === 0) return [];
+
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+    const escaped = escapeSearchQuery(trimmed);
+    const q = `'${escaped}'`;
+
+    const results = await surreal.query<[Bm25ContextRow[], Bm25ContextRow[], Bm25ContextRow[]]>(
+      `SELECT id, summary AS text, search::score(1) AS score, updated_at
+         FROM decision WHERE summary @1@ ${q} AND workspace = $ws AND status = 'confirmed'
+         ORDER BY score DESC LIMIT $limit;
+       SELECT id, text, search::score(1) AS score, updated_at
+         FROM learning WHERE text @1@ ${q} AND workspace = $ws AND status = 'active'
+         ORDER BY score DESC LIMIT $limit;
+       SELECT id, text, search::score(1) AS score, updated_at
+         FROM observation WHERE text @1@ ${q} AND workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy'
+         ORDER BY score DESC LIMIT $limit;`,
+      { ws: workspaceRecord, limit },
+    );
+
+    function toContextCandidates(
+      rows: Bm25ContextRow[],
+      type: Bm25ContextCandidate["type"],
+    ): Bm25ContextCandidate[] {
+      return rows.map((row) => ({
+        id: (row.id as RecordId).id as string,
+        type,
+        text: row.text,
+        bm25Score: row.score,
+        updatedAt: row.updated_at,
+      }));
+    }
+
+    return [
+      ...toContextCandidates(results[0] ?? [], "decision"),
+      ...toContextCandidates(results[1] ?? [], "learning"),
+      ...toContextCandidates(results[2] ?? [], "observation"),
     ];
   };
 }
