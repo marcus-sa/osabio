@@ -1,48 +1,15 @@
 /**
  * Unit tests for BM25 search query builder pure functions.
  *
- * Tests escapeSearchQuery and buildBm25SearchSQL — the pure core
- * of the BM25 entity search pipeline.
+ * Tests buildBm25SearchSQL — the pure core of the BM25 entity search pipeline.
+ * SurrealDB 3.0.4+: @N@ works with bound $query parameters.
  */
 import { describe, test, expect } from "bun:test";
-import { escapeSearchQuery, buildBm25SearchSQL } from "../../app/src/server/graph/bm25-search";
-
-describe("escapeSearchQuery", () => {
-  test("passes through alphanumeric text unchanged", () => {
-    expect(escapeSearchQuery("tRPC migration")).toBe("tRPC migration");
-  });
-
-  test("escapes single quotes", () => {
-    expect(escapeSearchQuery("it's a test")).toBe("it\\'s a test");
-  });
-
-  test("escapes backslashes", () => {
-    expect(escapeSearchQuery("path\\to\\file")).toBe("path\\\\to\\\\file");
-  });
-
-  test("escapes both backslashes and single quotes", () => {
-    expect(escapeSearchQuery("it's a path\\here")).toBe("it\\'s a path\\\\here");
-  });
-
-  test("handles empty string", () => {
-    expect(escapeSearchQuery("")).toBe("");
-  });
-
-  test("handles double quotes without escaping them", () => {
-    expect(escapeSearchQuery('say "hello"')).toBe('say "hello"');
-  });
-
-  test("handles SQL injection attempt", () => {
-    const input = "'; DROP TABLE task;--";
-    const escaped = escapeSearchQuery(input);
-    // Single quote is escaped to \' which is safe inside a SurrealQL string literal
-    expect(escaped).toBe("\\'; DROP TABLE task;--");
-  });
-});
+import { buildBm25SearchSQL } from "../../app/src/server/graph/bm25-search";
 
 describe("buildBm25SearchSQL", () => {
   test("generates SQL for all default entity kinds", () => {
-    const sql = buildBm25SearchSQL("tRPC migration");
+    const sql = buildBm25SearchSQL();
 
     // Should contain queries for all searchable tables
     expect(sql).toContain("FROM task");
@@ -52,9 +19,9 @@ describe("buildBm25SearchSQL", () => {
     expect(sql).toContain("FROM project");
     expect(sql).toContain("FROM suggestion");
 
-    // Should use BM25 match operator with escaped query as string literal
+    // Should use BM25 match operator with bound parameter
     expect(sql).toContain("@1@");
-    expect(sql).toContain("'tRPC migration'");
+    expect(sql).toContain("@1@ $query");
 
     // Should filter by workspace
     expect(sql).toContain("workspace = $workspace");
@@ -64,7 +31,7 @@ describe("buildBm25SearchSQL", () => {
   });
 
   test("filters by specified kinds only", () => {
-    const sql = buildBm25SearchSQL("test query", ["task", "decision"]);
+    const sql = buildBm25SearchSQL(["task", "decision"]);
 
     expect(sql).toContain("FROM task");
     expect(sql).toContain("FROM decision");
@@ -74,15 +41,17 @@ describe("buildBm25SearchSQL", () => {
     expect(sql).not.toContain("FROM suggestion");
   });
 
-  test("escapes special characters in query", () => {
-    const sql = buildBm25SearchSQL("it's a test");
+  test("uses bound $query parameter not string literal", () => {
+    const sql = buildBm25SearchSQL(["task"]);
 
-    // Should contain the escaped version
-    expect(sql).toContain("'it\\'s a test'");
+    // Should NOT contain any string literal patterns like @1@ '...'
+    expect(sql).not.toMatch(/@1@ '/);
+    // Should use bound param
+    expect(sql).toContain("@1@ $query");
   });
 
   test("includes ORDER BY score DESC and LIMIT", () => {
-    const sql = buildBm25SearchSQL("test");
+    const sql = buildBm25SearchSQL();
     expect(sql).toContain("ORDER BY score DESC");
     expect(sql).toContain("LIMIT $limit");
   });

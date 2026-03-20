@@ -11,6 +11,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   buildObservationSimilarityQuery,
+  extractSearchTerms,
   groupObservationsIntoClusters,
   type ObservationForClustering,
   type Bm25SimilarityEdge,
@@ -21,30 +22,45 @@ import {
 // ---------------------------------------------------------------------------
 
 describe("buildObservationSimilarityQuery", () => {
-  test("builds BM25 query with key terms and workspace filter", () => {
-    const sql = buildObservationSimilarityQuery("deployment failure in production environment");
-    expect(sql).toContain("@1@");
-    // Key terms extracted (stop words like "in" removed)
-    expect(sql).toContain("deployment");
-    expect(sql).toContain("failure");
-    expect(sql).toContain("production");
+  test("builds BM25 query with bound $query param and workspace filter", () => {
+    const sql = buildObservationSimilarityQuery();
+    expect(sql).toContain("@1@ $query");
     expect(sql).toContain("workspace = $ws");
     expect(sql).toContain("search::score(1)");
     expect(sql).toContain("FROM observation");
   });
 
-  test("escapes single quotes in extracted terms", () => {
-    const sql = buildObservationSimilarityQuery("the system can't deploy on Fridays properly");
-    expect(sql).toContain("deploy");
-    expect(sql).toContain("fridays");
-    // Single quote in "can't" is removed by the term extraction (non-alpha stripped)
-    expect(sql).not.toContain("'t");
+  test("does not use string literal interpolation", () => {
+    const sql = buildObservationSimilarityQuery();
+    expect(sql).not.toMatch(/@1@ '/);
   });
 
   test("filters to open/acknowledged status observations", () => {
-    const sql = buildObservationSimilarityQuery("some text here");
+    const sql = buildObservationSimilarityQuery();
     expect(sql).toContain("open");
     expect(sql).toContain("acknowledged");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractSearchTerms: key term extraction for BM25 queries
+// ---------------------------------------------------------------------------
+
+describe("extractSearchTerms", () => {
+  test("extracts key terms dropping stopwords", () => {
+    const terms = extractSearchTerms("deployment failure in production environment");
+    expect(terms).toContain("deployment");
+    expect(terms).toContain("failure");
+    expect(terms).toContain("production");
+    expect(terms).not.toContain("in");
+  });
+
+  test("strips non-alpha characters", () => {
+    const terms = extractSearchTerms("the system can't deploy on Fridays properly");
+    expect(terms).toContain("deploy");
+    expect(terms).toContain("fridays");
+    // Single quote removed by term extraction
+    expect(terms).not.toContain("'");
   });
 });
 

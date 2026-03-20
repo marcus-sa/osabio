@@ -11,7 +11,6 @@
  * The orchestration (embedding, cache, DB queries) lives in the proxy route.
  */
 import { RecordId } from "surrealdb";
-import { escapeSearchQuery } from "../graph/bm25-search";
 
 // ---------------------------------------------------------------------------
 // Local cosine similarity (kept for legacy rankCandidates; no external dep)
@@ -619,7 +618,6 @@ type Bm25RecentRow = {
  *
  * Replaces KNN vector search (02-01): no embedding generation needed.
  * Uses BM25 fulltext indexes on decision.summary, task.title, observation.text.
- * The @N@ operator requires string literal interpolation (not SDK bound params).
  */
 export function createSearchRecentChanges(
   surreal: { query: <T>(sql: string, vars?: Record<string, unknown>) => Promise<T> },
@@ -633,23 +631,19 @@ export function createSearchRecentChanges(
     if (trimmed.length === 0) return [];
 
     const workspaceRecord = new RecordId("workspace", workspaceId);
-    const escaped = escapeSearchQuery(trimmed);
-    const q = `'${escaped}'`;
     const limit = 20;
 
-    // BM25 fulltext search across three tables -- single round-trip
-    // @N@ must use string literal interpolation, not bound params
     const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
       `SELECT id, summary AS text, search::score(1) AS score, updated_at
-         FROM decision WHERE summary @1@ ${q} AND workspace = $ws AND updated_at > $since AND status != "superseded"
+         FROM decision WHERE summary @1@ $query AND workspace = $ws AND updated_at > $since AND status != "superseded"
          ORDER BY score DESC LIMIT $limit;
        SELECT id, title AS text, search::score(1) AS score, updated_at
-         FROM task WHERE title @1@ ${q} AND workspace = $ws AND updated_at > $since
+         FROM task WHERE title @1@ $query AND workspace = $ws AND updated_at > $since
          ORDER BY score DESC LIMIT $limit;
        SELECT id, text, search::score(1) AS score, updated_at
-         FROM observation WHERE text @1@ ${q} AND workspace = $ws AND updated_at > $since
+         FROM observation WHERE text @1@ $query AND workspace = $ws AND updated_at > $since
          ORDER BY score DESC LIMIT $limit;`,
-      { ws: workspaceRecord, since: lastRequestAt, limit },
+      { ws: workspaceRecord, since: lastRequestAt, limit, query: trimmed },
     );
 
     function toRecentChangeCandidates(
@@ -711,20 +705,18 @@ export function createSearchContextByBm25(
     if (trimmed.length === 0) return [];
 
     const workspaceRecord = new RecordId("workspace", workspaceId);
-    const escaped = escapeSearchQuery(trimmed);
-    const q = `'${escaped}'`;
 
     const results = await surreal.query<[Bm25ContextRow[], Bm25ContextRow[], Bm25ContextRow[]]>(
       `SELECT id, summary AS text, search::score(1) AS score, updated_at
-         FROM decision WHERE summary @1@ ${q} AND workspace = $ws AND status = 'confirmed'
+         FROM decision WHERE summary @1@ $query AND workspace = $ws AND status = 'confirmed'
          ORDER BY score DESC LIMIT $limit;
        SELECT id, text, search::score(1) AS score, updated_at
-         FROM learning WHERE text @1@ ${q} AND workspace = $ws AND status = 'active'
+         FROM learning WHERE text @1@ $query AND workspace = $ws AND status = 'active'
          ORDER BY score DESC LIMIT $limit;
        SELECT id, text, search::score(1) AS score, updated_at
-         FROM observation WHERE text @1@ ${q} AND workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy'
+         FROM observation WHERE text @1@ $query AND workspace = $ws AND status = 'open' AND severity IN ['conflict', 'warning'] AND source_agent != 'llm-proxy'
          ORDER BY score DESC LIMIT $limit;`,
-      { ws: workspaceRecord, limit },
+      { ws: workspaceRecord, limit, query: trimmed },
     );
 
     function toContextCandidates(

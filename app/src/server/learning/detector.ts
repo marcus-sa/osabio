@@ -68,11 +68,11 @@ export async function checkDismissedSimilarity(input: {
     return { blocked: false };
   }
 
-  const sql = buildDismissedSimilarityQuery(trimmed);
+  const sql = buildDismissedSimilarityQuery();
 
   const [rows] = await input.surreal.query<[Bm25LearningMatch[]]>(
     sql,
-    { ws: input.workspaceRecord },
+    { ws: input.workspaceRecord, query: trimmed },
   );
 
   const matches = rows ?? [];

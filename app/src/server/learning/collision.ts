@@ -14,7 +14,6 @@ import { z } from "zod";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { log } from "../telemetry/logger";
-import { escapeSearchQuery } from "../graph/bm25-search";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -207,10 +206,9 @@ async function findSimilarByBm25(
   searchText: string,
   spec: Bm25SearchSpec,
 ): Promise<Bm25Candidate[]> {
-  const escaped = escapeSearchQuery(searchText);
   const sql = `SELECT id, ${spec.textField} AS text, search::score(1) AS score
 FROM ${spec.table}
-WHERE ${spec.textField} @1@ '${escaped}'
+WHERE ${spec.textField} @1@ $query
 AND workspace = $ws
 ${spec.extraFilter}
 ORDER BY score DESC
@@ -218,7 +216,7 @@ LIMIT 10;`;
 
   const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
     sql,
-    { ws: workspaceRecord },
+    { ws: workspaceRecord, query: searchText },
   );
 
   return (rows ?? []).map((row) => ({

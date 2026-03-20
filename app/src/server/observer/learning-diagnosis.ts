@@ -20,7 +20,6 @@ import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../tele
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
-import { escapeSearchQuery } from "../graph/bm25-search";
 import { buildCoverageQuery, isCoverageMatch, type Bm25LearningMatch } from "../learning/bm25-collision";
 import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
@@ -144,24 +143,25 @@ function extractSearchTerms(text: string, maxTerms: number = 4): string {
 /**
  * Builds a BM25 fulltext search query that finds observations with similar text.
  *
- * Uses @N@ operator with string literal interpolation (NOT SDK bound params)
- * per SurrealDB limitation.
- *
- * Requires bound parameters: $ws (workspace RecordId)
+ * Requires bound parameters: $ws (workspace RecordId), $query (search terms)
  */
-export function buildObservationSimilarityQuery(observationText: string): string {
-  const terms = extractSearchTerms(observationText);
-  const escaped = escapeSearchQuery(terms);
+export function buildObservationSimilarityQuery(): string {
   return [
     `SELECT id, text, search::score(1) AS score`,
     `FROM observation`,
-    `WHERE text @1@ '${escaped}'`,
+    `WHERE text @1@ $query`,
     `AND workspace = $ws`,
     `AND status IN ["open", "acknowledged"]`,
     `ORDER BY score DESC`,
     `LIMIT 10;`,
   ].join("\n");
 }
+
+/**
+ * Extracts and returns search terms for an observation text.
+ * Exported for callers that need to pass $query as a bound param.
+ */
+export { extractSearchTerms };
 
 // ---------------------------------------------------------------------------
 // BM25-based clustering (IO boundary for queries, pure for grouping)
@@ -189,14 +189,17 @@ export async function clusterObservationsByBm25(
   const edges: Bm25SimilarityEdge[] = [];
   const observationIds = new Set(observations.map((o) => o.id));
 
+  const sql = buildObservationSimilarityQuery();
   for (const obs of observations) {
-    const sql = buildObservationSimilarityQuery(obs.text);
+    const terms = extractSearchTerms(obs.text);
+    if (terms.length === 0) continue;
     const [matches] = await surreal.query<[Array<{
       id: RecordId<"observation">;
       text: string;
       score: number;
     }>]>(sql, {
       ws: workspaceRecord,
+      query: terms,
     });
 
     for (const match of matches ?? []) {
@@ -206,9 +209,7 @@ export async function clusterObservationsByBm25(
         edges.push({
           sourceId: obs.id,
           matchId,
-          // BM25 score may be 0 when combined with WHERE clauses (known SurrealDB v3.0 bug)
-          // but @N@ operator still correctly filters to matching rows
-          score: match.score > 0 ? match.score : 1.0,
+          score: match.score,
         });
       }
     }
@@ -362,10 +363,11 @@ async function checkLearningCoverageBm25(
   if (termList.length === 0) return { covered: false };
 
   const allMatches: Bm25LearningMatch[] = [];
+  const sql = buildCoverageQuery(learningStatus);
   for (const term of termList) {
-    const sql = buildCoverageQuery(term, learningStatus);
     const [rows] = await surreal.query<[Bm25LearningMatch[]]>(sql, {
       ws: workspaceRecord,
+      query: term,
     });
     for (const row of rows ?? []) {
       allMatches.push(row);

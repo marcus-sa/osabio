@@ -5,7 +5,6 @@ import {
   readEntityName,
   type GraphEntityRecord,
 } from "../../graph/queries";
-import { escapeSearchQuery } from "../../graph/bm25-search";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 import type { RecordId } from "surrealdb";
@@ -28,8 +27,8 @@ export function createGetConversationHistoryTool(deps: ChatToolDeps) {
     execute: async (input, options) => {
       const context = requireToolContext(options);
 
-      const escaped = escapeSearchQuery(input.query.trim());
-      if (escaped.length === 0) return { query: input.query, results: [] };
+      const trimmed = input.query.trim();
+      if (trimmed.length === 0) return { query: input.query, results: [] };
 
       const [messageRows] = await deps.surreal
         .query<[Array<{
@@ -40,11 +39,11 @@ export function createGetConversationHistoryTool(deps: ChatToolDeps) {
         }>]>(
           `SELECT id, conversation, text, search::score(1) AS score
            FROM message
-           WHERE text @1@ '${escaped}'
+           WHERE text @1@ $query
            AND conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)
            ORDER BY score DESC
            LIMIT 8;`,
-          { workspace: context.workspaceRecord },
+          { workspace: context.workspaceRecord, query: trimmed },
         )
         .collect<[Array<{
           id: RecordId<"message", string>;

@@ -419,11 +419,12 @@ DEFINE INDEX idx_task_fulltext ON task FIELDS title FULLTEXT ANALYZER entity_sea
   ```
 - `search::score(N)` returns the BM25 relevance score for predicate N.
 - `search::highlight('<b>', '</b>', N)` returns text with matching tokens wrapped in tags.
-### Known limitations (SurrealDB v3.0)
+### Known limitations (SurrealDB v3.0.4)
 
 - `search::score()` and `@N@` do NOT work inside `DEFINE FUNCTION` — the predicate reference is lost across the function boundary. Search queries must run from the app layer. See: https://github.com/surrealdb/surrealdb/issues/7013
-- `@N@` does NOT work with SDK bound parameters (`$query`). The search term must be embedded as a string literal in the query. Escape single quotes before interpolation.
-- `BM25` without explicit parameters returns score=0. Always use `BM25(1.2, 0.75)`.
+- `@N@` performs AND matching — all query terms must exist in the document. For cross-domain searches (e.g. observation text vs learning text), search individual terms and merge results.
+- Queries with >4-5 terms silently return empty results. Use `extractSearchTerms()` to cap at 4 terms with stopword filtering.
+- Always use `BM25(1.2, 0.75)` — without explicit parameters, behavior is undefined.
 
 ### Entity search implementation
 

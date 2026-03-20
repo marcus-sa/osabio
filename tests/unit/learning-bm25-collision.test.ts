@@ -7,8 +7,6 @@
  */
 import { describe, test, expect } from "bun:test";
 
-// Import the pure threshold functions after they are implemented
-// These will be extracted as pure functions from the detector module
 import {
   isDismissedSimilarityMatch,
   isCoverageMatch,
@@ -75,31 +73,30 @@ describe("isCoverageMatch", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildDismissedSimilarityQuery", () => {
-  test("builds query with escaped text and workspace filter", () => {
-    const sql = buildDismissedSimilarityQuery("run integration tests");
-    expect(sql).toContain("@1@");
-    expect(sql).toContain("run integration tests");
+  test("builds query with bound $query param and workspace filter", () => {
+    const sql = buildDismissedSimilarityQuery();
+    expect(sql).toContain("@1@ $query");
     expect(sql).toContain('status = "dismissed"');
     expect(sql).toContain("workspace = $ws");
     expect(sql).toContain("search::score(1)");
   });
 
-  test("escapes single quotes in query text", () => {
-    const sql = buildDismissedSimilarityQuery("don't use var");
-    expect(sql).toContain("don\\'t use var");
+  test("does not use string literal interpolation", () => {
+    const sql = buildDismissedSimilarityQuery();
+    expect(sql).not.toMatch(/@1@ '/);
   });
 });
 
 describe("buildCoverageQuery", () => {
   test("builds query filtering by active status", () => {
-    const sql = buildCoverageQuery("testing patterns");
-    expect(sql).toContain("@1@");
+    const sql = buildCoverageQuery();
+    expect(sql).toContain("@1@ $query");
     expect(sql).toContain('status = "active"');
     expect(sql).toContain("workspace = $ws");
   });
 
   test("builds query filtering by dismissed status", () => {
-    const sql = buildCoverageQuery("testing patterns", "dismissed");
+    const sql = buildCoverageQuery("dismissed");
     expect(sql).toContain('status = "dismissed"');
   });
 });

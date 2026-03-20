@@ -29,13 +29,6 @@ export type EntityReference = {
 // BM25 Query Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Escapes a search query string for safe interpolation into SurrealQL BM25 queries.
- * BM25 @N@ operator does NOT work with SDK bound parameters — must be a string literal.
- */
-function escapeSearchQuery(query: string): string {
-  return query.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
 
 // ---------------------------------------------------------------------------
 // FindAlignedObjectivesViaGraph Adapter (Graph + BM25)
@@ -117,26 +110,21 @@ async function findObjectivesViaGraphTraversal(
 
 /**
  * BM25 fulltext search on objective.title within workspace scope.
- *
- * Uses string literal interpolation for the search term (SurrealDB limitation:
- * @N@ does not work with SDK bound parameters).
  */
 async function findObjectivesViaBm25(
   surreal: Surreal,
   workspaceId: RecordId<"workspace">,
   searchText: string,
 ): Promise<AlignmentCandidate[]> {
-  const escaped = escapeSearchQuery(searchText);
-
   const rows = (await surreal.query(
     `SELECT id, title, search::score(1) AS score
      FROM objective
-     WHERE title @1@ '${escaped}'
+     WHERE title @1@ $query
        AND workspace = $ws
        AND status = 'active'
      ORDER BY score DESC
      LIMIT 10;`,
-    { ws: workspaceId },
+    { ws: workspaceId, query: searchText },
   )) as [Array<{ id: RecordId<"objective">; title: string; score: number }>];
 
   const bm25Rows = (rows[0] ?? []).map((row) => ({

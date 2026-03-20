@@ -107,8 +107,6 @@ export function shouldAnalyzeTrace(
 // BM25 decision search
 // ---------------------------------------------------------------------------
 
-import { escapeSearchQuery } from "../graph/bm25-search";
-
 /**
  * Finds confirmed decisions similar to the given text using BM25 fulltext search.
  */
@@ -117,8 +115,8 @@ async function findSimilarDecisionsByText(
   workspaceRecord: RecordId<"workspace", string>,
   searchText: string,
 ): Promise<DecisionCandidate[]> {
-  const escaped = escapeSearchQuery(searchText.slice(0, 200));
-  if (escaped.trim().length === 0) return [];
+  const trimmed = searchText.slice(0, 200).trim();
+  if (trimmed.length === 0) return [];
 
   const [rows] = await surreal.query<[Array<{
     id: RecordId<"decision", string>;
@@ -128,12 +126,12 @@ async function findSimilarDecisionsByText(
   }>]>(
     `SELECT id, summary, rationale, search::score(1) AS score
      FROM decision
-     WHERE summary @1@ '${escaped}'
+     WHERE summary @1@ $query
      AND workspace = $ws
      AND status = 'confirmed'
      ORDER BY score DESC
      LIMIT 10;`,
-    { ws: workspaceRecord },
+    { ws: workspaceRecord, query: trimmed },
   );
 
   return rows ?? [];

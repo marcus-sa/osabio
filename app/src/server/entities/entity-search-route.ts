@@ -15,71 +15,64 @@ type SearchEntityRow = {
 };
 
 // BM25 full-text search queries per entity type.
-// Queries run from app layer because:
-// 1. search::score() / @N@ don't work inside DEFINE FUNCTION (https://github.com/surrealdb/surrealdb/issues/7013)
-// 2. @N@ doesn't work with SDK bound parameters — search term must be a string literal
+// Queries run from app layer because search::score() / @N@ don't work
+// inside DEFINE FUNCTION (https://github.com/surrealdb/surrealdb/issues/7013)
 
-function escapeSearchQuery(query: string): string {
-  return query.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-function buildWorkspaceSearchSQL(escapedQuery: string): string {
-  const q = `'${escapedQuery}'`;
+function buildWorkspaceSearchSQL(): string {
   return `
 SELECT id, "task" AS kind, title AS text, search::score(1) AS score
-FROM task WHERE title @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM task WHERE title @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "decision" AS kind, summary AS text, search::score(1) AS score
-FROM decision WHERE summary @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM decision WHERE summary @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "question" AS kind, text AS text, search::score(1) AS score
-FROM question WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM question WHERE text @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "observation" AS kind, text AS text, search::score(1) AS score
-FROM observation WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM observation WHERE text @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "suggestion" AS kind, text AS text, search::score(1) AS score
-FROM suggestion WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM suggestion WHERE text @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "feature" AS kind, name AS text, search::score(1) AS score
-FROM feature WHERE name @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM feature WHERE name @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "project" AS kind, name AS text, search::score(1) AS score
-FROM project WHERE name @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM project WHERE name @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "person" AS kind, name AS text, search::score(1) AS score
-FROM person WHERE name @1@ ${q} ORDER BY score DESC LIMIT $limit;
+FROM person WHERE name @1@ $query ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "message" AS kind, text AS text, search::score(1) AS score
-FROM message WHERE text @1@ ${q} AND conversation.workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM message WHERE text @1@ $query AND conversation.workspace = $workspace ORDER BY score DESC LIMIT $limit;
 `;
 }
 
-function buildProjectSearchSQL(escapedQuery: string): string {
-  const q = `'${escapedQuery}'`;
+function buildProjectSearchSQL(): string {
   return `
 LET $project_entity_ids = SELECT VALUE in FROM belongs_to WHERE out = $project;
 
 SELECT id, "task" AS kind, title AS text, search::score(1) AS score
-FROM task WHERE title @1@ ${q} AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
+FROM task WHERE title @1@ $query AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "decision" AS kind, summary AS text, search::score(1) AS score
-FROM decision WHERE summary @1@ ${q} AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
+FROM decision WHERE summary @1@ $query AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "question" AS kind, text AS text, search::score(1) AS score
-FROM question WHERE text @1@ ${q} AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
+FROM question WHERE text @1@ $query AND workspace = $workspace AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "observation" AS kind, text AS text, search::score(1) AS score
-FROM observation WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM observation WHERE text @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "suggestion" AS kind, text AS text, search::score(1) AS score
-FROM suggestion WHERE text @1@ ${q} AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM suggestion WHERE text @1@ $query AND workspace = $workspace ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "feature" AS kind, name AS text, search::score(1) AS score
-FROM feature WHERE name @1@ ${q} AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
+FROM feature WHERE name @1@ $query AND id IN $project_entity_ids ORDER BY score DESC LIMIT $limit;
 
 SELECT id, "message" AS kind, text AS text, search::score(1) AS score
-FROM message WHERE text @1@ ${q} AND conversation.workspace = $workspace ORDER BY score DESC LIMIT $limit;
+FROM message WHERE text @1@ $query AND conversation.workspace = $workspace ORDER BY score DESC LIMIT $limit;
 `;
 }
 
@@ -135,13 +128,13 @@ async function handleEntitySearch(deps: ServerDependencies, url: URL): Promise<R
     return jsonError(errorText, 500);
   }
 
-  const escaped = escapeSearchQuery(query);
   const sql = projectRecord
-    ? buildProjectSearchSQL(escaped)
-    : buildWorkspaceSearchSQL(escaped);
+    ? buildProjectSearchSQL()
+    : buildWorkspaceSearchSQL();
 
   const bindings = {
     limit,
+    query,
     workspace: workspaceRecord,
     ...(projectRecord ? { project: projectRecord } : {}),
   };

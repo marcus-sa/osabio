@@ -7,7 +7,6 @@
  *
  * IO boundary (actual query execution) lives in detector.ts.
  */
-import { escapeSearchQuery } from "../graph/bm25-search";
 import type { DismissedSimilarityResult, CoverageCheckResult } from "./collision-types";
 
 // ---------------------------------------------------------------------------
@@ -29,8 +28,7 @@ export type { DismissedSimilarityResult, CoverageCheckResult };
 /**
  * Determines whether any BM25 search result constitutes a dismissed similarity match.
  *
- * BM25 @N@ operator already filters to matching rows -- any row returned by the
- * fulltext match is considered relevant. We take the highest-scoring match.
+ * Takes the highest-scoring BM25 match. Any returned row is considered relevant.
  *
  * Pure function -- no IO.
  */
@@ -53,8 +51,7 @@ export function isDismissedSimilarityMatch(
 
 /**
  * Determines whether any BM25 search result constitutes a coverage match.
- *
- * Any BM25 fulltext match indicates the pattern is already covered.
+ * Results are ranked by BM25 score -- higher scores indicate stronger matches.
  *
  * Pure function -- no IO.
  */
@@ -76,17 +73,13 @@ export function isCoverageMatch(
 /**
  * Builds a BM25 fulltext search query for dismissed learning similarity.
  *
- * Uses the @N@ operator with string literal interpolation (NOT SDK bound params)
- * per SurrealDB limitation: https://github.com/surrealdb/surrealdb/issues/7013
- *
- * Requires bound parameters: $ws (workspace RecordId)
+ * Requires bound parameters: $ws (workspace RecordId), $query (search text)
  */
-export function buildDismissedSimilarityQuery(proposedText: string): string {
-  const escaped = escapeSearchQuery(proposedText);
+export function buildDismissedSimilarityQuery(): string {
   return [
     `SELECT text, search::score(1) AS score`,
     `FROM learning`,
-    `WHERE text @1@ '${escaped}'`,
+    `WHERE text @1@ $query`,
     `AND workspace = $ws`,
     `AND status = "dismissed"`,
     `ORDER BY score DESC`,
@@ -97,17 +90,15 @@ export function buildDismissedSimilarityQuery(proposedText: string): string {
 /**
  * Builds a BM25 fulltext search query for learning coverage check.
  *
- * Requires bound parameters: $ws (workspace RecordId)
+ * Requires bound parameters: $ws (workspace RecordId), $query (search text)
  */
 export function buildCoverageQuery(
-  clusterText: string,
   learningStatus: "active" | "dismissed" = "active",
 ): string {
-  const escaped = escapeSearchQuery(clusterText);
   return [
     `SELECT text, search::score(1) AS score`,
     `FROM learning`,
-    `WHERE text @1@ '${escaped}'`,
+    `WHERE text @1@ $query`,
     `AND workspace = $ws`,
     `AND status = "${learningStatus}"`,
     `ORDER BY score DESC`,
