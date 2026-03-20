@@ -73,11 +73,19 @@ const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
 export async function applyTestSchema(surreal: Surreal): Promise<void> {
   const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
 
+  // Strip full-line comments before splitting — comments may contain semicolons
+  // (e.g. "-- The edge is the source of truth; status is a derived consequence.")
+  // which would create spurious fragments after the split.
+  const withoutComments = schemaSql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+
   // Split into individual statements
-  const statements = schemaSql
+  const statements = withoutComments
     .split(";")
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .filter((s) => s.length > 0);
 
   // Phase 1: DEFINE ANALYZER (must be isolated)
   const analyzerStmts = statements.filter((s) => s.startsWith("DEFINE ANALYZER"));
