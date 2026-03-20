@@ -15,13 +15,9 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
-import type { embed } from "ai";
 import { z } from "zod";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
-import { createEmbeddingVector } from "../graph/embeddings";
 import { log } from "../telemetry/logger";
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,8 +29,6 @@ export type TraceAnalysisInput = {
   traceId: string;
   traceBody?: Record<string, unknown>;
   observerModel: LanguageModel;
-  embeddingModel: EmbeddingModel;
-  embeddingDimension: number;
 };
 
 export type TraceAnalysisResult = {
@@ -314,7 +308,6 @@ async function detectContradictions(
         verified: true,
         source: "llm",
         reasoning: verdict.reasoning,
-        embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
       });
 
       observationsCreated += 1;
@@ -389,7 +382,6 @@ async function detectMissingDecisions(
       verified: true,
       source: "llm",
       reasoning: missingResult.reasoning,
-      embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
     });
 
     log.info("observer.trace.missing_decision", "Unrecorded decision observation created", {
@@ -459,7 +451,7 @@ async function loadIntelligenceConfig(
 export async function analyzeTraceResponse(
   input: TraceAnalysisInput,
 ): Promise<TraceAnalysisResult> {
-  const { surreal, workspaceRecord, traceId, traceBody, embeddingModel, embeddingDimension } = input;
+  const { surreal, workspaceRecord, traceId, traceBody } = input;
 
   // Step 1: Check stop_reason
   if (!shouldAnalyzeTrace(undefined, traceBody)) {
@@ -483,16 +475,13 @@ export async function analyzeTraceResponse(
     return { observations_created: 0, skipped: true, reason: "not_enabled" };
   }
 
-  // Step 3: Embed the response text
-  const responseEmbedding = await createEmbeddingVector(
-    embeddingModel,
-    responseText.slice(0, 4000), // Limit embedding input
-    embeddingDimension,
-  );
+  // Step 3: Embedding-based trace analysis removed (embeddings infrastructure dropped).
+  // TODO: Replace with BM25-based decision search for contradiction detection.
+  const responseEmbedding: number[] | undefined = undefined;
 
   if (!responseEmbedding) {
-    log.error("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
-    return { observations_created: 0, skipped: true, reason: "embedding_failed" };
+    log.info("observer.trace.embedding_removed", "Trace analysis skipped: embedding infrastructure removed", { traceId });
+    return { observations_created: 0, skipped: true, reason: "embedding_removed" };
   }
 
   // Step 4: Run both detection pipelines

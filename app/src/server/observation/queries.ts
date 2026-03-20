@@ -1,14 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
-import type { embed } from "ai";
 import type { EntityCategory, ObservationSeverity, ObservationStatus, ObservationSummary, ObservationType } from "../../shared/contracts";
-import { createEmbeddingVector } from "../graph/embeddings";
-import { log } from "../telemetry/logger";
 
 type ObservationRecord = RecordId<"observation", string>;
 export type ObserveTargetRecord = RecordId<"project" | "feature" | "task" | "decision" | "question" | "observation" | "intent" | "git_commit" | "objective" | "trace", string>;
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 const SEVERITY_PRIORITY: Record<ObservationSeverity, number> = {
   conflict: 0,
@@ -16,67 +11,9 @@ const SEVERITY_PRIORITY: Record<ObservationSeverity, number> = {
   info: 2,
 };
 
-const SIMILARITY_THRESHOLD = 0.85;
-
-// ---------------------------------------------------------------------------
-// Cross-agent similarity linking
-// ---------------------------------------------------------------------------
-
-/**
- * Finds semantically similar open observations and creates similar_to edges.
- * Surfaces convergence — multiple agents or sessions independently flagging
- * the same issue is a stronger signal than a single observation.
- */
-async function linkSimilarObservations(input: {
-  surreal: Surreal;
-  workspaceRecord: RecordId<"workspace", string>;
-  observationRecord: RecordId<"observation", string>;
-  embedding: number[];
-  now: Date;
-}): Promise<void> {
-  const sql = `
-    LET $candidates = SELECT id, workspace, status,
-      vector::similarity::cosine(embedding, $vec) AS similarity
-      FROM observation WHERE embedding <|10, COSINE|> $vec;
-    SELECT id, similarity FROM $candidates
-      WHERE workspace = $ws AND id != $self
-      AND status IN ['open', 'acknowledged']
-      AND similarity > ${SIMILARITY_THRESHOLD}
-      ORDER BY similarity DESC LIMIT 5;
-  `;
-
-  const results = await input.surreal.query<[null, Array<{ id: RecordId<"observation", string>; similarity: number }>]>(sql, {
-    vec: input.embedding,
-    ws: input.workspaceRecord,
-    self: input.observationRecord,
-  });
-
-  const similar = results[1] ?? [];
-  for (const match of similar) {
-    await input.surreal
-      .relate(input.observationRecord, new RecordId("similar_to", randomUUID()), match.id, {
-        similarity: match.similarity,
-        created_at: input.now,
-      })
-      .output("after");
-  }
-
-  if (similar.length > 0) {
-    log.info("observation.similar_linked", "Linked similar cross-agent observations", {
-      observationId: input.observationRecord.id,
-      linkedCount: similar.length,
-    });
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Create or deduplicate observation
 // ---------------------------------------------------------------------------
-
-export type EmbeddingDeps = {
-  embeddingModel: EmbeddingModel;
-  embeddingDimension: number;
-};
 
 export async function createObservation(input: {
   surreal: Surreal;
@@ -90,25 +27,12 @@ export async function createObservation(input: {
   sourceMessageRecord?: RecordId<"message", string>;
   sourceSessionRecord?: RecordId<"agent_session", string>;
   relatedRecords?: ObserveTargetRecord[];
-  embedding?: number[];
   confidence?: number;
   evidenceRefs?: RecordId[];
   verified?: boolean;
   source?: string;
   reasoning?: string;
-  embeddingDeps?: EmbeddingDeps;
 }): Promise<ObservationRecord> {
-  // Step 1: Resolve embedding — use provided or generate from text
-  let embedding = input.embedding;
-  if (!embedding && input.embeddingDeps) {
-    embedding = await createEmbeddingVector(
-      input.embeddingDeps.embeddingModel,
-      input.text,
-      input.embeddingDeps.embeddingDimension,
-    );
-  }
-
-  // Step 2: Create new observation
   const observationRecord = new RecordId("observation", randomUUID());
 
   await input.surreal.create(observationRecord).content({
@@ -121,7 +45,6 @@ export async function createObservation(input: {
     workspace: input.workspaceRecord,
     ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
     ...(input.sourceSessionRecord ? { source_session: input.sourceSessionRecord } : {}),
-    ...(embedding ? { embedding } : {}),
     ...(input.confidence !== undefined ? { confidence: input.confidence } : {}),
     ...(input.evidenceRefs && input.evidenceRefs.length > 0 ? { evidence_refs: input.evidenceRefs } : {}),
     ...(input.verified !== undefined ? { verified: input.verified } : {}),
@@ -140,22 +63,6 @@ export async function createObservation(input: {
         added_at: input.now,
       })
       .output("after");
-  }
-
-  // Step 4: Link cross-agent similar observations via similar_to edges
-  if (embedding) {
-    await linkSimilarObservations({
-      surreal: input.surreal,
-      workspaceRecord: input.workspaceRecord,
-      observationRecord,
-      embedding,
-      now: input.now,
-    }).catch((error) => {
-      log.warn("observation.similar_link_failed", "Failed to link similar observations", {
-        observationId: observationRecord.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
   }
 
   return observationRecord;

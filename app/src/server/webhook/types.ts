@@ -41,8 +41,6 @@ export type CommitInput = {
 export type ProcessCommitInput = {
   surreal: Surreal;
   extractionModel: unknown;
-  embeddingModel: unknown;
-  embeddingDimension: number;
   extractionStoreThreshold: number;
   extractionModelId: string;
   workspaceRecord: RecordId<"workspace", string>;
@@ -72,8 +70,6 @@ export type ProcessCommitResult = {
 export type ProcessWebhookInput = {
   surreal: Surreal;
   extractionModel: unknown;
-  embeddingModel: unknown;
-  embeddingDimension: number;
   extractionStoreThreshold: number;
   extractionModelId: string;
   workspaceRecord: RecordId<"workspace", string>;

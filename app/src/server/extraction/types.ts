@@ -36,7 +36,6 @@ export type ExtractionGraphContextRow = {
 export type CandidateEntityRow = {
   id: GraphEntityRecord;
   text: string;
-  embedding?: number[];
 };
 
 export type ConversationProvenanceRow = {
@@ -50,7 +49,6 @@ export type PersistExtractionResult = {
   entities: ExtractedEntity[];
   relationships: ExtractedRelationship[];
   seeds: OnboardingSeedItem[];
-  embeddingTargets: Array<{ record: GraphEntityRecord; text: string }>;
   tools: string[];
   unresolvedAssigneeNames: string[];
 };

@@ -10,7 +10,6 @@ import {
 } from "./entity-upsert";
 import { resolveWorkspaceIdentity, resolveIdentityAttributionPatch } from "./identity-resolution";
 import type {
-  GraphEntityRecord,
   PersistExtractionResult,
   SourceRecord,
   TempEntityReference,
@@ -20,14 +19,13 @@ import { seedDescriptionEntry } from "../descriptions/persist";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
 import type { DescriptionTarget } from "../descriptions/types";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
+import type { GraphEntityRecord } from "../graph/queries";
 import { postValidateEntities, postValidateRelationships } from "./validation";
 import { log } from "../telemetry/logger";
 
 export async function persistExtractionOutput(input: {
   surreal: Surreal;
   extractionModel: any;
-  embeddingModel: any;
-  embeddingDimension: number;
   extractionModelId: string;
   extractionStoreThreshold: number;
   workspaceRecord: RecordId<"workspace", string>;
@@ -73,7 +71,6 @@ export async function persistExtractionOutput(input: {
     const persistedEntities: ExtractedEntity[] = [];
     const persistedRelationships: ExtractedRelationship[] = [];
     const seeds: OnboardingSeedItem[] = [];
-    const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
     const entityByTempId = new Map<string, TempEntityReference>();
     const unresolvedAssigneeNames = new Set<string>();
 
@@ -92,8 +89,6 @@ export async function persistExtractionOutput(input: {
 
       const persisted = await upsertGraphEntity({
         surreal: input.surreal,
-        embeddingModel: input.embeddingModel,
-        embeddingDimension: input.embeddingDimension,
         extractionModelId: input.extractionModelId,
         workspaceRecord: input.workspaceRecord,
         workspaceProjects,
@@ -141,11 +136,6 @@ export async function persistExtractionOutput(input: {
       });
 
       if (persisted.created) {
-        embeddingTargets.push({
-          record: persisted.record,
-          text: persisted.text,
-        });
-
         const descriptionTargets: DescriptionTarget[] = ["project", "feature", "task"];
         if (descriptionTargets.includes(persisted.kind as DescriptionTarget)) {
           await seedDescriptionEntry({
@@ -236,7 +226,6 @@ export async function persistExtractionOutput(input: {
       entities: persistedEntities,
       relationships: persistedRelationships,
       seeds,
-      embeddingTargets,
       tools: input.output.tools.map((tool) => tool.trim()).filter((tool) => tool.length > 0),
       unresolvedAssigneeNames: [...unresolvedAssigneeNames],
     };

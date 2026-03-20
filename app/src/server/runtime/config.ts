@@ -17,8 +17,6 @@ export type ServerConfig = {
   extractionModelId: string;
   pmAgentModelId: string;
   analyticsAgentModelId: string;
-  embeddingModelId: string;
-  embeddingDimension: number;
   extractionStoreThreshold: number;
   extractionDisplayThreshold: number;
   openRouterReasoning?: OpenRouterReasoningOptions;
@@ -74,9 +72,6 @@ export function loadServerConfig(): ServerConfig {
   const extractionModelId = requireEnv("EXTRACTION_MODEL");
   const pmAgentModelId = optionalEnv("PM_AGENT_MODEL") ?? extractionModelId;
   const analyticsAgentModelId = requireEnv("ANALYTICS_MODEL");
-  const embeddingModelId = requireEnv("EMBEDDING_MODEL");
-  const embeddingDimension = parsePositiveInteger(requireEnv("EMBEDDING_DIMENSION"), "EMBEDDING_DIMENSION");
-
   const surrealUrl = requireEnv("SURREAL_URL");
   const surrealUsername = requireEnv("SURREAL_USERNAME");
   const surrealPassword = requireEnv("SURREAL_PASSWORD");
@@ -118,8 +113,6 @@ export function loadServerConfig(): ServerConfig {
     extractionModelId,
     pmAgentModelId,
     analyticsAgentModelId,
-    embeddingModelId,
-    embeddingDimension,
     extractionStoreThreshold,
     extractionDisplayThreshold,
     ...(openRouterReasoning ? { openRouterReasoning } : {}),

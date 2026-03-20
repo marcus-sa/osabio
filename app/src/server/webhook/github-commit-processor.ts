@@ -5,7 +5,6 @@ import { persistExtractionOutput } from "../extraction/persist-extraction";
 import { loadWorkspaceGraphContext } from "../extraction/context-loaders";
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 import { findWorkspaceIdentityByName } from "../extraction/identity-resolution";
-import { createEmbedding } from "../extraction/embedding-writeback";
 import { createObservation } from "../observation/queries";
 import { elapsedMs } from "../http/observability";
 import type { SourceRecord } from "../extraction/types";
@@ -64,8 +63,6 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
       const commitResult = await processCommit({
         surreal: input.surreal,
         extractionModel: input.extractionModel,
-        embeddingModel: input.embeddingModel,
-        embeddingDimension: input.embeddingDimension,
         extractionStoreThreshold: input.extractionStoreThreshold,
         extractionModelId: input.extractionModelId,
         workspaceRecord: input.workspaceRecord,
@@ -104,8 +101,6 @@ export async function processGitCommits(input: ProcessWebhookInput): Promise<Pro
 async function processCommit(input: {
   surreal: typeof import("surrealdb").Surreal.prototype;
   extractionModel: unknown;
-  embeddingModel: unknown;
-  embeddingDimension: number;
   extractionStoreThreshold: number;
   extractionModelId: string;
   workspaceRecord: RecordId<"workspace", string>;
@@ -126,13 +121,6 @@ async function processCommit(input: {
     identityName: input.commit.authorName,
   });
 
-  // Create embedding for commit message
-  const embedding = await createEmbedding(
-    input.embeddingModel,
-    input.embeddingDimension,
-    input.commit.message,
-  );
-
   // Persist git_commit record
   await input.surreal.create(commitRecord).content({
     sha: input.commit.sha,
@@ -143,7 +131,6 @@ async function processCommit(input: {
     author_name: input.commit.authorName,
     url: input.commit.url,
     workspace: input.workspaceRecord,
-    ...(embedding ? { embedding } : {}),
     created_at: input.now,
   });
 
@@ -253,8 +240,6 @@ async function processCommit(input: {
   const persisted = await persistExtractionOutput({
     surreal: input.surreal,
     extractionModel: input.extractionModel,
-    embeddingModel: input.embeddingModel,
-    embeddingDimension: input.embeddingDimension,
     extractionModelId: input.extractionModelId,
     extractionStoreThreshold: input.extractionStoreThreshold,
     workspaceRecord: input.workspaceRecord,
@@ -298,7 +283,6 @@ async function processCommit(input: {
         sourceAgent: "git_webhook",
         now: input.now,
         relatedRecords: [decisionRecord],
-        embeddingDeps: { embeddingModel: input.embeddingModel as any, embeddingDimension: input.embeddingDimension },
       });
 
       observationsCreated.push(observation.id as string);

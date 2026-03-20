@@ -1,13 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { embed } from "ai";
 import { RecordId, Surreal } from "surrealdb";
 import type { SuggestionCategory, SuggestionStatus, SuggestionSummary } from "../../shared/contracts";
-import { createEmbeddingVector } from "../graph/embeddings";
 import { createProjectRecord } from "../graph/queries";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { seedDescriptionEntry } from "../descriptions/persist";
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 type SuggestionRecord = RecordId<"suggestion", string>;
 type SuggestsForTarget = RecordId<"project" | "feature" | "task" | "question" | "decision", string>;
@@ -26,7 +22,6 @@ export async function createSuggestion(input: {
   sourceSessionRecord?: RecordId<"agent_session", string>;
   targetRecord?: SuggestsForTarget;
   evidenceRecords?: EvidenceTarget[];
-  embedding?: number[];
 }): Promise<SuggestionRecord> {
   const suggestionRecord = new RecordId("suggestion", randomUUID());
 
@@ -40,7 +35,6 @@ export async function createSuggestion(input: {
     workspace: input.workspaceRecord,
     ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
     ...(input.sourceSessionRecord ? { source_session: input.sourceSessionRecord } : {}),
-    ...(input.embedding ? { embedding: input.embedding } : {}),
     created_at: input.now,
     updated_at: input.now,
   });
@@ -196,8 +190,6 @@ export async function convertSuggestion(input: {
   suggestionRecord: SuggestionRecord;
   targetKind: ConvertTargetKind;
   title?: string;
-  embeddingModel: EmbeddingModel;
-  embeddingDimension: number;
   now: Date;
 }): Promise<{ entityId: string; table: ConvertTargetKind }> {
   // 1. Validate suggestion exists + workspace scope + convertible status
@@ -220,10 +212,7 @@ export async function convertSuggestion(input: {
 
   const entityName = input.title ?? row.text;
 
-  // 2. Create embedding
-  const embedding = await createEmbeddingVector(input.embeddingModel, entityName, input.embeddingDimension);
-
-  // 3. Resolve suggests_for target to find linked project
+  // 2. Resolve suggests_for target to find linked project
   const [suggestsForRows] = await input.surreal
     .query<[Array<{ out: RecordId<string, string> }>]>(
       "SELECT out FROM suggests_for WHERE in = $suggestion;",
@@ -242,7 +231,6 @@ export async function convertSuggestion(input: {
       title: entityName,
       status: "open",
       workspace: input.workspaceRecord,
-      ...(embedding ? { embedding } : {}),
       created_at: input.now,
       updated_at: input.now,
     });
@@ -260,7 +248,6 @@ export async function convertSuggestion(input: {
       name: entityName,
       status: "active",
       workspace: input.workspaceRecord,
-      ...(embedding ? { embedding } : {}),
       created_at: input.now,
       updated_at: input.now,
     });
@@ -281,7 +268,6 @@ export async function convertSuggestion(input: {
       summary: entityName,
       status: "proposed",
       workspace: input.workspaceRecord,
-      ...(embedding ? { embedding } : {}),
       created_at: input.now,
       updated_at: input.now,
     });
@@ -301,9 +287,6 @@ export async function convertSuggestion(input: {
       now: input.now,
       workspaceRecord: input.workspaceRecord,
     });
-    if (embedding) {
-      await input.surreal.update(projectRecord).merge({ embedding });
-    }
     targetRecord = projectRecord;
   }
 

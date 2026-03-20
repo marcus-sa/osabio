@@ -52,7 +52,6 @@ describe("observation queries", () => {
       now: new Date("2026-01-15T10:00:00.000Z"),
       sourceMessageRecord,
       relatedRecords: [taskRecord],
-      embedding: [0.1, 0.2, 0.3],
     });
 
     expect(observationRecord.table.name).toBe("observation");
@@ -65,7 +64,6 @@ describe("observation queries", () => {
       source_agent: "chat_agent",
       workspace: workspaceRecord,
       source_message: sourceMessageRecord,
-      embedding: [0.1, 0.2, 0.3],
     });
 
     expect(relateCalls).toHaveLength(1);
@@ -119,80 +117,6 @@ describe("observation queries", () => {
       status: "resolved",
       resolved_by: ownerRecord,
     });
-  });
-
-  it("creates similar_to edges for observations with embeddings", async () => {
-    const createdPayloads: unknown[] = [];
-    const relateCalls: Array<{ inTable: string; edgeTable: string; outTable: string; payload: unknown }> = [];
-
-    const similarObsId = new RecordId("observation", "similar-obs");
-
-    const surrealMock = {
-      query: async () => {
-        // Similarity linking query — return one similar observation
-        return [null, [{ id: similarObsId, similarity: 0.90 }]];
-      },
-      create: () => ({
-        content: async (payload: unknown) => {
-          createdPayloads.push(payload);
-        },
-      }),
-      relate: (inRec: RecordId, edgeRec: RecordId, outRec: RecordId, payload: unknown) => {
-        relateCalls.push({
-          inTable: inRec.table.name,
-          edgeTable: edgeRec.table.name,
-          outTable: outRec.table.name,
-          payload,
-        });
-        return { output: async () => ({}) };
-      },
-    };
-
-    await createObservation({
-      surreal: surrealMock as any,
-      workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "Cross-agent observation",
-      severity: "warning",
-      sourceAgent: "observer_agent",
-      now: new Date("2026-02-01T12:00:00.000Z"),
-      embedding: [0.1, 0.2, 0.3],
-    });
-
-    expect(createdPayloads).toHaveLength(1);
-    const similarEdges = relateCalls.filter((c) => c.edgeTable === "similar_to");
-    expect(similarEdges).toHaveLength(1);
-    expect(similarEdges[0].inTable).toBe("observation");
-    expect(similarEdges[0].outTable).toBe("observation");
-    expect((similarEdges[0].payload as any).similarity).toBe(0.90);
-  });
-
-  it("skips similarity linking when no embedding", async () => {
-    const createdPayloads: unknown[] = [];
-
-    const surrealMock = {
-      create: () => ({
-        content: async (payload: unknown) => {
-          createdPayloads.push(payload);
-        },
-      }),
-      relate: () => ({
-        output: async () => ({}),
-      }),
-      // query should NOT be called — no embedding means no linking
-      query: () => { throw new Error("query should not be called without embedding"); },
-    };
-
-    const result = await createObservation({
-      surreal: surrealMock as any,
-      workspaceRecord: new RecordId("workspace", "w-1"),
-      text: "No embedding provided",
-      severity: "info",
-      sourceAgent: "chat_agent",
-      now: new Date("2026-02-01T12:00:00.000Z"),
-    });
-
-    expect(result.table.name).toBe("observation");
-    expect(createdPayloads).toHaveLength(1);
   });
 
   it("lists open observations sorted by severity then recency", async () => {

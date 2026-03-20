@@ -835,9 +835,6 @@ export function createAnthropicProxyHandler(
           inflight: deps.inflight,
           rateLimiterState,
           spendCache,
-          embeddingDeps: deps.embeddingModel && deps.config.embeddingDimension
-            ? { embeddingModel: deps.embeddingModel, embeddingDimension: deps.config.embeddingDimension }
-            : undefined,
           noPolicyWarnedWorkspaces,
         };
 

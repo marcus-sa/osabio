@@ -4,9 +4,8 @@ import type { ExtractedEntity, ExtractedRelationship, OnboardingAction } from ".
 import { loadAssistantConversationContext } from "../extraction/context-loaders";
 import { loadBranchChain, loadMessagesWithInheritance } from "./branch-chain";
 import { ingestAttachment } from "../extraction/document-ingestion";
-import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { appendExtractedTools } from "../extraction/persist-extraction";
-import type { ConversationRow, GraphEntityRecord, IncomingAttachment, WorkspaceRow } from "../extraction/types";
+import type { ConversationRow, IncomingAttachment, WorkspaceRow } from "../extraction/types";
 import { userFacingError } from "../http/observability";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import type { ServerDependencies } from "../runtime/types";
@@ -90,22 +89,10 @@ export async function processChatMessage(input: {
       assistantContextRows = await loadAssistantConversationContext(input.deps.surreal, input.conversationId);
     }
 
-    // Embed user message early: used for context enrichment and persisted to the message record
-    const userMessageEmbedding = await createEmbedding(input.deps.embeddingModel, input.deps.config.embeddingDimension, input.userText);
-    if (userMessageEmbedding) {
-      await input.deps.surreal
-        .query("UPDATE $record MERGE { embedding: $embedding };", {
-          record: input.userMessageRecord,
-          embedding: userMessageEmbedding,
-        })
-        .catch(() => undefined);
-    }
-
     const workspaceProjects = await loadWorkspaceProjects(input.deps.surreal, input.workspaceRecord);
     const workspaceProjectNames = workspaceProjects.map((project) => project.name);
     const persistedEntities: ExtractedEntity[] = [];
     const persistedRelationships: ExtractedRelationship[] = [];
-    const embeddingTargets: Array<{ record: GraphEntityRecord; text: string }> = [];
     const extractedTools: string[] = [];
     const unresolvedAssigneeNames = new Set<string>();
 
@@ -114,8 +101,6 @@ export async function processChatMessage(input: {
       const ingestion = await ingestAttachment({
         surreal: input.deps.surreal,
         extractionModel: input.deps.extractionModel,
-        embeddingModel: input.deps.embeddingModel,
-        embeddingDimension: input.deps.config.embeddingDimension,
         extractionStoreThreshold: input.deps.config.extractionStoreThreshold,
         extractionModelId: input.deps.config.extractionModelId,
         workspaceRecord: input.workspaceRecord,
@@ -139,7 +124,6 @@ export async function processChatMessage(input: {
 
       persistedEntities.push(...ingestion.entities);
       persistedRelationships.push(...ingestion.relationships);
-      embeddingTargets.push(...ingestion.embeddingTargets);
       extractedTools.push(...ingestion.tools);
       for (const unresolvedName of ingestion.unresolvedAssigneeNames) {
         unresolvedAssigneeNames.add(unresolvedName);
@@ -176,8 +160,6 @@ export async function processChatMessage(input: {
       pmAgentModel: input.deps.pmAgentModel,
       analyticsAgentModel: input.deps.analyticsAgentModel,
       analyticsSurreal: input.deps.analyticsSurreal,
-      embeddingModel: input.deps.embeddingModel,
-      embeddingDimension: input.deps.config.embeddingDimension,
       extractionModelId: input.deps.config.extractionModelId,
       extractionModel: input.deps.extractionModel,
       extractionStoreThreshold: input.deps.config.extractionStoreThreshold,
@@ -191,7 +173,6 @@ export async function processChatMessage(input: {
       ...(workspace.description ? { workspaceDescription: workspace.description } : {}),
       ...(workspaceOwnerRecord ? { workspaceOwnerRecord } : {}),
       identityRecord: input.identityRecord,
-      ...(userMessageEmbedding ? { userMessageEmbedding } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
       ...(conversation.discusses ? { discussesRecord: conversation.discusses } : {}),
       messages: assistantContextRows.map((row) => ({
@@ -243,15 +224,6 @@ export async function processChatMessage(input: {
     await input.deps.surreal.update(conversationRecord).merge({
       updatedAt: now,
     });
-
-    await persistEmbeddings({
-      surreal: input.deps.surreal,
-      embeddingModel: input.deps.embeddingModel,
-      embeddingDimension: input.deps.config.embeddingDimension,
-      assistantMessageRecord,
-      assistantText,
-      entities: embeddingTargets,
-    }).catch(() => undefined);
 
     input.deps.sse.emitEvent(input.messageId, {
       type: "extraction",

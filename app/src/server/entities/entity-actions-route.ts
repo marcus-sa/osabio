@@ -135,8 +135,6 @@ async function handleEntityAction(
           suggestionRecord: entityRecord as RecordId<"suggestion", string>,
           targetKind: body.convertTo as "task" | "feature" | "decision" | "project",
           title: body.convertTitle,
-          embeddingModel: deps.embeddingModel,
-          embeddingDimension: deps.config.embeddingDimension,
           now,
         });
         log.info("entity.action.convert", "Suggestion converted", { workspaceId, suggestionId: entityId, convertedEntityId: result.entityId, table: result.table });

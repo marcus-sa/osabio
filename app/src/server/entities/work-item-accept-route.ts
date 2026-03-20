@@ -4,7 +4,6 @@ import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 import { HttpError } from "../http/errors";
 import { jsonError, jsonResponse } from "../http/response";
-import { createEmbeddingVector } from "../graph/embeddings";
 import { createProjectRecord, resolveWorkspaceFeatureRecord, resolveWorkspaceProjectRecord } from "../graph/queries";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
@@ -62,12 +61,6 @@ async function handleAcceptWorkItem(
 
   try {
     const now = new Date();
-    const embedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      item.title,
-      deps.config.embeddingDimension,
-    );
-
     const entityId = randomUUID();
 
     if (item.kind === "task") {
@@ -78,7 +71,6 @@ async function handleAcceptWorkItem(
         workspace: workspaceRecord,
         ...(item.category ? { category: item.category } : {}),
         ...(item.priority ? { priority: item.priority } : {}),
-        ...(embedding ? { embedding } : {}),
         created_at: now,
         updated_at: now,
       });
@@ -146,10 +138,6 @@ async function handleAcceptWorkItem(
         workspaceRecord,
       });
 
-      if (embedding) {
-        await deps.surreal.update(projectRecord).merge({ embedding });
-      }
-
       deps.inflight.track(seedDescriptionEntry({
         surreal: deps.surreal,
         targetRecord: projectRecord,
@@ -172,7 +160,6 @@ async function handleAcceptWorkItem(
       status: "active",
       workspace: workspaceRecord,
       ...(item.category ? { category: item.category } : {}),
-      ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,
     });

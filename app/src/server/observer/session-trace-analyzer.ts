@@ -18,7 +18,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
-import { createObservation, type ObserveTargetRecord, type EmbeddingDeps } from "../observation/queries";
+import { createObservation, type ObserveTargetRecord } from "../observation/queries";
 import { extractResponseText } from "./trace-response-analyzer";
 import { log } from "../telemetry/logger";
 
@@ -31,7 +31,6 @@ export type SessionTraceAnalysisInput = {
   workspaceRecord: RecordId<"workspace", string>;
   sessionId: string;
   observerModel: LanguageModel;
-  embeddingDeps?: EmbeddingDeps;
 };
 
 export type SessionTraceAnalysisResult = {
@@ -277,7 +276,6 @@ export async function analyzeSessionTraces(
         confidence: pattern.confidence,
         verified: true,
         source: "llm",
-        embeddingDeps: input.embeddingDeps,
       });
 
       observationsCreated += 1;

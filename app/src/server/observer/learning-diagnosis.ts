@@ -25,22 +25,11 @@ import { buildCoverageQuery, isCoverageMatch, type Bm25LearningMatch } from "../
 import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
 import type { CoverageCheckResult } from "../learning/collision-types";
-import type { embed } from "ai";
 import { log } from "../telemetry/logger";
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export type ObservationWithEmbedding = {
-  id: string;
-  text: string;
-  severity: string;
-  embedding: number[];
-  entityRefs: string[];
-};
 
 export type ObservationForClustering = {
   id: string;
@@ -114,47 +103,6 @@ export async function queryRecentObservations(
     id: row.id.id as string,
     text: row.text,
     severity: row.severity,
-    entityRefs: (row.entity_refs ?? [])
-      .filter((ref): ref is RecordId => typeof ref === "object" && ref !== null && "id" in ref)
-      .map((ref) => `task:${ref.id as string}`),
-  }));
-}
-
-/**
- * Legacy query: fetches observations WITH embeddings.
- * Retained for backward compatibility; prefer queryRecentObservations.
- */
-export async function queryRecentObservationsWithEmbeddings(
-  surreal: Surreal,
-  workspaceRecord: RecordId<"workspace", string>,
-): Promise<ObservationWithEmbedding[]> {
-  const cutoff = new Date(Date.now() - TIME_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-
-  const [rows] = await surreal.query<[Array<{
-    id: RecordId<"observation">;
-    text: string;
-    severity: string;
-    embedding: number[];
-    entity_refs: Array<RecordId | string>;
-    created_at: string;
-  }>]>(
-    `SELECT id, text, severity, embedding, created_at,
-            ->observes->task.id AS entity_refs
-     FROM observation
-     WHERE workspace = $ws
-       AND status IN ["open", "acknowledged"]
-       AND created_at > $cutoff
-       AND embedding IS NOT NONE
-     ORDER BY created_at DESC
-     LIMIT 200;`,
-    { ws: workspaceRecord, cutoff },
-  );
-
-  return (rows ?? []).map((row) => ({
-    id: row.id.id as string,
-    text: row.text,
-    severity: row.severity,
-    embedding: row.embedding,
     entityRefs: (row.entity_refs ?? [])
       .filter((ref): ref is RecordId => typeof ref === "object" && ref !== null && "id" in ref)
       .map((ref) => `task:${ref.id as string}`),
@@ -831,8 +779,6 @@ async function processUncoveredCluster(
   model: LanguageModel,
   cluster: ObservationCluster,
   existingLearnings: string[],
-  embeddingModel?: EmbeddingModel,
-  embeddingDimension?: number,
 ): Promise<{ proposed: boolean }> {
   const classification = await classifyRootCause(model, cluster, existingLearnings);
 
@@ -880,9 +826,6 @@ async function processUncoveredCluster(
     sourceAgent: "observer_agent",
     observationType: "pattern",
     now: new Date(),
-    embeddingDeps: embeddingModel && embeddingDimension
-      ? { embeddingModel, embeddingDimension }
-      : undefined,
   });
 
   log.info("observer.learning.low_confidence", "Pattern observed but confidence too low for learning proposal", {
@@ -912,8 +855,6 @@ export async function runDiagnosticClustering(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   observerModel: LanguageModel,
-  embeddingModel?: EmbeddingModel,
-  embeddingDimension?: number,
 ): Promise<{
   clusters: ObservationCluster[];
   uncoveredClusters: ObservationCluster[];
@@ -993,8 +934,6 @@ export async function runDiagnosticClustering(
         observerModel,
         cluster,
         existingLearnings,
-        embeddingModel,
-        embeddingDimension,
       );
 
       if (proposed) {

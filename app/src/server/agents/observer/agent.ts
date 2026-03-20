@@ -9,8 +9,8 @@
  */
 
 import { RecordId, type Surreal } from "surrealdb";
-import type { LanguageModel, embed } from "ai";
-import { createObservation, type ObserveTargetRecord, type EmbeddingDeps } from "../../observation/queries";
+import type { LanguageModel } from "ai";
+import { createObservation, type ObserveTargetRecord } from "../../observation/queries";
 import { queryExistingObserverObservationsForEntity } from "../../observer/graph-scan";
 import { gatherTaskSignals } from "../../observer/external-signals";
 import { checkCiStatus } from "../../observer/external-signals";
@@ -33,8 +33,6 @@ import { parseEntityRef } from "../../observer/evidence-validator";
 import { runDiagnosticClustering } from "../../observer/learning-diagnosis";
 import { log } from "../../telemetry/logger";
 
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -54,8 +52,6 @@ export type ObserverAgentInput = {
   entityId: string;
   entityBody?: Record<string, unknown>;
   observerModel: LanguageModel;
-  embeddingModel?: EmbeddingModel;
-  embeddingDimension?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -111,15 +107,13 @@ export async function runObserverAgent(input: ObserverAgentInput): Promise<Obser
   // observations to trigger the diagnostic learning pipeline.
   // Skip for observation peer reviews (avoid recursive escalation).
   if (result.observations_created > 0 && entityTable !== "observation"
-    && input.observerModel && input.embeddingModel && input.embeddingDimension) {
+    && input.observerModel) {
     await checkAndEscalate(
       input.surreal,
       input.workspaceRecord,
       input.entityTable,
       input.entityId,
       input.observerModel,
-      input.embeddingModel,
-      input.embeddingDimension,
     );
   }
 
@@ -516,7 +510,6 @@ async function persistObservation(
   relatedRecords: ObserveTargetRecord[],
   result: VerificationResult,
   defaultSource = "none",
-  embeddingDeps?: EmbeddingDeps,
 ): Promise<void> {
   const now = new Date();
 
@@ -541,7 +534,6 @@ async function persistObservation(
     verified: result.verified,
     source: result.source ?? defaultSource,
     reasoning: result.reasoning,
-    embeddingDeps,
   });
 }
 
@@ -595,8 +587,6 @@ export async function checkAndEscalate(
   entityTable: string,
   entityId: string,
   observerModel: LanguageModel,
-  embeddingModel: EmbeddingModel,
-  embeddingDimension: number,
 ): Promise<void> {
   try {
     // Count observer observations for this entity
@@ -642,8 +632,6 @@ export async function checkAndEscalate(
       surreal,
       workspaceRecord,
       observerModel,
-      embeddingModel,
-      embeddingDimension,
     );
 
     log.info("observer.escalation.completed", "Event-driven diagnostic pipeline completed", {

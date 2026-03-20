@@ -2,7 +2,6 @@ import { tool } from "ai";
 import { RecordId } from "surrealdb";
 import { z } from "zod";
 import { ENTITY_CATEGORIES } from "../../../shared/contracts";
-import { createEmbeddingVector } from "../../graph/embeddings";
 import { isEntityInWorkspace, parseRecordIdString } from "../../graph/queries";
 import { createObservation } from "../../observation/queries";
 import { requireAuthorizedContext } from "../../iam/authority";
@@ -42,11 +41,6 @@ export function createCreateObservationTool(deps: ChatToolDeps) {
         }
       }
 
-      const embedding = await createEmbeddingVector(deps.embeddingModel, input.text, deps.embeddingDimension);
-      if (!embedding) {
-        throw new Error("failed to create embedding for create_observation");
-      }
-
       const observationRecord = await createObservation({
         surreal: deps.surreal,
         workspaceRecord: context.workspaceRecord,
@@ -57,7 +51,6 @@ export function createCreateObservationTool(deps: ChatToolDeps) {
         now: new Date(),
         sourceMessageRecord: context.currentMessageRecord,
         ...(relatedRecord ? { relatedRecords: [relatedRecord] } : {}),
-        embedding,
       });
 
       return {
