@@ -385,32 +385,50 @@ export function injectRecentChanges(
 }
 
 // ---------------------------------------------------------------------------
-// Recent Changes Classification (04-01: pure)
+// Recent Changes Classification (02-02: time-based, replaces similarity thresholds)
 // ---------------------------------------------------------------------------
 
-const URGENT_CONTEXT_THRESHOLD = 0.7;
-const CONTEXT_UPDATE_THRESHOLD = 0.4;
+const URGENT_AGE_MINUTES = 30;
+const RECENT_AGE_HOURS = 24;
 
 /**
- * Classifies KNN search results by similarity into urgent-context or context-update.
+ * Classifies context items by age into urgent-context or context-update.
  *
- * - >= 0.7 similarity  -> urgent-context (agent should act on this immediately)
- * - >= 0.4 similarity  -> context-update (background awareness)
- * - < 0.4 similarity   -> filtered out (not relevant)
+ * - <= 30 minutes old  -> urgent-context (agent should act on this immediately)
+ * - <= 24 hours old    -> context-update (background awareness)
+ * - > 24 hours old     -> filtered out (stale)
  *
- * Preserves input order for candidates that pass the threshold.
+ * Pure function: takes explicit `now` for deterministic testing.
+ * Preserves input order for candidates that pass the age filter.
+ */
+export function classifyByAge(
+  candidates: RecentChangeCandidate[],
+  now: Date,
+): ClassifiedChange[] {
+  const urgentThresholdMs = URGENT_AGE_MINUTES * 60 * 1000;
+  const recentThresholdMs = RECENT_AGE_HOURS * 60 * 60 * 1000;
+
+  return candidates
+    .map((c) => {
+      const ageMs = now.getTime() - new Date(c.updatedAt).getTime();
+      if (ageMs > recentThresholdMs) return undefined;
+      return {
+        ...c,
+        classification: ageMs <= urgentThresholdMs
+          ? "urgent-context" as const
+          : "context-update" as const,
+      };
+    })
+    .filter((c): c is ClassifiedChange => c !== undefined);
+}
+
+/**
+ * @deprecated Use classifyByAge instead. Kept for backwards compatibility during migration.
  */
 export function classifyBySimilarity(
   candidates: RecentChangeCandidate[],
 ): ClassifiedChange[] {
-  return candidates
-    .filter((c) => c.similarity >= CONTEXT_UPDATE_THRESHOLD)
-    .map((c) => ({
-      ...c,
-      classification: c.similarity >= URGENT_CONTEXT_THRESHOLD
-        ? "urgent-context" as const
-        : "context-update" as const,
-    }));
+  return classifyByAge(candidates, new Date());
 }
 
 // ---------------------------------------------------------------------------
@@ -461,6 +479,143 @@ export function buildRecentChangesXml(changes: ClassifiedChange[]): string {
   }
 
   return `<recent-changes>\n${sections.join("\n")}\n</recent-changes>`;
+}
+
+// ---------------------------------------------------------------------------
+// Time-Based Recent Changes (02-03: pure functions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Row shape returned by time-based entity queries.
+ * Used by mapRowsToRecentChanges to produce RecentChangeCandidate[].
+ */
+export type TimeBasedChangeRow = {
+  readonly id: string;
+  readonly text: string;
+  readonly updated_at: string;
+};
+
+/**
+ * Compute a cutoff Date by subtracting windowMs from now.
+ * Pure date arithmetic -- no IO.
+ */
+export function buildTimeWindowCutoff(now: Date, windowMs: number): Date {
+  return new Date(now.getTime() - windowMs);
+}
+
+/**
+ * Transform raw DB rows into RecentChangeCandidate[].
+ *
+ * Sets similarity to 1.0 for all items since time-based retrieval
+ * does not produce relevance scores -- all items within the window
+ * are equally relevant by definition.
+ */
+export function mapRowsToRecentChanges(
+  rows: TimeBasedChangeRow[],
+  table: RecentChangeCandidate["table"],
+): RecentChangeCandidate[] {
+  return rows.map((row) => ({
+    id: row.id,
+    table,
+    text: row.text,
+    similarity: 1.0,
+    updatedAt: row.updated_at,
+  }));
+}
+
+/**
+ * Classify recent changes by age relative to an urgent threshold.
+ *
+ * Replaces classifyBySimilarity (which used BM25 score thresholds).
+ * Items updated within urgentThresholdMs of `now` are urgent-context;
+ * everything else in the time window is context-update.
+ *
+ * Boundary: items exactly at the threshold are context-update (strict less-than).
+ */
+export function classifyByRecency(
+  candidates: RecentChangeCandidate[],
+  now: Date,
+  urgentThresholdMs: number,
+): ClassifiedChange[] {
+  return candidates.map((c) => {
+    const ageMs = now.getTime() - new Date(c.updatedAt).getTime();
+    return {
+      ...c,
+      classification: ageMs < urgentThresholdMs
+        ? "urgent-context" as const
+        : "context-update" as const,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Time-Based Recent Changes Adapter (02-03: replaces BM25 search)
+// ---------------------------------------------------------------------------
+
+/**
+ * Port signature for fetching recent graph changes by time window.
+ * No text query needed -- pure time-ordered retrieval.
+ */
+export type FetchRecentChangesByTime = (
+  workspaceId: string,
+  cutoff: Date,
+  limit: number,
+) => Promise<RecentChangeCandidate[]>;
+
+type TimeBasedDbRow = {
+  id: RecordId;
+  text: string;
+  updated_at: string;
+};
+
+/**
+ * Fetches recent graph entity changes by time window using simple
+ * WHERE updated_at > $cutoff queries. No embeddings, no BM25.
+ *
+ * Results are ordered by updated_at DESC -- most recent first.
+ */
+export function createFetchRecentChangesByTime(
+  surreal: { query: <T>(sql: string, vars?: Record<string, unknown>) => Promise<T> },
+): FetchRecentChangesByTime {
+  return async (
+    workspaceId: string,
+    cutoff: Date,
+    limit: number,
+  ): Promise<RecentChangeCandidate[]> => {
+    const workspaceRecord = new RecordId("workspace", workspaceId);
+
+    const results = await surreal.query<[TimeBasedDbRow[], TimeBasedDbRow[], TimeBasedDbRow[]]>(
+      `SELECT id, summary AS text, updated_at
+         FROM decision WHERE workspace = $ws AND updated_at > $cutoff AND status != "superseded"
+         ORDER BY updated_at DESC LIMIT $limit;
+       SELECT id, title AS text, updated_at
+         FROM task WHERE workspace = $ws AND updated_at > $cutoff
+         ORDER BY updated_at DESC LIMIT $limit;
+       SELECT id, text, updated_at
+         FROM observation WHERE workspace = $ws AND updated_at > $cutoff
+         ORDER BY updated_at DESC LIMIT $limit;`,
+      { ws: workspaceRecord, cutoff: cutoff.toISOString(), limit },
+    );
+
+    function toRecentChanges(
+      rows: TimeBasedDbRow[],
+      table: RecentChangeCandidate["table"],
+    ): RecentChangeCandidate[] {
+      return rows.map((row) => ({
+        id: (row.id as RecordId).id as string,
+        table,
+        text: row.text,
+        similarity: 1.0,
+        updatedAt: row.updated_at,
+      }));
+    }
+
+    return [
+      ...toRecentChanges(results[0] ?? [], "decision"),
+      ...toRecentChanges(results[1] ?? [], "task"),
+      ...toRecentChanges(results[2] ?? [], "observation"),
+    ];
+  };
 }
 
 // ---------------------------------------------------------------------------

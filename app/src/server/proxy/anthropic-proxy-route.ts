@@ -51,7 +51,7 @@ import {
   buildBrainContextXml,
   injectBrainContext,
   injectRecentChanges,
-  classifyBySimilarity,
+  classifyByAge,
   buildRecentChangesXml,
   createSearchRecentChanges,
   createSearchContextByBm25,
@@ -459,7 +459,7 @@ async function runContextInjection(
   if (recentChangesSearch && lastRequestAt) {
     try {
       const recentCandidates = await recentChangesSearch(queryText, workspaceId, lastRequestAt);
-      const classified = classifyBySimilarity(recentCandidates);
+      const classified = classifyByAge(recentCandidates, new Date());
       const recentChangesXml = buildRecentChangesXml(classified);
       if (recentChangesXml) {
         enrichedSystem = injectRecentChanges(enrichedSystem, recentChangesXml);

@@ -57,7 +57,7 @@ import { z } from "zod";
 import { createIntent, createTrace, updateIntentStatus, getIntentById } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 import { log } from "../telemetry/logger";
-import { createSearchRecentChanges, classifyBySimilarity, type ClassifiedChange } from "../proxy/context-injector";
+import { createSearchRecentChanges, classifyByAge, type ClassifiedChange } from "../proxy/context-injector";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -315,7 +315,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
             ).catch(() => undefined),
           );
         }
-        const classified = classifyBySimilarity(candidates);
+        const classified = classifyByAge(candidates, new Date());
 
         function toUpdateItem(change: ClassifiedChange) {
           return {
