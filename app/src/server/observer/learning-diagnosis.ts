@@ -20,9 +20,11 @@ import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../tele
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
-import { cosineSimilarity, createEmbeddingVector } from "../graph/embeddings";
+import { cosineSimilarity } from "../graph/embeddings";
+import { buildCoverageQuery, isCoverageMatch, type Bm25LearningMatch } from "../learning/bm25-collision";
 import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
+import type { CoverageCheckResult } from "../learning/collision-types";
 import type { embed } from "ai";
 import { log } from "../telemetry/logger";
 
@@ -46,9 +48,7 @@ export type ObservationCluster = {
   clusterSize: number;
 };
 
-export type CoverageCheckResult =
-  | { covered: false }
-  | { covered: true; matchedLearningText: string; similarity: number };
+export type { CoverageCheckResult } from "../learning/collision-types";
 
 export type DiagnosticResult = {
   learning_proposals_created: number;
@@ -63,15 +63,8 @@ export type DiagnosticResult = {
 const CLUSTER_SIMILARITY_THRESHOLD = 0.75;
 const MINIMUM_CLUSTER_SIZE = 3;
 const TIME_WINDOW_DAYS = 14;
-// Coverage threshold is lower than typical dedup thresholds (0.85) because
-// we compare observation-text centroids (descriptive, noisy) against learning-text
-// embeddings (directive, concise). Cross-form comparisons consistently score
-// 30-40% lower on cosine similarity than same-form comparisons.
-const COVERAGE_SIMILARITY_THRESHOLD = 0.50;
-// Same cross-domain text form issue as coverage threshold — observation
-// centroids vs dismissed learning embeddings. Lower than the dismissed
-// re-suggestion gate (0.85) in suggestLearning() which compares same-form texts.
-const DISMISSED_PATTERN_SIMILARITY_THRESHOLD = 0.50;
+// Coverage and dismissed similarity thresholds are no longer needed --
+// BM25 fulltext search handles relevance filtering via the @N@ match operator.
 
 // ---------------------------------------------------------------------------
 // Observation query (IO boundary)
@@ -204,31 +197,6 @@ export function clusterObservationsBySimilarity(
 }
 
 /**
- * Computes the centroid (element-wise average) of a set of embedding vectors.
- * This reduces noise from individual observation text variations, producing
- * a more representative embedding for cluster-level similarity comparisons.
- */
-function computeCentroidEmbedding(embeddings: number[][]): number[] {
-  if (embeddings.length === 0) return [];
-  if (embeddings.length === 1) return embeddings[0];
-
-  const dimension = embeddings[0].length;
-  const centroid = new Array<number>(dimension).fill(0);
-
-  for (const embedding of embeddings) {
-    for (let i = 0; i < dimension; i++) {
-      centroid[i] += embedding[i];
-    }
-  }
-
-  for (let i = 0; i < dimension; i++) {
-    centroid[i] /= embeddings.length;
-  }
-
-  return centroid;
-}
-
-/**
  * Picks the observation with highest average similarity to other cluster members.
  */
 function pickRepresentativeIndex(
@@ -259,84 +227,51 @@ function pickRepresentativeIndex(
 }
 
 // ---------------------------------------------------------------------------
-// Coverage check (IO boundary -- KNN query)
+// Coverage check (IO boundary -- BM25 fulltext search)
 // ---------------------------------------------------------------------------
 
 /**
  * Checks if any learning with a given status covers the cluster pattern.
- * Uses two-step KNN pattern per SurrealDB HNSW+WHERE bug, with brute-force fallback.
+ * Uses BM25 fulltext search instead of KNN embedding similarity.
  */
-async function checkLearningCoverage(
+async function checkLearningCoverageBm25(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
   learningStatus: "active" | "dismissed",
-  similarityThreshold: number,
 ): Promise<CoverageCheckResult> {
-  const results = await surreal
-    .query<[undefined, Array<{ text: string; similarity: number }>]>(
-      [
-        "LET $candidates = SELECT id, text, workspace, status,",
-        "vector::similarity::cosine(embedding, $embedding) AS similarity",
-        "FROM learning WHERE embedding <|10, COSINE|> $embedding;",
-        "SELECT text, similarity FROM $candidates",
-        "WHERE workspace = $ws AND status = $status AND similarity > $threshold",
-        "ORDER BY similarity DESC LIMIT 1;",
-      ].join("\n"),
-      {
-        embedding: clusterEmbedding,
-        ws: workspaceRecord,
-        status: learningStatus,
-        threshold: similarityThreshold,
-      },
-    );
+  const sql = buildCoverageQuery(representativeText, learningStatus);
+  const [rows] = await surreal.query<[Bm25LearningMatch[]]>(sql, {
+    ws: workspaceRecord,
+  });
 
-  const matches = results[1] ?? [];
-  const match = matches[0];
-  if (match) {
-    return { covered: true, matchedLearningText: match.text, similarity: match.similarity };
-  }
-
-  // Brute-force fallback when HNSW index hasn't indexed recent inserts
-  const [learnings] = await surreal.query<[Array<{ text: string; embedding: number[] }>]>(
-    `SELECT text, embedding FROM learning
-     WHERE workspace = $ws
-       AND status = $status
-       AND embedding IS NOT NONE;`,
-    { ws: workspaceRecord, status: learningStatus },
-  );
+  const matches = rows ?? [];
 
   if (learningStatus === "active") {
-    log.info("observer.learning.coverage_fallback", "Fallback coverage check", {
-      activeLearningsCount: (learnings ?? []).length,
+    log.info("observer.learning.bm25_coverage_check", "BM25 coverage check against active learnings", {
+      matchCount: matches.length,
+      topScore: matches[0]?.score,
       workspaceId: workspaceRecord.id,
     });
   }
 
-  for (const learning of learnings ?? []) {
-    const similarity = cosineSimilarity(clusterEmbedding, learning.embedding);
-    if (similarity > similarityThreshold) {
-      return { covered: true, matchedLearningText: learning.text, similarity };
-    }
-  }
-
-  return { covered: false };
+  return isCoverageMatch(matches);
 }
 
 export async function checkCoverageAgainstActiveLearnings(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
 ): Promise<CoverageCheckResult> {
-  return checkLearningCoverage(surreal, workspaceRecord, clusterEmbedding, "active", COVERAGE_SIMILARITY_THRESHOLD);
+  return checkLearningCoverageBm25(surreal, workspaceRecord, representativeText, "active");
 }
 
 export async function checkDismissedLearningForCluster(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
 ): Promise<CoverageCheckResult> {
-  return checkLearningCoverage(surreal, workspaceRecord, clusterEmbedding, "dismissed", DISMISSED_PATTERN_SIMILARITY_THRESHOLD);
+  return checkLearningCoverageBm25(surreal, workspaceRecord, representativeText, "dismissed");
 }
 
 // ---------------------------------------------------------------------------
@@ -726,17 +661,11 @@ async function processUncoveredCluster(
   if (shouldProposeLearning(classification)) {
     const learningInput = rootCauseToLearningInput(classification, cluster);
 
-    // Generate embedding for the proposed learning text to enable
-    // dismissed similarity gate and persist with the learning record
-    const embedding = embeddingModel && embeddingDimension
-      ? await createEmbeddingVector(embeddingModel, learningInput.text, embeddingDimension)
-      : undefined;
-
+    // BM25 dismissed similarity gate runs inside suggestLearning -- no embedding needed
     const result = await suggestLearning({
       surreal,
       workspaceRecord,
       learning: learningInput,
-      embedding,
       now: new Date(),
     });
 
@@ -828,36 +757,21 @@ export async function runDiagnosticClustering(
     return { clusters: [], uncoveredClusters: [], result: diagnosticResult };
   }
 
-  // Step 3: Coverage check for each cluster
+  // Step 3: Coverage check for each cluster (BM25 on representative text)
   const uncoveredClusters: ObservationCluster[] = [];
 
   for (const cluster of clusters) {
-    // Compute cluster centroid embedding (average of all observation embeddings)
-    // to reduce noise from individual observation text variations
-    const clusterObsWithEmbeddings = cluster.observations
-      .map((co) => observations.find((o) => o.id === co.id))
-      .filter((o): o is ObservationWithEmbedding => o !== undefined && o.embedding.length > 0);
-
-    if (clusterObsWithEmbeddings.length === 0) {
-      uncoveredClusters.push(cluster);
-      continue;
-    }
-
-    const centroidEmbedding = computeCentroidEmbedding(
-      clusterObsWithEmbeddings.map((o) => o.embedding),
-    );
-
     const coverage = await checkCoverageAgainstActiveLearnings(
       surreal,
       workspaceRecord,
-      centroidEmbedding,
+      cluster.representativeText,
     );
 
     if (coverage.covered) {
       log.info("observer.learning.coverage_skip", "Cluster pattern already covered by active learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: coverage.matchedLearningText,
-        similarity: coverage.similarity,
+        score: coverage.score,
       });
       diagnosticResult.coverage_skips += 1;
       continue;
@@ -867,14 +781,14 @@ export async function runDiagnosticClustering(
     const dismissedCheck = await checkDismissedLearningForCluster(
       surreal,
       workspaceRecord,
-      centroidEmbedding,
+      cluster.representativeText,
     );
 
     if (dismissedCheck.covered) {
       log.info("observer.learning.dismissed_skip", "Cluster pattern matches a previously dismissed learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: dismissedCheck.matchedLearningText,
-        similarity: dismissedCheck.similarity,
+        score: dismissedCheck.score,
       });
       diagnosticResult.coverage_skips += 1;
     } else {

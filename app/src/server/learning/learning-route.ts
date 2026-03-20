@@ -4,7 +4,6 @@ import { HttpError } from "../http/errors";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import { createEmbeddingVector } from "../graph/embeddings";
 import {
   createLearning,
   listWorkspaceLearnings,
@@ -122,28 +121,12 @@ async function handleCreateLearning(
   try {
     const now = new Date();
 
-    // Attempt embedding generation (non-blocking on failure)
-    let embedding: number[] | undefined;
-    try {
-      embedding = await createEmbeddingVector(
-        deps.embeddingModel,
-        body.text,
-        deps.config.embeddingDimension,
-      );
-    } catch (error) {
-      log.warn("learning.create.embedding_failed", "Embedding generation failed — collision detection will be skipped", {
-        workspaceId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    // Run collision detection before creating the learning (skipped when embedding unavailable)
+    // Run collision detection using BM25 fulltext search (no embedding needed)
     const collisionResult = await checkCollisions({
       surreal: deps.surreal,
       model: deps.extractionModel,
       workspaceRecord,
       learningText: body.text.trim(),
-      learningEmbedding: embedding,
       source: "human",
     });
 
@@ -161,7 +144,6 @@ async function handleCreateLearning(
         ...(shouldBlock ? { forceStatus: "pending_approval" as const } : {}),
       },
       now,
-      embedding,
     });
 
     const learningId = learningRecord.id as string;
@@ -170,7 +152,6 @@ async function handleCreateLearning(
       workspaceId,
       learningId,
       learningType: body.learning_type,
-      hasEmbedding: embedding !== undefined,
       collisions: collisionResult.collisions.length,
       blocked: shouldBlock,
     });
@@ -379,24 +360,6 @@ async function handleEditLearning(
   const learningRecord = new RecordId("learning", learningId) as LearningRecord;
   const now = new Date();
 
-  // Re-embed if text changed
-  let embedding: number[] | undefined;
-  if (body.text !== undefined) {
-    try {
-      embedding = await createEmbeddingVector(
-        deps.embeddingModel,
-        body.text.trim(),
-        deps.config.embeddingDimension,
-      );
-    } catch (error) {
-      log.warn("learning.edit.embedding_failed", "Embedding regeneration failed, updating without", {
-        workspaceId,
-        learningId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
   try {
     await updateLearningFields({
       surreal: deps.surreal,
@@ -408,14 +371,12 @@ async function handleEditLearning(
         ...(body.target_agents !== undefined ? { targetAgents: body.target_agents } : {}),
       },
       now,
-      embedding,
     });
 
     log.info("learning.edited", "Learning edited via HTTP", {
       workspaceId,
       learningId,
       fieldsChanged: Object.keys(body).filter((k) => (body as Record<string, unknown>)[k] !== undefined),
-      reEmbedded: embedding !== undefined,
     });
 
     return jsonResponse({ status: "updated" }, 200);

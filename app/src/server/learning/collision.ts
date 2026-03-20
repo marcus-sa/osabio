@@ -79,15 +79,42 @@ export async function checkCollisions(input: {
   learningEmbedding?: number[];
   source: "human" | "agent";
 }): Promise<CollisionCheckResult> {
-  const { surreal, model, workspaceRecord, learningText, learningEmbedding, source } = input;
+  const { surreal, model, workspaceRecord, learningText, learningEmbedding } = input;
 
-  // Fail-open/closed when embedding unavailable
+  // Without embedding, collision check uses BM25 for learning-vs-learning only.
+  // Policy and decision cross-entity checks still require embeddings for now.
   if (!learningEmbedding) {
-    if (source === "human") {
-      return { collisions: [], hasBlockingCollision: false };
+    // BM25-based learning-vs-learning collision check
+    const bm25Collisions = await findSimilarLearningsByBm25(surreal, workspaceRecord, learningText);
+    const collisions: CollisionResult[] = [];
+
+    for (const candidate of bm25Collisions) {
+      // BM25 match = at minimum a duplicate signal; use LLM for finer classification
+      const classification = await classifyWithLlm(model, learningText, candidate.text);
+      if (classification.classification !== "unrelated") {
+        collisions.push({
+          collisionType: classification.classification === "contradicts" ? "contradicts" : "duplicates",
+          targetKind: "learning",
+          targetId: candidate.id,
+          targetText: candidate.text,
+          similarity: candidate.score,
+          blocking: false,
+          reasoning: classification.reasoning,
+        });
+      }
     }
-    // Agent-suggested: defer collision check
-    return { collisions: [], hasBlockingCollision: false, deferred: true };
+
+    const hasBlockingCollision = collisions.some((c) => c.blocking);
+
+    log.info("learning.collision.checked", "Collision check completed (BM25)", {
+      totalCollisions: collisions.length,
+      hasBlockingCollision,
+      learningCollisions: collisions.length,
+      policyCollisions: 0,
+      decisionCollisions: 0,
+    });
+
+    return { collisions, hasBlockingCollision };
   }
 
   const collisions: CollisionResult[] = [];
@@ -205,6 +232,44 @@ async function classifyWithLlm(
       reasoning: "LLM classification unavailable; defaulting to contradicts for safety",
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// BM25 fulltext search for learning-vs-learning collision
+// ---------------------------------------------------------------------------
+
+import { escapeSearchQuery } from "../graph/bm25-search";
+
+type Bm25Candidate = {
+  id: string;
+  text: string;
+  score: number;
+};
+
+async function findSimilarLearningsByBm25(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  learningText: string,
+): Promise<Bm25Candidate[]> {
+  const escaped = escapeSearchQuery(learningText);
+  const sql = `SELECT id, text, search::score(1) AS score
+FROM learning
+WHERE text @1@ '${escaped}'
+AND workspace = $ws
+AND status = "active"
+ORDER BY score DESC
+LIMIT 10;`;
+
+  const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
+    sql,
+    { ws: workspaceRecord },
+  );
+
+  return (rows ?? []).map((row) => ({
+    id: row.id.id as string,
+    text: row.text,
+    score: row.score,
+  }));
 }
 
 // ---------------------------------------------------------------------------
