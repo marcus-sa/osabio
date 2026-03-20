@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f751124438b9",
+  "session_id": "63669ecd-7cc8-41f6-ac69-c0b2f31e3c01",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-20T10:49:11.052674Z",
+  "branch": "marcus-sa/drop-embeddings",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "tests/acceptance/acceptance-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0274221546d5",
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 52919,
+    "cache_read_tokens": 1660459,
+    "output_tokens": 4858,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-20T10:49:10.937328Z",
+    "agent_lines": 10,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "agent_percentage": 100
+  }
+}
