@@ -811,7 +811,6 @@ export async function seedConfirmedDecision(
     workspaceId: string;
     summary: string;
     rationale?: string;
-    embedding?: number[];
   },
 ): Promise<string> {
   const decisionRecord = new RecordId("decision", decisionId);
@@ -824,10 +823,6 @@ export async function seedConfirmedDecision(
     workspace: workspaceRecord,
     created_at: new Date(),
   };
-
-  if (options.embedding) {
-    content.embedding = options.embedding;
-  }
 
   await surreal.query(`CREATE $decision CONTENT $content;`, {
     decision: decisionRecord,
@@ -847,7 +842,6 @@ export async function seedActiveLearning(
     workspaceId: string;
     text: string;
     priority?: string;
-    embedding?: number[];
   },
 ): Promise<string> {
   const learningRecord = new RecordId("learning", learningId);
@@ -863,10 +857,6 @@ export async function seedActiveLearning(
     workspace: workspaceRecord,
     created_at: new Date(),
   };
-
-  if (options.embedding) {
-    content.embedding = options.embedding;
-  }
 
   await surreal.query(`CREATE $learning CONTENT $content;`, {
     learning: learningRecord,
@@ -890,7 +880,6 @@ export async function seedOpenObservation(
     workspaceId: string;
     text: string;
     severity: "conflict" | "warning";
-    embedding?: number[];
   },
 ): Promise<string> {
   const observationRecord = new RecordId("observation", observationId);
@@ -904,10 +893,6 @@ export async function seedOpenObservation(
     workspace: workspaceRecord,
     created_at: new Date(),
   };
-
-  if (options.embedding) {
-    content.embedding = options.embedding;
-  }
 
   await surreal.query(`CREATE $obs CONTENT $content;`, {
     obs: observationRecord,

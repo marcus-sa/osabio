@@ -12,7 +12,6 @@
  *   SurrealDB direct queries                         (verification of outcomes + seed data)
  */
 import { RecordId, type Surreal } from "surrealdb";
-import { embedMany } from "ai";
 
 // ---------------------------------------------------------------------------
 // Re-exports from shared kit
@@ -25,7 +24,6 @@ export {
   fetchJson,
   fetchRaw,
   collectSseEvents,
-  testAI,
   type AcceptanceTestRuntime,
   type TestUser,
   type TestUserWithMcp,
@@ -34,7 +32,6 @@ export {
 import {
   setupAcceptanceSuite,
   fetchRaw,
-  testAI,
   type AcceptanceTestRuntime,
   type TestUser,
 } from "../acceptance-test-kit";
@@ -65,7 +62,6 @@ export type AgentDescription = {
   agentId: string;
   agentType: string;
   description: string;
-  descriptionEmbedding?: number[];
 };
 
 // ---------------------------------------------------------------------------
@@ -145,7 +141,6 @@ export async function createObservation(
     severity: ObservationSeverity;
     sourceAgent: string;
     category?: string;
-    embedding?: number[];
     targetEntity?: { table: string; id: string };
   },
 ): Promise<{ observationId: string }> {
@@ -164,9 +159,6 @@ export async function createObservation(
 
   if (options.category) {
     content.category = options.category;
-  }
-  if (options.embedding) {
-    content.embedding = options.embedding;
   }
 
   await surreal.query(`CREATE $obs CONTENT $content;`, {
@@ -200,7 +192,6 @@ export async function createObservationWithCoordinator(
     severity: ObservationSeverity;
     sourceAgent: string;
     category?: string;
-    embedding?: number[];
     targetEntity?: { table: string; id: string };
   },
 ): Promise<{ observationId: string }> {
@@ -235,11 +226,8 @@ export async function createObservationBurstWithCoordinator(
     targetEntity: { table: string; id: string };
     severity: ObservationSeverity;
     textPrefix: string;
-    embedding?: number[];
   },
 ): Promise<string[]> {
-  // Use provided embedding or generate a fake one so the coordinator webhook accepts the payload
-  const embedding = options.embedding ?? fakeEmbedding(42);
   const ids: string[] = [];
   for (let i = 0; i < options.count; i++) {
     const { observationId } = await createObservationWithCoordinator(surreal, baseUrl, workspaceId, {
@@ -247,7 +235,6 @@ export async function createObservationBurstWithCoordinator(
       severity: options.severity,
       sourceAgent: options.sourceAgent,
       targetEntity: options.targetEntity,
-      embedding,
     });
     ids.push(observationId);
   }
@@ -294,7 +281,6 @@ export async function createDecision(
   options: {
     summary: string;
     status?: string;
-    embedding?: number[];
   },
 ): Promise<{ decisionId: string }> {
   const decisionId = `dec-${crypto.randomUUID()}`;
@@ -309,7 +295,6 @@ export async function createDecision(
       workspace: workspaceRecord,
       created_at: new Date(),
       updated_at: new Date(),
-      ...(options.embedding ? { embedding: options.embedding } : {}),
     },
   });
 
@@ -361,7 +346,6 @@ export async function createTask(
   options: {
     title: string;
     status?: string;
-    embedding?: number[];
   },
 ): Promise<{ taskId: string }> {
   const taskId = `task-${crypto.randomUUID()}`;
@@ -376,7 +360,6 @@ export async function createTask(
       workspace: workspaceRecord,
       created_at: new Date(),
       updated_at: new Date(),
-      ...(options.embedding ? { embedding: options.embedding } : {}),
     },
   });
 
@@ -428,7 +411,6 @@ export async function registerAgent(
   options: {
     agentType: string;
     description?: string;
-    descriptionEmbedding?: number[];
   },
 ): Promise<{ agentId: string }> {
   const agentId = `agent-${crypto.randomUUID()}`;
@@ -443,9 +425,6 @@ export async function registerAgent(
 
   if (options.description) {
     content.description = options.description;
-  }
-  if (options.descriptionEmbedding) {
-    content.description_embedding = options.descriptionEmbedding;
   }
 
   await surreal.query(`CREATE $agent CONTENT $content;`, {
@@ -466,7 +445,6 @@ export async function startAgentSession(
     agentType: string;
     taskId?: string;
     description?: string;
-    descriptionEmbedding?: number[];
   },
 ): Promise<{ sessionId: string }> {
   const sessionId = `sess-${crypto.randomUUID()}`;
@@ -483,10 +461,6 @@ export async function startAgentSession(
 
   if (options.taskId) {
     content.task_id = new RecordId("task", options.taskId);
-  }
-
-  if (options.descriptionEmbedding) {
-    content.description_embedding = options.descriptionEmbedding;
   }
 
   await surreal.query(`CREATE $sess CONTENT $content;`, {
@@ -649,54 +623,6 @@ export class FeedStreamController {
     this.abortController.abort();
     this.connected = false;
   }
-}
-
-// ---------------------------------------------------------------------------
-// Embedding Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Generates real embedding vectors using the configured embedding model.
- */
-export async function generateEmbeddings(
-  texts: string[],
-): Promise<Map<string, number[]>> {
-  const { embeddings } = await embedMany({
-    model: testAI.embeddingModel,
-    values: texts,
-  });
-  const result = new Map<string, number[]>();
-  for (let i = 0; i < texts.length; i++) {
-    result.set(texts[i], embeddings[i]);
-  }
-  return result;
-}
-
-/**
- * Generates a real embedding vector for a single text.
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const map = await generateEmbeddings([text]);
-  return map.get(text)!;
-}
-
-/**
- * Creates a deterministic fake embedding vector for testing.
- * Uses a seed to produce a reproducible 1536-dimension unit vector.
- */
-export function fakeEmbedding(seed: number): number[] {
-  const dimension = 1536;
-  const embedding = new Array<number>(dimension);
-  let state = seed;
-  for (let i = 0; i < dimension; i++) {
-    state = ((state * 1103515245 + 12345) & 0x7fffffff);
-    embedding[i] = (state / 0x7fffffff) * 2 - 1;
-  }
-  const magnitude = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
-  for (let i = 0; i < dimension; i++) {
-    embedding[i] = embedding[i] / magnitude;
-  }
-  return embedding;
 }
 
 // ---------------------------------------------------------------------------

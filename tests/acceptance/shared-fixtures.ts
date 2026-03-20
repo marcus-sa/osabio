@@ -144,7 +144,6 @@ export type CreateIntentOpts = {
   status?: string;
   priority?: number;
   actionSpec?: ActionSpec;
-  embedding?: number[];
   evaluation?: EvaluationResult;
   budgetLimit?: { amount: number; currency: string };
   taskId?: string;
@@ -189,7 +188,6 @@ export async function createIntentDirectly(
     created_at: new Date(),
   };
 
-  if (opts.embedding !== undefined) intentContent.embedding = opts.embedding;
   if (opts.evaluation !== undefined) intentContent.evaluation = opts.evaluation;
   if (opts.budgetLimit !== undefined) intentContent.budget_limit = opts.budgetLimit;
 
@@ -260,7 +258,6 @@ export type CreateDecisionOpts = {
   summary: string;
   rationale?: string;
   status?: string;
-  embedding?: number[];
   created_at?: Date;
 };
 
@@ -285,7 +282,6 @@ export async function createDecisionDirectly(
       workspace: workspaceRecord,
       created_at: opts.created_at ?? new Date(),
       updated_at: new Date(),
-      ...(opts.embedding ? { embedding: opts.embedding } : {}),
     },
   });
 

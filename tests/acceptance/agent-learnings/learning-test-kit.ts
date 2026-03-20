@@ -11,7 +11,6 @@
  *   SurrealDB direct queries                                         (verification of outcomes)
  */
 import { RecordId, type Surreal } from "surrealdb";
-import { embedMany } from "ai";
 import {
   createWorkspaceDirectly,
   createDecisionDirectly,
@@ -28,7 +27,6 @@ export {
   createTestUserWithMcp,
   fetchJson,
   fetchRaw,
-  testAI,
   type AcceptanceTestRuntime,
   type TestUser,
   type TestUserWithMcp,
@@ -38,7 +36,6 @@ import {
   setupAcceptanceSuite,
   fetchJson,
   fetchRaw,
-  testAI,
   type AcceptanceTestRuntime,
   type TestUser,
 } from "../acceptance-test-kit";
@@ -82,7 +79,6 @@ export type LearningRecord = {
   dismissed_reason?: string;
   deactivated_by?: RecordId<"identity">;
   deactivated_at?: string;
-  embedding?: number[];
 };
 
 export type CreateLearningInput = {
@@ -146,7 +142,6 @@ export async function createTestLearning(
     suggested_by: string;
     pattern_confidence: number;
     created_by: string;
-    embedding: number[];
   }> = {},
 ): Promise<{ learningId: string; learningRecord: RecordId<"learning"> }> {
   const learningId = `learning-${crypto.randomUUID()}`;
@@ -172,9 +167,6 @@ export async function createTestLearning(
   }
   if (overrides.created_by !== undefined) {
     content.created_by = new RecordId("identity", overrides.created_by);
-  }
-  if (overrides.embedding !== undefined) {
-    content.embedding = overrides.embedding;
   }
   if (overrides.status === "active") {
     content.activated_at = new Date();
@@ -243,7 +235,6 @@ export async function createTestPolicy(
     name: string;
     description: string;
     rules: Array<Record<string, unknown>>;
-    embedding: number[];
   }> = {},
 ): Promise<{ policyId: string }> {
   const policyId = `policy-${crypto.randomUUID()}`;
@@ -276,7 +267,6 @@ export async function createTestPolicy(
       created_by: identityRecord,
       workspace: workspaceRecord,
       created_at: new Date(),
-      ...(overrides.embedding ? { embedding: overrides.embedding } : {}),
     },
   });
 
@@ -293,14 +283,12 @@ export async function createTestDecision(
     summary: string;
     rationale: string;
     status: string;
-    embedding: number[];
   }> = {},
 ): Promise<{ decisionId: string }> {
   const result = await createDecisionDirectly(surreal, workspaceId, {
     summary: overrides.summary ?? "Test decision for collision detection",
     rationale: overrides.rationale ?? "Decided for testing purposes",
     status: overrides.status,
-    embedding: overrides.embedding,
   });
   return { decisionId: result.decisionId };
 }
@@ -411,121 +399,3 @@ export async function getSupersessionEdge(
   return (rows[0]?.length ?? 0) > 0;
 }
 
-/**
- * Creates a deterministic fake embedding vector for testing.
- * Uses a seed to produce a reproducible 1536-dimension unit vector.
- * Identical seeds produce identical embeddings (cosine similarity = 1.0).
- */
-export function fakeLearningEmbedding(seed: number): number[] {
-  const dimension = 1536;
-  const embedding = new Array<number>(dimension);
-  // Simple deterministic pseudo-random based on seed
-  let state = seed;
-  for (let i = 0; i < dimension; i++) {
-    state = ((state * 1103515245 + 12345) & 0x7fffffff);
-    embedding[i] = (state / 0x7fffffff) * 2 - 1;
-  }
-  // Normalize to unit vector
-  const magnitude = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
-  for (let i = 0; i < dimension; i++) {
-    embedding[i] = embedding[i] / magnitude;
-  }
-  return embedding;
-}
-
-/**
- * Generates real embedding vectors using the configured embedding model.
- * Returns a map of text -> embedding for seeding test data with real vectors.
- */
-export async function generateEmbeddings(
-  texts: string[],
-): Promise<Map<string, number[]>> {
-  const { embeddings } = await embedMany({
-    model: testAI.embeddingModel,
-    values: texts,
-  });
-  const result = new Map<string, number[]>();
-  for (let i = 0; i < texts.length; i++) {
-    result.set(texts[i], embeddings[i]);
-  }
-  return result;
-}
-
-/**
- * Generates a real embedding vector for a single text.
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const map = await generateEmbeddings([text]);
-  return map.get(text)!;
-}
-
-/**
- * Creates a learning with a real embedding generated from its text.
- * Convenience wrapper combining createTestLearning + generateEmbedding.
- */
-export async function createTestLearningWithEmbedding(
-  surreal: Surreal,
-  workspaceId: string,
-  overrides: Partial<{
-    text: string;
-    learning_type: LearningType;
-    status: LearningStatus;
-    source: LearningSource;
-    priority: LearningPriority;
-    target_agents: string[];
-    suggested_by: string;
-    pattern_confidence: number;
-    created_by: string;
-  }> = {},
-): Promise<{ learningId: string; learningRecord: RecordId<"learning">; embedding: number[] }> {
-  const text = overrides.text ?? "Default test learning text";
-  const embedding = await generateEmbedding(text);
-  const result = await createTestLearning(surreal, workspaceId, {
-    ...overrides,
-    text,
-    embedding,
-  });
-  return { ...result, embedding };
-}
-
-/**
- * Creates a policy with a real embedding generated from its description.
- */
-export async function createTestPolicyWithEmbedding(
-  surreal: Surreal,
-  workspaceId: string,
-  overrides: Partial<{
-    name: string;
-    description: string;
-    rules: Array<Record<string, unknown>>;
-  }> = {},
-): Promise<{ policyId: string; embedding: number[] }> {
-  const description = overrides.description ?? "A test policy for collision detection";
-  const embedding = await generateEmbedding(description);
-  const result = await createTestPolicy(surreal, workspaceId, {
-    ...overrides,
-    embedding,
-  });
-  return { ...result, embedding };
-}
-
-/**
- * Creates a decision with a real embedding generated from its summary.
- */
-export async function createTestDecisionWithEmbedding(
-  surreal: Surreal,
-  workspaceId: string,
-  overrides: Partial<{
-    summary: string;
-    rationale: string;
-    status: string;
-  }> = {},
-): Promise<{ decisionId: string; embedding: number[] }> {
-  const summary = overrides.summary ?? "Test decision for collision detection";
-  const embedding = await generateEmbedding(summary);
-  const result = await createTestDecision(surreal, workspaceId, {
-    ...overrides,
-    embedding,
-  });
-  return { ...result, embedding };
-}

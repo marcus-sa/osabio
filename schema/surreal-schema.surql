@@ -1,3 +1,8 @@
+-- BM25 full-text search analyzer (required before any FULLTEXT index)
+DEFINE ANALYZER OVERWRITE entity_search
+  TOKENIZERS blank, class, camel, punct
+  FILTERS snowball(english), lowercase;
+
 DEFINE TABLE conversation SCHEMAFULL;
 DEFINE FIELD createdAt ON conversation TYPE datetime;
 DEFINE FIELD updatedAt ON conversation TYPE datetime;
@@ -19,6 +24,7 @@ DEFINE FIELD createdAt ON message TYPE datetime;
 DEFINE FIELD suggestions ON message TYPE option<array<string>>;
 DEFINE FIELD clientMessageId ON message TYPE option<string>;
 DEFINE INDEX message_conversation_createdAt ON message FIELDS conversation, createdAt;
+DEFINE INDEX OVERWRITE idx_message_fulltext ON message FIELDS text FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 
 DEFINE TABLE entity SCHEMAFULL;
 DEFINE FIELD kind ON entity TYPE string ASSERT $value IN ["task", "decision", "question"];
@@ -68,6 +74,7 @@ DEFINE FIELD source_message ON project TYPE option<record<message>>;
 DEFINE FIELD created_at ON project TYPE datetime;
 DEFINE FIELD updated_at ON project TYPE option<datetime>;
 DEFINE INDEX project_name ON project FIELDS name;
+DEFINE INDEX OVERWRITE idx_project_fulltext ON project FIELDS name FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 
 
 DEFINE TABLE feature SCHEMAFULL;
@@ -86,6 +93,7 @@ DEFINE FIELD workspace ON feature TYPE record<workspace>;
 DEFINE FIELD created_at ON feature TYPE datetime;
 DEFINE FIELD updated_at ON feature TYPE option<datetime>;
 DEFINE INDEX feature_name ON feature FIELDS name;
+DEFINE INDEX OVERWRITE idx_feature_fulltext ON feature FIELDS name FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX feature_workspace ON feature FIELDS workspace;
 
 
@@ -114,6 +122,7 @@ DEFINE FIELD category ON task TYPE option<string>
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
 DEFINE INDEX task_source_message ON task FIELDS source_message;
 DEFINE INDEX task_source_commit ON task FIELDS source_commit;
+DEFINE INDEX OVERWRITE idx_task_fulltext ON task FIELDS title FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE FIELD workspace ON task TYPE record<workspace>;
 DEFINE FIELD source_session ON task TYPE option<record<agent_session>>;
 DEFINE INDEX task_workspace ON task FIELDS workspace;
@@ -142,6 +151,7 @@ DEFINE FIELD category ON decision TYPE option<string>
 DEFINE FIELD priority ON decision TYPE option<string>
   ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
+DEFINE INDEX OVERWRITE idx_decision_fulltext ON decision FIELDS summary FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
 DEFINE INDEX decision_source_commit ON decision FIELDS source_commit;
 DEFINE FIELD workspace ON decision TYPE record<workspace>;
@@ -164,6 +174,7 @@ DEFINE FIELD category ON question TYPE option<string>
 DEFINE FIELD priority ON question TYPE option<string>
   ASSERT $value IN ["low", "medium", "high", "critical"] OR $value IS NONE;
 DEFINE INDEX question_status ON question FIELDS status;
+DEFINE INDEX OVERWRITE idx_question_fulltext ON question FIELDS text FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX question_source_message ON question FIELDS source_message;
 DEFINE INDEX question_source_commit ON question FIELDS source_commit;
 DEFINE FIELD workspace ON question TYPE record<workspace>;
@@ -248,6 +259,7 @@ DEFINE FIELD confidence ON observation TYPE option<float>;
 DEFINE FIELD evidence_refs ON observation TYPE option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>;
 DEFINE FIELD reasoning ON observation TYPE option<string>;
 DEFINE INDEX observation_workspace_status ON observation FIELDS workspace, status;
+DEFINE INDEX OVERWRITE idx_observation_fulltext ON observation FIELDS text FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX observation_severity ON observation FIELDS severity;
 DEFINE INDEX observation_created_at ON observation FIELDS created_at;
 
@@ -284,6 +296,7 @@ DEFINE FIELD image ON person TYPE option<string>;
 DEFINE FIELD created_at ON person TYPE datetime;
 DEFINE FIELD updated_at ON person TYPE datetime;
 DEFINE INDEX person_name ON person FIELDS name;
+DEFINE INDEX OVERWRITE idx_person_fulltext ON person FIELDS name FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX person_email ON person FIELDS contact_email UNIQUE;
 
 DEFINE TABLE identity SCHEMAFULL;
@@ -638,6 +651,7 @@ DEFINE FIELD supersedes ON policy TYPE option<record<policy>>;
 DEFINE FIELD created_at ON policy TYPE datetime;
 DEFINE FIELD updated_at ON policy TYPE option<datetime>;
 DEFINE INDEX policy_status ON policy FIELDS status;
+DEFINE INDEX OVERWRITE idx_policy_fulltext ON policy FIELDS description FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX policy_workspace ON policy FIELDS workspace;
 DEFINE INDEX policy_workspace_status ON policy FIELDS workspace, status;
 DEFINE INDEX policy_supersedes ON policy FIELDS supersedes;
@@ -1218,6 +1232,7 @@ DEFINE FIELD dismissed_reason ON learning TYPE option<string>;
 DEFINE FIELD deactivated_by ON learning TYPE option<record<identity>>;
 DEFINE FIELD deactivated_at ON learning TYPE option<datetime>;
 DEFINE INDEX idx_learning_workspace_status ON learning FIELDS workspace, status;
+DEFINE INDEX OVERWRITE idx_learning_fulltext ON learning FIELDS text FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 
 -- Evidence relation: links a learning to source entities
 DEFINE TABLE learning_evidence TYPE RELATION IN learning OUT message | trace | observation | agent_session | behavior SCHEMAFULL;
@@ -1248,6 +1263,7 @@ DEFINE FIELD created_by ON objective TYPE option<record<identity>>;
 DEFINE FIELD created_at ON objective TYPE datetime;
 DEFINE FIELD updated_at ON objective TYPE option<datetime>;
 DEFINE INDEX objective_workspace_status ON objective FIELDS workspace, status;
+DEFINE INDEX OVERWRITE idx_objective_fulltext ON objective FIELDS title FULLTEXT ANALYZER entity_search BM25(1.2, 0.75);
 DEFINE INDEX objective_target_date ON objective FIELDS target_date;
 
 -- has_objective: links project or workspace to its objectives

@@ -23,7 +23,6 @@ import {
   createTestWorkspace,
   createTestLearning,
   listLearningsByStatus,
-  fakeLearningEmbedding,
 } from "./learning-test-kit";
 
 const getRuntime = setupLearningSuite("learning_m5_detection");
@@ -117,10 +116,8 @@ describe("Milestone 5: Pattern Detection and Agent Suggestions", () => {
   it("dismissed learning with high similarity blocks re-suggestion", async () => {
     const { surreal } = getRuntime();
 
-    // Given a workspace with a previously dismissed learning that has an embedding
+    // Given a workspace with a previously dismissed learning
     const { workspaceId } = await createTestWorkspace(surreal, "dismissed-resuggest");
-
-    const dismissedEmbedding = fakeLearningEmbedding(42);
 
     await createTestLearning(surreal, workspaceId, {
       text: "Consider using GraphQL for the API layer.",
@@ -128,11 +125,10 @@ describe("Milestone 5: Pattern Detection and Agent Suggestions", () => {
       status: "dismissed",
       source: "agent",
       suggested_by: "observer_agent",
-      embedding: dismissedEmbedding,
     });
 
     // When checking for similar dismissed learnings
-    // (Using the same embedding = similarity 1.0, well above 0.85 threshold)
+    // Check for similar dismissed learnings by text match
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
     // Step 1: KNN candidates from dismissed learnings

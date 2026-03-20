@@ -182,11 +182,11 @@ describe("github webhook smoke", () => {
     const commitRows = await pollForRecord(
       async () => {
         const [rows] = await surreal
-          .query<[Array<{ id: RecordId<"git_commit", string>; sha: string; message: string; repository: string; embedding?: number[] }>]>(
-            "SELECT id, sha, message, repository, embedding FROM git_commit WHERE sha = $sha AND workspace = $workspace;",
+          .query<[Array<{ id: RecordId<"git_commit", string>; sha: string; message: string; repository: string }>]>(
+            "SELECT id, sha, message, repository FROM git_commit WHERE sha = $sha AND workspace = $workspace;",
             { sha, workspace: workspaceRecord },
           )
-          .collect<[Array<{ id: RecordId<"git_commit", string>; sha: string; message: string; repository: string; embedding?: number[] }>]>();
+          .collect<[Array<{ id: RecordId<"git_commit", string>; sha: string; message: string; repository: string }>]>();
         return rows;
       },
       20_000,
@@ -197,8 +197,6 @@ describe("github webhook smoke", () => {
     expect(commit.sha).toBe(sha);
     expect(commit.message).toContain("migrate REST endpoints from Express to Hono");
     expect(commit.repository).toBe("acme/brain");
-    expect(Array.isArray(commit.embedding)).toBe(true);
-    expect((commit.embedding ?? []).length).toBeGreaterThan(0);
 
     // Poll for extraction_relation edges (extraction runs after commit creation)
     const edgeRows = await pollForRecord(

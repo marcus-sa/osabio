@@ -32,8 +32,6 @@ import {
   blockTask,
   startAgentSession,
   getSessionLastRequestAt,
-  generateEmbedding,
-  generateEmbeddings,
 } from "./reactive-test-kit";
 
 const getRuntime = setupReactiveSuite("proxy_context_enrichment");
@@ -52,31 +50,20 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    // Batch-generate embeddings so all vectors come from the same model call
-    const embeddingTexts = [
-      "Migrate billing API to new service architecture",
-      "Use REST for billing API endpoints",
-      "Use GraphQL for billing API endpoints",
-    ];
-    const embeddingMap = await generateEmbeddings(embeddingTexts);
-
     // Seed the in_progress task the agent is working on
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Migrate billing API to new architecture",
       status: "in_progress",
-      embedding: embeddingMap.get(embeddingTexts[0])!,
     });
 
     // Seed a confirmed decision, then supersede it with a new one (creates edge)
     const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
       summary: "Use REST for billing API endpoints",
       status: "confirmed",
-      embedding: embeddingMap.get(embeddingTexts[1])!,
     });
     const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
       summary: "Use GraphQL for billing API endpoints",
       status: "confirmed",
-      embedding: embeddingMap.get(embeddingTexts[2])!,
     });
     await supersedeDecision(surreal, oldDecId, newDecId);
 
@@ -136,13 +123,9 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    // Use the same text for embedding and intent to guarantee high similarity
-    const sharedText = "Update API documentation for authentication endpoints";
-    const taskEmbedding = await generateEmbedding(sharedText);
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Update API documentation for authentication endpoints",
       status: "in_progress",
-      embedding: taskEmbedding,
     });
 
     const { sessionId } = await startAgentSession(surreal, workspaceId, {
@@ -192,11 +175,9 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    const taskEmbedding = await generateEmbedding("Implement billing API rate limiting");
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Implement billing API rate limiting",
       status: "in_progress",
-      embedding: taskEmbedding,
     });
 
     await startAgentSession(surreal, workspaceId, {
@@ -205,14 +186,10 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
     });
 
     // When the Observer creates a conflict observation targeting Agent B's task
-    const obsEmbedding = await generateEmbedding(
-      "Rate limiting implementation contradicts confirmed decision on API design patterns",
-    );
     await createObservation(surreal, workspaceId, {
       text: "Rate limiting implementation contradicts confirmed decision on API design patterns",
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: obsEmbedding,
       targetEntity: { table: "task", id: taskId },
     });
 
@@ -247,11 +224,9 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
       workspaceId,
     });
 
-    const taskEmbedding = await generateEmbedding("Migrate billing API to new framework");
     const { taskId } = await createTask(surreal, workspaceId, {
       title: "Migrate billing API",
       status: "in_progress",
-      embedding: taskEmbedding,
     });
 
     await startAgentSession(surreal, workspaceId, {
@@ -260,30 +235,22 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
     });
 
     // Seed a decision, then supersede it with a new one (creates edge)
-    const restEmbedding = await generateEmbedding("Use REST for all billing API endpoints");
     const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
       summary: "Use REST for all API endpoints",
       status: "confirmed",
-      embedding: restEmbedding,
     });
 
-    const trpcEmbedding = await generateEmbedding("Standardize on tRPC framework for billing");
     const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
       summary: "Standardize on tRPC framework",
       status: "confirmed",
-      embedding: trpcEmbedding,
     });
     await supersedeDecision(surreal, oldDecId, newDecId);
 
     // Create conflict observation
-    const conflictEmbedding = await generateEmbedding(
-      "Billing API migration approach conflicts with new tRPC standardization",
-    );
     await createObservation(surreal, workspaceId, {
       text: "Billing API migration approach conflicts with new tRPC standardization",
       severity: "conflict",
       sourceAgent: "observer_agent",
-      embedding: conflictEmbedding,
       targetEntity: { table: "task", id: taskId },
     });
 
@@ -389,18 +356,14 @@ describe("US-GRC-04: Proxy Context Enrichment via Vector Search", () => {
     });
 
     // When a decision is superseded while the agent is working
-    const decEmbedding = await generateEmbedding("Use REST for all services");
     const { decisionId: oldDecId } = await createDecision(surreal, workspaceId, {
       summary: "Use REST for all services",
       status: "confirmed",
-      embedding: decEmbedding,
     });
 
-    const newDecEmbedding = await generateEmbedding("Switch to GraphQL for all services");
     const { decisionId: newDecId } = await createDecision(surreal, workspaceId, {
       summary: "Switch to GraphQL for all services",
       status: "confirmed",
-      embedding: newDecEmbedding,
     });
     await supersedeDecision(surreal, oldDecId, newDecId);
 

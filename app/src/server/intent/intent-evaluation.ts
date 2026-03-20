@@ -138,8 +138,10 @@ export async function evaluatePendingIntent(
       createAlignmentWarningObservation(deps.surreal, ws, iId, score),
   });
 
+  // Strip `alignment` — it's used in-memory but not defined in the intent schema
+  const { alignment: _alignment, ...evaluationForDb } = evaluation;
   const evaluationRecord: EvaluatedIntent["evaluation"] = {
-    ...evaluation,
+    ...evaluationForDb,
     evaluated_at: new Date(),
   };
   const routing = routeByRisk(evaluation, {
