@@ -1275,7 +1275,7 @@ DEFINE TABLE supports TYPE RELATION IN intent OUT objective SCHEMAFULL;
 DEFINE FIELD alignment_score ON supports TYPE float
   ASSERT $value >= 0.0 AND $value <= 1.0;
 DEFINE FIELD alignment_method ON supports TYPE string
-  ASSERT $value IN ["embedding", "manual", "rule"];
+  ASSERT $value IN ["embedding", "manual", "rule", "graph", "bm25"];
 DEFINE FIELD reasoning ON supports TYPE option<string>;
 DEFINE FIELD added_at ON supports TYPE option<datetime>;
 DEFINE INDEX supports_out ON supports FIELDS out;

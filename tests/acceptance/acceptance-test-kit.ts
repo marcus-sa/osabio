@@ -66,7 +66,7 @@ const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
  */
 export async function applyTestSchema(surreal: Surreal): Promise<void> {
   const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  const analyzerMatch = schemaSql.match(/^DEFINE ANALYZER[^;]+;/m);
+  const analyzerMatch = schemaSql.match(/DEFINE ANALYZER[\s\S]+?;/);
   if (analyzerMatch) {
     await surreal.query(analyzerMatch[0]);
     await surreal.query(schemaSql.replace(analyzerMatch[0], ""));
