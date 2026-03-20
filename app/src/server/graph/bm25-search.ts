@@ -16,6 +16,42 @@ import type { RankedEntity, SearchEntityKind } from "./queries";
 import { applyRrf, type RrfItem } from "./rrf";
 
 // ---------------------------------------------------------------------------
+// Term extraction (shared across all BM25 callers)
+// ---------------------------------------------------------------------------
+
+const BM25_STOP_WORDS = new Set([
+  "the", "a", "an", "in", "on", "at", "to", "for", "of", "and", "or",
+  "is", "was", "are", "were", "be", "been", "being", "has", "had", "have",
+  "do", "does", "did", "with", "by", "from", "that", "this", "it", "its",
+  "not", "but", "if", "as", "so", "no", "can", "will", "during", "when",
+  "while", "about", "into", "also", "just", "than", "more", "very",
+  "all", "each", "every", "both", "few", "most", "some", "any", "other",
+  "new", "old", "between", "after", "before", "above", "below",
+  "should", "would", "could", "may", "might", "shall", "must",
+  "caused", "detected", "found", "seen", "observed",
+  "use", "using", "used",
+]);
+
+/**
+ * Extracts key terms from text for BM25 matching.
+ * Drops short/common words and limits to most significant terms.
+ *
+ * SurrealDB BM25 @N@ performs AND matching — all query terms must exist
+ * in the document. Queries with >4-5 terms silently return empty results.
+ *
+ * Pure function -- no IO.
+ */
+export function extractSearchTerms(text: string, maxTerms: number = 4): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !BM25_STOP_WORDS.has(word))
+    .slice(0, maxTerms)
+    .join(" ");
+}
+
+// ---------------------------------------------------------------------------
 // Pure query builders
 // ---------------------------------------------------------------------------
 

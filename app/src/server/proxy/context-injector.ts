@@ -11,6 +11,7 @@
  * The orchestration (embedding, cache, DB queries) lives in the proxy route.
  */
 import { RecordId } from "surrealdb";
+import { extractSearchTerms } from "../graph/bm25-search";
 
 // ---------------------------------------------------------------------------
 // Local cosine similarity (kept for legacy rankCandidates; no external dep)
@@ -627,14 +628,16 @@ export function createSearchRecentChanges(
     workspaceId: string,
     lastRequestAt: Date,
   ): Promise<RecentChangeCandidate[]> => {
-    const trimmed = queryText.trim();
-    if (trimmed.length === 0) return [];
+    // BM25 @N@ does AND matching — search per-term and merge results.
+    const termList = extractSearchTerms(queryText, 4)
+      .split(" ")
+      .filter((t) => t.length > 0);
+    if (termList.length === 0) return [];
 
     const workspaceRecord = new RecordId("workspace", workspaceId);
     const limit = 20;
 
-    const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
-      `SELECT id, summary AS text, search::score(1) AS score, updated_at
+    const sql = `SELECT id, summary AS text, search::score(1) AS score, updated_at
          FROM decision WHERE summary @1@ $query AND workspace = $ws AND updated_at > $since AND status != "superseded"
          ORDER BY score DESC LIMIT $limit;
        SELECT id, title AS text, search::score(1) AS score, updated_at
@@ -642,28 +645,40 @@ export function createSearchRecentChanges(
          ORDER BY score DESC LIMIT $limit;
        SELECT id, text, search::score(1) AS score, updated_at
          FROM observation WHERE text @1@ $query AND workspace = $ws AND updated_at > $since
-         ORDER BY score DESC LIMIT $limit;`,
-      { ws: workspaceRecord, since: lastRequestAt, limit, query: trimmed },
-    );
+         ORDER BY score DESC LIMIT $limit;`;
 
-    function toRecentChangeCandidates(
-      rows: Bm25RecentRow[],
-      table: RecentChangeCandidate["table"],
-    ): RecentChangeCandidate[] {
-      return rows.map((row) => ({
-        id: (row.id as RecordId).id as string,
-        table,
-        text: row.text,
-        similarity: row.score, // BM25 score used in place of cosine similarity
-        updatedAt: row.updated_at,
-      }));
+    // Search each term individually, keep best score per entity
+    const seen = new Map<string, { row: Bm25RecentRow; table: RecentChangeCandidate["table"] }>();
+    for (const term of termList) {
+      const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
+        sql,
+        { ws: workspaceRecord, since: lastRequestAt, limit, query: term },
+      );
+
+      const tagged: Array<[Bm25RecentRow[], RecentChangeCandidate["table"]]> = [
+        [results[0] ?? [], "decision"],
+        [results[1] ?? [], "task"],
+        [results[2] ?? [], "observation"],
+      ];
+
+      for (const [rows, table] of tagged) {
+        for (const row of rows) {
+          const key = `${table}:${(row.id as RecordId).id as string}`;
+          const existing = seen.get(key);
+          if (!existing || row.score > existing.row.score) {
+            seen.set(key, { row, table });
+          }
+        }
+      }
     }
 
-    return [
-      ...toRecentChangeCandidates(results[0] ?? [], "decision"),
-      ...toRecentChangeCandidates(results[1] ?? [], "task"),
-      ...toRecentChangeCandidates(results[2] ?? [], "observation"),
-    ];
+    return [...seen.values()].map(({ row, table }) => ({
+      id: (row.id as RecordId).id as string,
+      table,
+      text: row.text,
+      similarity: row.score,
+      updatedAt: row.updated_at,
+    }));
   };
 }
 

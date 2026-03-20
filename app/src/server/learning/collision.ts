@@ -11,6 +11,7 @@
 import { generateObject } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
+import { extractSearchTerms } from "../graph/bm25-search";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { log } from "../telemetry/logger";
@@ -206,6 +207,13 @@ async function findSimilarByBm25(
   searchText: string,
   spec: Bm25SearchSpec,
 ): Promise<Bm25Candidate[]> {
+  // BM25 @N@ does AND matching — all query terms must exist in the document.
+  // Search with individual key terms and take the best match across all queries.
+  const termList = extractSearchTerms(searchText, 4)
+    .split(" ")
+    .filter((t) => t.length > 0);
+  if (termList.length === 0) return [];
+
   const sql = `SELECT id, ${spec.textField} AS text, search::score(1) AS score
 FROM ${spec.table}
 WHERE ${spec.textField} @1@ $query
@@ -214,14 +222,21 @@ ${spec.extraFilter}
 ORDER BY score DESC
 LIMIT 10;`;
 
-  const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
-    sql,
-    { ws: workspaceRecord, query: searchText },
-  );
+  const seen = new Map<string, Bm25Candidate>();
+  for (const term of termList) {
+    const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
+      sql,
+      { ws: workspaceRecord, query: term },
+    );
+    for (const row of rows ?? []) {
+      const key = row.id.id as string;
+      const existing = seen.get(key);
+      const score = row.score;
+      if (!existing || score > existing.score) {
+        seen.set(key, { id: key, text: row.text, score });
+      }
+    }
+  }
 
-  return (rows ?? []).map((row) => ({
-    id: row.id.id as string,
-    text: row.text,
-    score: row.score,
-  }));
+  return [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 10);
 }

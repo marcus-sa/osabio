@@ -16,6 +16,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
 import { z } from "zod";
+import { extractSearchTerms } from "../graph/bm25-search";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
 import { log } from "../telemetry/logger";
 
@@ -115,26 +116,34 @@ async function findSimilarDecisionsByText(
   workspaceRecord: RecordId<"workspace", string>,
   searchText: string,
 ): Promise<DecisionCandidate[]> {
-  const trimmed = searchText.slice(0, 200).trim();
-  if (trimmed.length === 0) return [];
+  // BM25 @N@ does AND matching — search per-term and merge results.
+  const termList = extractSearchTerms(searchText, 4)
+    .split(" ")
+    .filter((t) => t.length > 0);
+  if (termList.length === 0) return [];
 
-  const [rows] = await surreal.query<[Array<{
-    id: RecordId<"decision", string>;
-    summary: string;
-    rationale?: string;
-    score: number;
-  }>]>(
-    `SELECT id, summary, rationale, search::score(1) AS score
+  const sql = `SELECT id, summary, rationale, search::score(1) AS score
      FROM decision
      WHERE summary @1@ $query
      AND workspace = $ws
      AND status = 'confirmed'
      ORDER BY score DESC
-     LIMIT 10;`,
-    { ws: workspaceRecord, query: trimmed },
-  );
+     LIMIT 10;`;
 
-  return rows ?? [];
+  type DecRow = { id: RecordId<"decision", string>; summary: string; rationale?: string; score: number };
+  const seen = new Map<string, DecRow>();
+  for (const term of termList) {
+    const [rows] = await surreal.query<[DecRow[]]>(sql, { ws: workspaceRecord, query: term });
+    for (const row of rows ?? []) {
+      const key = row.id.id as string;
+      const existing = seen.get(key);
+      if (!existing || row.score > existing.score) {
+        seen.set(key, row);
+      }
+    }
+  }
+
+  return [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------

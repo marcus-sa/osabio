@@ -16,6 +16,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import { generateObject, type LanguageModel } from "ai";
 import { rootCauseSchema, type RootCauseClassification } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { extractSearchTerms } from "../graph/bm25-search";
 import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
@@ -113,34 +114,6 @@ export async function queryRecentObservations(
 // ---------------------------------------------------------------------------
 
 /**
- * Extracts key terms from observation text for BM25 matching.
- * Drops short/common words and limits to most significant terms.
- *
- * Pure function -- no IO.
- */
-function extractSearchTerms(text: string, maxTerms: number = 4): string {
-  const stopWords = new Set([
-    "the", "a", "an", "in", "on", "at", "to", "for", "of", "and", "or",
-    "is", "was", "are", "were", "be", "been", "being", "has", "had", "have",
-    "do", "does", "did", "with", "by", "from", "that", "this", "it", "its",
-    "not", "but", "if", "as", "so", "no", "can", "will", "during", "when",
-    "while", "about", "into", "also", "just", "than", "more", "very",
-    "all", "each", "every", "both", "few", "most", "some", "any", "other",
-    "new", "old", "between", "after", "before", "above", "below",
-    "should", "would", "could", "may", "might", "shall", "must",
-    "caused", "detected", "found", "seen", "observed",
-  ]);
-
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !stopWords.has(word))
-    .slice(0, maxTerms)
-    .join(" ");
-}
-
-/**
  * Builds a BM25 fulltext search query that finds observations with similar text.
  *
  * Requires bound parameters: $ws (workspace RecordId), $query (search terms)
@@ -157,11 +130,8 @@ export function buildObservationSimilarityQuery(): string {
   ].join("\n");
 }
 
-/**
- * Extracts and returns search terms for an observation text.
- * Exported for callers that need to pass $query as a bound param.
- */
-export { extractSearchTerms };
+// Re-export from shared module for existing callers
+export { extractSearchTerms } from "../graph/bm25-search";
 
 // ---------------------------------------------------------------------------
 // BM25-based clustering (IO boundary for queries, pure for grouping)
