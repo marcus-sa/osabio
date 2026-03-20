@@ -7,7 +7,6 @@ DEFINE FIELD timestamp ON conversation TYPE option<datetime>;
 DEFINE FIELD messages ON conversation TYPE option<array<record<message>>>;
 DEFINE FIELD title ON conversation TYPE option<string>;
 DEFINE FIELD title_source ON conversation TYPE option<string> ASSERT $value = NONE OR $value IN ["message", "entity"];
-DEFINE FIELD embedding ON conversation TYPE option<array<float>>;
 DEFINE FIELD discusses ON conversation TYPE option<record<project | person | feature | task | decision | question | observation | suggestion>>;
 DEFINE INDEX conversation_createdAt ON conversation FIELDS createdAt;
 DEFINE INDEX conversation_workspace ON conversation FIELDS workspace;
@@ -19,9 +18,7 @@ DEFINE FIELD text ON message TYPE string;
 DEFINE FIELD createdAt ON message TYPE datetime;
 DEFINE FIELD suggestions ON message TYPE option<array<string>>;
 DEFINE FIELD clientMessageId ON message TYPE option<string>;
-DEFINE FIELD embedding ON message TYPE option<array<float>>;
 DEFINE INDEX message_conversation_createdAt ON message FIELDS conversation, createdAt;
-DEFINE INDEX idx_message_embedding ON message FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE entity SCHEMAFULL;
 DEFINE FIELD kind ON entity TYPE string ASSERT $value IN ["task", "decision", "question"];
@@ -68,11 +65,10 @@ DEFINE FIELD description_entries[*].text ON project TYPE string;
 DEFINE FIELD description_entries[*].source ON project TYPE option<record>;
 DEFINE FIELD description_entries[*].created_at ON project TYPE datetime;
 DEFINE FIELD source_message ON project TYPE option<record<message>>;
-DEFINE FIELD embedding ON project TYPE option<array<float>>;
 DEFINE FIELD created_at ON project TYPE datetime;
 DEFINE FIELD updated_at ON project TYPE option<datetime>;
 DEFINE INDEX project_name ON project FIELDS name;
-DEFINE INDEX idx_project_embedding ON project FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+
 
 DEFINE TABLE feature SCHEMAFULL;
 DEFINE FIELD name ON feature TYPE string;
@@ -86,13 +82,12 @@ DEFINE FIELD prd ON feature TYPE option<string>;
 DEFINE FIELD owner ON feature TYPE option<record<identity>>;
 DEFINE FIELD owner_name ON feature TYPE option<string>;
 DEFINE FIELD category ON feature TYPE option<string>;
-DEFINE FIELD embedding ON feature TYPE option<array<float>>;
 DEFINE FIELD workspace ON feature TYPE record<workspace>;
 DEFINE FIELD created_at ON feature TYPE datetime;
 DEFINE FIELD updated_at ON feature TYPE option<datetime>;
 DEFINE INDEX feature_name ON feature FIELDS name;
 DEFINE INDEX feature_workspace ON feature FIELDS workspace;
-DEFINE INDEX idx_feature_embedding ON feature FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
+
 
 DEFINE TABLE task SCHEMAFULL;
 DEFINE FIELD title ON task TYPE string;
@@ -114,7 +109,6 @@ DEFINE FIELD source_message ON task TYPE option<record<message>>;
 DEFINE FIELD source_commit ON task TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON task TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON task TYPE option<datetime>;
-DEFINE FIELD embedding ON task TYPE option<array<float>>;
 DEFINE FIELD category ON task TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE INDEX task_status_deadline ON task FIELDS status, deadline;
@@ -122,7 +116,6 @@ DEFINE INDEX task_source_message ON task FIELDS source_message;
 DEFINE INDEX task_source_commit ON task FIELDS source_commit;
 DEFINE FIELD workspace ON task TYPE record<workspace>;
 DEFINE FIELD source_session ON task TYPE option<record<agent_session>>;
-DEFINE INDEX idx_task_embedding ON task FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX task_workspace ON task FIELDS workspace;
 
 DEFINE TABLE decision SCHEMAFULL;
@@ -144,7 +137,6 @@ DEFINE FIELD source_message ON decision TYPE option<record<message>>;
 DEFINE FIELD source_commit ON decision TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON decision TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON decision TYPE option<datetime>;
-DEFINE FIELD embedding ON decision TYPE option<array<float>>;
 DEFINE FIELD category ON decision TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD priority ON decision TYPE option<string>
@@ -153,7 +145,6 @@ DEFINE INDEX decision_status_decided_at ON decision FIELDS status, decided_at;
 DEFINE INDEX decision_source_message ON decision FIELDS source_message;
 DEFINE INDEX decision_source_commit ON decision FIELDS source_commit;
 DEFINE FIELD workspace ON decision TYPE record<workspace>;
-DEFINE INDEX idx_decision_embedding ON decision FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX decision_workspace ON decision FIELDS workspace;
 
 DEFINE TABLE question SCHEMAFULL;
@@ -168,7 +159,6 @@ DEFINE FIELD source_message ON question TYPE option<record<message>>;
 DEFINE FIELD source_commit ON question TYPE option<record<git_commit>>;
 DEFINE FIELD extraction_confidence ON question TYPE option<float> ASSERT $value = NONE OR ($value >= 0 AND $value <= 1);
 DEFINE FIELD extracted_at ON question TYPE option<datetime>;
-DEFINE FIELD embedding ON question TYPE option<array<float>>;
 DEFINE FIELD category ON question TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD priority ON question TYPE option<string>
@@ -181,7 +171,6 @@ DEFINE FIELD asked_by ON question TYPE option<string>;
 DEFINE FIELD options ON question TYPE option<array<string>>;
 DEFINE FIELD answer_summary ON question TYPE option<string>;
 DEFINE FIELD blocking_task ON question TYPE option<record<task>>;
-DEFINE INDEX idx_question_embedding ON question FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX question_workspace ON question FIELDS workspace;
 
 DEFINE TABLE agent_session SCHEMAFULL;
@@ -213,13 +202,11 @@ DEFINE FIELD last_event_at ON agent_session TYPE option<datetime>;
 DEFINE FIELD error_message ON agent_session TYPE option<string>;
 DEFINE FIELD last_feedback ON agent_session TYPE option<string>;
 DEFINE FIELD last_request_at ON agent_session TYPE option<datetime>;
-DEFINE FIELD description_embedding ON agent_session TYPE option<array<float>>;
 DEFINE FIELD triggered_by ON agent_session TYPE option<record<observation | task | decision | question>>;
 DEFINE FIELD created_at ON agent_session TYPE datetime;
 DEFINE INDEX agent_session_workspace ON agent_session FIELDS workspace;
 DEFINE INDEX agent_session_project ON agent_session FIELDS project;
 DEFINE INDEX agent_session_started_at ON agent_session FIELDS started_at;
-DEFINE INDEX idx_agent_session_description_embedding ON agent_session FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX agent_session_task_active ON agent_session FIELDS task_id, orchestrator_status;
 DEFINE INDEX agent_session_external_workspace ON agent_session FIELDS external_session_id, workspace;
 
@@ -257,14 +244,12 @@ DEFINE FIELD resolved_at ON observation TYPE option<datetime>;
 DEFINE FIELD resolved_by ON observation TYPE option<record<identity>>;
 DEFINE FIELD created_at ON observation TYPE datetime;
 DEFINE FIELD updated_at ON observation TYPE option<datetime>;
-DEFINE FIELD embedding ON observation TYPE option<array<float>>;
 DEFINE FIELD confidence ON observation TYPE option<float>;
 DEFINE FIELD evidence_refs ON observation TYPE option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>;
 DEFINE FIELD reasoning ON observation TYPE option<string>;
 DEFINE INDEX observation_workspace_status ON observation FIELDS workspace, status;
 DEFINE INDEX observation_severity ON observation FIELDS severity;
 DEFINE INDEX observation_created_at ON observation FIELDS created_at;
-DEFINE INDEX idx_observation_embedding ON observation FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE suggestion SCHEMAFULL;
 DEFINE FIELD text ON suggestion TYPE string;
@@ -283,13 +268,11 @@ DEFINE FIELD dismissed_at ON suggestion TYPE option<datetime>;
 DEFINE FIELD deferred_at ON suggestion TYPE option<datetime>;
 DEFINE FIELD converted_at ON suggestion TYPE option<datetime>;
 DEFINE FIELD converted_to ON suggestion TYPE option<record<task | feature | decision | project>>;
-DEFINE FIELD embedding ON suggestion TYPE option<array<float>>;
 DEFINE FIELD created_at ON suggestion TYPE datetime;
 DEFINE FIELD updated_at ON suggestion TYPE option<datetime>;
 DEFINE INDEX suggestion_workspace_status ON suggestion FIELDS workspace, status;
 DEFINE INDEX suggestion_category ON suggestion FIELDS category;
 DEFINE INDEX suggestion_created_at ON suggestion FIELDS created_at;
-DEFINE INDEX idx_suggestion_embedding ON suggestion FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE person SCHEMAFULL;
 DEFINE FIELD name ON person TYPE string;
@@ -298,12 +281,10 @@ DEFINE FIELD contact_email ON person TYPE string;
 DEFINE FIELD contact_phone ON person TYPE option<string>;
 DEFINE FIELD email_verified ON person TYPE bool DEFAULT false;
 DEFINE FIELD image ON person TYPE option<string>;
-DEFINE FIELD embedding ON person TYPE option<array<float>>;
 DEFINE FIELD created_at ON person TYPE datetime;
 DEFINE FIELD updated_at ON person TYPE datetime;
 DEFINE INDEX person_name ON person FIELDS name;
 DEFINE INDEX person_email ON person FIELDS contact_email UNIQUE;
-DEFINE INDEX idx_person_embedding ON person FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE identity SCHEMAFULL;
 DEFINE FIELD name ON identity TYPE string;
@@ -322,12 +303,7 @@ DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'ar
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
--- description_embedding: Kept for future vector search use cases (e.g., agent discovery UI,
--- semantic agent search). Not used by the agent activator, which uses LLM classification
--- per ADR-061. The HNSW index remains defined for when vector-based agent matching is needed.
-DEFINE FIELD description_embedding ON agent TYPE option<array<float>>;
 DEFINE FIELD created_at ON agent TYPE datetime;
-DEFINE INDEX idx_agent_description_embedding ON agent FIELDS description_embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;
@@ -360,11 +336,9 @@ DEFINE FIELD workspace ON document_chunk TYPE record<workspace>;
 DEFINE FIELD content ON document_chunk TYPE string;
 DEFINE FIELD section_heading ON document_chunk TYPE option<string>;
 DEFINE FIELD position ON document_chunk TYPE int;
-DEFINE FIELD embedding ON document_chunk TYPE option<array<float>>;
 DEFINE FIELD created_at ON document_chunk TYPE datetime;
 DEFINE INDEX document_chunk_document_position ON document_chunk FIELDS document, position;
 DEFINE INDEX document_chunk_workspace_created_at ON document_chunk FIELDS workspace, created_at;
-DEFINE INDEX idx_document_chunk_embedding ON document_chunk FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE git_commit SCHEMAFULL;
 DEFINE FIELD sha ON git_commit TYPE string;
@@ -375,11 +349,9 @@ DEFINE FIELD author ON git_commit TYPE option<record<identity>>;
 DEFINE FIELD author_name ON git_commit TYPE string;
 DEFINE FIELD url ON git_commit TYPE option<string>;
 DEFINE FIELD workspace ON git_commit TYPE record<workspace>;
-DEFINE FIELD embedding ON git_commit TYPE option<array<float>>;
 DEFINE FIELD created_at ON git_commit TYPE datetime;
 DEFINE INDEX git_commit_sha ON git_commit FIELDS sha UNIQUE;
 DEFINE INDEX git_commit_workspace ON git_commit FIELDS workspace;
-DEFINE INDEX idx_git_commit_embedding ON git_commit FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 DEFINE TABLE pull_request SCHEMAFULL;
 DEFINE FIELD external_id ON pull_request TYPE option<string>;
@@ -616,9 +588,7 @@ DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> 
 DEFINE FIELD dpop_jwk_thumbprint ON intent TYPE option<string>;
 DEFINE FIELD token_issued_at ON intent TYPE option<datetime>;
 DEFINE FIELD token_expires_at ON intent TYPE option<datetime>;
-DEFINE FIELD embedding ON intent TYPE option<array<float>>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
-DEFINE INDEX idx_intent_embedding ON intent FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
 DEFINE INDEX intent_veto_expires ON intent FIELDS veto_expires_at;
@@ -667,12 +637,10 @@ DEFINE FIELD workspace ON policy TYPE record<workspace>;
 DEFINE FIELD supersedes ON policy TYPE option<record<policy>>;
 DEFINE FIELD created_at ON policy TYPE datetime;
 DEFINE FIELD updated_at ON policy TYPE option<datetime>;
-DEFINE FIELD embedding ON policy TYPE option<array<float>>;
 DEFINE INDEX policy_status ON policy FIELDS status;
 DEFINE INDEX policy_workspace ON policy FIELDS workspace;
 DEFINE INDEX policy_workspace_status ON policy FIELDS workspace, status;
 DEFINE INDEX policy_supersedes ON policy FIELDS supersedes;
-DEFINE INDEX idx_policy_embedding ON policy FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 -- Graph relation: identity -governing-> policy
 DEFINE TABLE governing TYPE RELATION IN identity OUT policy SCHEMAFULL;
@@ -1249,9 +1217,7 @@ DEFINE FIELD dismissed_at ON learning TYPE option<datetime>;
 DEFINE FIELD dismissed_reason ON learning TYPE option<string>;
 DEFINE FIELD deactivated_by ON learning TYPE option<record<identity>>;
 DEFINE FIELD deactivated_at ON learning TYPE option<datetime>;
-DEFINE FIELD embedding ON learning TYPE option<array<float>>;
 DEFINE INDEX idx_learning_workspace_status ON learning FIELDS workspace, status;
-DEFINE INDEX idx_learning_embedding ON learning FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 -- Evidence relation: links a learning to source entities
 DEFINE TABLE learning_evidence TYPE RELATION IN learning OUT message | trace | observation | agent_session | behavior SCHEMAFULL;
@@ -1281,10 +1247,8 @@ DEFINE FIELD source_message ON objective TYPE option<record<message>>;
 DEFINE FIELD created_by ON objective TYPE option<record<identity>>;
 DEFINE FIELD created_at ON objective TYPE datetime;
 DEFINE FIELD updated_at ON objective TYPE option<datetime>;
-DEFINE FIELD embedding ON objective TYPE option<array<float>>;
 DEFINE INDEX objective_workspace_status ON objective FIELDS workspace, status;
 DEFINE INDEX objective_target_date ON objective FIELDS target_date;
-DEFINE INDEX idx_objective_embedding ON objective FIELDS embedding HNSW DIMENSION 1536 DIST COSINE;
 
 -- has_objective: links project or workspace to its objectives
 DEFINE TABLE has_objective TYPE RELATION IN project | workspace OUT objective SCHEMAFULL;
