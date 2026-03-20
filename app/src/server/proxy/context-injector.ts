@@ -523,31 +523,6 @@ export function mapRowsToRecentChanges(
   }));
 }
 
-/**
- * Classify recent changes by age relative to an urgent threshold.
- *
- * Replaces classifyBySimilarity (which used BM25 score thresholds).
- * Items updated within urgentThresholdMs of `now` are urgent-context;
- * everything else in the time window is context-update.
- *
- * Boundary: items exactly at the threshold are context-update (strict less-than).
- */
-export function classifyByRecency(
-  candidates: RecentChangeCandidate[],
-  now: Date,
-  urgentThresholdMs: number,
-): ClassifiedChange[] {
-  return candidates.map((c) => {
-    const ageMs = now.getTime() - new Date(c.updatedAt).getTime();
-    return {
-      ...c,
-      classification: ageMs < urgentThresholdMs
-        ? "urgent-context" as const
-        : "context-update" as const,
-    };
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Time-Based Recent Changes Adapter (02-03: replaces BM25 search)
 // ---------------------------------------------------------------------------

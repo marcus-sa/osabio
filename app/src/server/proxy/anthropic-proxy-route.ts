@@ -53,11 +53,12 @@ import {
   injectRecentChanges,
   classifyByAge,
   buildRecentChangesXml,
-  createSearchRecentChanges,
+  buildTimeWindowCutoff,
+  createFetchRecentChangesByTime,
   createSearchContextByBm25,
   type ContextCandidate,
   type InjectionResult,
-  type SearchRecentChanges,
+  type FetchRecentChangesByTime,
   type SearchContextByBm25,
 } from "./context-injector";
 import {
@@ -393,8 +394,7 @@ async function runContextInjection(
   originalBody: string,
   contextCache: ContextCache,
   intelligenceConfig: IntelligenceConfig,
-  recentChangesSearch?: SearchRecentChanges,
-  lastRequestAt?: Date,
+  fetchRecentChanges?: FetchRecentChangesByTime,
   searchContextByBm25?: SearchContextByBm25,
 ): Promise<ContextInjectionResult> {
   if (!intelligenceConfig.contextInjectionEnabled) {
@@ -454,19 +454,21 @@ async function runContextInjection(
   // 4. Inject into system prompt
   const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
 
-  // 5. Search and inject recent changes via BM25 (no embeddings)
+  // 5. Fetch and inject recent changes by time window (no embeddings, no BM25)
   let enrichedSystem = injectionResult.system;
-  if (recentChangesSearch && lastRequestAt) {
+  if (fetchRecentChanges) {
     try {
-      const recentCandidates = await recentChangesSearch(queryText, workspaceId, lastRequestAt);
-      const classified = classifyByAge(recentCandidates, new Date());
+      const timeWindowMs = 24 * 60 * 60 * 1000; // 24-hour window
+      const cutoff = buildTimeWindowCutoff(now, timeWindowMs);
+      const recentCandidates = await fetchRecentChanges(workspaceId, cutoff, 20);
+      const classified = classifyByAge(recentCandidates, now);
       const recentChangesXml = buildRecentChangesXml(classified);
       if (recentChangesXml) {
         enrichedSystem = injectRecentChanges(enrichedSystem, recentChangesXml);
       }
     } catch (error) {
       // Fail-open: log and continue without recent changes
-      log.warn("proxy.context_injection.recent_changes_failed", "Recent changes search failed", {
+      log.warn("proxy.context_injection.recent_changes_failed", "Recent changes fetch failed", {
         workspace_id: workspaceId,
         error: String(error),
       });
@@ -632,8 +634,8 @@ export function createAnthropicProxyHandler(
   const proxyTokenCache: TokenCache = createTokenCache();
   const lookupProxyToken: LookupProxyToken = createLookupProxyToken(deps.surreal);
 
-  // BM25 fulltext search adapters (02-01: replaces embedding-based ranking)
-  const searchRecentChanges: SearchRecentChanges = createSearchRecentChanges(deps.surreal);
+  // Context search adapters (02-01: BM25 for context, 02-03: time-based for recent changes)
+  const fetchRecentChanges: FetchRecentChangesByTime = createFetchRecentChangesByTime(deps.surreal);
   const searchContextByBm25: SearchContextByBm25 = createSearchContextByBm25(deps.surreal);
 
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
@@ -868,21 +870,7 @@ export function createAnthropicProxyHandler(
 
       if (parsed && identitySignals.workspaceId && !isCountTokens) {
         try {
-          // Resolve session's last_request_at and intelligence config in parallel
-          const lastRequestAtPromise = effectiveSessionId
-            ? deps.surreal.query<[Array<{ last_request_at?: string }>]>(
-                `SELECT last_request_at FROM $sess;`,
-                { sess: new RecordId("agent_session", effectiveSessionId) },
-              ).then(
-                (rows) => { const rawTs = rows[0]?.[0]?.last_request_at; return rawTs ? new Date(rawTs) : undefined; },
-                () => undefined,
-              )
-            : Promise.resolve(undefined);
-
-          const [sessionLastRequestAt, intelligenceConfig] = await Promise.all([
-            lastRequestAtPromise,
-            loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId),
-          ]);
+          const intelligenceConfig = await loadIntelligenceConfig(deps.surreal, identitySignals.workspaceId);
 
           const contextResult = await runContextInjection(
             deps,
@@ -891,8 +879,7 @@ export function createAnthropicProxyHandler(
             body,
             contextCache,
             intelligenceConfig,
-            searchRecentChanges,
-            sessionLastRequestAt,
+            fetchRecentChanges,
             searchContextByBm25,
           );
           effectiveBody = contextResult.body;
