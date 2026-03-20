@@ -116,34 +116,35 @@ async function findSimilarDecisionsByText(
   workspaceRecord: RecordId<"workspace", string>,
   searchText: string,
 ): Promise<DecisionCandidate[]> {
-  // BM25 @N@ does AND matching — search per-term and merge results.
+  // BM25 @N@ does AND matching — use OR across separate predicates per term.
+  // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
   const termList = extractSearchTerms(searchText, 4)
     .split(" ")
     .filter((t) => t.length > 0);
   if (termList.length === 0) return [];
 
-  const sql = `SELECT id, summary, rationale, search::score(1) AS score
+  const matchClause = termList.map((_, i) => `summary @${i}@ $t${i}`).join(" OR ");
+  const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+
+  const sql = `SELECT id, summary, rationale, ${scoreExpr} AS score
      FROM decision
-     WHERE summary @1@ $query
+     WHERE (${matchClause})
      AND workspace = $ws
      AND status = 'confirmed'
      ORDER BY score DESC
      LIMIT 10;`;
 
-  type DecRow = { id: RecordId<"decision", string>; summary: string; rationale?: string; score: number };
-  const seen = new Map<string, DecRow>();
-  for (const term of termList) {
-    const [rows] = await surreal.query<[DecRow[]]>(sql, { ws: workspaceRecord, query: term });
-    for (const row of rows ?? []) {
-      const key = row.id.id as string;
-      const existing = seen.get(key);
-      if (!existing || row.score > existing.score) {
-        seen.set(key, row);
-      }
-    }
-  }
+  const bindings: Record<string, unknown> = { ws: workspaceRecord };
+  termList.forEach((term, i) => { bindings[`t${i}`] = term; });
 
-  return [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 10);
+  const [rows] = await surreal.query<[Array<{
+    id: RecordId<"decision", string>;
+    summary: string;
+    rationale?: string;
+    score: number;
+  }>]>(sql, bindings);
+
+  return rows ?? [];
 }
 
 // ---------------------------------------------------------------------------

@@ -208,35 +208,36 @@ async function findSimilarByBm25(
   spec: Bm25SearchSpec,
 ): Promise<Bm25Candidate[]> {
   // BM25 @N@ does AND matching — all query terms must exist in the document.
-  // Search with individual key terms and take the best match across all queries.
+  // Use OR across separate predicates for each term (one round-trip).
+  // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
   const termList = extractSearchTerms(searchText, 4)
     .split(" ")
     .filter((t) => t.length > 0);
   if (termList.length === 0) return [];
 
-  const sql = `SELECT id, ${spec.textField} AS text, search::score(1) AS score
+  // Build OR-predicate WHERE clause: field @0@ $t0 OR field @1@ $t1 ...
+  const whereClauses = termList.map((_, i) => `${spec.textField} @${i}@ $t${i}`);
+  const scoreExprs = termList.map((_, i) => `search::score(${i})`);
+
+  const sql = `SELECT id, ${spec.textField} AS text, ${scoreExprs.join(" + ")} AS score
 FROM ${spec.table}
-WHERE ${spec.textField} @1@ $query
+WHERE (${whereClauses.join(" OR ")})
 AND workspace = $ws
 ${spec.extraFilter}
 ORDER BY score DESC
 LIMIT 10;`;
 
-  const seen = new Map<string, Bm25Candidate>();
-  for (const term of termList) {
-    const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
-      sql,
-      { ws: workspaceRecord, query: term },
-    );
-    for (const row of rows ?? []) {
-      const key = row.id.id as string;
-      const existing = seen.get(key);
-      const score = row.score;
-      if (!existing || score > existing.score) {
-        seen.set(key, { id: key, text: row.text, score });
-      }
-    }
-  }
+  const bindings: Record<string, unknown> = { ws: workspaceRecord };
+  termList.forEach((term, i) => { bindings[`t${i}`] = term; });
 
-  return [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 10);
+  const [rows] = await surreal.query<[Array<{ id: RecordId; text: string; score: number }>]>(
+    sql,
+    bindings,
+  );
+
+  return (rows ?? []).map((row) => ({
+    id: row.id.id as string,
+    text: row.text,
+    score: row.score,
+  }));
 }

@@ -628,7 +628,8 @@ export function createSearchRecentChanges(
     workspaceId: string,
     lastRequestAt: Date,
   ): Promise<RecentChangeCandidate[]> => {
-    // BM25 @N@ does AND matching — search per-term and merge results.
+    // BM25 @N@ does AND matching — use OR across separate predicates per term.
+    // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
     const termList = extractSearchTerms(queryText, 4)
       .split(" ")
       .filter((t) => t.length > 0);
@@ -637,48 +638,47 @@ export function createSearchRecentChanges(
     const workspaceRecord = new RecordId("workspace", workspaceId);
     const limit = 20;
 
-    const sql = `SELECT id, summary AS text, search::score(1) AS score, updated_at
-         FROM decision WHERE summary @1@ $query AND workspace = $ws AND updated_at > $since AND status != "superseded"
+    // Build OR-predicate clauses for each table
+    const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+    const bindings: Record<string, unknown> = { ws: workspaceRecord, since: lastRequestAt, limit };
+    termList.forEach((term, i) => { bindings[`t${i}`] = term; });
+
+    const matchClause = (field: string) =>
+      termList.map((_, i) => `${field} @${i}@ $t${i}`).join(" OR ");
+
+    const sql = `SELECT id, summary AS text, ${scoreExpr} AS score, updated_at
+         FROM decision WHERE (${matchClause("summary")}) AND workspace = $ws AND updated_at > $since AND status != "superseded"
          ORDER BY score DESC LIMIT $limit;
-       SELECT id, title AS text, search::score(1) AS score, updated_at
-         FROM task WHERE title @1@ $query AND workspace = $ws AND updated_at > $since
+       SELECT id, title AS text, ${scoreExpr} AS score, updated_at
+         FROM task WHERE (${matchClause("title")}) AND workspace = $ws AND updated_at > $since
          ORDER BY score DESC LIMIT $limit;
-       SELECT id, text, search::score(1) AS score, updated_at
-         FROM observation WHERE text @1@ $query AND workspace = $ws AND updated_at > $since
+       SELECT id, text, ${scoreExpr} AS score, updated_at
+         FROM observation WHERE (${matchClause("text")}) AND workspace = $ws AND updated_at > $since
          ORDER BY score DESC LIMIT $limit;`;
 
-    // Search each term individually, keep best score per entity
-    const seen = new Map<string, { row: Bm25RecentRow; table: RecentChangeCandidate["table"] }>();
-    for (const term of termList) {
-      const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
-        sql,
-        { ws: workspaceRecord, since: lastRequestAt, limit, query: term },
-      );
+    const results = await surreal.query<[Bm25RecentRow[], Bm25RecentRow[], Bm25RecentRow[]]>(
+      sql,
+      bindings,
+    );
 
-      const tagged: Array<[Bm25RecentRow[], RecentChangeCandidate["table"]]> = [
-        [results[0] ?? [], "decision"],
-        [results[1] ?? [], "task"],
-        [results[2] ?? [], "observation"],
-      ];
-
-      for (const [rows, table] of tagged) {
-        for (const row of rows) {
-          const key = `${table}:${(row.id as RecordId).id as string}`;
-          const existing = seen.get(key);
-          if (!existing || row.score > existing.row.score) {
-            seen.set(key, { row, table });
-          }
-        }
-      }
+    function toRecentChangeCandidates(
+      rows: Bm25RecentRow[],
+      table: RecentChangeCandidate["table"],
+    ): RecentChangeCandidate[] {
+      return rows.map((row) => ({
+        id: (row.id as RecordId).id as string,
+        table,
+        text: row.text,
+        similarity: row.score,
+        updatedAt: row.updated_at,
+      }));
     }
 
-    return [...seen.values()].map(({ row, table }) => ({
-      id: (row.id as RecordId).id as string,
-      table,
-      text: row.text,
-      similarity: row.score,
-      updatedAt: row.updated_at,
-    }));
+    return [
+      ...toRecentChangeCandidates(results[0] ?? [], "decision"),
+      ...toRecentChangeCandidates(results[1] ?? [], "task"),
+      ...toRecentChangeCandidates(results[2] ?? [], "observation"),
+    ];
   };
 }
 
