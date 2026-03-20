@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0fe1e4b4f6fa",
+  "session_id": "63669ecd-7cc8-41f6-ac69-c0b2f31e3c01",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-20T11:09:19.285741Z",
+  "branch": "marcus-sa/drop-embeddings",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "schema/surreal-schema.surql",
+    "tests/acceptance/acceptance-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f53d8101957c",
+  "token_usage": {
+    "input_tokens": 170,
+    "cache_creation_tokens": 427134,
+    "cache_read_tokens": 7275640,
+    "output_tokens": 37558,
+    "api_call_count": 88
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-20T11:09:18.774366Z",
+    "agent_lines": 0,
+    "human_added": 29,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 29,
+    "agent_percentage": 0
+  }
+}
