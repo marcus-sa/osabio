@@ -1,0 +1,184 @@
+schema_version: "2.0"
+project_id: remove-embeddings
+goal: "Replace all embedding-based search with BM25 fulltext search and graph traversal, then remove embedding infrastructure entirely"
+validation:
+  status: approved
+  reviewed_by: "nw-software-crafter-reviewer"
+  reviewed_at: "2026-03-19"
+phases:
+  - id: "01"
+    name: "BM25 Migration"
+    description: "Replace embedding-based search with BM25 fulltext across chat agent, learning collision, and objective alignment"
+    steps:
+      - step_id: "01-01"
+        name: "BM25 fulltext indexes migration"
+        description: "Add BM25 fulltext indexes for learning, policy, decision, observation, and other entity tables not yet covered by existing migration 0002"
+        acceptance_criteria:
+          - "Migration applies BM25(1.2, 0.75) indexes on learning.text, policy.description, decision.summary, observation.text"
+          - "Existing entity_search analyzer reused for new indexes"
+          - "bun migrate applies cleanly on fresh and existing databases"
+        estimated_effort: "S"
+        files_to_modify:
+          - "schema/migrations/0062_bm25_indexes_for_embedding_replacement.surql"
+        dependencies: []
+      - step_id: "01-02"
+        name: "Chat agent BM25 search (US-EMB-001)"
+        description: "Replace embedding-based entity search in chat tools, MCP context, and graph queries with BM25 fulltext using proven entity-search-route.ts pattern"
+        acceptance_criteria:
+          - "search_entities tool returns ranked results using BM25 scores"
+          - "suggest_work_items duplicate detection uses BM25 text matching"
+          - "MCP context resolution returns relevant entities without embedding generation"
+          - "Chat context loads related entities via BM25 search"
+          - "No embedding model calls occur during entity search"
+        estimated_effort: "L"
+        files_to_modify:
+          - "app/src/server/chat/tools/search-entities.ts"
+          - "app/src/server/chat/tools/suggest-work-items.ts"
+          - "app/src/server/chat/context.ts"
+          - "app/src/server/mcp/mcp-route.ts"
+          - "app/src/server/mcp/intent-context.ts"
+          - "app/src/server/graph/queries.ts"
+          - "app/src/server/chat/tools/types.ts"
+        dependencies:
+          - "01-01"
+      - step_id: "01-03"
+        name: "Learning collision BM25 detection (US-EMB-002)"
+        description: "Replace KNN brute-force collision detection with BM25 text matching for learning, policy, and decision deduplication"
+        acceptance_criteria:
+          - "Collision detector finds near-duplicate learnings using BM25 text similarity"
+          - "Learning creation route no longer generates embeddings before collision check"
+          - "Observer coverage check uses BM25 to find related learnings"
+        estimated_effort: "M"
+        files_to_modify:
+          - "app/src/server/learning/detector.ts"
+          - "app/src/server/learning/learning-route.ts"
+          - "app/src/server/observer/learning-diagnosis.ts"
+        dependencies:
+          - "01-01"
+      - step_id: "01-04"
+        name: "Graph-based objective alignment (US-EMB-003)"
+        description: "Replace embedding KNN alignment with graph traversal (task->belongs_to->project<-has_objective<-objective) and BM25 fallback for unlinked intents"
+        acceptance_criteria:
+          - "Linked intents resolve objectives via graph traversal without embedding search"
+          - "Unlinked intents fall back to BM25 text match against objective descriptions"
+          - "FindAlignedObjectives port signature no longer requires embedding vector"
+          - "Authorizer calls alignment adapter without embedding generation"
+        estimated_effort: "M"
+        files_to_modify:
+          - "app/src/server/objective/alignment-adapter.ts"
+          - "app/src/server/intent/authorizer.ts"
+        dependencies:
+          - "01-01"
+      - step_id: "01-05"
+        name: "Observation clustering BM25 replacement"
+        description: "Replace embedding-based observation similarity clustering in learning diagnosis with BM25 text matching"
+        acceptance_criteria:
+          - "Similar observations grouped by BM25 text relevance instead of cosine similarity"
+          - "Observation pattern detection identifies recurring themes without embeddings"
+          - "Clustering results feed into learning suggestion pipeline unchanged"
+        estimated_effort: "M"
+        files_to_modify:
+          - "app/src/server/observer/learning-diagnosis.ts"
+          - "app/src/server/observation/queries.ts"
+        dependencies:
+          - "01-01"
+  - id: "02"
+    name: "Proxy Context Migration"
+    description: "Replace cosine-ranked proxy context injection with BM25+recency scoring and time-based classification"
+    steps:
+      - step_id: "02-01"
+        name: "BM25+recency context ranking (US-EMB-004)"
+        description: "Replace cosine similarity ranking in proxy context injector with BM25 score weighted by recency decay (finalScore = bm25Score * decayFactor)"
+        acceptance_criteria:
+          - "Context items ranked by combined BM25 relevance and recency"
+          - "Recently updated items score higher than stale items at equal text relevance"
+          - "Proxy route handler no longer generates embeddings for context queries"
+        estimated_effort: "M"
+        files_to_modify:
+          - "app/src/server/proxy/context-injector.ts"
+          - "app/src/server/proxy/context-cache.ts"
+        dependencies:
+          - "01-02"
+      - step_id: "02-02"
+        name: "Time-based context classification"
+        description: "Replace embedding similarity thresholds with time-based classification: <30min = urgent, <24h = update, older = background"
+        acceptance_criteria:
+          - "Context items classified by age, not similarity score"
+          - "Items updated within 30 minutes classified as urgent context"
+          - "Items updated within 24 hours classified as recent updates"
+        estimated_effort: "S"
+        files_to_modify:
+          - "app/src/server/proxy/context-injector.ts"
+        dependencies:
+          - "02-01"
+      - step_id: "02-03"
+        name: "Recent changes time-based query"
+        description: "Replace embedding-based recent changes retrieval with time-ordered SurrealDB queries filtered by workspace and updated_at"
+        acceptance_criteria:
+          - "Recent changes fetched by time range query, not vector similarity"
+          - "Results ordered by updated_at descending with configurable time window"
+          - "No embedding generation in proxy context pipeline"
+        estimated_effort: "S"
+        files_to_modify:
+          - "app/src/server/proxy/context-injector.ts"
+          - "app/src/server/graph/queries.ts"
+        dependencies:
+          - "02-01"
+  - id: "03"
+    name: "Infrastructure Cleanup"
+    description: "Remove all embedding fields, HNSW indexes, embedding code, and config after all consumers migrated"
+    steps:
+      - step_id: "03-01"
+        name: "Drop HNSW indexes and embedding fields"
+        description: "Migration to REMOVE all HNSW indexes and embedding FIELD definitions from every table in the schema"
+        acceptance_criteria:
+          - "All HNSW indexes removed from schema (task, decision, feature, project, observation, learning, policy, intent, agent_session, etc.)"
+          - "All embedding fields removed from table definitions"
+          - "Migration applies cleanly; INFO FOR TABLE confirms no embedding fields remain"
+        estimated_effort: "M"
+        files_to_modify:
+          - "schema/migrations/0063_drop_hnsw_indexes_and_embedding_fields.surql"
+          - "schema/surreal-schema.surql"
+        dependencies:
+          - "01-02"
+          - "01-03"
+          - "01-04"
+          - "01-05"
+          - "02-01"
+          - "02-02"
+          - "02-03"
+      - step_id: "03-02"
+        name: "Remove embedding code and config (US-EMB-005)"
+        description: "Delete embeddings.ts, remove embedding config/model/dimension from runtime, strip embedding generation from all entity creation and update paths"
+        acceptance_criteria:
+          - "graph/embeddings.ts deleted; no module imports it"
+          - "ServerConfig and ServerDependencies have no embedding-related fields"
+          - "Entity creation paths (upsert, work-item accept, observation, suggestion) write records without embedding"
+          - "Application starts without EMBEDDING_MODEL or EMBEDDING_DIMENSION env vars"
+        estimated_effort: "L"
+        files_to_modify:
+          - "app/src/server/graph/embeddings.ts"
+          - "app/src/server/runtime/config.ts"
+          - "app/src/server/runtime/dependencies.ts"
+          - "app/src/server/runtime/types.ts"
+          - "app/src/server/extraction/entity-upsert.ts"
+          - "app/src/server/suggestion/queries.ts"
+          - "app/src/server/observation/queries.ts"
+          - "app/src/server/entities/work-item-accept-route.ts"
+          - "app/src/server/observer/trace-response-analyzer.ts"
+          - "app/src/server/observer/learning-diagnosis.ts"
+        dependencies:
+          - "03-01"
+      - step_id: "03-03"
+        name: "Cross-cutting regression verification"
+        description: "Verify no residual embedding references in codebase, tests pass without embedding env vars, no HNSW query overhead"
+        acceptance_criteria:
+          - "grep for createEmbeddingVector returns zero matches in app/src/"
+          - "Full test suite passes without EMBEDDING_MODEL set"
+          - "No SurrealDB query references embedding fields or HNSW operators"
+        estimated_effort: "S"
+        files_to_modify:
+          - "app/src/server/runtime/config.ts"
+          - "schema/surreal-schema.surql"
+        dependencies:
+          - "03-02"

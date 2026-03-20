@@ -1,0 +1,52 @@
+review_id: "req_rev_20260319_001"
+reviewer: "product-owner (review mode)"
+artifact: "docs/requirements/remove-embeddings/user-stories.md"
+iteration: 1
+
+strengths:
+  - "All 5 stories trace to specific job stories with concrete forces analysis"
+  - "Domain examples use real names (Maria Santos, Carlos Rivera, Priya Sharma, Tomoko Nakamura) and realistic data throughout"
+  - "Each story identifies specific files that change and specific functions that are replaced -- high specificity"
+  - "Phase dependency ordering is explicit and validated by opportunity scoring"
+  - "Technical notes acknowledge SurrealDB-specific constraints (@N@ limitation, HNSW+WHERE bug, transaction limitations)"
+  - "Cross-cutting observation about observation clustering (learning-diagnosis.ts) dependency is surfaced before Phase 3"
+  - "Existing BM25 infrastructure reuse is documented with specific migration references"
+
+issues_identified:
+  confirmation_bias:
+    - issue: "Stories assume BM25 stemmer handles sufficient semantic equivalence without empirical evidence"
+      severity: "medium"
+      location: "US-EMB-001, US-EMB-002"
+      recommendation: "Acceptance tests should include specific cases where stemming fails (e.g., 'login' vs 'OAuth') and document the accepted gap"
+
+  completeness_gaps:
+    - issue: "Observation clustering in learning-diagnosis.ts uses cosineSimilarity on pre-loaded embeddings. This is acknowledged but not covered by any story."
+      severity: "high"
+      location: "US-EMB-005 Technical Notes"
+      recommendation: "Either add a sub-task to US-EMB-005 for replacing observation clustering, or create US-EMB-006 specifically for this"
+    - issue: "16 entity creation call sites that generate embeddings are not individually listed. Some may have non-obvious consumers."
+      severity: "medium"
+      location: "US-EMB-005"
+      recommendation: "The 26 files importing from graph/embeddings should be audited -- each file's usage must be categorized as: (a) covered by EMB-001 through 004, or (b) pure write-side embedding generation removable in EMB-005"
+
+  clarity_issues:
+    - issue: "BM25 score thresholds for collision detection need calibration but no guidance on methodology"
+      severity: "medium"
+      location: "US-EMB-002 Technical Notes"
+      recommendation: "Add calibration approach: use existing dismissed/active learning pairs as test data, find BM25 score that produces equivalent blocking behavior"
+
+  testability_concerns: []
+
+  priority_validation:
+    q1_largest_bottleneck: "YES"
+    q2_simple_alternatives: "ADEQUATE"
+    q3_constraint_prioritization: "CORRECT"
+    q4_data_justified: "JUSTIFIED"
+    verdict: "PASS"
+
+approval_status: "conditionally_approved"
+critical_issues_count: 0
+high_issues_count: 1
+conditions:
+  - "Address observation clustering dependency before finalizing US-EMB-005 scope"
+  - "Audit all 26 embedding import sites to confirm coverage"
