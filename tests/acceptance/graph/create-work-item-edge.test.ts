@@ -156,10 +156,11 @@ async function countEdges(table: string, from: RecordId, to: RecordId): Promise<
   return rows.length > 0 ? rows[0].count : 0;
 }
 
-async function countTasks(): Promise<number> {
+async function countTasksByTitlePair(oldTitle: string, newTitle: string): Promise<number> {
   const [rows] = await surreal
     .query<[Array<{ count: number }>]>(
-      "SELECT count() AS count FROM task GROUP ALL;",
+      "SELECT count() AS count FROM task WHERE title = $oldTitle OR title = $newTitle GROUP ALL;",
+      { oldTitle, newTitle },
     )
     .collect<[Array<{ count: number }>]>();
   return rows[0]?.count ?? 0;
@@ -260,18 +261,22 @@ describe("create_work_item has_feature edge regression", () => {
     const createTool = makeTool();
     const editTool = makeEditTool();
     const options = makeOptions();
+    const uniqueSuffix = randomUUID();
+    const originalTitle = `Customer slot selection at checkout ${uniqueSuffix}`;
+    const updatedTitle = `Implement customer slot selection at checkout ${uniqueSuffix}`;
 
     const taskResult = await createTool.execute!(
-      { kind: "task", title: "Customer slot selection at checkout", rationale: "Initial task title", project: "CHECKOUT" },
+      { kind: "task", title: originalTitle, rationale: "Initial task title", project: "CHECKOUT" },
       options,
     );
     expect(taskResult.kind).toBe("task");
     const taskRecord = parseEntityId(taskResult.entity_id);
 
-    const beforeTaskCount = await countTasks();
+    const beforeMatchingTitleCount = await countTasksByTitlePair(originalTitle, updatedTitle);
+    expect(beforeMatchingTitleCount).toBe(1);
 
     const editResult = await editTool.execute!(
-      { id: taskResult.entity_id, title: "Implement customer slot selection at checkout" },
+      { id: taskResult.entity_id, title: updatedTitle },
       options,
     );
 
@@ -279,11 +284,11 @@ describe("create_work_item has_feature edge regression", () => {
     expect(editResult.kind).toBe("task");
     expect(editResult.updated_fields).toContain("title");
 
-    const afterTaskCount = await countTasks();
-    expect(afterTaskCount).toBe(beforeTaskCount);
+    const afterMatchingTitleCount = await countTasksByTitlePair(originalTitle, updatedTitle);
+    expect(afterMatchingTitleCount).toBe(1);
 
     const updatedTask = await surreal.select<{ title: string }>(taskRecord as RecordId<"task", string>);
-    expect(updatedTask?.title).toBe("Implement customer slot selection at checkout");
+    expect(updatedTask?.title).toBe(updatedTitle);
   });
 
   it("logs error when feature references nonexistent project (no silent swallow)", async () => {
