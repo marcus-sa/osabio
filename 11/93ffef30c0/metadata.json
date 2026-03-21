@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1193ffef30c0",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/AGENTS.md",
+    "docs/agents/chat-agent.md",
+    "docs/agents/extraction.md",
+    "docs/agents/observability.md",
+    "docs/agents/surrealdb.md",
+    "docs/agents/testing.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/11/93ffef30c0/0/metadata.json",
+      "transcript": "/11/93ffef30c0/0/full.jsonl",
+      "context": "/11/93ffef30c0/0/context.md",
+      "content_hash": "/11/93ffef30c0/0/content_hash.txt",
+      "prompt": "/11/93ffef30c0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
