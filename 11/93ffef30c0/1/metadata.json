@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1193ffef30c0",
+  "session_id": "d15d2caa-036b-4e20-870f-3165828b759a",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-21T08:59:21.286684Z",
+  "branch": "main",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "AGENTS.md",
+    "app/src/server/AGENTS.md",
+    "docs/agents/chat-agent.md",
+    "docs/agents/extraction.md",
+    "docs/agents/observability.md",
+    "docs/agents/surrealdb.md",
+    "docs/agents/testing.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "224be4ab0624",
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 113683,
+    "cache_read_tokens": 3673577,
+    "output_tokens": 21780,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-21T08:59:20.801925Z",
+    "agent_lines": 448,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 448,
+    "agent_percentage": 100
+  }
+}
