@@ -1,0 +1,292 @@
+fix failing tests on latest gh run
+
+---
+
+[Request interrupted by user]
+
+---
+
+fix failing tests on latest gh run on main branch
+
+---
+
+[Request interrupted by user]
+
+---
+
+x-brain-auth is for authenticating the proxy. it has nothing to do with upstream llm requests...
+
+---
+
+commkt
+
+---
+
+[Request interrupted by user]
+
+---
+
+one more left. might need timeout increase: Run bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/llm-proxy/
+bun test v1.3.11 (af24e281)
+
+tests/acceptance/llm-proxy/llm-proxy-observer-trace.test.ts:
+  2026-03-19T11:05:57.755Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Webhook handler returns 200 on analysis errors, 400 on malformed body > returns 200 when observer processing fails gracefully [15.00ms]
+  (pass) Tool-use stop reason -- trace analysis skipped > does not analyze traces with tool_use stop reason (intermediate loop steps) [62.00ms]
+  (pass) Observer analysis failure -- trace still exists, no observation created > preserves the trace record when Observer analysis encounters an error (fail-skip) [104.00ms]
+  (pass) No contradiction when response aligns with decisions > creates no contradiction observations when trace content is consistent with confirmed decisions [2852.09ms]
+  (pass) Observations created with sourceAgent='observer_agent' > sets source_agent to observer_agent on all created observations [3268.10ms]
+  (pass) Walking Skeleton: Observer detects contradiction in LLM response > creates a contradiction observation when trace content conflicts with a confirmed decision [3353.10ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-cost.test.ts:
+  2026-03-19T11:06:01.291Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Historical costs unaffected by pricing changes > preserves cost computed at time of call regardless of pricing updates [60.00ms]
+  (pass) Spend API returns breakdown by project > returns workspace total, per-project breakdown, and call counts [64.00ms]
+  (pass) Spend counters updated at workspace, project, and task levels > increments spend at all attribution granularities [69.00ms]
+  (pass) Unattributed costs visible in workspace total > shows unattributed costs separately from project-attributed costs [117.00ms]
+  (pass) Cost computed from model response and stored on trace > computes cost from token usage and model pricing [5257.16ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-observer-session-end.test.ts:
+  2026-03-19T11:06:06.687Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Session-end analysis failure -- session still ends normally > preserves the ended session state when Observer analysis encounters an error [57.00ms]
+  (pass) Session with single trace -- no cross-trace patterns possible > does not run cross-trace analysis when session contains only one trace [69.00ms]
+  (pass) Session with consistent traces -- no cross-trace observations > creates no observations when all session traces follow confirmed decisions consistently [1326.04ms]
+  (pass) Walking Skeleton: Observer detects approach drift across session traces > creates a cross-trace observation when early traces use one approach and later traces switch to another [2045.06ms]
+  (pass) Accumulated contradiction across multiple traces > detects contradictions that emerge from combined effect of individually-acceptable traces [3964.12ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-identity.test.ts:
+  2026-03-19T11:06:10.950Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Graceful degradation without any metadata > resolves workspace from header only when no metadata.user_id present [1107.03ms]
+  (pass) Malformed metadata.user_id parsed as opaque identifier > accepts non-standard metadata format without breaking the request [1346.04ms]
+  (pass) Invalid workspace produces warning but does not block > forwards request and creates warning observation for unresolved workspace [1462.05ms]
+  (pass) Full identity resolved from Claude Code metadata and headers > resolves session, account, workspace, and task from request [2118.07ms]
+  (pass) Graceful degradation without task header > resolves workspace and session, creates trace without task attribution [2838.09ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-walking-skeleton.test.ts:
+  2026-03-19T11:06:14.027Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Skeleton 1: Non-streaming passthrough > forwards a request and returns the model response identically [1402.04ms]
+  (pass) Skeleton 3: Cost attribution > attributes LLM call cost to the correct project and task [3561.11ms]
+  (pass) Skeleton 2: Trace capture > records an LLM call as a trace node with model, tokens, cost, and workspace edge [5889.18ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-session-hash.test.ts:
+  2026-03-19T11:06:20.112Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Missing system prompt — trace created without session hash fallback > creates a trace but skips session hash when no system prompt is provided [3234.10ms]
+  (pass) Agent session has correct source marker > sets source to proxy_hash for content-derived sessions [3766.12ms]
+  (pass) Explicit session header takes precedence over content hash > uses the header session instead of deriving from content [4302.13ms]
+  (pass) Different content produces different agent_session records > creates separate agent_session records for requests with different system prompts [5328.16ms]
+  (pass) Walking Skeleton: Identical requests grouped into same agent_session > creates a single agent_session record when two requests share the same system prompt and first user message [5554.17ms]
+  (pass) Multiple turns preserve same session identity > links all traces in a multi-turn session to the same agent_session record [8300.26ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-session-resolution.test.ts:
+  2026-03-19T11:06:28.597Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Claude Code metadata.user_id session extraction > links the trace to the agent session resolved from Claude Code metadata [3247.10ms]
+  (pass) Nonexistent session ID — trace linked to workspace only > creates a trace without session edge when the session ID does not match any record [3394.10ms]
+  (pass) Session activity timestamp updated on proxy request > updates last_activity_at on the agent session when a proxy request is received [3623.11ms]
+  (pass) Unknown client — trace linked to workspace only > creates a trace with workspace edge but no session edge for unidentified clients [3657.11ms]
+  (pass) Walking Skeleton: Trace linked to agent session > links the trace to the existing agent session when X-Brain-Session header is present [4009.12ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-trace.test.ts:
+  2026-03-19T11:06:32.800Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Trace without task has workspace and session edges only > creates workspace edge but no task attribution edge [3092.10ms]
+  (pass) Trace created with usage data after LLM call > creates an trace node with model, tokens, cost, and latency [3624.11ms]
+  (pass) Trace capture does not block response delivery > delivers response before graph writes complete [4207.13ms]
+  (pass) Trace edges link to session, workspace, and task > creates invoked, attributed_to, and scoped_to edges [4313.13ms]
+  (pass) Graph write failure triggers retry and fallback > retries 3 times and logs to stderr on persistent failure [6137.19ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-observer-coherence.test.ts:
+  2026-03-19T11:06:39.241Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Recent task (under age threshold) -- not flagged > does not flag recently completed tasks that are under the 14-day age threshold [235.01ms]
+  (pass) Duplicate scan -- no duplicate observations created > does not create duplicate observations when the coherence scan runs twice [646.02ms]
+  (pass) Walking Skeleton: Implementation without recorded decision detected > creates an observation for a completed task that has no linked decision record [694.02ms]
+  (pass) Completed task WITH decision link -- no observation > does not flag a completed task that has a linked decision record [1100.03ms]
+  (pass) Multiple implementations without decisions -- separate observations > creates separate observations for each implementation without a decision link [6138.19ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-policy.test.ts:
+  2026-03-19T11:06:45.679Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Unauthorized model request blocked with policy reference > returns 403 with policy violation details when model is not allowed [149.00ms]
+  (pass) No policies defaults to permissive with warning > forwards request when no policies exist and creates warning observation [3771.12ms]
+  (pass) Policy decision logged for audit trail > records governed_by edge linking trace to evaluated policy on pass [4683.14ms]
+  (pass) Budget exceeded request blocked with spend details > returns 429 with current spend and daily limit when budget exhausted [6159.19ms]
+  (fail) Rate limited request blocked with retry guidance > returns 429 with Retry-After header after exceeding rate limit [30000.93ms]
+    ^ this test timed out after 30000ms.
+  
+  # Unhandled error between tests
+  -------------------------------
+  error: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()
+    path: "http://127.0.0.1:45543/proxy/llm/anthropic/v1/messages",
+   errno: 0,
+    code: "ECONNRESET"
+  
+  
+  -------------------------------
+  
+  (fail) (unnamed) [20001.62ms]
+    ^ a beforeEach/afterEach hook timed out for this test.
+  
+
+tests/acceptance/llm-proxy/llm-proxy-dashboard.test.ts:
+  2026-03-19T11:07:35.907Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Spend endpoint registered and returns workspace overview > GET /api/workspaces/:wsId/proxy/spend returns 200 with total spend and budget [95.00ms]
+  (pass) Session endpoint returns per-session cost breakdown > GET /api/workspaces/:wsId/proxy/sessions returns sessions sorted by cost DESC [135.00ms]
+  (pass) Unattributed costs visible as separate category in project breakdown > shows unattributed costs when traces lack task/project attribution [217.01ms]
+  (pass) All spend queries respond within 2 seconds > spend endpoint responds in under 2s even with data [286.01ms]
+  (pass) Spend response includes per-project breakdown > returns per-project breakdown with today_spend, mtd_spend, call_count sorted by today_spend DESC [291.01ms]
+  (pass) Budget threshold alert fires at configured percentage > creates budget alert observation when daily spend reaches 80% of budget [1375.04ms]
+  (pass) Anomaly detection for sessions exceeding 2x average call rate > creates an observation when a session has 2x+ the average call count [3509.11ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-passthrough.test.ts:
+  2026-03-19T11:07:39.718Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Count tokens request forwarded without creating a trace > forwards count_tokens and returns response without graph trace [17.00ms]
+  (pass) Malformed request body forwarded without proxy interference > returns the upstream provider's error for invalid JSON [124.00ms]
+  (pass) Streaming request relays all SSE events > relays SSE events as raw bytes with all event types passing through [2509.08ms]
+  (pass) Walking Skeleton: Non-streaming request forwarded transparently > forwards a non-streaming request and returns the model response unmodified [2530.08ms]
+  (pass) Proxy forwards all required headers > includes anthropic-version, content-type, and x-api-key in upstream request [2827.09ms]
+  (pass) Upstream failure returns distinguishable error > returns 502 with source:proxy when upstream is unreachable [3050.09ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-context-injection.test.ts:
+  2026-03-19T11:07:42.958Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Context injection failure -- request forwarded without modification (fail-open) > forwards the original request when context injection encounters an error [1170.04ms]
+  (pass) Context injection disabled -- request forwarded without modification > forwards the request unmodified when context injection is disabled [4221.13ms]
+  (pass) Trace output captures response content > stores response content_blocks, stop_reason, and usage in trace output field [4331.13ms]
+  (pass) Walking Skeleton: Workspace decisions and learnings injected into request > appends a brain-context block with relevant decisions and learnings to the forwarded request [4630.14ms]
+  (pass) Empty workspace -- no context block appended > forwards request without brain-context when workspace has no decisions or learnings [4963.15ms]
+  
+
+tests/acceptance/llm-proxy/llm-proxy-audit.test.ts:
+  2026-03-19T11:07:48.142Z WARN [Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists. Upon completion, clear with silenceWarnings.oauthAuthServerConfig.
+  [LiveSelectManager] LIVE SELECT subscribed to table: decision
+  [LiveSelectManager] LIVE SELECT subscribed to table: task
+  [LiveSelectManager] LIVE SELECT subscribed to table: observation
+  [LiveSelectManager] LIVE SELECT subscribed to table: question
+  [LiveSelectManager] LIVE SELECT subscribed to table: suggestion
+  [LiveSelectManager] LIVE SELECT subscribed to table: learning
+  [LiveSelectManager] LIVE SELECT subscribed to table: agent_session
+  [LiveSelectManager] Live Select Manager started with 7/7 subscriptions
+  (pass) Authorization compliance check passes > reports all traces as authorized when governed_by edges exist [42.00ms]
+  (pass) Auditor views full provenance chain for a trace > returns trace detail with usage data and linked provenance entities [50.00ms]
+  (pass) Traces without authorization flagged as unverified > flags traces missing governed_by policy edge as unverified [89.00ms]
+  (pass) Auditor queries traces by project and date range > returns traces within date range for specified project [135.00ms]
+  
+
+2 tests failed:
+(fail) Rate limited request blocked with retry guidance > returns 429 with Retry-After header after exceeding rate limit [30000.93ms]
+  ^ this test timed out after 30000ms.
+(fail) (unnamed) [20001.62ms]
+  ^ a beforeEach/afterEach hook timed out for this test.
+
+w
