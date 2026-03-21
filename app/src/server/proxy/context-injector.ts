@@ -12,6 +12,7 @@
  */
 import { RecordId } from "surrealdb";
 import { extractSearchTerms } from "../graph/bm25-search";
+import { applyRrf, type RrfItem } from "../graph/rrf";
 
 // ---------------------------------------------------------------------------
 // Local cosine similarity (kept for legacy rankCandidates; no external dep)
@@ -661,24 +662,32 @@ export function createSearchRecentChanges(
       bindings,
     );
 
-    function toRecentChangeCandidates(
+    function toRrfItems(
       rows: Bm25RecentRow[],
       table: RecentChangeCandidate["table"],
-    ): RecentChangeCandidate[] {
+    ): RrfItem<Omit<RecentChangeCandidate, "similarity">>[] {
       return rows.map((row) => ({
+        _rrfKey: `${table}:${(row.id as RecordId).id as string}`,
         id: (row.id as RecordId).id as string,
         table,
         text: row.text,
-        similarity: row.score,
         updatedAt: row.updated_at,
       }));
     }
 
-    return [
-      ...toRecentChangeCandidates(results[0] ?? [], "decision"),
-      ...toRecentChangeCandidates(results[1] ?? [], "task"),
-      ...toRecentChangeCandidates(results[2] ?? [], "observation"),
-    ];
+    const fused = applyRrf(
+      [
+        toRrfItems(results[0] ?? [], "decision"),
+        toRrfItems(results[1] ?? [], "task"),
+        toRrfItems(results[2] ?? [], "observation"),
+      ],
+      limit,
+    );
+
+    return fused.map(({ rrfScore, ...rest }) => ({
+      ...rest,
+      similarity: rrfScore,
+    }));
   };
 }
 
@@ -734,23 +743,31 @@ export function createSearchContextByBm25(
       { ws: workspaceRecord, limit, query: trimmed },
     );
 
-    function toContextCandidates(
+    function toRrfItems(
       rows: Bm25ContextRow[],
       type: Bm25ContextCandidate["type"],
-    ): Bm25ContextCandidate[] {
+    ): RrfItem<Omit<Bm25ContextCandidate, "bm25Score">>[] {
       return rows.map((row) => ({
+        _rrfKey: `${type}:${(row.id as RecordId).id as string}`,
         id: (row.id as RecordId).id as string,
         type,
         text: row.text,
-        bm25Score: row.score,
         updatedAt: row.updated_at,
       }));
     }
 
-    return [
-      ...toContextCandidates(results[0] ?? [], "decision"),
-      ...toContextCandidates(results[1] ?? [], "learning"),
-      ...toContextCandidates(results[2] ?? [], "observation"),
-    ];
+    const fused = applyRrf(
+      [
+        toRrfItems(results[0] ?? [], "decision"),
+        toRrfItems(results[1] ?? [], "learning"),
+        toRrfItems(results[2] ?? [], "observation"),
+      ],
+      limit,
+    );
+
+    return fused.map(({ rrfScore, ...rest }) => ({
+      ...rest,
+      bm25Score: rrfScore,
+    }));
   };
 }
