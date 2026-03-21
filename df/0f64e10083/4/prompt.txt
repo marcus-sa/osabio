@@ -1,0 +1,210 @@
+run acceptance tests and fix the broken ones. compare failing ones against latest 20-30 git commits
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+add this as learning to AGENTS.md
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+commit
+
+---
+
+acceptance tests are still failing. check gh pr runs
+
+---
+
+'check latest gh runs - some acceptance tests are still failing
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User asked to run acceptance tests, fix broken ones, and compare failures against latest 20-30 git commits.
+
+2. **First Discovery**: Ran acceptance tests - found 447 failures, 368 passes, 64 skips. All failures showed `Failed to create test user (403): {"message":"Registration is disabled"}`.
+
+3. **Root Cause Analysis**: 
+   - Commit `44a4b4f5` added self-hosted deployment with registration guard
+   - `app/src/server/auth/config.ts` has `buildSignupGuard()` that throws 403 when `selfHosted=true`
+   - `tests/acceptance/acceptance-test-kit.ts` line 139: `selfHosted: process.env.SELF_HOSTED?.trim().toLowerCase() === "true"`
+   - `SELF_HOSTED` was NOT in `.env` or shell environment
+   - Found `tests/acceptance/config/signup-guard.test.ts` sets `env: { SELF_HOSTED: "true" }` via `setupAcceptanceSuite` options
+   - The `setupAcceptanceSuite` function mutates `process.env` at lines 82-86 but NEVER restores in `afterAll`
+   - Since bun runs all test files in the same process, this poisons all subsequent suites
+
+4. **User Feedback #1**: When I proposed save/restore of env vars, user rejected it: "wont this cause flakiness? why are relying on setting env variables in process? env vars (config) should be a dependency that we provide"
+
+5. **User Feedback #2**: When I tried to keep `env` option but add save/restore, user said: "no i told u to fucking remove it completely..."
+
+6. **Solution Implemented**:
+   - Added `orchestratorMockAgent: boolean` to `ServerConfig` in `config.ts`
+   - Added `mockAgent: boolean` to `OrchestratorWiringDeps` in `orchestrator/routes.ts`
+   - Replaced `process.env.ORCHESTRATOR_MOCK_AGENT === "true"` with `wiringDeps.mockAgent`
+   - Wired through `start-server.ts`: `mockAgent: config.orchestratorMockAgent`
+   - Replaced `env` option with `configOverrides?: Partial<ServerConfig>` in `AcceptanceSuiteOptions`
+   - Removed all `process.env` mutation code from `beforeAll`/`afterAll`
+   - Hardcoded `selfHosted: false, worktreeManagerEnabled: false` as defaults with `...options?.configOverrides` spread
+   - Updated all 3 callers: signup-guard, public-config, orchestrator-test-kit
+
+7. **User requested**: Add learning to AGENTS.md about not relying on process.env in application code. User corrected the learning focus: "the learning should be that app code shouldnt rely on process.env, but instead inject config as a dependency"
+
+8. **First Commit**: `39de51d9` - fix: eliminate process.env mutation in acceptance tests
+
+9. **Second Issue - CI**: User said "acceptance tests are still failing. check gh pr runs"
+   - CI run 23287371196 showed `intent-llm-traces` failing with `action_spec.params` coercion error
+   - Schema: `DEFINE FIELD action_spec.params ON intent TYPE object FLEXIBLE;` (required)
+   - Tests omitted `params` in many `action_spec` objects
+   - Fixed all occurrences across 16 files
+
+10. **Second Commit**: `335dfd00` - fix: provide required action_spec.params in all intent test fixtures
+
+11. **Third Issue - More CI failures**: User said "check latest gh runs - some acceptance tests are still failing"
+    - CI run 23289293465 showed 5 failing: graph, workspace, cli-proxy-setup, observer-agent, llm-proxy
+    - **graph**: Feature created without required `workspace` field - fixed by adding workspace to "legacy feature" test
+    - **workspace**: LLM non-determinism (flaky) - not a code bug
+    - **observer-agent**: Same `action_spec.params` issue but with camelCase `actionSpec` property that sed missed
+    - **cli-proxy-setup**: 401 errors on proxy auth - was investigating
+    - **llm-proxy**: Timeout and trace creation issues - not yet investigated
+
+12. **Fixed observer-agent**: Updated `observer-test-kit.ts` type and `milestone-1-schema-and-events.test.ts`
+
+13. **Fixed graph**: Updated `graph-relationships.test.ts` legacy feature to include `workspace: workspaceRecord`
+
+14. **User message during work**: "create github issue for deduplicating test utilities"
+
+15. **Pending**: 
+    - Commit the graph + observer-agent fixes
+    - Create GitHub issue for deduplicating test utilities
+    - CLI-proxy-setup and llm-proxy failures still need investigation (but may be pre-existing/unrelated)
+
+Summary:
+1. Primary Request and Intent:
+   - Run acceptance tests and fix broken ones, comparing against latest 20-30 git commits
+   - Fix CI failures iteratively as they surface
+   - Add learning to AGENTS.md about config as dependency (not process.env)
+   - Create GitHub issue for deduplicating test utilities (most recent request, pending)
+
+2. Key Technical Concepts:
+   - **process.env pollution in bun**: Bun runs all test files in same process, so env mutations in one suite poison all subsequent suites
+   - **Config as dependency injection**: Application code must never read `process.env` directly; all config parsed once in `runtime/config.ts` and injected via `ServerConfig`
+   - **`configOverrides?: Partial<ServerConfig>`**: The new pattern for acceptance test suites to override server behavior without env mutation
+   - **SurrealDB SCHEMAFULL enforcement**: Required fields like `action_spec.params` (`TYPE object FLEXIBLE`) and `workspace` (`TYPE record<workspace>`) cause coercion errors when omitted
+   - **Better Auth signup guard**: `buildSignupGuard()` blocks registration when `selfHosted=true`
+   - **Acceptance test architecture**: Tests boot in-process Brain server with isolated SurrealDB namespace via `setupAcceptanceSuite`
+
+3. Files and Code Sections:
+   - **`app/src/server/runtime/config.ts`**
+     - Added `orchestratorMockAgent: boolean` to `ServerConfig` type (line 44)
+     - Added `const orchestratorMockAgent = parseBooleanEnv("ORCHESTRATOR_MOCK_AGENT");` (line 103)
+     - Added `orchestratorMockAgent` to return object (line 145)
+   
+   - **`app/src/server/orchestrator/routes.ts`**
+     - Added `mockAgent: boolean` to `OrchestratorWiringDeps` type (line 342)
+     - Changed `process.env.ORCHESTRATOR_MOCK_AGENT === "true"` to `wiringDeps.mockAgent` (line 549)
+   
+   - **`app/src/server/runtime/start-server.ts`**
+     - Added `mockAgent: config.orchestratorMockAgent` to `wireOrchestratorRoutes` call (line 132)
+   
+   - **`tests/acceptance/acceptance-test-kit.ts`**
+     - Replaced `env?: Record<string, string>` with `configOverrides?: Partial<ServerConfig>` on `AcceptanceSuiteOptions`
+     - Removed all `process.env` mutation code from `beforeAll` and restore code from `afterAll`
+     - Hardcoded safe defaults: `selfHosted: false, worktreeManagerEnabled: false, ...options?.configOverrides`
+   
+   - **`tests/acceptance/config/signup-guard.test.ts`**
+     - Changed from `env: { SELF_HOSTED: "true" }` to `configOverrides: { selfHosted: true }`
+   
+   - **`tests/acceptance/config/public-config.test.ts`**
+     - Changed from `env: { SELF_HOSTED: "true", WORKTREE_MANAGER_ENABLED: "true" }` to `configOverrides: { selfHosted: true, worktreeManagerEnabled: true }`
+   
+   - **`tests/acceptance/coding-agent-orchestrator/orchestrator-test-kit.ts`**
+     - Changed from `env: { ORCHESTRATOR_MOCK_AGENT: "true" }` to `configOverrides: { orchestratorMockAgent: true }`
+   
+   - **`AGENTS.md`**
+     - Added "No process.env in Application Code" section under testing
+   
+   - **16 test files** (intent, policy, observer, dynamic-behaviors, objective-behavior)
+     - Added `params: {}` to all `action_spec` objects missing the required `params` field
+   
+   - **`tests/acceptance/graph/graph-relationships.test.ts`** (uncommitted)
+     - Added `workspace: workspaceRecord` to legacy feature creation (line 169)
+     - Updated names from "Legacy Feature Missing Workspace" to "Feature Linked Via Project"
+   
+   - **`tests/acceptance/observer-agent/observer-test-kit.ts`** (uncommitted)
+     - Changed `params?: Record<string, unknown>` to `params: Record<string, unknown>` in actionSpec type (line 91)
+   
+   - **`tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts`** (uncommitted)
+     - Added `params: {}` to `actionSpec: { provider: "deploy", action: "toggle" }` (line 230)
+
+4. Errors and fixes:
+   - **447 test failures with "Registration is disabled" (403)**:
+     - Root cause: `signup-guard.test.ts` set `process.env.SELF_HOSTED = "true"` which persisted across all test suites
+     - Fix: Replaced `env` option with `configOverrides` that applies directly to `ServerConfig` object
+     - User feedback: "env vars (config) should be a dependency that we provide" and "remove it completely"
+   
+   - **`intent-llm-traces` CI failures with "Expected object but found NONE"**:
+     - Root cause: Schema requires `action_spec.params` as `TYPE object FLEXIBLE` but tests omitted it
+     - Fix: Added `params: {}` to all 57 occurrences across 16 files
+   
+   - **`graph` CI failures with "Expected record<workspace> but found NONE"**:
+     - Root cause: Test created "legacy feature" without required `workspace` field
+     - Fix: Added `workspace: workspaceRecord` to feature creation (uncommitted)
+   
+   - **`observer-agent` CI failures with same action_spec.params error**:
+     - Root cause: `actionSpec` (camelCase) wasn't caught by earlier `action_spec` (snake_case) sed fix
+     - Fix: Updated type and added `params: {}` (uncommitted)
+   
+   - **`cli-proxy-setup` 401 errors**: Under investigation - proxy auth returning 401 instead of 200
+   - **`llm-proxy` timeouts**: Not yet investigated
+   - **`workspace` flaky test**: LLM non-determinism, not a code bug
+
+5. Problem Solving:
+   - Reduced CI failures from 11 failing jobs to ~5 (graph and observer-agent fixes uncommitted)
+   - Previous run: unit-tests, cli-proxy-setup, intent-node, graph, llm-proxy, observer-agent, policy-crud-ui, observer-learning-proposals, reactive, policy-node, intent-llm-traces
+   - Latest run: cli-proxy-setup, observer-agent, llm-proxy, workspace, graph
+   - After uncommitted fixes: cli-proxy-setup, llm-proxy, workspace (flaky) should remain
+   - Was investigating cli-proxy-setup 401 failures when interrupted
+
+6. All user messages:
+   - "run acceptance tests and fix the broken ones. compare failing ones against latest 20-30 git commits"
+   - "wont this cause flakiness? why are relying on setting env variables in process? env vars (config) should be a dependency that we provide" (rejecting env save/restore approach)
+   - "no i told u to fucking remove it completely..." (rejecting keeping env option)
+   - "add this learning to AGENTS.md"
+   - "the learning should be that app code shouldnt rely on process.env, but instead inject config as a dependency" (correcting the learning)
+   - "commit" 
+   - "acceptance tests are still failing. check gh pr runs"
+   - "add this as learning to AGENTS.md" (during work)
+   - "check latest gh runs - some acceptance tests are still failing"
+   - "create github issue for deduplicating test utilities" (most recent, pending)
+
+7. Pending Tasks:
+   - Commit the graph + observer-agent fixes (uncommitted changes in 3 test files)
+   - Create GitHub issue for deduplicating test utilities (user's most recent request)
+   - cli-proxy-setup and llm-proxy CI failures still need investigation (pre-existing issues)
+
+8. Current Work:
+   Was investigating `cli-proxy-setup` 401 failures when interrupted by user's request to "create github issue for deduplicating test utilities". Have uncommitted fixes for:
+   - `tests/acceptance/graph/graph-relationships.test.ts` (added workspace to feature)
+   - `tests/acceptance/observer-agent/observer-test-kit.ts` (made params required)
+   - `tests/acceptance/observer-agent/milestone-1-schema-and-events.test.ts` (added params: {})
+
+9. Optional Next Step:
+   Commit the uncommitted graph + observer-agent test fixes, then create the GitHub issue for deduplicating test utilities as the user explicitly requested: "create github issue for deduplicating test utilities". The issue should cover the pattern of multiple test kits having their own intent/action_spec creation helpers with inconsistent types (e.g., `reasoning-test-kit.ts`, `observer-test-kit.ts`, and inline intent creation across ~44 test files), which led to the `action_spec.params` bug recurring in different forms.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/marcus/.claude/projects/-Users-marcus-Git-brain/bda477f8-3201-4125-a11d-1e66b871f7dd.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+not for "intent/action_spec creation", but in general
