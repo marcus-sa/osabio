@@ -1,0 +1,40 @@
+i read this linkedin post: "✨ My 2026 AI Agent team.
+
+My team over the years:
+→ 2023: 11 people.
+→ 2024: 9 people.
+→ 2025: 4 people.
+→ 2026: 3 people.
+
+We now have AI Agents + Automation in place to handle 4 crucial areas of my SaaS business:
+
+→ Product
+Lovable, Copilot/Claude, and AI-assisted CI/CD.
+It's helping us improve & maintain my SaaS portfolio with minimal human supervision.
+
+→ Content
+FeedHive, LinkDrip, Flux Pro, and fine-tuned AI models. We're using ComfyUI and Replicate to run the models, and our fine-tuned models include custom OpenAI models and Flux LoRA models.
+
+→ Support
+Aidbase, NocoDB, and AWS SES.
+This setup allows us to use AI for most common support inquiries, send emails and track customer relations.
+
+→ Blogs
+(This one is new!)
+n8n, SerpAPI, Strapi and GPT-5.2.
+We're experimenting with letting this AI agent handle our blogs FULLY autonomously (no human supervision at all).
+
+We're still 3 people left:
+- 1 UI/UX designer/developer.
+- 1 tech support agent.
+- 1 CEO (myself).
+
+At this point, I don't plan on reducing our team further. We are now a small, super lean and efficient, AI-powered startup team.
+
+I'm pumped that this is finally a reality." and it has a comment: "What’s interesting here is that the real leverage isn’t just the AI models its the orchestration layer.
+ 
+Tools like n8n, APIs and automation pipelines are quietly becoming the backbone of modern startups.
+ 
+The companies winning with AI aren’t just using models, they are building connected AI systems that handle entire workflows end to end.
+ 
+That’s where the real productivity jump happens." - but i want to reply to it with: "unfortunately, these systems aren't connected. They're fragmented and glued together. One agent has no idea what another agent decided 2 weeks ago. How does the supposedly "autonomous" agent self-correct?" and then link to brain

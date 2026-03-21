@@ -3,7 +3,7 @@
   "checkpoint_id": "df0f64e10083",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".nwave/des-config.json",
     "docs/research/brain-native-agent-runtime.md",
@@ -30,13 +30,20 @@
       "context": "/df/0f64e10083/2/context.md",
       "content_hash": "/df/0f64e10083/2/content_hash.txt",
       "prompt": "/df/0f64e10083/2/prompt.txt"
+    },
+    {
+      "metadata": "/df/0f64e10083/3/metadata.json",
+      "transcript": "/df/0f64e10083/3/full.jsonl",
+      "context": "/df/0f64e10083/3/context.md",
+      "content_hash": "/df/0f64e10083/3/content_hash.txt",
+      "prompt": "/df/0f64e10083/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1336,
-    "cache_creation_tokens": 339593,
+    "input_tokens": 1339,
+    "cache_creation_tokens": 390486,
     "cache_read_tokens": 4859694,
-    "output_tokens": 11588,
-    "api_call_count": 58
+    "output_tokens": 11823,
+    "api_call_count": 59
   }
 }
