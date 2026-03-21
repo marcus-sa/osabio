@@ -15,7 +15,6 @@ import { loadActiveLearnings } from "../learning/loader";
 import { formatLearningsSection } from "../learning/formatter";
 import { createChatAgentTools } from "./tools";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
-import { createEmbedding, persistEmbeddings } from "../extraction/embedding-writeback";
 import { loadBranchChain } from "./branch-chain";
 import { persistSubagentTrace } from "./trace-loader";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
@@ -150,17 +149,6 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       throw error;
     }
 
-    // Embed user message (fire-and-forget)
-    const userMessageEmbedding = await createEmbedding(deps.embeddingModel, deps.config.embeddingDimension, userText);
-    if (userMessageEmbedding) {
-      deps.inflight.track(deps.surreal
-        .query("UPDATE $record MERGE { embedding: $embedding };", {
-          record: userMessageRecord,
-          embedding: userMessageEmbedding,
-        })
-        .catch(() => undefined));
-    }
-
     // Compute onboarding state
     const onboardingAfter = await transitionOnboardingState({
       surreal: deps.surreal,
@@ -196,7 +184,6 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       surreal: deps.surreal,
       conversationRecord,
       workspaceRecord,
-      ...(userMessageEmbedding ? { userMessageEmbedding } : {}),
       ...(inheritedEntityIds && inheritedEntityIds.length > 0 ? { inheritedEntityIds } : {}),
       ...(() => {
         const conversationDiscussesRecord = selectConversationDiscussesRecord({
@@ -231,8 +218,6 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
       pmAgentModel: deps.pmAgentModel,
       analyticsAgentModel: deps.analyticsAgentModel,
       analyticsSurreal: deps.analyticsSurreal,
-      embeddingModel: deps.embeddingModel,
-      embeddingDimension: deps.config.embeddingDimension,
       extractionModelId: deps.config.extractionModelId,
       extractionModel: deps.extractionModel,
       extractionStoreThreshold: deps.config.extractionStoreThreshold,
@@ -311,16 +296,6 @@ async function handleChatRequest(deps: ServerDependencies, request: Request): Pr
         // Post-response hooks
         await refreshConversationTouchedBy(deps.surreal, conversationRecord);
         await maybeUpgradeConversationTitle(deps.surreal, conversationRecord);
-
-        // Fire-and-forget: embeddings
-        deps.inflight.track(persistEmbeddings({
-          surreal: deps.surreal,
-          embeddingModel: deps.embeddingModel,
-          embeddingDimension: deps.config.embeddingDimension,
-          assistantMessageRecord,
-          assistantText,
-          entities: [],
-        }).catch(() => undefined));
 
         span?.setAttribute("chat.assistant_text_length", assistantText.length);
         span?.setAttribute("chat.subagent_trace_count", subagentTraces.length);

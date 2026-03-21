@@ -16,28 +16,32 @@ import { RecordId, type Surreal } from "surrealdb";
 import { generateObject, type LanguageModel } from "ai";
 import { rootCauseSchema, type RootCauseClassification } from "./schemas";
 import { OBSERVER_IDENTITY } from "../agents/observer/prompt";
+import { extractSearchTerms } from "../graph/bm25-search";
 import { createTelemetryConfig, recordLlmMetrics, recordLlmError } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { checkRateLimit, suggestLearning } from "../learning/detector";
 import { createObservation } from "../observation/queries";
-import { cosineSimilarity, createEmbeddingVector } from "../graph/embeddings";
+import { buildCoverageQuery, isCoverageMatch, type Bm25LearningMatch } from "../learning/bm25-collision";
 import { analyzeTrend, type ScorePoint, type TrendPattern, type TrendResult } from "../behavior/trends";
 import type { CreateLearningInput } from "../learning/types";
-import type { embed } from "ai";
+import type { CoverageCheckResult } from "../learning/collision-types";
 import { log } from "../telemetry/logger";
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type ObservationWithEmbedding = {
+export type ObservationForClustering = {
   id: string;
   text: string;
   severity: string;
-  embedding: number[];
   entityRefs: string[];
+};
+
+export type Bm25SimilarityEdge = {
+  sourceId: string;
+  matchId: string;
+  score: number;
 };
 
 export type ObservationCluster = {
@@ -46,9 +50,7 @@ export type ObservationCluster = {
   clusterSize: number;
 };
 
-export type CoverageCheckResult =
-  | { covered: false }
-  | { covered: true; matchedLearningText: string; similarity: number };
+export type { CoverageCheckResult } from "../learning/collision-types";
 
 export type DiagnosticResult = {
   learning_proposals_created: number;
@@ -60,48 +62,38 @@ export type DiagnosticResult = {
 // Configuration
 // ---------------------------------------------------------------------------
 
-const CLUSTER_SIMILARITY_THRESHOLD = 0.75;
 const MINIMUM_CLUSTER_SIZE = 3;
 const TIME_WINDOW_DAYS = 14;
-// Coverage threshold is lower than typical dedup thresholds (0.85) because
-// we compare observation-text centroids (descriptive, noisy) against learning-text
-// embeddings (directive, concise). Cross-form comparisons consistently score
-// 30-40% lower on cosine similarity than same-form comparisons.
-const COVERAGE_SIMILARITY_THRESHOLD = 0.50;
-// Same cross-domain text form issue as coverage threshold — observation
-// centroids vs dismissed learning embeddings. Lower than the dismissed
-// re-suggestion gate (0.85) in suggestLearning() which compares same-form texts.
-const DISMISSED_PATTERN_SIMILARITY_THRESHOLD = 0.50;
+// Coverage and dismissed similarity thresholds are no longer needed --
+// BM25 fulltext search handles relevance filtering via the @N@ match operator.
 
 // ---------------------------------------------------------------------------
-// Observation query (IO boundary)
+// Observation query (IO boundary) -- embedding-free BM25 path
 // ---------------------------------------------------------------------------
 
 /**
- * Queries open/acknowledged observations from the past 14 days with embeddings.
- * Uses two-step KNN pattern per SurrealDB HNSW+WHERE bug.
+ * Queries open/acknowledged observations from the past 14 days.
+ * Does NOT require embeddings -- observations are clustered via BM25 text search.
  */
-export async function queryRecentObservationsWithEmbeddings(
+export async function queryRecentObservations(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-): Promise<ObservationWithEmbedding[]> {
+): Promise<ObservationForClustering[]> {
   const cutoff = new Date(Date.now() - TIME_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   const [rows] = await surreal.query<[Array<{
     id: RecordId<"observation">;
     text: string;
     severity: string;
-    embedding: number[];
     entity_refs: Array<RecordId | string>;
     created_at: string;
   }>]>(
-    `SELECT id, text, severity, embedding, created_at,
+    `SELECT id, text, severity, created_at,
             ->observes->task.id AS entity_refs
      FROM observation
      WHERE workspace = $ws
        AND status IN ["open", "acknowledged"]
        AND created_at > $cutoff
-       AND embedding IS NOT NONE
      ORDER BY created_at DESC
      LIMIT 200;`,
     { ws: workspaceRecord, cutoff },
@@ -111,7 +103,6 @@ export async function queryRecentObservationsWithEmbeddings(
     id: row.id.id as string,
     text: row.text,
     severity: row.severity,
-    embedding: row.embedding,
     entityRefs: (row.entity_refs ?? [])
       .filter((ref): ref is RecordId => typeof ref === "object" && ref !== null && "id" in ref)
       .map((ref) => `task:${ref.id as string}`),
@@ -119,42 +110,141 @@ export async function queryRecentObservationsWithEmbeddings(
 }
 
 // ---------------------------------------------------------------------------
-// Pure clustering (no IO)
+// BM25 observation similarity query builder (pure -- no IO)
 // ---------------------------------------------------------------------------
 
 /**
- * Clusters observations by pairwise embedding similarity using single-linkage.
+ * Builds a BM25 fulltext search query using OR-predicate pattern.
+ *
+ * Each term gets its own predicate number so SurrealDB matches ANY term
+ * (OR semantics) instead of requiring ALL terms (AND semantics of single @N@).
+ *
+ * Returns { sql, bindings } where bindings include $ws and $t0..$tN.
+ */
+export function buildObservationSimilarityOrQuery(
+  termList: string[],
+  workspaceRecord: RecordId<"workspace", string>,
+): { sql: string; bindings: Record<string, unknown> } {
+  const matchClause = termList.map((_, i) => `text @${i}@ $t${i}`).join(" OR ");
+  const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+  const bindings: Record<string, unknown> = { ws: workspaceRecord };
+  termList.forEach((term, i) => { bindings[`t${i}`] = term; });
+
+  const sql = [
+    `SELECT id, text, ${scoreExpr} AS score`,
+    `FROM observation`,
+    `WHERE (${matchClause})`,
+    `AND workspace = $ws`,
+    `AND status IN ["open", "acknowledged"]`,
+    `ORDER BY score DESC`,
+    `LIMIT 10;`,
+  ].join("\n");
+
+  return { sql, bindings };
+}
+
+// Re-export from shared module for existing callers
+export { extractSearchTerms } from "../graph/bm25-search";
+
+// ---------------------------------------------------------------------------
+// BM25-based clustering (IO boundary for queries, pure for grouping)
+// ---------------------------------------------------------------------------
+
+/**
+ * Clusters observations by BM25 text similarity.
+ *
+ * For each observation, performs a BM25 fulltext search to find similar observations.
+ * Builds a similarity edge graph, then groups via BFS connected components.
+ * Self-matches are filtered in application code (SurrealDB id != $self is unreliable
+ * when combined with BM25 @N@ operator).
+ *
+ * IO boundary: executes BM25 queries against SurrealDB.
+ */
+export async function clusterObservationsByBm25(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  observations: ObservationForClustering[],
+  minimumClusterSize: number = MINIMUM_CLUSTER_SIZE,
+): Promise<ObservationCluster[]> {
+  if (observations.length < minimumClusterSize) return [];
+
+  // Build similarity edges via BM25 for each observation
+  const edges: Bm25SimilarityEdge[] = [];
+  const observationIds = new Set(observations.map((o) => o.id));
+
+  for (const obs of observations) {
+    const termList = extractSearchTerms(obs.text).split(" ").filter((t) => t.length > 0);
+    if (termList.length === 0) continue;
+    const { sql, bindings } = buildObservationSimilarityOrQuery(termList, workspaceRecord);
+    const [matches] = await surreal.query<[Array<{
+      id: RecordId<"observation">;
+      text: string;
+      score: number;
+    }>]>(sql, bindings);
+
+    for (const match of matches ?? []) {
+      const matchId = match.id.id as string;
+      // Filter out self-match in application code and limit to our observation set
+      if (matchId !== obs.id && observationIds.has(matchId)) {
+        edges.push({
+          sourceId: obs.id,
+          matchId,
+          score: match.score,
+        });
+      }
+    }
+  }
+
+  return groupObservationsIntoClusters(observations, edges, minimumClusterSize);
+}
+
+// ---------------------------------------------------------------------------
+// Pure clustering from BM25 edges (no IO)
+// ---------------------------------------------------------------------------
+
+/**
+ * Groups observations into clusters using BFS on BM25 similarity edges.
  *
  * Algorithm:
- * 1. Build adjacency: observation A is neighbor of B if similarity > threshold
- * 2. Connected components via BFS form clusters
- * 3. Filter clusters by minimum size
+ * 1. Build adjacency graph from BM25 edges (bidirectional)
+ * 2. Find connected components via BFS
+ * 3. Filter by minimum cluster size
+ * 4. Pick representative as the observation with highest total BM25 score
  *
  * Pure function -- no IO.
  */
-export function clusterObservationsBySimilarity(
-  observations: ObservationWithEmbedding[],
-  similarityThreshold: number = CLUSTER_SIMILARITY_THRESHOLD,
+export function groupObservationsIntoClusters(
+  observations: ObservationForClustering[],
+  edges: Bm25SimilarityEdge[],
   minimumClusterSize: number = MINIMUM_CLUSTER_SIZE,
 ): ObservationCluster[] {
   if (observations.length < minimumClusterSize) return [];
 
-  // Build adjacency list
+  const idToIndex = new Map<string, number>();
+  for (let i = 0; i < observations.length; i++) {
+    idToIndex.set(observations[i].id, i);
+  }
+
+  // Build bidirectional adjacency from edges
   const adjacency = new Map<number, Set<number>>();
   for (let i = 0; i < observations.length; i++) {
     adjacency.set(i, new Set());
   }
 
+  // Track total BM25 scores per observation for representative selection
+  const totalScores = new Map<number, number>();
   for (let i = 0; i < observations.length; i++) {
-    for (let j = i + 1; j < observations.length; j++) {
-      const similarity = cosineSimilarity(
-        observations[i].embedding,
-        observations[j].embedding,
-      );
-      if (similarity > similarityThreshold) {
-        adjacency.get(i)!.add(j);
-        adjacency.get(j)!.add(i);
-      }
+    totalScores.set(i, 0);
+  }
+
+  for (const edge of edges) {
+    const sourceIdx = idToIndex.get(edge.sourceId);
+    const matchIdx = idToIndex.get(edge.matchId);
+    if (sourceIdx !== undefined && matchIdx !== undefined && sourceIdx !== matchIdx) {
+      adjacency.get(sourceIdx)!.add(matchIdx);
+      adjacency.get(matchIdx)!.add(sourceIdx);
+      totalScores.set(sourceIdx, (totalScores.get(sourceIdx) ?? 0) + edge.score);
+      totalScores.set(matchIdx, (totalScores.get(matchIdx) ?? 0) + edge.score);
     }
   }
 
@@ -164,6 +254,10 @@ export function clusterObservationsBySimilarity(
 
   for (let i = 0; i < observations.length; i++) {
     if (visited.has(i)) continue;
+    if (adjacency.get(i)!.size === 0) {
+      visited.add(i);
+      continue;
+    }
 
     const component: number[] = [];
     const queue = [i];
@@ -189,8 +283,8 @@ export function clusterObservationsBySimilarity(
         entityRefs: observations[idx].entityRefs,
       }));
 
-      // Representative text: the observation with highest average similarity to others in cluster
-      const representativeIndex = pickRepresentativeIndex(component, observations);
+      // Representative: observation with highest total BM25 score in cluster
+      const representativeIndex = pickRepresentativeByBm25Score(component, totalScores);
 
       clusters.push({
         observations: clusterObservations,
@@ -204,53 +298,20 @@ export function clusterObservationsBySimilarity(
 }
 
 /**
- * Computes the centroid (element-wise average) of a set of embedding vectors.
- * This reduces noise from individual observation text variations, producing
- * a more representative embedding for cluster-level similarity comparisons.
+ * Picks the observation with highest total BM25 score among cluster members.
+ * Pure function -- no IO.
  */
-function computeCentroidEmbedding(embeddings: number[][]): number[] {
-  if (embeddings.length === 0) return [];
-  if (embeddings.length === 1) return embeddings[0];
-
-  const dimension = embeddings[0].length;
-  const centroid = new Array<number>(dimension).fill(0);
-
-  for (const embedding of embeddings) {
-    for (let i = 0; i < dimension; i++) {
-      centroid[i] += embedding[i];
-    }
-  }
-
-  for (let i = 0; i < dimension; i++) {
-    centroid[i] /= embeddings.length;
-  }
-
-  return centroid;
-}
-
-/**
- * Picks the observation with highest average similarity to other cluster members.
- */
-function pickRepresentativeIndex(
+function pickRepresentativeByBm25Score(
   componentIndices: number[],
-  observations: ObservationWithEmbedding[],
+  totalScores: Map<number, number>,
 ): number {
   let bestIndex = componentIndices[0];
-  let bestAvgSimilarity = -1;
+  let bestScore = -1;
 
   for (const i of componentIndices) {
-    let totalSimilarity = 0;
-    for (const j of componentIndices) {
-      if (i !== j) {
-        totalSimilarity += cosineSimilarity(
-          observations[i].embedding,
-          observations[j].embedding,
-        );
-      }
-    }
-    const avgSimilarity = totalSimilarity / (componentIndices.length - 1);
-    if (avgSimilarity > bestAvgSimilarity) {
-      bestAvgSimilarity = avgSimilarity;
+    const score = totalScores.get(i) ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
       bestIndex = i;
     }
   }
@@ -259,84 +320,74 @@ function pickRepresentativeIndex(
 }
 
 // ---------------------------------------------------------------------------
-// Coverage check (IO boundary -- KNN query)
+// Coverage check (IO boundary -- BM25 fulltext search)
 // ---------------------------------------------------------------------------
 
 /**
  * Checks if any learning with a given status covers the cluster pattern.
- * Uses two-step KNN pattern per SurrealDB HNSW+WHERE bug, with brute-force fallback.
+ * Uses BM25 fulltext search instead of KNN embedding similarity.
  */
-async function checkLearningCoverage(
+async function checkLearningCoverageBm25(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
   learningStatus: "active" | "dismissed",
-  similarityThreshold: number,
 ): Promise<CoverageCheckResult> {
-  const results = await surreal
-    .query<[undefined, Array<{ text: string; similarity: number }>]>(
-      [
-        "LET $candidates = SELECT id, text, workspace, status,",
-        "vector::similarity::cosine(embedding, $embedding) AS similarity",
-        "FROM learning WHERE embedding <|10, COSINE|> $embedding;",
-        "SELECT text, similarity FROM $candidates",
-        "WHERE workspace = $ws AND status = $status AND similarity > $threshold",
-        "ORDER BY similarity DESC LIMIT 1;",
-      ].join("\n"),
-      {
-        embedding: clusterEmbedding,
-        ws: workspaceRecord,
-        status: learningStatus,
-        threshold: similarityThreshold,
-      },
-    );
+  // SurrealDB BM25 @N@ does AND matching — all query terms must exist in the
+  // target document. Observation text often contains terms absent from learnings
+  // (e.g. "failure" in observation but not in a learning about "pipeline health").
+  // Search with individual key terms and take the best match across all queries.
+  const termList = extractSearchTerms(representativeText)
+    .split(" ")
+    .filter((t) => t.length > 0);
+  if (termList.length === 0) return { covered: false };
 
-  const matches = results[1] ?? [];
-  const match = matches[0];
-  if (match) {
-    return { covered: true, matchedLearningText: match.text, similarity: match.similarity };
-  }
-
-  // Brute-force fallback when HNSW index hasn't indexed recent inserts
-  const [learnings] = await surreal.query<[Array<{ text: string; embedding: number[] }>]>(
-    `SELECT text, embedding FROM learning
-     WHERE workspace = $ws
-       AND status = $status
-       AND embedding IS NOT NONE;`,
-    { ws: workspaceRecord, status: learningStatus },
-  );
-
-  if (learningStatus === "active") {
-    log.info("observer.learning.coverage_fallback", "Fallback coverage check", {
-      activeLearningsCount: (learnings ?? []).length,
-      workspaceId: workspaceRecord.id,
+  const allMatches: Bm25LearningMatch[] = [];
+  const sql = buildCoverageQuery(learningStatus);
+  for (const term of termList) {
+    const [rows] = await surreal.query<[Bm25LearningMatch[]]>(sql, {
+      ws: workspaceRecord,
+      query: term,
     });
-  }
-
-  for (const learning of learnings ?? []) {
-    const similarity = cosineSimilarity(clusterEmbedding, learning.embedding);
-    if (similarity > similarityThreshold) {
-      return { covered: true, matchedLearningText: learning.text, similarity };
+    for (const row of rows ?? []) {
+      allMatches.push(row);
     }
   }
 
-  return { covered: false };
+  // Deduplicate by text (same learning may match multiple terms)
+  const seen = new Set<string>();
+  const deduped = allMatches.filter((m) => {
+    if (seen.has(m.text)) return false;
+    seen.add(m.text);
+    return true;
+  });
+
+  if (learningStatus === "active") {
+    log.info("observer.learning.bm25_coverage_check", "BM25 coverage check against active learnings", {
+      matchCount: deduped.length,
+      topScore: deduped[0]?.score,
+      workspaceId: workspaceRecord.id,
+      termsSearched: termList.length,
+    });
+  }
+
+  return isCoverageMatch(deduped);
 }
 
 export async function checkCoverageAgainstActiveLearnings(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
 ): Promise<CoverageCheckResult> {
-  return checkLearningCoverage(surreal, workspaceRecord, clusterEmbedding, "active", COVERAGE_SIMILARITY_THRESHOLD);
+  return checkLearningCoverageBm25(surreal, workspaceRecord, representativeText, "active");
 }
 
 export async function checkDismissedLearningForCluster(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  clusterEmbedding: number[],
+  representativeText: string,
 ): Promise<CoverageCheckResult> {
-  return checkLearningCoverage(surreal, workspaceRecord, clusterEmbedding, "dismissed", DISMISSED_PATTERN_SIMILARITY_THRESHOLD);
+  return checkLearningCoverageBm25(surreal, workspaceRecord, representativeText, "dismissed");
 }
 
 // ---------------------------------------------------------------------------
@@ -710,8 +761,6 @@ async function processUncoveredCluster(
   model: LanguageModel,
   cluster: ObservationCluster,
   existingLearnings: string[],
-  embeddingModel?: EmbeddingModel,
-  embeddingDimension?: number,
 ): Promise<{ proposed: boolean }> {
   const classification = await classifyRootCause(model, cluster, existingLearnings);
 
@@ -726,17 +775,11 @@ async function processUncoveredCluster(
   if (shouldProposeLearning(classification)) {
     const learningInput = rootCauseToLearningInput(classification, cluster);
 
-    // Generate embedding for the proposed learning text to enable
-    // dismissed similarity gate and persist with the learning record
-    const embedding = embeddingModel && embeddingDimension
-      ? await createEmbeddingVector(embeddingModel, learningInput.text, embeddingDimension)
-      : undefined;
-
+    // BM25 dismissed similarity gate runs inside suggestLearning -- no embedding needed
     const result = await suggestLearning({
       surreal,
       workspaceRecord,
       learning: learningInput,
-      embedding,
       now: new Date(),
     });
 
@@ -765,9 +808,6 @@ async function processUncoveredCluster(
     sourceAgent: "observer_agent",
     observationType: "pattern",
     now: new Date(),
-    embeddingDeps: embeddingModel && embeddingDimension
-      ? { embeddingModel, embeddingDimension }
-      : undefined,
   });
 
   log.info("observer.learning.low_confidence", "Pattern observed but confidence too low for learning proposal", {
@@ -787,8 +827,8 @@ async function processUncoveredCluster(
  * Runs the observation clustering, coverage check, and root cause classification pipeline.
  *
  * Pipeline:
- * 1. Query recent observations with embeddings
- * 2. Cluster by pairwise similarity
+ * 1. Query recent observations (no embeddings required)
+ * 2. Cluster by BM25 text similarity
  * 3. For each cluster, check coverage against active learnings
  * 4. For uncovered clusters, classify root cause via LLM
  * 5. Propose learning or create observation based on dual gate
@@ -797,8 +837,6 @@ export async function runDiagnosticClustering(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
   observerModel: LanguageModel,
-  embeddingModel: EmbeddingModel,
-  embeddingDimension: number,
 ): Promise<{
   clusters: ObservationCluster[];
   uncoveredClusters: ObservationCluster[];
@@ -810,8 +848,8 @@ export async function runDiagnosticClustering(
     clusters_found: 0,
   };
 
-  // Step 1: Query recent observations
-  const observations = await queryRecentObservationsWithEmbeddings(
+  // Step 1: Query recent observations (no embeddings needed)
+  const observations = await queryRecentObservations(
     surreal,
     workspaceRecord,
   );
@@ -820,44 +858,29 @@ export async function runDiagnosticClustering(
     return { clusters: [], uncoveredClusters: [], result: diagnosticResult };
   }
 
-  // Step 2: Cluster by similarity (pure)
-  const clusters = clusterObservationsBySimilarity(observations);
+  // Step 2: Cluster by BM25 text similarity
+  const clusters = await clusterObservationsByBm25(surreal, workspaceRecord, observations);
   diagnosticResult.clusters_found = clusters.length;
 
   if (clusters.length === 0) {
     return { clusters: [], uncoveredClusters: [], result: diagnosticResult };
   }
 
-  // Step 3: Coverage check for each cluster
+  // Step 3: Coverage check for each cluster (BM25 on representative text)
   const uncoveredClusters: ObservationCluster[] = [];
 
   for (const cluster of clusters) {
-    // Compute cluster centroid embedding (average of all observation embeddings)
-    // to reduce noise from individual observation text variations
-    const clusterObsWithEmbeddings = cluster.observations
-      .map((co) => observations.find((o) => o.id === co.id))
-      .filter((o): o is ObservationWithEmbedding => o !== undefined && o.embedding.length > 0);
-
-    if (clusterObsWithEmbeddings.length === 0) {
-      uncoveredClusters.push(cluster);
-      continue;
-    }
-
-    const centroidEmbedding = computeCentroidEmbedding(
-      clusterObsWithEmbeddings.map((o) => o.embedding),
-    );
-
     const coverage = await checkCoverageAgainstActiveLearnings(
       surreal,
       workspaceRecord,
-      centroidEmbedding,
+      cluster.representativeText,
     );
 
     if (coverage.covered) {
       log.info("observer.learning.coverage_skip", "Cluster pattern already covered by active learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: coverage.matchedLearningText,
-        similarity: coverage.similarity,
+        score: coverage.score,
       });
       diagnosticResult.coverage_skips += 1;
       continue;
@@ -867,14 +890,14 @@ export async function runDiagnosticClustering(
     const dismissedCheck = await checkDismissedLearningForCluster(
       surreal,
       workspaceRecord,
-      centroidEmbedding,
+      cluster.representativeText,
     );
 
     if (dismissedCheck.covered) {
       log.info("observer.learning.dismissed_skip", "Cluster pattern matches a previously dismissed learning", {
         clusterSize: cluster.clusterSize,
         matchedLearningText: dismissedCheck.matchedLearningText,
-        similarity: dismissedCheck.similarity,
+        score: dismissedCheck.score,
       });
       diagnosticResult.coverage_skips += 1;
     } else {
@@ -893,8 +916,6 @@ export async function runDiagnosticClustering(
         observerModel,
         cluster,
         existingLearnings,
-        embeddingModel,
-        embeddingDimension,
       );
 
       if (proposed) {

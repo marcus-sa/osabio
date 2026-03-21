@@ -1,0 +1,153 @@
+schema_version: "2.0"
+project_id: remove-embeddings
+events:
+  - step_id: "01-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-19T00:00:00Z"
+  - step_id: "01-01"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-19T00:00:01Z"
+  - step_id: "01-01"
+    phase: RED_UNIT
+    status: SKIPPED
+    data: "NOT_APPLICABLE: schema-only migration, no application logic"
+    timestamp: "2026-03-19T00:00:02Z"
+  - step_id: "01-01"
+    phase: GREEN
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-19T00:00:03Z"
+  - step_id: "01-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: 5829570f"
+    timestamp: "2026-03-19T00:00:04Z"
+  - step_id: "01-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-19T16:20:00Z"
+  - step_id: "01-02"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS: 6 acceptance tests written and failing"
+    timestamp: "2026-03-19T16:20:01Z"
+  - step_id: "01-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: "PASS: 11 unit tests written and failing"
+    timestamp: "2026-03-19T16:20:02Z"
+  - step_id: "01-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS: 11 unit tests, 6 acceptance tests"
+    timestamp: "2026-03-19T16:20:03Z"
+  - step_id: "01-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: a9d0aaad"
+    timestamp: "2026-03-19T16:20:04Z"
+  - step_id: "01-03"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-20T10:00:00Z"
+  - step_id: "01-03"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS: 4 acceptance tests written"
+    timestamp: "2026-03-20T10:00:01Z"
+  - step_id: "01-03"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: "PASS: 9 unit tests written"
+    timestamp: "2026-03-20T10:00:02Z"
+  - step_id: "01-03"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS: 9 unit tests, 4 acceptance tests"
+    timestamp: "2026-03-20T10:00:03Z"
+  - step_id: "01-03"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: f08d5025"
+    timestamp: "2026-03-20T10:00:04Z"
+  - step_id: "01-04"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-19T12:00:00Z"
+  - step_id: "01-04"
+    phase: RED_ACCEPTANCE
+    status: EXECUTED
+    data: "PASS: 4 tests failing (findAlignedObjectivesViaGraph not found)"
+    timestamp: "2026-03-19T12:00:01Z"
+  - step_id: "01-04"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: "PASS: 8 new tests failing (buildGraphTraversalCandidates, buildBm25Candidates not exported)"
+    timestamp: "2026-03-19T12:00:02Z"
+  - step_id: "01-04"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS: 21 unit tests, 14 acceptance tests, 1400 total unit tests"
+    timestamp: "2026-03-19T12:00:03Z"
+  - step_id: "01-04"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: 02bec2eb"
+    timestamp: "2026-03-19T12:00:04Z"
+  - step_id: "02-01"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-20T12:00:00Z"
+  - step_id: "02-01"
+    phase: RED_ACCEPTANCE
+    status: SKIPPED
+    data: "NOT_APPLICABLE: acceptance test requires live SurrealDB; unit tests cover pure scoring functions"
+    timestamp: "2026-03-20T12:00:01Z"
+  - step_id: "02-01"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: "PASS: 11 unit tests written and failing (exports not found)"
+    timestamp: "2026-03-20T12:00:02Z"
+  - step_id: "02-01"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS: 32 proxy context tests (11 new BM25 + 16 existing injector + 5 cache)"
+    timestamp: "2026-03-20T12:00:03Z"
+  - step_id: "02-01"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: 572ac6b1"
+    timestamp: "2026-03-20T12:00:04Z"
+  - step_id: "02-02"
+    phase: PREPARE
+    status: EXECUTED
+    data: PASS
+    timestamp: "2026-03-20T14:00:00Z"
+  - step_id: "02-02"
+    phase: RED_ACCEPTANCE
+    status: SKIPPED
+    data: "NOT_APPLICABLE: pure function, unit tests sufficient"
+    timestamp: "2026-03-20T14:00:01Z"
+  - step_id: "02-02"
+    phase: RED_UNIT
+    status: EXECUTED
+    data: "PASS: 12 unit tests written and failing (classifyByAge not exported)"
+    timestamp: "2026-03-20T14:00:02Z"
+  - step_id: "02-02"
+    phase: GREEN
+    status: EXECUTED
+    data: "PASS: 52 proxy tests (12 new time-classification + 15 existing injector + 11 BM25 + 14 recent-changes-classifier)"
+    timestamp: "2026-03-20T14:00:03Z"
+  - step_id: "02-02"
+    phase: COMMIT
+    status: EXECUTED
+    data: "PASS: a2d61ef9"
+    timestamp: "2026-03-20T14:00:04Z"

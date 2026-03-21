@@ -1,7 +1,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { buildWorkspaceOverview, buildProjectContext, buildTaskContext } from "./context-builder";
-import { searchEntitiesByEmbedding, type SearchEntityKind } from "../graph/queries";
-import { createEmbeddingVector } from "../graph/embeddings";
+import { type SearchEntityKind } from "../graph/queries";
+import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import type { ContextPacket, TaskContextPacket, WorkspaceOverview } from "./types";
 import { loadActiveLearnings } from "../learning/loader";
 
@@ -41,18 +41,16 @@ type ProjectRow = {
 
 export async function resolveIntentContext(input: {
   surreal: Surreal;
-  embeddingModel: Parameters<typeof createEmbeddingVector>[0];
-  embeddingDimension: number;
   workspaceRecord: RecordId<"workspace", string>;
   workspaceName: string;
   intent: string;
   cwd?: string;
   paths?: string[];
 }): Promise<IntentContextResult> {
-  const { surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent } = input;
+  const { surreal, workspaceRecord, workspaceName, intent } = input;
 
   const contextResult = await resolveContextLevel({
-    surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent,
+    surreal, workspaceRecord, workspaceName, intent,
     cwd: input.cwd, paths: input.paths,
   });
 
@@ -80,15 +78,13 @@ export async function resolveIntentContext(input: {
 /** Resolves intent to the appropriate context level (task/project/workspace) */
 async function resolveContextLevel(input: {
   surreal: Surreal;
-  embeddingModel: Parameters<typeof createEmbeddingVector>[0];
-  embeddingDimension: number;
   workspaceRecord: RecordId<"workspace", string>;
   workspaceName: string;
   intent: string;
   cwd?: string;
   paths?: string[];
 }): Promise<{ level: "task"; data: TaskContextPacket } | { level: "project"; data: ContextPacket } | { level: "workspace"; data: WorkspaceOverview }> {
-  const { surreal, embeddingModel, embeddingDimension, workspaceRecord, workspaceName, intent } = input;
+  const { surreal, workspaceRecord, workspaceName, intent } = input;
 
   // Step 1: Explicit entity references in intent text
   const explicitTask = extractEntityRef(intent, "task");
@@ -124,40 +120,32 @@ async function resolveContextLevel(input: {
     return { level: "project", data };
   }
 
-  // Step 3: Vector search — embed intent, match against all entities
-  let queryEmbedding: number[] | undefined;
-  try {
-    queryEmbedding = await createEmbeddingVector(embeddingModel, intent, embeddingDimension);
-  } catch {
-    // Embedding model unavailable — fall through to path/workspace fallbacks
-  }
-  if (queryEmbedding) {
-    const results = await searchEntitiesByEmbedding({
-      surreal,
-      workspaceRecord,
-      queryEmbedding,
-      limit: 5,
-    });
+  // Step 3: BM25 search — match intent text against entities
+  const bm25Results = await searchEntitiesByBm25({
+    surreal,
+    workspaceRecord,
+    query: intent,
+    limit: 5,
+  });
 
-    if (results.length > 0 && results[0].score > 0.3) {
-      const top = results[0];
+  if (bm25Results.length > 0) {
+    const top = bm25Results[0];
 
-      if (top.kind === "task") {
-        const taskId = top.id.includes(":") ? top.id.split(":")[1] : top.id;
-        try {
-          const data = await buildTaskContext({ surreal, workspaceRecord, workspaceName, taskId });
-          return { level: "task", data };
-        } catch {
-          // Fall through
-        }
+    if (top.kind === "task") {
+      const taskId = top.id.includes(":") ? top.id.split(":")[1] : top.id;
+      try {
+        const data = await buildTaskContext({ surreal, workspaceRecord, workspaceName, taskId });
+        return { level: "task", data };
+      } catch {
+        // Fall through
       }
+    }
 
-      // For project/feature matches, or task fallback: resolve to project context
-      const projectRecord = await resolveProjectFromMatch(surreal, top);
-      if (projectRecord) {
-        const data = await buildProjectContext({ surreal, workspaceRecord, workspaceName, projectRecord });
-        return { level: "project", data };
-      }
+    // For project/feature matches, or task fallback: resolve to project context
+    const projectRecord = await resolveProjectFromMatch(surreal, top);
+    if (projectRecord) {
+      const data = await buildProjectContext({ surreal, workspaceRecord, workspaceName, projectRecord });
+      return { level: "project", data };
     }
   }
 

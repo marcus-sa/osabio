@@ -32,7 +32,6 @@ export type ObjectiveRecord = {
   workspace: RecordId<"workspace">;
   source_message?: RecordId<"message">;
   created_by?: RecordId<"identity">;
-  embedding?: number[];
   created_at: string;
   updated_at?: string;
 };
@@ -46,7 +45,6 @@ export type CreateObjectiveParams = {
   success_criteria?: SuccessCriterion[];
   source_message?: RecordId<"message">;
   created_by?: RecordId<"identity">;
-  embedding?: number[];
 };
 
 // ---------------------------------------------------------------------------
@@ -75,7 +73,6 @@ export async function createObjective(
   if (params.target_date !== undefined) content.target_date = params.target_date;
   if (params.source_message !== undefined) content.source_message = params.source_message;
   if (params.created_by !== undefined) content.created_by = params.created_by;
-  if (params.embedding !== undefined) content.embedding = params.embedding;
 
   await surreal.query(`CREATE $objective CONTENT $content;`, {
     objective: objectiveRecord,

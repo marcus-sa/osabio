@@ -58,6 +58,83 @@ const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
 const surrealUsername = process.env.SURREAL_USERNAME ?? "root";
 const surrealPassword = process.env.SURREAL_PASSWORD ?? "root";
 
+/**
+ * Split SQL into statements respecting `{...}` block nesting.
+ * DEFINE FUNCTION / DEFINE EVENT bodies contain semicolons that are NOT
+ * statement terminators. Naively splitting on `;` breaks those bodies into
+ * orphaned fragments that corrupt the batch query.
+ */
+function splitSqlStatements(sql: string): string[] {
+  const stmts: string[] = [];
+  let current = "";
+  let depth = 0;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") depth--;
+
+    if (ch === ";" && depth === 0) {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) stmts.push(trimmed);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  const trimmed = current.trim();
+  if (trimmed.length > 0) stmts.push(trimmed);
+  return stmts;
+}
+
+/**
+ * Apply the base schema to a SurrealDB instance.
+ *
+ * DEFINE ANALYZER cannot run inside a transaction in SurrealDB v3.0+.
+ * The SDK may treat a multi-statement .query() as an implicit transaction,
+ * causing the analyzer and dependent FULLTEXT indexes to fail silently.
+ *
+ * We split the schema into three phases:
+ * 1. DEFINE ANALYZER (must run outside any transaction)
+ * 2. Schema definitions (DEFINE TABLE/FIELD/INDEX) — batch is fine
+ * 3. Seed data (CREATE statements) — separate batch to isolate from index errors
+ */
+export async function applyTestSchema(surreal: Surreal): Promise<void> {
+  const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
+
+  // Strip full-line comments before splitting — comments may contain semicolons
+  // (e.g. "-- The edge is the source of truth; status is a derived consequence.")
+  // which would create spurious fragments after the split.
+  const withoutComments = schemaSql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+
+  // Brace-aware split: only split on `;` outside `{...}` blocks.
+  // DEFINE FUNCTION and DEFINE EVENT bodies contain semicolons that must not
+  // be treated as statement terminators.
+  const statements = splitSqlStatements(withoutComments);
+
+  // Phase 1: DEFINE ANALYZER (must be isolated)
+  const analyzerStmts = statements.filter((s) => s.startsWith("DEFINE ANALYZER"));
+  for (const stmt of analyzerStmts) {
+    await surreal.query(stmt + ";");
+  }
+
+  // Phase 2: Schema definitions (DEFINE TABLE/FIELD/INDEX/FUNCTION/EVENT)
+  const schemaStmts = statements.filter(
+    (s) => !s.startsWith("DEFINE ANALYZER") && !s.startsWith("CREATE"),
+  );
+  if (schemaStmts.length > 0) {
+    await surreal.query(schemaStmts.map((s) => s + ";").join("\n"));
+  }
+
+  // Phase 3: Seed data (CREATE statements) — isolated so index issues don't block seeds
+  const seedStmts = statements.filter((s) => s.startsWith("CREATE"));
+  if (seedStmts.length > 0) {
+    await surreal.query(seedStmts.map((s) => s + ";").join("\n"));
+  }
+}
+
 export function setupAcceptanceSuite(
   suiteName: string,
   options?: AcceptanceSuiteOptions,
@@ -95,8 +172,7 @@ export function setupAcceptanceSuite(
       "switch to test namespace/database",
     );
 
-    const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-    await withTimeout(() => surreal.query(schemaSql), 20_000, "apply schema");
+    await withTimeout(() => applyTestSchema(surreal), 20_000, "apply schema");
 
     // Reserve a port so betterAuth gets the real URL at init time
     const tempServer = Bun.serve({ port: 0, fetch: () => new Response() });

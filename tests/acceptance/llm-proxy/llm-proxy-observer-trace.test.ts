@@ -22,8 +22,6 @@ import {
   fetchRaw,
   TEST_PROXY_MODEL,
 } from "./llm-proxy-test-kit";
-import { testAI } from "../acceptance-test-kit";
-import { createEmbeddingVector } from "../../../app/src/server/graph/embeddings";
 
 const getRuntime = setupAcceptanceSuite("llm_proxy_observer_trace");
 
@@ -44,28 +42,20 @@ async function triggerTraceObserver(
 }
 
 // ---------------------------------------------------------------------------
-// Helper: seed a decision with embedding for KNN search
+// Helper: seed a confirmed decision for contradiction testing
 // ---------------------------------------------------------------------------
 
-async function seedDecisionWithEmbedding(
+async function seedDecisionForTest(
   surreal: ReturnType<typeof getRuntime>["surreal"],
   decisionId: string,
   workspaceId: string,
   summary: string,
   rationale?: string,
 ): Promise<string> {
-  // Generate embedding for the decision summary
-  const embedding = await createEmbeddingVector(
-    testAI.embeddingModel,
-    summary + (rationale ? ` ${rationale}` : ""),
-    testAI.embeddingDimension,
-  );
-
   return seedConfirmedDecision(surreal, decisionId, {
     workspaceId,
     summary,
     rationale,
-    embedding: embedding ?? undefined,
   });
 }
 
@@ -84,7 +74,7 @@ describe("Walking Skeleton: Observer detects contradiction in LLM response", () 
     });
 
     // Given the workspace has a confirmed decision to use tRPC for internal APIs
-    await seedDecisionWithEmbedding(
+    await seedDecisionForTest(
       surreal,
       `dec-trpc-${crypto.randomUUID()}`,
       workspaceId,
@@ -238,7 +228,7 @@ describe("Observations created with sourceAgent='observer_agent'", () => {
       contradictionTier1Threshold: 0.15,
     });
 
-    await seedDecisionWithEmbedding(
+    await seedDecisionForTest(
       surreal,
       `dec-src-${crypto.randomUUID()}`,
       workspaceId,
@@ -287,7 +277,7 @@ describe("No contradiction when response aligns with decisions", () => {
       contradictionTier1Threshold: 0.15,
     });
 
-    await seedDecisionWithEmbedding(
+    await seedDecisionForTest(
       surreal,
       `dec-align-${crypto.randomUUID()}`,
       workspaceId,

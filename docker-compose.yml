@@ -1,6 +1,6 @@
 services:
   surrealdb:
-    image: surrealdb/surrealdb:v3.0.0
+    image: surrealdb/surrealdb:v3.0.4
     container_name: brain-surrealdb
     user: root
     command:

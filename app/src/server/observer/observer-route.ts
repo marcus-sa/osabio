@@ -81,8 +81,6 @@ export function createObserverRouteHandler(deps: ServerDependencies) {
           traceId: id,
           traceBody: body,
           observerModel: deps.observerModel as LanguageModel,
-          embeddingModel: deps.embeddingModel,
-          embeddingDimension: deps.config.embeddingDimension,
         });
 
         log.info("observer.trace.verified", "Trace analysis complete", {
@@ -135,8 +133,6 @@ export function createGraphScanRouteHandler(deps: ServerDependencies) {
         deps.surreal,
         workspaceRecord,
         deps.observerModel as LanguageModel,
-        deps.embeddingModel,
-        deps.config.embeddingDimension,
       );
 
       return jsonResponse({ status: "ok", ...result }, 200);

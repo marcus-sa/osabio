@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 import { getDescriptionEntries } from "../../../app/src/server/descriptions/queries";
 import { seedDescriptionEntry } from "../../../app/src/server/descriptions/persist";
 import { fireDescriptionUpdates } from "../../../app/src/server/descriptions/triggers";
@@ -30,8 +29,7 @@ beforeAll(async () => {
   await surreal.query(`DEFINE DATABASE ${database};`);
   await surreal.use({ namespace, database });
 
-  const schema = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  await surreal.query(schema);
+  await applyTestSchema(surreal);
 
   // Shared workspace and conversation for all test entities
   workspaceRecord = new RecordId("workspace", randomUUID());

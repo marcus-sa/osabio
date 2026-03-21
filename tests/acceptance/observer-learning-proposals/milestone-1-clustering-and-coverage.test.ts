@@ -29,7 +29,6 @@ import {
   createTestWorkspace,
 } from "./observer-learning-proposals-test-kit";
 import { createObservationByAgent } from "../observer-agent/observer-test-kit";
-import { generateEmbedding } from "../agent-learnings/learning-test-kit";
 import { RecordId } from "surrealdb";
 
 const getRuntime = setupDiagnosticSuite("diagnostic_m1_clustering");
@@ -125,40 +124,37 @@ describe("Milestone 1: Observation Clustering and Coverage Check", () => {
 
     // One observation about rate limits
     const text1 = "Agent exceeded rate limit on external payment API";
-    const emb1 = await generateEmbedding(text1);
     const obs1Id = `obs-${crypto.randomUUID()}`;
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs1Id),
       content: {
         text: text1, severity: "warning", status: "open",
         source_agent: "observer_agent", workspace: workspaceRecord,
-        created_at: new Date(), embedding: emb1,
+        created_at: new Date(),
       },
     });
 
     // One observation about missing documentation
     const text2 = "Feature shipped without updating user-facing documentation";
-    const emb2 = await generateEmbedding(text2);
     const obs2Id = `obs-${crypto.randomUUID()}`;
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs2Id),
       content: {
         text: text2, severity: "info", status: "open",
         source_agent: "observer_agent", workspace: workspaceRecord,
-        created_at: new Date(), embedding: emb2,
+        created_at: new Date(),
       },
     });
 
     // One observation about incorrect data formatting
     const text3 = "Agent returned dates in wrong timezone format for the billing report";
-    const emb3 = await generateEmbedding(text3);
     const obs3Id = `obs-${crypto.randomUUID()}`;
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs3Id),
       content: {
         text: text3, severity: "warning", status: "open",
         source_agent: "observer_agent", workspace: workspaceRecord,
-        created_at: new Date(), embedding: emb3,
+        created_at: new Date(),
       },
     });
 

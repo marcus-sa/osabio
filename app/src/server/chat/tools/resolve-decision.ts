@@ -1,16 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { createEmbeddingVector } from "../../graph/embeddings";
 import {
   createDecisionRecord,
   createExtractionProvenanceEdge,
   getDecisionPrimarySourceMessage,
-  listDecisionConstraintCandidates,
   parseRecordIdString,
   resolveWorkspaceFeatureRecord,
   resolveWorkspaceProjectRecord,
   type GraphEntityRecord,
 } from "../../graph/queries";
+import { searchEntitiesByBm25 } from "../../graph/bm25-search";
 import { requireAuthorizedContext } from "../../iam/authority";
 import type { ChatToolDeps } from "./types";
 
@@ -33,10 +32,6 @@ export function createResolveDecisionTool(deps: ChatToolDeps) {
     inputSchema: resolveDecisionInputSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_decision", deps);
-      const queryEmbedding = await createEmbeddingVector(deps.embeddingModel, input.question, deps.embeddingDimension);
-      if (!queryEmbedding) {
-        throw new Error("failed to create query embedding for resolve_decision");
-      }
 
       const projectRecord = input.context?.project
         ? await resolveWorkspaceProjectRecord({
@@ -54,11 +49,11 @@ export function createResolveDecisionTool(deps: ChatToolDeps) {
           })
         : undefined;
 
-      const candidates = await listDecisionConstraintCandidates({
+      const candidates = await searchEntitiesByBm25({
         surreal: deps.surreal,
         workspaceRecord: context.workspaceRecord,
-        queryEmbedding,
-        ...(projectRecord ? { projectRecord } : {}),
+        query: input.question,
+        kinds: ["decision"],
         limit: 10,
       });
 

@@ -12,13 +12,9 @@ import type {
   SourceRecord,
 } from "./types";
 import { ensureProjectFeatureEdge, ensureWorkspaceProjectEdge, resolveEntityProject } from "../workspace/workspace-scope";
-import { createEmbedding } from "./embedding-writeback";
-import { cosineSimilarity } from "../graph/embeddings";
 
 export async function upsertGraphEntity(input: {
   surreal: Surreal;
-  embeddingModel: any;
-  embeddingDimension: number;
   extractionModelId: string;
   workspaceRecord: RecordId<"workspace", string>;
   workspaceProjects: ProjectScopeRow[];
@@ -32,7 +28,6 @@ export async function upsertGraphEntity(input: {
   resolvedFromMessageRecord?: RecordId<"message", string>;
   now: Date;
 }): Promise<{ record: GraphEntityRecord; text: string; kind: PersistableExtractableEntityKind; created: boolean }> {
-  const candidateEmbedding = await createEmbedding(input.embeddingModel, input.embeddingDimension, input.extracted.text);
   const candidates = await loadWorkspaceKindCandidates(input.surreal, input.workspaceRecord, input.extracted.kind);
   const normalizedExtractedText = normalizeName(input.extracted.text);
 
@@ -67,38 +62,24 @@ export async function upsertGraphEntity(input: {
     };
   }
 
-  let bestCandidate: CandidateEntityRow | undefined;
-  let bestSimilarity = -1;
+  // Fuzzy name match dedup (no embedding similarity needed)
+  const fuzzyCandidate = candidates.find((candidate) =>
+    isFuzzyNameMatch(normalizeName(input.extracted.text), normalizeName(candidate.text)),
+  );
 
-  for (const candidate of candidates) {
-    if (!candidate.embedding || !candidateEmbedding) {
-      continue;
-    }
-
-    const similarity = cosineSimilarity(candidateEmbedding, candidate.embedding);
-    if (similarity > bestSimilarity) {
-      bestSimilarity = similarity;
-      bestCandidate = candidate;
-    }
-  }
-
-  const fuzzyMatch = bestCandidate
-    ? isFuzzyNameMatch(normalizeName(input.extracted.text), normalizeName(bestCandidate.text))
-    : false;
-
-  if (bestCandidate && bestSimilarity > 0.95 && fuzzyMatch) {
+  if (fuzzyCandidate) {
     const mergedText = await maybeUpgradeMergedEntityName(
       input.surreal,
       input.extracted.kind,
       input.extracted.text,
-      bestCandidate,
+      fuzzyCandidate,
       input.now,
     );
 
     await createProvenanceEdge({
       surreal: input.surreal,
       sourceRecord: input.sourceRecord,
-      targetRecord: bestCandidate.id,
+      targetRecord: fuzzyCandidate.id,
       confidence: input.extracted.confidence,
       model: input.extractionModelId,
       now: input.now,
@@ -109,7 +90,7 @@ export async function upsertGraphEntity(input: {
     });
 
     return {
-      record: bestCandidate.id,
+      record: fuzzyCandidate.id,
       text: mergedText,
       kind: input.extracted.kind,
       created: false,
@@ -124,7 +105,6 @@ export async function upsertGraphEntity(input: {
       input.extracted.confidence,
       input.now,
       input.workspaceRecord,
-      candidateEmbedding,
       input.sourceMessageRecord,
       input.sourceCommitRecord,
       input.extracted.category,
@@ -167,20 +147,6 @@ export async function upsertGraphEntity(input: {
         added_at: input.now,
       }).output("after");
     }
-  }
-
-  if (bestCandidate && bestSimilarity >= 0.8 && bestSimilarity <= 0.95) {
-    await input.surreal.relate(entityRecord, new RecordId("entity_relation", randomUUID()), bestCandidate.id, {
-      kind: "POSSIBLE_DUPLICATE",
-      confidence: bestSimilarity,
-      ...(input.sourceMessageRecord ? { source_message: input.sourceMessageRecord } : {}),
-      ...(input.sourceChunkRecord ? { source_chunk: input.sourceChunkRecord } : {}),
-      ...(input.sourceCommitRecord ? { source_commit: input.sourceCommitRecord } : {}),
-      extracted_at: input.now,
-      created_at: input.now,
-      from_text: input.extracted.text,
-      to_text: bestCandidate.text,
-    }).output("after");
   }
 
   return {
@@ -264,7 +230,6 @@ function buildEntityRecordContent(
   confidence: number,
   now: Date,
   workspaceRecord: RecordId<"workspace", string>,
-  embedding?: number[],
   sourceMessageRecord?: RecordId<"message", string>,
   sourceCommitRecord?: RecordId<"git_commit", string>,
   category?: string,
@@ -275,7 +240,6 @@ function buildEntityRecordContent(
       name: text,
       status: "active",
       workspace: workspaceRecord,
-      ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,
     };
@@ -286,7 +250,6 @@ function buildEntityRecordContent(
       name: text,
       status: "active",
       workspace: workspaceRecord,
-      ...(embedding ? { embedding } : {}),
       created_at: now,
       updated_at: now,
     };
@@ -300,7 +263,6 @@ function buildEntityRecordContent(
       extracted_at: now,
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
-      ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
       workspace: workspaceRecord,
@@ -317,7 +279,6 @@ function buildEntityRecordContent(
       extracted_at: now,
       ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
       ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
-      ...(embedding ? { embedding } : {}),
       ...(category ? { category } : {}),
       ...(priority ? { priority } : {}),
       workspace: workspaceRecord,
@@ -334,7 +295,6 @@ function buildEntityRecordContent(
     extracted_at: now,
     ...(sourceMessageRecord ? { source_message: sourceMessageRecord } : {}),
     ...(sourceCommitRecord ? { source_commit: sourceCommitRecord } : {}),
-    ...(embedding ? { embedding } : {}),
     ...(category ? { category } : {}),
     ...(priority ? { priority } : {}),
     workspace: workspaceRecord,
@@ -351,7 +311,7 @@ export async function loadWorkspaceKindCandidates(
   if (kind === "project") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        "SELECT id, name AS text, embedding FROM project WHERE id IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace);",
+        "SELECT id, name AS text FROM project WHERE id IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace);",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
@@ -361,7 +321,7 @@ export async function loadWorkspaceKindCandidates(
   if (kind === "person") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        "SELECT id, name AS text, embedding FROM person WHERE id IN (SELECT VALUE `in` FROM member_of WHERE out = $workspace);",
+        "SELECT id, name AS text FROM person WHERE id IN (SELECT VALUE `in` FROM member_of WHERE out = $workspace);",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
@@ -372,7 +332,7 @@ export async function loadWorkspaceKindCandidates(
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
         [
-          "SELECT id, name AS text, embedding",
+          "SELECT id, name AS text",
           "FROM feature",
           "WHERE id IN (",
           "  SELECT VALUE out",
@@ -389,7 +349,7 @@ export async function loadWorkspaceKindCandidates(
   if (kind === "task") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        "SELECT id, title AS text, embedding FROM task WHERE workspace = $workspace;",
+        "SELECT id, title AS text FROM task WHERE workspace = $workspace;",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
@@ -399,7 +359,7 @@ export async function loadWorkspaceKindCandidates(
   if (kind === "decision") {
     const [rows] = await surreal
       .query<[CandidateEntityRow[]]>(
-        "SELECT id, summary AS text, embedding FROM decision WHERE workspace = $workspace;",
+        "SELECT id, summary AS text FROM decision WHERE workspace = $workspace;",
         { workspace: workspaceRecord },
       )
       .collect<[CandidateEntityRow[]]>();
@@ -408,7 +368,7 @@ export async function loadWorkspaceKindCandidates(
 
   const [rows] = await surreal
     .query<[CandidateEntityRow[]]>(
-      "SELECT id, text AS text, embedding FROM question WHERE workspace = $workspace;",
+      "SELECT id, text AS text FROM question WHERE workspace = $workspace;",
       { workspace: workspaceRecord },
     )
     .collect<[CandidateEntityRow[]]>();

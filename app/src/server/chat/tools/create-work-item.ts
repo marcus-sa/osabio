@@ -3,7 +3,6 @@ import { RecordId } from "surrealdb";
 import { tool } from "ai";
 import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../../shared/contracts";
-import { createEmbeddingVector } from "../../graph/embeddings";
 import {
   createExtractionProvenanceEdge,
   createProjectRecord,
@@ -36,12 +35,6 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
       const { context } = await requireAuthorizedContext(options, "create_task", deps);
       const now = new Date();
 
-      const embedding = await createEmbeddingVector(
-        deps.embeddingModel,
-        input.title,
-        deps.embeddingDimension,
-      );
-
       const entityId = randomUUID();
 
       // Hard guard: never create a project with the same name as the workspace
@@ -64,10 +57,6 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
           workspaceRecord: context.workspaceRecord,
           sourceMessageRecord: context.currentMessageRecord,
         });
-
-        if (embedding) {
-          await deps.surreal.update(projectRecord).merge({ embedding });
-        }
 
         await seedDescriptionEntry({
           surreal: deps.surreal,
@@ -102,7 +91,6 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
           workspace: context.workspaceRecord,
           ...(input.category ? { category: input.category } : {}),
           ...(input.priority ? { priority: input.priority } : {}),
-          ...(embedding ? { embedding } : {}),
           created_at: now,
           updated_at: now,
         });
@@ -180,7 +168,6 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
         status: "active",
         workspace: context.workspaceRecord,
         ...(input.category ? { category: input.category } : {}),
-        ...(embedding ? { embedding } : {}),
         created_at: now,
         updated_at: now,
       });

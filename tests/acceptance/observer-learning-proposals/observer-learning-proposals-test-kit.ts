@@ -21,14 +21,10 @@ export {
   setupLearningSuite,
   createTestWorkspace,
   createTestLearning,
-  createTestLearningWithEmbedding,
   listActiveLearnings,
   listLearningsByStatus,
   getLearningById,
   getLearningEvidence,
-  fakeLearningEmbedding,
-  generateEmbedding,
-  generateEmbeddings,
   type LearningRecord,
   type LearningStatus,
   type LearningSource,
@@ -53,9 +49,6 @@ export {
 import {
   createTestWorkspace as createLearningWorkspace,
   createTestLearning,
-  generateEmbedding,
-  generateEmbeddings,
-  fakeLearningEmbedding,
   getLearningEvidence,
   type LearningRecord,
 } from "../agent-learnings/learning-test-kit";
@@ -102,10 +95,9 @@ export type ObservationClusterSeed = {
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a cluster of similar observations with embeddings targeting the same entity.
+ * Creates a cluster of similar observations targeting the same entity.
  *
- * Each observation has text variations on the same topic to produce
- * high embedding similarity (pairwise > 0.75).
+ * Each observation has text variations on the same topic.
  *
  * Returns observation IDs and the entity they are linked to.
  */
@@ -144,15 +136,11 @@ export async function createObservationCluster(
     `${opts.topic} — occurrence ${i + 1}: this pattern continues to recur across workspace activities`,
   );
 
-  // Generate real embeddings so clustering by similarity works
-  const embeddingMap = await generateEmbeddings(observationTexts);
-
   const observationIds: string[] = [];
 
   for (let i = 0; i < count; i++) {
     const obsId = `obs-${crypto.randomUUID()}`;
     const obsRecord = new RecordId("observation", obsId);
-    const embedding = embeddingMap.get(observationTexts[i]);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: obsRecord,
@@ -164,7 +152,6 @@ export async function createObservationCluster(
         source_agent: "observer_agent",
         workspace: workspaceRecord,
         created_at: new Date(),
-        ...(embedding ? { embedding } : {}),
       },
     });
 
@@ -182,25 +169,20 @@ export async function createObservationCluster(
 
 /**
  * Seeds an active learning that covers a pattern (for coverage check testing).
- *
- * The embedding is generated from the text so it will have high similarity
- * to observations about the same topic.
  */
 export async function createActiveLearningCovering(
   surreal: Surreal,
   workspaceId: string,
   text: string,
-): Promise<{ learningId: string; embedding: number[] }> {
-  const embedding = await generateEmbedding(text);
+): Promise<{ learningId: string }> {
   const { learningId } = await createTestLearning(surreal, workspaceId, {
     text,
     learning_type: "constraint",
     status: "active",
     source: "agent",
     suggested_by: "observer",
-    embedding,
   });
-  return { learningId, embedding };
+  return { learningId };
 }
 
 /**
@@ -210,8 +192,7 @@ export async function createDismissedLearning(
   surreal: Surreal,
   workspaceId: string,
   text: string,
-): Promise<{ learningId: string; embedding: number[] }> {
-  const embedding = await generateEmbedding(text);
+): Promise<{ learningId: string }> {
   const learningId = `learning-${crypto.randomUUID()}`;
   const learningRecord = new RecordId("learning", learningId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
@@ -227,14 +208,13 @@ export async function createDismissedLearning(
       priority: "medium",
       target_agents: [],
       workspace: workspaceRecord,
-      embedding,
       dismissed_at: new Date(),
       dismissed_reason: "Not applicable",
       created_at: new Date(),
     },
   });
 
-  return { learningId, embedding };
+  return { learningId };
 }
 
 /**
@@ -282,8 +262,7 @@ export async function createPendingLearningFromObserver(
   surreal: Surreal,
   workspaceId: string,
   text: string,
-): Promise<{ learningId: string; embedding: number[] }> {
-  const embedding = await generateEmbedding(text);
+): Promise<{ learningId: string }> {
   const { learningId } = await createTestLearning(surreal, workspaceId, {
     text,
     learning_type: "constraint",
@@ -291,9 +270,8 @@ export async function createPendingLearningFromObserver(
     source: "agent",
     suggested_by: "observer",
     pattern_confidence: 0.85,
-    embedding,
   });
-  return { learningId, embedding };
+  return { learningId };
 }
 
 /**
@@ -313,12 +291,10 @@ export async function createAgedObservations(
   const texts = Array.from({ length: count }, (_, i) =>
     `${topic} — aged occurrence ${i + 1}: this pattern was observed long ago`,
   );
-  const embeddingMap = await generateEmbeddings(texts);
 
   for (let i = 0; i < count; i++) {
     const obsId = `obs-${crypto.randomUUID()}`;
     const obsRecord = new RecordId("observation", obsId);
-    const embedding = embeddingMap.get(texts[i]);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: obsRecord,
@@ -330,7 +306,6 @@ export async function createAgedObservations(
         source_agent: "observer_agent",
         workspace: workspaceRecord,
         created_at: pastDate,
-        ...(embedding ? { embedding } : {}),
       },
     });
 

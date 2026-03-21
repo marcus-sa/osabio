@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { createEmbeddingVector } from "../../graph/embeddings";
-import { listDecisionConstraintCandidates, resolveWorkspaceProjectRecord } from "../../graph/queries";
+import { searchEntitiesByBm25 } from "../../graph/bm25-search";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 
@@ -36,28 +35,12 @@ export function createCheckConstraintsTool(deps: ChatToolDeps) {
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
-      const queryEmbedding = await createEmbeddingVector(
-        deps.embeddingModel,
-        input.proposed_action,
-        deps.embeddingDimension,
-      );
-      if (!queryEmbedding) {
-        throw new Error("failed to create query embedding for check_constraints");
-      }
 
-      const projectRecord = input.project
-        ? await resolveWorkspaceProjectRecord({
-            surreal: deps.surreal,
-            workspaceRecord: context.workspaceRecord,
-            projectInput: input.project,
-          })
-        : undefined;
-
-      const candidates = await listDecisionConstraintCandidates({
+      const candidates = await searchEntitiesByBm25({
         surreal: deps.surreal,
         workspaceRecord: context.workspaceRecord,
-        queryEmbedding,
-        ...(projectRecord ? { projectRecord } : {}),
+        query: input.proposed_action,
+        kinds: ["decision"],
         limit: 14,
       });
 

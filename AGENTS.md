@@ -419,11 +419,40 @@ DEFINE INDEX idx_task_fulltext ON task FIELDS title FULLTEXT ANALYZER entity_sea
   ```
 - `search::score(N)` returns the BM25 relevance score for predicate N.
 - `search::highlight('<b>', '</b>', N)` returns text with matching tokens wrapped in tags.
-### Known limitations (SurrealDB v3.0)
+### Known limitations (SurrealDB v3.0.4)
 
 - `search::score()` and `@N@` do NOT work inside `DEFINE FUNCTION` — the predicate reference is lost across the function boundary. Search queries must run from the app layer. See: https://github.com/surrealdb/surrealdb/issues/7013
-- `@N@` does NOT work with SDK bound parameters (`$query`). The search term must be embedded as a string literal in the query. Escape single quotes before interpolation.
-- `BM25` without explicit parameters returns score=0. Always use `BM25(1.2, 0.75)`.
+- A single `@N@` predicate performs AND matching — all query terms must exist in the document. Do NOT pass multi-word text to a single `@N@`. Instead, use OR across separate predicates: `field @0@ $t0 OR field @1@ $t1 OR field @2@ $t2` with `search::score(0) + search::score(1) + search::score(2)` as combined score. This gives embedding-like recall where more shared terms = higher rank. See: https://surrealdb.com/docs/surrealdb/models/full-text-search
+- Use `extractSearchTerms()` from `graph/bm25-search.ts` to strip stopwords before building OR-predicate queries.
+- Always use `BM25(1.2, 0.75)` — without explicit parameters, behavior is undefined.
+
+### BM25 OR-predicate pattern (preferred)
+
+When searching with multiple terms, use the OR-predicate pattern in a single round-trip instead of looping N queries from TypeScript:
+```sql
+-- Each term gets its own predicate number and bound param
+SELECT id, title, search::score(0) + search::score(1) + search::score(2) AS score
+FROM task
+WHERE (title @0@ $t0 OR title @1@ $t1 OR title @2@ $t2)
+AND workspace = $ws
+ORDER BY score DESC LIMIT 10;
+```
+Build dynamically with `extractSearchTerms()`:
+```typescript
+import { extractSearchTerms } from "../graph/bm25-search";
+
+const termList = extractSearchTerms(text).split(" ").filter(t => t.length > 0);
+const matchClause = termList.map((_, i) => `field @${i}@ $t${i}`).join(" OR ");
+const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+const bindings: Record<string, unknown> = { ws: workspaceRecord };
+termList.forEach((term, i) => { bindings[`t${i}`] = term; });
+```
+
+### SurrealDB v3.0.4 UNIQUE Index Bug
+
+- `UNIQUE` indexes on fields that include `option<record<...>>` types silently return empty results for WHERE queries. The data exists (verified via unfiltered SELECT and JS-side filtering) but WHERE clauses return 0 rows when the UNIQUE index is present.
+- Workaround: use a plain (non-UNIQUE) index instead. See: https://github.com/surrealdb/surrealdb/issues/7139
+- `DEFINE INDEX OVERWRITE` after data insertion does NOT fix the issue. Only removing `UNIQUE` resolves it.
 
 ### Entity search implementation
 

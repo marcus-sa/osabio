@@ -1,15 +1,20 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { createEmbeddingVector } from "../../graph/embeddings";
 import {
   parseRecordIdString,
   readEntityName,
-  resolveWorkspaceProjectRecord,
-  searchConversationMessagesByEmbedding,
   type GraphEntityRecord,
 } from "../../graph/queries";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
+import type { RecordId } from "surrealdb";
+
+type RankedMessage = {
+  id: string;
+  conversationId: string;
+  text: string;
+  score: number;
+};
 
 export function createGetConversationHistoryTool(deps: ChatToolDeps) {
   return tool({
@@ -21,26 +26,38 @@ export function createGetConversationHistoryTool(deps: ChatToolDeps) {
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
-      const queryEmbedding = await createEmbeddingVector(deps.embeddingModel, input.query, deps.embeddingDimension);
-      if (!queryEmbedding) {
-        throw new Error("failed to create query embedding for get_conversation_history");
-      }
 
-      const projectRecord = input.projectId
-        ? await resolveWorkspaceProjectRecord({
-            surreal: deps.surreal,
-            workspaceRecord: context.workspaceRecord,
-            projectInput: input.projectId,
-          })
-        : undefined;
+      const trimmed = input.query.trim();
+      if (trimmed.length === 0) return { query: input.query, results: [] };
 
-      const messages = await searchConversationMessagesByEmbedding({
-        surreal: deps.surreal,
-        workspaceRecord: context.workspaceRecord,
-        queryEmbedding,
-        ...(projectRecord ? { projectRecord } : {}),
-        limit: 8,
-      });
+      const [messageRows] = await deps.surreal
+        .query<[Array<{
+          id: RecordId<"message", string>;
+          conversation: RecordId<"conversation", string>;
+          text: string;
+          score: number;
+        }>]>(
+          `SELECT id, conversation, text, search::score(1) AS score
+           FROM message
+           WHERE text @1@ $query
+           AND conversation IN (SELECT VALUE id FROM conversation WHERE workspace = $workspace)
+           ORDER BY score DESC
+           LIMIT 8;`,
+          { workspace: context.workspaceRecord, query: trimmed },
+        )
+        .collect<[Array<{
+          id: RecordId<"message", string>;
+          conversation: RecordId<"conversation", string>;
+          text: string;
+          score: number;
+        }>]>();
+
+      const messages: RankedMessage[] = (messageRows ?? []).map((row) => ({
+        id: row.id.id as string,
+        conversationId: row.conversation.id as string,
+        text: row.text,
+        score: row.score,
+      }));
 
       const enrichedMessages = await Promise.all(
         messages.map(async (message) => {

@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { RecordId, Surreal } from "surrealdb";
+import { applyTestSchema } from "../acceptance-test-kit";
 import { checkAuthority } from "../../../app/src/server/iam/authority";
 import { resolveByEmail } from "../../../app/src/server/iam/identity";
 import { resolveWorkspaceIdentity } from "../../../app/src/server/extraction/identity-resolution";
@@ -28,8 +27,7 @@ beforeAll(async () => {
   await surreal.use({ namespace, database });
 
   // Apply base schema (canonical full schema — migrations are for evolving existing DBs)
-  const schemaSql = readFileSync(join(process.cwd(), "schema", "surreal-schema.surql"), "utf8");
-  await surreal.query(schemaSql);
+  await applyTestSchema(surreal);
 }, 30_000);
 
 afterAll(async () => {

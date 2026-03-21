@@ -15,13 +15,10 @@
 
 import { RecordId, type Surreal } from "surrealdb";
 import type { LanguageModel } from "ai";
-import type { embed } from "ai";
 import { z } from "zod";
+import { extractSearchTerms } from "../graph/bm25-search";
 import { createObservation, type ObserveTargetRecord } from "../observation/queries";
-import { createEmbeddingVector } from "../graph/embeddings";
 import { log } from "../telemetry/logger";
-
-type EmbeddingModel = Parameters<typeof embed>[0]["model"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,8 +30,6 @@ export type TraceAnalysisInput = {
   traceId: string;
   traceBody?: Record<string, unknown>;
   observerModel: LanguageModel;
-  embeddingModel: EmbeddingModel;
-  embeddingDimension: number;
 };
 
 export type TraceAnalysisResult = {
@@ -110,43 +105,46 @@ export function shouldAnalyzeTrace(
 }
 
 // ---------------------------------------------------------------------------
-// KNN decision search (two-step SurrealDB v3.0 workaround)
+// BM25 decision search
 // ---------------------------------------------------------------------------
 
 /**
- * Finds confirmed decisions similar to the given embedding using two-step
- * KNN query pattern (SurrealDB v3.0 workaround for KNN + WHERE bug).
- *
- * Step 1: KNN on HNSW index (no WHERE filter)
- * Step 2: Filter by workspace + confirmed status (B-tree index)
+ * Finds confirmed decisions similar to the given text using BM25 fulltext search.
  */
-async function findSimilarDecisions(
+async function findSimilarDecisionsByText(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  responseEmbedding: number[],
-  threshold: number,
+  searchText: string,
 ): Promise<DecisionCandidate[]> {
-  const results = await surreal.query(
-    `LET $candidates = SELECT id, summary, rationale, workspace, status,
-        vector::similarity::cosine(embedding, $vec) AS score
-      FROM decision WHERE embedding <|20, COSINE|> $vec;
-     SELECT id, summary, rationale, score FROM $candidates
-      WHERE workspace = $ws AND status = 'confirmed'
-        AND score >= $threshold
-      ORDER BY score DESC
-      LIMIT 10;`,
-    { vec: responseEmbedding, ws: workspaceRecord, threshold },
-  );
+  // BM25 @N@ does AND matching — use OR across separate predicates per term.
+  // See: https://surrealdb.com/docs/surrealdb/models/full-text-search
+  const termList = extractSearchTerms(searchText)
+    .split(" ")
+    .filter((t) => t.length > 0);
+  if (termList.length === 0) return [];
 
-  // Two-statement query: results[1] is the filtered result
-  const rows = (results[1] ?? []) as Array<{
+  const matchClause = termList.map((_, i) => `summary @${i}@ $t${i}`).join(" OR ");
+  const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+
+  const sql = `SELECT id, summary, rationale, ${scoreExpr} AS score
+     FROM decision
+     WHERE (${matchClause})
+     AND workspace = $ws
+     AND status = 'confirmed'
+     ORDER BY score DESC
+     LIMIT 10;`;
+
+  const bindings: Record<string, unknown> = { ws: workspaceRecord };
+  termList.forEach((term, i) => { bindings[`t${i}`] = term; });
+
+  const [rows] = await surreal.query<[Array<{
     id: RecordId<"decision", string>;
     summary: string;
     rationale?: string;
     score: number;
-  }>;
+  }>]>(sql, bindings);
 
-  return rows;
+  return rows ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -257,18 +255,16 @@ Does this response contain a decision-shaped statement? Respond with is_decision
 async function detectContradictions(
   input: TraceAnalysisInput,
   responseText: string,
-  responseEmbedding: number[],
-  config: { tier1Threshold: number; tier2ConfidenceMin: number },
+  config: { tier2ConfidenceMin: number },
 ): Promise<number> {
   const { surreal, workspaceRecord, traceId, observerModel } = input;
   const traceRecord = new RecordId("trace", traceId);
 
-  // Tier 1: KNN search for similar confirmed decisions
-  const candidates = await findSimilarDecisions(
+  // Tier 1: BM25 search for similar confirmed decisions
+  const candidates = await findSimilarDecisionsByText(
     surreal,
     workspaceRecord,
-    responseEmbedding,
-    config.tier1Threshold,
+    responseText,
   );
 
   if (candidates.length === 0) {
@@ -314,7 +310,6 @@ async function detectContradictions(
         verified: true,
         source: "llm",
         reasoning: verdict.reasoning,
-        embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
       });
 
       observationsCreated += 1;
@@ -344,8 +339,7 @@ async function detectContradictions(
 async function detectMissingDecisions(
   input: TraceAnalysisInput,
   responseText: string,
-  responseEmbedding: number[],
-  config: { tier1Threshold: number; tier2ConfidenceMin: number },
+  config: { tier2ConfidenceMin: number },
 ): Promise<number> {
   const { surreal, workspaceRecord, traceId, observerModel } = input;
   const traceRecord = new RecordId("trace", traceId);
@@ -358,12 +352,11 @@ async function detectMissingDecisions(
       return 0;
     }
 
-    // Check if a similar decision already exists (KNN search)
-    const existingDecisions = await findSimilarDecisions(
+    // Check if a similar decision already exists (BM25 search)
+    const existingDecisions = await findSimilarDecisionsByText(
       surreal,
       workspaceRecord,
-      responseEmbedding,
-      config.tier1Threshold,
+      missingResult.summary,
     );
 
     // If we found a similar existing decision, it's not "missing"
@@ -389,7 +382,6 @@ async function detectMissingDecisions(
       verified: true,
       source: "llm",
       reasoning: missingResult.reasoning,
-      embeddingDeps: { embeddingModel: input.embeddingModel, embeddingDimension: input.embeddingDimension },
     });
 
     log.info("observer.trace.missing_decision", "Unrecorded decision observation created", {
@@ -459,7 +451,7 @@ async function loadIntelligenceConfig(
 export async function analyzeTraceResponse(
   input: TraceAnalysisInput,
 ): Promise<TraceAnalysisResult> {
-  const { surreal, workspaceRecord, traceId, traceBody, embeddingModel, embeddingDimension } = input;
+  const { surreal, workspaceRecord, traceId, traceBody } = input;
 
   // Step 1: Check stop_reason
   if (!shouldAnalyzeTrace(undefined, traceBody)) {
@@ -483,22 +475,10 @@ export async function analyzeTraceResponse(
     return { observations_created: 0, skipped: true, reason: "not_enabled" };
   }
 
-  // Step 3: Embed the response text
-  const responseEmbedding = await createEmbeddingVector(
-    embeddingModel,
-    responseText.slice(0, 4000), // Limit embedding input
-    embeddingDimension,
-  );
-
-  if (!responseEmbedding) {
-    log.error("observer.trace.embedding_failed", "Failed to embed trace response", { traceId });
-    return { observations_created: 0, skipped: true, reason: "embedding_failed" };
-  }
-
-  // Step 4: Run both detection pipelines
+  // Step 3: Run both detection pipelines (BM25-based)
   const [contradictionCount, missingCount] = await Promise.all([
-    detectContradictions(input, responseText, responseEmbedding, config),
-    detectMissingDecisions(input, responseText, responseEmbedding, config),
+    detectContradictions(input, responseText, config),
+    detectMissingDecisions(input, responseText, config),
   ]);
 
   const totalObservations = contradictionCount + missingCount;

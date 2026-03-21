@@ -43,12 +43,10 @@ import {
   parseRecordIdString,
   resolveWorkspaceProjectRecord,
   resolveWorkspaceFeatureRecord,
-  listDecisionConstraintCandidates,
-  searchEntitiesByEmbedding,
   isEntityInWorkspace,
   type GraphEntityTable,
 } from "../graph/queries";
-import { createEmbeddingVector } from "../graph/embeddings";
+import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import type { ServerDependencies } from "../runtime/types";
 import { requireRawId } from "./id-format";
 import { processCommitTaskRefs } from "./commit-check";
@@ -57,7 +55,7 @@ import { z } from "zod";
 import { createIntent, createTrace, updateIntentStatus, getIntentById } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 import { log } from "../telemetry/logger";
-import { createSearchRecentChanges, classifyBySimilarity, type ClassifiedChange } from "../proxy/context-injector";
+import { createSearchRecentChanges, classifyByAge, type ClassifiedChange } from "../proxy/context-injector";
 
 type WorkspaceRow = {
   id: RecordId<"workspace", string>;
@@ -106,7 +104,7 @@ function hasTokenOverlap(a: Set<string>, b: Set<string>): boolean {
 // ---------------------------------------------------------------------------
 
 export function createMcpRouteHandlers(deps: ServerDependencies) {
-  const { surreal, config } = deps;
+  const { surreal } = deps;
 
   // ---- Actor type mapping for authority checks ----
   const DEFAULT_AGENT_TYPE: AgentType = "code_agent";
@@ -268,8 +266,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     try {
       const result = await resolveIntentContext({
         surreal,
-        embeddingModel: deps.embeddingModel,
-        embeddingDimension: config.embeddingDimension,
         workspaceRecord: auth.workspaceRecord,
         workspaceName: auth.workspaceName,
         intent: body.intent,
@@ -282,11 +278,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       let contextUpdates: Array<{ entity_id: string; entity_type: string; change_description: string; similarity: number; level: "urgent" | "update" }> = [];
 
       try {
-        const intentEmbedding = await createEmbeddingVector(
-          deps.embeddingModel, body.intent, config.embeddingDimension,
-        );
-        if (!intentEmbedding) throw new Error("Failed to create intent embedding");
-
         // Read last_request_at FIRST, then update — otherwise we search "since now" and find nothing.
         let lastRequestAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
         if (body.session_id) {
@@ -303,7 +294,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         }
 
         const searchRecentChanges = createSearchRecentChanges(surreal);
-        const candidates = await searchRecentChanges(intentEmbedding, workspaceId, lastRequestAt);
+        const candidates = await searchRecentChanges(body.intent, workspaceId, lastRequestAt);
 
         // Update agent_session.last_request_at AFTER search (04-02)
         if (body.session_id) {
@@ -315,7 +306,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
             ).catch(() => undefined),
           );
         }
-        const classified = classifyBySimilarity(candidates);
+        const classified = classifyByAge(candidates, new Date());
 
         function toUpdateItem(change: ClassifiedChange) {
           return {
@@ -644,33 +635,12 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (body instanceof Response) return body;
     if (!body.question) return jsonError("question is required", 400);
 
-    // Embed the question and search for related decisions
-    const queryEmbedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      body.question,
-      config.embeddingDimension,
-    );
-
-    if (!queryEmbedding) {
-      return jsonResponse({
-        decision: undefined,
-        confidence: 0,
-        status: "unresolved",
-        rationale: "Could not create embedding for question",
-        sources: [],
-      }, 200);
-    }
-
-    const projectRecord = body.context?.project
-      ? await resolveWorkspaceProjectRecord({ surreal, workspaceRecord: auth.workspaceRecord, projectInput: body.context.project })
-      : undefined;
-
-    const candidates = await searchEntitiesByEmbedding({
+    // Search for related decisions via BM25 fulltext
+    const candidates = await searchEntitiesByBm25({
       surreal,
       workspaceRecord: auth.workspaceRecord,
-      queryEmbedding,
+      query: body.question,
       kinds: ["decision"],
-      ...(projectRecord ? { projectRecord } : {}),
       limit: 10,
     });
 
@@ -715,25 +685,11 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     if (body instanceof Response) return body;
     if (!body.proposed_action) return jsonError("proposed_action is required", 400);
 
-    const queryEmbedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      body.proposed_action,
-      config.embeddingDimension,
-    );
-
-    if (!queryEmbedding) {
-      return jsonResponse({ hard_conflicts: [], soft_tensions: [], supporting: [], proceed: true }, 200);
-    }
-
-    const projectRecord = body.project
-      ? await resolveWorkspaceProjectRecord({ surreal, workspaceRecord: auth.workspaceRecord, projectInput: body.project })
-      : undefined;
-
-    const candidates = await listDecisionConstraintCandidates({
+    const candidates = await searchEntitiesByBm25({
       surreal,
       workspaceRecord: auth.workspaceRecord,
-      queryEmbedding,
-      ...(projectRecord ? { projectRecord } : {}),
+      query: body.proposed_action,
+      kinds: ["decision"],
       limit: 14,
     });
 
@@ -1061,12 +1017,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       if (scopedTargetError) return scopedTargetError;
     }
 
-    const embedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      body.text,
-      config.embeddingDimension,
-    );
-
     let sourceSessionRecord: RecordId<"agent_session", string> | undefined;
     if (body.session_id) {
       try {
@@ -1093,7 +1043,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       now,
       ...(sourceSessionRecord ? { sourceSessionRecord } : {}),
       ...(relatedRecord ? { relatedRecords: [relatedRecord] } : {}),
-      ...(embedding ? { embedding } : {}),
     });
 
     // Create observed_in edge: observation -> agent_session
@@ -1590,12 +1539,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       if (scopedSessionError) return scopedSessionError;
     }
 
-    const embedding = await createEmbeddingVector(
-      deps.embeddingModel,
-      body.text,
-      config.embeddingDimension,
-    );
-
     const now = new Date();
     const suggestionRecord = await createSuggestion({
       surreal,
@@ -1609,7 +1552,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
       ...(sourceSessionRecord ? { sourceSessionRecord } : {}),
       ...(targetRecord ? { targetRecord } : {}),
       ...(evidenceRecords ? { evidenceRecords } : {}),
-      ...(embedding ? { embedding } : {}),
     });
 
     log.info("mcp", "suggestion_created", { id: suggestionRecord.id as string });
@@ -1709,8 +1651,6 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
         suggestionRecord,
         targetKind: body.convert_to as "task" | "feature" | "decision" | "project",
         title: body.title,
-        embeddingModel: deps.embeddingModel,
-        embeddingDimension: config.embeddingDimension,
         now: new Date(),
       });
 

@@ -83,7 +83,6 @@ export type ObjectiveRecord = {
   target_date?: string;
   success_criteria: SuccessCriterion[];
   workspace: RecordId<"workspace">;
-  embedding?: number[];
   created_at: string;
   updated_at?: string;
 };
@@ -102,7 +101,7 @@ export type SupportsEdge = {
   in: RecordId<"intent">;
   out: RecordId<"objective">;
   alignment_score: number;
-  alignment_method: "embedding" | "manual" | "rule";
+  alignment_method: "embedding" | "manual" | "rule" | "graph" | "bm25";
   reasoning?: string;
 };
 
@@ -160,7 +159,6 @@ export async function createObjective(
     priority?: ObjectivePriority;
     target_date?: string;
     success_criteria?: SuccessCriterion[];
-    embedding?: number[];
   },
 ): Promise<{ objectiveId: string }> {
   const objectiveId = `obj-${crypto.randomUUID()}`;
@@ -177,7 +175,6 @@ export async function createObjective(
       target_date: opts.target_date,
       success_criteria: opts.success_criteria ?? [],
       workspace: workspaceRecord,
-      embedding: opts.embedding,
       created_at: new Date(),
       updated_at: new Date(),
     },
@@ -344,7 +341,6 @@ export async function createIntent(
     reasoning?: string;
     status?: string;
     action_spec?: ActionSpec;
-    embedding?: number[];
   },
 ): Promise<{ intentId: string }> {
   const result = await createIntentDirectly(surreal, workspaceId, requesterId, {
@@ -352,7 +348,6 @@ export async function createIntent(
     reasoning: opts.reasoning,
     status: opts.status ?? "pending_auth",
     actionSpec: opts.action_spec,
-    embedding: opts.embedding,
   });
   return { intentId: result.intentId };
 }

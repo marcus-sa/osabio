@@ -1,8 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type EntityCategory } from "../../../shared/contracts";
-import { createEmbeddingVector } from "../../graph/embeddings";
-import { resolveWorkspaceProjectRecord, searchEntitiesByEmbedding } from "../../graph/queries";
+import { searchEntitiesByBm25 } from "../../graph/bm25-search";
 import { requireAuthorizedContext } from "../../iam/authority";
 import type { ChatToolDeps } from "./types";
 
@@ -65,25 +64,12 @@ export function createSuggestWorkItemsTool(deps: ChatToolDeps) {
           ...(item.priority ? { priority: item.priority } : {}),
         };
 
-        const embedding = await createEmbeddingVector(deps.embeddingModel, item.title, deps.embeddingDimension);
-        if (!embedding) {
-          throw new Error("failed to create embedding for suggest_work_items");
-        }
-
-        const projectRecord = item.project
-          ? await resolveWorkspaceProjectRecord({
-              surreal: deps.surreal,
-              workspaceRecord: context.workspaceRecord,
-              projectInput: item.project,
-            })
-          : undefined;
-
-        const candidates = await searchEntitiesByEmbedding({
+        // BM25 text search for duplicate detection -- replaces embedding similarity
+        const candidates = await searchEntitiesByBm25({
           surreal: deps.surreal,
           workspaceRecord: context.workspaceRecord,
-          queryEmbedding: embedding,
+          query: item.title,
           kinds: [item.kind],
-          ...(projectRecord ? { projectRecord } : {}),
           limit: 5,
         });
 
@@ -99,7 +85,11 @@ export function createSuggestWorkItemsTool(deps: ChatToolDeps) {
           continue;
         }
 
-        if (top.score > 0.97) {
+        // BM25 duplicate detection: exact title match = discard, partial match = merge
+        const normalizedTopName = top.name.trim().toLowerCase();
+        const normalizedTitle = item.title.trim().toLowerCase();
+
+        if (normalizedTopName === normalizedTitle) {
           discarded.push({
             title: item.title,
             reason: `Exact duplicate of existing item ${top.kind}:${top.id} (${top.name})`,
@@ -107,16 +97,12 @@ export function createSuggestWorkItemsTool(deps: ChatToolDeps) {
           continue;
         }
 
-        if (top.score >= 0.8) {
-          updated.push({
-            existing_id: `${top.kind}:${top.id}`,
-            title: top.name,
-            changes: `Merge context from suggested item '${item.title}'`,
-          });
-          continue;
-        }
-
-        suggestions.push(suggestion);
+        // BM25 match means significant keyword overlap -- suggest merge
+        updated.push({
+          existing_id: `${top.kind}:${top.id}`,
+          title: top.name,
+          changes: `Merge context from suggested item '${item.title}'`,
+        });
       }
 
       return {

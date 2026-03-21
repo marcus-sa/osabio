@@ -12,7 +12,6 @@ export async function createLearning(input: {
   workspaceRecord: RecordId<"workspace", string>;
   learning: CreateLearningInput;
   now: Date;
-  embedding?: number[];
 }): Promise<LearningRecord> {
   const learningRecord = new RecordId("learning", randomUUID());
 
@@ -31,7 +30,6 @@ export async function createLearning(input: {
     ...(input.learning.suggestedBy ? { suggested_by: input.learning.suggestedBy } : {}),
     ...(input.learning.patternConfidence !== undefined ? { pattern_confidence: input.learning.patternConfidence } : {}),
     ...(input.learning.createdBy ? { created_by: new RecordId("identity", input.learning.createdBy) } : {}),
-    ...(input.embedding ? { embedding: input.embedding } : {}),
     ...(isActive ? { activated_at: input.now } : {}),
     created_at: input.now,
     updated_at: input.now,
@@ -358,7 +356,6 @@ export async function updateLearningFields(input: {
     targetAgents?: string[];
   };
   now: Date;
-  embedding?: number[];
 }): Promise<void> {
   const row = await input.surreal.select<{
     status: LearningStatus;
@@ -389,10 +386,6 @@ export async function updateLearningFields(input: {
   if (input.fields.targetAgents !== undefined) {
     mergeData.target_agents = input.fields.targetAgents;
   }
-  if (input.embedding !== undefined) {
-    mergeData.embedding = input.embedding;
-  }
-
   await input.surreal.update(input.learningRecord).merge(mergeData);
 }
 

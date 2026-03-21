@@ -17,8 +17,6 @@ export type ChatToolExecutionContext = {
 
 export type ChatToolDeps = {
   surreal: Surreal;
-  embeddingModel: any;
-  embeddingDimension: number;
   extractionModelId: string;
   extractionModel: any;
   extractionStoreThreshold: number;

@@ -71,8 +71,6 @@ async function handleGitHubWebhook(
   const work = processGitCommits({
     surreal: deps.surreal,
     extractionModel: deps.extractionModel,
-    embeddingModel: deps.embeddingModel,
-    embeddingDimension: deps.config.embeddingDimension,
     extractionStoreThreshold: deps.config.extractionStoreThreshold,
     extractionModelId: deps.config.extractionModelId,
     workspaceRecord,

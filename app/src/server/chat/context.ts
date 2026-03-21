@@ -6,13 +6,13 @@ import {
   listWorkspaceProjectSummaries,
   listWorkspaceRecentDecisions,
   readEntityName,
-  searchEntitiesByEmbedding,
   type ConversationEntity,
   type RankedEntity,
   type WorkspaceDecisionSummary,
   type WorkspaceProjectSummary,
   type WorkspaceQuestionSummary,
 } from "../graph/queries";
+import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import { listWorkspaceOpenObservations } from "../observation/queries";
 import { listWorkspacePendingSuggestions } from "../suggestion/queries";
 import { loadOnboardingSummary } from "../onboarding/onboarding-state";
@@ -61,7 +61,7 @@ export async function buildChatContext(input: {
   loaders?: ChatContextLoaders;
   inheritedEntityIds?: RecordId[];
   discussesRecord?: RecordId;
-  userMessageEmbedding?: number[];
+  userMessageText?: string;
 }): Promise<ChatContext> {
   const loaders = input.loaders ?? {
     listConversationEntities,
@@ -114,21 +114,20 @@ export async function buildChatContext(input: {
       surreal: input.surreal,
       workspaceId: input.workspaceRecord.id as string,
       agentType: "chat_agent",
-      ...(input.workspaceDescription ? { contextEmbedding: undefined } : {}),
+      ...(input.workspaceDescription ? { contextText: input.workspaceDescription } : {}),
     }),
   ]);
 
   // Cross-conversation entity enrichment: find workspace entities relevant to the user's message
   let relevantEntities: RankedEntity[] | undefined;
-  if (input.userMessageEmbedding) {
-    const queryEmbedding = input.userMessageEmbedding;
+  if (input.userMessageText && input.userMessageText.trim().length > 0) {
     const conversationEntityIds = new Set(
       conversationEntities.map((e) => e.id),
     );
-    const ranked = await searchEntitiesByEmbedding({
+    const ranked = await searchEntitiesByBm25({
       surreal: input.surreal,
       workspaceRecord: input.workspaceRecord,
-      queryEmbedding,
+      query: input.userMessageText,
       limit: 15,
     });
     const filtered = ranked.filter((e) => !conversationEntityIds.has(e.id));

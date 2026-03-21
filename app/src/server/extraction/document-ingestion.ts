@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import { elapsedMs } from "../http/observability";
-import { createEmbedding } from "./embedding-writeback";
 import { extractStructuredGraph } from "./extract-graph";
 import { splitDocumentIntoChunks } from "./markdown-chunker";
 import { persistExtractionOutput } from "./persist-extraction";
@@ -11,8 +10,6 @@ import { log } from "../telemetry/logger";
 export async function ingestAttachment(input: {
   surreal: Surreal;
   extractionModel: any;
-  embeddingModel: any;
-  embeddingDimension: number;
   extractionStoreThreshold: number;
   extractionModelId: string;
   workspaceRecord: RecordId<"workspace", string>;
@@ -49,21 +46,17 @@ export async function ingestAttachment(input: {
     const persistedEntities = [];
     const persistedRelationships = [];
     const seeds = [];
-    const embeddingTargets = [];
     const tools = [];
     const unresolvedAssigneeNames = [];
 
     for (const chunk of chunks) {
       const chunkRecord = new RecordId("document_chunk", randomUUID());
-      const chunkEmbedding = await createEmbedding(input.embeddingModel, input.embeddingDimension, chunk.content);
-
       await input.surreal.create(chunkRecord).content({
         document: documentRecord,
         workspace: input.workspaceRecord,
         content: chunk.content,
         ...(chunk.heading ? { section_heading: chunk.heading } : {}),
         position: chunk.position,
-        ...(chunkEmbedding ? { embedding: chunkEmbedding } : {}),
         created_at: input.now,
       });
 
@@ -81,8 +74,6 @@ export async function ingestAttachment(input: {
       const result = await persistExtractionOutput({
         surreal: input.surreal,
         extractionModel: input.extractionModel,
-        embeddingModel: input.embeddingModel,
-        embeddingDimension: input.embeddingDimension,
         extractionModelId: input.extractionModelId,
         extractionStoreThreshold: input.extractionStoreThreshold,
         workspaceRecord: input.workspaceRecord,
@@ -100,7 +91,6 @@ export async function ingestAttachment(input: {
       persistedEntities.push(...result.entities);
       persistedRelationships.push(...result.relationships);
       seeds.push(...result.seeds);
-      embeddingTargets.push(...result.embeddingTargets);
       tools.push(...result.tools);
       unresolvedAssigneeNames.push(...result.unresolvedAssigneeNames);
     }
@@ -119,7 +109,6 @@ export async function ingestAttachment(input: {
       entities: persistedEntities,
       relationships: persistedRelationships,
       seeds,
-      embeddingTargets,
       tools,
       unresolvedAssigneeNames,
     };

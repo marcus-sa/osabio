@@ -110,8 +110,6 @@ describe("graph scan dedup → synthesis filtering", () => {
       mockSurreal as never,
       WS_RECORD,
       {} as never,
-      {} as never,
-      1536,
       stubLlm,
     );
 

@@ -17,7 +17,6 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   extractionModel: any;
   pmAgentModel: any;
   analyticsAgentModel: any;
-  embeddingModel: any;
   observerModel: any;
   scorerModel: any;
   asSigningKey: AsSigningKey;
@@ -39,7 +38,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
 
   const wrap = (model: any) => devtools ? wrapLanguageModel({ model, middleware: devtools }) : model;
 
-  const { chatAgentModel, extractionModel, pmAgentModel, analyticsAgentModel, embeddingModel, observerModel, scorerModel } =
+  const { chatAgentModel, extractionModel, pmAgentModel, analyticsAgentModel, observerModel, scorerModel } =
     config.inferenceProvider === "ollama"
       ? createOllamaModels(config, wrap)
       : createOpenRouterModels(config, wrap);
@@ -62,7 +61,6 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     extractionModel,
     pmAgentModel,
     analyticsAgentModel,
-    embeddingModel,
     observerModel,
     scorerModel,
     asSigningKey,
@@ -86,7 +84,6 @@ function createOpenRouterModels(config: ServerConfig, wrap: (model: any) => any)
     extractionModel: withPlugins(config.extractionModelId),
     pmAgentModel: withPlugins(config.pmAgentModelId),
     analyticsAgentModel: withPlugins(config.analyticsAgentModelId, false),
-    embeddingModel: openrouter.textEmbeddingModel(config.embeddingModelId),
     observerModel: withPlugins(config.observerModelId),
     scorerModel: withPlugins(config.scorerModelId, false),
   };
@@ -104,7 +101,6 @@ function createOllamaModels(config: ServerConfig, wrap: (model: any) => any) {
     extractionModel: wrap(ollama(config.extractionModelId)),
     pmAgentModel: wrap(ollama(config.pmAgentModelId)),
     analyticsAgentModel: wrap(ollama(config.analyticsAgentModelId)),
-    embeddingModel: ollama.embedding(config.embeddingModelId),
     observerModel: wrap(ollama(config.observerModelId)),
     scorerModel: wrap(ollama(config.scorerModelId)),
   };

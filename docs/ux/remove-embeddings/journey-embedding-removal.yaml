@@ -1,0 +1,133 @@
+journey:
+  name: "Remove Embeddings from Brain Knowledge Graph"
+  goal: "Eliminate vector embedding infrastructure across 4 use cases, replacing with BM25 fulltext search and graph traversal"
+  persona: "Brain platform engineer maintaining the knowledge graph"
+
+  emotional_arc:
+    start: "Determined but cautious -- large cross-cutting refactoring"
+    middle: "Confidence building through phased wins"
+    end: "Relief and satisfaction -- simpler system, faster tests, fewer failure modes"
+
+  phases:
+    - id: 1
+      name: "High-Confidence Replacements"
+      confidence: "high"
+      steps:
+        - id: 1
+          name: "Replace Chat Agent Search"
+          description: "Replace searchEntitiesByEmbedding with BM25 fulltext search"
+          files_changed:
+            - "app/src/server/chat/tools/search-entities.ts"
+            - "app/src/server/graph/queries.ts"
+          replacement_strategy: "BM25 fulltext search using existing entity_search analyzer"
+          emotional_state:
+            entry: "Cautious -- first replacement"
+            exit: "Confident -- BM25 proven in entity-search-route.ts"
+
+        - id: 2
+          name: "Replace Learning Collision Detection"
+          description: "Replace KNN + brute-force with BM25 search on learning table"
+          files_changed:
+            - "app/src/server/learning/detector.ts"
+            - "app/src/server/observer/learning-diagnosis.ts"
+          replacement_strategy: "BM25 fulltext search with new index on learning.text"
+          new_migration: "Add BM25 fulltext index on learning.text field"
+          emotional_state:
+            entry: "Growing confidence from Step 1"
+            exit: "Relieved -- most complex embedding usage simplified"
+
+        - id: 3
+          name: "Replace Objective-Intent Alignment"
+          description: "Replace cosine similarity with graph traversal"
+          files_changed:
+            - "app/src/server/objective/alignment-adapter.ts"
+            - "app/src/server/objective/alignment.ts"
+            - "app/src/server/intent/authorizer.ts"
+          replacement_strategy: "Graph path traversal: task->belongs_to->project->has_objective->objective"
+          adr_impact: "Supersedes ADR-032"
+          emotional_state:
+            entry: "Confident -- graph traversal is the natural fit"
+            exit: "Satisfied -- deterministic alignment vs probabilistic score"
+
+    - id: 2
+      name: "Medium-Confidence Replacement"
+      confidence: "medium"
+      steps:
+        - id: 4
+          name: "Replace Proxy Context Ranking"
+          description: "Replace cosine ranking with BM25 + recency weighting"
+          files_changed:
+            - "app/src/server/proxy/context-injector.ts"
+          replacement_strategy: "BM25 search + recency weighting + graph proximity"
+          risk: "Cross-vocabulary relevance for coding context"
+
+        - id: 5
+          name: "Replace Recent Changes Classification"
+          description: "Replace similarity thresholds with recency + graph proximity"
+          files_changed:
+            - "app/src/server/proxy/context-injector.ts"
+          replacement_strategy: "Time-based urgency + same-project/feature proximity"
+
+        - id: 6
+          name: "Replace Intent Context Vector Search"
+          description: "Replace vector search fallback in resolveContextLevel"
+          files_changed:
+            - "app/src/server/mcp/intent-context.ts"
+          replacement_strategy: "BM25 search against entity titles/summaries"
+
+    - id: 3
+      name: "Infrastructure Removal"
+      confidence: "high"
+      prerequisite: "Phases 1 and 2 complete with all tests passing"
+      steps:
+        - id: 7
+          name: "Drop HNSW Indexes"
+          description: "Remove all 17 HNSW indexes via migration"
+          artifact: "schema/migrations/NNNN_drop_hnsw_indexes.surql"
+
+        - id: 8
+          name: "Drop Embedding Fields"
+          description: "Remove embedding fields from all entity tables"
+          artifact: "schema/migrations/NNNN_drop_embedding_fields.surql"
+
+        - id: 9
+          name: "Remove Config and Module"
+          description: "Delete embeddings.ts, remove EMBEDDING_MODEL/DIMENSION config"
+          files_deleted:
+            - "app/src/server/graph/embeddings.ts"
+          files_changed:
+            - "app/src/server/runtime/config.ts"
+            - "app/src/server/runtime/dependencies.ts"
+            - "schema/surreal-schema.surql"
+
+  integration_checkpoints:
+    - phase: 1
+      validation: "All acceptance tests pass without embedding model. search_entities returns BM25 results. Collision detection blocks duplicates. Alignment uses graph path."
+    - phase: 2
+      validation: "Proxy context injection works without embedding model. Comparable context item counts in telemetry."
+    - phase: 3
+      validation: "Zero references to createEmbeddingVector. No HNSW indexes in schema. EMBEDDING_MODEL config removed."
+
+  shared_artifacts:
+    bm25_analyzer:
+      source_of_truth: "schema/migrations/0002_fulltext_search_indexes.surql"
+      consumers:
+        - "entity-search-route.ts"
+        - "search-entities.ts (new)"
+        - "detector.ts (new)"
+        - "intent-context.ts (new)"
+      integration_risk: "LOW -- analyzer already defined and proven"
+
+    fulltext_search_pattern:
+      source_of_truth: "entity-search-route.ts (buildWorkspaceSearchSQL)"
+      consumers:
+        - "search-entities.ts"
+        - "intent-context.ts"
+      integration_risk: "LOW -- pattern reuse, not duplication"
+
+    alignment_classification:
+      source_of_truth: "objective/alignment.ts (classifyAlignment)"
+      consumers:
+        - "alignment-adapter.ts"
+        - "authorizer.ts"
+      integration_risk: "LOW -- pure function, input changes but output contract stable"

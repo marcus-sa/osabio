@@ -14,7 +14,7 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import type { InflightTracker } from "../runtime/types";
-import { createObservation, type EmbeddingDeps } from "../observation/queries";
+import { createObservation } from "../observation/queries";
 import { log } from "../telemetry/logger";
 import {
   type RateLimiterState,
@@ -91,7 +91,6 @@ export type ProxyPolicyDependencies = {
   readonly inflight: InflightTracker;
   readonly rateLimiterState: RateLimiterState;
   readonly spendCache: SpendCache;
-  readonly embeddingDeps?: EmbeddingDeps;
   readonly noPolicyWarnedWorkspaces: Set<string>;
 };
 
@@ -329,7 +328,6 @@ export async function evaluateProxyPolicy(
             observationType: "missing",
             sourceAgent: "llm-proxy",
             now: new Date(),
-            embeddingDeps: deps.embeddingDeps,
           }).catch((error) => {
             log.error("proxy.policy.observation_failed", "Failed to create no-policy warning", error);
             return undefined as any;

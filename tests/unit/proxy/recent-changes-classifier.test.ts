@@ -1,122 +1,115 @@
 /**
- * Unit tests for recent changes vector search classification
+ * Unit tests for recent changes classification and XML building
  *
- * Tests the pure classifier function that categorizes KNN results
- * by similarity threshold into urgent-context vs context-update,
+ * Tests the pure classifier function that categorizes candidates
+ * by age into urgent-context vs context-update tiers,
  * and the XML builder for recent changes.
  *
- * Step: 04-01 (graph-reactive-coordination)
+ * Originally: 04-01 (similarity-based). Updated: 02-02 (time-based via classifyByAge).
  */
 import { describe, expect, it } from "bun:test";
 import {
-  classifyBySimilarity,
+  classifyByAge,
   buildRecentChangesXml,
   type RecentChangeCandidate,
   type ClassifiedChange,
 } from "../../../app/src/server/proxy/context-injector";
 
 // ---------------------------------------------------------------------------
-// classifyBySimilarity
+// classifyByAge (replaces classifyBySimilarity)
 // ---------------------------------------------------------------------------
 
-describe("classifyBySimilarity", () => {
+describe("classifyByAge", () => {
+  const now = new Date("2026-03-20T12:00:00Z");
+
   const makeCandidate = (
-    similarity: number,
+    minutesOld: number,
     overrides?: Partial<RecentChangeCandidate>,
   ): RecentChangeCandidate => ({
     id: `test-${crypto.randomUUID()}`,
     table: "decision",
     text: "Some change text",
-    similarity,
-    updatedAt: new Date().toISOString(),
+    similarity: 0,
+    updatedAt: new Date(now.getTime() - minutesOld * 60 * 1000).toISOString(),
     ...overrides,
   });
 
-  it("classifies high similarity (>=0.7) as urgent-context", () => {
-    const candidates = [makeCandidate(0.90)];
-    const result = classifyBySimilarity(candidates);
+  it("classifies item updated <30min ago as urgent-context", () => {
+    const candidates = [makeCandidate(10)];
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("urgent-context");
   });
 
-  it("classifies moderate similarity (0.4-0.7) as context-update", () => {
-    const candidates = [makeCandidate(0.55)];
-    const result = classifyBySimilarity(candidates);
+  it("classifies item updated 30min-24h ago as context-update", () => {
+    const candidates = [makeCandidate(120)]; // 2 hours
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("context-update");
   });
 
-  it("filters out below threshold (<0.4) matches", () => {
-    const candidates = [makeCandidate(0.35)];
-    const result = classifyBySimilarity(candidates);
+  it("filters out items older than 24 hours", () => {
+    const candidates = [makeCandidate(25 * 60)]; // 25 hours
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(0);
   });
 
-  it("handles boundary at 0.7 as urgent-context", () => {
-    const candidates = [makeCandidate(0.70)];
-    const result = classifyBySimilarity(candidates);
+  it("handles boundary at 30 minutes as urgent-context", () => {
+    const candidates = [makeCandidate(30)];
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("urgent-context");
   });
 
-  it("handles boundary at 0.4 as context-update", () => {
-    const candidates = [makeCandidate(0.40)];
-    const result = classifyBySimilarity(candidates);
+  it("handles boundary at 24 hours as context-update", () => {
+    const candidates = [makeCandidate(24 * 60)];
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(1);
     expect(result[0].classification).toBe("context-update");
-  });
-
-  it("returns empty array when no candidates match", () => {
-    const candidates = [makeCandidate(0.30), makeCandidate(0.10)];
-    const result = classifyBySimilarity(candidates);
-
-    expect(result.length).toBe(0);
   });
 
   it("returns empty array for empty input", () => {
-    const result = classifyBySimilarity([]);
+    const result = classifyByAge([], now);
     expect(result.length).toBe(0);
   });
 
-  it("classifies mixed similarities correctly and preserves order", () => {
+  it("classifies mixed ages correctly and preserves order", () => {
     const candidates = [
-      makeCandidate(0.95, { table: "task", text: "urgent task" }),
-      makeCandidate(0.55, { table: "observation", text: "moderate obs" }),
-      makeCandidate(0.30, { table: "decision", text: "low decision" }),
-      makeCandidate(0.88, { table: "decision", text: "urgent decision" }),
+      makeCandidate(5, { table: "task", text: "urgent task" }),
+      makeCandidate(120, { table: "observation", text: "recent obs" }),
+      makeCandidate(30 * 60, { table: "decision", text: "old decision" }),
+      makeCandidate(15, { table: "decision", text: "urgent decision" }),
     ];
 
-    const result = classifyBySimilarity(candidates);
+    const result = classifyByAge(candidates, now);
 
     expect(result.length).toBe(3);
     expect(result[0].classification).toBe("urgent-context");
     expect(result[0].text).toBe("urgent task");
     expect(result[1].classification).toBe("context-update");
-    expect(result[1].text).toBe("moderate obs");
+    expect(result[1].text).toBe("recent obs");
     expect(result[2].classification).toBe("urgent-context");
     expect(result[2].text).toBe("urgent decision");
   });
 
   it("preserves candidate metadata in classified output", () => {
-    const candidate = makeCandidate(0.90, {
+    const candidate = makeCandidate(10, {
       id: "dec-123",
       table: "decision",
       text: "Use tRPC for all APIs",
-      updatedAt: "2026-03-17T10:00:00Z",
     });
 
-    const result = classifyBySimilarity([candidate]);
+    const result = classifyByAge([candidate], now);
 
     expect(result[0].id).toBe("dec-123");
     expect(result[0].table).toBe("decision");
     expect(result[0].text).toBe("Use tRPC for all APIs");
-    expect(result[0].similarity).toBe(0.90);
-    expect(result[0].updatedAt).toBe("2026-03-17T10:00:00Z");
+    expect(result[0].updatedAt).toBe(candidate.updatedAt);
   });
 });
 
@@ -132,7 +125,7 @@ describe("buildRecentChangesXml", () => {
     id: `test-${crypto.randomUUID()}`,
     table: "decision",
     text: "Some change",
-    similarity: classification === "urgent-context" ? 0.90 : 0.75,
+    similarity: 0,
     updatedAt: new Date().toISOString(),
     classification,
     ...overrides,

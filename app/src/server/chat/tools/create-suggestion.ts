@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { SUGGESTION_CATEGORIES } from "../../../shared/contracts";
-import { createEmbeddingVector } from "../../graph/embeddings";
 import { isEntityInWorkspace, parseRecordIdString } from "../../graph/queries";
 import { createSuggestion } from "../../suggestion/queries";
 import { requireAuthorizedContext } from "../../iam/authority";
@@ -49,11 +48,6 @@ export function createCreateSuggestionTool(deps: ChatToolDeps) {
         parseRecordIdString(id, [...evidenceTables]),
       );
 
-      const embedding = await createEmbeddingVector(deps.embeddingModel, input.text, deps.embeddingDimension);
-      if (!embedding) {
-        throw new Error("failed to create embedding for create_suggestion");
-      }
-
       const suggestionRecord = await createSuggestion({
         surreal: deps.surreal,
         workspaceRecord: context.workspaceRecord,
@@ -66,7 +60,6 @@ export function createCreateSuggestionTool(deps: ChatToolDeps) {
         sourceMessageRecord: context.currentMessageRecord,
         ...(targetRecord ? { targetRecord } : {}),
         ...(evidenceRecords ? { evidenceRecords } : {}),
-        embedding,
       });
 
       return {
