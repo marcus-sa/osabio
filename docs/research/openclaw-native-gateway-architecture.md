@@ -753,24 +753,55 @@ Both use JIT injection into agent prompts. The difference is *when* and *how muc
    → Old version deprecated, new version activated
 ```
 
-#### Integration with OpenClaw Gateway
+#### Integration with OpenClaw via Proxy
 
-When Brain acts as the gateway, skills are injected transparently:
+When OpenClaw agents route LLM calls through Brain's proxy, skills and tools are injected transparently. OpenClaw runs its own agent loop — Brain doesn't replace it. Brain enriches every LLM call passing through:
 
 ```
-OpenClaw client sends: agent({ message: "audit the auth module for vulnerabilities" })
+OpenClaw agent sends LLM request through Brain proxy:
+  POST /api/proxy/openai/v1/chat/completions
+  (bare request — no tools, no skills, no credentials)
   │
   ▼
-Brain gateway handler:
-  ├─ Resolve task from message
-  ├─ Discover matching skills ("security-audit" scores high)
-  ├─ Check agent possesses skill + policy allows it
-  ├─ Inject skill content + learnings into agent context
-  ├─ Provision required MCP tools via RAR
-  └─ Execute with full expertise stack
+Brain Proxy:
+  ├─ 1. Identify agent (DPoP identity)
+  ├─ 2. Discover matching skills for current task
+  ├─ 3. Resolve tools: can_use ∩ skill_requires = this agent's toolset
+  ├─ 4. Inject tools into request's `tools` parameter
+  ├─ 5. Inject skill content + learnings + graph context into messages
+  ├─ 6. Forward enriched request to LLM provider
+  │
+  ├─ 7. LLM responds with tool_calls
+  ├─ 8. Proxy intercepts tool_calls
+  ├─ 9. Execute each tool call:
+  │     ├─ Policy check (governs_tool → intent evaluation)
+  │     ├─ Integration tools: brokered credentials (connected_account)
+  │     ├─ Local tools: sandboxed execution
+  │     └─ Trace recording
+  ├─ 10. Send tool results back to LLM
+  ├─ 11. Loop until final response
+  │
+  └─ 12. Return response to OpenClaw agent
 ```
 
-The OpenClaw client doesn't know about skills. It just submits work. Brain handles expertise injection server-side — the same way it already handles learning injection, but richer.
+The OpenClaw agent doesn't know about skills, tools, or credentials. It sends a bare LLM request. Brain adds everything. This means:
+
+- **OpenClaw keeps its agent loop** — no replacement needed
+- **Brain controls tools** — per-agent resolution via `can_use` + `skill_requires`
+- **Credentials never exposed** — brokered at the proxy, sanitized before return
+- **Policy enforcement** — every tool call through the intent system
+- **Works without Gateway Protocol** — any OpenClaw agent that routes LLM calls through Brain's proxy gets the full stack
+
+This is an alternative to (or complement of) the Gateway Protocol approach. The Gateway Protocol gives Brain control over session lifecycle and WebSocket streaming. The proxy approach gives Brain control over tool injection and credential brokerage. Both can coexist:
+
+| Capability | Gateway Protocol | Proxy |
+|-----------|-----------------|-------|
+| Session lifecycle | Yes | No (OpenClaw manages) |
+| Tool injection | Via orchestrator | Via LLM request enrichment |
+| Credential brokerage | Via tool execution | Via tool call interception |
+| Skill injection | Via context building | Via message enrichment |
+| Works without gateway | No | Yes |
+| Works with any agent | Only Gateway Protocol clients | Any agent routing LLM calls |
 
 #### Import Path: skills.sh → Brain
 
@@ -816,26 +847,33 @@ No other gateway provides this. A standalone OpenClaw gateway gives agents tools
 | 11 | `model.list` → provider config | Config | S |
 | 12 | Presence broadcasting | SSE registry | S |
 | 13 | SurrealDB migration (agent device fields) | Schema | S |
-| 14 | Skill table + schema migration | Schema | S |
-| 15 | Skill discovery (BM25 trigger matching) | BM25 infra | M |
-| 16 | Skill injection into agent context | Context builder | M |
-| 17 | Skill CRUD routes + UI | Frontend | L |
-| 18 | Skill importer (skills.sh / SKILL.md → graph) | Skill schema | M |
-| 19 | Skill evolution (Observer → skill updates) | Observer + skills | L |
-| 20 | Gateway management UI | Frontend | L |
-| 21 | Compatibility testing (OpenClaw CLI + web UI) | All above | L |
+| 14 | Proxy tool injection (resolve identity → can_use → inject tools) | Proxy | M |
+| 15 | Proxy tool call interception + execution | Proxy | M |
+| 16 | `mcp_tool` + `can_use` + `governs_tool` schema | SurrealDB | S |
+| 17 | `auth_config` + `connected_account` tables | SurrealDB | S |
+| 18 | OAuth2 flow for connected accounts | Auth layer | L |
+| 19 | Credential brokerage in proxy | Connected accounts | M |
+| 20 | Skill table + schema migration | Schema | S |
+| 21 | Skill discovery (BM25 trigger matching) | BM25 infra | M |
+| 22 | Skill + tool co-injection in proxy (`skill_requires` → add tools) | Skills + proxy | M |
+| 23 | `governs_skill` relation + policy evaluation | Policy system | M |
+| 24 | Skill CRUD routes + UI | Frontend | L |
+| 25 | Skill importer (skills.sh / SKILL.md → graph) | Skill schema | M |
+| 26 | Skill evolution (Observer → skill updates) | Observer + skills | L |
+| 27 | Gateway management UI | Frontend | L |
+| 28 | Compatibility testing (OpenClaw CLI + web UI) | All above | L |
 
-**MVP (phases 1-6)**: An OpenClaw CLI connects to Brain, submits work, gets streamed responses. Proves the concept.
+**MVP (phases 1-6)**: An OpenClaw CLI connects to Brain gateway, submits work, gets streamed responses.
 
-**Production (phases 1-16)**: Full protocol support with auth, exec approvals, skills, and persistence.
+**Proxy-as-tool-layer (phases 14-19)**: Any agent (including OpenClaw) routing LLM calls through Brain's proxy gets per-agent tool injection, brokered credentials, and policy enforcement. Works without the Gateway Protocol.
 
-**Ecosystem (phases 17-19)**: Skill import from skills.sh, Observer-driven skill evolution.
+**Skills (phases 20-26)**: Full skill system — discovery, co-injection of skills + tools in proxy, governance, import from skills.sh.
 
-**Polish (phases 20-21)**: UI and ecosystem compatibility.
+**Polish (phases 27-28)**: UI and ecosystem compatibility.
 
 ---
 
-## 10. What This Unlocks
+## 11. What This Unlocks
 
 **For OpenClaw users**: Point your CLI at Brain instead of a standalone gateway. Shared memory, policy governance, and spend tracking for free. Everything else works the same.
 
@@ -849,7 +887,7 @@ openclaw connect ws://brain.local:3000/api/gateway
 
 **For Brain**: The entire OpenClaw ecosystem becomes the distribution channel. 300k+ GitHub stars worth of users can connect without changing their tools. Mission Control (2.4k stars) works out of the box.
 
-**For the architecture**: One process, one auth system, one graph. No bridging, no proxying, no protocol translation. Brain's existing orchestrator, chat agent, intent system, observer, and extraction pipeline all serve OpenClaw clients natively.
+**For the architecture**: Two complementary integration paths. The Gateway Protocol gives Brain full session lifecycle control. The proxy gives Brain tool injection and credential brokerage for any agent — even those that don't speak the Gateway Protocol. Both paths lead to the same graph.
 
 ---
 
@@ -858,6 +896,8 @@ openclaw connect ws://brain.local:3000/api/gateway
 - [OpenClaw Gateway Protocol docs](https://docs.openclaw.ai/gateway/protocol)
 - [OpenClaw Multiple Gateways docs](https://docs.openclaw.ai/gateway/multiple-gateways)
 - [OpenClaw Mission Control (GitHub, 2.4k stars)](https://github.com/abhi1693/openclaw-mission-control)
+- [Composio](https://composio.dev) — brokered credentials pattern, MCP gateway architecture
+- [Composio architecture research](docs/research/composio-tool-platform-research.md)
 - [NVIDIA OpenShell (GitHub)](https://github.com/NVIDIA/OpenShell) — kernel-level agent sandbox, treats skills as verifiable behavioral units
 - [skills.sh ecosystem](https://skills.sh) — 80k+ SKILL.md behavioral instruction sets
 - HiClaw Manager-Worker architecture — containerized OpenClaw-compatible agents with Matrix coordination, Higress gateway, MinIO state
@@ -866,5 +906,6 @@ openclaw connect ws://brain.local:3000/api/gateway
 - Brain intent authorizer: `app/src/server/intent/authorizer.ts`
 - Brain DPoP middleware: `app/src/server/auth/dpop-middleware.ts`
 - Brain proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
+- Brain native runtime research: `docs/research/brain-native-agent-runtime.md`
 - Brain SSE registry: `app/src/server/streaming/sse-registry.ts`
 - Brain learning system: `app/src/server/learning/` + `schema/surreal-schema.surql` (learning table)
