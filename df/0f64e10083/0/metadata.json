@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "df0f64e10083",
+  "session_id": "2909102b-acf6-4f20-aeda-cf1d0645fd8b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-21T13:37:58.27016Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docs/research/brain-native-agent-runtime.md",
+    "docs/research/openclaw-native-gateway-architecture.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a7e53ea932a1",
+  "token_usage": {
+    "input_tokens": 151,
+    "cache_creation_tokens": 39334,
+    "cache_read_tokens": 105891,
+    "output_tokens": 636,
+    "api_call_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-21T13:37:58.231267Z",
+    "agent_lines": 652,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 652,
+    "agent_percentage": 100
+  }
+}

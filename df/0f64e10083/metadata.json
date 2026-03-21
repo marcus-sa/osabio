@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "df0f64e10083",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docs/research/brain-native-agent-runtime.md",
+    "docs/research/openclaw-native-gateway-architecture.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/df/0f64e10083/0/metadata.json",
+      "transcript": "/df/0f64e10083/0/full.jsonl",
+      "context": "/df/0f64e10083/0/context.md",
+      "content_hash": "/df/0f64e10083/0/content_hash.txt",
+      "prompt": "/df/0f64e10083/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 151,
+    "cache_creation_tokens": 39334,
+    "cache_read_tokens": 105891,
+    "output_tokens": 636,
+    "api_call_count": 3
+  }
+}
