@@ -146,194 +146,96 @@ This is what OpenClaw's exec approval does — but Brain's version is richer bec
 
 ---
 
-## 5. MCP Tool Gateway: Brokered Credentials + Intent Governance
+## 5. The Proxy as Tool Layer
 
-Brain should expose **all** tools — filesystem, shell, git, and third-party integrations — through a single MCP gateway. Agents never see API keys. Every tool call passes through the intent system. This is Composio's architectural insight applied to a knowledge graph backend.
+All LLM requests are routed through Brain's proxy. The proxy already intercepts requests and injects context. The insight: **the proxy can also inject tools and intercept tool calls**. No separate MCP gateway needed — the proxy IS the tool layer.
 
-### The Brokered Credentials Pattern
-
-The core security principle: **LLMs must never see raw credentials**. An agent that can read its own system prompt can leak any API key embedded in it. The solution is credential brokerage — Brain holds the secrets, agents hold tool handles.
+### How It Works
 
 ```
-Agent calls: github.create_issue({ repo: "brain", title: "Bug fix" })
+Any agent (OpenClaw, Cursor, Claude Code, curl, anything)
   │
-  ├─ Agent sends tool call to Brain (no credentials attached)
+  POST /v1/chat/completions  (bare request, no tools, no credentials)
   │
-  ├─ Brain MCP gateway:
-  │   ├─ 1. Identify agent (DPoP-bound identity)
-  │   ├─ 2. Lookup connected account (agent's GitHub OAuth token)
-  │   ├─ 3. Refresh token if expired
-  │   ├─ 4. Create intent: { action: "github:create_issue", requester: identity }
-  │   ├─ 5. Evaluate against policy graph
-  │   ├─ 6. Execute API call with brokered credentials
-  │   └─ 7. Return sanitized result (no tokens in response)
+  ▼
+Brain Proxy
   │
-  └─ Agent receives: { issue_number: 42, url: "..." }
-      (never saw the GitHub token)
+  ├─ 1. Identify agent (DPoP-bound identity)
+  ├─ 2. Resolve active skills for this agent + current task
+  ├─ 3. Resolve tools: can_use ∩ skill_requires = this session's toolset
+  ├─ 4. Inject tools into request's `tools` parameter
+  ├─ 5. Inject skill content + learnings + graph context into messages
+  ├─ 6. Forward enriched request to LLM provider
+  │
+  ├─ 7. LLM responds with tool_calls
+  ├─ 8. Proxy intercepts tool_calls
+  ├─ 9. For each tool call:
+  │     ├─ Create intent: { action: "github:create_issue", requester: identity }
+  │     ├─ Evaluate against policy graph (governs_tool edges)
+  │     ├─ If integration tool: lookup connected_account, refresh token, execute with brokered creds
+  │     ├─ If local tool: execute in sandbox (policy-dependent isolation level)
+  │     ├─ Sanitize response (strip credential artifacts)
+  │     └─ Record trace (tool call → trace node in graph)
+  ├─ 10. Send tool results back to LLM
+  ├─ 11. Loop 7-10 until LLM returns final response
+  │
+  └─ 12. Return response to agent
 ```
 
-### Schema: Tool Registry + Connected Accounts
+The agent sends a bare LLM request. It doesn't know about tools, skills, or credentials. The proxy adds everything.
 
-The `mcp_tool` table (already referenced by `skill_requires`) becomes the tool registry. Connected accounts store per-identity credentials:
+### Why the Proxy, Not an MCP Gateway
+
+| MCP Gateway approach | Proxy approach |
+|---------------------|---------------|
+| Agents must discover and configure tools | Agents send bare requests — Brain decides what they get |
+| Separate protocol (MCP) for tool delivery | Same HTTP path the agent already uses |
+| Agent chooses which tools to call | LLM chooses from tools Brain injected — agent never sees the list |
+| Credentials could leak via MCP response | Credentials never leave the proxy — agent sees sanitized results |
+| Works only for MCP-aware agents | Works for **any** agent that routes LLM calls through Brain |
+
+The proxy approach is strictly more powerful: it works for every agent type (OpenClaw, Cursor, Claude Code, raw API calls) without requiring MCP support. The agent doesn't even need to know tools exist.
+
+### Per-Agent Tool Resolution
+
+Not all tools and skills are available to all agents. Brain resolves the toolset per-request based on the agent's identity:
 
 ```sql
--- Tool definitions (the catalog)
-DEFINE TABLE mcp_tool SCHEMAFULL;
-DEFINE FIELD name ON mcp_tool TYPE string;                    -- "github.create_issue"
-DEFINE FIELD toolkit ON mcp_tool TYPE string;                 -- "github"
-DEFINE FIELD description ON mcp_tool TYPE string;
-DEFINE FIELD input_schema ON mcp_tool TYPE object FLEXIBLE;   -- JSON Schema for parameters
-DEFINE FIELD auth_type ON mcp_tool TYPE string
-  ASSERT $value IN ["none", "oauth2", "api_key", "bearer"];
-DEFINE FIELD risk_level ON mcp_tool TYPE string
-  ASSERT $value IN ["low", "medium", "high", "critical"];
-DEFINE FIELD workspace ON mcp_tool TYPE record<workspace>;
-DEFINE FIELD status ON mcp_tool TYPE string
-  ASSERT $value IN ["active", "disabled"];
-DEFINE FIELD created_at ON mcp_tool TYPE datetime;
+-- Tools this identity is authorized to use
+SELECT out AS tool FROM can_use WHERE in = $identity;
 
-DEFINE INDEX mcp_tool_workspace ON mcp_tool FIELDS workspace;
-DEFINE INDEX mcp_tool_toolkit ON mcp_tool FIELDS toolkit;
+-- Skills this identity possesses
+SELECT out AS skill FROM possesses WHERE in = $identity;
 
--- Auth configs (how to authenticate with a service — reusable across identities)
-DEFINE TABLE auth_config SCHEMAFULL;
-DEFINE FIELD toolkit ON auth_config TYPE string;               -- "github"
-DEFINE FIELD auth_method ON auth_config TYPE string
-  ASSERT $value IN ["oauth2", "api_key", "bearer", "basic"];
-DEFINE FIELD oauth_client_id ON auth_config TYPE option<string>;
-DEFINE FIELD oauth_client_secret ON auth_config TYPE option<string>;  -- encrypted at rest
-DEFINE FIELD oauth_scopes ON auth_config TYPE option<array<string>>;
-DEFINE FIELD oauth_authorize_url ON auth_config TYPE option<string>;
-DEFINE FIELD oauth_token_url ON auth_config TYPE option<string>;
-DEFINE FIELD workspace ON auth_config TYPE record<workspace>;
-DEFINE FIELD created_at ON auth_config TYPE datetime;
+-- Tools required by active skills
+SELECT out AS tool FROM skill_requires WHERE in IN $active_skills;
 
-DEFINE INDEX auth_config_toolkit ON auth_config FIELDS toolkit, workspace;
-
--- Connected accounts (per-identity credentials for a service)
-DEFINE TABLE connected_account SCHEMAFULL;
-DEFINE FIELD identity ON connected_account TYPE record<identity>;
-DEFINE FIELD auth_config ON connected_account TYPE record<auth_config>;
-DEFINE FIELD status ON connected_account TYPE string
-  ASSERT $value IN ["initiated", "active", "expired", "revoked"];
-DEFINE FIELD access_token ON connected_account TYPE option<string>;   -- encrypted at rest
-DEFINE FIELD refresh_token ON connected_account TYPE option<string>;  -- encrypted at rest
-DEFINE FIELD token_expires_at ON connected_account TYPE option<datetime>;
-DEFINE FIELD api_key ON connected_account TYPE option<string>;        -- encrypted at rest
-DEFINE FIELD scopes_granted ON connected_account TYPE option<array<string>>;
-DEFINE FIELD connected_at ON connected_account TYPE datetime;
-DEFINE FIELD last_used_at ON connected_account TYPE option<datetime>;
-
-DEFINE INDEX connected_account_identity ON connected_account FIELDS identity;
-DEFINE INDEX connected_account_toolkit ON connected_account FIELDS auth_config, identity;
-
--- Which tools an identity is authorized to use
-DEFINE TABLE can_use TYPE RELATION IN identity OUT mcp_tool SCHEMAFULL;
-DEFINE FIELD granted_at ON can_use TYPE datetime;
-DEFINE FIELD granted_by ON can_use TYPE option<record<identity>>;
-DEFINE FIELD max_calls_per_hour ON can_use TYPE option<int>;
+-- Policies governing these tools
+SELECT in AS policy FROM governs_tool WHERE out IN $resolved_tools;
 ```
 
-### How It Differs from Composio
+The intersection of authorized tools (`can_use`) and skill-required tools (`skill_requires`) becomes the `tools` array injected into the LLM request.
 
-| Aspect | Composio | Brain |
-|--------|----------|-------|
-| **Tool registry** | Cloud-hosted catalog (1000+ pre-built) | Graph-native (`mcp_tool` nodes in SurrealDB) |
-| **Credential storage** | Proprietary vault (cloud) | `connected_account` table (self-hosted, encrypted) |
-| **Authorization** | External policy engine (unclear implementation) | Intent system + policy graph (existing, versioned) |
-| **Audit trail** | Gateway logs | Graph-native traces (hierarchical, queryable) |
-| **Tool discovery** | Action name lookup | BM25 search + skill-based discovery |
-| **Governance** | Rate limits + HITL | Rate limits + HITL + policy graph + authority scopes + RAR |
-| **Deployment** | Cloud (Composio hosts execution) | Self-hosted (Brain hosts everything) |
-| **Custom tools** | Limited (pre-built catalog) | First-class (define any tool as a graph node) |
+| Agent | Skills | Tools Injected |
+|-------|--------|---------------|
+| Junior dev | `write-unit-tests` | `read_file`, `write_file`, `grep`, `shell_exec` (read-only) |
+| Senior dev | `security-audit`, `deploy` | `read_file`, `write_file`, `shell_exec`, `git_*`, `github.*` |
+| PM agent | `triage-issues` | `linear.*`, `slack.send_message`, `search_entities` |
+| Observer | (built-in) | `get_context`, `create_observation`, `search_entities` |
 
-Brain's advantage: the tool gateway is not a separate service — it's part of the knowledge graph. Tool definitions, credentials, permissions, policies, and audit trails are all graph nodes connected by edges. A query can answer "which tools did agent X use on task Y, authorized by policy Z, using credentials from account W."
+### Brokered Credentials at the Proxy
 
-### Tool Categories
+The core security principle: **LLMs must never see raw credentials**. The proxy holds secrets, agents hold nothing.
 
-Brain's MCP gateway exposes three categories of tools:
+When the LLM returns a tool call for an integration tool (e.g., `github.create_issue`):
 
-#### Local Tools (no credentials needed)
+1. Proxy identifies the toolkit (`github`) from the tool name
+2. Looks up `connected_account` for this identity + toolkit
+3. Refreshes OAuth token if expired (automatic)
+4. Executes the API call with the brokered credential
+5. Returns sanitized result to the LLM (no tokens in response)
 
-Filesystem, shell, git — these execute on Brain's host or in a sandbox. No brokered credentials, but still governed by intents:
-
-| Tool | Risk Level | Default Policy |
-|------|-----------|---------------|
-| `read_file` | low | Auto-approve |
-| `write_file` | low | Auto-approve |
-| `edit_file` | low | Auto-approve |
-| `glob` | low | Auto-approve |
-| `grep` | low | Auto-approve |
-| `shell_exec` | medium | Policy-dependent (safe commands auto-approve, destructive commands require approval) |
-| `git_commit` | medium | Auto-approve |
-| `git_push` | high | Require approval |
-
-#### Context Tools (Brain-native, no credentials)
-
-Graph operations that read/write Brain's knowledge graph:
-
-| Tool | Risk Level |
-|------|-----------|
-| `get_context` | low |
-| `search_entities` | low |
-| `create_observation` | low |
-| `resolve_decision` | low |
-| `create_decision` | medium |
-| `update_task_status` | medium |
-
-These already exist as MCP tools. No change needed.
-
-#### Integration Tools (brokered credentials)
-
-Third-party service integrations where Brain holds the API keys:
-
-| Toolkit | Example Tools | Auth Type |
-|---------|--------------|-----------|
-| GitHub | `create_issue`, `create_pr`, `merge_pr`, `add_comment` | OAuth2 |
-| Slack | `send_message`, `create_channel`, `list_channels` | OAuth2 |
-| Linear | `create_issue`, `update_status`, `list_projects` | API key |
-| Stripe | `create_charge`, `list_invoices`, `refund` | API key |
-| Gmail | `send_email`, `search_inbox`, `create_draft` | OAuth2 |
-| Custom API | Any REST endpoint defined as an `mcp_tool` node | Bearer / API key |
-
-Each integration tool call flows through:
-1. Identity resolution (who is calling)
-2. Connected account lookup (their credentials for this service)
-3. Token refresh (if OAuth, automatic)
-4. Intent creation + policy evaluation
-5. API call with brokered credentials
-6. Sanitized response (strip any credential artifacts)
-7. Trace recording (tool call → trace node in graph)
-
-### The MCP Gateway as Single Endpoint
-
-Instead of agents configuring N separate MCP servers, Brain exposes one:
-
-```json
-{
-  "mcpServers": {
-    "brain": {
-      "command": "brain",
-      "args": ["mcp"],
-      "env": {
-        "BRAIN_SERVER_URL": "http://localhost:3000",
-        "BRAIN_WORKSPACE_ID": "<workspace-id>"
-      }
-    }
-  }
-}
-```
-
-This single MCP server provides:
-- All local tools (filesystem, shell, git)
-- All context tools (graph read/write)
-- All integration tools (GitHub, Slack, Linear, etc.)
-- Skill-aware tool provisioning (skills declare which tools they need)
-- Policy enforcement on every call
-- Credential brokerage for all integration tools
-- Full trace recording
-
-One connection. All tools. No API keys exposed.
+The agent never sees the GitHub token. It never even knows a token exists.
 
 ### Connected Account Lifecycle
 
@@ -349,8 +251,8 @@ One connection. All tools. No API keys exposed.
    → Stored in connected_account (encrypted)
    → Status: "active"
 
-3. Agent calls github.create_issue:
-   → Brain looks up connected_account for this identity + toolkit
+3. LLM calls github.create_issue (via proxy-injected tool):
+   → Proxy looks up connected_account for this identity + github
    → Token expired? Auto-refresh using refresh_token
    → Execute API call with fresh token
    → Update last_used_at
@@ -358,24 +260,78 @@ One connection. All tools. No API keys exposed.
 4. Token revoked externally:
    → Next API call fails with 401
    → Brain marks connected_account status: "expired"
-   → Agent receives error: "GitHub connection expired, re-authorize"
+   → LLM receives tool error: "GitHub connection expired"
+   → Agent surfaces this to user
    → User re-authorizes via Brain UI
 ```
 
-### Why This Must Be in Brain (Not a Sidecar)
+### Tool Categories
 
-If tool execution lives outside Brain:
-- Credentials are in two places (Brain + sidecar) — larger attack surface
-- Tool calls bypass the intent system — no policy enforcement
-- Traces are disconnected — can't link tool calls to decisions and tasks
-- Spend tracking is blind to tool costs (API calls with rate limits)
-- The Observer can't detect tool misuse patterns
+Three categories, all injected by the proxy:
 
-If tool execution lives inside Brain:
-- One credential vault, one policy enforcement point, one audit trail
-- Every tool call is a graph event — observable, traceable, governable
-- Skills can declare tool requirements and Brain verifies availability before activation
-- Rate limits and budgets are enforced at the same layer as token spend
+#### Local Tools (no credentials)
+
+| Tool | Risk Level | Default Policy |
+|------|-----------|---------------|
+| `read_file` | low | Auto-approve |
+| `write_file` | low | Auto-approve |
+| `edit_file` | low | Auto-approve |
+| `glob` | low | Auto-approve |
+| `grep` | low | Auto-approve |
+| `shell_exec` | medium | Policy-dependent |
+| `git_commit` | medium | Auto-approve |
+| `git_push` | high | Require approval |
+
+#### Context Tools (Brain-native)
+
+| Tool | Risk Level |
+|------|-----------|
+| `get_context` | low |
+| `search_entities` | low |
+| `create_observation` | low |
+| `resolve_decision` | low |
+| `create_decision` | medium |
+| `update_task_status` | medium |
+
+#### Integration Tools (brokered credentials)
+
+| Toolkit | Example Tools | Auth Type |
+|---------|--------------|-----------|
+| GitHub | `create_issue`, `create_pr`, `merge_pr` | OAuth2 |
+| Slack | `send_message`, `create_channel` | OAuth2 |
+| Linear | `create_issue`, `update_status` | API key |
+| Stripe | `create_charge`, `list_invoices` | API key |
+| Gmail | `send_email`, `search_inbox` | OAuth2 |
+| Custom | Any REST endpoint as `mcp_tool` node | Bearer / API key |
+
+### How It Differs from Composio
+
+| Aspect | Composio | Brain |
+|--------|----------|-------|
+| **Delivery** | MCP gateway (agents must be MCP-aware) | LLM proxy (works for any agent) |
+| **Tool selection** | Agent requests tools by name | Brain injects tools based on identity + skills |
+| **Credential storage** | Proprietary vault (cloud) | `connected_account` table (self-hosted, encrypted) |
+| **Authorization** | External policy engine | Intent system + policy graph (existing, versioned) |
+| **Audit trail** | Gateway logs | Graph-native traces (hierarchical, queryable) |
+| **Governance** | Rate limits + HITL | Rate limits + HITL + policy graph + authority scopes + RAR |
+| **Deployment** | Cloud (Composio hosts execution) | Self-hosted (Brain hosts everything) |
+
+### The MCP Server Still Exists (For External Agents)
+
+The proxy approach handles agents whose LLM calls route through Brain. For external agents that want to call Brain tools directly (e.g., a script, a CI pipeline), the existing MCP server still works:
+
+```json
+{
+  "mcpServers": {
+    "brain": {
+      "command": "brain",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+But the MCP server exposes only **context tools** (graph read/write). Integration tools and local tools flow through the proxy — that's where credential brokerage and policy enforcement live
 
 ---
 
@@ -515,33 +471,18 @@ Humans
   Brain Server
   ├─ Identity & Auth (OAuth 2.1, DPoP, RAR)
   ├─ Orchestrator (session lifecycle, task assignment)
-  ├─ Context Builder
-  │   ├─ Graph state (decisions, observations, tasks, constraints)
-  │   ├─ Skills (triggered by intent, injected into prompt)
-  │   └─ Learnings (always-on corrections)
-  ├─ Policy Engine (intent → policy graph → authorize/deny)
-  ├─ Spend Tracker (token budgets per agent/workspace)
+  ├─ LLM Proxy (the universal control point)
+  │   ├─ Tool injection (per-agent: can_use ∩ skill_requires)
+  │   ├─ Context injection (graph state + skills + learnings)
+  │   ├─ Tool call interception + execution
+  │   │   ├─ Local: filesystem, shell, git (sandboxed)
+  │   │   ├─ Context: graph read/write
+  │   │   └─ Integration: brokered credentials (connected_account → vault)
+  │   ├─ Policy enforcement (intent → governs_tool/governs_skill → authorize/deny)
+  │   ├─ Spend tracking (token budgets + API call budgets)
+  │   └─ Trace recording (every tool call → graph node)
   ├─ Observer (contradiction detection, skill evolution)
-  └─ Trace Recorder (hierarchical, graph-native)
-       │
-       ▼
-  AI SDK Agent Loop
-  ├─ Vercel AI SDK / Claude Agent SDK
-  └─ generateText({ prompt, tools }) in a loop
-       │
-       ▼
-  MCP Tool Gateway (single endpoint, brokered credentials)
-  ├─ Local Tools
-  │   ├─ Filesystem (read, write, edit, glob, grep)
-  │   ├─ Shell (exec with policy-governed sandboxing)
-  │   └─ Git (status, diff, log, commit)
-  ├─ Context Tools
-  │   └─ Brain Graph (get_context, create_observation, resolve_decision)
-  └─ Integration Tools (credentials never exposed to agent)
-      ├─ GitHub (create_issue, create_pr, merge_pr)
-      ├─ Slack (send_message, list_channels)
-      ├─ Linear, Stripe, Gmail, Custom APIs
-      └─ Auth: connected_account → auth_config → vault
+  └─ MCP Server (context tools only, for external scripts/CI)
        │
        ▼
   Sandbox (optional, policy-driven)
@@ -759,36 +700,33 @@ The authorizer walks all three edges: does the identity have access (`can_use`/`
 
 | Phase | What | Depends On | Effort |
 |-------|------|-----------|--------|
-| 1 | Filesystem tools (read, write, edit, glob, grep) | AI SDK | S |
-| 2 | Shell tool (exec with timeout, cwd) | — | S |
-| 3 | Git tools (status, diff, log, commit) | — | S |
-| 4 | Tool governance (policy check before execution) | Intent system | M |
-| 5 | Orchestrator integration (tools registered in agent loop) | Orchestrator | M |
-| 6 | `mcp_tool` table + tool registry schema | SurrealDB | S |
-| 7 | `auth_config` + `connected_account` tables | SurrealDB | S |
-| 8 | OAuth2 flow for connected accounts | Auth layer | L |
-| 9 | Credential brokerage (vault lookup → execute → sanitize) | Connected accounts | M |
-| 10 | `can_use` authorization (tool access per identity) | Tool registry | M |
-| 11 | Integration tool executor (HTTP calls with brokered creds) | Credential brokerage | M |
-| 12 | Skill schema + migration | SurrealDB | S |
-| 13 | Skill CRUD routes | Skill schema | M |
-| 14 | Skill discovery (BM25 trigger matching) | BM25 infra | M |
-| 15 | Skill injection into context builder | Context builder | M |
-| 16 | Skill → tool provisioning (`skill_requires` → `can_use`) | Skills + tools | M |
-| 17 | Skill importer (skills.sh / SKILL.md → graph) | Skill schema | M |
-| 18 | Sandboxed shell execution (Docker) | Shell tool | L |
-| 19 | Skill evolution (Observer → skill updates) | Observer + skills | L |
-| 20 | Connected accounts UI (OAuth connect flow) | Frontend | L |
-| 21 | Tool registry + skill library UI | Frontend | L |
-| 22 | Brain CLI (task-scoped agent sessions) | Orchestrator + tools | L |
+| 1 | Local tool functions (filesystem, shell, git) | — | S |
+| 2 | Proxy tool injection (resolve identity → can_use → inject tools) | Proxy + intent system | M |
+| 3 | Proxy tool call interception (intercept tool_calls, execute, return results) | Proxy | M |
+| 4 | Tool governance (governs_tool → policy check per tool call) | Intent system | M |
+| 5 | `mcp_tool` + `can_use` schema + per-agent tool resolution | SurrealDB | S |
+| 6 | `auth_config` + `connected_account` tables | SurrealDB | S |
+| 7 | OAuth2 flow for connected accounts | Auth layer | L |
+| 8 | Credential brokerage in proxy (vault lookup → execute → sanitize) | Connected accounts | M |
+| 9 | Integration tool executor (HTTP calls with brokered creds) | Credential brokerage | M |
+| 10 | Skill schema + `governs_skill` + migration | SurrealDB | S |
+| 11 | Skill CRUD routes | Skill schema | M |
+| 12 | Skill discovery (BM25 trigger matching) | BM25 infra | M |
+| 13 | Skill + tool co-injection in proxy (`skill_requires` → add tools) | Skills + proxy | M |
+| 14 | Skill importer (skills.sh / SKILL.md → graph) | Skill schema | M |
+| 15 | Sandboxed tool execution (Docker for shell/filesystem) | Local tools | L |
+| 16 | Skill evolution (Observer → skill updates) | Observer + skills | L |
+| 17 | Connected accounts UI (OAuth connect flow) | Frontend | L |
+| 18 | Tool registry + skill library UI | Frontend | L |
+| 19 | Brain CLI (task-scoped agent sessions) | Proxy + tools | L |
 
-**MVP (phases 1-5)**: Brain runs agents with local tools (filesystem, shell, git), governed by policies. No external framework.
+**MVP (phases 1-5)**: Any agent routing through Brain's proxy gets tools injected per-identity, governed by policies. No MCP gateway, no external framework.
 
-**Tool Gateway (phases 6-11)**: MCP tool registry with brokered credentials. Agents call GitHub, Slack, etc. without seeing API keys. Every call through the intent system.
+**Integrations (phases 6-9)**: Brokered credentials for third-party tools. Agents call GitHub, Slack, etc. without seeing API keys. Proxy executes with vault-stored credentials.
 
-**Skills (phases 12-17)**: Full skill system — discovery, injection, tool provisioning, import from skills.sh.
+**Skills (phases 10-14)**: Full skill system — discovery, co-injection of skills + tools in proxy, import from skills.sh.
 
-**Production (phases 18-22)**: Sandboxed execution, skill evolution, UI, dedicated CLI.
+**Production (phases 15-19)**: Sandboxed execution, skill evolution, UI, dedicated CLI.
 
 ---
 
