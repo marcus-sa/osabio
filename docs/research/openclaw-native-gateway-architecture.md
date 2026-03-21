@@ -624,7 +624,182 @@ The `trace.actor` field points to `identity:device-xxx`.
 
 ---
 
-## 9. Build Order
+## 9. Skills as Graph-Native Behavioral Expertise
+
+### The Three Layers of Agent Competency
+
+Brain currently has two of three layers. Skills are the missing middle:
+
+| Layer | What | Example | Brain Status |
+|-------|------|---------|-------------|
+| **Tool** (MCP) | Functional capability — a stateless endpoint | `git push`, `search_entities`, `create_observation` | Exists (MCP server) |
+| **Skill** | Domain expertise — behavioral instructions for *how* to approach a class of work | "how to do a security audit", "how to triage issues", "how to deploy React" | **Missing** |
+| **Learning** | Correction/pattern — a single rule derived from past failure or success | "don't mock the DB in these tests", "use BM25 not embeddings for entity search" | Exists (`learning` table) |
+
+**Skills are not tools.** A tool gives the agent a hand. A skill tells the agent how to use its hands to bake a specific cake.
+
+**Skills are not learnings.** A learning is a reactive correction ("don't do X because Y happened"). A skill is proactive expertise ("here's how to approach security audits, step by step"). Learnings are small, always-on rules. Skills are rich instruction sets activated by intent.
+
+### How Skills Work in the Wild
+
+The `skills.sh` ecosystem (80k+ skills) and Claude Code's `/skills` both use the same model: a SKILL.md file with YAML frontmatter (metadata, triggers) and Markdown body (instructions). The agent loads the skill into its context when the trigger matches.
+
+```yaml
+---
+name: security-audit
+description: Systematic security audit of web applications
+triggers: ["security audit", "vulnerability scan", "OWASP", "pen test"]
+tools_required: ["grep", "read", "bash"]
+---
+
+## Approach
+
+1. Start with dependency audit (check for known CVEs)
+2. Review authentication flows for OWASP Top 10
+3. Check for injection points (SQL, XSS, command)
+4. Audit authorization boundaries
+5. Review secrets management
+...
+```
+
+NVIDIA OpenShell (March 2026) confirms this model at the infrastructure level — it treats skills as behavioral units that can be scanned, verified, and restricted independently of the tools they use.
+
+### Skills in Brain: Graph-Native, Governed, Evolving
+
+In Brain, a skill becomes a first-class graph node — discoverable, versionable, governed by policies, and evolved by the Observer.
+
+#### Schema
+
+```sql
+DEFINE TABLE skill SCHEMAFULL;
+DEFINE FIELD name ON skill TYPE string;
+DEFINE FIELD description ON skill TYPE string;
+DEFINE FIELD content ON skill TYPE string;                -- The instruction body (markdown)
+DEFINE FIELD triggers ON skill TYPE array<string>;         -- Intent-matching trigger phrases
+DEFINE FIELD version ON skill TYPE string;
+DEFINE FIELD status ON skill TYPE string
+  ASSERT $value IN ["draft", "active", "deprecated"];
+DEFINE FIELD target_agent_types ON skill TYPE array<string>; -- Which agent types can use this
+DEFINE FIELD workspace ON skill TYPE record<workspace>;
+DEFINE FIELD created_by ON skill TYPE option<record<identity>>;
+DEFINE FIELD created_at ON skill TYPE datetime;
+DEFINE FIELD updated_at ON skill TYPE option<datetime>;
+
+-- Which MCP tools this skill requires (not "is")
+DEFINE TABLE skill_requires TYPE RELATION IN skill OUT mcp_tool SCHEMAFULL;
+
+-- Which agents possess this skill
+DEFINE TABLE possesses TYPE RELATION IN identity OUT skill SCHEMAFULL;
+DEFINE FIELD granted_at ON possesses TYPE datetime;
+
+-- Skill version chain (like policy versioning)
+DEFINE TABLE skill_supersedes TYPE RELATION IN skill OUT skill SCHEMAFULL;
+
+-- Evidence: which sessions/traces/observations involved this skill
+DEFINE TABLE skill_evidence TYPE RELATION IN skill OUT agent_session | trace | observation SCHEMAFULL;
+DEFINE FIELD added_at ON skill_evidence TYPE datetime;
+
+DEFINE INDEX skill_workspace ON skill FIELDS workspace;
+DEFINE INDEX skill_status ON skill FIELDS status;
+```
+
+#### How Skills Differ from Learnings
+
+| Aspect | Learning | Skill |
+|--------|----------|-------|
+| **Size** | Single rule (1-3 sentences) | Full instruction set (paragraphs to pages) |
+| **Activation** | Always-on for target agents | Triggered by intent match |
+| **Origin** | Reactive — derived from failures/patterns | Proactive — authored expertise |
+| **Lifecycle** | `proposed → active → deactivated` | `draft → active → deprecated` (with version chain) |
+| **Injection** | Appended to system prompt (token-budgeted) | Injected into context when trigger matches task |
+| **Tool binding** | None | `skill_requires` edges to MCP tools |
+| **Governance** | Approval required (human confirms) | Policy-governed (which agents can possess which skills) |
+
+Both use JIT injection into agent prompts. The difference is *when* and *how much*:
+- Learnings: always loaded for matching agent types, token-budgeted to fit
+- Skills: loaded only when the incoming task/objective matches a trigger phrase
+
+#### Activation Flow
+
+```
+1. Task arrives: "Run a security audit on the auth module"
+
+2. Skill discovery (BM25 against skill.triggers + skill.description):
+   SELECT id, name, description,
+     search::score(0) + search::score(1) AS score
+   FROM skill
+   WHERE (triggers @0@ "security" OR triggers @1@ "audit")
+     AND status = "active"
+     AND workspace = $ws
+   ORDER BY score DESC LIMIT 3;
+
+3. Authorization check:
+   → Does this agent possess the skill? (possesses edge)
+   → Does policy allow this skill for this agent type?
+   → Are required MCP tools available? (skill_requires edges)
+
+4. Context injection:
+   → Skill content injected into system prompt
+   → Required MCP tools provisioned via RAR token
+   → Learning rules for this agent type also loaded (separate, additive)
+
+5. Execution:
+   → Agent works with both skill expertise AND learning corrections
+   → Traces recorded with skill reference for evidence
+
+6. Evolution (post-execution):
+   → If the skill led to a failure, Observer proposes a skill update
+   → New version created via skill_supersedes chain
+   → Old version deprecated, new version activated
+```
+
+#### Integration with OpenClaw Gateway
+
+When Brain acts as the gateway, skills are injected transparently:
+
+```
+OpenClaw client sends: agent({ message: "audit the auth module for vulnerabilities" })
+  │
+  ▼
+Brain gateway handler:
+  ├─ Resolve task from message
+  ├─ Discover matching skills ("security-audit" scores high)
+  ├─ Check agent possesses skill + policy allows it
+  ├─ Inject skill content + learnings into agent context
+  ├─ Provision required MCP tools via RAR
+  └─ Execute with full expertise stack
+```
+
+The OpenClaw client doesn't know about skills. It just submits work. Brain handles expertise injection server-side — the same way it already handles learning injection, but richer.
+
+#### Import Path: skills.sh → Brain
+
+The 80k+ skills in the `skills.sh` ecosystem are SKILL.md files. Brain can import them:
+
+```
+SKILL.md (YAML frontmatter + Markdown)
+  → Parse triggers from frontmatter
+  → Parse tool requirements from content
+  → Create skill node in SurrealDB
+  → Create skill_requires edges for referenced tools
+  → Set status = "draft" (human reviews before activation)
+```
+
+This makes Brain compatible with the existing skill ecosystem while adding governance, versioning, and evolution that static files lack.
+
+#### Why This Matters for the Gateway
+
+Without skills, Brain can only inject *corrections* (learnings) and *context* (decisions, observations) into agent sessions. Skills add *expertise* — the third pillar. An OpenClaw agent connecting to Brain gets:
+
+1. **Context** — what's been decided, what's blocked, what's changed (graph state)
+2. **Corrections** — what to avoid, what worked before (learnings)
+3. **Expertise** — how to approach this class of work (skills)
+
+No other gateway provides this. A standalone OpenClaw gateway gives agents tools and a sandbox. Brain gives them organizational wisdom.
+
+---
+
+## 10. Build Order
 
 | Phase | What | Depends On | Effort |
 |-------|------|-----------|--------|
@@ -640,15 +815,23 @@ The `trace.actor` field points to `identity:device-xxx`.
 | 10 | Device management (pair, revoke, rotate) | DCR | M |
 | 11 | `model.list` → provider config | Config | S |
 | 12 | Presence broadcasting | SSE registry | S |
-| 13 | SurrealDB migration (gateway + device tables) | Schema | S |
-| 14 | Gateway management UI | Frontend | L |
-| 15 | Compatibility testing (OpenClaw CLI + web UI) | All above | L |
+| 13 | SurrealDB migration (agent device fields) | Schema | S |
+| 14 | Skill table + schema migration | Schema | S |
+| 15 | Skill discovery (BM25 trigger matching) | BM25 infra | M |
+| 16 | Skill injection into agent context | Context builder | M |
+| 17 | Skill CRUD routes + UI | Frontend | L |
+| 18 | Skill importer (skills.sh / SKILL.md → graph) | Skill schema | M |
+| 19 | Skill evolution (Observer → skill updates) | Observer + skills | L |
+| 20 | Gateway management UI | Frontend | L |
+| 21 | Compatibility testing (OpenClaw CLI + web UI) | All above | L |
 
 **MVP (phases 1-6)**: An OpenClaw CLI connects to Brain, submits work, gets streamed responses. Proves the concept.
 
-**Production (phases 1-13)**: Full protocol support with auth, exec approvals, and persistence.
+**Production (phases 1-16)**: Full protocol support with auth, exec approvals, skills, and persistence.
 
-**Polish (phases 14-15)**: UI and ecosystem compatibility.
+**Ecosystem (phases 17-19)**: Skill import from skills.sh, Observer-driven skill evolution.
+
+**Polish (phases 20-21)**: UI and ecosystem compatibility.
 
 ---
 
@@ -675,9 +858,13 @@ openclaw connect ws://brain.local:3000/api/gateway
 - [OpenClaw Gateway Protocol docs](https://docs.openclaw.ai/gateway/protocol)
 - [OpenClaw Multiple Gateways docs](https://docs.openclaw.ai/gateway/multiple-gateways)
 - [OpenClaw Mission Control (GitHub, 2.4k stars)](https://github.com/abhi1693/openclaw-mission-control)
+- [NVIDIA OpenShell (GitHub)](https://github.com/NVIDIA/OpenShell) — kernel-level agent sandbox, treats skills as verifiable behavioral units
+- [skills.sh ecosystem](https://skills.sh) — 80k+ SKILL.md behavioral instruction sets
+- HiClaw Manager-Worker architecture — containerized OpenClaw-compatible agents with Matrix coordination, Higress gateway, MinIO state
 - Paperclip OpenClaw adapter: `packages/adapters/openclaw-gateway/src/server/execute.ts`
 - Brain orchestrator: `app/src/server/orchestrator/`
 - Brain intent authorizer: `app/src/server/intent/authorizer.ts`
 - Brain DPoP middleware: `app/src/server/auth/dpop-middleware.ts`
 - Brain proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
 - Brain SSE registry: `app/src/server/streaming/sse-registry.ts`
+- Brain learning system: `app/src/server/learning/` + `schema/surreal-schema.surql` (learning table)
