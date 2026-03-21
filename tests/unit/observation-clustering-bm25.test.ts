@@ -10,35 +10,46 @@
  */
 import { describe, test, expect } from "bun:test";
 import {
-  buildObservationSimilarityQuery,
+  buildObservationSimilarityOrQuery,
   extractSearchTerms,
   groupObservationsIntoClusters,
   type ObservationForClustering,
   type Bm25SimilarityEdge,
 } from "../../app/src/server/observer/learning-diagnosis";
+import { RecordId } from "surrealdb";
 
 // ---------------------------------------------------------------------------
 // buildObservationSimilarityQuery: pure SQL construction
 // ---------------------------------------------------------------------------
 
-describe("buildObservationSimilarityQuery", () => {
-  test("builds BM25 query with bound $query param and workspace filter", () => {
-    const sql = buildObservationSimilarityQuery();
-    expect(sql).toContain("@1@ $query");
+describe("buildObservationSimilarityOrQuery", () => {
+  const ws = new RecordId("workspace", "test-ws");
+
+  test("builds BM25 OR-predicate query with per-term bindings and workspace filter", () => {
+    const { sql, bindings } = buildObservationSimilarityOrQuery(["deployment", "failure"], ws);
+    expect(sql).toContain("text @0@ $t0 OR text @1@ $t1");
+    expect(sql).toContain("search::score(0) + search::score(1)");
     expect(sql).toContain("workspace = $ws");
-    expect(sql).toContain("search::score(1)");
     expect(sql).toContain("FROM observation");
+    expect(bindings).toEqual({ ws, t0: "deployment", t1: "failure" });
   });
 
   test("does not use string literal interpolation", () => {
-    const sql = buildObservationSimilarityQuery();
-    expect(sql).not.toMatch(/@1@ '/);
+    const { sql } = buildObservationSimilarityOrQuery(["test"], ws);
+    expect(sql).not.toMatch(/@0@ '/);
   });
 
   test("filters to open/acknowledged status observations", () => {
-    const sql = buildObservationSimilarityQuery();
+    const { sql } = buildObservationSimilarityOrQuery(["test"], ws);
     expect(sql).toContain("open");
     expect(sql).toContain("acknowledged");
+  });
+
+  test("handles single term", () => {
+    const { sql, bindings } = buildObservationSimilarityOrQuery(["deployment"], ws);
+    expect(sql).toContain("text @0@ $t0");
+    expect(sql).toContain("search::score(0)");
+    expect(bindings).toEqual({ ws, t0: "deployment" });
   });
 });
 

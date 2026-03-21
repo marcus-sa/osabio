@@ -114,20 +114,33 @@ export async function queryRecentObservations(
 // ---------------------------------------------------------------------------
 
 /**
- * Builds a BM25 fulltext search query that finds observations with similar text.
+ * Builds a BM25 fulltext search query using OR-predicate pattern.
  *
- * Requires bound parameters: $ws (workspace RecordId), $query (search terms)
+ * Each term gets its own predicate number so SurrealDB matches ANY term
+ * (OR semantics) instead of requiring ALL terms (AND semantics of single @N@).
+ *
+ * Returns { sql, bindings } where bindings include $ws and $t0..$tN.
  */
-export function buildObservationSimilarityQuery(): string {
-  return [
-    `SELECT id, text, search::score(1) AS score`,
+export function buildObservationSimilarityOrQuery(
+  termList: string[],
+  workspaceRecord: RecordId<"workspace", string>,
+): { sql: string; bindings: Record<string, unknown> } {
+  const matchClause = termList.map((_, i) => `text @${i}@ $t${i}`).join(" OR ");
+  const scoreExpr = termList.map((_, i) => `search::score(${i})`).join(" + ");
+  const bindings: Record<string, unknown> = { ws: workspaceRecord };
+  termList.forEach((term, i) => { bindings[`t${i}`] = term; });
+
+  const sql = [
+    `SELECT id, text, ${scoreExpr} AS score`,
     `FROM observation`,
-    `WHERE text @1@ $query`,
+    `WHERE (${matchClause})`,
     `AND workspace = $ws`,
     `AND status IN ["open", "acknowledged"]`,
     `ORDER BY score DESC`,
     `LIMIT 10;`,
   ].join("\n");
+
+  return { sql, bindings };
 }
 
 // Re-export from shared module for existing callers
@@ -159,18 +172,15 @@ export async function clusterObservationsByBm25(
   const edges: Bm25SimilarityEdge[] = [];
   const observationIds = new Set(observations.map((o) => o.id));
 
-  const sql = buildObservationSimilarityQuery();
   for (const obs of observations) {
-    const terms = extractSearchTerms(obs.text);
-    if (terms.length === 0) continue;
+    const termList = extractSearchTerms(obs.text).split(" ").filter((t) => t.length > 0);
+    if (termList.length === 0) continue;
+    const { sql, bindings } = buildObservationSimilarityOrQuery(termList, workspaceRecord);
     const [matches] = await surreal.query<[Array<{
       id: RecordId<"observation">;
       text: string;
       score: number;
-    }>]>(sql, {
-      ws: workspaceRecord,
-      query: terms,
-    });
+    }>]>(sql, bindings);
 
     for (const match of matches ?? []) {
       const matchId = match.id.id as string;
