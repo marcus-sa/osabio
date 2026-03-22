@@ -3,12 +3,13 @@
   "checkpoint_id": "547a0cc8572b",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "docs/adrs/ADR-069-integrations-page-tab-architecture.md",
     "docs/adrs/ADR-070-mcp-server-discovery-architecture.md",
     "docs/feature/mcp-tool-registry-ui/architecture-mcp-discovery.md",
-    "docs/feature/mcp-tool-registry-ui/architecture.md"
+    "docs/feature/mcp-tool-registry-ui/architecture.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/journey-tool-registry-ui-visual.md"
   ],
   "sessions": [
     {
@@ -17,13 +18,20 @@
       "context": "/54/7a0cc8572b/0/context.md",
       "content_hash": "/54/7a0cc8572b/0/content_hash.txt",
       "prompt": "/54/7a0cc8572b/0/prompt.txt"
+    },
+    {
+      "metadata": "/54/7a0cc8572b/1/metadata.json",
+      "transcript": "/54/7a0cc8572b/1/full.jsonl",
+      "context": "/54/7a0cc8572b/1/context.md",
+      "content_hash": "/54/7a0cc8572b/1/content_hash.txt",
+      "prompt": "/54/7a0cc8572b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4429,
-    "cache_creation_tokens": 208992,
-    "cache_read_tokens": 3860419,
-    "output_tokens": 25579,
-    "api_call_count": 50
+    "input_tokens": 4591,
+    "cache_creation_tokens": 458047,
+    "cache_read_tokens": 12123938,
+    "output_tokens": 79597,
+    "api_call_count": 132
   }
 }
