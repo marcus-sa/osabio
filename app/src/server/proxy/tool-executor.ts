@@ -8,6 +8,9 @@
  * Each Brain-native tool handler is a function: (input, deps) -> ToolExecutionResult.
  * Unknown tool names produce an error result (not an exception).
  *
+ * All handlers delegate to the shared graph query layer (graph/, observation/)
+ * rather than reimplementing queries inline.
+ *
  * Step 8.5 in the proxy pipeline.
  */
 import { RecordId, type Surreal } from "surrealdb";
@@ -25,6 +28,12 @@ import {
   countHourlyToolExecutions,
   type GovernsPolicyRow,
 } from "../tool-registry/queries";
+import { executeSearchEntities } from "../tools/search-entities";
+import { executeGetEntityDetail } from "../tools/get-entity-detail";
+import { executeGetProjectStatus } from "../tools/get-project-status";
+import { executeListWorkspaceEntities } from "../tools/list-workspace-entities";
+import { executeCheckConstraints } from "../tools/check-constraints";
+import type { SearchEntityKind } from "../graph/queries";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,6 +51,7 @@ export type ToolExecutorDeps = {
   readonly surreal: Surreal;
   readonly workspaceId: string;
   readonly identityId?: string;
+  readonly sessionId?: string;
 };
 
 /** Dependencies for integration tool execution (extends base with credential resolver). */
@@ -129,72 +139,75 @@ type BrainToolHandler = (
 ) => Promise<ToolExecutionResult>;
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function wsRecord(deps: ToolExecutorDeps): RecordId<"workspace", string> {
+  return new RecordId("workspace", deps.workspaceId);
+}
+
+function ok(toolUseId: string, content: unknown): ToolExecutionResult {
+  return { toolUseId, content: JSON.stringify(content), isError: false };
+}
+
+function fail(toolUseId: string, message: string): ToolExecutionResult {
+  return { toolUseId, content: JSON.stringify({ error: message }), isError: true };
+}
+
+// ---------------------------------------------------------------------------
 // Brain-Native Tool Handlers
+//
+// Thin adapters that validate proxy input, then delegate to the shared
+// execute* functions from tools/. No business logic lives here.
 // ---------------------------------------------------------------------------
 
 const searchEntitiesHandler: BrainToolHandler = async (input, deps) => {
   const query = typeof input.query === "string" ? input.query : "";
+  if (!query.trim()) return ok("", { results: [], message: "Empty search query" });
+  const kinds = Array.isArray(input.kinds) ? (input.kinds as SearchEntityKind[]) : undefined;
+  const limit = typeof input.limit === "number" ? Math.min(input.limit, 25) : 10;
+  const result = await executeSearchEntities(deps.surreal, wsRecord(deps), { query, kinds, limit });
+  return ok("", result);
+};
 
-  if (!query.trim()) {
-    return {
-      toolUseId: "", // filled by caller
-      content: JSON.stringify({ results: [], message: "Empty search query" }),
-      isError: false,
-    };
-  }
+const getEntityDetailHandler: BrainToolHandler = async (input, deps) => {
+  const entityId = typeof input.entityId === "string" ? input.entityId : "";
+  if (!entityId.trim()) return fail("", "entityId is required");
+  const result = await executeGetEntityDetail(deps.surreal, wsRecord(deps), entityId);
+  return ok("", result);
+};
 
-  const workspaceRecord = new RecordId("workspace", deps.workspaceId);
+const getProjectStatusHandler: BrainToolHandler = async (input, deps) => {
+  const projectId = typeof input.projectId === "string" ? input.projectId : "";
+  if (!projectId.trim()) return fail("", "projectId is required");
+  const result = await executeGetProjectStatus(deps.surreal, wsRecord(deps), projectId);
+  return ok("", result);
+};
 
-  // Simple keyword search across tasks, decisions, and features
-  // Uses basic string matching (CONTAINS) for the walking skeleton.
-  // Future: BM25 fulltext search.
-  type EntityRow = {
-    id: RecordId;
-    table: string;
-    title?: string;
-    summary?: string;
-    text?: string;
-    status?: string;
-  };
+const listWorkspaceEntitiesHandler: BrainToolHandler = async (input, deps) => {
+  const kind = typeof input.kind === "string" ? input.kind : "";
+  if (!kind) return fail("", "kind is required");
+  const limit = typeof input.limit === "number" ? Math.min(input.limit, 50) : 25;
+  const status = typeof input.status === "string" ? input.status : undefined;
+  const project = typeof input.project === "string" ? input.project : undefined;
+  const result = await executeListWorkspaceEntities(deps.surreal, wsRecord(deps), { kind, status, project, limit });
+  return ok("", result);
+};
 
-  const results = await deps.surreal.query<[EntityRow[], EntityRow[], EntityRow[]]>(
-    `SELECT id, 'task' AS table, title, status FROM task WHERE workspace = $ws AND (title CONTAINS $q) LIMIT 10;
-     SELECT id, 'decision' AS table, summary, status FROM decision WHERE workspace = $ws AND (summary CONTAINS $q) LIMIT 10;
-     SELECT id, 'feature' AS table, title, status FROM feature WHERE workspace = $ws AND (title CONTAINS $q) LIMIT 10;`,
-    { ws: workspaceRecord, q: query },
-  );
-
-  const entities = [
-    ...(results[0] ?? []).map((row) => ({
-      id: (row.id as RecordId).id as string,
-      type: "task",
-      title: row.title ?? "",
-      status: row.status ?? "",
-    })),
-    ...(results[1] ?? []).map((row) => ({
-      id: (row.id as RecordId).id as string,
-      type: "decision",
-      title: row.summary ?? "",
-      status: row.status ?? "",
-    })),
-    ...(results[2] ?? []).map((row) => ({
-      id: (row.id as RecordId).id as string,
-      type: "feature",
-      title: row.title ?? "",
-      status: row.status ?? "",
-    })),
-  ];
-
-  return {
-    toolUseId: "", // filled by caller
-    content: JSON.stringify({ results: entities, count: entities.length }),
-    isError: false,
-  };
+const checkConstraintsHandler: BrainToolHandler = async (input, deps) => {
+  const proposedAction = typeof input.proposed_action === "string" ? input.proposed_action : "";
+  if (!proposedAction.trim()) return fail("", "proposed_action is required");
+  const result = await executeCheckConstraints(deps.surreal, wsRecord(deps), proposedAction);
+  return ok("", result);
 };
 
 /** Registry of Brain-native tool handlers, keyed by tool name. */
 const brainToolHandlers: ReadonlyMap<string, BrainToolHandler> = new Map([
   ["search_entities", searchEntitiesHandler],
+  ["get_entity_detail", getEntityDetailHandler],
+  ["get_project_status", getProjectStatusHandler],
+  ["list_workspace_entities", listWorkspaceEntitiesHandler],
+  ["check_constraints", checkConstraintsHandler],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -248,6 +261,7 @@ export async function executeBrainNativeTools(
           toolName: call.toolUse.name,
           workspaceId: deps.workspaceId,
           identityId: deps.identityId,
+          sessionId: deps.sessionId,
           outcome: "success",
           durationMs,
           input: call.toolUse.input as Record<string, unknown>,
@@ -281,6 +295,7 @@ export async function executeBrainNativeTools(
           toolName: call.toolUse.name,
           workspaceId: deps.workspaceId,
           identityId: deps.identityId,
+          sessionId: deps.sessionId,
           outcome: "error",
           durationMs,
         },
@@ -484,6 +499,7 @@ export async function executeIntegrationTools(
               toolName: call.toolUse.name,
               workspaceId: deps.workspaceId,
               identityId: deps.identityId,
+              sessionId: deps.sessionId,
               outcome: governanceVerdict.outcome,
               durationMs,
               input: { tool_kind: "integration", governance_denial: governanceVerdict.reason },
@@ -530,6 +546,7 @@ export async function executeIntegrationTools(
                 toolName: call.toolUse.name,
                 workspaceId: deps.workspaceId,
                 identityId: deps.identityId,
+                sessionId: deps.sessionId,
                 outcome: rateLimitVerdict.outcome,
                 durationMs,
                 input: { tool_kind: "integration", rate_limit_denial: rateLimitVerdict.reason },
@@ -580,6 +597,7 @@ export async function executeIntegrationTools(
             toolName: call.toolUse.name,
             workspaceId: deps.workspaceId,
             identityId: deps.identityId,
+            sessionId: deps.sessionId,
             outcome: "error",
             durationMs,
             input: { tool_kind: "integration", credential_provider: providerRef },
@@ -615,6 +633,7 @@ export async function executeIntegrationTools(
             toolName: call.toolUse.name,
             workspaceId: deps.workspaceId,
             identityId: deps.identityId,
+            sessionId: deps.sessionId,
             outcome: "error",
             durationMs,
             input: { tool_kind: "integration", credential_provider: providerRef },
@@ -682,6 +701,7 @@ export async function executeIntegrationTools(
           toolName: call.toolUse.name,
           workspaceId: deps.workspaceId,
           identityId: deps.identityId,
+          sessionId: deps.sessionId,
           outcome: isError ? "error" : "success",
           durationMs,
           input: { tool_kind: "integration", credential_provider: providerRef },
@@ -717,6 +737,7 @@ export async function executeIntegrationTools(
           toolName: call.toolUse.name,
           workspaceId: deps.workspaceId,
           identityId: deps.identityId,
+          sessionId: deps.sessionId,
           outcome: "error",
           durationMs,
           input: { tool_kind: "integration", credential_provider: providerRef },

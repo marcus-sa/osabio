@@ -1,7 +1,7 @@
 import type { ToolExecutionOptions } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import type { AgentType, ChatToolExecutionContext } from "../chat/tools/types";
-import { requireToolContext } from "../chat/tools/helpers";
+import type { AgentType, ChatToolExecutionContext } from "../tools/types";
+import { requireToolContext } from "../tools/helpers";
 import { jsonError } from "../http/response";
 
 export type AuthorityAction =

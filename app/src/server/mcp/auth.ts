@@ -1,6 +1,6 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { jsonError } from "../http/response";
-import type { AgentType } from "../chat/tools/types";
+import type { AgentType } from "../tools/types";
 import { createJwtValidator, type BrainTokenClaims } from "./token-validation";
 import type { McpAuthResult } from "./types";
 

@@ -67,7 +67,8 @@
   - `feed/*` for governance feed and feed streaming
   - `webhook/*` for GitHub webhook integration
   - `iam/*` for identity/access management
-- `graph/*` contains reusable Surreal graph queries used by chat/tools and higher-level workflows.
+- `tools/*` for shared AI SDK tool definitions (used by chat agent, PM agent, observer, proxy)
+- `graph/*` contains reusable Surreal graph queries used by tools and higher-level workflows.
 
 ## Domain Knowledge
 

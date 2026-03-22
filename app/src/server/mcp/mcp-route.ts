@@ -7,7 +7,7 @@ import type { DPoPAuthResult } from "../oauth/types";
 import type { DPoPVerificationDeps, LookupWorkspace } from "../oauth/dpop-middleware";
 import type { LookupIdentity, LookupManager, ResolvedIdentity, ResolvedManager } from "../oauth/identity-lifecycle";
 import { checkAuthority, checkAuthorityOrError } from "../iam/authority";
-import type { AgentType } from "../chat/tools/types";
+import type { AgentType } from "../tools/types";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import {

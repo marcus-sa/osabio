@@ -1,7 +1,7 @@
 import { ToolLoopAgent, Output, stepCountIs } from "ai";
 import { z } from "zod";
 import type { Surreal } from "surrealdb";
-import type { ChatToolExecutionContext } from "../../chat/tools/types";
+import type { ChatToolExecutionContext } from "../../tools/types";
 import { buildAnalyticsSystemPrompt } from "./prompt";
 import { createAnalyticsTools } from "./tools";
 import { createTelemetryConfig } from "../../telemetry/ai-telemetry";

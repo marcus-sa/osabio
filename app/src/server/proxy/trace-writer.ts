@@ -136,7 +136,7 @@ async function createTraceNode(
 // Edge Creation
 // ---------------------------------------------------------------------------
 
-async function createTraceEdges(
+export async function createTraceEdges(
   surreal: Surreal,
   traceRecord: RecordId,
   data: TraceData,

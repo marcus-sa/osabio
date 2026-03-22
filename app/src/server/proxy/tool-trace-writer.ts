@@ -12,6 +12,7 @@
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
 import { withRetry } from "./retry";
+import { createTraceEdges } from "./trace-writer";
 import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,7 @@ export type ToolTraceData = {
   readonly toolName: string;
   readonly workspaceId: string;
   readonly identityId?: string;
+  readonly sessionId?: string;
   readonly outcome: ToolTraceOutcome;
   readonly durationMs: number;
   readonly input?: Record<string, unknown>;
@@ -42,7 +44,7 @@ async function createToolTraceNode(
   surreal: Surreal,
   traceId: string,
   data: ToolTraceData,
-): Promise<void> {
+): Promise<RecordId> {
   const traceRecord = new RecordId("trace", traceId);
 
   const content: Record<string, unknown> = {
@@ -66,6 +68,8 @@ async function createToolTraceNode(
     trace: traceRecord,
     content,
   });
+
+  return traceRecord;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,9 +92,25 @@ export async function captureToolTrace(
   const traceId = crypto.randomUUID();
 
   try {
-    await withRetry(
+    const traceRecord = await withRetry(
       () => createToolTraceNode(deps.surreal, traceId, data),
       "tool_trace_create",
+    );
+
+    // Reuse shared edge creation (invoked, scoped_to, attributed_to)
+    await withRetry(
+      () => createTraceEdges(deps.surreal, traceRecord, {
+        model: "",
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        latencyMs: data.durationMs,
+        workspaceId: data.workspaceId,
+        identityId: data.identityId,
+        sessionId: data.sessionId,
+      }),
+      "tool_trace_edges_create",
     );
 
     log.info("proxy.tool_trace.captured", "Tool call trace captured", {

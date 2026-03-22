@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
-import { createConfirmDecisionTool } from "../../app/src/server/chat/tools/confirm-decision";
+import { createConfirmDecisionTool } from "../../app/src/server/tools/confirm-decision";
 
 function makeSurrealMock(queryResponses: unknown[][] = []) {
   const responses = [...queryResponses];

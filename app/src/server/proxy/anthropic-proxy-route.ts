@@ -1182,6 +1182,7 @@ export function createAnthropicProxyHandler(
                 surreal: deps.surreal,
                 workspaceId: identitySignals.workspaceId,
                 identityId: identitySignals.proxyTokenIdentityId,
+                sessionId: effectiveSessionId,
               };
 
               const executionResults = await executeBrainNativeTools(
@@ -1255,6 +1256,7 @@ export function createAnthropicProxyHandler(
                 surreal: deps.surreal,
                 workspaceId: identitySignals.workspaceId!,
                 identityId: identitySignals.proxyTokenIdentityId,
+                sessionId: effectiveSessionId,
                 toolEncryptionKey: deps.config.toolEncryptionKey ?? "",
               };
 

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { applyTestSchema } from "../acceptance-test-kit";
-import { createMoveItemsToProjectTool } from "../../../app/src/server/chat/tools/move-items-to-project";
+import { createMoveItemsToProjectTool } from "../../../app/src/server/tools/move-items-to-project";
 import { testAI } from "../acceptance-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";

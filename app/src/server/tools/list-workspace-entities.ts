@@ -13,6 +13,76 @@ import type { ChatToolDeps } from "./types";
 
 const entityKindEnum = z.enum(["project", "feature", "task", "decision", "question", "observation"]);
 
+/** Core logic — shared by AI SDK tool wrapper and proxy handler. */
+export async function executeListWorkspaceEntities(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  input: { kind: string; status?: string; project?: string; limit: number },
+) {
+  const projectRecord = input.project
+    ? await resolveWorkspaceProjectRecord({ surreal, workspaceRecord, projectInput: input.project })
+    : undefined;
+
+  if (input.kind === "project") {
+    const projects = await listWorkspaceProjectSummaries({ surreal, workspaceRecord, limit: input.limit });
+    return {
+      kind: "project",
+      count: projects.length,
+      entities: projects.map((p) => ({ id: `project:${p.id}`, name: p.name, activeTaskCount: p.activeTaskCount })),
+    };
+  }
+
+  if (input.kind === "task") {
+    return listTasks(surreal, workspaceRecord, projectRecord, input.status, input.limit);
+  }
+
+  if (input.kind === "feature") {
+    return listFeatures(surreal, workspaceRecord, projectRecord, input.status, input.limit);
+  }
+
+  if (input.kind === "decision") {
+    const decisions = await listWorkspaceRecentDecisions({ surreal, workspaceRecord, limit: input.limit });
+    const filtered = input.status ? decisions.filter((d) => d.status === input.status) : decisions;
+    return {
+      kind: "decision",
+      count: filtered.length,
+      entities: filtered.map((d) => ({
+        id: `decision:${d.id}`, name: d.name, status: d.status,
+        ...(d.priority ? { priority: d.priority } : {}),
+        ...(d.project ? { project: d.project } : {}),
+      })),
+    };
+  }
+
+  if (input.kind === "question") {
+    const questions = await listWorkspaceOpenQuestions({ surreal, workspaceRecord, limit: input.limit });
+    return {
+      kind: "question",
+      count: questions.length,
+      entities: questions.map((q) => ({
+        id: `question:${q.id}`, name: q.name,
+        ...(q.priority ? { priority: q.priority } : {}),
+        ...(q.project ? { project: q.project } : {}),
+      })),
+    };
+  }
+
+  if (input.kind === "observation") {
+    const observations = await listWorkspaceOpenObservations({ surreal, workspaceRecord, limit: input.limit });
+    return {
+      kind: "observation",
+      count: observations.length,
+      entities: observations.map((o) => ({
+        id: `observation:${o.id}`, text: o.text, severity: o.severity, status: o.status,
+        ...(o.category ? { category: o.category } : {}),
+        sourceAgent: o.sourceAgent,
+      })),
+    };
+  }
+
+  throw new Error(`unsupported entity kind: ${input.kind}`);
+}
+
 export function createListWorkspaceEntitiesTool(deps: ChatToolDeps) {
   return tool({
     description:
@@ -25,101 +95,12 @@ export function createListWorkspaceEntitiesTool(deps: ChatToolDeps) {
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
-
-      const projectRecord = input.project
-        ? await resolveWorkspaceProjectRecord({
-            surreal: deps.surreal,
-            workspaceRecord: context.workspaceRecord,
-            projectInput: input.project,
-          })
-        : undefined;
-
-      if (input.kind === "project") {
-        const projects = await listWorkspaceProjectSummaries({
-          surreal: deps.surreal,
-          workspaceRecord: context.workspaceRecord,
-          limit: input.limit,
-        });
-        return {
-          kind: "project",
-          count: projects.length,
-          entities: projects.map((p) => ({
-            id: `project:${p.id}`,
-            name: p.name,
-            activeTaskCount: p.activeTaskCount,
-          })),
-        };
-      }
-
-      if (input.kind === "task") {
-        return listTasks(deps.surreal, context.workspaceRecord, projectRecord, input.status, input.limit);
-      }
-
-      if (input.kind === "feature") {
-        return listFeatures(deps.surreal, context.workspaceRecord, projectRecord, input.status, input.limit);
-      }
-
-      if (input.kind === "decision") {
-        const decisions = await listWorkspaceRecentDecisions({
-          surreal: deps.surreal,
-          workspaceRecord: context.workspaceRecord,
-          limit: input.limit,
-        });
-        const filtered = input.status
-          ? decisions.filter((d) => d.status === input.status)
-          : decisions;
-        return {
-          kind: "decision",
-          count: filtered.length,
-          entities: filtered.map((d) => ({
-            id: `decision:${d.id}`,
-            name: d.name,
-            status: d.status,
-            ...(d.priority ? { priority: d.priority } : {}),
-            ...(d.project ? { project: d.project } : {}),
-          })),
-        };
-      }
-
-      if (input.kind === "question") {
-        const questions = await listWorkspaceOpenQuestions({
-          surreal: deps.surreal,
-          workspaceRecord: context.workspaceRecord,
-          limit: input.limit,
-        });
-        return {
-          kind: "question",
-          count: questions.length,
-          entities: questions.map((q) => ({
-            id: `question:${q.id}`,
-            name: q.name,
-            ...(q.priority ? { priority: q.priority } : {}),
-            ...(q.project ? { project: q.project } : {}),
-          })),
-        };
-      }
-
-      if (input.kind === "observation") {
-        const observations = await listWorkspaceOpenObservations({
-          surreal: deps.surreal,
-          workspaceRecord: context.workspaceRecord,
-          limit: input.limit,
-        });
-        return {
-          kind: "observation",
-          count: observations.length,
-          entities: observations.map((o) => ({
-            id: `observation:${o.id}`,
-            text: o.text,
-            severity: o.severity,
-            status: o.status,
-            ...(o.category ? { category: o.category } : {}),
-            sourceAgent: o.sourceAgent,
-          })),
-        };
-      }
-
-      throw new Error(`unsupported entity kind: ${input.kind}`);
+      return executeListWorkspaceEntities(deps.surreal, context.workspaceRecord, {
+        kind: input.kind,
+        status: input.status,
+        project: input.project,
+        limit: input.limit,
+      });
     },
   });
 }

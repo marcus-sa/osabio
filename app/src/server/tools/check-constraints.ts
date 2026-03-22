@@ -1,4 +1,5 @@
 import { tool } from "ai";
+import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import { requireToolContext } from "./helpers";
@@ -17,12 +18,63 @@ function normalizeTokens(value: string): Set<string> {
 
 function hasTokenOverlap(a: Set<string>, b: Set<string>): boolean {
   for (const value of a) {
-    if (b.has(value)) {
-      return true;
+    if (b.has(value)) return true;
+  }
+  return false;
+}
+
+/** Core logic — shared by AI SDK tool wrapper and proxy handler. */
+export async function executeCheckConstraints(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  proposedAction: string,
+) {
+  const candidates = await searchEntitiesByBm25({
+    surreal,
+    workspaceRecord,
+    query: proposedAction,
+    kinds: ["decision"],
+    limit: 14,
+  });
+
+  const actionTokens = normalizeTokens(proposedAction);
+  const hardConflicts: Array<{ id: string; name: string; score: number; reason: string }> = [];
+  const softTensions: Array<{ id: string; name: string; score: number; reason: string }> = [];
+  const supporting: Array<{ id: string; name: string; score: number; reason: string }> = [];
+
+  for (const candidate of candidates) {
+    const candidateTokens = normalizeTokens(candidate.name);
+    const overlap = hasTokenOverlap(actionTokens, candidateTokens);
+    const status = candidate.status?.toLowerCase();
+
+    if (candidate.kind === "decision" && overlap && (status === "contested" || status === "superseded")) {
+      hardConflicts.push({
+        id: `${candidate.kind}:${candidate.id}`, name: candidate.name,
+        score: Number(candidate.score.toFixed(4)), reason: `Decision is marked ${status}.`,
+      });
+      continue;
+    }
+
+    if (candidate.kind === "decision" && candidate.score >= 0.86 && overlap) {
+      supporting.push({
+        id: `${candidate.kind}:${candidate.id}`, name: candidate.name,
+        score: Number(candidate.score.toFixed(4)), reason: "High-similarity decision aligns with proposed action.",
+      });
+      continue;
+    }
+
+    if (candidate.score >= 0.72) {
+      softTensions.push({
+        id: `${candidate.kind}:${candidate.id}`, name: candidate.name,
+        score: Number(candidate.score.toFixed(4)),
+        reason: overlap
+          ? "Related decision/question may require consistency checks."
+          : "Semantically related context may be affected.",
+      });
     }
   }
 
-  return false;
+  return { hard_conflicts: hardConflicts, soft_tensions: softTensions, supporting, proceed: hardConflicts.length === 0 };
 }
 
 export function createCheckConstraintsTool(deps: ChatToolDeps) {
@@ -35,63 +87,7 @@ export function createCheckConstraintsTool(deps: ChatToolDeps) {
     }),
     execute: async (input, options) => {
       const context = requireToolContext(options);
-
-      const candidates = await searchEntitiesByBm25({
-        surreal: deps.surreal,
-        workspaceRecord: context.workspaceRecord,
-        query: input.proposed_action,
-        kinds: ["decision"],
-        limit: 14,
-      });
-
-      const actionTokens = normalizeTokens(input.proposed_action);
-      const hardConflicts: Array<{ id: string; name: string; score: number; reason: string }> = [];
-      const softTensions: Array<{ id: string; name: string; score: number; reason: string }> = [];
-      const supporting: Array<{ id: string; name: string; score: number; reason: string }> = [];
-
-      for (const candidate of candidates) {
-        const candidateTokens = normalizeTokens(candidate.name);
-        const overlap = hasTokenOverlap(actionTokens, candidateTokens);
-        const status = candidate.status?.toLowerCase();
-
-        if (candidate.kind === "decision" && overlap && (status === "contested" || status === "superseded")) {
-          hardConflicts.push({
-            id: `${candidate.kind}:${candidate.id}`,
-            name: candidate.name,
-            score: Number(candidate.score.toFixed(4)),
-            reason: `Decision is marked ${status}.`,
-          });
-          continue;
-        }
-
-        if (candidate.kind === "decision" && candidate.score >= 0.86 && overlap) {
-          supporting.push({
-            id: `${candidate.kind}:${candidate.id}`,
-            name: candidate.name,
-            score: Number(candidate.score.toFixed(4)),
-            reason: "High-similarity decision aligns with proposed action.",
-          });
-          continue;
-        }
-
-        if (candidate.score >= 0.72) {
-          softTensions.push({
-            id: `${candidate.kind}:${candidate.id}`,
-            name: candidate.name,
-            score: Number(candidate.score.toFixed(4)),
-            reason: overlap
-              ? "Related decision/question may require consistency checks."
-              : "Semantically related context may be affected.",
-          });
-        }
-      }
-
-      return {
-        hard_conflicts: hardConflicts,
-        soft_tensions: softTensions,
-        supporting,
-        proceed: hardConflicts.length === 0,
-      };
+      return executeCheckConstraints(deps.surreal, context.workspaceRecord, input.proposed_action);
     },
   });
 }

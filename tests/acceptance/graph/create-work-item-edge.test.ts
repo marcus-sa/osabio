@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
-import { createCreateWorkItemTool } from "../../../app/src/server/chat/tools/create-work-item";
-import { createEditWorkItemTool } from "../../../app/src/server/chat/tools/edit-work-item";
+import { createCreateWorkItemTool } from "../../../app/src/server/tools/create-work-item";
+import { createEditWorkItemTool } from "../../../app/src/server/tools/edit-work-item";
 import { testAI, applyTestSchema } from "../acceptance-test-kit";
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
