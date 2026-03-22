@@ -3,7 +3,7 @@
   "checkpoint_id": "0745976c8a25",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "docs/research/clawith-trigger-types.md"
   ],
@@ -21,13 +21,20 @@
       "context": "/07/45976c8a25/1/context.md",
       "content_hash": "/07/45976c8a25/1/content_hash.txt",
       "prompt": "/07/45976c8a25/1/prompt.txt"
+    },
+    {
+      "metadata": "/07/45976c8a25/2/metadata.json",
+      "transcript": "/07/45976c8a25/2/full.jsonl",
+      "context": "/07/45976c8a25/2/context.md",
+      "content_hash": "/07/45976c8a25/2/content_hash.txt",
+      "prompt": "/07/45976c8a25/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 8,
-    "cache_creation_tokens": 50556,
-    "cache_read_tokens": 148568,
-    "output_tokens": 1154,
-    "api_call_count": 4
+    "input_tokens": 24,
+    "cache_creation_tokens": 139803,
+    "cache_read_tokens": 651437,
+    "output_tokens": 7298,
+    "api_call_count": 12
   }
 }

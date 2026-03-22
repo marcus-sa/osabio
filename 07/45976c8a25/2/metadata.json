@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0745976c8a25",
+  "session_id": "d3df68d9-4e59-49f0-96cd-ec49c70783f8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T11:58:28.074173Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/research/clawith-trigger-types.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0d48aa989a6a",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 89247,
+    "cache_read_tokens": 502869,
+    "output_tokens": 6144,
+    "api_call_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T11:58:28.003258Z",
+    "agent_lines": 313,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 313,
+    "agent_percentage": 100
+  }
+}

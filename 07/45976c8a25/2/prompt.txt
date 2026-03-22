@@ -1,0 +1,21 @@
+create gh issues for adding skills, mcp tools, and openclaw compatible gateway to brain @docs/research/openclaw-native-gateway-architecture.md @docs/research/brain-native-agent-runtime.md
+
+---
+
+DEFINE FIELD target_agent_types ON skill TYPE array<string>; doesnt belong on skills. agent should instead have a skills list
+
+---
+
+on agent, not identity...
+
+---
+
+[Request interrupted by user]
+
+---
+
+openclaw gateway should be served on a different port
+
+---
+
+[Request interrupted by user]
