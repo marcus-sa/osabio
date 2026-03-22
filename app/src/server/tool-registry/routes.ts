@@ -1,18 +1,37 @@
 /**
- * HTTP routes for credential provider CRUD.
+ * HTTP routes for credential provider CRUD and account connection.
  *
  * POST /api/workspaces/:workspaceId/providers -- create provider
  * GET  /api/workspaces/:workspaceId/providers -- list providers
+ * POST /api/workspaces/:workspaceId/accounts/connect/:providerId -- connect account
+ * GET  /api/workspaces/:workspaceId/accounts -- list connected accounts
  *
  * Secrets encrypted before storage, never returned as plaintext.
  */
+import { RecordId } from "surrealdb";
 import { HttpError } from "../http/errors";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import { providerNameExists, createProvider, listProviders } from "./queries";
+import {
+  providerNameExists,
+  createProvider,
+  listProviders,
+  getProviderById,
+  activeAccountExists,
+  createConnectedAccount,
+  listConnectedAccounts,
+} from "./queries";
 import { encryptSecret } from "./encryption";
-import type { CreateProviderInput, CredentialProviderRecord, ProviderApiResponse } from "./types";
+import { buildAuthorizationUrl, storeOAuthState } from "./oauth-flow";
+import type {
+  CreateProviderInput,
+  CredentialProviderRecord,
+  ProviderApiResponse,
+  ConnectedAccountRecord,
+  ConnectedAccountApiResponse,
+  ConnectAccountInput,
+} from "./types";
 import { log } from "../telemetry/logger";
 
 const VALID_AUTH_METHODS = ["oauth2", "api_key", "bearer", "basic"] as const;
@@ -124,4 +143,175 @@ export function createProviderRouteHandlers(deps: ServerDependencies) {
   }
 
   return { handleCreate, handleList };
+}
+
+// ---------------------------------------------------------------------------
+// Account response mapping -- strip encrypted fields
+// ---------------------------------------------------------------------------
+
+function toAccountApiResponse(record: ConnectedAccountRecord): ConnectedAccountApiResponse {
+  return {
+    id: record.id.id as string,
+    provider_id: record.provider.id as string,
+    status: record.status,
+    has_api_key: !!record.api_key_encrypted,
+    has_bearer_token: !!record.bearer_token_encrypted,
+    has_basic_credentials: !!record.basic_password_encrypted,
+    has_access_token: !!record.access_token_encrypted,
+    connected_at: record.connected_at instanceof Date
+      ? record.connected_at.toISOString()
+      : String(record.connected_at),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Account connection route handlers
+// ---------------------------------------------------------------------------
+
+export function createAccountRouteHandlers(deps: ServerDependencies) {
+  const encryptionKey = deps.config.toolEncryptionKey;
+
+  /**
+   * POST /api/workspaces/:workspaceId/accounts/connect/:providerId
+   *
+   * For api_key/bearer/basic: encrypts credentials and creates connected_account.
+   * For oauth2: returns redirect URL for user to authorize at provider.
+   */
+  async function handleConnect(
+    workspaceId: string,
+    providerId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("account.connect", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    // Look up the credential provider
+    const provider = await getProviderById(deps.surreal, providerId);
+    if (!provider) {
+      return jsonError("credential provider not found", 404);
+    }
+
+    // Extract identity from request headers (set by DPoP middleware)
+    const identityId = request.headers.get("X-Brain-Identity");
+    if (!identityId) {
+      return jsonError("identity required", 401);
+    }
+
+    const identityRecord = new RecordId("identity", identityId);
+    const providerRecord = new RecordId("credential_provider", providerId);
+
+    // Check for existing active account
+    const alreadyExists = await activeAccountExists(deps.surreal, identityRecord, providerRecord);
+    if (alreadyExists) {
+      return jsonError("active account already exists for this provider", 409);
+    }
+
+    // OAuth2: return redirect URL
+    if (provider.auth_method === "oauth2") {
+      const state = crypto.randomUUID();
+      const baseUrl = request.headers.get("Origin") ?? `${new URL(request.url).origin}`;
+      const redirectUri = `${baseUrl}/api/workspaces/${workspaceId}/accounts/oauth2/callback`;
+
+      storeOAuthState(state, {
+        providerId,
+        identityId,
+        workspaceId,
+        createdAt: Date.now(),
+      });
+
+      const redirectUrl = buildAuthorizationUrl(provider, redirectUri, state);
+      return jsonResponse({ redirect_url: redirectUrl, state }, 200);
+    }
+
+    // Static credentials: parse body and encrypt
+    let body: ConnectAccountInput;
+    try {
+      body = await request.json() as ConnectAccountInput;
+    } catch {
+      return jsonError("invalid JSON body", 400);
+    }
+
+    if (!encryptionKey) {
+      log.error("account.connect", "TOOL_ENCRYPTION_KEY not configured", undefined, { workspaceId });
+      return jsonError("encryption not configured", 500);
+    }
+
+    const content: Record<string, unknown> = {
+      identity: identityRecord,
+      provider: providerRecord,
+      workspace: workspaceRecord,
+      status: "active",
+    };
+
+    switch (provider.auth_method) {
+      case "api_key": {
+        if (!body.api_key) {
+          return jsonError("api_key is required for api_key auth method", 400);
+        }
+        content.api_key_encrypted = encryptSecret(body.api_key, encryptionKey);
+        break;
+      }
+      case "bearer": {
+        if (!body.bearer_token) {
+          return jsonError("bearer_token is required for bearer auth method", 400);
+        }
+        content.bearer_token_encrypted = encryptSecret(body.bearer_token, encryptionKey);
+        break;
+      }
+      case "basic": {
+        if (!body.basic_username || !body.basic_password) {
+          return jsonError("basic_username and basic_password are required for basic auth method", 400);
+        }
+        content.basic_username = body.basic_username;
+        content.basic_password_encrypted = encryptSecret(body.basic_password, encryptionKey);
+        break;
+      }
+      default:
+        return jsonError(`unsupported auth method: ${provider.auth_method}`, 400);
+    }
+
+    const record = await createConnectedAccount(deps.surreal, content);
+    return jsonResponse(toAccountApiResponse(record), 201);
+  }
+
+  /**
+   * GET /api/workspaces/:workspaceId/accounts
+   *
+   * List connected accounts for the authenticated identity.
+   */
+  async function handleListAccounts(
+    workspaceId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("account.list", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    const identityId = request.headers.get("X-Brain-Identity");
+    if (!identityId) {
+      return jsonError("identity required", 401);
+    }
+
+    const identityRecord = new RecordId("identity", identityId);
+    const records = await listConnectedAccounts(deps.surreal, identityRecord, workspaceRecord);
+    const accounts = records.map(toAccountApiResponse);
+    return jsonResponse({ accounts }, 200);
+  }
+
+  return { handleConnect, handleListAccounts };
 }

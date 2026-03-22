@@ -38,7 +38,7 @@ import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
-import { createProviderRouteHandlers } from "../tool-registry/routes";
+import { createProviderRouteHandlers, createAccountRouteHandlers } from "../tool-registry/routes";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
@@ -116,6 +116,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const providerHandlers = createProviderRouteHandlers(deps);
+  const accountHandlers = createAccountRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -410,6 +411,24 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET /api/workspaces/:workspaceId/providers",
           "GET",
           (request) => providerHandlers.handleList(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/accounts/connect/:providerId": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/accounts/connect/:providerId",
+          "POST",
+          (request) => accountHandlers.handleConnect(
+            request.params.workspaceId,
+            request.params.providerId,
+            request,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/accounts": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/accounts",
+          "GET",
+          (request) => accountHandlers.handleListAccounts(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/feed": {

@@ -33,7 +33,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_account_connection");
 // Walking Skeleton: User connects API key account
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: User connects their account via API key", () => {
-  it.skip("creates a connected_account with encrypted api_key and active status", async () => {
+  it("creates a connected_account with encrypted api_key and active status", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-conn-${crypto.randomUUID()}`);
 
