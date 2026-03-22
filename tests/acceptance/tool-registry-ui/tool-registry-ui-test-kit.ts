@@ -1,0 +1,533 @@
+/**
+ * Tool Registry UI Acceptance Test Kit
+ *
+ * Domain-specific helpers for testing the HTTP API endpoints that
+ * the Tool Registry UI consumes. Extends the shared acceptance-test-kit
+ * with business-language helpers for providers, accounts, tools,
+ * grants, and governance.
+ *
+ * Driving ports:
+ *   POST   /api/workspaces/:wsId/providers                        (create provider)
+ *   GET    /api/workspaces/:wsId/providers                        (list providers)
+ *   POST   /api/workspaces/:wsId/accounts/connect/:providerId     (connect account)
+ *   GET    /api/workspaces/:wsId/accounts                         (list accounts)
+ *   DELETE /api/workspaces/:wsId/accounts/:accountId              (revoke account)
+ *   GET    /api/workspaces/:wsId/tools                            (list tools)
+ *   GET    /api/workspaces/:wsId/tools/:toolId                    (tool detail)
+ *   POST   /api/workspaces/:wsId/tools/:toolId/grants             (grant access)
+ *   GET    /api/workspaces/:wsId/tools/:toolId/grants             (list grants)
+ *   POST   /api/workspaces/:wsId/tools/:toolId/governance         (attach governance)
+ */
+import { RecordId, type Surreal } from "surrealdb";
+import {
+  setupAcceptanceSuite,
+  createTestUser,
+  createTestUserWithMcp,
+  fetchRaw,
+  type AcceptanceTestRuntime,
+  type TestUser,
+  type TestUserWithMcp,
+} from "../acceptance-test-kit";
+import {
+  createWorkspaceDirectly,
+  createIdentity,
+} from "../shared-fixtures";
+
+// Re-export shared helpers
+export {
+  setupAcceptanceSuite,
+  createTestUser,
+  createTestUserWithMcp,
+  fetchRaw,
+  type AcceptanceTestRuntime,
+  type TestUser,
+  type TestUserWithMcp,
+};
+
+export { createWorkspaceDirectly, createIdentity };
+
+// ---------------------------------------------------------------------------
+// Suite Setup
+// ---------------------------------------------------------------------------
+
+/**
+ * Sets up a tool-registry-ui acceptance test suite with isolated server + DB.
+ */
+export function setupToolRegistrySuite(
+  suiteName: string,
+): () => AcceptanceTestRuntime {
+  return setupAcceptanceSuite(suiteName, {
+    configOverrides: {
+      toolEncryptionKey: "test-encryption-key-32-bytes-long!",
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Provider Helpers -- HTTP driving port
+// ---------------------------------------------------------------------------
+
+export type CreateProviderInput = {
+  name: string;
+  display_name: string;
+  auth_method: "oauth2" | "api_key" | "bearer" | "basic";
+  authorization_url?: string;
+  token_url?: string;
+  client_id?: string;
+  client_secret?: string;
+  scopes?: string[];
+  api_key_header?: string;
+};
+
+/**
+ * Register a credential provider via HTTP endpoint.
+ */
+export async function createProvider(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  input: CreateProviderInput,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/providers`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * List credential providers via HTTP endpoint.
+ */
+export async function listProviders(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/providers`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Account Helpers -- HTTP driving port
+// ---------------------------------------------------------------------------
+
+export type ConnectAccountInput = {
+  api_key?: string;
+  bearer_token?: string;
+  basic_username?: string;
+  basic_password?: string;
+};
+
+/**
+ * Connect an account to a provider via HTTP endpoint.
+ * For static credentials (api_key, bearer, basic): sends credentials in body.
+ * For oauth2: returns redirect_url (no body needed).
+ *
+ * Requires identity header (set by MCP auth or test fixture).
+ */
+export async function connectAccount(
+  baseUrl: string,
+  user: TestUserWithMcp,
+  workspaceId: string,
+  providerId: string,
+  credentials?: ConnectAccountInput,
+): Promise<Response> {
+  return user.mcpFetch(
+    `/api/workspaces/${workspaceId}/accounts/connect/${providerId}`,
+    {
+      method: "POST",
+      body: credentials ?? {},
+    },
+  );
+}
+
+/**
+ * List connected accounts via HTTP endpoint.
+ */
+export async function listAccounts(
+  baseUrl: string,
+  user: TestUserWithMcp,
+  workspaceId: string,
+): Promise<Response> {
+  return user.mcpFetch(
+    `/api/workspaces/${workspaceId}/accounts`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Revoke a connected account via HTTP endpoint.
+ */
+export async function revokeAccount(
+  baseUrl: string,
+  user: TestUserWithMcp,
+  workspaceId: string,
+  accountId: string,
+): Promise<Response> {
+  return user.mcpFetch(
+    `/api/workspaces/${workspaceId}/accounts/${accountId}`,
+    { method: "DELETE" },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tool Helpers -- HTTP driving port (NEW endpoints, will 404 until implemented)
+// ---------------------------------------------------------------------------
+
+/**
+ * List tools in workspace via HTTP endpoint.
+ */
+export async function listTools(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/tools`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+/**
+ * Get tool detail via HTTP endpoint.
+ */
+export async function getToolDetail(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  toolId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/tools/${toolId}`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Grant Helpers -- HTTP driving port (NEW endpoints)
+// ---------------------------------------------------------------------------
+
+export type GrantToolAccessInput = {
+  identity_id: string;
+  max_calls_per_hour?: number;
+};
+
+/**
+ * Grant tool access to an identity via HTTP endpoint.
+ */
+export async function grantToolAccess(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  toolId: string,
+  input: GrantToolAccessInput,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/tools/${toolId}/grants`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * List grants for a tool via HTTP endpoint.
+ */
+export async function listToolGrants(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  toolId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/tools/${toolId}/grants`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Governance Helpers -- HTTP driving port (NEW endpoints)
+// ---------------------------------------------------------------------------
+
+export type AttachGovernanceInput = {
+  policy_id: string;
+  conditions?: string;
+  max_per_call?: number;
+  max_per_day?: number;
+};
+
+/**
+ * Attach governance policy to a tool via HTTP endpoint.
+ */
+export async function attachGovernance(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  toolId: string,
+  input: AttachGovernanceInput,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/tools/${toolId}/governance`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DB Seed Helpers -- for Given steps (test preconditions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed an mcp_tool record directly in SurrealDB for test preconditions.
+ */
+export async function seedTool(
+  surreal: Surreal,
+  workspaceId: string,
+  options: {
+    name: string;
+    toolkit: string;
+    description?: string;
+    riskLevel?: "low" | "medium" | "high" | "critical";
+    status?: "active" | "disabled";
+    providerId?: string;
+    inputSchema?: Record<string, unknown>;
+  },
+): Promise<{ toolId: string }> {
+  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolRecord = new RecordId("mcp_tool", toolId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const content: Record<string, unknown> = {
+    name: options.name,
+    toolkit: options.toolkit,
+    description: options.description ?? `${options.name} tool`,
+    input_schema: options.inputSchema ?? { type: "object", properties: {} },
+    risk_level: options.riskLevel ?? "medium",
+    workspace: workspaceRecord,
+    status: options.status ?? "active",
+    created_at: new Date(),
+  };
+
+  if (options.providerId) {
+    content.provider = new RecordId("credential_provider", options.providerId);
+  }
+
+  await surreal.query(`CREATE $tool CONTENT $content;`, {
+    tool: toolRecord,
+    content,
+  });
+
+  return { toolId };
+}
+
+/**
+ * Seed a credential_provider directly in SurrealDB for test preconditions.
+ */
+export async function seedProvider(
+  surreal: Surreal,
+  workspaceId: string,
+  options: {
+    name: string;
+    displayName: string;
+    authMethod: "oauth2" | "api_key" | "bearer" | "basic";
+    authorizationUrl?: string;
+    tokenUrl?: string;
+    clientId?: string;
+    clientSecretEncrypted?: string;
+    scopes?: string[];
+    apiKeyHeader?: string;
+  },
+): Promise<{ providerId: string }> {
+  const providerId = `prov-${crypto.randomUUID()}`;
+  const providerRecord = new RecordId("credential_provider", providerId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const content: Record<string, unknown> = {
+    name: options.name,
+    display_name: options.displayName,
+    auth_method: options.authMethod,
+    workspace: workspaceRecord,
+    created_at: new Date(),
+  };
+
+  if (options.authorizationUrl) content.authorization_url = options.authorizationUrl;
+  if (options.tokenUrl) content.token_url = options.tokenUrl;
+  if (options.clientId) content.client_id = options.clientId;
+  if (options.clientSecretEncrypted) content.client_secret_encrypted = options.clientSecretEncrypted;
+  if (options.scopes) content.scopes = options.scopes;
+  if (options.apiKeyHeader) content.api_key_header = options.apiKeyHeader;
+
+  await surreal.query(`CREATE $provider CONTENT $content;`, {
+    provider: providerRecord,
+    content,
+  });
+
+  return { providerId };
+}
+
+/**
+ * Seed a connected_account directly in SurrealDB for test preconditions.
+ */
+export async function seedAccount(
+  surreal: Surreal,
+  options: {
+    identityId: string;
+    providerId: string;
+    workspaceId: string;
+    status?: "active" | "revoked" | "expired";
+    apiKeyEncrypted?: string;
+    bearerTokenEncrypted?: string;
+    basicUsername?: string;
+    basicPasswordEncrypted?: string;
+    accessTokenEncrypted?: string;
+  },
+): Promise<{ accountId: string }> {
+  const accountId = `acct-${crypto.randomUUID()}`;
+  const accountRecord = new RecordId("connected_account", accountId);
+  const identityRecord = new RecordId("identity", options.identityId);
+  const providerRecord = new RecordId("credential_provider", options.providerId);
+  const workspaceRecord = new RecordId("workspace", options.workspaceId);
+
+  const content: Record<string, unknown> = {
+    identity: identityRecord,
+    provider: providerRecord,
+    workspace: workspaceRecord,
+    status: options.status ?? "active",
+    connected_at: new Date(),
+    updated_at: new Date(),
+  };
+
+  if (options.apiKeyEncrypted) content.api_key_encrypted = options.apiKeyEncrypted;
+  if (options.bearerTokenEncrypted) content.bearer_token_encrypted = options.bearerTokenEncrypted;
+  if (options.basicUsername) content.basic_username = options.basicUsername;
+  if (options.basicPasswordEncrypted) content.basic_password_encrypted = options.basicPasswordEncrypted;
+  if (options.accessTokenEncrypted) content.access_token_encrypted = options.accessTokenEncrypted;
+
+  await surreal.query(`CREATE $account CONTENT $content;`, {
+    account: accountRecord,
+    content,
+  });
+
+  return { accountId };
+}
+
+/**
+ * Seed a can_use edge (grant) directly in SurrealDB for test preconditions.
+ */
+export async function seedGrant(
+  surreal: Surreal,
+  identityId: string,
+  toolId: string,
+  options?: { maxCallsPerHour?: number },
+): Promise<void> {
+  const identityRecord = new RecordId("identity", identityId);
+  const toolRecord = new RecordId("mcp_tool", toolId);
+
+  const setClause = options?.maxCallsPerHour
+    ? `SET granted_at = time::now(), max_calls_per_hour = ${options.maxCallsPerHour}`
+    : `SET granted_at = time::now()`;
+
+  await surreal.query(
+    `RELATE $identity->can_use->$tool ${setClause};`,
+    { identity: identityRecord, tool: toolRecord },
+  );
+}
+
+/**
+ * Seed a policy record for governance test preconditions.
+ */
+export async function seedPolicy(
+  surreal: Surreal,
+  workspaceId: string,
+  options: {
+    title: string;
+    status?: "active" | "draft" | "deprecated";
+    identityId?: string;
+  },
+): Promise<{ policyId: string }> {
+  const policyId = `policy-${crypto.randomUUID()}`;
+  const policyRecord = new RecordId("policy", policyId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const createdByRecord = new RecordId(
+    "identity",
+    options.identityId ?? `id-${crypto.randomUUID()}`,
+  );
+
+  // Ensure identity exists for created_by reference
+  if (!options.identityId) {
+    await surreal.query(`CREATE $identity CONTENT $content;`, {
+      identity: createdByRecord,
+      content: {
+        name: "Policy Author",
+        type: "human",
+        identity_status: "active",
+        workspace: workspaceRecord,
+        created_at: new Date(),
+      },
+    });
+  }
+
+  await surreal.query(`CREATE $policy CONTENT $content;`, {
+    policy: policyRecord,
+    content: {
+      title: options.title,
+      description: `Governance policy: ${options.title}`,
+      status: options.status ?? "active",
+      version: 1,
+      workspace: workspaceRecord,
+      created_by: createdByRecord,
+      selector: {},
+      rules: [],
+      created_at: new Date(),
+    },
+  });
+
+  return { policyId };
+}
+
+/**
+ * Seed a governs_tool edge directly in SurrealDB for test preconditions.
+ */
+export async function seedGovernance(
+  surreal: Surreal,
+  policyId: string,
+  toolId: string,
+  options?: { conditions?: string; maxPerCall?: number; maxPerDay?: number },
+): Promise<void> {
+  const policyRecord = new RecordId("policy", policyId);
+  const toolRecord = new RecordId("mcp_tool", toolId);
+
+  const setClauses: string[] = [];
+  if (options?.conditions) setClauses.push(`conditions = $conditions`);
+  if (options?.maxPerCall !== undefined) setClauses.push(`max_per_call = ${options.maxPerCall}`);
+  if (options?.maxPerDay !== undefined) setClauses.push(`max_per_day = ${options.maxPerDay}`);
+
+  const setString = setClauses.length > 0 ? `SET ${setClauses.join(", ")}` : "";
+
+  await surreal.query(
+    `RELATE $policy->governs_tool->$tool ${setString};`,
+    { policy: policyRecord, tool: toolRecord, conditions: options?.conditions },
+  );
+}
