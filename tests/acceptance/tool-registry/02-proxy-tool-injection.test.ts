@@ -31,7 +31,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_injection");
 // Walking Skeleton: Proxy injects Brain-managed tools into LLM request
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Proxy injects granted tools into LLM request", () => {
-  it.skip("adds Brain-managed tool definitions to the forwarded request tools[]", async () => {
+  it("adds Brain-managed tool definitions to the forwarded request tools[]", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-inject-${crypto.randomUUID()}`);
 
@@ -81,7 +81,7 @@ describe("Walking Skeleton: Proxy injects granted tools into LLM request", () =>
 // Focused Scenarios
 // ---------------------------------------------------------------------------
 describe("Runtime tools preserved alongside injected tools", () => {
-  it.skip("does not modify or remove runtime-provided tools from the request", async () => {
+  it("does not modify or remove runtime-provided tools from the request", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-preserve-${crypto.randomUUID()}`);
 
@@ -114,7 +114,7 @@ describe("Runtime tools preserved alongside injected tools", () => {
 });
 
 describe("No tools injected for identity with no grants", () => {
-  it.skip("forwards request with only runtime tools when identity has no can_use edges", async () => {
+  it("forwards request with only runtime tools when identity has no can_use edges", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-nogrant-${crypto.randomUUID()}`);
 
@@ -136,7 +136,7 @@ describe("No tools injected for identity with no grants", () => {
 });
 
 describe("Runtime tool takes precedence over Brain tool with same name", () => {
-  it.skip("skips Brain-managed tool when runtime already provides one with the same name", async () => {
+  it("skips Brain-managed tool when runtime already provides one with the same name", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-dedup-${crypto.randomUUID()}`);
 

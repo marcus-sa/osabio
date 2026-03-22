@@ -70,6 +70,14 @@ import {
   type LookupProxyToken,
   type TokenCache,
 } from "./proxy-auth";
+import {
+  resolveToolsForIdentity,
+  createToolResolutionCache,
+  createQueryGrantedTools,
+  type ToolResolutionCache,
+  type QueryGrantedTools,
+} from "./tool-resolver";
+import { injectTools } from "./tool-injector";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
@@ -168,6 +176,7 @@ type ProxyStage =
   | "validate_workspace"
   | "evaluate_policy"
   | "inject_context"
+  | "inject_tools"
   | "validate_api_key"
   | "forward_upstream"
   | "read_non_streaming_response"
@@ -638,6 +647,10 @@ export function createAnthropicProxyHandler(
   const fetchRecentChanges: FetchRecentChangesByTime = createFetchRecentChangesByTime(deps.surreal);
   const searchContextByBm25: SearchContextByBm25 = createSearchContextByBm25(deps.surreal);
 
+  // Tool injection (02-01): per-instance cache + DB query adapter (not module-level singleton)
+  const toolResolutionCache: ToolResolutionCache = createToolResolutionCache();
+  const queryGrantedTools: QueryGrantedTools = createQueryGrantedTools(deps.surreal);
+
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
   const pruneInterval = setInterval(
@@ -904,6 +917,59 @@ export function createAnthropicProxyHandler(
           });
           log.warn("proxy.context_injection.failed", "Context injection failed, forwarding original request", {
             workspace_id: identitySignals.workspaceId,
+            error: String(error),
+          });
+        }
+      }
+
+      // --- Step 5.7: Tool injection (fail-open) ---
+      setStage("inject_tools");
+      if (parsed && identitySignals.workspaceId && identitySignals.proxyTokenIdentityId && !isCountTokens) {
+        try {
+          const resolvedTools = await resolveToolsForIdentity(
+            identitySignals.proxyTokenIdentityId,
+            identitySignals.workspaceId,
+            queryGrantedTools,
+            toolResolutionCache,
+          );
+
+          if (resolvedTools.length > 0) {
+            const currentParsed = tryParseRequestBody(effectiveBody);
+            if (currentParsed) {
+              const runtimeTools = (currentParsed as Record<string, unknown>).tools as
+                | Array<{ name: string; description: string; input_schema: Record<string, unknown> }>
+                | undefined;
+              const mergedTools = injectTools(runtimeTools, resolvedTools);
+              const bodyObj = JSON.parse(effectiveBody) as Record<string, unknown>;
+              bodyObj.tools = mergedTools;
+              effectiveBody = JSON.stringify(bodyObj);
+
+              setSpanAttributes({
+                "proxy.tools_injected": true,
+                "proxy.tools_injected_count": resolvedTools.length - (runtimeTools?.length ?? 0) + mergedTools.length - (resolvedTools.length),
+                "proxy.tools_total_count": mergedTools.length,
+                "proxy.tools_runtime_count": runtimeTools?.length ?? 0,
+                "proxy.tools_brain_count": mergedTools.length - (runtimeTools?.length ?? 0),
+              });
+
+              log.info("proxy.tool_injection.result", "Tool injection completed", {
+                workspace_id: identitySignals.workspaceId,
+                identity_id: identitySignals.proxyTokenIdentityId,
+                runtime_tools: runtimeTools?.length ?? 0,
+                brain_tools: mergedTools.length - (runtimeTools?.length ?? 0),
+                total_tools: mergedTools.length,
+              });
+            }
+          }
+        } catch (error) {
+          // Fail-open: log warning and continue with original body
+          setSpanAttributes({
+            "proxy.tool_injection_failed": true,
+            "proxy.error.stage": currentStage,
+          });
+          log.warn("proxy.tool_injection.failed", "Tool injection failed, forwarding original request", {
+            workspace_id: identitySignals.workspaceId,
+            identity_id: identitySignals.proxyTokenIdentityId,
             error: String(error),
           });
         }
