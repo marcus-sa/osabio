@@ -1,0 +1,201 @@
+journey:
+  name: mcp-tool-lifecycle
+  epic: mcp-tool-registry
+  issue: "#178"
+  jobs_mapped:
+    - J1: Provider Registration
+    - J2: Account Connection
+    - J3: Tool Injection
+    - J4: Credential Brokerage
+
+actors:
+  - id: workspace_admin
+    role: Workspace administrator
+    jobs: [J1]
+  - id: user_identity
+    role: User or agent identity
+    jobs: [J2]
+  - id: proxy
+    role: Brain LLM proxy
+    jobs: [J3, J4]
+
+phases:
+  - id: setup
+    name: Provider & Tool Setup
+    actor: workspace_admin
+    steps:
+      - id: register_provider
+        action: Enter OAuth app credentials
+        system: Creates credential_provider record, encrypts client_secret
+        artifacts_produced: ["credential_provider.id"]
+        emotion: neutral
+        error_paths:
+          - condition: Invalid OAuth credentials
+            response: Validation error with specific HTTP status from auth URL probe
+
+      - id: connect_mcp_server
+        action: Provide MCP server connection URL
+        system: Brain calls tools/list, inventories tools
+        artifacts_produced: ["mcp_server_connection"]
+        artifacts_consumed: ["credential_provider.id"]
+        emotion: hopeful
+        error_paths:
+          - condition: Server unreachable
+            response: Timeout with retry + manual tool entry fallback
+
+      - id: discover_tools
+        action: Review discovered tools
+        system: Creates mcp_tool records from tools/list response
+        artifacts_produced: ["mcp_tool[].id"]
+        emotion: excited
+        notes: Auto-maps destructiveHint/readOnlyHint to risk_level
+
+      - id: configure_governance
+        action: Set risk_level, create governs_tool policy edges
+        system: Policy rules attached to tools
+        artifacts_produced: ["policy.id", "governs_tool edges"]
+        artifacts_consumed: ["mcp_tool[].id"]
+        emotion: thoughtful
+
+      - id: grant_access
+        action: Create can_use edges or assign skills
+        system: Agent effective toolsets updated
+        artifacts_produced: ["can_use edges", "possesses edges"]
+        artifacts_consumed: ["mcp_tool[].id", "identity.id"]
+        emotion: confident
+
+  - id: connection
+    name: Account Connection
+    actor: user_identity
+    steps:
+      - id: browse_providers
+        action: View available providers for workspace
+        system: List credential_provider records with metadata and auth_method
+        artifacts_consumed: ["credential_provider[]"]
+        emotion: curious
+
+      - id: connect_oauth2
+        action: Click Connect on an OAuth2 provider
+        system: Build auth URL from credential_provider, redirect to provider
+        artifacts_produced: ["authorization_url", "state_param"]
+        artifacts_consumed: ["credential_provider.id"]
+        emotion: familiar
+        condition: "credential_provider.auth_method == 'oauth2'"
+
+      - id: connect_static
+        action: Click Connect on an api_key/bearer/basic provider, enter credentials
+        system: Show credential entry form scoped to auth_method
+        artifacts_consumed: ["credential_provider.id"]
+        emotion: familiar
+        condition: "credential_provider.auth_method IN ['api_key', 'bearer', 'basic']"
+
+      - id: authorize_at_provider
+        action: Review scopes, approve at provider consent screen (OAuth2 only)
+        system: Provider redirects with authorization_code
+        artifacts_produced: ["authorization_code"]
+        emotion: deciding
+        condition: "credential_provider.auth_method == 'oauth2'"
+        error_paths:
+          - condition: User denies consent
+            response: Redirect back, show cancellation, no partial state
+
+      - id: connected
+        action: "OAuth2: Brain exchanges code for tokens. Static: Brain stores submitted credentials."
+        system: Creates connected_account with encrypted credentials (tokens or static keys)
+        artifacts_produced: ["connected_account.id"]
+        artifacts_consumed: ["authorization_code (oauth2)", "credential_provider.id", "identity.id"]
+        emotion: relieved
+        error_paths:
+          - condition: Token exchange fails (OAuth2)
+            response: Surface provider error, retry link
+          - condition: Invalid API key (detected on first tool call)
+            response: Mark status expired, prompt re-entry
+
+  - id: execution
+    name: Tool Injection & Execution
+    actor: proxy
+    steps:
+      - id: receive_request
+        action: Agent sends LLM request through proxy
+        system: Proxy receives request with runtime tools
+        artifacts_consumed: ["proxy_request"]
+        emotion: unaware
+        notes: Agent sends via ANTHROPIC_BASE_URL, unaware of injection
+
+      - id: resolve_identity
+        action: Extract identity from auth headers
+        system: Identity record loaded from DPoP/proxy-token
+        artifacts_produced: ["identity.id"]
+        emotion: automatic
+
+      - id: inject_tools
+        action: Resolve effective toolset, inject into request
+        system: "can_use UNION (possesses -> skill_requires) -> tool definitions added to request tools[]"
+        artifacts_produced: ["effective_toolset[]"]
+        artifacts_consumed: ["identity.id", "mcp_tool[]", "can_use edges", "possesses edges"]
+        emotion: automatic
+        notes: Additive injection — runtime tools preserved
+
+      - id: llm_uses_tool
+        action: LLM returns tool_calls including integration tool
+        system: Proxy intercepts tool_calls response
+        artifacts_produced: ["tool_call.name", "tool_call.arguments"]
+        emotion: capable
+
+      - id: proxy_executes
+        action: Route tool call by category
+        system: >
+          Integration: mcp_tool.provider -> credential_provider -> connected_account -> inject by auth_method -> execute -> sanitize.
+          Brain-native: execute graph query directly.
+          Unknown: pass through to runtime.
+        artifacts_produced: ["trace.id", "tool_result"]
+        artifacts_consumed: ["mcp_tool.provider", "credential_provider.auth_method", "connected_account credentials"]
+        emotion: secure
+        error_paths:
+          - condition: No connected account
+            response: "Return structured error: account not connected"
+          - condition: OAuth2 token expired, refresh fails
+            response: Mark status expired, return reconnect guidance
+          - condition: Static credential invalid (API returns 401)
+            response: Mark status expired, prompt re-entry
+          - condition: Policy denial
+            response: Return denial reason from governs_tool check
+          - condition: Rate limit exceeded
+            response: Return limit error with reset time
+
+      - id: result_returned
+        action: Send tool result back to LLM
+        system: Agent receives result, continues conversation
+        artifacts_consumed: ["tool_result"]
+        emotion: seamless
+
+shared_artifacts:
+  - name: credential_provider.id
+    source: setup.register_provider
+    consumers: [setup.connect_mcp_server, connection.connect_oauth2, connection.connect_static, connection.connected]
+    description: Credential provider record with auth_method and encrypted secrets (OAuth2 or static)
+
+  - name: mcp_tool[].id
+    source: setup.discover_tools
+    consumers: [setup.configure_governance, setup.grant_access, execution.inject_tools]
+    description: Discovered tool definitions from MCP server
+
+  - name: connected_account.id
+    source: connection.connected
+    consumers: [execution.proxy_executes]
+    description: Identity-to-provider credential pair (OAuth2 tokens or static credentials)
+
+  - name: identity.id
+    source: execution.resolve_identity
+    consumers: [execution.inject_tools, execution.proxy_executes]
+    description: Authenticated identity from DPoP or proxy token
+
+  - name: effective_toolset[]
+    source: execution.inject_tools
+    consumers: [execution.llm_uses_tool]
+    description: Union of direct grants and skill-derived tools
+
+  - name: trace.id
+    source: execution.proxy_executes
+    consumers: []
+    description: Forensic trace record for tool execution audit
