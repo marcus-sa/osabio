@@ -30,6 +30,10 @@ import {
   seedToolWithGrant,
   sendProxyRequestWithIdentity,
 } from "./tool-registry-test-kit";
+import { resolveCredentialsForTool } from "../../../app/src/server/proxy/credential-resolver";
+import { encryptSecret } from "../../../app/src/server/tool-registry/encryption";
+
+const TEST_ENCRYPTION_KEY = "0".repeat(64); // 256-bit test key
 
 const getRuntime = setupAcceptanceSuite("tool_registry_credential_brokerage");
 
@@ -37,7 +41,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_credential_brokerage");
 // Walking Skeleton: API key credential resolved and injected at execution
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: API key credential injected into tool execution", () => {
-  it.skip("resolves connected_account and attaches api_key as provider-specific header", async () => {
+  it("resolves connected_account and attaches api_key as provider-specific header", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-broker-${crypto.randomUUID()}`);
 
@@ -56,13 +60,23 @@ describe("Walking Skeleton: API key credential injected into tool execution", ()
       identityId: user.identityId,
       workspaceId: user.workspaceId,
       accountId: `acct-brok-${crypto.randomUUID()}`,
-      apiKeyEncrypted: "encrypted:aes256gcm:test-api-key-value==",
+      apiKeyEncrypted: encryptSecret("my-secret-api-key", TEST_ENCRYPTION_KEY),
     });
 
-    // When the proxy executes the tool call
+    // When the credential resolver resolves auth headers for the tool
+    const result = await resolveCredentialsForTool(
+      "internal.query",
+      user.identityId,
+      { surreal, toolEncryptionKey: TEST_ENCRYPTION_KEY },
+    );
+
     // Then the api_key is attached as the provider-specific header (X-API-Key)
-    // And credentials are stripped from the response
-    // (This is verified through integration test with mock server)
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.headers["X-API-Key"]).toBe("my-secret-api-key");
+    }
+
+    // And the connected_account exists in the DB with correct state
     const accounts = await getConnectedAccounts(surreal, user.identityId);
     expect(accounts.length).toBe(1);
     expect(accounts[0].status).toBe("active");
