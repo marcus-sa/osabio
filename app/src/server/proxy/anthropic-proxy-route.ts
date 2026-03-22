@@ -77,7 +77,17 @@ import {
   type ToolResolutionCache,
   type QueryGrantedTools,
 } from "./tool-resolver";
-import { injectTools } from "./tool-injector";
+import { injectTools, type ResolvedTool } from "./tool-injector";
+import {
+  classifyToolCalls,
+  extractToolUseBlocks,
+  isToolUseResponse,
+} from "./tool-router";
+import {
+  executeBrainNativeTools,
+  buildToolResultMessage,
+  type ToolExecutorDeps,
+} from "./tool-executor";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
@@ -180,6 +190,7 @@ type ProxyStage =
   | "validate_api_key"
   | "forward_upstream"
   | "read_non_streaming_response"
+  | "intercept_tool_use"
   | "relay_stream"
   | "complete";
 
@@ -924,6 +935,7 @@ export function createAnthropicProxyHandler(
 
       // --- Step 5.7: Tool injection (fail-open) ---
       setStage("inject_tools");
+      let effectiveResolvedTools: ResolvedTool[] = [];
       if (parsed && identitySignals.workspaceId && identitySignals.proxyTokenIdentityId && !isCountTokens) {
         try {
           const resolvedTools = await resolveToolsForIdentity(
@@ -933,6 +945,7 @@ export function createAnthropicProxyHandler(
             toolResolutionCache,
           );
 
+          effectiveResolvedTools = resolvedTools;
           if (resolvedTools.length > 0) {
             const currentParsed = tryParseRequestBody(effectiveBody);
             if (currentParsed) {
@@ -1087,37 +1100,158 @@ export function createAnthropicProxyHandler(
       }
       setSpanAttributes({ "proxy.upstream_status_code": upstream.status });
 
-      // --- Non-streaming response ---
+      // --- Non-streaming response (with tool use loop) ---
       if (!isStreaming) {
         setStage("read_non_streaming_response");
-        const responseBody = await upstream.text();
+        let responseBody = await upstream.text();
+        let currentUpstreamStatus = upstream.status;
+        let currentContentType = upstream.headers.get("content-type") ?? "application/json";
         const latencyMs = elapsedMs(startedAt);
 
         log.info("proxy.anthropic.response", "Anthropic response", {
-          status: upstream.status,
+          status: currentUpstreamStatus,
           latency_ms: latencyMs,
           ...identityContext,
         });
 
-        if (upstream.status >= 400) {
+        if (currentUpstreamStatus >= 400) {
           const errorPreview = toErrorPreview(responseBody);
           setSpanAttributes({
             "proxy.error.type": "upstream_error",
             "proxy.error.stage": currentStage,
-            "proxy.upstream_error_status": upstream.status,
+            "proxy.upstream_error_status": currentUpstreamStatus,
             "proxy.upstream_error_preview": errorPreview,
           });
           log.warn("proxy.anthropic.upstream_non_2xx", "Upstream returned non-2xx response", {
-            upstream_status: upstream.status,
+            upstream_status: currentUpstreamStatus,
             stage: currentStage,
             upstream_error_preview: errorPreview,
             ...identityContext,
           });
         }
 
+        // --- Step 8.5: Tool use interception loop (non-streaming only) ---
+        const MAX_TOOL_USE_ITERATIONS = 5;
+        if (
+          currentUpstreamStatus >= 200 &&
+          currentUpstreamStatus < 300 &&
+          effectiveResolvedTools.length > 0 &&
+          identitySignals.workspaceId &&
+          !isCountTokens
+        ) {
+          setStage("intercept_tool_use");
+          let iterationCount = 0;
+          // Accumulate conversation messages for follow-up requests
+          // Type is widened to accommodate tool_result messages alongside regular messages
+          let conversationMessages: Array<Record<string, unknown>> = [...(parsed?.messages ?? [])];
+
+          while (iterationCount < MAX_TOOL_USE_ITERATIONS) {
+            let responseParsed: Record<string, unknown>;
+            try {
+              responseParsed = JSON.parse(responseBody) as Record<string, unknown>;
+            } catch {
+              break; // Cannot parse response, return as-is
+            }
+
+            if (!isToolUseResponse(responseParsed)) {
+              break; // Not a tool_use response, return as-is
+            }
+
+            const toolUseBlocks = extractToolUseBlocks(responseParsed);
+            if (toolUseBlocks.length === 0) {
+              break;
+            }
+
+            const routingResult = classifyToolCalls(toolUseBlocks, effectiveResolvedTools);
+
+            // If ALL tool calls are unknown (not in Brain registry), return as-is
+            // so the runtime can handle them
+            if (routingResult.allUnknown) {
+              log.info("proxy.tool_routing.all_unknown", "All tool calls are unknown, passing through", {
+                workspace_id: identitySignals.workspaceId,
+                tool_count: toolUseBlocks.length,
+              });
+              break;
+            }
+
+            // Execute brain-native tools
+            if (routingResult.hasBrainNative) {
+              const executorDeps: ToolExecutorDeps = {
+                surreal: deps.surreal,
+                workspaceId: identitySignals.workspaceId,
+              };
+
+              const executionResults = await executeBrainNativeTools(
+                routingResult.classified,
+                executorDeps,
+              );
+
+              log.info("proxy.tool_execution.completed", "Brain-native tool execution completed", {
+                workspace_id: identitySignals.workspaceId,
+                tools_executed: executionResults.length,
+                errors: executionResults.filter((r) => r.isError).length,
+                iteration: iterationCount + 1,
+              });
+
+              setSpanAttributes({
+                "proxy.tool_use_intercepted": true,
+                "proxy.tool_use_iteration": iterationCount + 1,
+                "proxy.tool_use_brain_native_count": executionResults.length,
+                "proxy.tool_use_errors": executionResults.filter((r) => r.isError).length,
+              });
+
+              // Build tool_result message for follow-up request
+              const toolResultMessage = buildToolResultMessage(executionResults);
+
+              // Build follow-up request: original messages + assistant response + tool_results
+              const assistantMessage = {
+                role: "assistant" as const,
+                content: responseParsed.content,
+              };
+              conversationMessages = [
+                ...conversationMessages,
+                assistantMessage,
+                toolResultMessage,
+              ];
+
+              // Send follow-up request to Anthropic with tool results
+              const followUpBody = {
+                ...parsed,
+                messages: conversationMessages,
+              };
+
+              try {
+                const followUpResponse = await fetch(upstreamUrl, {
+                  method: "POST",
+                  headers: upstreamHeaders,
+                  body: JSON.stringify(followUpBody),
+                });
+
+                responseBody = await followUpResponse.text();
+                currentUpstreamStatus = followUpResponse.status;
+                currentContentType = followUpResponse.headers.get("content-type") ?? "application/json";
+              } catch (error) {
+                log.warn("proxy.tool_use_loop.follow_up_failed", "Follow-up request after tool execution failed", {
+                  workspace_id: identitySignals.workspaceId,
+                  iteration: iterationCount + 1,
+                  error: String(error),
+                });
+                break; // Return last successful response
+              }
+            } else {
+              // Has classified tools but none are brain-native (e.g. all integration)
+              // Return as-is for now; integration routing is a future step
+              break;
+            }
+
+            iterationCount++;
+          }
+        }
+
         // Async trace capture for non-streaming (skip count_tokens)
-        if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-          const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
+        if (!isCountTokens && currentUpstreamStatus >= 200 && currentUpstreamStatus < 300) {
+          const traceLatencyMs = elapsedMs(startedAt);
+          const traceData = extractNonStreamingUsage(responseBody, parsed?.model, traceLatencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
           if (traceData) {
             deps.inflight.track(
               captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -1127,9 +1261,9 @@ export function createAnthropicProxyHandler(
 
         setStage("complete");
         return new Response(responseBody, {
-          status: upstream.status,
+          status: currentUpstreamStatus,
           headers: {
-            "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+            "Content-Type": currentContentType,
             "Access-Control-Allow-Origin": "*",
           },
         });

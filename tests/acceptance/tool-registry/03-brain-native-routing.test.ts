@@ -27,7 +27,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_brain_native");
 // Walking Skeleton: Proxy executes Brain-native tool call directly
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Proxy intercepts and executes Brain-native tool call", () => {
-  it.skip("executes search_entities via graph query when LLM requests the tool", async () => {
+  it("executes search_entities via graph query when LLM requests the tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-native-${crypto.randomUUID()}`);
 
