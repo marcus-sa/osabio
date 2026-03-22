@@ -431,6 +431,17 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => accountHandlers.handleListAccounts(request.params.workspaceId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/accounts/:accountId": {
+        DELETE: withTracing(
+          "DELETE /api/workspaces/:workspaceId/accounts/:accountId",
+          "DELETE",
+          (request) => accountHandlers.handleRevoke(
+            request.params.workspaceId,
+            request.params.accountId,
+            request,
+          ),
+        ),
+      },
       "/api/workspaces/:workspaceId/feed": {
         GET: withTracing(
           "GET /api/workspaces/:workspaceId/feed",

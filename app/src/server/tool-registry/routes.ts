@@ -21,6 +21,7 @@ import {
   activeAccountExists,
   createConnectedAccount,
   listConnectedAccounts,
+  revokeConnectedAccount,
 } from "./queries";
 import { encryptSecret } from "./encryption";
 import { buildAuthorizationUrl, storeOAuthState } from "./oauth-flow";
@@ -313,5 +314,49 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
     return jsonResponse({ accounts }, 200);
   }
 
-  return { handleConnect, handleListAccounts };
+  /**
+   * DELETE /api/workspaces/:workspaceId/accounts/:accountId
+   *
+   * Revoke a connected account: sets status to "revoked" and hard-deletes
+   * all encrypted credential fields. Idempotent.
+   */
+  async function handleRevoke(
+    workspaceId: string,
+    accountId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("account.revoke", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    const identityId = request.headers.get("X-Brain-Identity");
+    if (!identityId) {
+      return jsonError("identity required", 401);
+    }
+
+    const identityRecord = new RecordId("identity", identityId);
+    const accountRecord = new RecordId("connected_account", accountId);
+
+    const updated = await revokeConnectedAccount(
+      deps.surreal,
+      accountRecord,
+      identityRecord,
+      workspaceRecord,
+    );
+
+    if (!updated) {
+      return jsonError("connected account not found", 404);
+    }
+
+    return jsonResponse({ status: "revoked" }, 200);
+  }
+
+  return { handleConnect, handleListAccounts, handleRevoke };
 }

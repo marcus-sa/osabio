@@ -31,7 +31,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_account_revocation");
 // Walking Skeleton: User revokes connected account
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: User revokes connected account and credentials are deleted", () => {
-  it.skip("sets status to revoked and hard-deletes all credential fields", async () => {
+  it("sets status to revoked and hard-deletes all credential fields", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-revoke-${crypto.randomUUID()}`);
 

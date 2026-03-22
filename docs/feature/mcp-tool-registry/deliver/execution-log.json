@@ -323,6 +323,41 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-22T16:44:05Z"
+    },
+    {
+      "sid": "09-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:44:38Z"
+    },
+    {
+      "sid": "10-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:46:50Z"
+    },
+    {
+      "sid": "10-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:46:55Z"
+    },
+    {
+      "sid": "10-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: walking skeleton uses acceptance tests only, revocation query is trivial UPDATE",
+      "t": "2026-03-22T16:47:03Z"
+    },
+    {
+      "sid": "10-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:48:33Z"
     }
   ]
 }

@@ -230,6 +230,32 @@ export async function countHourlyToolExecutions(
 }
 
 /**
+ * Revoke a connected_account: set status to "revoked" and hard-delete all
+ * encrypted credential fields (set to NONE). Idempotent -- revoking an
+ * already-revoked account succeeds without error.
+ */
+export async function revokeConnectedAccount(
+  surreal: Surreal,
+  accountRecord: RecordId<"connected_account", string>,
+  identityRecord: RecordId<"identity", string>,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<ConnectedAccountRecord | undefined> {
+  const results = await surreal.query<[ConnectedAccountRecord[]]>(
+    `UPDATE $acct SET
+       status = 'revoked',
+       access_token_encrypted = NONE,
+       refresh_token_encrypted = NONE,
+       api_key_encrypted = NONE,
+       basic_password_encrypted = NONE,
+       bearer_token_encrypted = NONE,
+       updated_at = time::now()
+     WHERE identity = $identity AND workspace = $ws;`,
+    { acct: accountRecord, identity: identityRecord, ws: workspaceRecord },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
  * Fetch rate limit from can_use edge for identity + tool.
  */
 export async function fetchCanUseRateLimit(
