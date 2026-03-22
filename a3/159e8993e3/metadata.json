@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a3159e8993e3",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 9,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docs/adrs/ADR-064-proxy-tool-injection-via-request-mutation.md",
+    "docs/adrs/ADR-065-ttl-cache-for-tool-resolution.md",
+    "docs/adrs/ADR-066-aes-256-gcm-for-credential-encryption.md",
+    "docs/adrs/ADR-067-non-streaming-tool-interception-first.md",
+    "docs/adrs/ADR-068-encrypted-suffix-schema-convention.md",
+    "docs/design/mcp-tool-registry/architecture-design.md",
+    "docs/design/mcp-tool-registry/component-boundaries.md",
+    "docs/design/mcp-tool-registry/data-models.md",
+    "docs/distill/mcp-tool-registry/test-scenarios.md",
+    "docs/distill/mcp-tool-registry/walking-skeleton.md",
+    "docs/requirements/mcp-tool-registry/acceptance-criteria.md",
+    "docs/requirements/mcp-tool-registry/dor-checklist.md",
+    "docs/requirements/mcp-tool-registry/requirements.md",
+    "docs/requirements/mcp-tool-registry/user-stories.md",
+    "docs/ux/mcp-tool-registry/journey-tool-lifecycle-visual.md",
+    "docs/ux/mcp-tool-registry/journey-tool-lifecycle.feature",
+    "docs/ux/mcp-tool-registry/journey-tool-lifecycle.yaml",
+    "docs/ux/mcp-tool-registry/jtbd-four-forces.md",
+    "docs/ux/mcp-tool-registry/jtbd-job-stories.md",
+    "docs/ux/mcp-tool-registry/jtbd-opportunity-scores.md",
+    "docs/ux/mcp-tool-registry/shared-artifacts-registry.md",
+    "tests/acceptance/tool-registry/01-tool-schema-and-grants.test.ts",
+    "tests/acceptance/tool-registry/02-proxy-tool-injection.test.ts",
+    "tests/acceptance/tool-registry/03-brain-native-routing.test.ts",
+    "tests/acceptance/tool-registry/04-tool-call-tracing.test.ts",
+    "tests/acceptance/tool-registry/05-credential-provider.test.ts",
+    "tests/acceptance/tool-registry/06-account-connection.test.ts",
+    "tests/acceptance/tool-registry/07-credential-brokerage.test.ts",
+    "tests/acceptance/tool-registry/08-integration-routing.test.ts",
+    "tests/acceptance/tool-registry/09-tool-governance.test.ts",
+    "tests/acceptance/tool-registry/10-account-revocation.test.ts",
+    "tests/acceptance/tool-registry/tool-registry-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a3/159e8993e3/0/metadata.json",
+      "transcript": "/a3/159e8993e3/0/full.jsonl",
+      "context": "/a3/159e8993e3/0/context.md",
+      "content_hash": "/a3/159e8993e3/0/content_hash.txt",
+      "prompt": "/a3/159e8993e3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 165,
+    "cache_creation_tokens": 193415,
+    "cache_read_tokens": 11410747,
+    "output_tokens": 56060,
+    "api_call_count": 94
+  }
+}
