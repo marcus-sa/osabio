@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "54f6dbf30174",
+  "session_id": "54e4a510-7ecb-4314-98ec-e81d68118af2",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T16:07:58.33101Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/proxy/anthropic-proxy-route.ts",
+    "app/src/server/proxy/tool-executor.ts",
+    "app/src/server/proxy/tool-router.ts",
+    "docs/feature/mcp-tool-registry/deliver/execution-log.json",
+    "tests/acceptance/tool-registry/03-brain-native-routing.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8feb7fd1a1e7",
+  "checkpoint_transcript_start": 100,
+  "transcript_lines_at_start": 100,
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 25374,
+    "cache_read_tokens": 1805760,
+    "output_tokens": 10545,
+    "api_call_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T16:07:58.133228Z",
+    "agent_lines": 567,
+    "human_added": 468,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1035,
+    "agent_percentage": 54.78260869565217
+  }
+}
