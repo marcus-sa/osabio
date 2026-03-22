@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "547a0cc8572b",
+  "session_id": "71ba2769-5934-48f0-9f33-f3a97ea59af9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T17:52:02.671239Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/mcp-tool-registry-ui/distill/test-scenarios.md",
+    "docs/feature/mcp-tool-registry-ui/distill/walking-skeleton.md",
+    "docs/feature/mcp-tool-registry-ui/distill/wave-decisions.md",
+    "tests/acceptance/tool-registry-ui/milestone-1-provider-crud.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-2-account-connection.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-4-access-grants.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-5-account-dashboard.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-6-tool-governance.test.ts",
+    "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts",
+    "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4a3cff016264",
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 75055,
+    "cache_read_tokens": 841963,
+    "output_tokens": 8338,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T17:52:02.360174Z",
+    "agent_lines": 2597,
+    "human_added": 2637,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5234,
+    "agent_percentage": 49.617883072220096
+  }
+}

@@ -3,7 +3,7 @@
   "checkpoint_id": "547a0cc8572b",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "docs/adrs/ADR-069-integrations-page-tab-architecture.md",
     "docs/adrs/ADR-070-mcp-server-discovery-architecture.md",
@@ -20,7 +20,18 @@
     "docs/feature/mcp-tool-registry-ui/discuss/shared-artifacts-registry.md",
     "docs/feature/mcp-tool-registry-ui/discuss/story-map.md",
     "docs/feature/mcp-tool-registry-ui/discuss/user-stories.md",
-    "docs/feature/mcp-tool-registry-ui/discuss/wave-decisions.md"
+    "docs/feature/mcp-tool-registry-ui/discuss/wave-decisions.md",
+    "docs/feature/mcp-tool-registry-ui/distill/test-scenarios.md",
+    "docs/feature/mcp-tool-registry-ui/distill/walking-skeleton.md",
+    "docs/feature/mcp-tool-registry-ui/distill/wave-decisions.md",
+    "tests/acceptance/tool-registry-ui/milestone-1-provider-crud.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-2-account-connection.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-4-access-grants.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-5-account-dashboard.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-6-tool-governance.test.ts",
+    "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts",
+    "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
   ],
   "sessions": [
     {
@@ -43,13 +54,20 @@
       "context": "/54/7a0cc8572b/2/context.md",
       "content_hash": "/54/7a0cc8572b/2/content_hash.txt",
       "prompt": "/54/7a0cc8572b/2/prompt.txt"
+    },
+    {
+      "metadata": "/54/7a0cc8572b/3/metadata.json",
+      "transcript": "/54/7a0cc8572b/3/full.jsonl",
+      "context": "/54/7a0cc8572b/3/context.md",
+      "content_hash": "/54/7a0cc8572b/3/content_hash.txt",
+      "prompt": "/54/7a0cc8572b/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4599,
-    "cache_creation_tokens": 473933,
-    "cache_read_tokens": 12419715,
-    "output_tokens": 83754,
-    "api_call_count": 138
+    "input_tokens": 4626,
+    "cache_creation_tokens": 548988,
+    "cache_read_tokens": 13261678,
+    "output_tokens": 92092,
+    "api_call_count": 151
   }
 }
