@@ -33,7 +33,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_tracing");
 // Walking Skeleton: Tool execution writes trace record
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Brain-native tool call produces trace record", () => {
-  it.skip("writes a trace with type tool_call, tool_name, identity, workspace, and outcome", async () => {
+  it("writes a trace with type tool_call, tool_name, identity, workspace, and outcome", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-trace-${crypto.randomUUID()}`);
 

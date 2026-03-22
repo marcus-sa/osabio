@@ -1179,6 +1179,7 @@ export function createAnthropicProxyHandler(
               const executorDeps: ToolExecutorDeps = {
                 surreal: deps.surreal,
                 workspaceId: identitySignals.workspaceId,
+                identityId: identitySignals.proxyTokenIdentityId,
               };
 
               const executionResults = await executeBrainNativeTools(

@@ -13,6 +13,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { ClassifiedToolCall } from "./tool-router";
 import { log } from "../telemetry/logger";
+import { captureToolTrace } from "./tool-trace-writer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +30,7 @@ export type ToolExecutionResult = {
 export type ToolExecutorDeps = {
   readonly surreal: Surreal;
   readonly workspaceId: string;
+  readonly identityId?: string;
 };
 
 /** Anthropic tool_result content block for follow-up requests. */
@@ -153,13 +155,35 @@ export async function executeBrainNativeTools(
       continue;
     }
 
+    const startMs = performance.now();
     try {
       const result = await handler(call.toolUse.input, deps);
+      const durationMs = performance.now() - startMs;
       results.push({
         ...result,
         toolUseId: call.toolUse.id,
       });
+
+      // Fire-and-forget trace capture (do not block tool result delivery)
+      captureToolTrace(
+        {
+          toolName: call.toolUse.name,
+          workspaceId: deps.workspaceId,
+          identityId: deps.identityId,
+          outcome: "success",
+          durationMs,
+          input: call.toolUse.input as Record<string, unknown>,
+          output: { content: result.content },
+        },
+        { surreal: deps.surreal },
+      ).catch((traceError) => {
+        log.warn("proxy.tool_executor.trace_failed", "Tool trace capture failed", {
+          tool_name: call.toolUse.name,
+          error: String(traceError),
+        });
+      });
     } catch (error) {
+      const durationMs = performance.now() - startMs;
       log.warn("proxy.tool_executor.handler_error", "Brain-native tool execution failed", {
         tool_name: call.toolUse.name,
         tool_use_id: call.toolUse.id,
@@ -171,6 +195,23 @@ export async function executeBrainNativeTools(
           error: `Tool execution failed: ${String(error)}`,
         }),
         isError: true,
+      });
+
+      // Trace error outcome too
+      captureToolTrace(
+        {
+          toolName: call.toolUse.name,
+          workspaceId: deps.workspaceId,
+          identityId: deps.identityId,
+          outcome: "error",
+          durationMs,
+        },
+        { surreal: deps.surreal },
+      ).catch((traceError) => {
+        log.warn("proxy.tool_executor.trace_failed", "Tool trace capture failed", {
+          tool_name: call.toolUse.name,
+          error: String(traceError),
+        });
       });
     }
   }
