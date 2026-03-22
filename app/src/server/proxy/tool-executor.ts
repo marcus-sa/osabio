@@ -18,6 +18,13 @@ import {
   resolveCredentialsForTool,
   type CredentialResolverDeps,
 } from "./credential-resolver";
+import {
+  fetchGovernancePolicies,
+  countTodayToolExecutions,
+  fetchCanUseRateLimit,
+  countHourlyToolExecutions,
+  type GovernsPolicyRow,
+} from "../tool-registry/queries";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,6 +59,68 @@ export type ToolResultMessage = {
     is_error?: boolean;
   }>;
 };
+
+// ---------------------------------------------------------------------------
+// Governance Types (Pure)
+// ---------------------------------------------------------------------------
+
+/** Result of evaluating governance policies for a tool call. */
+export type GovernanceVerdict =
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly reason: string; readonly outcome: "denied" | "rate_limited" };
+
+/**
+ * Evaluate governance policies (pure function).
+ *
+ * Rules:
+ *   - "requires_human_approval" condition -> denied
+ *   - max_per_day exceeded -> denied
+ *   - Multiple policies: most restrictive wins (any denial = denied)
+ */
+export function evaluateGovernancePolicies(
+  policies: GovernsPolicyRow[],
+  todayExecutionCount: number,
+): GovernanceVerdict {
+  for (const policy of policies) {
+    // Check requires_human_approval condition
+    if (policy.conditions === "requires_human_approval") {
+      return {
+        allowed: false,
+        reason: `Tool call denied by policy "${policy.policyTitle}": requires human approval`,
+        outcome: "denied",
+      };
+    }
+
+    // Check max_per_day limit
+    if (policy.max_per_day !== undefined && todayExecutionCount >= policy.max_per_day) {
+      return {
+        allowed: false,
+        reason: `Tool call denied by policy "${policy.policyTitle}": daily limit of ${policy.max_per_day} exceeded (${todayExecutionCount} calls today)`,
+        outcome: "denied",
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Evaluate can_use rate limit (pure function).
+ */
+export function evaluateRateLimit(
+  maxCallsPerHour: number | undefined,
+  hourlyExecutionCount: number,
+): GovernanceVerdict {
+  if (maxCallsPerHour !== undefined && hourlyExecutionCount >= maxCallsPerHour) {
+    return {
+      allowed: false,
+      reason: `Rate limit exceeded: ${hourlyExecutionCount}/${maxCallsPerHour} calls per hour`,
+      outcome: "rate_limited",
+    };
+  }
+
+  return { allowed: true };
+}
 
 /** Handler for a single Brain-native tool. */
 type BrainToolHandler = (
@@ -387,6 +456,96 @@ export async function executeIntegrationTools(
     const providerRef = call.resolvedTool.toolkit;
 
     try {
+      // Step 0: Governance check (BEFORE credential resolution)
+      const governancePolicies = await fetchGovernancePolicies(
+        deps.surreal,
+        call.toolUse.name,
+      );
+
+      if (governancePolicies.length > 0) {
+        const todayCount = await countTodayToolExecutions(
+          deps.surreal,
+          call.toolUse.name,
+          deps.workspaceId,
+        );
+
+        const governanceVerdict = evaluateGovernancePolicies(governancePolicies, todayCount);
+
+        if (!governanceVerdict.allowed) {
+          const durationMs = performance.now() - startMs;
+          results.push({
+            toolUseId: call.toolUse.id,
+            content: JSON.stringify({ error: governanceVerdict.reason }),
+            isError: true,
+          });
+
+          captureToolTrace(
+            {
+              toolName: call.toolUse.name,
+              workspaceId: deps.workspaceId,
+              identityId: deps.identityId,
+              outcome: governanceVerdict.outcome,
+              durationMs,
+              input: { tool_kind: "integration", governance_denial: governanceVerdict.reason },
+            },
+            { surreal: deps.surreal },
+          ).catch((traceError) => {
+            log.warn("proxy.governance.trace_failed", "Governance trace capture failed", {
+              tool_name: call.toolUse.name,
+              error: String(traceError),
+            });
+          });
+          continue;
+        }
+      }
+
+      // Step 0.5: Rate limit check on can_use edge
+      if (deps.identityId) {
+        const { maxCallsPerHour } = await fetchCanUseRateLimit(
+          deps.surreal,
+          deps.identityId,
+          call.toolUse.name,
+        );
+
+        if (maxCallsPerHour !== undefined) {
+          const hourlyCount = await countHourlyToolExecutions(
+            deps.surreal,
+            call.toolUse.name,
+            deps.workspaceId,
+            deps.identityId,
+          );
+
+          const rateLimitVerdict = evaluateRateLimit(maxCallsPerHour, hourlyCount);
+
+          if (!rateLimitVerdict.allowed) {
+            const durationMs = performance.now() - startMs;
+            results.push({
+              toolUseId: call.toolUse.id,
+              content: JSON.stringify({ error: rateLimitVerdict.reason }),
+              isError: true,
+            });
+
+            captureToolTrace(
+              {
+                toolName: call.toolUse.name,
+                workspaceId: deps.workspaceId,
+                identityId: deps.identityId,
+                outcome: rateLimitVerdict.outcome,
+                durationMs,
+                input: { tool_kind: "integration", rate_limit_denial: rateLimitVerdict.reason },
+              },
+              { surreal: deps.surreal },
+            ).catch((traceError) => {
+              log.warn("proxy.rate_limit.trace_failed", "Rate limit trace capture failed", {
+                tool_name: call.toolUse.name,
+                error: String(traceError),
+              });
+            });
+            continue;
+          }
+        }
+      }
+
       // Step 1: Resolve credentials
       if (!deps.identityId) {
         results.push({

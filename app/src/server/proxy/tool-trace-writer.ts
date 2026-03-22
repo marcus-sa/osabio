@@ -18,7 +18,7 @@ import { log } from "../telemetry/logger";
 // Types
 // ---------------------------------------------------------------------------
 
-export type ToolTraceOutcome = "success" | "error";
+export type ToolTraceOutcome = "success" | "error" | "denied" | "rate_limited";
 
 export type ToolTraceData = {
   readonly toolName: string;

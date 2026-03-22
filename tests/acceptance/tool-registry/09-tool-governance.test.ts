@@ -38,7 +38,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_governance");
 // Walking Skeleton: Policy denies tool call
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Policy denies tool call with reason", () => {
-  it.skip("returns 'Tool call denied by policy' when governs_tool has requires_human_approval", async () => {
+  it("returns 'Tool call denied by policy' when governs_tool has requires_human_approval", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-gov-${crypto.randomUUID()}`);
 
@@ -66,25 +66,51 @@ describe("Walking Skeleton: Policy denies tool call with reason", () => {
     await seedToolPolicy(surreal, policyId, {
       title: "no-auto-merge",
       workspaceId: user.workspaceId,
+      identityId: user.identityId,
     });
     await seedGovernsTool(surreal, policyId, toolId, {
       conditions: "requires_human_approval",
     });
 
     // When the proxy intercepts tool_call for "github.merge_pr"
-    // Then the proxy evaluates the governs_tool policy
-    // And returns error: "Tool call denied by policy: requires human approval"
-    // And governance check runs BEFORE credential resolution
-    // (verified: no credential access logged in trace)
-
-    // Verify policy edge exists
-    const results = await surreal.query(
-      `SELECT * FROM governs_tool WHERE out = $tool;`,
-      { tool: new RecordId("mcp_tool", toolId) },
+    // Simulate by calling executeIntegrationTools directly with a classified call
+    const { executeIntegrationTools } = await import(
+      "../../../app/src/server/proxy/tool-executor"
     );
-    const edges = (results[0] ?? []) as Array<{ conditions?: string }>;
-    expect(edges.length).toBe(1);
-    expect(edges[0].conditions).toBe("requires_human_approval");
+
+    const classifiedCalls = [
+      {
+        classification: "integration" as const,
+        toolUse: {
+          type: "tool_use" as const,
+          id: "toolu_test_gov",
+          name: "github.merge_pr",
+          input: { pr_number: 42, repo: "test/repo" },
+        },
+        resolvedTool: {
+          name: "github.merge_pr",
+          toolkit: "github",
+          description: "Merge a pull request",
+          inputSchema: { type: "object", properties: {} },
+        },
+      },
+    ];
+
+    const results = await executeIntegrationTools(classifiedCalls, {
+      surreal,
+      workspaceId: user.workspaceId,
+      identityId: user.identityId,
+      toolEncryptionKey: "test-encryption-key-32chars!!!!!",
+    });
+
+    // Then the proxy returns error: "Tool call denied by policy"
+    expect(results.length).toBe(1);
+    expect(results[0].isError).toBe(true);
+    expect(results[0].content).toContain("Tool call denied by policy");
+
+    // And governance check runs BEFORE credential resolution
+    // (verified: denial message does NOT mention credential resolution)
+    expect(results[0].content).not.toContain("Credential resolution");
   }, 30_000);
 });
 

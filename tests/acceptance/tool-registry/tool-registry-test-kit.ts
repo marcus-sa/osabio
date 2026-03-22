@@ -298,11 +298,17 @@ export async function seedToolPolicy(
   options: {
     title: string;
     workspaceId: string;
+    identityId?: string;
     status?: string;
   },
 ): Promise<string> {
   const policyRecord = new RecordId("policy", policyId);
   const workspaceRecord = new RecordId("workspace", options.workspaceId);
+  // created_by is required (record<identity>); use a deterministic fallback for tests
+  const createdByRecord = new RecordId(
+    "identity",
+    options.identityId ?? "test-policy-author",
+  );
 
   await surreal.query(`CREATE $policy CONTENT $content;`, {
     policy: policyRecord,
@@ -312,6 +318,8 @@ export async function seedToolPolicy(
       status: options.status ?? "active",
       version: 1,
       workspace: workspaceRecord,
+      created_by: createdByRecord,
+      selector: {},
       rules: [],
       created_at: new Date(),
     },

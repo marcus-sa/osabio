@@ -136,3 +136,114 @@ export async function listConnectedAccounts(
   );
   return results[0] ?? [];
 }
+
+// ---------------------------------------------------------------------------
+// Governance Queries
+// ---------------------------------------------------------------------------
+
+/** Row shape for governs_tool relation edges. */
+export type GovernsPolicyRow = {
+  readonly conditions?: string;
+  readonly max_per_call?: number;
+  readonly max_per_day?: number;
+  readonly policyTitle: string;
+  readonly policyStatus: string;
+};
+
+/**
+ * Fetch all active governance policies for a tool by name.
+ *
+ * Joins governs_tool edges with their policy records, returning only
+ * policies with status "active". Each row carries the edge conditions
+ * and limits plus the policy title for trace/error messages.
+ */
+export async function fetchGovernancePolicies(
+  surreal: Surreal,
+  toolName: string,
+): Promise<GovernsPolicyRow[]> {
+  const results = await surreal.query<[GovernsPolicyRow[]]>(
+    `SELECT
+       conditions,
+       max_per_call,
+       max_per_day,
+       in.title AS policyTitle,
+       in.status AS policyStatus
+     FROM governs_tool
+     WHERE out.name = $toolName
+       AND in.status = 'active';`,
+    { toolName },
+  );
+  return results[0] ?? [];
+}
+
+/**
+ * Count successful tool executions for today (UTC midnight to now).
+ * Used for max_per_day enforcement on governs_tool edges.
+ */
+export async function countTodayToolExecutions(
+  surreal: Surreal,
+  toolName: string,
+  workspaceId: string,
+): Promise<number> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const results = await surreal.query<[Array<{ count: number }>]>(
+    `SELECT count() AS count FROM trace
+     WHERE type = 'tool_call'
+       AND tool_name = $toolName
+       AND workspace = $ws
+       AND output.outcome = 'success'
+       AND created_at >= time::floor(time::now(), 1d)
+     GROUP ALL;`,
+    { toolName, ws: workspaceRecord },
+  );
+
+  return (results[0] ?? [])[0]?.count ?? 0;
+}
+
+/**
+ * Count tool executions in the last hour for a specific identity + tool.
+ * Used for can_use.max_calls_per_hour rate limit enforcement.
+ */
+export async function countHourlyToolExecutions(
+  surreal: Surreal,
+  toolName: string,
+  workspaceId: string,
+  identityId: string,
+): Promise<number> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const identityRecord = new RecordId("identity", identityId);
+
+  const results = await surreal.query<[Array<{ count: number }>]>(
+    `SELECT count() AS count FROM trace
+     WHERE type = 'tool_call'
+       AND tool_name = $toolName
+       AND workspace = $ws
+       AND actor = $actor
+       AND output.outcome = 'success'
+       AND created_at >= time::now() - 1h
+     GROUP ALL;`,
+    { toolName, ws: workspaceRecord, actor: identityRecord },
+  );
+
+  return (results[0] ?? [])[0]?.count ?? 0;
+}
+
+/**
+ * Fetch rate limit from can_use edge for identity + tool.
+ */
+export async function fetchCanUseRateLimit(
+  surreal: Surreal,
+  identityId: string,
+  toolName: string,
+): Promise<{ maxCallsPerHour?: number }> {
+  const identityRecord = new RecordId("identity", identityId);
+
+  const results = await surreal.query<[Array<{ max_calls_per_hour?: number }>]>(
+    `SELECT max_calls_per_hour FROM can_use WHERE in = $identity AND out.name = $toolName LIMIT 1;`,
+    { identity: identityRecord, toolName },
+  );
+
+  const row = (results[0] ?? [])[0];
+  return { maxCallsPerHour: row?.max_calls_per_hour };
+}

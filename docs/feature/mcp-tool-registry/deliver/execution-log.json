@@ -253,6 +253,76 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-22T16:32:03Z"
+    },
+    {
+      "sid": "07-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:32:39Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:34:24Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:35:03Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: walking skeleton - skip inner TDD loop",
+      "t": "2026-03-22T16:35:08Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:37:59Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:38:29Z"
+    },
+    {
+      "sid": "09-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:41:47Z"
+    },
+    {
+      "sid": "09-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:41:48Z"
+    },
+    {
+      "sid": "09-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: walking skeleton - E2E test is the deliverable",
+      "t": "2026-03-22T16:41:55Z"
+    },
+    {
+      "sid": "09-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:44:05Z"
     }
   ]
 }
