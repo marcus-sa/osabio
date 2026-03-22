@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0745976c8a25",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/clawith-trigger-types.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/07/45976c8a25/0/metadata.json",
+      "transcript": "/07/45976c8a25/0/full.jsonl",
+      "context": "/07/45976c8a25/0/context.md",
+      "content_hash": "/07/45976c8a25/0/content_hash.txt",
+      "prompt": "/07/45976c8a25/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 50556,
+    "cache_read_tokens": 148568,
+    "output_tokens": 1154,
+    "api_call_count": 4
+  }
+}
