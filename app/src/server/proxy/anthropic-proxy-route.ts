@@ -85,8 +85,10 @@ import {
 } from "./tool-router";
 import {
   executeBrainNativeTools,
+  executeIntegrationTools,
   buildToolResultMessage,
   type ToolExecutorDeps,
+  type IntegrationExecutorDeps,
 } from "./tool-executor";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
@@ -1240,9 +1242,78 @@ export function createAnthropicProxyHandler(
                 break; // Return last successful response
               }
             } else {
-              // Has classified tools but none are brain-native (e.g. all integration)
-              // Return as-is for now; integration routing is a future step
-              break;
+              // Has classified tools but none are brain-native -- execute integration tools
+              const hasIntegration = routingResult.classified.some(
+                (c) => c.classification === "integration",
+              );
+
+              if (!hasIntegration) {
+                break; // No actionable tools
+              }
+
+              const integrationDeps: IntegrationExecutorDeps = {
+                surreal: deps.surreal,
+                workspaceId: identitySignals.workspaceId!,
+                identityId: identitySignals.proxyTokenIdentityId,
+                toolEncryptionKey: deps.config.toolEncryptionKey ?? "",
+              };
+
+              const integrationResults = await executeIntegrationTools(
+                routingResult.classified,
+                integrationDeps,
+              );
+
+              log.info("proxy.integration_execution.completed", "Integration tool execution completed", {
+                workspace_id: identitySignals.workspaceId,
+                tools_executed: integrationResults.length,
+                errors: integrationResults.filter((r) => r.isError).length,
+                iteration: iterationCount + 1,
+              });
+
+              setSpanAttributes({
+                "proxy.tool_use_intercepted": true,
+                "proxy.tool_use_iteration": iterationCount + 1,
+                "proxy.tool_use_integration_count": integrationResults.length,
+                "proxy.tool_use_integration_errors": integrationResults.filter((r) => r.isError).length,
+              });
+
+              // Build tool_result message for follow-up request
+              const integrationToolResultMessage = buildToolResultMessage(integrationResults);
+
+              const integrationAssistantMessage = {
+                role: "assistant" as const,
+                content: responseParsed.content,
+              };
+              conversationMessages = [
+                ...conversationMessages,
+                integrationAssistantMessage,
+                integrationToolResultMessage,
+              ];
+
+              // Send follow-up request to Anthropic with integration tool results
+              const integrationFollowUpBody = {
+                ...parsed,
+                messages: conversationMessages,
+              };
+
+              try {
+                const followUpResponse = await fetch(upstreamUrl, {
+                  method: "POST",
+                  headers: upstreamHeaders,
+                  body: JSON.stringify(integrationFollowUpBody),
+                });
+
+                responseBody = await followUpResponse.text();
+                currentUpstreamStatus = followUpResponse.status;
+                currentContentType = followUpResponse.headers.get("content-type") ?? "application/json";
+              } catch (error) {
+                log.warn("proxy.tool_use_loop.integration_follow_up_failed", "Integration follow-up request failed", {
+                  workspace_id: identitySignals.workspaceId,
+                  iteration: iterationCount + 1,
+                  error: String(error),
+                });
+                break;
+              }
             }
 
             iterationCount++;

@@ -32,7 +32,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_integration_routing");
 // Walking Skeleton: Integration tool executed with brokered credentials
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Integration tool call executed with brokered credentials", () => {
-  it.skip("resolves credentials, executes HTTP call to integration API, returns sanitized result", async () => {
+  it("resolves credentials, executes HTTP call to integration API, returns sanitized result", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-integ-${crypto.randomUUID()}`);
 
