@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "547a0cc8572b",
+  "session_id": "2497721a-a072-40b9-be44-c3451a25d975",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T17:51:58.83006Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/adrs/ADR-069-integrations-page-tab-architecture.md",
+    "docs/adrs/ADR-070-mcp-server-discovery-architecture.md",
+    "docs/feature/mcp-tool-registry-ui/architecture-mcp-discovery.md",
+    "docs/feature/mcp-tool-registry-ui/architecture.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2f6e73b6c678",
+  "token_usage": {
+    "input_tokens": 4429,
+    "cache_creation_tokens": 208992,
+    "cache_read_tokens": 3860419,
+    "output_tokens": 25579,
+    "api_call_count": 50
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T17:51:58.079043Z",
+    "agent_lines": 765,
+    "human_added": 4469,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5234,
+    "agent_percentage": 14.6159724875812
+  }
+}
