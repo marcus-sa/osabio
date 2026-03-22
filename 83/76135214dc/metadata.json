@@ -3,7 +3,7 @@
   "checkpoint_id": "8376135214dc",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "docs/feature/mcp-tool-registry/deliver/execution-log.json",
     "tests/acceptance/tool-registry/07-credential-brokerage.test.ts"
@@ -15,13 +15,20 @@
       "context": "/83/76135214dc/0/context.md",
       "content_hash": "/83/76135214dc/0/content_hash.txt",
       "prompt": "/83/76135214dc/0/prompt.txt"
+    },
+    {
+      "metadata": "/83/76135214dc/1/metadata.json",
+      "transcript": "/83/76135214dc/1/full.jsonl",
+      "context": "/83/76135214dc/1/context.md",
+      "content_hash": "/83/76135214dc/1/content_hash.txt",
+      "prompt": "/83/76135214dc/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 52858,
-    "cache_read_tokens": 453255,
-    "output_tokens": 3776,
-    "api_call_count": 9
+    "input_tokens": 87,
+    "cache_creation_tokens": 211986,
+    "cache_read_tokens": 4778903,
+    "output_tokens": 33929,
+    "api_call_count": 52
   }
 }
