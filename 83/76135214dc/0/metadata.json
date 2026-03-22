@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "8376135214dc",
+  "session_id": "3908e850-a315-494d-82d5-f62d349402fe",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T16:32:28.998196Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/mcp-tool-registry/deliver/execution-log.json",
+    "tests/acceptance/tool-registry/07-credential-brokerage.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2451a86980ca",
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 52858,
+    "cache_read_tokens": 453255,
+    "output_tokens": 3776,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T16:32:28.913852Z",
+    "agent_lines": 44,
+    "human_added": 339,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 386,
+    "agent_percentage": 11.398963730569948
+  }
+}
