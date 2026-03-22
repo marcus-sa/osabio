@@ -30,7 +30,7 @@ const getRuntime = setupAcceptanceSuite("tool_registry_credential_provider");
 // Walking Skeleton: Admin registers an OAuth2 credential provider
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Admin registers an OAuth2 credential provider", () => {
-  it.skip("creates a credential_provider with encrypted client_secret", async () => {
+  it("creates a credential_provider with encrypted client_secret", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-prov-${crypto.randomUUID()}`);
 

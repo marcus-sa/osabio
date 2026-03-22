@@ -155,6 +155,34 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-22T16:15:14Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:20:57Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:20:57Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: walking skeleton - skip inner TDD loop per protocol",
+      "t": "2026-03-22T16:21:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-22T16:21:00Z"
     }
   ]
 }
