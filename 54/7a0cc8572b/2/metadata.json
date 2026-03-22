@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "547a0cc8572b",
+  "session_id": "5c081b3c-c7b7-40d1-925f-7b7da0cd78f9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-22T17:52:01.592407Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/mcp-tool-registry-ui/discuss/acceptance-criteria.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/dor-checklist.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/journey-tool-registry-ui-visual.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/journey-tool-registry-ui.feature",
+    "docs/feature/mcp-tool-registry-ui/discuss/journey-tool-registry-ui.yaml",
+    "docs/feature/mcp-tool-registry-ui/discuss/outcome-kpis.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/prioritization.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/requirements.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/shared-artifacts-registry.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/story-map.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/user-stories.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/wave-decisions.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1ece5494081c",
+  "checkpoint_transcript_start": 48,
+  "transcript_lines_at_start": 48,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 15886,
+    "cache_read_tokens": 295777,
+    "output_tokens": 4157,
+    "api_call_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-22T17:52:01.022245Z",
+    "agent_lines": 1872,
+    "human_added": 3362,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5234,
+    "agent_percentage": 35.7661444401987
+  }
+}
