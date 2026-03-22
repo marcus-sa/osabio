@@ -3,28 +3,33 @@
   "checkpoint_id": "13a0911eda9a",
   "session_id": "54e4a510-7ecb-4314-98ec-e81d68118af2",
   "strategy": "manual-commit",
-  "created_at": "2026-03-22T15:51:10.759105Z",
+  "created_at": "2026-03-22T15:51:54.37761Z",
   "branch": "marcus-sa/mcp-tool-registry",
   "checkpoints_count": 0,
   "files_touched": [
-    "docs/feature/mcp-tool-registry/deliver/roadmap.json"
+    "docs/feature/mcp-tool-registry/deliver/execution-log.json",
+    "docs/feature/mcp-tool-registry/deliver/roadmap.json",
+    "schema/migrations/0065_mcp_tool_registry.surql",
+    "schema/surreal-schema.surql"
   ],
   "agent": "Claude Code",
   "turn_id": "8feb7fd1a1e7",
+  "checkpoint_transcript_start": 100,
+  "transcript_lines_at_start": 100,
   "token_usage": {
-    "input_tokens": 35,
-    "cache_creation_tokens": 126331,
-    "cache_read_tokens": 1454511,
-    "output_tokens": 12760,
-    "api_call_count": 20
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
   },
   "initial_attribution": {
-    "calculated_at": "2026-03-22T15:51:10.566484Z",
-    "agent_lines": 157,
-    "human_added": 193,
+    "calculated_at": "2026-03-22T15:51:54.22033Z",
+    "agent_lines": 14,
+    "human_added": 0,
     "human_modified": 0,
     "human_removed": 0,
-    "total_committed": 350,
-    "agent_percentage": 44.857142857142854
+    "total_committed": 14,
+    "agent_percentage": 100
   }
 }
