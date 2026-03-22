@@ -1,0 +1,157 @@
+{
+  "roadmap": {
+    "project_id": "mcp-tool-registry",
+    "created_at": "2026-03-22T15:43:29Z",
+    "total_steps": 10,
+    "phases": 10
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Tool Schema and Grants",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Admin creates tool definitions and grants identity access via can_use edges",
+          "criteria": "Given an admin registers an mcp_tool in a workspace and creates a can_use edge to an identity, then the can_use edge exists with a granted_at timestamp, and the identity's effective toolset includes the tool with status active. Schema migration creates mcp_tool table (name, toolkit, description, input_schema, output_schema, provider, risk_level, workspace, status) and can_use relation (granted_at, max_calls_per_hour). Disabled tools are excluded from effective toolset even when can_use edge exists.",
+          "test_file": "tests/acceptance/tool-registry/01-tool-schema-and-grants.test.ts",
+          "scenario_name": "Walking Skeleton: Admin grants agent access to a registered tool"
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Proxy Tool Injection",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Proxy resolves identity toolset and injects Brain-managed tools into LLM request",
+          "criteria": "Given an identity has can_use edges to Brain-managed tools, when the proxy processes an LLM request at step 7.5, then the forwarded request tools[] contains both the runtime-provided tools and the injected Brain-managed tool definitions. Runtime tools are preserved unmodified. When a runtime tool name collides with a Brain tool name, the runtime version takes precedence. Identities with no grants receive no injected tools.",
+          "test_file": "tests/acceptance/tool-registry/02-proxy-tool-injection.test.ts",
+          "scenario_name": "Walking Skeleton: Proxy injects granted tools into LLM request"
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Brain-Native Tool Call Routing",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Proxy intercepts and executes Brain-native tool calls via graph queries",
+          "criteria": "Given an identity has a can_use edge to a Brain-native tool (toolkit=brain), when the LLM returns a tool_use block for that tool, then the proxy executes the tool directly via graph query at step 8.5 without credential resolution. Unknown tool calls (not in mcp_tool registry) are passed through to the runtime. Brain-native execution errors are returned as tool_result with is_error, not as HTTP 500.",
+          "test_file": "tests/acceptance/tool-registry/03-brain-native-routing.test.ts",
+          "scenario_name": "Walking Skeleton: Proxy intercepts and executes Brain-native tool call"
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Tool Call Tracing",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Brain-managed tool executions produce forensic trace records",
+          "criteria": "Given a Brain-native tool call is executed by the proxy, then a trace record is written with type tool_call, tool_name, identity reference, workspace, and outcome. Successful executions include outcome:success and duration_ms > 0. Unknown runtime tool calls that are passed through do not produce trace records. The trace includes the actor identity for forensic auditability.",
+          "test_file": "tests/acceptance/tool-registry/04-tool-call-tracing.test.ts",
+          "scenario_name": "Walking Skeleton: Brain-native tool call produces trace record"
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Credential Provider Registration",
+      "steps": [
+        {
+          "id": "05-01",
+          "name": "Admin registers credential providers with encrypted secrets",
+          "criteria": "Given a workspace admin registers an OAuth2 credential provider with name, auth_method, authorization_url, token_url, client_id, scopes, and client_secret, then a credential_provider record exists in the workspace with client_secret encrypted at rest via AES-256-GCM. Supports auth_method variants: oauth2, api_key, bearer, basic. Duplicate provider names within a workspace are rejected. API responses never return client_secret as plaintext.",
+          "test_file": "tests/acceptance/tool-registry/05-credential-provider.test.ts",
+          "scenario_name": "Walking Skeleton: Admin registers an OAuth2 credential provider"
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "name": "Account Connection",
+      "steps": [
+        {
+          "id": "06-01",
+          "name": "Users connect accounts to credential providers with encrypted credential storage",
+          "criteria": "Given a credential_provider exists with auth_method api_key, when a user submits their API key, then a connected_account record is created linking identity to provider with status active and the api_key encrypted at rest. Supports basic auth (username + encrypted password), bearer token, and OAuth2 flows. OAuth2 initiation returns redirect URL with client_id, scopes, and state. OAuth2 callback exchanges code for encrypted access_token and refresh_token. Denied OAuth2 consent creates no account. Only one active connected_account per identity+provider combination.",
+          "test_file": "tests/acceptance/tool-registry/06-account-connection.test.ts",
+          "scenario_name": "Walking Skeleton: User connects their account via API key"
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "name": "Credential Brokerage",
+      "steps": [
+        {
+          "id": "07-01",
+          "name": "Proxy resolves credentials at tool call time and injects auth headers by provider auth method",
+          "criteria": "Given an integration tool call is intercepted, when the proxy resolves mcp_tool -> credential_provider -> connected_account, then the decrypted credential is injected as the provider-specific auth header (X-API-Key for api_key, Authorization: Basic for basic, Authorization: Bearer for oauth2/bearer). OAuth2 expired tokens trigger refresh before execution; refresh failure marks account as expired. Missing connected_account returns 'Provider account not connected' error. Revoked account returns 'account disconnected' error. Credentials are stripped from integration tool responses.",
+          "test_file": "tests/acceptance/tool-registry/07-credential-brokerage.test.ts",
+          "scenario_name": "Walking Skeleton: API key credential injected into tool execution"
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "name": "Integration Tool Call Routing",
+      "steps": [
+        {
+          "id": "08-01",
+          "name": "Proxy executes integration tool calls with brokered credentials and sanitized responses",
+          "criteria": "Given an integration tool call is intercepted at step 8.5, when the proxy resolves credentials and executes the HTTP call to the integration API, then the response is sanitized (Authorization, Set-Cookie, X-API-Key, WWW-Authenticate headers stripped; credential JSON fields like access_token, refresh_token, api_key, password removed recursively), truncated to 100KB, and returned to the LLM. Integration execution errors are returned as tool_result with is_error:true (not HTTP 500). A trace record is written with tool_call type, provider reference, and outcome.",
+          "test_file": "tests/acceptance/tool-registry/08-integration-routing.test.ts",
+          "scenario_name": "Walking Skeleton: Integration tool call executed with brokered credentials"
+        }
+      ]
+    },
+    {
+      "id": "09",
+      "name": "Tool Governance",
+      "steps": [
+        {
+          "id": "09-01",
+          "name": "Policies attached via governs_tool relation deny or constrain tool calls before credential resolution",
+          "criteria": "Given a policy is attached to a tool via governs_tool relation with condition requires_human_approval, when the proxy intercepts a tool call for that tool, then the call is denied with 'Tool call denied by policy' before credential resolution occurs. Policy denial writes a trace with outcome:denied and the denial reason. governs_tool supports max_per_day limit enforcement. Tools with no governs_tool edge proceed normally. can_use.max_calls_per_hour is enforced as a rate limit with rate_limited trace outcome. Multiple policies are evaluated with most restrictive winning.",
+          "test_file": "tests/acceptance/tool-registry/09-tool-governance.test.ts",
+          "scenario_name": "Walking Skeleton: Policy denies tool call with reason"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "name": "Account Revocation",
+      "steps": [
+        {
+          "id": "10-01",
+          "name": "Users revoke connected accounts with hard-deletion of credential fields",
+          "criteria": "Given an active connected_account exists, when the user revokes it, then status is set to revoked and all credential fields (access_token_encrypted, refresh_token_encrypted, api_key_encrypted, basic_password_encrypted) are hard-deleted (set to NONE), not just status-flagged. Subsequent tool calls for the provider return 'account disconnected' error. Revocation is idempotent (second revoke succeeds). Other connected_accounts for the same identity are unaffected.",
+          "test_file": "tests/acceptance/tool-registry/10-account-revocation.test.ts",
+          "scenario_name": "Walking Skeleton: User revokes connected account and credentials are deleted"
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "app/src/server/"
+    ],
+    "test_directories": [
+      "tests/acceptance/tool-registry/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-software-crafter-reviewer",
+    "approved_at": "2026-03-22T16:15:00Z"
+  }
+}
