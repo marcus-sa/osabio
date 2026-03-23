@@ -27,7 +27,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_account_connection")
 // Happy Path: Static Credential Connections
 // ---------------------------------------------------------------------------
 describe("Member connects accounts with static credentials", () => {
-  it.skip("connects account with API key", async () => {
+  it("connects account with API key", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-apikey-${crypto.randomUUID()}`);
 
@@ -51,7 +51,7 @@ describe("Member connects accounts with static credentials", () => {
     expect(body.has_api_key).toBe(true);
   }, 60_000);
 
-  it.skip("connects account with bearer token", async () => {
+  it("connects account with bearer token", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-bearer-${crypto.randomUUID()}`);
 
@@ -74,7 +74,7 @@ describe("Member connects accounts with static credentials", () => {
     expect(body.has_bearer_token).toBe(true);
   }, 60_000);
 
-  it.skip("connects account with basic auth credentials", async () => {
+  it("connects account with basic auth credentials", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-basic-${crypto.randomUUID()}`);
 
@@ -103,7 +103,7 @@ describe("Member connects accounts with static credentials", () => {
 // OAuth2 Initiation
 // ---------------------------------------------------------------------------
 describe("Member initiates OAuth2 connection", () => {
-  it.skip("returns redirect URL with state parameter for OAuth2 provider", async () => {
+  it("returns redirect URL with state parameter for OAuth2 provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-oauth-${crypto.randomUUID()}`);
 
@@ -135,7 +135,7 @@ describe("Member initiates OAuth2 connection", () => {
 // Error Paths: Credential Validation
 // ---------------------------------------------------------------------------
 describe("Account connection validates credentials", () => {
-  it.skip("rejects empty API key submission", async () => {
+  it("rejects empty API key submission", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-empty-${crypto.randomUUID()}`);
 
@@ -154,7 +154,7 @@ describe("Account connection validates credentials", () => {
     expect(body.error).toContain("api_key");
   }, 60_000);
 
-  it.skip("rejects empty basic auth credentials", async () => {
+  it("rejects empty basic auth credentials", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-emptybasic-${crypto.randomUUID()}`);
 
@@ -172,7 +172,7 @@ describe("Account connection validates credentials", () => {
     expect(body.error).toContain("basic_username");
   }, 60_000);
 
-  it.skip("rejects empty bearer token submission", async () => {
+  it("rejects empty bearer token submission", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-emptybearer-${crypto.randomUUID()}`);
 
@@ -189,7 +189,7 @@ describe("Account connection validates credentials", () => {
     expect(body.error).toContain("bearer_token");
   }, 60_000);
 
-  it.skip("rejects connection to nonexistent provider", async () => {
+  it("rejects connection to nonexistent provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-noprov-${crypto.randomUUID()}`);
 
@@ -205,7 +205,7 @@ describe("Account connection validates credentials", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("rejects duplicate connection for same identity and provider", async () => {
+  it("rejects duplicate connection for same identity and provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-dup-${crypto.randomUUID()}`);
 
@@ -239,7 +239,7 @@ describe("Account connection validates credentials", () => {
 // Security: Credentials Never in Responses
 // ---------------------------------------------------------------------------
 describe("Account API never exposes credentials", () => {
-  it.skip("API key is not returned in account creation response", async () => {
+  it("API key is not returned in account creation response", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-seckey-${crypto.randomUUID()}`);
 
@@ -257,7 +257,7 @@ describe("Account API never exposes credentials", () => {
     expect(bodyText).not.toContain("secret-api-key-value");
   }, 60_000);
 
-  it.skip("credentials are not returned in account list response", async () => {
+  it("credentials are not returned in account list response", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-seclist-${crypto.randomUUID()}`);
 

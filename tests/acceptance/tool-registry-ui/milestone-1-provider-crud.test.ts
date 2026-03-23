@@ -26,7 +26,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_provider_crud");
 // Happy Path: Provider Registration per Auth Method
 // ---------------------------------------------------------------------------
 describe("Admin registers providers with different auth methods", () => {
-  it.skip("registers an OAuth2 provider with all OAuth-specific fields", async () => {
+  it("registers an OAuth2 provider with all OAuth-specific fields", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-oauth-${crypto.randomUUID()}`);
 
@@ -57,7 +57,7 @@ describe("Admin registers providers with different auth methods", () => {
     expect(body.client_secret_encrypted).toBeUndefined();
   }, 60_000);
 
-  it.skip("registers an API key provider with only base fields", async () => {
+  it("registers an API key provider with only base fields", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-api-${crypto.randomUUID()}`);
 
@@ -78,7 +78,7 @@ describe("Admin registers providers with different auth methods", () => {
     expect(body.token_url).toBeUndefined();
   }, 60_000);
 
-  it.skip("registers a bearer token provider", async () => {
+  it("registers a bearer token provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-bearer-${crypto.randomUUID()}`);
 
@@ -93,7 +93,7 @@ describe("Admin registers providers with different auth methods", () => {
     expect(body.auth_method).toBe("bearer");
   }, 60_000);
 
-  it.skip("registers a basic auth provider", async () => {
+  it("registers a basic auth provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-basic-${crypto.randomUUID()}`);
 
@@ -113,7 +113,7 @@ describe("Admin registers providers with different auth methods", () => {
 // Provider Listing
 // ---------------------------------------------------------------------------
 describe("Admin lists workspace providers", () => {
-  it.skip("returns all providers in the workspace", async () => {
+  it("returns all providers in the workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-list-${crypto.randomUUID()}`);
 
@@ -138,7 +138,7 @@ describe("Admin lists workspace providers", () => {
     expect(body.providers.length).toBe(2);
   }, 60_000);
 
-  it.skip("returns empty list when no providers exist", async () => {
+  it("returns empty list when no providers exist", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-empty-${crypto.randomUUID()}`);
 
@@ -157,7 +157,7 @@ describe("Admin lists workspace providers", () => {
 // Error Paths: Validation and Duplicates
 // ---------------------------------------------------------------------------
 describe("Provider registration validates input", () => {
-  it.skip("rejects duplicate provider name within workspace", async () => {
+  it("rejects duplicate provider name within workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-dup-${crypto.randomUUID()}`);
 
@@ -181,7 +181,7 @@ describe("Provider registration validates input", () => {
     expect(body.error).toContain("github");
   }, 60_000);
 
-  it.skip("rejects missing required name field", async () => {
+  it("rejects missing required name field", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-noname-${crypto.randomUUID()}`);
 
@@ -196,7 +196,7 @@ describe("Provider registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects missing required display_name field", async () => {
+  it("rejects missing required display_name field", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nodisp-${crypto.randomUUID()}`);
 
@@ -209,7 +209,7 @@ describe("Provider registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects invalid auth_method value", async () => {
+  it("rejects invalid auth_method value", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-badauth-${crypto.randomUUID()}`);
 
@@ -222,7 +222,7 @@ describe("Provider registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects malformed JSON body", async () => {
+  it("rejects malformed JSON body", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-badjson-${crypto.randomUUID()}`);
 
@@ -244,7 +244,7 @@ describe("Provider registration validates input", () => {
 // Security: Secret Masking
 // ---------------------------------------------------------------------------
 describe("Provider API never exposes secrets", () => {
-  it.skip("client_secret is not returned in provider creation response", async () => {
+  it("client_secret is not returned in provider creation response", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-sec-${crypto.randomUUID()}`);
 
@@ -262,7 +262,7 @@ describe("Provider API never exposes secrets", () => {
     expect(bodyText).not.toContain("super-secret-value");
   }, 60_000);
 
-  it.skip("client_secret is not returned in provider list response", async () => {
+  it("client_secret is not returned in provider list response", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-seclist-${crypto.randomUUID()}`);
 
