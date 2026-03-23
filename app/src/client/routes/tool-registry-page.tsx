@@ -1,10 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
 import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
+import { ToolTable, type ToolTableFilters } from "../components/tool-registry/ToolTable";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
@@ -165,6 +166,22 @@ export function ToolRegistryPage() {
     [],
   );
 
+  const [toolFilters, setToolFilters] = useState<ToolTableFilters>({
+    searchText: "",
+  });
+
+  const handleToolSearchChange = useCallback((searchText: string) => {
+    setToolFilters((prev) => ({ ...prev, searchText }));
+  }, []);
+
+  const handleToolStatusFilterChange = useCallback((status?: string) => {
+    setToolFilters((prev) => ({ ...prev, status }));
+  }, []);
+
+  const handleToolRiskFilterChange = useCallback((riskLevel?: string) => {
+    setToolFilters((prev) => ({ ...prev, riskLevel }));
+  }, []);
+
   const providerInfoList: ProviderInfo[] = providers.map((p) => ({
     id: p.id,
     displayName: p.display_name,
@@ -206,7 +223,42 @@ export function ToolRegistryPage() {
           {vm.showEmptyState && vm.activeTab === "tools" ? (
             <EmptyState message="No tools discovered yet." cta={vm.emptyStateCta} />
           ) : (
-            <p className="py-4 text-sm text-muted-foreground">Tools list placeholder</p>
+            <div className="flex flex-col gap-3 py-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Search tools..."
+                  value={toolFilters.searchText}
+                  onChange={(e) => handleToolSearchChange(e.target.value)}
+                  className="h-8 rounded-md border px-3 text-sm"
+                />
+                <select
+                  value={toolFilters.status ?? ""}
+                  onChange={(e) =>
+                    handleToolStatusFilterChange(e.target.value || undefined)
+                  }
+                  className="h-8 rounded-md border px-2 text-sm"
+                >
+                  <option value="">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+                <select
+                  value={toolFilters.riskLevel ?? ""}
+                  onChange={(e) =>
+                    handleToolRiskFilterChange(e.target.value || undefined)
+                  }
+                  className="h-8 rounded-md border px-2 text-sm"
+                >
+                  <option value="">All risk levels</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <ToolTable tools={tools} filters={toolFilters} />
+            </div>
           )}
         </TabsContent>
         <TabsContent value="providers">

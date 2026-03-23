@@ -10,6 +10,7 @@ export type ToolListItem = {
   status: string;
   grant_count: number;
   governance_count: number;
+  provider_name: string;
   created_at: string;
 };
 
