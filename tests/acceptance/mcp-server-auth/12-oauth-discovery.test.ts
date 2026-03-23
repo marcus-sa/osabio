@@ -248,11 +248,63 @@ describe("Auth server metadata with path component", () => {
 });
 
 describe("Discovery fails gracefully", () => {
-  it.skip("returns discovered=false when no metadata is available", async () => {
-    // Given MCP server does not serve Protected Resource Metadata
-    // And does not return 401 with WWW-Authenticate
-    // When admin triggers discovery
-    // Then response is { discovered: false, error: "..." }
+  it("returns discovered=false when no metadata is available", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-no-meta-${crypto.randomUUID()}`);
+
+    // Given MCP server does NOT serve Protected Resource Metadata
+    // And does NOT return 401 with WWW-Authenticate (returns 200 instead)
+    const mcpServerUrl = "https://mcp-no-auth.example.com";
+    const wellKnownUrl = `${mcpServerUrl}/.well-known/oauth-protected-resource`;
+
+    const msw = setupMswServer(
+      // .well-known/oauth-protected-resource returns 404
+      http.get(wellKnownUrl, () => {
+        return new HttpResponse(null, { status: 404 });
+      }),
+
+      // MCP server returns 200 (no 401, no WWW-Authenticate)
+      http.post(mcpServerUrl, () => {
+        return HttpResponse.json({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { tools: [] },
+        });
+      }),
+    );
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // And an MCP server record exists
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: "no-auth-test",
+            url: mcpServerUrl,
+            transport: "streamable-http",
+            auth_mode: "oauth",
+          },
+        },
+      );
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // When admin triggers OAuth discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { method: "POST" },
+      );
+
+      // Then discovery returns discovered=false with a descriptive error
+      expect(discoverResponse.status).toBe(200);
+      const body = await discoverResponse.json() as Record<string, unknown>;
+      expect(body.discovered).toBe(false);
+      expect(typeof body.error).toBe("string");
+      expect((body.error as string).length).toBeGreaterThan(0);
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 
