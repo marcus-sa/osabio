@@ -461,6 +461,61 @@ export async function listGrantsForTool(
 }
 
 /**
+ * Fetch a policy record by ID. Returns undefined if not found.
+ */
+export async function getPolicyById(
+  surreal: Surreal,
+  policyRecord: RecordId<"policy", string>,
+): Promise<{ status: string } | undefined> {
+  const results = await surreal.query<[Array<{ status: string }>]>(
+    `SELECT status FROM $policy;`,
+    { policy: policyRecord },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
+ * Create a governs_tool RELATION edge between a policy and a tool.
+ * Uses RELATE for TYPE RELATION tables (per surrealdb.md).
+ */
+export async function createGovernanceEdge(
+  surreal: Surreal,
+  policyRecord: RecordId<"policy", string>,
+  toolRecord: RecordId<"mcp_tool", string>,
+  options?: {
+    conditions?: string;
+    maxPerCall?: number;
+    maxPerDay?: number;
+  },
+): Promise<void> {
+  const setClauses: string[] = [];
+  const bindings: Record<string, unknown> = {
+    policy: policyRecord,
+    tool: toolRecord,
+  };
+
+  if (options?.conditions !== undefined) {
+    setClauses.push(`conditions = $conditions`);
+    bindings.conditions = options.conditions;
+  }
+  if (options?.maxPerCall !== undefined) {
+    setClauses.push(`max_per_call = $maxPerCall`);
+    bindings.maxPerCall = options.maxPerCall;
+  }
+  if (options?.maxPerDay !== undefined) {
+    setClauses.push(`max_per_day = $maxPerDay`);
+    bindings.maxPerDay = options.maxPerDay;
+  }
+
+  const setString = setClauses.length > 0 ? `SET ${setClauses.join(", ")}` : "";
+
+  await surreal.query(
+    `RELATE $policy->governs_tool->$tool ${setString};`,
+    bindings,
+  );
+}
+
+/**
  * Fetch rate limit from can_use edge for identity + tool.
  */
 export async function fetchCanUseRateLimit(

@@ -15,6 +15,8 @@ import {
   toolExistsInWorkspace,
   createGrant,
   listGrantsForTool,
+  getPolicyById,
+  createGovernanceEdge,
   type GrantDetailRow,
 } from "./queries";
 import type { GrantDetail } from "./types";
@@ -134,5 +136,63 @@ export function createGrantRouteHandlers(deps: ServerDependencies) {
     return jsonResponse({ grants }, 200);
   }
 
-  return { handleCreateGrant, handleListGrants };
+  async function handleAttachGovernance(
+    workspaceId: string,
+    toolId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("governance.attach", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    let body: { policy_id?: string; conditions?: string; max_per_call?: number; max_per_day?: number };
+    try {
+      body = await request.json() as typeof body;
+    } catch {
+      return jsonError("invalid JSON body", 400);
+    }
+
+    // Validate policy_id is present
+    if (!body.policy_id || typeof body.policy_id !== "string") {
+      return jsonError("policy_id is required", 400);
+    }
+
+    const toolRecord = new RecordId("mcp_tool", toolId);
+    const policyRecord = new RecordId("policy", body.policy_id);
+
+    // Validate tool exists in workspace
+    const toolFound = await toolExistsInWorkspace(deps.surreal, toolRecord, workspaceRecord);
+    if (!toolFound) {
+      return jsonError("Tool not found", 404);
+    }
+
+    // Validate policy exists
+    const policy = await getPolicyById(deps.surreal, policyRecord);
+    if (!policy) {
+      return jsonError("Policy not found", 404);
+    }
+
+    // Validate policy is active (reject deprecated)
+    if (policy.status !== "active") {
+      return jsonError("Policy must be active to attach governance", 400);
+    }
+
+    // Create the governs_tool edge
+    await createGovernanceEdge(deps.surreal, policyRecord, toolRecord, {
+      conditions: body.conditions,
+      maxPerCall: body.max_per_call,
+      maxPerDay: body.max_per_day,
+    });
+
+    return jsonResponse({ created: true }, 201);
+  }
+
+  return { handleCreateGrant, handleListGrants, handleAttachGovernance };
 }

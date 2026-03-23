@@ -431,6 +431,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => grantHandlers.handleListGrants(request.params.workspaceId, request.params.toolId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/tools/:toolId/governance": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/tools/:toolId/governance",
+          "POST",
+          (request) => grantHandlers.handleAttachGovernance(request.params.workspaceId, request.params.toolId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/providers": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/providers",

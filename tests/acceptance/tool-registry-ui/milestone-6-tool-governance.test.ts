@@ -31,7 +31,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_tool_governance");
 // Happy Path: Governance Attachment
 // ---------------------------------------------------------------------------
 describe("Admin attaches governance policy to tool", () => {
-  it.skip("attaches policy with condition and rate limits", async () => {
+  it("attaches policy with condition and rate limits", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-gov-${crypto.randomUUID()}`);
 
