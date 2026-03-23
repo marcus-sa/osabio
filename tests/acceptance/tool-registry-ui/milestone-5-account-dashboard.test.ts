@@ -30,7 +30,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_account_dashboard");
 // Happy Path: Account Listing with Mixed Statuses
 // ---------------------------------------------------------------------------
 describe("Member views connected accounts dashboard", () => {
-  it.skip("lists accounts with mixed statuses from different providers", async () => {
+  it("lists accounts with mixed statuses from different providers", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-dash-${crypto.randomUUID()}`);
 
@@ -87,7 +87,7 @@ describe("Member views connected accounts dashboard", () => {
     expect(statuses).toContain("expired");
   }, 60_000);
 
-  it.skip("returns empty list when member has no connected accounts", async () => {
+  it("returns empty list when member has no connected accounts", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-noacct-${crypto.randomUUID()}`);
 
@@ -100,7 +100,7 @@ describe("Member views connected accounts dashboard", () => {
     expect(body.accounts.length).toBe(0);
   }, 60_000);
 
-  it.skip("only returns accounts for the authenticated identity", async () => {
+  it("only returns accounts for the authenticated identity", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member1 = await createTestUserWithMcp(baseUrl, surreal, `ws-iso1-${crypto.randomUUID()}`);
     const member2 = await createTestUserWithMcp(
@@ -136,7 +136,7 @@ describe("Member views connected accounts dashboard", () => {
 // Account Revocation
 // ---------------------------------------------------------------------------
 describe("Member revokes connected account", () => {
-  it.skip("revokes active account and status changes to revoked", async () => {
+  it("revokes active account and status changes to revoked", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-revoke-${crypto.randomUUID()}`);
 
@@ -169,7 +169,7 @@ describe("Member revokes connected account", () => {
     expect(revoked!.status).toBe("revoked");
   }, 60_000);
 
-  it.skip("permanently deletes encrypted credentials on revocation", async () => {
+  it("permanently deletes encrypted credentials on revocation", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-creds-${crypto.randomUUID()}`);
 
@@ -207,7 +207,7 @@ describe("Member revokes connected account", () => {
 // Error Paths
 // ---------------------------------------------------------------------------
 describe("Account dashboard error paths", () => {
-  it.skip("returns 404 when revoking nonexistent account", async () => {
+  it("returns 404 when revoking nonexistent account", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-notfound-${crypto.randomUUID()}`);
 
@@ -216,7 +216,7 @@ describe("Account dashboard error paths", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("revocation is idempotent for already-revoked account", async () => {
+  it("revocation is idempotent for already-revoked account", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-idem-${crypto.randomUUID()}`);
 
@@ -245,7 +245,7 @@ describe("Account dashboard error paths", () => {
 // Reconnect After Revocation
 // ---------------------------------------------------------------------------
 describe("Member reconnects after revocation", () => {
-  it.skip("can connect new account after previous one was revoked", async () => {
+  it("can connect new account after previous one was revoked", async () => {
     const { baseUrl, surreal } = getRuntime();
     const member = await createTestUserWithMcp(baseUrl, surreal, `ws-recon-${crypto.randomUUID()}`);
 

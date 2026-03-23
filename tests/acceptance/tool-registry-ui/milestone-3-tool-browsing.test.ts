@@ -231,7 +231,7 @@ describe("Admin views tool detail", () => {
     expect(detail.governance_policies[0].max_per_day).toBe(5);
   }, 60_000);
 
-  it.skip("returns tool with empty grants and governance when none exist", async () => {
+  it("returns tool with empty grants and governance when none exist", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-norel-${crypto.randomUUID()}`);
 

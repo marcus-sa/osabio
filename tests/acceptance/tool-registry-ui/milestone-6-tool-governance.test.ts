@@ -70,7 +70,7 @@ describe("Admin attaches governance policy to tool", () => {
     expect(detail.governance_policies[0].max_per_day).toBe(5);
   }, 60_000);
 
-  it.skip("attaches policy with rate limit only (no condition)", async () => {
+  it("attaches policy with rate limit only (no condition)", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rateonly-${crypto.randomUUID()}`);
 
@@ -103,7 +103,7 @@ describe("Admin attaches governance policy to tool", () => {
     expect(detail.governance_policies[0].max_per_call).toBe(10);
   }, 60_000);
 
-  it.skip("multiple policies can be attached to same tool", async () => {
+  it("multiple policies can be attached to same tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-multi-${crypto.randomUUID()}`);
 
@@ -141,7 +141,7 @@ describe("Admin attaches governance policy to tool", () => {
 // Governance Indicator in Tools List
 // ---------------------------------------------------------------------------
 describe("Governance indicator visible in tools list", () => {
-  it.skip("tools with governance show non-zero governance_count", async () => {
+  it("tools with governance show non-zero governance_count", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-indicator-${crypto.randomUUID()}`);
 
@@ -186,7 +186,7 @@ describe("Governance indicator visible in tools list", () => {
 // Error Paths
 // ---------------------------------------------------------------------------
 describe("Governance attachment validates input", () => {
-  it.skip("rejects attachment of nonexistent policy", async () => {
+  it("rejects attachment of nonexistent policy", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nopol-${crypto.randomUUID()}`);
 
@@ -202,7 +202,7 @@ describe("Governance attachment validates input", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("rejects attachment to nonexistent tool", async () => {
+  it("rejects attachment to nonexistent tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-notool-${crypto.randomUUID()}`);
 
@@ -217,7 +217,7 @@ describe("Governance attachment validates input", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("rejects attachment of deprecated policy", async () => {
+  it("rejects attachment of deprecated policy", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-depol-${crypto.randomUUID()}`);
 
@@ -242,7 +242,7 @@ describe("Governance attachment validates input", () => {
     expect(body.error).toContain("active");
   }, 60_000);
 
-  it.skip("rejects attachment without policy_id", async () => {
+  it("rejects attachment without policy_id", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nopolid-${crypto.randomUUID()}`);
 

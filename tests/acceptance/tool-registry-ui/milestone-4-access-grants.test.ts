@@ -64,7 +64,7 @@ describe("Admin grants tool access to identities", () => {
     expect(body.grants[0].granted_at).toBeTruthy();
   }, 60_000);
 
-  it.skip("grants access without rate limit (unlimited)", async () => {
+  it("grants access without rate limit (unlimited)", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-unlimit-${crypto.randomUUID()}`);
 
@@ -88,7 +88,7 @@ describe("Admin grants tool access to identities", () => {
     expect(body.grants[0].max_calls_per_hour).toBeUndefined();
   }, 60_000);
 
-  it.skip("multiple identities can be granted access to the same tool", async () => {
+  it("multiple identities can be granted access to the same tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-multi-${crypto.randomUUID()}`);
 
@@ -115,7 +115,7 @@ describe("Admin grants tool access to identities", () => {
 // Grant Count Propagation
 // ---------------------------------------------------------------------------
 describe("Grant count reflects in tools list", () => {
-  it.skip("tools list grant_count updates after new grants", async () => {
+  it("tools list grant_count updates after new grants", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-count-${crypto.randomUUID()}`);
 
@@ -144,7 +144,7 @@ describe("Grant count reflects in tools list", () => {
 // Error Paths
 // ---------------------------------------------------------------------------
 describe("Grant creation validates input", () => {
-  it.skip("rejects duplicate grant for same identity and tool", async () => {
+  it("rejects duplicate grant for same identity and tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-dup-${crypto.randomUUID()}`);
 
@@ -169,7 +169,7 @@ describe("Grant creation validates input", () => {
     expect(body.error).toContain("already");
   }, 60_000);
 
-  it.skip("rejects grant to nonexistent identity", async () => {
+  it("rejects grant to nonexistent identity", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-noid-${crypto.randomUUID()}`);
 
@@ -185,7 +185,7 @@ describe("Grant creation validates input", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("rejects grant to nonexistent tool", async () => {
+  it("rejects grant to nonexistent tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-notool-${crypto.randomUUID()}`);
 
@@ -196,7 +196,7 @@ describe("Grant creation validates input", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("rejects grant without identity_id", async () => {
+  it("rejects grant without identity_id", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-noidfield-${crypto.randomUUID()}`);
 
