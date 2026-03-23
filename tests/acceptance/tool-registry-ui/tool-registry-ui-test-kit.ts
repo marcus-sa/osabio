@@ -18,6 +18,7 @@
  *   GET    /api/workspaces/:wsId/tools/:toolId/grants             (list grants)
  *   POST   /api/workspaces/:wsId/tools/:toolId/governance         (attach governance)
  */
+import { createHash } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import {
   setupAcceptanceSuite,
@@ -30,6 +31,8 @@ import {
 } from "../acceptance-test-kit";
 import type { McpClientFactory, McpConnectionResult, ToolListResult, CallToolResult } from "../../../app/src/server/tool-registry/mcp-client";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { http, HttpResponse } from "msw";
+import { setupServer as setupMswServer } from "msw/node";
 import {
   createWorkspaceDirectly,
   createIdentity,
@@ -848,4 +851,170 @@ export async function seedGovernance(
     `RELATE $policy->governs_tool->$tool ${setString};`,
     { policy: policyRecord, tool: toolRecord, conditions: options?.conditions },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Proxy Token Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a proxy_token record in SurrealDB and return the raw token string.
+ * The proxy uses X-Brain-Auth: <raw-token> for identity resolution.
+ */
+export async function seedProxyToken(
+  surreal: Surreal,
+  identityId: string,
+  workspaceId: string,
+): Promise<string> {
+  const rawToken = `brn_test_${crypto.randomUUID()}`;
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const tokenId = `pt-${crypto.randomUUID()}`;
+  const tokenRecord = new RecordId("proxy_token", tokenId);
+
+  await surreal.query(`CREATE $rec CONTENT $content;`, {
+    rec: tokenRecord,
+    content: {
+      token_hash: tokenHash,
+      workspace: new RecordId("workspace", workspaceId),
+      identity: new RecordId("identity", identityId),
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
+      revoked: false,
+      created_at: new Date(),
+    },
+  });
+
+  return rawToken;
+}
+
+// ---------------------------------------------------------------------------
+// Proxy Request Helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a proxy request to the Anthropic Messages endpoint.
+ * Creates a proxy token on first call per user (cached on the user object).
+ */
+export async function sendProxyRequest(
+  baseUrl: string,
+  surreal: Surreal,
+  user: TestUserWithMcp,
+  options: {
+    messages: Array<{ role: string; content: string }>;
+    tools?: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
+    model?: string;
+    maxTokens?: number;
+  },
+): Promise<Response> {
+  // Cache proxy token on user object to avoid re-creating per call
+  const cached = (user as unknown as { _proxyToken?: string })._proxyToken;
+  const proxyToken = cached ?? await seedProxyToken(surreal, user.identityId, user.workspaceId);
+  if (!cached) {
+    (user as unknown as { _proxyToken?: string })._proxyToken = proxyToken;
+  }
+
+  return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": "test-api-key",
+      "X-Brain-Auth": proxyToken,
+    },
+    body: JSON.stringify({
+      model: options.model ?? "claude-haiku-4-5-20251001",
+      max_tokens: options.maxTokens ?? 100,
+      stream: false,
+      messages: options.messages,
+      ...(options.tools ? { tools: options.tools } : {}),
+    }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// MSW Mock Anthropic API
+// ---------------------------------------------------------------------------
+
+/** Anthropic tool_use content block shape. */
+export type MockToolUseBlock = {
+  type: "tool_use";
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+};
+
+/** Anthropic text content block shape. */
+export type MockTextBlock = {
+  type: "text";
+  text: string;
+};
+
+/**
+ * Build a mock Anthropic Messages API response.
+ */
+function buildAnthropicResponse(
+  content: Array<MockToolUseBlock | MockTextBlock>,
+  stopReason: "end_turn" | "tool_use",
+): Record<string, unknown> {
+  return {
+    id: `msg_${crypto.randomUUID()}`,
+    type: "message",
+    role: "assistant",
+    model: "claude-haiku-4-5-20251001",
+    content,
+    stop_reason: stopReason,
+    stop_sequence: null,
+    usage: { input_tokens: 100, output_tokens: 50 },
+  };
+}
+
+/**
+ * Create an MSW server that intercepts Anthropic Messages API calls.
+ *
+ * Returns a sequence of responses: each proxy request consumes the next
+ * response in the queue. After the queue is exhausted, returns a final
+ * text response.
+ *
+ * @param responses - Ordered list of Anthropic API responses to return
+ * @param anthropicApiUrl - Base URL of the Anthropic API (default: https://api.anthropic.com)
+ */
+export function createMockAnthropicMsw(
+  responses: Array<{ content: Array<MockToolUseBlock | MockTextBlock>; stopReason: "end_turn" | "tool_use" }>,
+  anthropicApiUrl = "https://api.anthropic.com",
+) {
+  let callIndex = 0;
+
+  const server = setupMswServer(
+    http.post(`${anthropicApiUrl}/v1/messages`, () => {
+      const idx = callIndex++;
+      if (idx < responses.length) {
+        return HttpResponse.json(
+          buildAnthropicResponse(responses[idx].content, responses[idx].stopReason),
+        );
+      }
+      // Default final response after queue exhausted
+      return HttpResponse.json(
+        buildAnthropicResponse(
+          [{ type: "text", text: "Done processing tool results." }],
+          "end_turn",
+        ),
+      );
+    }),
+  );
+
+  return {
+    server,
+    /** Number of times the Anthropic API was called. */
+    get callCount() { return callIndex; },
+    /** Start intercepting. Call in beforeAll or at test start. */
+    listen: () => server.listen({ onUnhandledRequest: "bypass" }),
+    /** Stop intercepting and clean up. Call in afterAll or at test end. */
+    close: () => { server.close(); callIndex = 0; },
+    /** Reset call count and response queue index. */
+    reset: (newResponses?: typeof responses) => {
+      callIndex = 0;
+      if (newResponses) {
+        responses = newResponses;
+      }
+    },
+  };
 }

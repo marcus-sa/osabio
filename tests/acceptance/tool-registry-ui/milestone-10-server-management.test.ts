@@ -22,6 +22,7 @@ import { describe, expect, it } from "bun:test";
 import {
   setupToolRegistrySuite,
   createTestUserWithMcp,
+  createMockMcpClientFactory,
   listMcpServers,
   getMcpServerDetail,
   removeMcpServer,
@@ -31,7 +32,16 @@ import {
   seedDiscoveredTool,
 } from "./tool-registry-ui-test-kit";
 
-const getRuntime = setupToolRegistrySuite("tool_registry_ui_server_management");
+const mockMcpFactory = createMockMcpClientFactory({
+  tools: [
+    { name: "github.create_issue", description: "Create a GitHub issue", inputSchema: { type: "object", properties: {} } },
+    { name: "github.list_repos", description: "List repositories", inputSchema: { type: "object", properties: {} } },
+  ],
+});
+
+const getRuntime = setupToolRegistrySuite("tool_registry_ui_server_management", {
+  mcpClientFactory: mockMcpFactory,
+});
 
 // ---------------------------------------------------------------------------
 // Happy Path: Server Status Dashboard
@@ -119,8 +129,7 @@ describe("Admin views MCP server status dashboard", () => {
 // ---------------------------------------------------------------------------
 // Re-Sync Flow
 // ---------------------------------------------------------------------------
-// Requires mock MCP server infrastructure (step 03-05)
-describe.skip("Admin re-syncs server tools", () => {
+describe("Admin re-syncs server tools", () => {
   it("re-sync triggers discovery review flow", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-resync-${crypto.randomUUID()}`);
