@@ -1,0 +1,52 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/lahore-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+investigate and fix
+
+Step 01-02 committed. The agent hit an infra issue with acceptance tests (HPE_UNEXPECTED_CONTENT_LENGTH in happy-dom) but completed all phases including COMMIT. The unit tests pass. Let me verify the static-headers module was created correctly, then check if the acceptance test actually passes now.
+This is an infrastructure issue with happy-dom + Better Auth in the test setup, not related to our code changes. Let me check if this affects all acceptance tests.
+This is a pre-existing infrastructure issue affecting ALL acceptance tests (not specific to our changes). The HPE_UNEXPECTED_CONTENT_LENGTH error is in happy-dom’s HTTP client during Better Auth sign-up. Our code changes are correct — unit tests pass, and the implementation follows the design.
+
+Let me document this as an upstream issue and continue with the remaining steps. The unit-level verification confirms correctness.
+Status update: All acceptance tests across the entire project are broken due to a happy-dom/Bun compatibility issue (HPE_UNEXPECTED_CONTENT_LENGTH during Better Auth sign-up). This is NOT caused by our changes.
+
+Options:
+
+Continue implementing with unit test verification only (acceptance tests will work once infra is fixed)
+Pause until the happy-dom issue is resolved
+Investigate the happy-dom issue first
+The implementation for steps 01-01 and 01-02 is committed and unit-tested. Would you like me to continue with the remaining steps (01-03, 01-04, etc.) using unit test verification, or should we address the acceptance test infrastructure first?
+That’s a background task from the subagent that was cleaned up. Waiting for your direction on whether to continue implementing (unit-test verified) or fix the acceptance test infrastructure first.
+More background task cleanup from the subagent. Still waiting for your call — continue implementing or fix acceptance test infra first?
+
+---
+
+can't we use another approach like using buns --config flag and then have 
+[test]
+preload = ["./tests/setup-dom.ts", "./tests/setup-testing-library.ts"]
+
+only be in the config targeted towards client ?
+
+---
+
+add this to AGENTS.md so that all client tests are being run with the correct config flag
+
+---
+
+can we then remove the wrappers in happy dom setup ?
+
+---
+
+Continue from where you left off.
+
+---
+
+nah, lets just commit

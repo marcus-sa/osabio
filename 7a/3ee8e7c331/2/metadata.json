@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7a3ee8e7c331",
+  "session_id": "8db43f2f-c19e-4bba-8ceb-6342062bb363",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T09:35:12.736241Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "AGENTS.md",
+    "bunfig.client.toml",
+    "bunfig.toml",
+    "package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5d99c7f842ee",
+  "token_usage": {
+    "input_tokens": 53,
+    "cache_creation_tokens": 191467,
+    "cache_read_tokens": 1357478,
+    "output_tokens": 5505,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T09:35:12.597639Z",
+    "agent_lines": 10,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 10,
+    "agent_percentage": 100
+  }
+}
