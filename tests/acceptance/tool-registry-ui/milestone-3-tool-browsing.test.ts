@@ -31,7 +31,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_tool_browsing");
 // Happy Path: Tool Listing
 // ---------------------------------------------------------------------------
 describe("Admin browses tools grouped by toolkit", () => {
-  it.skip("returns tools grouped by toolkit with correct counts", async () => {
+  it("returns tools grouped by toolkit with correct counts", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-group-${crypto.randomUUID()}`);
 
@@ -80,7 +80,7 @@ describe("Admin browses tools grouped by toolkit", () => {
     expect(toolkits).toContain("linear");
   }, 60_000);
 
-  it.skip("includes grant count per tool", async () => {
+  it("includes grant count per tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-grants-${crypto.randomUUID()}`);
 
@@ -106,7 +106,7 @@ describe("Admin browses tools grouped by toolkit", () => {
     expect(tool!.grant_count).toBe(2);
   }, 60_000);
 
-  it.skip("includes governance count per tool", async () => {
+  it("includes governance count per tool", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-gov-${crypto.randomUUID()}`);
 
@@ -134,7 +134,7 @@ describe("Admin browses tools grouped by toolkit", () => {
     expect(tool!.governance_count).toBe(1);
   }, 60_000);
 
-  it.skip("returns each tool with complete data shape for UI rendering", async () => {
+  it("returns each tool with complete data shape for UI rendering", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-shape-${crypto.randomUUID()}`);
 
@@ -256,7 +256,7 @@ describe("Admin views tool detail", () => {
 // Error Paths
 // ---------------------------------------------------------------------------
 describe("Tool browsing error paths", () => {
-  it.skip("returns empty list when no tools exist in workspace", async () => {
+  it("returns empty list when no tools exist in workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-empty-${crypto.randomUUID()}`);
 
@@ -278,7 +278,7 @@ describe("Tool browsing error paths", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("only returns tools belonging to the requested workspace", async () => {
+  it("only returns tools belonging to the requested workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin1 = await createTestUserWithMcp(baseUrl, surreal, `ws-iso1-${crypto.randomUUID()}`);
     const admin2 = await createTestUserWithMcp(baseUrl, surreal, `ws-iso2-${crypto.randomUUID()}`);

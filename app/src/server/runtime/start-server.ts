@@ -39,6 +39,7 @@ import { createPolicyRouteHandlers } from "../policy/policy-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createProviderRouteHandlers, createAccountRouteHandlers } from "../tool-registry/routes";
+import { createToolRouteHandlers } from "../tool-registry/tool-routes";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
@@ -117,6 +118,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const providerHandlers = createProviderRouteHandlers(deps);
   const accountHandlers = createAccountRouteHandlers(deps);
+  const toolHandlers = createToolRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -399,6 +401,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "PUT /api/workspaces/:workspaceId/behavior-definitions/:definitionId",
           "PUT",
           (request) => behaviorHandlers.handleUpdateDefinition(request.params.workspaceId, request.params.definitionId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/tools": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/tools",
+          "GET",
+          (request) => toolHandlers.handleListTools(request.params.workspaceId, request),
         ),
       },
       "/api/workspaces/:workspaceId/providers": {

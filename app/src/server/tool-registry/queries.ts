@@ -255,6 +255,56 @@ export async function revokeConnectedAccount(
   return (results[0] ?? [])[0];
 }
 
+// ---------------------------------------------------------------------------
+// Tool Listing Queries
+// ---------------------------------------------------------------------------
+
+/** Row shape returned by listToolsWithCounts. */
+export type ToolWithCountsRow = {
+  readonly id: RecordId<"mcp_tool", string>;
+  readonly name: string;
+  readonly toolkit: string;
+  readonly description: string;
+  readonly risk_level: string;
+  readonly status: string;
+  readonly workspace: RecordId<"workspace", string>;
+  readonly source_server?: RecordId<"mcp_server", string>;
+  readonly grant_count: number;
+  readonly governance_count: number;
+  readonly created_at: Date;
+};
+
+/**
+ * List all tools in a workspace with grant and governance counts.
+ *
+ * Uses SurrealDB subquery counts on can_use (grants) and governs_tool
+ * (governance) relation edges.
+ */
+export async function listToolsWithCounts(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<ToolWithCountsRow[]> {
+  const results = await surreal.query<[ToolWithCountsRow[]]>(
+    `SELECT
+       id,
+       name,
+       toolkit,
+       description,
+       risk_level,
+       status,
+       workspace,
+       source_server,
+       count(SELECT id FROM can_use WHERE out = $parent.id) AS grant_count,
+       count(SELECT id FROM governs_tool WHERE out = $parent.id) AS governance_count,
+       created_at
+     FROM mcp_tool
+     WHERE workspace = $ws
+     ORDER BY toolkit ASC, name ASC;`,
+    { ws: workspaceRecord },
+  );
+  return results[0] ?? [];
+}
+
 /**
  * Fetch rate limit from can_use edge for identity + tool.
  */
