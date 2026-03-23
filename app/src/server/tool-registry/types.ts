@@ -365,6 +365,33 @@ export type DiscoverAuthResponse =
     };
 
 // ---------------------------------------------------------------------------
+// PKCE / Authorization Types (OAuth 2.1 + RFC 8707)
+// ---------------------------------------------------------------------------
+
+/**
+ * PKCE S256 code challenge pair.
+ * codeVerifier: 43-128 chars of unreserved characters.
+ * codeChallenge: BASE64URL(SHA256(codeVerifier)).
+ */
+export type PkceChallenge = {
+  codeVerifier: string;
+  codeChallenge: string;
+};
+
+/**
+ * Parameters for building an OAuth 2.1 authorization URL.
+ */
+export type AuthorizationParams = {
+  authorizationEndpoint: string;
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  state: string;
+  resource: string;
+  scope?: string;
+};
+
+// ---------------------------------------------------------------------------
 // Resolved Tool (extends proxy type with source server)
 // ---------------------------------------------------------------------------
 

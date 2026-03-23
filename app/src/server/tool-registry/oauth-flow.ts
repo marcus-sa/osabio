@@ -8,7 +8,7 @@
  * ADR-066, ADR-068.
  */
 
-import type { CredentialProviderRecord } from "./types";
+import type { CredentialProviderRecord, PkceChallenge, AuthorizationParams } from "./types";
 
 // ---------------------------------------------------------------------------
 // State Store -- in-memory map keyed by state parameter
@@ -49,18 +49,89 @@ export function consumeOAuthState(state: string): OAuthStateEntry | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Authorization URL Builder
+// PKCE S256 Generation
 // ---------------------------------------------------------------------------
 
 /**
- * Build the OAuth2 authorization URL for a provider.
- * Returns the full URL with client_id, redirect_uri, scopes, state, and response_type=code.
+ * Generate a PKCE code_verifier and code_challenge (S256).
+ * Uses Web Crypto API (available in Bun natively).
+ *
+ * code_verifier: 64 characters from unreserved set [A-Za-z0-9-._~]
+ * code_challenge: BASE64URL(SHA256(code_verifier))
  */
+export async function generatePkce(): Promise<PkceChallenge> {
+  const codeVerifier = generateCodeVerifier(64);
+  const codeChallenge = await computeS256Challenge(codeVerifier);
+  return { codeVerifier, codeChallenge };
+}
+
+/** Generate a random code_verifier of specified length using unreserved characters. */
+function generateCodeVerifier(length: number): string {
+  // RFC 7636 unreserved characters
+  const unreservedChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const randomBytes = crypto.getRandomValues(new Uint8Array(length));
+  let verifier = "";
+  for (const byte of randomBytes) {
+    verifier += unreservedChars[byte % unreservedChars.length];
+  }
+  return verifier;
+}
+
+/** Compute BASE64URL(SHA256(verifier)) with no padding. */
+async function computeS256Challenge(verifier: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(verifier));
+  return base64UrlEncode(digest);
+}
+
+/** Base64url encode an ArrayBuffer (no padding). */
+function base64UrlEncode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// ---------------------------------------------------------------------------
+// PKCE-Aware Authorization URL Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an OAuth 2.1 authorization URL with PKCE S256 and resource parameter (RFC 8707).
+ * Pure function -- all inputs explicit, no side effects.
+ */
+export function buildAuthorizationUrl(params: AuthorizationParams): string;
 export function buildAuthorizationUrl(
   provider: CredentialProviderRecord,
   redirectUri: string,
   state: string,
+): string;
+export function buildAuthorizationUrl(
+  paramsOrProvider: AuthorizationParams | CredentialProviderRecord,
+  redirectUri?: string,
+  state?: string,
 ): string {
+  // Overload: AuthorizationParams (new PKCE-aware version)
+  if ("authorizationEndpoint" in paramsOrProvider) {
+    const params = paramsOrProvider;
+    const url = new URL(params.authorizationEndpoint);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("client_id", params.clientId);
+    url.searchParams.set("redirect_uri", params.redirectUri);
+    url.searchParams.set("code_challenge", params.codeChallenge);
+    url.searchParams.set("code_challenge_method", "S256");
+    url.searchParams.set("state", params.state);
+    url.searchParams.set("resource", params.resource);
+    if (params.scope) {
+      url.searchParams.set("scope", params.scope);
+    }
+    return url.toString();
+  }
+
+  // Overload: legacy provider-based version
+  const provider = paramsOrProvider;
   if (!provider.authorization_url) {
     throw new Error("Provider missing authorization_url for OAuth2 flow");
   }
@@ -70,9 +141,9 @@ export function buildAuthorizationUrl(
 
   const url = new URL(provider.authorization_url);
   url.searchParams.set("client_id", provider.client_id);
-  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("redirect_uri", redirectUri!);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("state", state);
+  url.searchParams.set("state", state!);
 
   if (provider.scopes && provider.scopes.length > 0) {
     url.searchParams.set("scope", provider.scopes.join(" "));

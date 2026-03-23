@@ -1379,6 +1379,8 @@ DEFINE FIELD last_error ON mcp_server TYPE option<string>;
 DEFINE FIELD server_info ON mcp_server TYPE option<object> FLEXIBLE;
 DEFINE FIELD capabilities ON mcp_server TYPE option<object> FLEXIBLE;
 DEFINE FIELD last_discovery ON mcp_server TYPE option<datetime>;
+DEFINE FIELD pending_pkce_verifier ON mcp_server TYPE option<string>;
+DEFINE FIELD pending_oauth_state ON mcp_server TYPE option<string>;
 DEFINE FIELD tool_count ON mcp_server TYPE int DEFAULT 0;
 DEFINE FIELD created_at ON mcp_server TYPE datetime DEFAULT time::now();
 DEFINE INDEX idx_mcp_server_workspace ON mcp_server FIELDS workspace;

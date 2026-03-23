@@ -26,12 +26,14 @@ import {
   updateMcpServerHeaders,
   clearMcpServerHeaders,
   updateMcpServerProvider,
+  storePendingOAuthState,
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById, createProvider } from "./queries";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
-import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse } from "./types";
+import { generatePkce, buildAuthorizationUrl } from "./oauth-flow";
+import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse, AuthorizationParams } from "./types";
 import { encryptHeaders, validateHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
 
@@ -529,6 +531,71 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
   }
 
+  async function handleAuthorize(
+    workspaceId: string,
+    serverId: string,
+    _request: Request,
+  ): Promise<Response> {
+    const resolved = await resolveServer(workspaceId, serverId);
+    if ("error" in resolved) return resolved.error;
+
+    const server = resolved.server;
+
+    // Server must have a linked credential_provider (from discover-auth)
+    if (!server.provider) {
+      return jsonError("MCP server has no linked credential provider. Run discover-auth first.", 400);
+    }
+
+    const provider = await getProviderById(deps.surreal, server.provider.id as string);
+    if (!provider) {
+      return jsonError("Linked credential provider not found", 404);
+    }
+
+    const providerRecord = provider as unknown as {
+      authorization_url?: string;
+      client_id?: string;
+      scopes?: string[];
+    };
+
+    if (!providerRecord.authorization_url) {
+      return jsonError("Provider missing authorization_url", 400);
+    }
+
+    // Generate PKCE pair and random state
+    const pkce = await generatePkce();
+    const state = crypto.randomUUID();
+
+    // Store pending state on the mcp_server record (no module-level singletons)
+    await storePendingOAuthState(
+      deps.surreal,
+      server.id,
+      pkce.codeVerifier,
+      state,
+    );
+
+    // Build the redirect_uri (Brain's OAuth callback)
+    const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
+    const redirectUri = `${brainBaseUrl}/oauth/callback`;
+
+    // Use client_id from provider, or fall back to Brain's base URL
+    const clientId = providerRecord.client_id ?? brainBaseUrl;
+
+    // Build authorization URL with PKCE and resource parameter
+    const authorizationParams: AuthorizationParams = {
+      authorizationEndpoint: providerRecord.authorization_url,
+      clientId,
+      redirectUri,
+      codeChallenge: pkce.codeChallenge,
+      state,
+      resource: server.url,
+      scope: providerRecord.scopes?.join(" "),
+    };
+
+    const redirectUrl = buildAuthorizationUrl(authorizationParams);
+
+    return jsonResponse({ redirect_url: redirectUrl, state }, 200);
+  }
+
   return {
     handleCreateServer,
     handleListServers,
@@ -536,6 +603,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     handleDeleteServer,
     handleDiscover,
     handleDiscoverAuth,
+    handleAuthorize,
     handleSync,
     handleUpdateHeaders,
   };

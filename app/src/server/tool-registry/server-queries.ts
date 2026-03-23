@@ -204,3 +204,19 @@ export async function deleteMcpServer(
 
   return true;
 }
+
+/**
+ * Store pending PKCE verifier and OAuth state on an mcp_server record.
+ * These are ephemeral -- cleared after token exchange.
+ */
+export async function storePendingOAuthState(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  codeVerifier: string,
+  state: string,
+): Promise<void> {
+  await surreal.query(
+    `UPDATE $server SET pending_pkce_verifier = $verifier, pending_oauth_state = $state;`,
+    { server: serverRecord, verifier: codeVerifier, state },
+  );
+}

@@ -31,15 +31,86 @@ const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_flow");
 // Milestone 3: OAuth 2.1 Authorization Flow
 // ---------------------------------------------------------------------------
 describe("Generate authorization URL with PKCE S256", () => {
-  it.skip("returns authorization URL with code_challenge and state", async () => {
-    // Given MCP server with discovered OAuth config
-    // When admin initiates authorization via POST /mcp-servers/:id/authorize
-    // Then response includes:
-    //   - redirect_url with authorization_endpoint
-    //   - code_challenge_method=S256
-    //   - state parameter
-    //   - resource parameter (MCP server canonical URI, RFC 8707)
-    //   - scope parameter
+  it("returns authorization URL with code_challenge and state", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-auth-${crypto.randomUUID()}`);
+
+    // Given: MCP server registered
+    const mcpServerUrl = "https://mcp.example.com";
+    const authServerUrl = "https://auth.example.com";
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Register an MCP server
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-oauth-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // Discover OAuth config (creates credential_provider linked to server)
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+      const discoverBody = (await discoverRes.json()) as {
+        discovered: boolean;
+        authorization_endpoint?: string;
+        scopes_supported?: string[];
+      };
+      expect(discoverBody.discovered).toBe(true);
+
+      // When: Initiate authorization
+      const authorizeRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/authorize`,
+        { body: {} },
+      );
+      expect(authorizeRes.status).toBe(200);
+      const authorizeBody = (await authorizeRes.json()) as {
+        redirect_url: string;
+        state: string;
+      };
+
+      // Then: Response includes redirect_url and state
+      expect(authorizeBody.state).toBeDefined();
+      expect(typeof authorizeBody.state).toBe("string");
+      expect(authorizeBody.state.length).toBeGreaterThan(0);
+
+      expect(authorizeBody.redirect_url).toBeDefined();
+      const redirectUrl = new URL(authorizeBody.redirect_url);
+
+      // redirect_url points to the authorization_endpoint
+      expect(redirectUrl.origin + redirectUrl.pathname).toBe(`${authServerUrl}/authorize`);
+
+      // Contains code_challenge_method=S256
+      expect(redirectUrl.searchParams.get("code_challenge_method")).toBe("S256");
+
+      // Contains a code_challenge (base64url, no padding)
+      const codeChallenge = redirectUrl.searchParams.get("code_challenge");
+      expect(codeChallenge).toBeDefined();
+      expect(codeChallenge!.length).toBeGreaterThan(0);
+      // Base64url: only [A-Za-z0-9_-], no padding =
+      expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/);
+
+      // Contains state matching the response body
+      expect(redirectUrl.searchParams.get("state")).toBe(authorizeBody.state);
+
+      // Contains resource parameter (RFC 8707) matching the MCP server URI
+      expect(redirectUrl.searchParams.get("resource")).toBe(mcpServerUrl);
+
+      // Contains scope parameter
+      const scope = redirectUrl.searchParams.get("scope");
+      expect(scope).toBeDefined();
+      expect(scope!.length).toBeGreaterThan(0);
+
+      // Contains response_type=code
+      expect(redirectUrl.searchParams.get("response_type")).toBe("code");
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 
