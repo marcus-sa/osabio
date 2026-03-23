@@ -40,6 +40,7 @@ import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createProviderRouteHandlers, createAccountRouteHandlers } from "../tool-registry/routes";
 import { createToolRouteHandlers } from "../tool-registry/tool-routes";
+import { createGrantRouteHandlers } from "../tool-registry/grant-routes";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
@@ -119,6 +120,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const providerHandlers = createProviderRouteHandlers(deps);
   const accountHandlers = createAccountRouteHandlers(deps);
   const toolHandlers = createToolRouteHandlers(deps);
+  const grantHandlers = createGrantRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -415,6 +417,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "GET /api/workspaces/:workspaceId/tools/:toolId",
           "GET",
           (request) => toolHandlers.handleGetToolDetail(request.params.workspaceId, request.params.toolId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/tools/:toolId/grants": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/tools/:toolId/grants",
+          "POST",
+          (request) => grantHandlers.handleCreateGrant(request.params.workspaceId, request.params.toolId, request),
+        ),
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/tools/:toolId/grants",
+          "GET",
+          (request) => grantHandlers.handleListGrants(request.params.workspaceId, request.params.toolId, request),
         ),
       },
       "/api/workspaces/:workspaceId/providers": {

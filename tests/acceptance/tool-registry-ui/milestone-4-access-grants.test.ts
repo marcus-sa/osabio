@@ -30,7 +30,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_access_grants");
 // Happy Path: Grant Creation
 // ---------------------------------------------------------------------------
 describe("Admin grants tool access to identities", () => {
-  it.skip("grants access with rate limit and sees grant in list", async () => {
+  it("grants access with rate limit and sees grant in list", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-grant-${crypto.randomUUID()}`);
 

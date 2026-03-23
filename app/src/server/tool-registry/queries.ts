@@ -378,6 +378,88 @@ export async function getToolDetail(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Grant Management Queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a can_use grant already exists between identity and tool.
+ */
+export async function grantExists(
+  surreal: Surreal,
+  identityRecord: RecordId<"identity", string>,
+  toolRecord: RecordId<"mcp_tool", string>,
+): Promise<boolean> {
+  const results = await surreal.query<[Array<{ id: RecordId }>]>(
+    `SELECT id FROM can_use WHERE in = $identity AND out = $tool LIMIT 1;`,
+    { identity: identityRecord, tool: toolRecord },
+  );
+  return (results[0] ?? []).length > 0;
+}
+
+/**
+ * Check if an identity record exists.
+ */
+export async function identityExists(
+  surreal: Surreal,
+  identityRecord: RecordId<"identity", string>,
+): Promise<boolean> {
+  const results = await surreal.query<[Array<{ id: RecordId }>]>(
+    `SELECT id FROM $identity;`,
+    { identity: identityRecord },
+  );
+  return (results[0] ?? []).length > 0;
+}
+
+/**
+ * Check if an mcp_tool record exists in the given workspace.
+ */
+export async function toolExistsInWorkspace(
+  surreal: Surreal,
+  toolRecord: RecordId<"mcp_tool", string>,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<boolean> {
+  const results = await surreal.query<[Array<{ id: RecordId }>]>(
+    `SELECT id FROM $tool WHERE workspace = $ws LIMIT 1;`,
+    { tool: toolRecord, ws: workspaceRecord },
+  );
+  return (results[0] ?? []).length > 0;
+}
+
+/**
+ * Create a can_use grant edge between identity and tool.
+ * Uses RELATE for TYPE RELATION tables (per surrealdb.md).
+ */
+export async function createGrant(
+  surreal: Surreal,
+  identityRecord: RecordId<"identity", string>,
+  toolRecord: RecordId<"mcp_tool", string>,
+  maxCallsPerHour?: number,
+): Promise<void> {
+  const setClause = maxCallsPerHour !== undefined
+    ? `SET granted_at = time::now(), max_calls_per_hour = $maxCallsPerHour`
+    : `SET granted_at = time::now()`;
+
+  await surreal.query(
+    `RELATE $identity->can_use->$tool ${setClause};`,
+    { identity: identityRecord, tool: toolRecord, maxCallsPerHour },
+  );
+}
+
+/**
+ * List all grants (can_use edges) for a tool, with identity details.
+ */
+export async function listGrantsForTool(
+  surreal: Surreal,
+  toolRecord: RecordId<"mcp_tool", string>,
+): Promise<GrantDetailRow[]> {
+  const results = await surreal.query<[GrantDetailRow[]]>(
+    `SELECT in.id AS identity_id, in.name AS identity_name, max_calls_per_hour, granted_at FROM can_use WHERE out = $tool ORDER BY granted_at DESC;`,
+    { tool: toolRecord },
+  );
+  return results[0] ?? [];
+}
+
 /**
  * Fetch rate limit from can_use edge for identity + tool.
  */
