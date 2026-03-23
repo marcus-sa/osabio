@@ -297,10 +297,13 @@ export async function updateMcpServerStatus(
   surreal: Surreal,
   serverRecord: RecordId<"mcp_server", string>,
   lastStatus: string,
+  lastError?: string,
 ): Promise<void> {
   await surreal.query(
-    `UPDATE $server SET last_status = $status;`,
-    { server: serverRecord, status: lastStatus },
+    lastError
+      ? `UPDATE $server SET last_status = $status, last_error = $error;`
+      : `UPDATE $server SET last_status = $status, last_error = NONE;`,
+    { server: serverRecord, status: lastStatus, ...(lastError ? { error: lastError } : {}) },
   );
 }
 

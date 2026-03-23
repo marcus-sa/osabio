@@ -178,6 +178,7 @@ export function deriveMcpServerRowViewModel(
     authStatusLabel: deriveAuthStatusLabel(server),
     toolCountDisplay: formatToolCount(server.tool_count),
     lastDiscoveryDisplay: formatRelativeTime(server.created_at),
+    ...(server.last_error ? { lastError: server.last_error } : {}),
     hasDiscoverAction: true,
     hasSyncAction: true,
     showAuthorizeAction: showAuthorize,
@@ -676,8 +677,8 @@ type McpServerSectionProps = {
   providers: ProviderListItem[];
   onAddServer: (formData: AddMcpServerFormData) => Promise<{ error?: string }>;
   onRemoveServer: (serverId: string) => void;
-  onDiscover: (serverId: string) => void;
-  onSync: (serverId: string) => void;
+  onDiscover: (serverId: string) => Promise<{ error?: string }>;
+  onSync: (serverId: string) => Promise<{ error?: string }>;
   onAuthorize: (serverId: string) => void;
 };
 
@@ -694,6 +695,31 @@ export function McpServerSection({
   const vm = deriveMcpServerSectionViewModel({ servers, existingNames });
   const [removeTarget, setRemoveTarget] = useState<McpServerRowViewModel | undefined>();
   const [isOpen, setIsOpen] = useState(true);
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
+
+  const clearError = useCallback((serverId: string) => {
+    setActionErrors((prev) => {
+      const next = { ...prev };
+      delete next[serverId];
+      return next;
+    });
+  }, []);
+
+  const handleDiscover = useCallback(async (serverId: string) => {
+    clearError(serverId);
+    const result = await onDiscover(serverId);
+    if (result.error) {
+      setActionErrors((prev) => ({ ...prev, [serverId]: result.error! }));
+    }
+  }, [onDiscover, clearError]);
+
+  const handleSync = useCallback(async (serverId: string) => {
+    clearError(serverId);
+    const result = await onSync(serverId);
+    if (result.error) {
+      setActionErrors((prev) => ({ ...prev, [serverId]: result.error! }));
+    }
+  }, [onSync, clearError]);
 
   const handleRemoveClick = useCallback((row: McpServerRowViewModel) => {
     setRemoveTarget(row);
@@ -759,38 +785,45 @@ export function McpServerSection({
                     <td className="px-3 py-2 text-muted-foreground">
                       {row.lastDiscoveryDisplay}
                     </td>
-                    <td className="flex gap-1 px-3 py-2">
-                      {row.showAuthorizeAction && (
+                    <td className="px-3 py-2">
+                      <div className="flex gap-1">
+                        {row.showAuthorizeAction && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => onAuthorize(row.id)}
+                          >
+                            Re-authorize
+                          </Button>
+                        )}
                         <Button
-                          variant="default"
+                          variant="outline"
                           size="sm"
-                          onClick={() => onAuthorize(row.id)}
+                          onClick={() => handleDiscover(row.id)}
                         >
-                          Re-authorize
+                          Discover
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSync(row.id)}
+                        >
+                          Sync
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => handleRemoveClick(row)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      {(actionErrors[row.id] ?? row.lastError) && (
+                        <p className="mt-1 text-xs text-destructive">
+                          {actionErrors[row.id] ?? row.lastError}
+                        </p>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onDiscover(row.id)}
-                      >
-                        Discover
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onSync(row.id)}
-                      >
-                        Sync
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => handleRemoveClick(row)}
-                      >
-                        Remove
-                      </Button>
                     </td>
                   </tr>
                 );

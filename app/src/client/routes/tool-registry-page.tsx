@@ -203,32 +203,42 @@ export function ToolRegistryPage() {
   );
 
   const handleDiscoverTools = useCallback(
-    async (serverId: string) => {
+    async (serverId: string): Promise<{ error?: string }> => {
       try {
-        await fetch(
+        const response = await fetch(
           `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/discover`,
           { method: "POST" },
         );
         refreshMcpServers();
         refreshTools();
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({})) as { error?: string };
+          return { error: body.error ?? "Discovery failed" };
+        }
+        return {};
       } catch {
-        // silently fail
+        return { error: "Network error" };
       }
     },
     [workspaceId, refreshMcpServers, refreshTools],
   );
 
   const handleSyncTools = useCallback(
-    async (serverId: string) => {
+    async (serverId: string): Promise<{ error?: string }> => {
       try {
-        await fetch(
+        const response = await fetch(
           `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/sync`,
           { method: "POST" },
         );
         refreshMcpServers();
         refreshTools();
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({})) as { error?: string };
+          return { error: body.error ?? "Sync failed" };
+        }
+        return {};
       } catch {
-        // silently fail
+        return { error: "Network error" };
       }
     },
     [workspaceId, refreshMcpServers, refreshTools],

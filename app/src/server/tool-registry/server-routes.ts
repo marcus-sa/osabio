@@ -32,6 +32,7 @@ import {
   updateMcpServerOAuthAccount,
   findWorkspaceOwnerIdentity,
   getMcpServerAuthStatus,
+  updateMcpServerStatus,
   type McpServerRow,
 } from "./server-queries";
 import {
@@ -253,6 +254,9 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       if (authResult?.authorizationUrl) {
         response.authorization_url = authResult.authorizationUrl;
       }
+    } else {
+      // Non-OAuth servers can sync tools immediately after creation
+      triggerAutoSync(row as unknown as McpServerRecord);
     }
 
     return jsonResponse(response, 201);
@@ -315,10 +319,12 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Track client_id: from existing provider or dynamic registration
       let clientId: string | undefined = existingProvider?.client_id;
 
+      const wsId = workspaceRecord.id as string;
+
       // Dynamic client registration (RFC 7591) — only for newly created providers
       if (config.registrationEndpoint && !existingProvider) {
         try {
-          const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+          const redirectUri = `${deps.config.baseUrl}/api/workspaces/${wsId}/mcp-servers/oauth/callback`;
           const registrationResult = await registerDynamicClient(
             config.registrationEndpoint,
             {
@@ -369,7 +375,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
       await storePendingOAuthState(deps.surreal, server.id, pkce.codeVerifier, state);
 
-      const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+      const redirectUri = `${deps.config.baseUrl}/api/workspaces/${wsId}/mcp-servers/oauth/callback`;
       const scopes = existingProvider?.scopes ?? config.scopesSupported;
 
       const authorizationParams: AuthorizationParams = {
@@ -511,11 +517,10 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
       return jsonResponse(result, 200);
     } catch (error) {
+      const message = `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`;
       log.error("mcp-server.discover", "Discovery failed", error, { serverId });
-      return jsonError(
-        `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`,
-        502,
-      );
+      await updateMcpServerStatus(deps.surreal, server.id, "error", message).catch(() => undefined);
+      return jsonError(message, 502);
     }
   }
 
@@ -544,13 +549,13 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         { dryRun: false, selectedTools },
       );
 
+      await updateMcpServerStatus(deps.surreal, server.id, "ok").catch(() => undefined);
       return jsonResponse(result, 200);
     } catch (error) {
+      const message = `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`;
       log.error("mcp-server.sync", "Sync failed", error, { serverId });
-      return jsonError(
-        `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`,
-        502,
-      );
+      await updateMcpServerStatus(deps.surreal, server.id, "error", message).catch(() => undefined);
+      return jsonError(message, 502);
     }
   }
 
@@ -681,7 +686,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Dynamic client registration (RFC 7591) — only for newly created providers
       if (config.registrationEndpoint && !existingProvider) {
         try {
-          const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+          const redirectUri = `${deps.config.baseUrl}/api/workspaces/${workspaceId}/mcp-servers/oauth/callback`;
 
           const registrationResult = await registerDynamicClient(
             config.registrationEndpoint,
@@ -781,7 +786,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     );
 
     // Build the redirect_uri (Brain's OAuth callback)
-    const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+    const redirectUri = `${deps.config.baseUrl}/api/workspaces/${workspaceId}/mcp-servers/oauth/callback`;
 
     const clientId = providerRecord.client_id;
     if (!clientId) {
@@ -878,14 +883,14 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
 
     // Build redirect_uri (must match the one used during authorize)
-    const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+    const redirectUri = `${deps.config.baseUrl}/api/workspaces/${workspaceId}/mcp-servers/oauth/callback`;
 
     const clientId = providerRecord.client_id;
     if (!clientId) {
       const msg = "Provider has no client_id configured";
       if (request.method === "GET") {
         return Response.redirect(
-          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=error`,
+          `${deps.config.baseUrl}/tools?tab=servers&oauth=error`,
           302,
         );
       }
@@ -935,14 +940,18 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         }
       }
 
-      // Clear pending PKCE state from the server record
+      // Clear pending PKCE state and mark server as authenticated
       await clearPendingOAuthState(deps.surreal, server.id);
+      await updateMcpServerStatus(deps.surreal, server.id, "ok");
+
+      // Auto-sync tools now that OAuth is complete
+      triggerAutoSync(server as unknown as McpServerRecord);
 
       // GET = browser redirect from OAuth provider → redirect back to UI
       // POST = programmatic call → return JSON
       if (request.method === "GET") {
         return Response.redirect(
-          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=success`,
+          `${deps.config.baseUrl}/tools?tab=servers&oauth=success`,
           302,
         );
       }
@@ -951,7 +960,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       log.error("mcp-server.oauth-callback", "Token exchange failed", error, { workspaceId });
       if (request.method === "GET") {
         return Response.redirect(
-          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=error`,
+          `${deps.config.baseUrl}/tools?tab=servers&oauth=error`,
           302,
         );
       }
@@ -986,6 +995,26 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
 
     return jsonResponse(result, 200);
+  }
+
+  /**
+   * Fire-and-forget tool sync after server creation or successful OAuth.
+   * Errors are logged but never surface to the caller.
+   */
+  function triggerAutoSync(server: McpServerRecord): void {
+    const work = discoverTools(
+      { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory, toolEncryptionKey: deps.config.toolEncryptionKey },
+      server,
+      { dryRun: false },
+    ).then(() => {
+      updateMcpServerStatus(deps.surreal, server.id, "ok").catch(() => undefined);
+    }).catch((error) => {
+      log.error("mcp-server.auto-sync", "Auto-sync failed", error, {
+        serverId: server.id.id as string,
+      });
+    });
+
+    deps.inflight.track(work);
   }
 
   return {
