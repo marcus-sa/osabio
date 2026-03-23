@@ -24,6 +24,7 @@ import {
   getMcpServerById,
   deleteMcpServer,
   updateMcpServerHeaders,
+  clearMcpServerHeaders,
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById } from "./queries";
@@ -397,8 +398,25 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       return jsonError("invalid JSON body", 400);
     }
 
-    if (!Array.isArray(body.headers) || body.headers.length === 0) {
-      return jsonError("headers array is required and must not be empty", 400);
+    if (!Array.isArray(body.headers)) {
+      return jsonError("headers array is required", 400);
+    }
+
+    const serverRecord = new RecordId("mcp_server", serverId);
+
+    // Empty headers array = clear all headers and reset auth_mode to "none"
+    if (body.headers.length === 0) {
+      const clearedRow = await clearMcpServerHeaders(
+        deps.surreal,
+        serverRecord,
+        workspaceRecord,
+      );
+
+      if (!clearedRow) {
+        return jsonError("MCP server not found", 404);
+      }
+
+      return jsonResponse(toMcpServerResponse(clearedRow), 200);
     }
 
     // Validate each header entry
@@ -419,7 +437,6 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       encryptionKey,
     );
 
-    const serverRecord = new RecordId("mcp_server", serverId);
     const updatedRow = await updateMcpServerHeaders(
       deps.surreal,
       serverRecord,

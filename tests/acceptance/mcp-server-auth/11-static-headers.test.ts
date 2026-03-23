@@ -322,10 +322,60 @@ describe("Update static headers", () => {
 });
 
 describe("Remove all static headers", () => {
-  it.skip("switching auth_mode to none clears stored headers", async () => {
-    // Given MCP server with static headers
-    // When admin updates auth_mode to "none"
-    // Then static_headers field is cleared from DB
+  it("switching auth_mode to none clears stored headers", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-rm-${crypto.randomUUID()}`);
+
+    // Given an MCP server with static headers
+    const createResponse = await user.mcpFetch(
+      `/api/workspaces/${user.workspaceId}/mcp-servers`,
+      {
+        method: "POST",
+        body: {
+          name: `remove-test-${crypto.randomUUID().slice(0, 8)}`,
+          url: "https://mcp.example.com",
+          transport: "streamable-http",
+          auth_mode: "static_headers",
+          static_headers: [
+            { name: "Authorization", value: "Bearer token_to_remove" },
+          ],
+        },
+      },
+    );
+    expect(createResponse.status).toBe(201);
+    const { id: serverId } = await createResponse.json() as { id: string };
+
+    // Verify headers exist in DB before clearing
+    const beforeRecord = await getMcpServer(surreal, serverId);
+    expect(beforeRecord).toBeDefined();
+    const beforeHeaders = beforeRecord!.static_headers as Array<{ name: string; value_encrypted: string }>;
+    expect(beforeHeaders).toHaveLength(1);
+
+    // When admin PUTs empty headers array to clear all headers
+    const clearResponse = await user.mcpFetch(
+      `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/headers`,
+      {
+        method: "PUT",
+        body: {
+          headers: [],
+        },
+      },
+    );
+
+    // Then the update succeeds
+    expect(clearResponse.status).toBe(200);
+    const clearBody = await clearResponse.json() as { id: string; auth_mode: string; has_static_headers: boolean };
+    expect(clearBody.has_static_headers).toBe(false);
+    expect(clearBody.auth_mode).toBe("none");
+
+    // And the DB record has static_headers cleared and auth_mode set to "none"
+    const afterRecord = await getMcpServer(surreal, serverId);
+    expect(afterRecord).toBeDefined();
+    expect(afterRecord!.auth_mode).toBe("none");
+    // static_headers should be NONE/undefined or empty
+    const afterHeaders = afterRecord!.static_headers;
+    const headersCleared = !afterHeaders || (Array.isArray(afterHeaders) && afterHeaders.length === 0);
+    expect(headersCleared).toBe(true);
   }, 30_000);
 });
 
