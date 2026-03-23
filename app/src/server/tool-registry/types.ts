@@ -42,6 +42,7 @@ export type CredentialProviderRecord = {
   client_secret_encrypted?: string;
   scopes?: string[];
   api_key_header?: string;
+  discovery_source?: string;
   created_at: Date;
 };
 
@@ -356,6 +357,7 @@ export type DiscoverAuthResponse =
       token_endpoint: string;
       scopes_supported?: string[];
       supports_dynamic_registration: boolean;
+      provider_id?: string;
     }
   | {
       discovered: false;

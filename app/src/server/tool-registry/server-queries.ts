@@ -167,6 +167,20 @@ export async function clearMcpServerHeaders(
 }
 
 /**
+ * Link an mcp_server to a credential_provider and set auth_mode to "oauth".
+ */
+export async function updateMcpServerProvider(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  providerRecord: RecordId<"credential_provider", string>,
+): Promise<void> {
+  await surreal.query(
+    `UPDATE $server SET provider = $provider, auth_mode = "oauth";`,
+    { server: serverRecord, provider: providerRecord },
+  );
+}
+
+/**
  * Delete an mcp_server and disable all tools linked via source_server.
  * Returns true if the server existed and was deleted.
  */

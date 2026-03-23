@@ -25,9 +25,10 @@ import {
   deleteMcpServer,
   updateMcpServerHeaders,
   clearMcpServerHeaders,
+  updateMcpServerProvider,
   type McpServerRow,
 } from "./server-queries";
-import { getProviderById } from "./queries";
+import { getProviderById, createProvider } from "./queries";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
 import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse } from "./types";
@@ -485,6 +486,29 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         return jsonResponse(response, 200);
       }
 
+      // Auto-create credential_provider from discovery
+      const authServerHostname = new URL(config.authServerUrl).hostname;
+      const providerRecord = await createProvider(
+        deps.surreal,
+        server.workspace,
+        {
+          name: authServerHostname,
+          display_name: authServerHostname,
+          auth_method: "oauth2",
+          authorization_url: config.authorizationEndpoint,
+          token_url: config.tokenEndpoint,
+          discovery_source: server.url,
+          ...(config.scopesSupported ? { scopes: config.scopesSupported } : {}),
+        },
+      );
+
+      // Link mcp_server to the new provider
+      await updateMcpServerProvider(
+        deps.surreal,
+        server.id,
+        providerRecord.id,
+      );
+
       const response: DiscoverAuthResponse = {
         discovered: true,
         auth_server: config.authServerUrl,
@@ -492,6 +516,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         token_endpoint: config.tokenEndpoint,
         scopes_supported: config.scopesSupported,
         supports_dynamic_registration: config.registrationEndpoint !== undefined,
+        provider_id: providerRecord.id.id as string,
       };
 
       return jsonResponse(response, 200);

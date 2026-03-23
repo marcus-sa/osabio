@@ -16,6 +16,7 @@
  *   5. Auto-created credential_provider from discovery             [@skip]
  */
 import { describe, expect, it, afterAll, beforeAll } from "bun:test";
+import { RecordId } from "surrealdb";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
@@ -309,12 +310,73 @@ describe("Discovery fails gracefully", () => {
 });
 
 describe("Auto-created credential_provider from discovery", () => {
-  it.skip("creates a credential_provider with discovery_source set", async () => {
-    // Given successful OAuth discovery for "https://mcp.example.com"
-    // When discovery completes
-    // Then a credential_provider record exists with:
-    //   - discovery_source = "https://mcp.example.com"
-    //   - authorization_url = discovered authorization_endpoint
-    //   - token_url = discovered token_endpoint
+  it("creates a credential_provider with discovery_source set", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-auto-prov-${crypto.randomUUID()}`);
+
+    // Given MSW mock MCP server with Protected Resource Metadata
+    const mcpServerUrl = "https://mcp-auto-provider.example.com";
+    const authServerUrl = "https://auth-auto-provider.example.com";
+
+    const { msw } = setupMockMcpServer({
+      mcpServerUrl,
+      authServerUrl,
+      scopesSupported: ["tools:read", "tools:execute"],
+    });
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // And an MCP server record exists
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: "auto-provider-test",
+            url: mcpServerUrl,
+            transport: "streamable-http",
+            auth_mode: "oauth",
+          },
+        },
+      );
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // When admin triggers OAuth discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { method: "POST" },
+      );
+
+      // Then discovery succeeds
+      expect(discoverResponse.status).toBe(200);
+      const body = await discoverResponse.json() as Record<string, unknown>;
+      expect(body.discovered).toBe(true);
+      expect(body.provider_id).toBeDefined();
+
+      // And a credential_provider record exists with discovery_source set
+      const providerRecord = new RecordId("credential_provider", body.provider_id as string);
+      const [providerRows] = await surreal.query<[Array<Record<string, unknown>>]>(
+        "SELECT * FROM $provider;",
+        { provider: providerRecord },
+      );
+      const provider = providerRows[0];
+      expect(provider).toBeDefined();
+      expect(provider.discovery_source).toBe(mcpServerUrl);
+      expect(provider.authorization_url).toBe(`${authServerUrl}/authorize`);
+      expect(provider.token_url).toBe(`${authServerUrl}/token`);
+      expect(provider.auth_method).toBe("oauth2");
+
+      // And the MCP server is linked to the provider with auth_mode = "oauth"
+      const serverRecord = new RecordId("mcp_server", serverId);
+      const [serverRows] = await surreal.query<[Array<Record<string, unknown>>]>(
+        "SELECT * FROM $server;",
+        { server: serverRecord },
+      );
+      const server = serverRows[0];
+      expect(server.auth_mode).toBe("oauth");
+      expect(server.provider).toBeDefined();
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
