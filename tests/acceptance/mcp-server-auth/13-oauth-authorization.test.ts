@@ -390,12 +390,167 @@ describe("Token refresh on expiry", () => {
 });
 
 describe("Refresh failure surfaces auth_error status", () => {
-  it.skip("sets last_status to auth_error when refresh fails", async () => {
-    // Given MCP server with expired access_token and expired refresh_token
-    // When credential resolver attempts refresh
-    // Then token_endpoint returns error
-    // And MCP server last_status is set to "auth_error"
-    // And GET /mcp-servers/:id/auth-status returns "expired"
+  it("sets last_status to auth_error when refresh fails", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-authfail-${crypto.randomUUID()}`);
+
+    // Given: MSW mock auth server -- token endpoint will accept initial auth_code
+    // but reject refresh_token requests (simulating expired refresh token)
+    const mcpServerUrl = "https://mcp-authfail.example.com";
+    const authServerUrl = "https://auth-authfail.example.com";
+    const scopesSupported = ["read", "write"];
+
+    // We need a custom MSW setup: initial token exchange succeeds, but refresh fails
+    const { http, HttpResponse } = await import("msw");
+    const { setupServer: setupMswServer } = await import("msw/node");
+
+    let refreshAttempted = false;
+    const handlers = [
+      // Protected Resource Metadata
+      http.get(`${mcpServerUrl}/.well-known/oauth-protected-resource`, () => {
+        return HttpResponse.json({
+          resource: mcpServerUrl,
+          authorization_servers: [authServerUrl],
+          scopes_supported: scopesSupported,
+          bearer_methods_supported: ["header"],
+        });
+      }),
+      // Auth Server Metadata
+      http.get(`${authServerUrl}/.well-known/oauth-authorization-server`, () => {
+        return HttpResponse.json({
+          issuer: authServerUrl,
+          authorization_endpoint: `${authServerUrl}/authorize`,
+          token_endpoint: `${authServerUrl}/token`,
+          scopes_supported: scopesSupported,
+          response_types_supported: ["code"],
+          code_challenge_methods_supported: ["S256"],
+          grant_types_supported: ["authorization_code", "refresh_token"],
+        });
+      }),
+      // Token endpoint: auth_code succeeds, refresh_token FAILS
+      http.post(`${authServerUrl}/token`, async ({ request }) => {
+        const body = await request.text();
+        const params = new URLSearchParams(body);
+        const grantType = params.get("grant_type");
+
+        if (grantType === "authorization_code") {
+          return HttpResponse.json({
+            access_token: `mock-access-token-${crypto.randomUUID().slice(0, 8)}`,
+            token_type: "Bearer",
+            expires_in: 3600,
+            refresh_token: `mock-refresh-token-${crypto.randomUUID().slice(0, 8)}`,
+            scope: scopesSupported.join(" "),
+          });
+        }
+
+        if (grantType === "refresh_token") {
+          refreshAttempted = true;
+          // Simulate expired/invalid refresh token
+          return HttpResponse.json(
+            { error: "invalid_grant", error_description: "Refresh token expired" },
+            { status: 400 },
+          );
+        }
+
+        return HttpResponse.json({ error: "unsupported_grant_type" }, { status: 400 });
+      }),
+    ];
+
+    const msw = setupMswServer(...handlers);
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Register MCP server
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-authfail-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // Discover auth
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+
+      // Authorize
+      const authorizeRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/authorize`,
+        { body: {} },
+      );
+      expect(authorizeRes.status).toBe(200);
+      const { state } = (await authorizeRes.json()) as { redirect_url: string; state: string };
+
+      // Complete OAuth callback
+      const callbackRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/oauth/callback`,
+        { body: { code: "mock-auth-code-fail", state } },
+      );
+      expect(callbackRes.status).toBe(200);
+
+      // Verify initial tokens are stored
+      const serverAfterCallback = await getMcpServer(surreal, serverId);
+      expect(serverAfterCallback?.oauth_account).toBeDefined();
+      expect(serverAfterCallback?.auth_mode).toBe("oauth");
+
+      const { RecordId: SurrealRecordId } = await import("surrealdb");
+
+      // Read the connected_account
+      const [accounts] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM connected_account WHERE workspace = $ws;`,
+        { ws: new SurrealRecordId("workspace", user.workspaceId) },
+      );
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const account = accounts[0];
+
+      // Set token_expires_at to the past (expired access token)
+      await surreal.query(
+        `UPDATE $acct SET token_expires_at = $expired;`,
+        {
+          acct: account.id,
+          expired: new Date(Date.now() - 5 * 60 * 1000),
+        },
+      );
+
+      // When: Call resolveAuthForMcpServer -- it should attempt refresh, which will fail
+      const { resolveAuthForMcpServer } = await import(
+        "../../../app/src/server/proxy/credential-resolver"
+      );
+      const serverRecord = await getMcpServer(surreal, serverId);
+      const headers = await resolveAuthForMcpServer(
+        serverRecord as any,
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        { surreal, toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+      );
+
+      // Then: No auth headers returned (refresh failed)
+      expect(headers.Authorization).toBeUndefined();
+      expect(refreshAttempted).toBe(true);
+
+      // And: MCP server last_status is set to "auth_error"
+      const serverAfterFailure = await getMcpServer(surreal, serverId);
+      expect(serverAfterFailure?.last_status).toBe("auth_error");
+
+      // And: connected_account status is "expired"
+      const [accountsAfter] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM connected_account WHERE workspace = $ws;`,
+        { ws: new SurrealRecordId("workspace", user.workspaceId) },
+      );
+      expect(accountsAfter[0].status).toBe("expired");
+
+      // And: GET /mcp-servers/:id/auth-status returns "expired"
+      const authStatusRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/auth-status`,
+        { method: "GET" },
+      );
+      expect(authStatusRes.status).toBe(200);
+      const authStatusBody = (await authStatusRes.json()) as { auth_status: string };
+      expect(authStatusBody.auth_status).toBe("expired");
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 

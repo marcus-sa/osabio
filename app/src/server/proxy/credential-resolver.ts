@@ -15,6 +15,7 @@ import { decryptSecret } from "../tool-registry/encryption";
 import { encryptSecret } from "../tool-registry/encryption";
 import { decryptHeaders, buildHeaderMap } from "../tool-registry/static-headers";
 import { refreshAccessToken } from "../tool-registry/oauth-flow";
+import { updateMcpServerStatus } from "../tool-registry/server-queries";
 import type { AuthMethod, McpServerRecord } from "../tool-registry/types";
 
 // ---------------------------------------------------------------------------
@@ -242,10 +243,11 @@ async function resolveOAuthHeaders(
 
         return { Authorization: `Bearer ${tokenResult.access_token}` };
       } catch {
-        // Refresh failed -- mark account as expired
+        // Refresh failed -- mark account as expired and server as auth_error
         await surreal.query(`UPDATE $acct SET status = 'expired', updated_at = time::now();`, {
           acct: account.id,
         });
+        await updateMcpServerStatus(surreal, server.id, "auth_error");
         return {};
       }
     }

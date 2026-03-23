@@ -268,6 +268,80 @@ export async function updateMcpServerOAuthAccount(
 }
 
 /**
+ * Update last_status on an mcp_server record.
+ * Used to surface auth_error when token refresh fails.
+ */
+export async function updateMcpServerStatus(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  lastStatus: string,
+): Promise<void> {
+  await surreal.query(
+    `UPDATE $server SET last_status = $status;`,
+    { server: serverRecord, status: lastStatus },
+  );
+}
+
+/**
+ * Auth status for an MCP server's OAuth connection.
+ */
+export type McpServerAuthStatusResult = {
+  auth_status: "connected" | "expired" | "error" | "not_authorized" | "none";
+};
+
+/**
+ * Determine the auth status for an MCP server.
+ *
+ * - "connected": has oauth_account with active status
+ * - "expired": has oauth_account but status is expired
+ * - "error": last_status is auth_error
+ * - "not_authorized": auth_mode is oauth but no oauth_account
+ * - "none": auth_mode is not oauth
+ */
+export async function getMcpServerAuthStatus(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<McpServerAuthStatusResult | undefined> {
+  const server = await getMcpServerById(surreal, serverRecord, workspaceRecord);
+  if (!server) return undefined;
+
+  if (server.auth_mode !== "oauth") {
+    return { auth_status: "none" };
+  }
+
+  if (!server.oauth_account) {
+    return { auth_status: "not_authorized" };
+  }
+
+  // Check the connected_account status first -- it takes priority over last_status
+  const [accountRows] = await surreal.query<[Array<{ status: string }>]>(
+    `SELECT status FROM $acct;`,
+    { acct: server.oauth_account },
+  );
+  const account = (accountRows ?? [])[0];
+
+  if (!account) {
+    return { auth_status: "not_authorized" };
+  }
+
+  if (account.status === "expired") {
+    return { auth_status: "expired" };
+  }
+
+  if (account.status === "active") {
+    return { auth_status: "connected" };
+  }
+
+  // Fallback: last_status = auth_error or other non-active/non-expired states
+  if (server.last_status === "auth_error") {
+    return { auth_status: "error" };
+  }
+
+  return { auth_status: "error" };
+}
+
+/**
  * Clear pending PKCE verifier and OAuth state from an mcp_server record
  * after successful token exchange.
  */

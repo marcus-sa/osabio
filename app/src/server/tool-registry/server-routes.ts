@@ -31,6 +31,7 @@ import {
   clearPendingOAuthState,
   updateMcpServerOAuthAccount,
   findWorkspaceOwnerIdentity,
+  getMcpServerAuthStatus,
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById, createProvider, createConnectedAccount } from "./queries";
@@ -723,6 +724,32 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
   }
 
+  async function handleGetAuthStatus(
+    workspaceId: string,
+    serverId: string,
+    _request: Request,
+  ): Promise<Response> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("mcp-server.auth-status", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    const serverRecord = new RecordId("mcp_server", serverId);
+    const result = await getMcpServerAuthStatus(deps.surreal, serverRecord, workspaceRecord);
+
+    if (!result) {
+      return jsonError("MCP server not found", 404);
+    }
+
+    return jsonResponse(result, 200);
+  }
+
   return {
     handleCreateServer,
     handleListServers,
@@ -734,5 +761,6 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     handleOAuthCallback,
     handleSync,
     handleUpdateHeaders,
+    handleGetAuthStatus,
   };
 }
