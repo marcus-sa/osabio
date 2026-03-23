@@ -1132,7 +1132,7 @@ export function createAnthropicProxyHandler(
         }
 
         // --- Step 8.5: Unified tool use interception loop (non-streaming only) ---
-        const MAX_TOOL_USE_ITERATIONS = 5;
+        const MAX_TOOL_USE_ITERATIONS = 10;
         if (
           currentUpstreamStatus >= 200 &&
           currentUpstreamStatus < 300 &&

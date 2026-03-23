@@ -181,8 +181,8 @@ describe("Proxy handles multi-turn tool use loops", () => {
     });
     await seedGrant(surreal, agent.identityId, toolId);
 
-    // Mock: always returns tool_use (infinite loop)
-    const infiniteToolUse = Array.from({ length: 10 }, () => ({
+    // Mock: always returns tool_use (infinite loop) — enough for MAX_TOOL_USE_ITERATIONS + 1
+    const infiniteToolUse = Array.from({ length: 12 }, () => ({
       content: [toolUseBlock("github.create_issue", { title: "loop" })] as Array<{ type: "tool_use"; id: string; name: string; input: Record<string, unknown> }>,
       stopReason: "tool_use" as const,
     }));
@@ -192,10 +192,12 @@ describe("Proxy handles multi-turn tool use loops", () => {
       messages: [{ role: "user", content: "Keep creating issues" }],
     });
 
-    // Proxy should stop after MAX_TOOL_USE_ITERATIONS (5) and return last response
+    // Proxy should stop after MAX_TOOL_USE_ITERATIONS (10) and return last response
     expect(res.status).toBe(200);
-    // Should have called Anthropic at most 6 times (1 initial + 5 iterations)
-    expect(mockAnthropic.callCount).toBeLessThanOrEqual(6);
+    // Should have called Anthropic at most 11 times (1 initial + 10 iterations)
+    expect(mockAnthropic.callCount).toBeLessThanOrEqual(11);
+    // Must have actually looped more than the old limit of 5
+    expect(mockAnthropic.callCount).toBeGreaterThan(6);
   }, 120_000);
 });
 
