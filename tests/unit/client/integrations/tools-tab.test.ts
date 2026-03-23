@@ -295,3 +295,162 @@ describe("ToolTable description truncation", () => {
     expect(row.truncatedDescription).toBe("Short");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tool detail panel view model
+// ---------------------------------------------------------------------------
+
+import {
+  deriveToolDetailViewModel,
+  type ToolDetailData,
+  type ToolDetailViewState,
+} from "../../../../app/src/client/components/tool-registry/ToolDetailPanel";
+
+function makeToolDetailData(overrides?: Partial<ToolDetailData>): ToolDetailData {
+  return {
+    id: "tool-1",
+    name: "test-tool",
+    toolkit: "default",
+    description: "A test tool for testing",
+    risk_level: "low",
+    status: "active",
+    grant_count: 0,
+    governance_count: 0,
+    created_at: "2026-01-15T10:00:00Z",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query" },
+      },
+      required: ["query"],
+    },
+    grants: [],
+    governance_policies: [],
+    ...overrides,
+  };
+}
+
+describe("ToolDetailPanel view model", () => {
+  describe("expands tool detail with schema grants and governance", () => {
+    it("derives formatted input schema as indented JSON string", () => {
+      const schema = { type: "object", properties: { q: { type: "string" } } };
+      const data = makeToolDetailData({ input_schema: schema });
+
+      const vm = deriveToolDetailViewModel({ state: "loaded", data });
+
+      expect(vm.tag).toBe("loaded");
+      if (vm.tag !== "loaded") return;
+      expect(vm.formattedInputSchema).toBe(JSON.stringify(schema, null, 2));
+    });
+
+    it("derives grant rows with identity name and rate limit", () => {
+      const data = makeToolDetailData({
+        grants: [
+          {
+            identity_id: "id-1",
+            identity_name: "Alice",
+            max_calls_per_hour: 100,
+            granted_at: "2026-01-15T10:00:00Z",
+          },
+          {
+            identity_id: "id-2",
+            identity_name: "Bob",
+            granted_at: "2026-01-16T10:00:00Z",
+          },
+        ],
+      });
+
+      const vm = deriveToolDetailViewModel({ state: "loaded", data });
+
+      if (vm.tag !== "loaded") return;
+      expect(vm.grantRows).toHaveLength(2);
+      expect(vm.grantRows[0].identityName).toBe("Alice");
+      expect(vm.grantRows[0].rateLimitDisplay).toBe("100/hr");
+      expect(vm.grantRows[1].identityName).toBe("Bob");
+      expect(vm.grantRows[1].rateLimitDisplay).toBe("Unlimited");
+    });
+
+    it("derives governance rows with policy title, conditions, and limits", () => {
+      const data = makeToolDetailData({
+        governance_policies: [
+          {
+            policy_title: "Rate Limit Policy",
+            policy_status: "active",
+            conditions: "workspace = production",
+            max_per_call: 10,
+            max_per_day: 1000,
+          },
+          {
+            policy_title: "Audit Policy",
+            policy_status: "active",
+          },
+        ],
+      });
+
+      const vm = deriveToolDetailViewModel({ state: "loaded", data });
+
+      if (vm.tag !== "loaded") return;
+      expect(vm.governanceRows).toHaveLength(2);
+      expect(vm.governanceRows[0].policyTitle).toBe("Rate Limit Policy");
+      expect(vm.governanceRows[0].conditionsDisplay).toBe("workspace = production");
+      expect(vm.governanceRows[0].maxPerCallDisplay).toBe("10");
+      expect(vm.governanceRows[0].maxPerDayDisplay).toBe("1000");
+      expect(vm.governanceRows[1].policyTitle).toBe("Audit Policy");
+      expect(vm.governanceRows[1].conditionsDisplay).toBe("None");
+      expect(vm.governanceRows[1].maxPerCallDisplay).toBe("--");
+      expect(vm.governanceRows[1].maxPerDayDisplay).toBe("--");
+    });
+
+    it("returns loading state view model", () => {
+      const vm = deriveToolDetailViewModel({ state: "loading" });
+
+      expect(vm.tag).toBe("loading");
+    });
+
+    it("returns error state view model with message", () => {
+      const vm = deriveToolDetailViewModel({ state: "error", error: "Network failure" });
+
+      expect(vm.tag).toBe("error");
+      if (vm.tag !== "error") return;
+      expect(vm.errorMessage).toBe("Network failure");
+    });
+
+    it("shows empty grants message when no grants exist", () => {
+      const data = makeToolDetailData({ grants: [] });
+
+      const vm = deriveToolDetailViewModel({ state: "loaded", data });
+
+      if (vm.tag !== "loaded") return;
+      expect(vm.grantRows).toHaveLength(0);
+      expect(vm.showEmptyGrants).toBe(true);
+    });
+
+    it("shows empty governance message when no policies exist", () => {
+      const data = makeToolDetailData({ governance_policies: [] });
+
+      const vm = deriveToolDetailViewModel({ state: "loaded", data });
+
+      if (vm.tag !== "loaded") return;
+      expect(vm.governanceRows).toHaveLength(0);
+      expect(vm.showEmptyGovernance).toBe(true);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tool detail URL builder
+// ---------------------------------------------------------------------------
+
+import { buildToolDetailUrl } from "../../../../app/src/client/hooks/use-tool-detail";
+
+describe("buildToolDetailUrl", () => {
+  it("builds correct URL for tool detail endpoint", () => {
+    const url = buildToolDetailUrl("ws-123", "tool-456");
+    expect(url).toBe("/api/workspaces/ws-123/tools/tool-456");
+  });
+
+  it("encodes special characters in workspace and tool IDs", () => {
+    const url = buildToolDetailUrl("ws/123", "tool/456");
+    expect(url).toBe("/api/workspaces/ws%2F123/tools/tool%2F456");
+  });
+});

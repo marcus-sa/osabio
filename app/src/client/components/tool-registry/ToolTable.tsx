@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Badge } from "../ui/badge";
 import type { ToolListItem } from "../../hooks/use-tools";
+import { ToolDetailPanel } from "./ToolDetailPanel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -195,7 +197,12 @@ type ToolTableProps = {
 };
 
 export function ToolTable({ tools, filters }: ToolTableProps) {
+  const [expandedToolId, setExpandedToolId] = useState<string | undefined>();
   const vm = deriveToolTableViewModel({ tools, filters });
+
+  function handleRowClick(toolId: string) {
+    setExpandedToolId((current) => (current === toolId ? undefined : toolId));
+  }
 
   if (vm.showEmptyState) {
     return (
@@ -235,36 +242,45 @@ export function ToolTable({ tools, filters }: ToolTableProps) {
             </thead>
             <tbody>
               {group.rows.map((row) => (
-                <tr key={row.id} className="border-b">
-                  <td className="px-3 py-2 font-medium">
-                    {row.isGoverned && (
-                      <span className="mr-1" title="Governed tool" aria-label="shield">
-                        &#x1F6E1;
-                      </span>
-                    )}
-                    {row.name}
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {row.truncatedDescription}
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={row.riskBadge.variant} className={row.riskBadge.className}>
-                      {row.riskBadge.label}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">
-                    <Badge variant={row.statusBadge.variant}>
-                      {row.statusBadge.label}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2">{row.grantCount}</td>
-                  <td className="px-3 py-2">{row.governanceCount}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant={row.provenanceBadge.variant}>
-                      {row.provenanceBadge.label}
-                    </Badge>
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={row.id}
+                    className="cursor-pointer border-b hover:bg-muted/50"
+                    onClick={() => handleRowClick(row.id)}
+                  >
+                    <td className="px-3 py-2 font-medium">
+                      {row.isGoverned && (
+                        <span className="mr-1" title="Governed tool" aria-label="shield">
+                          &#x1F6E1;
+                        </span>
+                      )}
+                      {row.name}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {row.truncatedDescription}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={row.riskBadge.variant} className={row.riskBadge.className}>
+                        {row.riskBadge.label}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={row.statusBadge.variant}>
+                        {row.statusBadge.label}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2">{row.grantCount}</td>
+                    <td className="px-3 py-2">{row.governanceCount}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={row.provenanceBadge.variant}>
+                        {row.provenanceBadge.label}
+                      </Badge>
+                    </td>
+                  </tr>
+                  {expandedToolId === row.id && (
+                    <ToolDetailPanel toolId={row.id} />
+                  )}
+                </>
               ))}
             </tbody>
           </table>
