@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c677de3ac05a",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/proxy/credential-resolver.ts",
+    "app/src/server/tool-registry/mcp-oauth.ts",
+    "app/src/server/tool-registry/oauth-flow.ts",
+    "app/src/server/tool-registry/queries.ts",
+    "app/src/server/tool-registry/server-routes.ts",
+    "app/src/server/tool-registry/types.ts",
+    "schema/migrations/0069_credential_provider_auth_server_url.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/tool-registry/11-oauth-callback.test.ts",
+    "tests/unit/tool-registry/oauth-flow.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c6/77de3ac05a/0/metadata.json",
+      "transcript": "/c6/77de3ac05a/0/full.jsonl",
+      "context": "/c6/77de3ac05a/0/context.md",
+      "content_hash": "/c6/77de3ac05a/0/content_hash.txt",
+      "prompt": "/c6/77de3ac05a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
