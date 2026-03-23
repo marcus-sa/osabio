@@ -7,6 +7,15 @@
  * tool calls on upstream MCP servers. Uses MSW to mock the Anthropic API
  * and a mock McpClientFactory for upstream MCP servers.
  *
+ * Scenarios (7):
+ *   1. Single tool execution and result return
+ *   2. Multi-turn tool use loop (list -> comment -> text)
+ *   3. Max iterations safety limit (10 iterations)
+ *   4. Error tool_result on upstream MCP failure
+ *   5. Tool not injected without grant
+ *   6. Governance policy blocks execution
+ *   7. Connection reuse within request (multiple tools, same server)
+ *
  * Driving ports:
  *   POST /proxy/llm/anthropic/v1/messages  (proxy entry point)
  */
