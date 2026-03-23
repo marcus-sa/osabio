@@ -1,0 +1,12 @@
+{
+  "feature_id": "mcp-server-auth",
+  "paradigm": "functional",
+  "crafter": "nw-functional-software-crafter",
+  "started_at": "2026-03-23T15:50:00Z",
+  "rigor": {
+    "agent_model": "inherit",
+    "reviewer_model": "inherit",
+    "review_enabled": true,
+    "mutation_enabled": false
+  }
+}

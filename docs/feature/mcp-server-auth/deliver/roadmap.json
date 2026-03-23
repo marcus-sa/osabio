@@ -1,0 +1,380 @@
+{
+  "roadmap": {
+    "project_id": "mcp-server-auth",
+    "created_at": "2026-03-23T08:46:51Z",
+    "total_steps": 23,
+    "phases": 5
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Walking Skeleton: Static Header Auth End-to-End",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Schema migration: auth_mode and static_headers fields",
+          "description": "Add auth_mode enum, static_headers array, oauth_account, and discovery_source fields to mcp_server and credential_provider tables. Backfill existing servers with provider references to auth_mode=provider.",
+          "criteria": "POST /mcp-servers with auth_mode=static_headers and a static_headers array creates an mcp_server record. The record has auth_mode set to 'static_headers' and the response includes the server id.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "creates an mcp_server with auth_mode static_headers via API",
+          "estimate_minutes": 30,
+          "dependencies": [],
+          "files_to_modify": [
+            "schema/migrations/0067_mcp_server_auth_modes.surql",
+            "app/src/server/tool-registry/types.ts",
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "Encrypt static header values at rest",
+          "description": "When creating an MCP server with static_headers, encrypt each header value using the existing AES-256-GCM encryption module before persisting to SurrealDB. Store as value_encrypted, never plaintext.",
+          "criteria": "Reading the mcp_server record directly from SurrealDB shows static_headers[*].value_encrypted containing ciphertext that does not match or contain the original plaintext value.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "stores header values encrypted, not as plaintext",
+          "estimate_minutes": 25,
+          "dependencies": ["01-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/static-headers.ts",
+            "app/src/server/tool-registry/server-routes.ts"
+          ]
+        },
+        {
+          "id": "01-03",
+          "name": "Mask header values in API responses",
+          "description": "GET /mcp-servers returns has_static_headers=true and header names only. Header values (plaintext or encrypted) are never included in any API response body.",
+          "criteria": "GET /mcp-servers response body does not contain any header secret values. Response includes has_static_headers=true for servers with static headers configured.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "GET response includes header names but not values",
+          "estimate_minutes": 20,
+          "dependencies": ["01-02"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ]
+        },
+        {
+          "id": "01-04",
+          "name": "Inject static headers on MCP client connection",
+          "description": "Wire the credential resolver to decrypt static headers and inject them into the MCP client transport when connecting to a server with auth_mode=static_headers. Complete the walking skeleton end-to-end path.",
+          "criteria": "When Brain connects to an MCP server configured with static headers, the HTTP request to the MCP server includes the configured Authorization header. tools/list returns tools from the authenticated server.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "MCP client sends configured headers when connecting to server",
+          "estimate_minutes": 40,
+          "dependencies": ["01-03"],
+          "files_to_modify": [
+            "app/src/server/proxy/credential-resolver.ts",
+            "app/src/server/tool-registry/mcp-client.ts",
+            "app/src/server/tool-registry/static-headers.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Milestone 1: Static Header Management",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Update static headers on existing server",
+          "description": "PUT /mcp-servers/:id/headers replaces all static headers with new encrypted values. Old values are removed from storage.",
+          "criteria": "After PUT with new headers, subsequent MCP connections use the updated header values. The old header values are no longer stored in the database.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "replaces existing headers with new values",
+          "estimate_minutes": 25,
+          "dependencies": ["01-04"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ]
+        },
+        {
+          "id": "02-02",
+          "name": "Remove all static headers when switching auth mode",
+          "description": "When admin updates auth_mode from static_headers to none, the static_headers field is cleared from the database record.",
+          "criteria": "After updating auth_mode to 'none', the mcp_server record in SurrealDB has static_headers cleared (NONE or empty).",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "switching auth_mode to none clears stored headers",
+          "estimate_minutes": 15,
+          "dependencies": ["02-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ]
+        },
+        {
+          "id": "02-03",
+          "name": "Reject restricted header names",
+          "description": "Validate header names against a blocklist (Host, Content-Length, Transfer-Encoding, Connection). Return 400 with a validation error if any restricted name is used.",
+          "criteria": "POST /mcp-servers with static_headers containing name 'Host' returns 400 with a validation error message.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "rejects Host, Content-Length, Transfer-Encoding, Connection",
+          "estimate_minutes": 15,
+          "dependencies": ["01-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/static-headers.ts",
+            "app/src/server/tool-registry/server-routes.ts"
+          ]
+        },
+        {
+          "id": "02-04",
+          "name": "Multiple headers on same server",
+          "description": "Support creating and injecting multiple static headers (e.g. Authorization + X-Custom-Header) on a single MCP server.",
+          "criteria": "When an MCP server is configured with two static headers, both headers are present in the HTTP request when Brain connects to the MCP server.",
+          "test_file": "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+          "scenario_name": "stores and injects multiple key-value pairs",
+          "estimate_minutes": 20,
+          "dependencies": ["01-04"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/static-headers.ts",
+            "app/src/server/proxy/credential-resolver.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Milestone 2: OAuth 2.1 Discovery",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Discover auth from Protected Resource Metadata (RFC 9728)",
+          "description": "POST /mcp-servers/:id/discover-auth fetches /.well-known/oauth-protected-resource from the MCP server URL, then fetches the authorization server metadata from the discovered auth server URL.",
+          "criteria": "Given a mock MCP server serving Protected Resource Metadata, discover-auth returns discovered=true with the auth server URL, authorization_endpoint, and scopes.",
+          "test_file": "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+          "scenario_name": "fetches .well-known/oauth-protected-resource and auth server metadata",
+          "estimate_minutes": 45,
+          "dependencies": ["01-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/auth-discovery.ts",
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/types.ts"
+          ]
+        },
+        {
+          "id": "03-02",
+          "name": "Discover auth from WWW-Authenticate header fallback",
+          "description": "When /.well-known/oauth-protected-resource is not available, fall back to making a request that triggers a 401 and parse the resource_metadata URL from the WWW-Authenticate header.",
+          "criteria": "Given an MCP server without .well-known metadata but returning 401 with WWW-Authenticate: Bearer resource_metadata=URL, discovery succeeds by following the resource_metadata URL.",
+          "test_file": "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+          "scenario_name": "falls back to WWW-Authenticate when .well-known is not available",
+          "estimate_minutes": 30,
+          "dependencies": ["03-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/auth-discovery.ts"
+          ]
+        },
+        {
+          "id": "03-03",
+          "name": "Auth server metadata multi-endpoint fallback",
+          "description": "When the auth server URL has a path component, try RFC 8414 path-based, OIDC path-based, and OIDC suffix-based well-known endpoints in order.",
+          "criteria": "Given auth server URL with path component (e.g. /tenant1), discovery tries the three fallback URLs in order and uses the first successful response.",
+          "test_file": "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+          "scenario_name": "tries multi-endpoint fallback for auth servers with path components",
+          "estimate_minutes": 25,
+          "dependencies": ["03-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/auth-discovery.ts"
+          ]
+        },
+        {
+          "id": "03-04",
+          "name": "Discovery fails gracefully when no metadata available",
+          "description": "When the MCP server does not serve Protected Resource Metadata and does not return WWW-Authenticate, discover-auth returns discovered=false with an error message.",
+          "criteria": "Given an MCP server with no discovery endpoints, discover-auth returns { discovered: false, error: '...' } with a descriptive error.",
+          "test_file": "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+          "scenario_name": "returns discovered=false when no metadata is available",
+          "estimate_minutes": 15,
+          "dependencies": ["03-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/auth-discovery.ts"
+          ]
+        },
+        {
+          "id": "03-05",
+          "name": "Auto-create credential_provider from discovery",
+          "description": "On successful OAuth discovery, automatically create a credential_provider record with the discovered authorization_url, token_url, and discovery_source set to the MCP server URL.",
+          "criteria": "After successful discovery, a credential_provider record exists with discovery_source matching the MCP server URL and authorization/token endpoints matching the discovered values.",
+          "test_file": "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+          "scenario_name": "creates a credential_provider with discovery_source set",
+          "estimate_minutes": 25,
+          "dependencies": ["03-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/auth-discovery.ts",
+            "app/src/server/tool-registry/queries.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Milestone 3: OAuth 2.1 Authorization Flow",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Generate authorization URL with PKCE S256",
+          "description": "POST /mcp-servers/:id/authorize generates a PKCE code_challenge (S256), state parameter, and returns the full authorization URL with resource parameter (RFC 8707).",
+          "criteria": "Response includes redirect_url containing the authorization_endpoint, code_challenge_method=S256, a state parameter, a resource parameter matching the MCP server URI, and a scope parameter.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "returns authorization URL with code_challenge and state",
+          "estimate_minutes": 35,
+          "dependencies": ["03-05"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/types.ts"
+          ]
+        },
+        {
+          "id": "04-02",
+          "name": "Exchange authorization code for tokens",
+          "description": "OAuth callback receives the authorization code and state, looks up the stored code_verifier, and exchanges the code at the token endpoint using PKCE.",
+          "criteria": "Given a valid authorization code and matching state, Brain exchanges the code at the token endpoint with the code_verifier and receives access_token + refresh_token.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "callback exchanges code using PKCE code_verifier",
+          "estimate_minutes": 40,
+          "dependencies": ["04-01"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/tool-registry/routes.ts"
+          ]
+        },
+        {
+          "id": "04-03",
+          "name": "Encrypt and store tokens in connected_account",
+          "description": "After successful token exchange, encrypt access_token and refresh_token using AES-256-GCM and store in a connected_account record linked to the mcp_server.",
+          "criteria": "Reading connected_account from SurrealDB shows access_token_encrypted and refresh_token_encrypted containing ciphertext (not plaintext). token_expires_at is set.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "access_token and refresh_token are encrypted in connected_account",
+          "estimate_minutes": 25,
+          "dependencies": ["04-02"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/tool-registry/queries.ts"
+          ]
+        },
+        {
+          "id": "04-04",
+          "name": "Token refresh on expiry",
+          "description": "When the credential resolver detects an expired access_token with a valid refresh_token, automatically call the token endpoint with grant_type=refresh_token before returning headers.",
+          "criteria": "Given an MCP server with expired access_token but valid refresh_token, the credential resolver refreshes the token, stores the new encrypted token, and returns headers with the new Bearer token.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "automatically refreshes expired tokens before MCP connect",
+          "estimate_minutes": 35,
+          "dependencies": ["04-03"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/proxy/credential-resolver.ts"
+          ]
+        },
+        {
+          "id": "04-05",
+          "name": "Refresh failure surfaces auth_error status",
+          "description": "When token refresh fails (expired refresh_token or server error), set the MCP server last_status to auth_error so the admin can re-authorize.",
+          "criteria": "Given an MCP server with both expired access_token and expired refresh_token, after a failed refresh attempt the MCP server last_status is 'auth_error' and auth-status endpoint returns 'expired'.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "sets last_status to auth_error when refresh fails",
+          "estimate_minutes": 20,
+          "dependencies": ["04-04"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/proxy/credential-resolver.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ]
+        },
+        {
+          "id": "04-06",
+          "name": "Dynamic client registration",
+          "description": "When the discovered auth server provides a registration_endpoint, Brain registers itself as an OAuth client by posting client metadata. Received client_id and client_secret are encrypted and stored.",
+          "criteria": "Given a mock auth server with registration_endpoint, Brain POSTs client metadata (client_name, redirect_uris, grant_types) and stores the received client_id and encrypted client_secret.",
+          "test_file": "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+          "scenario_name": "registers Brain as OAuth client when registration_endpoint exists",
+          "estimate_minutes": 30,
+          "dependencies": ["03-05"],
+          "files_to_modify": [
+            "app/src/server/tool-registry/oauth-flow.ts",
+            "app/src/server/tool-registry/queries.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Milestone 4: Credential Resolver Dispatch",
+      "steps": [
+        {
+          "id": "05-01",
+          "name": "No-auth server resolves to empty headers",
+          "description": "resolveAuthForMcpServer returns an empty headers map when the MCP server has auth_mode=none.",
+          "criteria": "Given MCP server with auth_mode=none, resolveAuthForMcpServer returns an empty object ({}).",
+          "test_file": "tests/acceptance/mcp-server-auth/14-credential-resolver.test.ts",
+          "scenario_name": "resolveAuthForMcpServer returns {} for auth_mode none",
+          "estimate_minutes": 15,
+          "dependencies": ["01-04"],
+          "files_to_modify": [
+            "app/src/server/proxy/credential-resolver.ts"
+          ]
+        },
+        {
+          "id": "05-02",
+          "name": "Static headers server resolves to decrypted headers",
+          "description": "resolveAuthForMcpServer decrypts AES-256-GCM encrypted header values and returns them as a plain header map for auth_mode=static_headers.",
+          "criteria": "Given MCP server with auth_mode=static_headers and encrypted header values, resolveAuthForMcpServer returns the decrypted header map (e.g. { Authorization: 'Bearer ghp_test123' }).",
+          "test_file": "tests/acceptance/mcp-server-auth/14-credential-resolver.test.ts",
+          "scenario_name": "resolveAuthForMcpServer decrypts and returns stored headers",
+          "estimate_minutes": 20,
+          "dependencies": ["01-04"],
+          "files_to_modify": [
+            "app/src/server/proxy/credential-resolver.ts",
+            "app/src/server/tool-registry/static-headers.ts"
+          ]
+        },
+        {
+          "id": "05-03",
+          "name": "OAuth server resolves to Bearer token",
+          "description": "resolveAuthForMcpServer decrypts the access_token from the linked connected_account and returns it as an Authorization: Bearer header for auth_mode=oauth.",
+          "criteria": "Given MCP server with auth_mode=oauth and a linked connected_account with valid access_token_encrypted, resolveAuthForMcpServer returns { Authorization: 'Bearer <decrypted_token>' }.",
+          "test_file": "tests/acceptance/mcp-server-auth/14-credential-resolver.test.ts",
+          "scenario_name": "resolveAuthForMcpServer returns Authorization: Bearer from connected_account",
+          "estimate_minutes": 20,
+          "dependencies": ["04-03"],
+          "files_to_modify": [
+            "app/src/server/proxy/credential-resolver.ts"
+          ]
+        },
+        {
+          "id": "05-04",
+          "name": "Provider server resolves via existing credential flow",
+          "description": "resolveAuthForMcpServer delegates to the existing credential_provider resolution logic for auth_mode=provider, maintaining backward compatibility.",
+          "criteria": "Given MCP server with auth_mode=provider and a linked credential_provider + connected_account, resolveAuthForMcpServer returns headers matching the existing credential resolution behavior.",
+          "test_file": "tests/acceptance/mcp-server-auth/14-credential-resolver.test.ts",
+          "scenario_name": "resolveAuthForMcpServer delegates to existing credential_provider logic",
+          "estimate_minutes": 20,
+          "dependencies": ["01-04"],
+          "files_to_modify": [
+            "app/src/server/proxy/credential-resolver.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "app/src/server/tool-registry/",
+      "app/src/server/proxy/"
+    ],
+    "test_directories": [
+      "tests/acceptance/mcp-server-auth/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "morgan-sa",
+    "approved_at": "2026-03-23T09:00:00Z"
+  }
+}
