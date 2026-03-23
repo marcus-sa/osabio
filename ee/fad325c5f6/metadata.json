@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "eefad325c5f6",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des/deliver-session.json",
+    ".nwave/des/des-task-active-mcp-server-auth--01-01",
+    "docs/feature/mcp-server-auth/deliver/.develop-progress.json",
+    "docs/feature/mcp-server-auth/deliver/roadmap.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/fad325c5f6/0/metadata.json",
+      "transcript": "/ee/fad325c5f6/0/full.jsonl",
+      "context": "/ee/fad325c5f6/0/context.md",
+      "content_hash": "/ee/fad325c5f6/0/content_hash.txt",
+      "prompt": "/ee/fad325c5f6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
