@@ -38,6 +38,32 @@ import { log } from "../telemetry/logger";
 const VALID_AUTH_METHODS = ["oauth2", "api_key", "bearer", "basic"] as const;
 
 // ---------------------------------------------------------------------------
+// Session-based identity resolution (browser-facing routes)
+// ---------------------------------------------------------------------------
+
+async function resolveIdentityFromSession(
+  deps: ServerDependencies,
+  request: Request,
+): Promise<RecordId<"identity", string> | Response> {
+  const session = await deps.auth.api.getSession({ headers: request.headers });
+  if (!session?.user?.id) {
+    return jsonError("authentication required", 401);
+  }
+
+  const personRecord = new RecordId("person", session.user.id);
+  const [identityRows] = await deps.surreal.query<[RecordId<"identity", string>[]]>(
+    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+    { person: personRecord },
+  );
+  const identityRecord = identityRows[0] as RecordId<"identity", string> | undefined;
+  if (!identityRecord) {
+    return jsonError("identity not found for user", 500);
+  }
+
+  return identityRecord;
+}
+
+// ---------------------------------------------------------------------------
 // Response mapping -- strip encrypted fields, expose has_client_secret flag
 // ---------------------------------------------------------------------------
 
@@ -200,13 +226,11 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
       return jsonError("credential provider not found", 404);
     }
 
-    // Extract identity from request headers (set by DPoP middleware)
-    const identityId = request.headers.get("X-Brain-Identity");
-    if (!identityId) {
-      return jsonError("identity required", 401);
-    }
+    // Resolve identity from session (browser) or X-Brain-Identity header (MCP/CLI)
+    const identityResult = await resolveIdentityFromSession(deps, request);
+    if (identityResult instanceof Response) return identityResult;
 
-    const identityRecord = new RecordId("identity", identityId);
+    const identityRecord = identityResult;
     const providerRecord = new RecordId("credential_provider", providerId);
 
     // Check for existing active account
@@ -223,7 +247,7 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
 
       storeOAuthState(state, {
         providerId,
-        identityId,
+        identityId: identityRecord.id as string,
         workspaceId,
         createdAt: Date.now(),
       });
@@ -303,12 +327,10 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
       return jsonError("internal error", 500);
     }
 
-    const identityId = request.headers.get("X-Brain-Identity");
-    if (!identityId) {
-      return jsonError("identity required", 401);
-    }
+    const identityResult = await resolveIdentityFromSession(deps, request);
+    if (identityResult instanceof Response) return identityResult;
 
-    const identityRecord = new RecordId("identity", identityId);
+    const identityRecord = identityResult;
     const records = await listConnectedAccounts(deps.surreal, identityRecord, workspaceRecord);
     const accounts = records.map(toAccountApiResponse);
     return jsonResponse({ accounts }, 200);
@@ -336,12 +358,10 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
       return jsonError("internal error", 500);
     }
 
-    const identityId = request.headers.get("X-Brain-Identity");
-    if (!identityId) {
-      return jsonError("identity required", 401);
-    }
+    const identityResult = await resolveIdentityFromSession(deps, request);
+    if (identityResult instanceof Response) return identityResult;
 
-    const identityRecord = new RecordId("identity", identityId);
+    const identityRecord = identityResult;
     const accountRecord = new RecordId("connected_account", accountId);
 
     const updated = await revokeConnectedAccount(

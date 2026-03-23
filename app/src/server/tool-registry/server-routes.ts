@@ -34,7 +34,13 @@ import {
   getMcpServerAuthStatus,
   type McpServerRow,
 } from "./server-queries";
-import { getProviderById, createProvider, createConnectedAccount, updateProviderClientRegistration } from "./queries";
+import {
+  getProviderById,
+  createProvider,
+  findProviderByDiscoverySource,
+  createConnectedAccount,
+  updateProviderClientRegistration,
+} from "./queries";
 import { encryptSecret } from "./encryption";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
@@ -494,9 +500,14 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         return jsonResponse(response, 200);
       }
 
-      // Auto-create credential_provider from discovery
+      // Find or create credential_provider from discovery (dedup by discovery_source)
       const authServerHostname = new URL(config.authServerUrl).hostname;
-      const providerRecord = await createProvider(
+      const existingProvider = await findProviderByDiscoverySource(
+        deps.surreal,
+        server.workspace,
+        server.url,
+      );
+      const providerRecord = existingProvider ?? await createProvider(
         deps.surreal,
         server.workspace,
         {
@@ -510,8 +521,8 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         },
       );
 
-      // Dynamic client registration (RFC 7591)
-      if (config.registrationEndpoint) {
+      // Dynamic client registration (RFC 7591) — only for newly created providers
+      if (config.registrationEndpoint && !existingProvider) {
         try {
           const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 

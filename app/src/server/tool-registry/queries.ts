@@ -20,6 +20,22 @@ export async function providerNameExists(
 }
 
 /**
+ * Find an existing credential_provider by discovery_source URL in a workspace.
+ * Used to deduplicate providers created via OAuth discovery.
+ */
+export async function findProviderByDiscoverySource(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  discoverySource: string,
+): Promise<CredentialProviderRecord | undefined> {
+  const results = await surreal.query<[CredentialProviderRecord[]]>(
+    `SELECT * FROM credential_provider WHERE workspace = $ws AND discovery_source = $src LIMIT 1;`,
+    { ws: workspaceRecord, src: discoverySource },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
  * Create a credential_provider record.
  */
 export async function createProvider(
