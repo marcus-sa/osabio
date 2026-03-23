@@ -181,7 +181,10 @@ export async function updateMcpServerProvider(
 }
 
 /**
- * Delete an mcp_server and disable all tools linked via source_server.
+ * Delete an mcp_server, disable linked tools, and cascade-delete the linked
+ * credential_provider + connected_accounts if no other server references
+ * the same provider.
+ *
  * Returns true if the server existed and was deleted.
  */
 export async function deleteMcpServer(
@@ -189,11 +192,13 @@ export async function deleteMcpServer(
   serverRecord: RecordId<"mcp_server", string>,
   workspaceRecord: RecordId<"workspace", string>,
 ): Promise<boolean> {
-  // Check existence first (workspace-scoped)
+  // Check existence and capture provider reference before deletion
   const existing = await getMcpServerById(surreal, serverRecord, workspaceRecord);
   if (!existing) {
     return false;
   }
+
+  const providerRef = existing.provider;
 
   // Disable all tools linked to this server, then delete the server
   await surreal.query(
@@ -201,6 +206,23 @@ export async function deleteMcpServer(
      DELETE $server;`,
     { server: serverRecord },
   );
+
+  // Cascade-delete provider if no other server references it
+  if (providerRef) {
+    const [otherServers] = await surreal.query<[Array<{ id: RecordId }>]>(
+      `SELECT id FROM mcp_server WHERE provider = $provider LIMIT 1;`,
+      { provider: providerRef },
+    );
+
+    if ((otherServers ?? []).length === 0) {
+      // Orphaned provider — delete connected_accounts first, then the provider
+      await surreal.query(
+        `DELETE connected_account WHERE provider = $provider;
+         DELETE $provider;`,
+        { provider: providerRef },
+      );
+    }
+  }
 
   return true;
 }
