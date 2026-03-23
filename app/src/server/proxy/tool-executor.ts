@@ -21,6 +21,9 @@ import {
   resolveCredentialsForTool,
   type CredentialResolverDeps,
 } from "./credential-resolver";
+import type { McpClientFactory } from "../tool-registry/mcp-client";
+import type { McpTransport } from "../tool-registry/types";
+import { getMcpServerById } from "../tool-registry/server-queries";
 import {
   fetchGovernancePolicies,
   countTodayToolExecutions,
@@ -57,6 +60,11 @@ export type ToolExecutorDeps = {
 /** Dependencies for integration tool execution (extends base with credential resolver). */
 export type IntegrationExecutorDeps = ToolExecutorDeps & {
   readonly toolEncryptionKey: string;
+};
+
+/** Dependencies for MCP-based integration tool execution. */
+export type McpExecutorDeps = IntegrationExecutorDeps & {
+  readonly mcpClientFactory: McpClientFactory;
 };
 
 /** Anthropic tool_result content block for follow-up requests. */
@@ -310,6 +318,52 @@ export async function executeBrainNativeTools(
   }
 
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// Unified: executeAllToolCalls
+// ---------------------------------------------------------------------------
+
+/**
+ * Execute all classified tool calls: brain-native, MCP integration, HTTP integration, unknown.
+ *
+ * Partitions calls and dispatches to the appropriate executor:
+ *   - brain-native -> executeBrainNativeTools
+ *   - integration with source_server_id -> executeIntegrationToolsViaMcp
+ *   - integration without source_server_id -> executeIntegrationTools (HTTP)
+ *   - unknown -> pass-through (not executed by Brain)
+ *
+ * Returns combined results from all executors.
+ */
+export async function executeAllToolCalls(
+  classifiedCalls: ClassifiedToolCall[],
+  deps: McpExecutorDeps,
+  connectionMap?: Map<string, Awaited<ReturnType<McpClientFactory["connect"]>>>,
+): Promise<ToolExecutionResult[]> {
+  const brainNativeCalls = classifiedCalls.filter(
+    (c) => c.classification === "brain-native",
+  );
+  const mcpIntegrationCalls = classifiedCalls.filter(
+    (c) => c.classification === "integration" && !!c.resolvedTool.source_server_id,
+  );
+  const httpIntegrationCalls = classifiedCalls.filter(
+    (c) => c.classification === "integration" && !c.resolvedTool.source_server_id,
+  );
+
+  // Execute all partitions concurrently
+  const [brainResults, mcpResults, httpResults] = await Promise.all([
+    brainNativeCalls.length > 0
+      ? executeBrainNativeTools(brainNativeCalls, deps)
+      : Promise.resolve([]),
+    mcpIntegrationCalls.length > 0
+      ? executeIntegrationToolsViaMcp(mcpIntegrationCalls, deps, connectionMap)
+      : Promise.resolve([]),
+    httpIntegrationCalls.length > 0
+      ? executeIntegrationTools(httpIntegrationCalls, deps)
+      : Promise.resolve([]),
+  ]);
+
+  return [...brainResults, ...mcpResults, ...httpResults];
 }
 
 // ---------------------------------------------------------------------------
@@ -745,6 +799,226 @@ export async function executeIntegrationTools(
         { surreal: deps.surreal },
       ).catch((traceError) => {
         log.warn("proxy.integration_executor.trace_failed", "Integration trace capture failed", {
+          tool_name: call.toolUse.name,
+          error: String(traceError),
+        });
+      });
+    }
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Effect Boundary: executeIntegrationToolsViaMcp
+// ---------------------------------------------------------------------------
+
+/**
+ * Execute integration tool calls via MCP protocol for tools sourced from
+ * upstream MCP servers (those with source_server_id on ResolvedTool).
+ *
+ * For each tool call:
+ *   1. Load mcp_server record from source_server_id
+ *   2. Resolve credentials if server has a linked provider
+ *   3. Connect to upstream MCP server via mcpClientFactory
+ *   4. Call tools/call with the tool name and input
+ *   5. Extract content from CallToolResult
+ *   6. Return as tool_result
+ *   7. Write trace record
+ *
+ * Uses a shared connection map so multiple calls to the same server reuse
+ * one connection within a single proxy request.
+ */
+export async function executeIntegrationToolsViaMcp(
+  classifiedCalls: ClassifiedToolCall[],
+  deps: McpExecutorDeps,
+  connectionMap?: Map<string, Awaited<ReturnType<McpClientFactory["connect"]>>>,
+): Promise<ToolExecutionResult[]> {
+  const integrationCalls = classifiedCalls.filter(
+    (c): c is Extract<ClassifiedToolCall, { classification: "integration" }> =>
+      c.classification === "integration" && !!c.resolvedTool.source_server_id,
+  );
+
+  const results: ToolExecutionResult[] = [];
+  const localConnections = connectionMap ?? new Map<string, Awaited<ReturnType<McpClientFactory["connect"]>>>();
+
+  for (const call of integrationCalls) {
+    const startMs = performance.now();
+    const serverId = call.resolvedTool.source_server_id!;
+
+    try {
+      // Governance check
+      const governancePolicies = await fetchGovernancePolicies(
+        deps.surreal,
+        call.toolUse.name,
+      );
+
+      if (governancePolicies.length > 0) {
+        const todayCount = await countTodayToolExecutions(
+          deps.surreal,
+          call.toolUse.name,
+          deps.workspaceId,
+        );
+
+        const governanceVerdict = evaluateGovernancePolicies(governancePolicies, todayCount);
+        if (!governanceVerdict.allowed) {
+          results.push({
+            toolUseId: call.toolUse.id,
+            content: JSON.stringify({ error: governanceVerdict.reason }),
+            isError: true,
+          });
+          continue;
+        }
+      }
+
+      // Rate limit check
+      if (deps.identityId) {
+        const { maxCallsPerHour } = await fetchCanUseRateLimit(
+          deps.surreal,
+          deps.identityId,
+          call.toolUse.name,
+        );
+
+        if (maxCallsPerHour !== undefined) {
+          const hourlyCount = await countHourlyToolExecutions(
+            deps.surreal,
+            call.toolUse.name,
+            deps.workspaceId,
+            deps.identityId,
+          );
+
+          const rateLimitVerdict = evaluateRateLimit(maxCallsPerHour, hourlyCount);
+          if (!rateLimitVerdict.allowed) {
+            results.push({
+              toolUseId: call.toolUse.id,
+              content: JSON.stringify({ error: rateLimitVerdict.reason }),
+              isError: true,
+            });
+            continue;
+          }
+        }
+      }
+
+      // Load MCP server record
+      const serverRecord = new RecordId("mcp_server", serverId);
+      const workspaceRecord = new RecordId("workspace", deps.workspaceId);
+      const serverRow = await getMcpServerById(deps.surreal, serverRecord, workspaceRecord);
+
+      if (!serverRow) {
+        results.push({
+          toolUseId: call.toolUse.id,
+          content: JSON.stringify({ error: `MCP server ${serverId} not found` }),
+          isError: true,
+        });
+        continue;
+      }
+
+      // Resolve credentials if server has a linked provider
+      let authHeaders: Record<string, string> | undefined;
+      if (serverRow.provider && deps.identityId) {
+        const credResult = await resolveCredentialsForTool(
+          call.toolUse.name,
+          deps.identityId,
+          { surreal: deps.surreal, toolEncryptionKey: deps.toolEncryptionKey },
+        );
+
+        if (credResult.ok) {
+          authHeaders = credResult.headers;
+        }
+      }
+
+      // Connect (or reuse existing connection)
+      let connection = localConnections.get(serverId);
+      if (!connection) {
+        connection = await deps.mcpClientFactory.connect(
+          serverRow.url,
+          serverRow.transport as McpTransport,
+          authHeaders,
+        );
+        localConnections.set(serverId, connection);
+      }
+
+      // Call tool via MCP protocol
+      const callResult = await deps.mcpClientFactory.callTool(
+        connection.client,
+        call.toolUse.name,
+        call.toolUse.input as Record<string, unknown>,
+      );
+
+      const durationMs = performance.now() - startMs;
+
+      // Extract content from CallToolResult
+      const contentParts: string[] = [];
+      if (callResult.structuredContent) {
+        contentParts.push(JSON.stringify(callResult.structuredContent));
+      } else if (callResult.content && Array.isArray(callResult.content)) {
+        for (const block of callResult.content as Array<{ type: string; text?: string; resource?: { text?: string; uri?: string } }>) {
+          if (block.type === "text" && block.text) {
+            contentParts.push(block.text);
+          } else if (block.type === "resource" && block.resource) {
+            contentParts.push(block.resource.text ?? block.resource.uri ?? "");
+          }
+        }
+      }
+
+      const content = truncateResponse(contentParts.join("\n"));
+      const isError = callResult.isError === true;
+
+      results.push({
+        toolUseId: call.toolUse.id,
+        content: isError ? JSON.stringify({ error: content }) : content,
+        isError,
+      });
+
+      captureToolTrace(
+        {
+          toolName: call.toolUse.name,
+          workspaceId: deps.workspaceId,
+          identityId: deps.identityId,
+          sessionId: deps.sessionId,
+          outcome: isError ? "error" : "success",
+          durationMs,
+          input: { tool_kind: "mcp_integration", server_id: serverId },
+          output: { content_length: content.length },
+        },
+        { surreal: deps.surreal },
+      ).catch((traceError) => {
+        log.warn("proxy.mcp_executor.trace_failed", "MCP tool trace capture failed", {
+          tool_name: call.toolUse.name,
+          error: String(traceError),
+        });
+      });
+    } catch (error) {
+      const durationMs = performance.now() - startMs;
+
+      log.warn("proxy.mcp_executor.error", "MCP integration tool execution failed", {
+        tool_name: call.toolUse.name,
+        tool_use_id: call.toolUse.id,
+        server_id: serverId,
+        error: String(error),
+      });
+
+      results.push({
+        toolUseId: call.toolUse.id,
+        content: JSON.stringify({
+          error: `MCP tool execution failed: ${String(error)}`,
+        }),
+        isError: true,
+      });
+
+      captureToolTrace(
+        {
+          toolName: call.toolUse.name,
+          workspaceId: deps.workspaceId,
+          identityId: deps.identityId,
+          sessionId: deps.sessionId,
+          outcome: "error",
+          durationMs,
+          input: { tool_kind: "mcp_integration", server_id: serverId },
+        },
+        { surreal: deps.surreal },
+      ).catch((traceError) => {
+        log.warn("proxy.mcp_executor.trace_failed", "MCP tool trace capture failed", {
           tool_name: call.toolUse.name,
           error: String(traceError),
         });
