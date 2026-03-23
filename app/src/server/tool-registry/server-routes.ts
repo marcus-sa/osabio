@@ -28,7 +28,7 @@ import {
 import { getProviderById } from "./queries";
 import { discoverTools } from "./discovery";
 import type { McpServerRecord, EncryptedHeaderEntry } from "./types";
-import { encryptSecret } from "./encryption";
+import { encryptHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
 
 const VALID_AUTH_MODES: ReadonlySet<string> = new Set(["none", "static_headers", "oauth", "provider"]);
@@ -179,15 +179,16 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       if (!Array.isArray(body.static_headers) || body.static_headers.length === 0) {
         return jsonError("static_headers required when auth_mode is static_headers", 400);
       }
-      encryptedHeaders = body.static_headers.map((header) => {
+      // Validate header entries before encryption
+      for (const header of body.static_headers) {
         if (!header.name || !header.value) {
-          throw new HttpError(400, "Each static header must have name and value");
+          return jsonError("Each static header must have name and value", 400);
         }
-        return {
-          name: header.name,
-          value_encrypted: encryptSecret(header.value, encryptionKey),
-        };
-      });
+      }
+      encryptedHeaders = encryptHeaders(
+        body.static_headers as Array<{ name: string; value: string }>,
+        encryptionKey,
+      );
     }
 
     // Check duplicate name
