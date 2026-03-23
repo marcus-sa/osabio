@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1132914d5ec0",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/adrs/ADR-073-mcp-server-auth-modes.md",
+    "docs/feature/mcp-server-auth/design/architecture-design.md",
+    "docs/feature/mcp-server-auth/design/component-boundaries.md",
+    "docs/feature/mcp-server-auth/design/data-models.md",
+    "docs/feature/mcp-server-auth/design/wave-decisions.md",
+    "docs/feature/mcp-server-auth/discuss/acceptance-criteria.md",
+    "docs/feature/mcp-server-auth/discuss/requirements.md",
+    "docs/feature/mcp-server-auth/discuss/story-map.md",
+    "docs/feature/mcp-server-auth/discuss/user-stories.md",
+    "docs/feature/mcp-server-auth/discuss/wave-decisions.md",
+    "docs/feature/mcp-server-auth/distill/test-scenarios.md",
+    "docs/feature/mcp-server-auth/distill/walking-skeleton.md",
+    "docs/feature/mcp-server-auth/distill/wave-decisions.md",
+    "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+    "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
+    "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+    "tests/acceptance/mcp-server-auth/14-credential-resolver.test.ts",
+    "tests/acceptance/mcp-server-auth/mcp-server-auth-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/11/32914d5ec0/0/metadata.json",
+      "transcript": "/11/32914d5ec0/0/full.jsonl",
+      "context": "/11/32914d5ec0/0/context.md",
+      "content_hash": "/11/32914d5ec0/0/content_hash.txt",
+      "prompt": "/11/32914d5ec0/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
