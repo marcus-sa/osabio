@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cbac80a9a208",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-mcp-tool-registry-ui--03-08",
+    ".nwave/des/des-task-active-mcp-tool-registry-ui--04-02",
+    "docs/feature/mcp-tool-registry-ui/deliver/.develop-progress.json",
+    "docs/feature/mcp-tool-registry-ui/deliver/execution-log.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cb/ac80a9a208/0/metadata.json",
+      "transcript": "/cb/ac80a9a208/0/full.jsonl",
+      "context": "/cb/ac80a9a208/0/context.md",
+      "content_hash": "/cb/ac80a9a208/0/content_hash.txt",
+      "prompt": "/cb/ac80a9a208/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
