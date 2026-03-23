@@ -165,14 +165,85 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
 });
 
 describe("Auth server metadata with path component", () => {
-  it.skip("tries multi-endpoint fallback for auth servers with path components", async () => {
-    // Given auth server URL is "https://auth.example.com/tenant1"
-    // When Brain discovers auth server metadata
-    // Then Brain tries (in order):
-    //   1. https://auth.example.com/.well-known/oauth-authorization-server/tenant1
-    //   2. https://auth.example.com/.well-known/openid-configuration/tenant1
-    //   3. https://auth.example.com/tenant1/.well-known/openid-configuration
-    // And uses the first successful response
+  it("tries multi-endpoint fallback for auth servers with path components", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-fallback-${crypto.randomUUID()}`);
+
+    // Given auth server URL has a path component: /tenant1
+    const mcpServerUrl = "https://mcp-tenant.example.com";
+    const authServerUrl = "https://auth-tenant.example.com/tenant1";
+
+    // Derived endpoints (per RFC 8414 + OIDC):
+    //   1. https://auth-tenant.example.com/.well-known/oauth-authorization-server/tenant1  -> 404
+    //   2. https://auth-tenant.example.com/.well-known/openid-configuration/tenant1        -> 200 (success)
+    //   3. https://auth-tenant.example.com/tenant1/.well-known/openid-configuration        -> (not tried)
+
+    const msw = setupMswServer(
+      // Protected Resource Metadata points to auth server with path
+      http.get(`${mcpServerUrl}/.well-known/oauth-protected-resource`, () => {
+        return HttpResponse.json({
+          resource: mcpServerUrl,
+          authorization_servers: [authServerUrl],
+          scopes_supported: ["tools:read"],
+          bearer_methods_supported: ["header"],
+        });
+      }),
+
+      // First endpoint: RFC 8414 path-based -> 404
+      http.get(
+        "https://auth-tenant.example.com/.well-known/oauth-authorization-server/tenant1",
+        () => new HttpResponse(null, { status: 404 }),
+      ),
+
+      // Second endpoint: OIDC path-based -> succeeds
+      http.get(
+        "https://auth-tenant.example.com/.well-known/openid-configuration/tenant1",
+        () => {
+          return HttpResponse.json({
+            issuer: authServerUrl,
+            authorization_endpoint: `${authServerUrl}/authorize`,
+            token_endpoint: `${authServerUrl}/token`,
+            scopes_supported: ["tools:read"],
+            response_types_supported: ["code"],
+            code_challenge_methods_supported: ["S256"],
+            grant_types_supported: ["authorization_code"],
+          });
+        },
+      ),
+    );
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // And an MCP server record exists
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: "tenant-fallback-test",
+            url: mcpServerUrl,
+            transport: "streamable-http",
+            auth_mode: "oauth",
+          },
+        },
+      );
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // When admin triggers OAuth discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { method: "POST" },
+      );
+
+      // Then discovery succeeds using the second fallback endpoint
+      expect(discoverResponse.status).toBe(200);
+      const body = await discoverResponse.json() as Record<string, unknown>;
+      expect(body.discovered).toBe(true);
+      expect(body.auth_server).toBe(authServerUrl);
+      expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 
