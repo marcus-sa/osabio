@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3cec9ea74e3e",
+  "session_id": "21947b65-907a-4eea-85c9-2a28de366628",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T12:03:41.81969Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/architecture/mcp-server-auth/architecture-design.md",
+    "docs/architecture/mcp-server-auth/component-boundaries.md",
+    "docs/architecture/mcp-server-auth/data-models.md",
+    "docs/evolution/2026-03-23-mcp-server-auth.md",
+    "docs/scenarios/mcp-server-auth/test-scenarios.md",
+    "docs/scenarios/mcp-server-auth/walking-skeleton.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bf5c38784d05",
+  "checkpoint_transcript_start": 13,
+  "transcript_lines_at_start": 13,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T12:03:41.803879Z",
+    "agent_lines": 858,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 858,
+    "agent_percentage": 100
+  }
+}
