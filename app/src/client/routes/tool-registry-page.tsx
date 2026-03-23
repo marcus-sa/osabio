@@ -161,8 +161,13 @@ export function ToolRegistryPage() {
           },
         );
         if (!response.ok) {
-          const body = await response.text();
-          return { error: body || "Failed to add server" };
+          const text = await response.text();
+          try {
+            const body = JSON.parse(text) as { error?: string };
+            return { error: (body.error ?? text) || "Failed to add server" };
+          } catch {
+            return { error: text || "Failed to add server" };
+          }
         }
         const data = (await response.json()) as { authorization_url?: string };
 

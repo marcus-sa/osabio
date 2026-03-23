@@ -221,6 +221,19 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       return jsonError(`MCP server "${body.name}" already exists in this workspace`, 409);
     }
 
+    // OAuth pre-flight: probe the MCP server for OAuth metadata BEFORE creating
+    // the server record. If the auth server doesn't support dynamic client
+    // registration, fail early so the user can choose a different auth mode.
+    if (authMode === "oauth") {
+      const preFlightError = await checkOAuthViability(urlString);
+      if (preFlightError) {
+        return jsonError(
+          `${preFlightError} Use "Static Headers" auth mode with an Authorization header instead.`,
+          422,
+        );
+      }
+    }
+
     // Create server
     const row = await createMcpServer(deps.surreal, workspaceRecord, {
       name: body.name,
@@ -233,13 +246,12 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
     const response = toMcpServerResponse(row, providerName) as Record<string, unknown>;
 
-    // OAuth auto-discovery: probe the MCP server for OAuth metadata, create/find
-    // provider, optionally register as dynamic client, then generate the
-    // authorization URL so the frontend can redirect immediately.
+    // OAuth auto-discovery: create/find provider, register as dynamic client,
+    // then generate the authorization URL so the frontend can redirect.
     if (authMode === "oauth") {
-      const authUrl = await autoDiscoverAndAuthorize(row, workspaceRecord);
-      if (authUrl) {
-        response.authorization_url = authUrl;
+      const authResult = await autoDiscoverAndAuthorize(row, workspaceRecord);
+      if (authResult?.authorizationUrl) {
+        response.authorization_url = authResult.authorizationUrl;
       }
     }
 
@@ -247,13 +259,35 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
   }
 
   /**
+   * Pre-flight check: can this MCP server's OAuth flow actually work?
+   * Probes for OAuth metadata and checks if dynamic client registration
+   * is available. Returns an error message if OAuth is not viable,
+   * or undefined if it can proceed.
+   */
+  async function checkOAuthViability(mcpServerUrl: string): Promise<string | undefined> {
+    try {
+      const config = await discoverAuth(mcpServerUrl);
+      if (!config) {
+        return "No OAuth metadata found at this server URL.";
+      }
+      if (!config.registrationEndpoint) {
+        return "The authorization server does not support dynamic client registration.";
+      }
+      return undefined;
+    } catch (error) {
+      return `OAuth discovery failed: ${error instanceof Error ? error.message : "unknown error"}`;
+    }
+  }
+
+  /**
    * Auto-discover OAuth metadata from an MCP server and generate an authorization URL.
-   * Returns the authorization URL if successful, undefined otherwise.
+   * Returns { authorizationUrl } on success, { error } when OAuth cannot proceed,
+   * or undefined when discovery finds no OAuth metadata at all.
    */
   async function autoDiscoverAndAuthorize(
     server: McpServerRow,
     workspaceRecord: RecordId<"workspace", string>,
-  ): Promise<string | undefined> {
+  ): Promise<{ authorizationUrl: string; error?: undefined } | { authorizationUrl?: undefined; error: string } | undefined> {
     try {
       const config = await discoverAuth(server.url);
       if (!config) return undefined;
@@ -322,11 +356,11 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // No client_id means the auth server doesn't support dynamic registration
       // and no client_id was pre-configured. User should use static_headers instead.
       if (!clientId) {
-        log.error("mcp-server.auto-discover", "No client_id available — authorization server does not support dynamic client registration. Use static_headers auth mode with a pre-issued token.", undefined, {
+        log.error("mcp-server.auto-discover", "No client_id available — authorization server does not support dynamic client registration", undefined, {
           serverId: server.id.id as string,
           authServer: config.authServerUrl,
         });
-        return undefined;
+        return { error: "The authorization server does not support dynamic client registration." };
       }
 
       // Generate PKCE + authorization URL
@@ -348,12 +382,12 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         scope: scopes?.join(" "),
       };
 
-      return buildAuthorizationUrl(authorizationParams);
+      return { authorizationUrl: buildAuthorizationUrl(authorizationParams) };
     } catch (error) {
       log.error("mcp-server.auto-discover", "OAuth auto-discovery failed", error, {
         serverId: server.id.id as string,
       });
-      return undefined;
+      return { error: `OAuth discovery failed: ${error instanceof Error ? error.message : "unknown error"}` };
     }
   }
 

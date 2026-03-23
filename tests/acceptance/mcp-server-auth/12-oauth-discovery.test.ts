@@ -53,7 +53,7 @@ describe("Discover auth from Protected Resource Metadata", () => {
             name: "oauth-test",
             url: "https://mcp.example.com",
             transport: "streamable-http",
-            auth_mode: "oauth",
+            auth_mode: "none",
           },
         },
       );
@@ -141,7 +141,7 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
             name: "www-auth-test",
             url: mcpServerUrl,
             transport: "streamable-http",
-            auth_mode: "oauth",
+            auth_mode: "none",
           },
         },
       );
@@ -224,7 +224,7 @@ describe("Auth server metadata with path component", () => {
             name: "tenant-fallback-test",
             url: mcpServerUrl,
             transport: "streamable-http",
-            auth_mode: "oauth",
+            auth_mode: "none",
           },
         },
       );
@@ -285,7 +285,7 @@ describe("Discovery fails gracefully", () => {
             name: "no-auth-test",
             url: mcpServerUrl,
             transport: "streamable-http",
-            auth_mode: "oauth",
+            auth_mode: "none",
           },
         },
       );
@@ -335,7 +335,7 @@ describe("Auto-created credential_provider from discovery", () => {
             name: "auto-provider-test",
             url: mcpServerUrl,
             transport: "streamable-http",
-            auth_mode: "oauth",
+            auth_mode: "none",
           },
         },
       );
