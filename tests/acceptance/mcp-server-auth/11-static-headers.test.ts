@@ -136,9 +136,10 @@ describe("Header values never in API response", () => {
     expect(body).not.toContain("supersecret");
 
     // And has_static_headers is true
-    const parsed = JSON.parse(body);
-    const server = Array.isArray(parsed) ? parsed[0] : parsed;
-    expect(server.has_static_headers).toBe(true);
+    const parsed = JSON.parse(body) as { servers?: Array<Record<string, unknown>> };
+    const servers = parsed.servers ?? [];
+    expect(servers.length).toBeGreaterThan(0);
+    expect(servers[0].has_static_headers).toBe(true);
   }, 30_000);
 });
 

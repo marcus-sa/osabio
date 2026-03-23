@@ -1367,8 +1367,14 @@ DEFINE FIELD transport ON mcp_server TYPE string DEFAULT "streamable-http"
   ASSERT $value IN ["streamable-http", "sse"];
 DEFINE FIELD workspace ON mcp_server TYPE record<workspace>;
 DEFINE FIELD provider ON mcp_server TYPE option<record<credential_provider>>;
+DEFINE FIELD auth_mode ON mcp_server TYPE string DEFAULT "none"
+  ASSERT $value IN ["none", "static_headers", "oauth", "provider"];
+DEFINE FIELD static_headers ON mcp_server TYPE option<array<object>>;
+DEFINE FIELD static_headers[*].name ON mcp_server TYPE string;
+DEFINE FIELD static_headers[*].value_encrypted ON mcp_server TYPE string;
+DEFINE FIELD oauth_account ON mcp_server TYPE option<record<connected_account>>;
 DEFINE FIELD last_status ON mcp_server TYPE option<string>
-  ASSERT $value IN ["ok", "error"] OR $value IS NONE;
+  ASSERT $value IN ["ok", "error", "auth_error"] OR $value IS NONE;
 DEFINE FIELD last_error ON mcp_server TYPE option<string>;
 DEFINE FIELD server_info ON mcp_server TYPE option<object> FLEXIBLE;
 DEFINE FIELD capabilities ON mcp_server TYPE option<object> FLEXIBLE;
@@ -1415,6 +1421,7 @@ DEFINE FIELD client_id ON credential_provider TYPE option<string>;
 DEFINE FIELD client_secret_encrypted ON credential_provider TYPE option<string>;
 DEFINE FIELD scopes ON credential_provider TYPE option<array<string>>;
 DEFINE FIELD api_key_header ON credential_provider TYPE option<string>;
+DEFINE FIELD discovery_source ON credential_provider TYPE option<string>;
 DEFINE FIELD created_at ON credential_provider TYPE datetime DEFAULT time::now();
 DEFINE INDEX credential_provider_workspace ON credential_provider FIELDS workspace;
 DEFINE INDEX credential_provider_workspace_name ON credential_provider FIELDS workspace, name;

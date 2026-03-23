@@ -671,7 +671,9 @@ export async function createTestUserWithMcp(
         Authorization: `DPoP ${access_token}`,
         DPoP: proof,
       },
-      body: options?.body !== undefined ? JSON.stringify(options.body) : JSON.stringify({}),
+      body: method === "GET" || method === "HEAD"
+        ? undefined
+        : (options?.body !== undefined ? JSON.stringify(options.body) : JSON.stringify({})),
     });
   };
 
