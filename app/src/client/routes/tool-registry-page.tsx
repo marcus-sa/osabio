@@ -150,13 +150,22 @@ export function ToolRegistryPage() {
           const body = await response.text();
           return { error: body || "Failed to add server" };
         }
+        const data = (await response.json()) as { authorization_url?: string };
+
+        // If the server supports OAuth, the backend auto-discovered and generated
+        // an authorization URL — open it so the user can authorize immediately.
+        if (data.authorization_url) {
+          window.open(data.authorization_url, "_blank");
+        }
+
         refreshMcpServers();
+        refreshProviders();
         return {};
       } catch {
         return { error: "Network error" };
       }
     },
-    [workspaceId, refreshMcpServers],
+    [workspaceId, refreshMcpServers, refreshProviders],
   );
 
   const handleRemoveServer = useCallback(
@@ -204,26 +213,6 @@ export function ToolRegistryPage() {
       }
     },
     [workspaceId, refreshMcpServers, refreshTools],
-  );
-
-  const handleDiscoverAuth = useCallback(
-    async (serverId: string) => {
-      try {
-        const response = await fetch(
-          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/discover-auth`,
-          { method: "POST" },
-        );
-        if (!response.ok) return;
-        const data = (await response.json()) as { discovered: boolean; authorization_endpoint?: string };
-        if (data.discovered) {
-          refreshMcpServers();
-          refreshProviders();
-        }
-      } catch {
-        // silently fail
-      }
-    },
-    [workspaceId, refreshMcpServers, refreshProviders],
   );
 
   const handleAuthorize = useCallback(
@@ -378,7 +367,6 @@ export function ToolRegistryPage() {
               onRemoveServer={handleRemoveServer}
               onDiscover={handleDiscoverTools}
               onSync={handleSyncTools}
-              onDiscoverAuth={handleDiscoverAuth}
               onAuthorize={handleAuthorize}
             />
           </div>

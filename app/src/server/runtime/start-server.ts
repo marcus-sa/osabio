@@ -500,6 +500,11 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       "/api/workspaces/:workspaceId/mcp-servers/oauth/callback": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/mcp-servers/oauth/callback",
+          "GET",
+          (request) => mcpServerHandlers.handleOAuthCallback(request.params.workspaceId, request),
+        ),
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/mcp-servers/oauth/callback",
           "POST",

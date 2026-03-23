@@ -231,7 +231,117 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       providerRecord,
     });
 
-    return jsonResponse(toMcpServerResponse(row, providerName), 201);
+    const response = toMcpServerResponse(row, providerName) as Record<string, unknown>;
+
+    // OAuth auto-discovery: probe the MCP server for OAuth metadata, create/find
+    // provider, optionally register as dynamic client, then generate the
+    // authorization URL so the frontend can redirect immediately.
+    if (authMode === "oauth") {
+      const authUrl = await autoDiscoverAndAuthorize(row, workspaceRecord);
+      if (authUrl) {
+        response.authorization_url = authUrl;
+      }
+    }
+
+    return jsonResponse(response, 201);
+  }
+
+  /**
+   * Auto-discover OAuth metadata from an MCP server and generate an authorization URL.
+   * Returns the authorization URL if successful, undefined otherwise.
+   */
+  async function autoDiscoverAndAuthorize(
+    server: McpServerRow,
+    workspaceRecord: RecordId<"workspace", string>,
+  ): Promise<string | undefined> {
+    try {
+      const config = await discoverAuth(server.url);
+      if (!config) return undefined;
+
+      // Find or create credential_provider
+      const existingProvider = await findProviderByDiscoverySource(
+        deps.surreal,
+        workspaceRecord,
+        server.url,
+      );
+      const providerRecord = existingProvider ?? await createProvider(
+        deps.surreal,
+        workspaceRecord,
+        {
+          name: new URL(config.authServerUrl).hostname,
+          display_name: new URL(config.authServerUrl).hostname,
+          auth_method: "oauth2",
+          authorization_url: config.authorizationEndpoint,
+          token_url: config.tokenEndpoint,
+          discovery_source: server.url,
+          ...(config.scopesSupported ? { scopes: config.scopesSupported } : {}),
+        },
+      );
+
+      // Dynamic client registration (RFC 7591) — only for newly created providers
+      if (config.registrationEndpoint && !existingProvider) {
+        try {
+          const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+          const registrationResult = await registerDynamicClient(
+            config.registrationEndpoint,
+            {
+              client_name: "Brain",
+              redirect_uris: [redirectUri],
+              grant_types: ["authorization_code"],
+              response_types: ["code"],
+              token_endpoint_auth_method: "none",
+            },
+          );
+
+          const encryptionKey = deps.config.toolEncryptionKey;
+          const clientSecretEncrypted = registrationResult.client_secret && encryptionKey
+            ? encryptSecret(registrationResult.client_secret, encryptionKey)
+            : undefined;
+
+          await updateProviderClientRegistration(
+            deps.surreal,
+            providerRecord.id,
+            registrationResult.client_id,
+            clientSecretEncrypted,
+          );
+        } catch (regError) {
+          log.error("mcp-server.auto-discover", "Dynamic client registration failed", regError, {
+            serverId: server.id.id as string,
+          });
+        }
+      }
+
+      // Link mcp_server to provider
+      await updateMcpServerProvider(deps.surreal, server.id, providerRecord.id);
+
+      // Generate PKCE + authorization URL
+      const pkce = await generatePkce();
+      const state = crypto.randomUUID();
+
+      await storePendingOAuthState(deps.surreal, server.id, pkce.codeVerifier, state);
+
+      const clientId = (providerRecord as unknown as { client_id?: string }).client_id
+        ?? deps.config.baseUrl;
+      const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
+      const scopes = (providerRecord as unknown as { scopes?: string[] }).scopes;
+
+      const authorizationParams: AuthorizationParams = {
+        authorizationEndpoint: config.authorizationEndpoint,
+        clientId,
+        redirectUri,
+        codeChallenge: pkce.codeChallenge,
+        state,
+        resource: server.url,
+        scope: scopes?.join(" "),
+      };
+
+      return buildAuthorizationUrl(authorizationParams);
+    } catch (error) {
+      log.error("mcp-server.auto-discover", "OAuth auto-discovery failed", error, {
+        serverId: server.id.id as string,
+      });
+      return undefined;
+    }
   }
 
   async function handleListServers(
@@ -660,23 +770,34 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       return jsonError("internal error", 500);
     }
 
-    // Parse code + state from request body
-    let body: { code?: string; state?: string };
-    try {
-      body = await request.json() as { code?: string; state?: string };
-    } catch {
-      return jsonError("invalid JSON body", 400);
+    // Parse code + state from query params (GET redirect from OAuth provider)
+    // or request body (POST from frontend) for backwards compat
+    let code: string | undefined;
+    let state: string | undefined;
+
+    const url = new URL(request.url);
+    if (url.searchParams.has("code")) {
+      code = url.searchParams.get("code") ?? undefined;
+      state = url.searchParams.get("state") ?? undefined;
+    } else {
+      try {
+        const body = await request.json() as { code?: string; state?: string };
+        code = body.code;
+        state = body.state;
+      } catch {
+        return jsonError("invalid request", 400);
+      }
     }
 
-    if (!body.code || typeof body.code !== "string") {
+    if (!code || typeof code !== "string") {
       return jsonError("code is required", 400);
     }
-    if (!body.state || typeof body.state !== "string") {
+    if (!state || typeof state !== "string") {
       return jsonError("state is required", 400);
     }
 
     // Find the mcp_server that has this pending state
-    const server = await findServerByPendingState(deps.surreal, workspaceRecord, body.state);
+    const server = await findServerByPendingState(deps.surreal, workspaceRecord, state);
     if (!server) {
       return jsonError("No pending authorization found for the provided state", 404);
     }
@@ -714,7 +835,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Exchange the authorization code for tokens using PKCE
       const tokenResult = await exchangeCode({
         tokenEndpoint: providerRecord.token_url,
-        code: body.code,
+        code,
         redirectUri,
         codeVerifier: server.pending_pkce_verifier,
         clientId,
@@ -756,9 +877,23 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Clear pending PKCE state from the server record
       await clearPendingOAuthState(deps.surreal, server.id);
 
+      // GET = browser redirect from OAuth provider → redirect back to UI
+      // POST = programmatic call → return JSON
+      if (request.method === "GET") {
+        return Response.redirect(
+          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=success`,
+          302,
+        );
+      }
       return jsonResponse(tokenResult, 200);
     } catch (error) {
       log.error("mcp-server.oauth-callback", "Token exchange failed", error, { workspaceId });
+      if (request.method === "GET") {
+        return Response.redirect(
+          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=error`,
+          302,
+        );
+      }
       return jsonError(
         `Token exchange failed: ${error instanceof Error ? error.message : "unknown error"}`,
         502,

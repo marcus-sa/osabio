@@ -164,8 +164,9 @@ export function deriveMcpServerRowViewModel(
   server: McpServerListItem,
 ): McpServerRowViewModel {
   const authMode = (server.auth_mode ?? "none") as AuthMode;
-  const showAuthorize = authMode === "oauth" && (
-    server.last_status === "auth_error" || !server.provider_id
+  // Show re-authorize when oauth server has a provider but auth failed or expired
+  const showAuthorize = authMode === "oauth" && !!server.provider_id && (
+    server.last_status === "auth_error"
   );
 
   return {
@@ -617,7 +618,7 @@ export function AddMcpServerDialog({
 
           {formData.auth_mode === "oauth" && (
             <p className="text-xs text-muted-foreground">
-              After adding, use "Discover Auth" to detect the server's OAuth configuration automatically.
+              OAuth configuration will be auto-discovered. You'll be redirected to authorize after adding.
             </p>
           )}
 
@@ -677,7 +678,6 @@ type McpServerSectionProps = {
   onRemoveServer: (serverId: string) => void;
   onDiscover: (serverId: string) => void;
   onSync: (serverId: string) => void;
-  onDiscoverAuth: (serverId: string) => void;
   onAuthorize: (serverId: string) => void;
 };
 
@@ -688,7 +688,6 @@ export function McpServerSection({
   onRemoveServer,
   onDiscover,
   onSync,
-  onDiscoverAuth,
   onAuthorize,
 }: McpServerSectionProps) {
   const existingNames = servers.map((s) => s.name);
@@ -761,25 +760,14 @@ export function McpServerSection({
                       {row.lastDiscoveryDisplay}
                     </td>
                     <td className="flex gap-1 px-3 py-2">
-                      {row.authMode === "oauth" && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onDiscoverAuth(row.id)}
-                          >
-                            Discover Auth
-                          </Button>
-                          {row.showAuthorizeAction && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => onAuthorize(row.id)}
-                            >
-                              Authorize
-                            </Button>
-                          )}
-                        </>
+                      {row.showAuthorizeAction && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => onAuthorize(row.id)}
+                        >
+                          Re-authorize
+                        </Button>
                       )}
                       <Button
                         variant="outline"

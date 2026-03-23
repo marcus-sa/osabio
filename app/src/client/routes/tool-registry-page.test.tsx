@@ -310,19 +310,20 @@ describe("ToolRegistryPage servers tab", () => {
     expect(screen.getByText("Headers")).toBeInTheDocument();
   });
 
-  it("shows Discover Auth button only for oauth servers", () => {
+  it("shows Re-authorize button only when auth_error", () => {
     mockSearchParams = { tab: "servers" };
+    // Default servers have last_status: "ok" — no re-authorize shown
     render(<ToolRegistryPage />);
 
-    const discoverAuthButtons = screen.getAllByRole("button", { name: /discover auth/i });
-    expect(discoverAuthButtons).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /re-authorize/i })).not.toBeInTheDocument();
   });
 
-  it("shows Authorize button for oauth server", () => {
+  it("shows Re-authorize button when auth_error on oauth server with provider", () => {
     mockSearchParams = { tab: "servers" };
+    mockServers = [{ ...MOCK_SERVERS[0], last_status: "auth_error", provider_id: "prov-1" }];
     render(<ToolRegistryPage />);
 
-    expect(screen.getByRole("button", { name: /^authorize$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /re-authorize/i })).toBeInTheDocument();
   });
 
   it("shows empty state when no servers", () => {
@@ -347,25 +348,9 @@ describe("ToolRegistryPage servers tab", () => {
 // ---------------------------------------------------------------------------
 
 describe("ToolRegistryPage server actions", () => {
-  it("POSTs discover-auth and refreshes servers + providers", async () => {
+  it("POSTs re-authorize and opens authorization URL in new tab", async () => {
     mockSearchParams = { tab: "servers" };
-    const user = userEvent.setup();
-    render(<ToolRegistryPage />);
-
-    await user.click(screen.getByRole("button", { name: /discover auth/i }));
-
-    await waitFor(() => {
-      expect(calledEndpoints.some((e) => e.url.includes("/discover-auth"))).toBe(true);
-    });
-
-    await waitFor(() => {
-      expect(mockRefreshServers).toHaveBeenCalled();
-      expect(mockRefreshProviders).toHaveBeenCalled();
-    });
-  });
-
-  it("POSTs authorize and opens authorization URL in new tab", async () => {
-    mockSearchParams = { tab: "servers" };
+    mockServers = [{ ...MOCK_SERVERS[0], last_status: "auth_error", provider_id: "prov-1" }];
     const user = userEvent.setup();
     const openSpy = mock(() => null);
     const originalOpen = window.open;
@@ -373,7 +358,7 @@ describe("ToolRegistryPage server actions", () => {
 
     render(<ToolRegistryPage />);
 
-    await user.click(screen.getByRole("button", { name: /^authorize$/i }));
+    await user.click(screen.getByRole("button", { name: /re-authorize/i }));
 
     await waitFor(() => {
       expect(calledEndpoints.some((e) => e.url.includes("/authorize"))).toBe(true);
