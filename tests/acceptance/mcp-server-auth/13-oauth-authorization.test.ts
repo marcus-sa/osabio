@@ -25,7 +25,11 @@ import {
   getMcpServer,
 } from "./mcp-server-auth-test-kit";
 
-const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_flow");
+const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_flow", {
+  configOverrides: {
+    toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  },
+});
 
 // ---------------------------------------------------------------------------
 // Milestone 3: OAuth 2.1 Authorization Flow
@@ -191,12 +195,87 @@ describe("Exchange authorization code for tokens", () => {
 });
 
 describe("Tokens encrypted and stored", () => {
-  it.skip("access_token and refresh_token are encrypted in connected_account", async () => {
-    // Given successful token exchange
-    // When reading connected_account from SurrealDB
-    // Then access_token_encrypted contains ciphertext, not plaintext
-    // And refresh_token_encrypted contains ciphertext, not plaintext
-    // And token_expires_at is set
+  it("access_token and refresh_token are encrypted in connected_account", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-enc-${crypto.randomUUID()}`);
+
+    // Given: MSW mock auth server
+    const mcpServerUrl = "https://mcp.example.com";
+    const authServerUrl = "https://auth.example.com";
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Register an MCP server
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-encrypt-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // Discover auth (creates credential_provider linked to server)
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+      const discoverBody = (await discoverRes.json()) as { discovered: boolean };
+      expect(discoverBody.discovered).toBe(true);
+
+      // Initiate authorization (stores PKCE verifier + state)
+      const authorizeRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/authorize`,
+        { body: {} },
+      );
+      expect(authorizeRes.status).toBe(200);
+      const { state } = (await authorizeRes.json()) as { redirect_url: string; state: string };
+
+      // When: OAuth callback exchanges code for tokens
+      const callbackRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/oauth/callback`,
+        { body: { code: "mock-auth-code-456", state } },
+      );
+      expect(callbackRes.status).toBe(200);
+      const callbackBody = (await callbackRes.json()) as {
+        access_token: string;
+        refresh_token?: string;
+      };
+
+      // Then: connected_account exists with encrypted tokens
+      const [accounts] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM connected_account WHERE workspace = $ws;`,
+        { ws: new (await import("surrealdb")).RecordId("workspace", user.workspaceId) },
+      );
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const account = accounts[0];
+
+      // access_token_encrypted is present and does NOT contain the plaintext token
+      expect(account.access_token_encrypted).toBeDefined();
+      expect(typeof account.access_token_encrypted).toBe("string");
+      expect((account.access_token_encrypted as string).length).toBeGreaterThan(0);
+      expect(account.access_token_encrypted).not.toBe(callbackBody.access_token);
+      expect(account.access_token_encrypted).not.toContain(callbackBody.access_token);
+
+      // refresh_token_encrypted is present and does NOT contain the plaintext token
+      expect(account.refresh_token_encrypted).toBeDefined();
+      expect(typeof account.refresh_token_encrypted).toBe("string");
+      expect((account.refresh_token_encrypted as string).length).toBeGreaterThan(0);
+      expect(account.refresh_token_encrypted).not.toBe(callbackBody.refresh_token);
+      expect(account.refresh_token_encrypted).not.toContain(callbackBody.refresh_token!);
+
+      // token_expires_at is set
+      expect(account.token_expires_at).toBeDefined();
+
+      // status is active
+      expect(account.status).toBe("active");
+
+      // mcp_server.oauth_account is linked
+      const serverAfter = await getMcpServer(surreal, serverId);
+      expect(serverAfter?.oauth_account).toBeDefined();
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 

@@ -29,9 +29,12 @@ import {
   storePendingOAuthState,
   findServerByPendingState,
   clearPendingOAuthState,
+  updateMcpServerOAuthAccount,
+  findWorkspaceOwnerIdentity,
   type McpServerRow,
 } from "./server-queries";
-import { getProviderById, createProvider } from "./queries";
+import { getProviderById, createProvider, createConnectedAccount } from "./queries";
+import { encryptSecret } from "./encryption";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
 import { generatePkce, buildAuthorizationUrl, exchangeCode } from "./oauth-flow";
@@ -673,6 +676,39 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         codeVerifier: server.pending_pkce_verifier,
         clientId,
       });
+
+      // Encrypt tokens before storage
+      const encryptionKey = deps.config.toolEncryptionKey;
+      if (encryptionKey) {
+        // Find workspace owner identity for the connected_account
+        const ownerIdentity = await findWorkspaceOwnerIdentity(deps.surreal, workspaceRecord);
+        if (ownerIdentity) {
+          const accountContent: Record<string, unknown> = {
+            identity: ownerIdentity,
+            provider: server.provider,
+            workspace: workspaceRecord,
+            status: "active",
+            access_token_encrypted: encryptSecret(tokenResult.access_token, encryptionKey),
+          };
+
+          if (tokenResult.refresh_token) {
+            accountContent.refresh_token_encrypted = encryptSecret(tokenResult.refresh_token, encryptionKey);
+          }
+
+          if (tokenResult.expires_in) {
+            accountContent.token_expires_at = new Date(Date.now() + tokenResult.expires_in * 1000);
+          }
+
+          if (tokenResult.scope) {
+            accountContent.scopes = tokenResult.scope.split(" ");
+          }
+
+          const account = await createConnectedAccount(deps.surreal, accountContent);
+
+          // Link mcp_server to the new connected_account
+          await updateMcpServerOAuthAccount(deps.surreal, server.id, account.id);
+        }
+      }
 
       // Clear pending PKCE state from the server record
       await clearPendingOAuthState(deps.surreal, server.id);

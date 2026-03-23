@@ -238,6 +238,36 @@ export async function findServerByPendingState(
 }
 
 /**
+ * Find the owner identity for a workspace via member_of relation.
+ * Returns the identity RecordId, or undefined if no owner found.
+ */
+export async function findWorkspaceOwnerIdentity(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<RecordId<"identity", string> | undefined> {
+  const results = await surreal.query<[Array<RecordId<"identity", string>>]>(
+    "SELECT VALUE `in` FROM member_of WHERE out = $ws LIMIT 1;",
+    { ws: workspaceRecord },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
+ * Link an mcp_server to a connected_account and set auth_mode to "oauth".
+ * Called after successful OAuth token exchange.
+ */
+export async function updateMcpServerOAuthAccount(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  accountRecord: RecordId<"connected_account", string>,
+): Promise<void> {
+  await surreal.query(
+    `UPDATE $server SET oauth_account = $account, auth_mode = "oauth";`,
+    { server: serverRecord, account: accountRecord },
+  );
+}
+
+/**
  * Clear pending PKCE verifier and OAuth state from an mcp_server record
  * after successful token exchange.
  */
