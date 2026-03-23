@@ -323,7 +323,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
     try {
       const result = await discoverTools(
-        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory },
+        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory, toolEncryptionKey: deps.config.toolEncryptionKey },
         server,
         { dryRun: true },
       );
@@ -358,7 +358,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
     try {
       const result = await discoverTools(
-        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory },
+        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory, toolEncryptionKey: deps.config.toolEncryptionKey },
         server,
         { dryRun: false, selectedTools },
       );

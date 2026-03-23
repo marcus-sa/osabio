@@ -25,7 +25,10 @@ import {
   seedMcpServer,
   getMcpServer,
   setupMockMcpServer,
+  type CapturedRequest,
 } from "./mcp-server-auth-test-kit";
+import { http, HttpResponse } from "msw";
+import { setupServer as setupMswServer } from "msw/node";
 
 const getRuntime = setupMcpServerAuthSuite("mcp_server_auth_static_headers");
 
@@ -144,14 +147,119 @@ describe("Header values never in API response", () => {
 });
 
 describe("Static headers injected on MCP connect", () => {
-  it.skip("MCP client sends configured headers when connecting to server", async () => {
-    // This test requires the credential resolver + MCP client factory wiring
-    // which will be implemented in the walking skeleton step.
-    //
-    // Given MCP server "github-mcp" with static header "Authorization: Bearer ghp_test"
-    // When Brain connects to the MCP server for discovery
-    // Then the HTTP request includes "Authorization: Bearer ghp_test" header
-    // And tools/list returns tools from the authenticated server
+  it("MCP client sends configured headers when connecting to server", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-inject-${crypto.randomUUID()}`);
+
+    const mockUrl = "https://mcp-static-auth.example.com";
+    const expectedAuth = "Bearer ghp_test_inject_123";
+    const capturedRequests: CapturedRequest[] = [];
+
+    // Set up MSW mock that handles the full MCP JSON-RPC protocol
+    // and requires the Authorization header on every request
+    const msw = setupMswServer(
+      http.post(mockUrl, async ({ request }) => {
+        capturedRequests.push({
+          url: request.url,
+          method: request.method,
+          headers: Object.fromEntries(request.headers.entries()),
+        });
+
+        // Reject requests without the correct Authorization header
+        const authHeader = request.headers.get("authorization");
+        if (authHeader !== expectedAuth) {
+          return new HttpResponse(null, { status: 401 });
+        }
+
+        // Parse JSON-RPC request to dispatch by method
+        const body = await request.json() as { jsonrpc: string; id?: number; method: string };
+
+        if (body.method === "initialize") {
+          return HttpResponse.json({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+              protocolVersion: "2025-03-26",
+              capabilities: { tools: {} },
+              serverInfo: { name: "mock-mcp-server", version: "1.0.0" },
+            },
+          });
+        }
+
+        if (body.method === "notifications/initialized") {
+          // Notification -- no response needed but return 200
+          return new HttpResponse(null, { status: 200 });
+        }
+
+        if (body.method === "tools/list") {
+          return HttpResponse.json({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+              tools: [
+                {
+                  name: "mock_tool",
+                  description: "A mock tool for testing",
+                  inputSchema: { type: "object", properties: {} },
+                },
+              ],
+            },
+          });
+        }
+
+        // Unknown method
+        return HttpResponse.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          error: { code: -32601, message: "Method not found" },
+        });
+      }),
+    );
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Given an MCP server with static header "Authorization: Bearer ghp_test_inject_123"
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: `inject-test-${crypto.randomUUID().slice(0, 8)}`,
+            url: mockUrl,
+            transport: "streamable-http",
+            auth_mode: "static_headers",
+            static_headers: [
+              { name: "Authorization", value: expectedAuth },
+            ],
+          },
+        },
+      );
+
+      expect(createResponse.status).toBe(201);
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // When Brain connects to the MCP server for discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover`,
+        { method: "POST" },
+      );
+
+      // Then the discovery succeeds (server received correct auth header)
+      expect(discoverResponse.status).toBe(200);
+      const discoverBody = await discoverResponse.json() as { tools: Array<{ name: string }> };
+
+      // And tools/list returns tools from the authenticated server
+      expect(discoverBody.tools).toBeDefined();
+      expect(discoverBody.tools.length).toBeGreaterThan(0);
+      expect(discoverBody.tools[0].name).toBe("mock_tool");
+
+      // And the HTTP request included the correct Authorization header
+      expect(capturedRequests.length).toBeGreaterThan(0);
+      const mcpRequest = capturedRequests.find((r) => r.headers.authorization === expectedAuth);
+      expect(mcpRequest).toBeDefined();
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 

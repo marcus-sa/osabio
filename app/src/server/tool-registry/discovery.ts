@@ -24,6 +24,7 @@ import type {
   McpServerRecord,
   McpTransport,
 } from "./types";
+import { resolveAuthForMcpServer } from "../proxy/credential-resolver";
 
 // ---------------------------------------------------------------------------
 // Public types for pure functions
@@ -188,6 +189,7 @@ export function filterBySelection(
 export type DiscoveryDeps = {
   surreal: Surreal;
   mcpClientFactory: McpClientFactory;
+  toolEncryptionKey?: string;
 };
 
 /** Options for the discoverTools function. */
@@ -238,10 +240,15 @@ export async function discoverTools(
 ): Promise<SyncApplyResult> {
   const serverRecord = server.id;
 
-  // 1. Connect to MCP server and fetch tool list
+  // 1. Resolve auth headers for the server, then connect
+  const authHeaders = deps.toolEncryptionKey
+    ? resolveAuthForMcpServer(server, deps.toolEncryptionKey)
+    : {};
+
   const connection = await deps.mcpClientFactory.connect(
     server.url,
     server.transport as McpTransport,
+    Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
   );
 
   let toolListResult: ToolListResult;

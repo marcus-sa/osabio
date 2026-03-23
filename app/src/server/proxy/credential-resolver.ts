@@ -12,7 +12,8 @@
  */
 import { RecordId, type Surreal } from "surrealdb";
 import { decryptSecret } from "../tool-registry/encryption";
-import type { AuthMethod } from "../tool-registry/types";
+import { decryptHeaders, buildHeaderMap } from "../tool-registry/static-headers";
+import type { AuthMethod, McpServerRecord } from "../tool-registry/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +92,40 @@ export function buildAuthHeaders(
       }
       return { ok: true, headers: { Authorization: `Bearer ${credentials.accessToken}` } };
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pure: resolveAuthForMcpServer
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve auth headers for an MCP server based on its auth_mode.
+ *
+ * Pure function: no IO. Dispatches by auth_mode and decrypts static headers.
+ *
+ *   auth_mode "none"           -> {}
+ *   auth_mode "static_headers" -> decrypt stored headers, return as plain map
+ *   auth_mode "oauth"          -> TODO (step 01-06)
+ *   auth_mode "provider"       -> TODO (existing credential_provider flow)
+ */
+export function resolveAuthForMcpServer(
+  server: McpServerRecord,
+  encryptionKey: string,
+): Record<string, string> {
+  switch (server.auth_mode) {
+    case "static_headers": {
+      if (!server.static_headers || server.static_headers.length === 0) {
+        return {};
+      }
+      const decrypted = decryptHeaders(server.static_headers, encryptionKey);
+      return buildHeaderMap(decrypted);
+    }
+    case "none":
+    case "oauth":
+    case "provider":
+    default:
+      return {};
   }
 }
 
