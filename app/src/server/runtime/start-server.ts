@@ -930,6 +930,7 @@ export async function startServer(): Promise<void> {
     inflight: createInflightTracker(),
     asSigningKey: runtime.asSigningKey,
     nonceCache: createNonceCache(),
+    mcpClientFactory: runtime.mcpClientFactory,
   };
 
   const server = createBrainServer(deps);
