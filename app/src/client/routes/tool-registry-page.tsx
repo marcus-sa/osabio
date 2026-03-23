@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
@@ -110,7 +110,7 @@ export function ToolRegistryPage() {
   const { tools, refresh: refreshTools } = useTools();
   const { providers, refresh: refreshProviders } = useProviders();
   const { accounts, refresh: refreshAccounts } = useAccounts();
-  const { mcpServers } = useMcpServers();
+  const { mcpServers = [] } = useMcpServers();
 
   // Access tab: track grants per expanded tool and toast messages
   const [accessToast, setAccessToast] = useState<string | undefined>();
@@ -232,28 +232,16 @@ export function ToolRegistryPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-foreground">Tool Registry</h1>
       </div>
-      <div className="flex gap-1 border-b border-border" role="tablist">
-        {TOOL_REGISTRY_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            className={cn(
-              "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
-              vm.activeTab === tab.id
-                ? "border-accent text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => handleTabChange(tab.id)}
-            aria-selected={vm.activeTab === tab.id}
-            role="tab"
-          >
-            {vm.tabLabels[tab.id]}
-          </button>
-        ))}
-      </div>
-
-      {vm.activeTab === "tools" && (
-        <>
-          {vm.showEmptyState ? (
+      <Tabs value={vm.activeTab} onValueChange={handleTabChange}>
+        <TabsList variant="line">
+          {TOOL_REGISTRY_TABS.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id}>
+              {vm.tabLabels[tab.id]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="tools">
+          {vm.showEmptyState && vm.activeTab === "tools" ? (
             <EmptyState message="No tools discovered yet." cta={vm.emptyStateCta} />
           ) : (
             <div className="flex flex-col gap-3 py-2">
@@ -293,25 +281,19 @@ export function ToolRegistryPage() {
               <ToolTable tools={tools} filters={toolFilters} />
             </div>
           )}
-        </>
-      )}
-
-      {vm.activeTab === "providers" && (
-        <>
+        </TabsContent>
+        <TabsContent value="providers">
           <div className="flex justify-end py-2">
             <CreateProviderDialog onSubmit={handleCreateProvider} />
           </div>
-          {vm.showEmptyState ? (
+          {vm.showEmptyState && vm.activeTab === "providers" ? (
             <EmptyState message="No credential providers configured." cta={vm.emptyStateCta} />
           ) : (
             <ProviderTable providers={providers} onDelete={handleDeleteProvider} />
           )}
-        </>
-      )}
-
-      {vm.activeTab === "accounts" && (
-        <>
-          {vm.showEmptyState ? (
+        </TabsContent>
+        <TabsContent value="accounts">
+          {vm.showEmptyState && vm.activeTab === "accounts" ? (
             <EmptyState message="No accounts connected." cta={vm.emptyStateCta} />
           ) : (
             <AccountTable
@@ -321,11 +303,8 @@ export function ToolRegistryPage() {
               onReconnect={handleReconnectAccount}
             />
           )}
-        </>
-      )}
-
-      {vm.activeTab === "access" && (
-        <>
+        </TabsContent>
+        <TabsContent value="access">
           {accessToast && (
             <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
               {accessToast}
@@ -337,7 +316,7 @@ export function ToolRegistryPage() {
               </button>
             </div>
           )}
-          {vm.showEmptyState ? (
+          {vm.showEmptyState && vm.activeTab === "access" ? (
             <EmptyState message="No tools available to manage access." cta={vm.emptyStateCta} />
           ) : (
             <GrantTable
@@ -349,8 +328,8 @@ export function ToolRegistryPage() {
               onRevokeGrant={handleRevokeGrant}
             />
           )}
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </section>
   );
 }
