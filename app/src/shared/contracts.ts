@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior";
+export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior" | "mcp_tool" | "mcp_server";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 
@@ -464,4 +464,82 @@ export type LearningSummary = {
   dismissedAt?: string;
   dismissedReason?: string;
   deactivatedAt?: string;
+};
+
+// --- Tool Registry contract types ---
+
+export const TOOL_RISK_LEVELS = ["low", "medium", "high", "critical"] as const;
+export type ToolRiskLevel = (typeof TOOL_RISK_LEVELS)[number];
+
+export const TOOL_STATUSES = ["active", "disabled"] as const;
+export type ToolStatus = (typeof TOOL_STATUSES)[number];
+
+export const MCP_TRANSPORTS = ["sse", "streamable-http"] as const;
+export type McpTransport = (typeof MCP_TRANSPORTS)[number];
+
+export const TOOL_SYNC_ACTIONS = ["create", "update", "disable", "unchanged"] as const;
+export type ToolSyncAction = (typeof TOOL_SYNC_ACTIONS)[number];
+
+export type ToolListItemResponse = {
+  id: string;
+  name: string;
+  toolkit: string;
+  description: string;
+  risk_level: ToolRiskLevel;
+  status: ToolStatus;
+  grant_count: number;
+  governance_count: number;
+  created_at: string;
+};
+
+export type ToolListResponse = {
+  tools: ToolListItemResponse[];
+};
+
+export type GrantDetailResponse = {
+  identity_id: string;
+  identity_name: string;
+  max_calls_per_hour?: number;
+  granted_at: string;
+};
+
+export type GovernancePolicyDetailResponse = {
+  policy_title: string;
+  policy_status: string;
+  conditions?: string;
+  max_per_call?: number;
+  max_per_day?: number;
+};
+
+export type ToolDetailResponse = ToolListItemResponse & {
+  input_schema: Record<string, unknown>;
+  grants: GrantDetailResponse[];
+  governance_policies: GovernancePolicyDetailResponse[];
+};
+
+export type McpServerListItemResponse = {
+  id: string;
+  name: string;
+  url: string;
+  transport: McpTransport;
+  last_status?: string;
+  tool_count: number;
+  created_at: string;
+};
+
+export type McpServerListResponse = {
+  servers: McpServerListItemResponse[];
+};
+
+export type ToolSyncDetailResponse = {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  action: ToolSyncAction;
+  risk_level: ToolRiskLevel;
+};
+
+export type DiscoveryResultResponse = {
+  server_id: string;
+  tools: ToolSyncDetailResponse[];
 };

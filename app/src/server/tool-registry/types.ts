@@ -1,5 +1,8 @@
 /**
- * Credential provider domain types.
+ * Tool Registry Domain Types
+ *
+ * Credential providers, connected accounts, tools, grants, governance,
+ * MCP servers, and discovery.
  *
  * Auth method variants: oauth2, api_key, bearer, basic.
  * Encrypted fields use _encrypted suffix (ADR-068).
@@ -116,4 +119,188 @@ export type ProviderApiResponse = {
   scopes?: string[];
   api_key_header?: string;
   created_at: string;
+};
+
+// ---------------------------------------------------------------------------
+// Tool Types
+// ---------------------------------------------------------------------------
+
+export type ToolRiskLevel = "low" | "medium" | "high" | "critical";
+export type ToolStatus = "active" | "disabled";
+
+/**
+ * Summary shape for the tools list (Tools tab).
+ * Includes grant/governance counts for UI grouping.
+ */
+export type ToolListItem = {
+  id: string;
+  name: string;
+  toolkit: string;
+  description: string;
+  risk_level: ToolRiskLevel;
+  status: ToolStatus;
+  grant_count: number;
+  governance_count: number;
+  created_at: string;
+};
+
+/**
+ * Grant detail within a tool's access tab.
+ */
+export type GrantDetail = {
+  identity_id: string;
+  identity_name: string;
+  max_calls_per_hour?: number;
+  granted_at: string;
+};
+
+/**
+ * Governance policy detail within a tool's governance tab.
+ */
+export type GovernancePolicyDetail = {
+  policy_title: string;
+  policy_status: string;
+  conditions?: string;
+  max_per_call?: number;
+  max_per_day?: number;
+};
+
+/**
+ * Full tool detail: list item fields plus schema, grants, and governance.
+ */
+export type ToolDetail = ToolListItem & {
+  input_schema: Record<string, unknown>;
+  grants: GrantDetail[];
+  governance_policies: GovernancePolicyDetail[];
+};
+
+/**
+ * SurrealDB record shape for mcp_tool.
+ */
+export type McpToolRecord = {
+  id: RecordId<"mcp_tool", string>;
+  name: string;
+  toolkit: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  risk_level: ToolRiskLevel;
+  status: ToolStatus;
+  workspace: RecordId<"workspace", string>;
+  provider?: RecordId<"credential_provider", string>;
+  source_server?: RecordId<"mcp_server", string>;
+  created_at: Date;
+};
+
+// ---------------------------------------------------------------------------
+// Grant / Governance Input Types
+// ---------------------------------------------------------------------------
+
+/**
+ * Input for creating a tool access grant via API.
+ */
+export type CreateGrantInput = {
+  identity_id: string;
+  max_calls_per_hour?: number;
+};
+
+/**
+ * Input for attaching a governance policy to a tool via API.
+ */
+export type AttachGovernanceInput = {
+  policy_id: string;
+  conditions?: string;
+  max_per_call?: number;
+  max_per_day?: number;
+};
+
+// ---------------------------------------------------------------------------
+// MCP Server Types
+// ---------------------------------------------------------------------------
+
+export type McpTransport = "sse" | "streamable-http";
+export type McpServerStatus = "ok" | "error";
+
+/**
+ * SurrealDB record shape for mcp_server.
+ */
+export type McpServerRecord = {
+  id: RecordId<"mcp_server", string>;
+  name: string;
+  url: string;
+  transport: McpTransport;
+  workspace: RecordId<"workspace", string>;
+  provider?: RecordId<"credential_provider", string>;
+  last_status?: McpServerStatus;
+  last_error?: string;
+  server_info?: Record<string, unknown>;
+  capabilities?: Record<string, unknown>;
+  last_discovery?: Date;
+  tool_count: number;
+  created_at: Date;
+};
+
+/**
+ * Summary shape for the MCP servers list.
+ */
+export type McpServerListItem = {
+  id: string;
+  name: string;
+  url: string;
+  transport: McpTransport;
+  last_status?: McpServerStatus;
+  tool_count: number;
+  created_at: string;
+};
+
+/**
+ * Input for registering an MCP server via API.
+ */
+export type AddMcpServerInput = {
+  name: string;
+  url: string;
+  transport?: McpTransport;
+  provider_id?: string;
+};
+
+// ---------------------------------------------------------------------------
+// Discovery Types
+// ---------------------------------------------------------------------------
+
+export type ToolSyncAction = "create" | "update" | "disable" | "unchanged";
+
+/**
+ * A single tool found during MCP server discovery with its sync action.
+ */
+export type ToolSyncDetail = {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  action: ToolSyncAction;
+  risk_level: ToolRiskLevel;
+};
+
+/**
+ * Result of an MCP server tool discovery operation.
+ */
+export type DiscoveryResult = {
+  server_id: string;
+  tools: ToolSyncDetail[];
+};
+
+// ---------------------------------------------------------------------------
+// Resolved Tool (extends proxy type with source server)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolved tool from Brain's can_use graph query.
+ * Extends the proxy's tool format with optional source_server_id
+ * for tools discovered from MCP servers.
+ */
+export type ResolvedTool = {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+  toolkit: string;
+  risk_level: string;
+  source_server_id?: string;
 };

@@ -26,6 +26,7 @@ export type ResolvedTool = {
   input_schema: Record<string, unknown>;
   toolkit: string;
   risk_level: string;
+  source_server_id?: string;
 };
 
 // ---------------------------------------------------------------------------
