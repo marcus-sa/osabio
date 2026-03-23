@@ -31,20 +31,25 @@ import type { ProviderListItem } from "../../hooks/use-providers";
 // ---------------------------------------------------------------------------
 
 export type StatusIndicator = {
-  color: "green" | "red" | "gray";
+  color: "green" | "red" | "yellow" | "gray";
   label: string;
 };
+
+export type AuthMode = "none" | "static_headers" | "oauth" | "provider";
 
 export type McpServerRowViewModel = {
   id: string;
   name: string;
   url: string;
+  authMode: AuthMode;
   statusIndicator: StatusIndicator;
+  authStatusLabel: string;
   toolCountDisplay: string;
   lastDiscoveryDisplay: string;
   lastError?: string;
   hasDiscoverAction: boolean;
   hasSyncAction: boolean;
+  showAuthorizeAction: boolean;
 };
 
 export type McpServerSectionViewModel = {
@@ -61,18 +66,25 @@ export type McpServerSectionInput = {
 
 export type McpTransport = "sse" | "streamable-http";
 
+export type StaticHeaderEntry = {
+  name: string;
+  value: string;
+};
+
 export type AddMcpServerFormData = {
   name: string;
   url: string;
   transport: McpTransport;
+  auth_mode: AuthMode;
+  static_headers: StaticHeaderEntry[];
   credentialProviderId?: string;
 };
 
-export type AddMcpServerFieldName = "name" | "url" | "transport" | "credentialProviderId";
+export type AddMcpServerFieldName = "name" | "url" | "transport" | "auth_mode" | "credentialProviderId";
 
 export type AddMcpServerValidationResult = {
   isValid: boolean;
-  errors: Partial<Record<AddMcpServerFieldName, string>>;
+  errors: Partial<Record<AddMcpServerFieldName | "static_headers", string>>;
 };
 
 export type RemoveConfirmationViewModel = {
@@ -91,8 +103,29 @@ export function deriveStatusIndicator(status?: string): StatusIndicator {
       return { color: "green", label: "Connected" };
     case "error":
       return { color: "red", label: "Error" };
+    case "auth_error":
+      return { color: "yellow", label: "Auth Error" };
     default:
       return { color: "gray", label: "Unknown" };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auth status label
+// ---------------------------------------------------------------------------
+
+export function deriveAuthStatusLabel(server: McpServerListItem): string {
+  switch (server.auth_mode) {
+    case "none":
+      return "None";
+    case "static_headers":
+      return server.has_static_headers ? "Headers" : "No headers";
+    case "oauth":
+      return server.last_status === "auth_error" ? "Needs reauth" : "OAuth";
+    case "provider":
+      return server.provider_name ?? "Provider";
+    default:
+      return "None";
   }
 }
 
@@ -130,15 +163,23 @@ function formatRelativeTime(isoDate?: string): string {
 export function deriveMcpServerRowViewModel(
   server: McpServerListItem,
 ): McpServerRowViewModel {
+  const authMode = (server.auth_mode ?? "none") as AuthMode;
+  const showAuthorize = authMode === "oauth" && (
+    server.last_status === "auth_error" || !server.provider_id
+  );
+
   return {
     id: server.id,
     name: server.name,
     url: server.url,
+    authMode,
     statusIndicator: deriveStatusIndicator(server.last_status),
+    authStatusLabel: deriveAuthStatusLabel(server),
     toolCountDisplay: formatToolCount(server.tool_count),
     lastDiscoveryDisplay: formatRelativeTime(server.created_at),
     hasDiscoverAction: true,
     hasSyncAction: true,
+    showAuthorizeAction: showAuthorize,
   };
 }
 
@@ -184,7 +225,7 @@ export function validateAddMcpServerForm(
   formData: AddMcpServerFormData,
   existingNames: string[],
 ): AddMcpServerValidationResult {
-  const errors: Partial<Record<AddMcpServerFieldName, string>> = {};
+  const errors: Partial<Record<AddMcpServerFieldName | "static_headers", string>> = {};
 
   // Name validation
   if (formData.name.trim() === "") {
@@ -197,6 +238,25 @@ export function validateAddMcpServerForm(
   const urlValidation = isValidHttpUrl(formData.url);
   if (!urlValidation.valid) {
     errors.url = urlValidation.error;
+  }
+
+  // Static headers validation
+  if (formData.auth_mode === "static_headers") {
+    if (formData.static_headers.length === 0) {
+      errors.static_headers = "At least one header is required";
+    } else {
+      const hasEmpty = formData.static_headers.some(
+        (h) => h.name.trim() === "" || h.value.trim() === "",
+      );
+      if (hasEmpty) {
+        errors.static_headers = "All headers must have a name and value";
+      }
+    }
+  }
+
+  // Provider validation
+  if (formData.auth_mode === "provider" && !formData.credentialProviderId) {
+    errors.credentialProviderId = "Select a credential provider";
   }
 
   return {
@@ -233,6 +293,7 @@ export function deriveRemoveConfirmationViewModel(
 const STATUS_COLOR_CLASSES: Record<StatusIndicator["color"], string> = {
   green: "bg-green-500",
   red: "bg-red-500",
+  yellow: "bg-yellow-500",
   gray: "bg-gray-400",
 };
 
@@ -243,6 +304,103 @@ function StatusDot({ indicator }: { indicator: StatusIndicator }) {
       title={indicator.label}
       aria-label={indicator.label}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Auth mode badge
+// ---------------------------------------------------------------------------
+
+function AuthBadge({ mode, label }: { mode: AuthMode; label: string }) {
+  if (mode === "none") {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const badgeColor = mode === "oauth"
+    ? "bg-blue-100 text-blue-700"
+    : mode === "static_headers"
+      ? "bg-gray-100 text-gray-700"
+      : "bg-purple-100 text-purple-700";
+
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}>
+      {label}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Static headers editor
+// ---------------------------------------------------------------------------
+
+type StaticHeadersEditorProps = {
+  headers: StaticHeaderEntry[];
+  onChange: (headers: StaticHeaderEntry[]) => void;
+  error?: string;
+};
+
+function StaticHeadersEditor({ headers, onChange, error }: StaticHeadersEditorProps) {
+  const addHeader = useCallback(() => {
+    onChange([...headers, { name: "", value: "" }]);
+  }, [headers, onChange]);
+
+  const removeHeader = useCallback(
+    (index: number) => {
+      onChange(headers.filter((_, i) => i !== index));
+    },
+    [headers, onChange],
+  );
+
+  const updateHeader = useCallback(
+    (index: number, field: "name" | "value", val: string) => {
+      const updated = headers.map((h, i) =>
+        i === index ? { ...h, [field]: val } : h,
+      );
+      onChange(updated);
+    },
+    [headers, onChange],
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <Label>Headers</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addHeader}>
+          Add Header
+        </Button>
+      </div>
+      {headers.map((header, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <Input
+            placeholder="Header name"
+            value={header.name}
+            onChange={(e) => updateHeader(index, "name", e.target.value)}
+            className="flex-1"
+          />
+          <Input
+            placeholder="Header value"
+            type="password"
+            value={header.value}
+            onChange={(e) => updateHeader(index, "value", e.target.value)}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => removeHeader(index)}
+          >
+            X
+          </Button>
+        </div>
+      ))}
+      {headers.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Click "Add Header" to add authentication headers.
+        </p>
+      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
   );
 }
 
@@ -303,6 +461,8 @@ function initialFormData(): AddMcpServerFormData {
     name: "",
     url: "",
     transport: "streamable-http",
+    auth_mode: "none",
+    static_headers: [],
   };
 }
 
@@ -326,6 +486,21 @@ export function AddMcpServerDialog({
     },
     [],
   );
+
+  const handleAuthModeChange = useCallback((mode: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      auth_mode: mode as AuthMode,
+      // Reset mode-specific fields
+      static_headers: mode === "static_headers" ? [{ name: "", value: "" }] : [],
+      credentialProviderId: mode === "provider" ? prev.credentialProviderId : undefined,
+    }));
+    setSubmitError(undefined);
+  }, []);
+
+  const handleHeadersChange = useCallback((headers: StaticHeaderEntry[]) => {
+    setFormData((prev) => ({ ...prev, static_headers: headers }));
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (!validation.isValid || submitting) return;
@@ -412,18 +587,51 @@ export function AddMcpServerDialog({
             </Select>
           </div>
 
-          {providers.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mcp-auth-mode">Authentication</Label>
+            <Select
+              value={formData.auth_mode}
+              onValueChange={(v) => { if (v) handleAuthModeChange(v); }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="static_headers">Static Headers</SelectItem>
+                <SelectItem value="oauth">OAuth 2.1 (auto-discover)</SelectItem>
+                {providers.length > 0 && (
+                  <SelectItem value="provider">Credential Provider</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.auth_mode === "static_headers" && (
+            <StaticHeadersEditor
+              headers={formData.static_headers}
+              onChange={handleHeadersChange}
+              error={validation.errors.static_headers}
+            />
+          )}
+
+          {formData.auth_mode === "oauth" && (
+            <p className="text-xs text-muted-foreground">
+              After adding, use "Discover Auth" to detect the server's OAuth configuration automatically.
+            </p>
+          )}
+
+          {formData.auth_mode === "provider" && providers.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="mcp-provider">Credential Provider (optional)</Label>
+              <Label htmlFor="mcp-provider">Credential Provider</Label>
               <Select
                 value={formData.credentialProviderId ?? ""}
                 onValueChange={(v) => handleFieldChange("credentialProviderId", v || "")}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {providers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.display_name}
@@ -431,6 +639,9 @@ export function AddMcpServerDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {validation.errors.credentialProviderId && (
+                <p className="text-xs text-destructive">{validation.errors.credentialProviderId}</p>
+              )}
             </div>
           )}
 
@@ -466,6 +677,8 @@ type McpServerSectionProps = {
   onRemoveServer: (serverId: string) => void;
   onDiscover: (serverId: string) => void;
   onSync: (serverId: string) => void;
+  onDiscoverAuth: (serverId: string) => void;
+  onAuthorize: (serverId: string) => void;
 };
 
 export function McpServerSection({
@@ -475,6 +688,8 @@ export function McpServerSection({
   onRemoveServer,
   onDiscover,
   onSync,
+  onDiscoverAuth,
+  onAuthorize,
 }: McpServerSectionProps) {
   const existingNames = servers.map((s) => s.name);
   const vm = deriveMcpServerSectionViewModel({ servers, existingNames });
@@ -523,6 +738,7 @@ export function McpServerSection({
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">URL</th>
+                <th className="px-3 py-2 font-medium">Auth</th>
                 <th className="px-3 py-2 font-medium">Tools</th>
                 <th className="px-3 py-2 font-medium">Last Discovery</th>
                 <th className="px-3 py-2 font-medium" />
@@ -537,11 +753,34 @@ export function McpServerSection({
                     </td>
                     <td className="px-3 py-2 font-medium">{row.name}</td>
                     <td className="px-3 py-2 text-muted-foreground">{row.url}</td>
+                    <td className="px-3 py-2">
+                      <AuthBadge mode={row.authMode} label={row.authStatusLabel} />
+                    </td>
                     <td className="px-3 py-2">{row.toolCountDisplay}</td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {row.lastDiscoveryDisplay}
                     </td>
                     <td className="flex gap-1 px-3 py-2">
+                      {row.authMode === "oauth" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onDiscoverAuth(row.id)}
+                          >
+                            Discover Auth
+                          </Button>
+                          {row.showAuthorizeAction && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => onAuthorize(row.id)}
+                            >
+                              Authorize
+                            </Button>
+                          )}
+                        </>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"

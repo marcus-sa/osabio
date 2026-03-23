@@ -1,9 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { McpServerSection } from "./McpServerSection";
 import type { McpServerListItem } from "../../hooks/use-mcp-servers";
+import type { ProviderListItem } from "../../hooks/use-providers";
 
 function makeServer(overrides: Partial<McpServerListItem> = {}): McpServerListItem {
   return {
@@ -11,6 +11,8 @@ function makeServer(overrides: Partial<McpServerListItem> = {}): McpServerListIt
     name: "github-mcp",
     url: "https://mcp.github.example.com",
     transport: "streamable-http",
+    auth_mode: "none",
+    has_static_headers: false,
     last_status: "ok",
     tool_count: 5,
     created_at: "2026-01-01T00:00:00Z",
@@ -22,21 +24,22 @@ describe("McpServerSection", () => {
   const noop = () => {};
   const noopAsync = async () => ({});
 
+  const defaultProps = {
+    providers: [] as ProviderListItem[],
+    onAddServer: noopAsync,
+    onRemoveServer: noop,
+    onDiscover: noop,
+    onSync: noop,
+    onDiscoverAuth: noop,
+    onAuthorize: noop,
+  };
+
   it("renders server rows with name and URL", () => {
     const servers = [
       makeServer({ id: "s1", name: "github-mcp", url: "https://github.example.com" }),
       makeServer({ id: "s2", name: "slack-mcp", url: "https://slack.example.com" }),
     ];
-    render(
-      <McpServerSection
-        servers={servers}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
-      />,
-    );
+    render(<McpServerSection servers={servers} {...defaultProps} />);
     expect(screen.getByText("github-mcp")).toBeInTheDocument();
     expect(screen.getByText("slack-mcp")).toBeInTheDocument();
     expect(screen.getByText("https://github.example.com")).toBeInTheDocument();
@@ -44,58 +47,27 @@ describe("McpServerSection", () => {
   });
 
   it("shows connected status dot for ok status", () => {
-    render(
-      <McpServerSection
-        servers={[makeServer({ last_status: "ok" })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
-      />,
-    );
+    render(<McpServerSection servers={[makeServer({ last_status: "ok" })]} {...defaultProps} />);
     expect(screen.getByLabelText("Connected")).toBeInTheDocument();
   });
 
   it("shows error status dot for error status", () => {
-    render(
-      <McpServerSection
-        servers={[makeServer({ last_status: "error" })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
-      />,
-    );
+    render(<McpServerSection servers={[makeServer({ last_status: "error" })]} {...defaultProps} />);
     expect(screen.getByLabelText("Error")).toBeInTheDocument();
   });
 
+  it("shows auth_error status dot", () => {
+    render(<McpServerSection servers={[makeServer({ last_status: "auth_error", auth_mode: "oauth" })]} {...defaultProps} />);
+    expect(screen.getByLabelText("Auth Error")).toBeInTheDocument();
+  });
+
   it("shows tool count display", () => {
-    render(
-      <McpServerSection
-        servers={[makeServer({ tool_count: 3 })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
-      />,
-    );
+    render(<McpServerSection servers={[makeServer({ tool_count: 3 })]} {...defaultProps} />);
     expect(screen.getByText("3 tools")).toBeInTheDocument();
   });
 
   it("shows singular tool count", () => {
-    render(
-      <McpServerSection
-        servers={[makeServer({ tool_count: 1 })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
-      />,
-    );
+    render(<McpServerSection servers={[makeServer({ tool_count: 1 })]} {...defaultProps} />);
     expect(screen.getByText("1 tool")).toBeInTheDocument();
   });
 
@@ -105,14 +77,11 @@ describe("McpServerSection", () => {
     render(
       <McpServerSection
         servers={[makeServer({ id: "srv-42" })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
+        {...defaultProps}
         onDiscover={(id) => calls.push(id)}
-        onSync={noop}
       />,
     );
-    await user.click(screen.getByRole("button", { name: /discover/i }));
+    await user.click(screen.getByRole("button", { name: /^discover$/i }));
     expect(calls).toEqual(["srv-42"]);
   });
 
@@ -122,10 +91,7 @@ describe("McpServerSection", () => {
     render(
       <McpServerSection
         servers={[makeServer({ id: "srv-42" })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
+        {...defaultProps}
         onSync={(id) => calls.push(id)}
       />,
     );
@@ -138,11 +104,7 @@ describe("McpServerSection", () => {
     render(
       <McpServerSection
         servers={[makeServer({ name: "github-mcp" })]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
+        {...defaultProps}
       />,
     );
     await user.click(screen.getByRole("button", { name: /remove/i }));
@@ -150,16 +112,59 @@ describe("McpServerSection", () => {
   });
 
   it("shows empty state when no servers", () => {
+    render(<McpServerSection servers={[]} {...defaultProps} />);
+    expect(screen.getByText("No MCP servers configured.")).toBeInTheDocument();
+  });
+
+  it("shows OAuth auth badge for oauth auth_mode", () => {
     render(
       <McpServerSection
-        servers={[]}
-        providers={[]}
-        onAddServer={noopAsync}
-        onRemoveServer={noop}
-        onDiscover={noop}
-        onSync={noop}
+        servers={[makeServer({ auth_mode: "oauth" })]}
+        {...defaultProps}
       />,
     );
-    expect(screen.getByText("No MCP servers configured.")).toBeInTheDocument();
+    expect(screen.getByText("OAuth")).toBeInTheDocument();
+  });
+
+  it("shows Headers auth badge for static_headers auth_mode", () => {
+    render(
+      <McpServerSection
+        servers={[makeServer({ auth_mode: "static_headers", has_static_headers: true })]}
+        {...defaultProps}
+      />,
+    );
+    expect(screen.getByText("Headers")).toBeInTheDocument();
+  });
+
+  it("shows Discover Auth and Authorize buttons for oauth servers", async () => {
+    const user = userEvent.setup();
+    const discoverCalls: string[] = [];
+    const authorizeCalls: string[] = [];
+    render(
+      <McpServerSection
+        servers={[makeServer({ id: "srv-oauth", auth_mode: "oauth" })]}
+        {...defaultProps}
+        onDiscoverAuth={(id) => discoverCalls.push(id)}
+        onAuthorize={(id) => authorizeCalls.push(id)}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /discover auth/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /discover auth/i }));
+    expect(discoverCalls).toEqual(["srv-oauth"]);
+
+    // Authorize shows when no provider_id (not yet discovered)
+    expect(screen.getByRole("button", { name: /authorize/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /authorize/i }));
+    expect(authorizeCalls).toEqual(["srv-oauth"]);
+  });
+
+  it("does not show Discover Auth for non-oauth servers", () => {
+    render(
+      <McpServerSection
+        servers={[makeServer({ auth_mode: "static_headers", has_static_headers: true })]}
+        {...defaultProps}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /discover auth/i })).toBeNull();
   });
 });

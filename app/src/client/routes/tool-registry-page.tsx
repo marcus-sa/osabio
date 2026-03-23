@@ -1,24 +1,25 @@
 import { useCallback, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Button } from "../components/ui/button";
 import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
 import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
 import { ToolTable, type ToolTableFilters } from "../components/tool-registry/ToolTable";
 import { GrantTable } from "../components/tool-registry/GrantTable";
+import { McpServerSection, type AddMcpServerFormData } from "../components/tool-registry/McpServerSection";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
 import { useTools } from "../hooks/use-tools";
 import type { GrantListItem } from "../hooks/use-grants";
 import { useMcpServers } from "../hooks/use-mcp-servers";
+import { useWorkspaceState } from "../stores/workspace-state";
 
 // ---------------------------------------------------------------------------
 // Tab definitions
 // ---------------------------------------------------------------------------
 
-export type ToolRegistryTabId = "tools" | "providers" | "accounts" | "access";
+export type ToolRegistryTabId = "servers" | "tools" | "providers" | "accounts" | "access";
 
 export type ToolRegistryTab = {
   id: ToolRegistryTabId;
@@ -26,6 +27,7 @@ export type ToolRegistryTab = {
 };
 
 export const TOOL_REGISTRY_TABS: readonly ToolRegistryTab[] = [
+  { id: "servers", label: "Servers" },
   { id: "tools", label: "Tools" },
   { id: "providers", label: "Providers" },
   { id: "accounts", label: "Accounts" },
@@ -58,6 +60,8 @@ function countForTab(
   input: ToolRegistryPageInput,
 ): number {
   switch (tabId) {
+    case "servers":
+      return input.mcpServersCount;
     case "tools":
       return input.toolsCount;
     case "providers":
@@ -65,7 +69,7 @@ function countForTab(
     case "accounts":
       return input.accountsCount;
     case "access":
-      return input.mcpServersCount;
+      return input.toolsCount;
   }
 }
 
@@ -105,14 +109,141 @@ export function deriveToolRegistryViewModel(
 export function ToolRegistryPage() {
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
+  const workspaceId = useWorkspaceState((s) => s.workspaceId) ?? "default";
   const { tools, refresh: refreshTools } = useTools();
   const { providers, refresh: refreshProviders } = useProviders();
   const { accounts, refresh: refreshAccounts } = useAccounts();
-  const { mcpServers = [] } = useMcpServers();
+  const { mcpServers = [], refresh: refreshMcpServers } = useMcpServers();
 
   // Access tab: track grants per expanded tool and toast messages
   const [accessToast, setAccessToast] = useState<string | undefined>();
   const grantsByToolId: Record<string, GrantListItem[]> = {};
+
+  // ---------------------------------------------------------------------------
+  // MCP Server handlers
+  // ---------------------------------------------------------------------------
+
+  const handleAddServer = useCallback(
+    async (formData: AddMcpServerFormData): Promise<{ error?: string }> => {
+      try {
+        const payload: Record<string, unknown> = {
+          name: formData.name,
+          url: formData.url,
+          transport: formData.transport,
+          auth_mode: formData.auth_mode,
+        };
+        if (formData.auth_mode === "static_headers") {
+          payload.static_headers = formData.static_headers;
+        }
+        if (formData.auth_mode === "provider" && formData.credentialProviderId) {
+          payload.provider_id = formData.credentialProviderId;
+        }
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        if (!response.ok) {
+          const body = await response.text();
+          return { error: body || "Failed to add server" };
+        }
+        refreshMcpServers();
+        return {};
+      } catch {
+        return { error: "Network error" };
+      }
+    },
+    [workspaceId, refreshMcpServers],
+  );
+
+  const handleRemoveServer = useCallback(
+    async (serverId: string) => {
+      try {
+        await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}`,
+          { method: "DELETE" },
+        );
+        refreshMcpServers();
+      } catch {
+        // silently fail
+      }
+    },
+    [workspaceId, refreshMcpServers],
+  );
+
+  const handleDiscoverTools = useCallback(
+    async (serverId: string) => {
+      try {
+        await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/discover`,
+          { method: "POST" },
+        );
+        refreshMcpServers();
+        refreshTools();
+      } catch {
+        // silently fail
+      }
+    },
+    [workspaceId, refreshMcpServers, refreshTools],
+  );
+
+  const handleSyncTools = useCallback(
+    async (serverId: string) => {
+      try {
+        await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/sync`,
+          { method: "POST" },
+        );
+        refreshMcpServers();
+        refreshTools();
+      } catch {
+        // silently fail
+      }
+    },
+    [workspaceId, refreshMcpServers, refreshTools],
+  );
+
+  const handleDiscoverAuth = useCallback(
+    async (serverId: string) => {
+      try {
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/discover-auth`,
+          { method: "POST" },
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as { discovered: boolean; authorization_endpoint?: string };
+        if (data.discovered) {
+          refreshMcpServers();
+          refreshProviders();
+        }
+      } catch {
+        // silently fail
+      }
+    },
+    [workspaceId, refreshMcpServers, refreshProviders],
+  );
+
+  const handleAuthorize = useCallback(
+    async (serverId: string) => {
+      try {
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp-servers/${encodeURIComponent(serverId)}/authorize`,
+          { method: "POST" },
+        );
+        if (!response.ok) return;
+        const data = (await response.json()) as { authorization_url?: string };
+        if (data.authorization_url) {
+          window.open(data.authorization_url, "_blank");
+        }
+      } catch {
+        // silently fail
+      }
+    },
+    [workspaceId],
+  );
 
   const handleRevokeGrant = useCallback(
     async (toolId: string, identityId: string) => {
@@ -238,6 +369,20 @@ export function ToolRegistryPage() {
             </TabsTrigger>
           ))}
         </TabsList>
+        <TabsContent value="servers">
+          <div className="py-2">
+            <McpServerSection
+              servers={mcpServers}
+              providers={providers}
+              onAddServer={handleAddServer}
+              onRemoveServer={handleRemoveServer}
+              onDiscover={handleDiscoverTools}
+              onSync={handleSyncTools}
+              onDiscoverAuth={handleDiscoverAuth}
+              onAuthorize={handleAuthorize}
+            />
+          </div>
+        </TabsContent>
         <TabsContent value="tools">
           {vm.showEmptyState && vm.activeTab === "tools" ? (
             <EmptyState message="No tools discovered yet." />

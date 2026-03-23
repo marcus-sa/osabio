@@ -7,5 +7,7 @@ export {
   type AddMcpServerDialogProps,
   type AddMcpServerFormData,
   type McpTransport,
+  type AuthMode,
+  type StaticHeaderEntry,
   validateAddMcpServerForm,
 } from "./McpServerSection";

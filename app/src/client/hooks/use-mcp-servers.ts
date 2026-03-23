@@ -6,7 +6,12 @@ export type McpServerListItem = {
   name: string;
   url: string;
   transport: string;
+  auth_mode: string;
+  has_static_headers: boolean;
   last_status?: string;
+  last_error?: string;
+  provider_id?: string;
+  provider_name?: string;
   tool_count: number;
   created_at: string;
 };
