@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9cee9e15efd2",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/tool-registry/ToolDetailPanel.tsx",
+    "app/src/client/components/tool-registry/ToolTable.tsx",
+    "app/src/client/hooks/use-tool-detail.ts",
+    "docs/feature/mcp-tool-registry-ui/deliver/.develop-progress.json",
+    "docs/feature/mcp-tool-registry-ui/deliver/execution-log.json",
+    "tests/unit/client/integrations/tools-tab.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9c/ee9e15efd2/0/metadata.json",
+      "transcript": "/9c/ee9e15efd2/0/full.jsonl",
+      "context": "/9c/ee9e15efd2/0/context.md",
+      "content_hash": "/9c/ee9e15efd2/0/content_hash.txt",
+      "prompt": "/9c/ee9e15efd2/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
