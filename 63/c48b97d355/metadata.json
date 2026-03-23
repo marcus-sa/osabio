@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "63c48b97d355",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/tool-registry-ui/milestone-10-server-management.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+    "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts",
+    "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/63/c48b97d355/0/metadata.json",
+      "transcript": "/63/c48b97d355/0/full.jsonl",
+      "context": "/63/c48b97d355/0/context.md",
+      "content_hash": "/63/c48b97d355/0/content_hash.txt",
+      "prompt": "/63/c48b97d355/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 130,
+    "cache_creation_tokens": 48268,
+    "cache_read_tokens": 15173479,
+    "output_tokens": 22024,
+    "api_call_count": 68
+  }
+}
