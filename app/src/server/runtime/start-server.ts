@@ -464,6 +464,20 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => mcpServerHandlers.handleDeleteServer(request.params.workspaceId, request.params.serverId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/mcp-servers/:serverId/discover": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/mcp-servers/:serverId/discover",
+          "POST",
+          (request) => mcpServerHandlers.handleDiscover(request.params.workspaceId, request.params.serverId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/mcp-servers/:serverId/sync": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/mcp-servers/:serverId/sync",
+          "POST",
+          (request) => mcpServerHandlers.handleSync(request.params.workspaceId, request.params.serverId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/providers": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/providers",

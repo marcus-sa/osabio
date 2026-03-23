@@ -5,6 +5,8 @@
  * GET    /api/workspaces/:wsId/mcp-servers               (list servers)
  * GET    /api/workspaces/:wsId/mcp-servers/:serverId     (server detail)
  * DELETE /api/workspaces/:wsId/mcp-servers/:serverId     (remove server)
+ * POST   /api/workspaces/:wsId/mcp-servers/:serverId/discover  (dry-run discovery)
+ * POST   /api/workspaces/:wsId/mcp-servers/:serverId/sync      (apply sync)
  */
 import { RecordId } from "surrealdb";
 import { HttpError } from "../http/errors";
@@ -24,6 +26,8 @@ import {
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById } from "./queries";
+import { discoverTools } from "./discovery";
+import type { McpServerRecord } from "./types";
 import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
@@ -238,10 +242,103 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     return jsonResponse({ deleted: true }, 200);
   }
 
+  /**
+   * Resolve server record for discovery/sync operations.
+   * Returns the server row or an error response.
+   */
+  async function resolveServer(
+    workspaceId: string,
+    serverId: string,
+  ): Promise<{ server: McpServerRow } | { error: Response }> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return { error: jsonError(error.message, error.status) };
+      }
+      log.error("mcp-server.resolve", "Failed to resolve workspace", error, { workspaceId });
+      return { error: jsonError("internal error", 500) };
+    }
+
+    const serverRecord = new RecordId("mcp_server", serverId);
+    const row = await getMcpServerById(deps.surreal, serverRecord, workspaceRecord);
+
+    if (!row) {
+      return { error: jsonError("MCP server not found", 404) };
+    }
+
+    return { server: row };
+  }
+
+  async function handleDiscover(
+    workspaceId: string,
+    serverId: string,
+    _request: Request,
+  ): Promise<Response> {
+    const resolved = await resolveServer(workspaceId, serverId);
+    if ("error" in resolved) return resolved.error;
+
+    const server = resolved.server as unknown as McpServerRecord;
+
+    try {
+      const result = await discoverTools(
+        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory },
+        server,
+        { dryRun: true },
+      );
+
+      return jsonResponse(result, 200);
+    } catch (error) {
+      log.error("mcp-server.discover", "Discovery failed", error, { serverId });
+      return jsonError(
+        `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`,
+        502,
+      );
+    }
+  }
+
+  async function handleSync(
+    workspaceId: string,
+    serverId: string,
+    request: Request,
+  ): Promise<Response> {
+    const resolved = await resolveServer(workspaceId, serverId);
+    if ("error" in resolved) return resolved.error;
+
+    const server = resolved.server as unknown as McpServerRecord;
+
+    let selectedTools: string[] | undefined;
+    try {
+      const body = await request.json() as { selected_tools?: string[] };
+      selectedTools = body.selected_tools;
+    } catch {
+      // Empty body is valid -- sync all tools
+    }
+
+    try {
+      const result = await discoverTools(
+        { surreal: deps.surreal, mcpClientFactory: deps.mcpClientFactory },
+        server,
+        { dryRun: false, selectedTools },
+      );
+
+      return jsonResponse(result, 200);
+    } catch (error) {
+      log.error("mcp-server.sync", "Sync failed", error, { serverId });
+      return jsonError(
+        `Failed to connect to MCP server: ${error instanceof Error ? error.message : "unknown error"}`,
+        502,
+      );
+    }
+  }
+
   return {
     handleCreateServer,
     handleListServers,
     handleGetServerDetail,
     handleDeleteServer,
+    handleDiscover,
+    handleSync,
   };
 }
