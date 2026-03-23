@@ -16,7 +16,7 @@
  *   5. Update static headers                                       [@skip]
  *   6. Remove all static headers                                   [@skip]
  *   7. Reject restricted header names                              [@skip]
- *   8. Multiple headers on same server                             [@skip]
+ *   8. Multiple headers on same server                             [ENABLED]
  */
 import { describe, expect, it, afterAll, beforeAll } from "bun:test";
 import {
@@ -413,9 +413,126 @@ describe("Reject restricted header names", () => {
 });
 
 describe("Multiple headers on same server", () => {
-  it.skip("stores and injects multiple key-value pairs", async () => {
-    // Given admin creates server with Authorization + X-Custom-Header
-    // When Brain connects to MCP server
-    // Then both headers are present in the HTTP request
+  it("stores and injects multiple key-value pairs", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-multi-${crypto.randomUUID()}`);
+
+    const mockUrl = "https://mcp-multi-header.example.com";
+    const expectedAuth = "Bearer ghp_multi_test_456";
+    const expectedCustom = "custom-secret-value-789";
+    const capturedRequests: CapturedRequest[] = [];
+
+    // Set up MSW mock that captures all headers and requires both
+    const msw = setupMswServer(
+      http.post(mockUrl, async ({ request }) => {
+        capturedRequests.push({
+          url: request.url,
+          method: request.method,
+          headers: Object.fromEntries(request.headers.entries()),
+        });
+
+        // Reject requests missing either required header
+        const authHeader = request.headers.get("authorization");
+        const customHeader = request.headers.get("x-custom-header");
+        if (authHeader !== expectedAuth || customHeader !== expectedCustom) {
+          return new HttpResponse(null, { status: 401 });
+        }
+
+        const body = await request.json() as { jsonrpc: string; id?: number; method: string };
+
+        if (body.method === "initialize") {
+          return HttpResponse.json({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+              protocolVersion: "2025-03-26",
+              capabilities: { tools: {} },
+              serverInfo: { name: "mock-multi-header", version: "1.0.0" },
+            },
+          });
+        }
+
+        if (body.method === "notifications/initialized") {
+          return new HttpResponse(null, { status: 200 });
+        }
+
+        if (body.method === "tools/list") {
+          return HttpResponse.json({
+            jsonrpc: "2.0",
+            id: body.id,
+            result: {
+              tools: [
+                {
+                  name: "multi_header_tool",
+                  description: "Tool requiring multiple headers",
+                  inputSchema: { type: "object", properties: {} },
+                },
+              ],
+            },
+          });
+        }
+
+        return HttpResponse.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          error: { code: -32601, message: "Method not found" },
+        });
+      }),
+    );
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Given admin creates an MCP server with Authorization + X-Custom-Header
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: `multi-hdr-${crypto.randomUUID().slice(0, 8)}`,
+            url: mockUrl,
+            transport: "streamable-http",
+            auth_mode: "static_headers",
+            static_headers: [
+              { name: "Authorization", value: expectedAuth },
+              { name: "X-Custom-Header", value: expectedCustom },
+            ],
+          },
+        },
+      );
+
+      expect(createResponse.status).toBe(201);
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // And the DB stores both encrypted headers
+      const record = await getMcpServer(surreal, serverId);
+      expect(record).toBeDefined();
+      const storedHeaders = record!.static_headers as Array<{ name: string; value_encrypted: string }>;
+      expect(storedHeaders).toHaveLength(2);
+      expect(storedHeaders.map((h) => h.name).sort()).toEqual(["Authorization", "X-Custom-Header"]);
+
+      // When Brain connects to the MCP server for discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover`,
+        { method: "POST" },
+      );
+
+      // Then discovery succeeds (server required both headers and returned 200)
+      expect(discoverResponse.status).toBe(200);
+      const discoverBody = await discoverResponse.json() as { tools: Array<{ name: string }> };
+      expect(discoverBody.tools).toBeDefined();
+      expect(discoverBody.tools.length).toBeGreaterThan(0);
+      expect(discoverBody.tools[0].name).toBe("multi_header_tool");
+
+      // And both headers were present in the captured HTTP requests
+      expect(capturedRequests.length).toBeGreaterThan(0);
+      const authenticatedRequest = capturedRequests.find(
+        (r) =>
+          r.headers.authorization === expectedAuth &&
+          r.headers["x-custom-header"] === expectedCustom,
+      );
+      expect(authenticatedRequest).toBeDefined();
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
