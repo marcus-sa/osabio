@@ -42,8 +42,8 @@ export function useMcpServers(): UseMcpServersReturn {
         const body = await response.text();
         throw new Error(body);
       }
-      const data = (await response.json()) as { mcp_servers: McpServerListItem[] };
-      setMcpServers(data.mcp_servers);
+      const data = (await response.json()) as { servers: McpServerListItem[] };
+      setMcpServers(data.servers);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load MCP servers");
     } finally {
