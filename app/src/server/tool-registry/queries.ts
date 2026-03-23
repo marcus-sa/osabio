@@ -316,6 +316,7 @@ export type ToolDetailRow = {
   readonly toolkit: string;
   readonly description: string;
   readonly input_schema: Record<string, unknown>;
+  readonly output_schema?: Record<string, unknown>;
   readonly risk_level: string;
   readonly status: string;
   readonly workspace: RecordId<"workspace", string>;

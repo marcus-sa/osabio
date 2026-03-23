@@ -127,6 +127,7 @@ export function createToolRouteHandlers(deps: ServerDependencies) {
         ? tool.created_at.toISOString()
         : String(tool.created_at),
       input_schema: tool.input_schema,
+      output_schema: tool.output_schema,
       grants: grants.map(toGrantDetail),
       governance_policies: governancePolicies.map(toGovernancePolicyDetail),
     };

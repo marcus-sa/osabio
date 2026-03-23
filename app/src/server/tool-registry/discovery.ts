@@ -36,6 +36,7 @@ export type RemoteTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
   annotations?: Record<string, unknown>;
 };
 
@@ -46,6 +47,7 @@ export type ExistingToolRecord = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   risk_level: string;
   status: string;
 };
@@ -117,6 +119,7 @@ export function computeSyncActions(
         name: remote.name,
         description: remote.description,
         input_schema: remote.inputSchema,
+        output_schema: remote.outputSchema,
         action: "create",
         risk_level: riskLevel,
       });
@@ -124,17 +127,23 @@ export function computeSyncActions(
     }
 
     const descriptionChanged = remote.description !== existing.description;
-    const schemaChanged =
+    const inputSchemaChanged =
       JSON.stringify(remote.inputSchema) !==
       JSON.stringify(existing.input_schema);
+    const outputSchemaChanged =
+      JSON.stringify(remote.outputSchema) !==
+      JSON.stringify(existing.output_schema);
 
     const action: ToolSyncAction =
-      descriptionChanged || schemaChanged ? "update" : "unchanged";
+      descriptionChanged || inputSchemaChanged || outputSchemaChanged
+        ? "update"
+        : "unchanged";
 
     result.push({
       name: remote.name,
       description: remote.description,
       input_schema: remote.inputSchema,
+      output_schema: remote.outputSchema,
       action,
       risk_level: riskLevel,
     });
@@ -147,6 +156,7 @@ export function computeSyncActions(
         name: existing.name,
         description: existing.description,
         input_schema: existing.input_schema,
+        output_schema: existing.output_schema,
         action: "disable",
         risk_level: existing.risk_level as ToolRiskLevel,
       });
@@ -194,6 +204,7 @@ export function toRemoteTools(toolListResult: ToolListResult): RemoteTool[] {
     name: tool.name,
     description: tool.description ?? "",
     inputSchema: (tool.inputSchema ?? {}) as Record<string, unknown>,
+    outputSchema: tool.outputSchema as Record<string, unknown> | undefined,
     annotations: tool.annotations as Record<string, unknown> | undefined,
   }));
 }
@@ -206,7 +217,7 @@ export async function fetchExistingToolsForServer(
   serverRecord: RecordId<"mcp_server", string>,
 ): Promise<ExistingToolRecord[]> {
   const results = await surreal.query<[ExistingToolRecord[]]>(
-    `SELECT name, description, input_schema, risk_level, status
+    `SELECT name, description, input_schema, output_schema, risk_level, status
      FROM mcp_tool
      WHERE source_server = $server;`,
     { server: serverRecord },
@@ -328,6 +339,7 @@ async function applySyncActions(
             name: tool.name,
             description: tool.description,
             input_schema: tool.input_schema,
+            output_schema: tool.output_schema,
             risk_level: tool.risk_level,
             toolkit: deriveToolkit(tool.name),
             status: "active",
@@ -343,11 +355,13 @@ async function applySyncActions(
           `UPDATE mcp_tool SET
              description = $description,
              input_schema = $inputSchema,
+             output_schema = $outputSchema,
              risk_level = $riskLevel
            WHERE name = $name AND source_server = $server;`,
           {
             description: tool.description,
             inputSchema: tool.input_schema,
+            outputSchema: tool.output_schema,
             riskLevel: tool.risk_level,
             name: tool.name,
             server: serverRecord,

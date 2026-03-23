@@ -70,6 +70,14 @@
 - `tools/*` for shared AI SDK tool definitions (used by chat agent, PM agent, observer, proxy)
 - `graph/*` contains reusable Surreal graph queries used by tools and higher-level workflows.
 
+## MCP Protocol: outputSchema and structuredContent (Draft Spec)
+
+- The MCP draft spec adds `outputSchema` (optional JSON Schema) to tool definitions alongside `inputSchema`. When a tool declares an `outputSchema`, its `CallToolResult` includes both `content` (text blocks for backwards compat) and `structuredContent` (typed JSON conforming to the schema).
+- The `output_schema` field exists in the SurrealDB schema (`mcp_tool` table) but must also be present in all TypeScript types that represent tools: `McpToolRecord`, `ToolDetail`, `ToolSyncDetail`, `ResolvedTool`.
+- Discovery must capture `outputSchema` from MCP `tools/list` responses and store it as `output_schema`.
+- The proxy must forward `output_schema` when injecting tools into LLM requests and handle `structuredContent` in `CallToolResult` responses from upstream MCP servers.
+- Reference: https://modelcontextprotocol.io/specification/draft/server/tools#output-schema
+
 ## Domain Knowledge
 
 Load these references when working in the relevant domain:

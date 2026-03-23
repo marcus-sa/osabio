@@ -17,6 +17,7 @@ export type AnthropicTool = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
 };
 
 /** Resolved tool from Brain's can_use graph query (internal, richer than Anthropic format). */
@@ -24,6 +25,7 @@ export type ResolvedTool = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   toolkit: string;
   risk_level: string;
   source_server_id?: string;
@@ -69,9 +71,13 @@ export function injectTools(
 
 /** Strip internal fields (toolkit, risk_level) to produce Anthropic-compatible tool. */
 function toAnthropicFormat(tool: ResolvedTool): AnthropicTool {
-  return {
+  const result: AnthropicTool = {
     name: tool.name,
     description: tool.description,
     input_schema: tool.input_schema,
   };
+  if (tool.output_schema) {
+    result.output_schema = tool.output_schema;
+  }
+  return result;
 }

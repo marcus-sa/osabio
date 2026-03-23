@@ -170,6 +170,7 @@ export type GovernancePolicyDetail = {
  */
 export type ToolDetail = ToolListItem & {
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   grants: GrantDetail[];
   governance_policies: GovernancePolicyDetail[];
 };
@@ -183,6 +184,7 @@ export type McpToolRecord = {
   toolkit: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   risk_level: ToolRiskLevel;
   status: ToolStatus;
   workspace: RecordId<"workspace", string>;
@@ -275,6 +277,7 @@ export type ToolSyncDetail = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   action: ToolSyncAction;
   risk_level: ToolRiskLevel;
 };
@@ -300,6 +303,7 @@ export type ResolvedTool = {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  output_schema?: Record<string, unknown>;
   toolkit: string;
   risk_level: string;
   source_server_id?: string;
