@@ -138,8 +138,13 @@ export async function resolveAuthForMcpServer(
       }
       return resolveOAuthHeaders(server, deps);
     }
+    case "provider": {
+      if (!server.provider || !deps) {
+        return {};
+      }
+      return resolveProviderHeaders(server, deps);
+    }
     case "none":
-    case "provider":
     default:
       return {};
   }
@@ -256,6 +261,50 @@ async function resolveOAuthHeaders(
   // Token is still valid -- decrypt and return
   const accessToken = decryptSecret(account.access_token_encrypted, toolEncryptionKey);
   return { Authorization: `Bearer ${accessToken}` };
+}
+
+// ---------------------------------------------------------------------------
+// Provider Header Resolution (internal)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve auth headers for a server with auth_mode="provider".
+ *
+ * Resolution chain:
+ *   1. Load credential_provider from server.provider -> get auth_method
+ *   2. Find active connected_account for provider + workspace
+ *   3. Decrypt credentials and build auth headers
+ */
+async function resolveProviderHeaders(
+  server: McpServerRecord,
+  deps: McpServerAuthDeps,
+): Promise<Record<string, string>> {
+  const { surreal, toolEncryptionKey } = deps;
+
+  // Step 1: Load the credential provider
+  const [providerRows] = await surreal.query<[ProviderRow[]]>(
+    `SELECT id, auth_method, api_key_header, token_url, client_id, client_secret_encrypted FROM $provider;`,
+    { provider: server.provider },
+  );
+  const provider = (providerRows ?? [])[0];
+  if (!provider) {
+    return {};
+  }
+
+  // Step 2: Find active connected_account for this provider in the workspace
+  const [accountRows] = await surreal.query<[AccountRow[]]>(
+    `SELECT * FROM connected_account WHERE provider = $provider AND workspace = $ws AND status = 'active' LIMIT 1;`,
+    { provider: server.provider, ws: server.workspace },
+  );
+  const account = (accountRows ?? [])[0];
+  if (!account) {
+    return {};
+  }
+
+  // Step 3: Decrypt and build auth headers
+  const decrypted = decryptAccountCredentials(account, provider, toolEncryptionKey);
+  const result = buildAuthHeaders(decrypted);
+  return result.ok ? result.headers : {};
 }
 
 function isTokenExpiredWithBuffer(tokenExpiresAt?: string | Date): boolean {
