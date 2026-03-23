@@ -58,7 +58,7 @@ export function setupToolRegistrySuite(
 ): () => AcceptanceTestRuntime {
   return setupAcceptanceSuite(suiteName, {
     configOverrides: {
-      toolEncryptionKey: "test-encryption-key-32-bytes-long!",
+      toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     },
   });
 }
@@ -131,7 +131,7 @@ export type ConnectAccountInput = {
  * For static credentials (api_key, bearer, basic): sends credentials in body.
  * For oauth2: returns redirect_url (no body needed).
  *
- * Requires identity header (set by MCP auth or test fixture).
+ * Route handler reads X-Brain-Identity from headers for identity resolution.
  */
 export async function connectAccount(
   baseUrl: string,
@@ -140,31 +140,44 @@ export async function connectAccount(
   providerId: string,
   credentials?: ConnectAccountInput,
 ): Promise<Response> {
-  return user.mcpFetch(
-    `/api/workspaces/${workspaceId}/accounts/connect/${providerId}`,
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/accounts/connect/${providerId}`,
     {
       method: "POST",
-      body: credentials ?? {},
+      headers: {
+        "Content-Type": "application/json",
+        "X-Brain-Identity": user.identityId,
+        ...user.headers,
+      },
+      body: JSON.stringify(credentials ?? {}),
     },
   );
 }
 
 /**
  * List connected accounts via HTTP endpoint.
+ * Route handler reads X-Brain-Identity from headers for identity scoping.
  */
 export async function listAccounts(
   baseUrl: string,
   user: TestUserWithMcp,
   workspaceId: string,
 ): Promise<Response> {
-  return user.mcpFetch(
-    `/api/workspaces/${workspaceId}/accounts`,
-    { method: "GET" },
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/accounts`,
+    {
+      method: "GET",
+      headers: {
+        "X-Brain-Identity": user.identityId,
+        ...user.headers,
+      },
+    },
   );
 }
 
 /**
  * Revoke a connected account via HTTP endpoint.
+ * Route handler reads X-Brain-Identity from headers for ownership verification.
  */
 export async function revokeAccount(
   baseUrl: string,
@@ -172,9 +185,15 @@ export async function revokeAccount(
   workspaceId: string,
   accountId: string,
 ): Promise<Response> {
-  return user.mcpFetch(
-    `/api/workspaces/${workspaceId}/accounts/${accountId}`,
-    { method: "DELETE" },
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/accounts/${accountId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "X-Brain-Identity": user.identityId,
+        ...user.headers,
+      },
+    },
   );
 }
 
