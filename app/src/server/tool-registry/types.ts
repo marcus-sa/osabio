@@ -391,6 +391,29 @@ export type AuthorizationParams = {
   scope?: string;
 };
 
+/**
+ * Parameters for building a token exchange request (PKCE).
+ * Pure data -- used by buildTokenRequest to produce { url, body, headers }.
+ */
+export type TokenExchangeParams = {
+  tokenEndpoint: string;
+  code: string;
+  redirectUri: string;
+  codeVerifier: string;
+  clientId: string;
+};
+
+/**
+ * Token response from the authorization server's token endpoint.
+ */
+export type TokenResult = {
+  access_token: string;
+  token_type: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+};
+
 // ---------------------------------------------------------------------------
 // Resolved Tool (extends proxy type with source server)
 // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
  * ADR-066, ADR-068.
  */
 
-import type { CredentialProviderRecord, PkceChallenge, AuthorizationParams } from "./types";
+import type { CredentialProviderRecord, PkceChallenge, AuthorizationParams, TokenExchangeParams, TokenResult } from "./types";
 
 // ---------------------------------------------------------------------------
 // State Store -- in-memory map keyed by state parameter
@@ -201,4 +201,65 @@ export async function exchangeCodeForTokens(
 
   const data = await response.json() as TokenExchangeResult;
   return data;
+}
+
+// ---------------------------------------------------------------------------
+// PKCE Token Request Builder (Pure)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a token exchange request for authorization_code grant with PKCE.
+ * Pure function -- produces { url, body, headers } without performing IO.
+ */
+export function buildTokenRequest(params: TokenExchangeParams): {
+  url: string;
+  body: URLSearchParams;
+  headers: Record<string, string>;
+} {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    code: params.code,
+    redirect_uri: params.redirectUri,
+    code_verifier: params.codeVerifier,
+    client_id: params.clientId,
+  });
+
+  return {
+    url: params.tokenEndpoint,
+    body,
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PKCE Token Exchange (Effect)
+// ---------------------------------------------------------------------------
+
+type FetchFn = typeof globalThis.fetch;
+
+/**
+ * Exchange an authorization code for tokens using PKCE at the token endpoint.
+ * Effect function -- fetch is injectable for testability.
+ */
+export async function exchangeCode(
+  params: TokenExchangeParams,
+  fetchFn: FetchFn = globalThis.fetch,
+): Promise<TokenResult> {
+  const request = buildTokenRequest(params);
+
+  const response = await fetchFn(request.url, {
+    method: "POST",
+    headers: request.headers,
+    body: request.body.toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Token exchange failed (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as TokenResult;
 }

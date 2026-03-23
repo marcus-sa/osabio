@@ -1,9 +1,9 @@
 /**
- * Unit tests for OAuth flow pure functions: generatePkce, buildAuthorizationUrl.
+ * Unit tests for OAuth flow pure functions: generatePkce, buildAuthorizationUrl, buildTokenRequest.
  */
 import { describe, expect, it } from "bun:test";
-import { generatePkce, buildAuthorizationUrl } from "../../../app/src/server/tool-registry/oauth-flow";
-import type { AuthorizationParams } from "../../../app/src/server/tool-registry/types";
+import { generatePkce, buildAuthorizationUrl, buildTokenRequest } from "../../../app/src/server/tool-registry/oauth-flow";
+import type { AuthorizationParams, TokenExchangeParams } from "../../../app/src/server/tool-registry/types";
 
 describe("generatePkce", () => {
   it("returns codeVerifier between 43 and 128 characters using unreserved chars", async () => {
@@ -67,6 +67,44 @@ describe("buildAuthorizationUrl", () => {
     const url = new URL(urlString);
 
     expect(url.searchParams.has("scope")).toBe(false);
+  });
+});
+
+describe("buildTokenRequest", () => {
+  const baseParams: TokenExchangeParams = {
+    tokenEndpoint: "https://auth.example.com/token",
+    code: "auth-code-abc",
+    redirectUri: "https://brain.example.com/oauth/callback",
+    codeVerifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+    clientId: "brain-client-123",
+  };
+
+  it("returns url matching the token endpoint", () => {
+    const request = buildTokenRequest(baseParams);
+    expect(request.url).toBe("https://auth.example.com/token");
+  });
+
+  it("includes grant_type=authorization_code in body", () => {
+    const request = buildTokenRequest(baseParams);
+    expect(request.body.get("grant_type")).toBe("authorization_code");
+  });
+
+  it("includes code, redirect_uri, code_verifier, and client_id in body", () => {
+    const request = buildTokenRequest(baseParams);
+    expect(request.body.get("code")).toBe("auth-code-abc");
+    expect(request.body.get("redirect_uri")).toBe("https://brain.example.com/oauth/callback");
+    expect(request.body.get("code_verifier")).toBe("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk");
+    expect(request.body.get("client_id")).toBe("brain-client-123");
+  });
+
+  it("sets Content-Type to application/x-www-form-urlencoded", () => {
+    const request = buildTokenRequest(baseParams);
+    expect(request.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
+  });
+
+  it("sets Accept to application/json", () => {
+    const request = buildTokenRequest(baseParams);
+    expect(request.headers["Accept"]).toBe("application/json");
   });
 });
 

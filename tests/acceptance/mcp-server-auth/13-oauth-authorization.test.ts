@@ -115,22 +115,75 @@ describe("Generate authorization URL with PKCE S256", () => {
 });
 
 describe("Exchange authorization code for tokens", () => {
-  it.skip("callback exchanges code using PKCE code_verifier", async () => {
+  it("callback exchanges code using PKCE code_verifier", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-tok-${crypto.randomUUID()}`);
 
     // Given MSW mock auth server token endpoint
-    const { msw } = setupMockMcpServer({
-      mcpServerUrl: "https://mcp.example.com",
-      authServerUrl: "https://auth.example.com",
-    });
+    const mcpServerUrl = "https://mcp.example.com";
+    const authServerUrl = "https://auth.example.com";
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
-      // And admin has initiated authorization (state + code_verifier stored)
-      // When OAuth callback receives code and state
-      // Then Brain exchanges code at token_endpoint with code_verifier
-      // And receives access_token + refresh_token
+      // Register an MCP server
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-callback-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // Discover auth (creates credential_provider linked to server)
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+      const discoverBody = (await discoverRes.json()) as { discovered: boolean };
+      expect(discoverBody.discovered).toBe(true);
+
+      // Initiate authorization (stores PKCE verifier + state on mcp_server)
+      const authorizeRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/authorize`,
+        { body: {} },
+      );
+      expect(authorizeRes.status).toBe(200);
+      const authorizeBody = (await authorizeRes.json()) as {
+        redirect_url: string;
+        state: string;
+      };
+      const { state } = authorizeBody;
+
+      // Verify PKCE verifier was stored on the server record
+      const serverBefore = await getMcpServer(surreal, serverId);
+      expect(serverBefore?.pending_pkce_verifier).toBeDefined();
+      expect(serverBefore?.pending_oauth_state).toBe(state);
+
+      // When: OAuth callback receives code and state
+      const callbackRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/oauth/callback`,
+        { body: { code: "mock-auth-code-123", state } },
+      );
+      expect(callbackRes.status).toBe(200);
+      const callbackBody = (await callbackRes.json()) as {
+        access_token: string;
+        token_type: string;
+        expires_in?: number;
+        refresh_token?: string;
+        scope?: string;
+      };
+
+      // Then: Brain exchanged code at token_endpoint with code_verifier
+      expect(callbackBody.access_token).toBeDefined();
+      expect(callbackBody.access_token.length).toBeGreaterThan(0);
+      expect(callbackBody.token_type).toBe("Bearer");
+      expect(callbackBody.refresh_token).toBeDefined();
+
+      // And pending PKCE state is cleared from the server record
+      const serverAfter = await getMcpServer(surreal, serverId);
+      expect(serverAfter?.pending_pkce_verifier).toBeUndefined();
+      expect(serverAfter?.pending_oauth_state).toBeUndefined();
     } finally {
       msw.close();
     }

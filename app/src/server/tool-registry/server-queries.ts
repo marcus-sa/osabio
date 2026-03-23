@@ -220,3 +220,33 @@ export async function storePendingOAuthState(
     { server: serverRecord, verifier: codeVerifier, state },
   );
 }
+
+/**
+ * Find an mcp_server by its pending OAuth state parameter.
+ * Returns the server row with pending_pkce_verifier, or undefined if not found.
+ */
+export async function findServerByPendingState(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  state: string,
+): Promise<(McpServerRow & { pending_pkce_verifier?: string; pending_oauth_state?: string }) | undefined> {
+  const results = await surreal.query<[(McpServerRow & { pending_pkce_verifier?: string; pending_oauth_state?: string })[]]>(
+    `SELECT * FROM mcp_server WHERE workspace = $ws AND pending_oauth_state = $state LIMIT 1;`,
+    { ws: workspaceRecord, state },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
+ * Clear pending PKCE verifier and OAuth state from an mcp_server record
+ * after successful token exchange.
+ */
+export async function clearPendingOAuthState(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+): Promise<void> {
+  await surreal.query(
+    `UPDATE $server SET pending_pkce_verifier = NONE, pending_oauth_state = NONE;`,
+    { server: serverRecord },
+  );
+}

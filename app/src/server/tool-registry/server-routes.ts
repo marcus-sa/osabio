@@ -27,12 +27,14 @@ import {
   clearMcpServerHeaders,
   updateMcpServerProvider,
   storePendingOAuthState,
+  findServerByPendingState,
+  clearPendingOAuthState,
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById, createProvider } from "./queries";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
-import { generatePkce, buildAuthorizationUrl } from "./oauth-flow";
+import { generatePkce, buildAuthorizationUrl, exchangeCode } from "./oauth-flow";
 import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse, AuthorizationParams } from "./types";
 import { encryptHeaders, validateHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
@@ -596,6 +598,95 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     return jsonResponse({ redirect_url: redirectUrl, state }, 200);
   }
 
+  async function handleOAuthCallback(
+    workspaceId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("mcp-server.oauth-callback", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    // Parse code + state from request body
+    let body: { code?: string; state?: string };
+    try {
+      body = await request.json() as { code?: string; state?: string };
+    } catch {
+      return jsonError("invalid JSON body", 400);
+    }
+
+    if (!body.code || typeof body.code !== "string") {
+      return jsonError("code is required", 400);
+    }
+    if (!body.state || typeof body.state !== "string") {
+      return jsonError("state is required", 400);
+    }
+
+    // Find the mcp_server that has this pending state
+    const server = await findServerByPendingState(deps.surreal, workspaceRecord, body.state);
+    if (!server) {
+      return jsonError("No pending authorization found for the provided state", 404);
+    }
+
+    if (!server.pending_pkce_verifier) {
+      return jsonError("Server missing PKCE code_verifier", 400);
+    }
+
+    // Load the linked credential_provider for token_endpoint
+    if (!server.provider) {
+      return jsonError("Server has no linked credential provider", 400);
+    }
+
+    const provider = await getProviderById(deps.surreal, server.provider.id as string);
+    if (!provider) {
+      return jsonError("Linked credential provider not found", 404);
+    }
+
+    const providerRecord = provider as unknown as {
+      token_url?: string;
+      client_id?: string;
+    };
+
+    if (!providerRecord.token_url) {
+      return jsonError("Provider missing token_url", 400);
+    }
+
+    // Build redirect_uri (must match the one used during authorize)
+    const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
+    const redirectUri = `${brainBaseUrl}/oauth/callback`;
+
+    // Use client_id from provider, or fall back to Brain's base URL
+    const clientId = providerRecord.client_id ?? brainBaseUrl;
+
+    try {
+      // Exchange the authorization code for tokens using PKCE
+      const tokenResult = await exchangeCode({
+        tokenEndpoint: providerRecord.token_url,
+        code: body.code,
+        redirectUri,
+        codeVerifier: server.pending_pkce_verifier,
+        clientId,
+      });
+
+      // Clear pending PKCE state from the server record
+      await clearPendingOAuthState(deps.surreal, server.id);
+
+      return jsonResponse(tokenResult, 200);
+    } catch (error) {
+      log.error("mcp-server.oauth-callback", "Token exchange failed", error, { workspaceId });
+      return jsonError(
+        `Token exchange failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        502,
+      );
+    }
+  }
+
   return {
     handleCreateServer,
     handleListServers,
@@ -604,6 +695,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     handleDiscover,
     handleDiscoverAuth,
     handleAuthorize,
+    handleOAuthCallback,
     handleSync,
     handleUpdateHeaders,
   };

@@ -492,6 +492,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => mcpServerHandlers.handleAuthorize(request.params.workspaceId, request.params.serverId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/mcp-servers/oauth/callback": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/mcp-servers/oauth/callback",
+          "POST",
+          (request) => mcpServerHandlers.handleOAuthCallback(request.params.workspaceId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/mcp-servers/:serverId/sync": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/mcp-servers/:serverId/sync",
