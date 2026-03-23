@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Button } from "../components/ui/button";
 import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
+import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
@@ -105,7 +106,7 @@ export function ToolRegistryPage() {
   const navigate = useNavigate();
   const { tools } = useTools();
   const { providers, refresh: refreshProviders } = useProviders();
-  const { accounts } = useAccounts();
+  const { accounts, refresh: refreshAccounts } = useAccounts();
   const { mcpServers } = useMcpServers();
 
   const handleCreateProvider = useCallback(
@@ -142,6 +143,33 @@ export function ToolRegistryPage() {
     },
     [refreshProviders],
   );
+
+  const handleRevokeAccount = useCallback(
+    async (accountId: string) => {
+      try {
+        await fetch(`/api/workspaces/default/accounts/${accountId}/revoke`, {
+          method: "POST",
+        });
+        refreshAccounts();
+      } catch {
+        // silently fail for now
+      }
+    },
+    [refreshAccounts],
+  );
+
+  const handleReconnectAccount = useCallback(
+    (_accountId: string, _authMethod: string) => {
+      // TODO: open connect dialog for reconnection
+    },
+    [],
+  );
+
+  const providerInfoList: ProviderInfo[] = providers.map((p) => ({
+    id: p.id,
+    displayName: p.display_name,
+    authMethod: p.auth_method,
+  }));
 
   const vm = deriveToolRegistryViewModel({
     tabParam: search.tab,
@@ -195,7 +223,12 @@ export function ToolRegistryPage() {
           {vm.showEmptyState && vm.activeTab === "accounts" ? (
             <EmptyState message="No accounts connected." cta={vm.emptyStateCta} />
           ) : (
-            <p className="py-4 text-sm text-muted-foreground">Accounts list placeholder</p>
+            <AccountTable
+              accounts={accounts}
+              providers={providerInfoList}
+              onRevoke={handleRevokeAccount}
+              onReconnect={handleReconnectAccount}
+            />
           )}
         </TabsContent>
         <TabsContent value="access">
