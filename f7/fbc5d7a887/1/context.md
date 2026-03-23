@@ -1,0 +1,92 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/lahore-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisec...
+
+### Prompt 2
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-deliver
+
+# NW-DELIVER: Complete DELIVER Wave Orchestrator
+
+**Wave**: DELIVER (wave 6 of 6)|**Agent**: Main Instance (orchestrator)|**Command**: `/nw-deliver "{feature-description}"`
+
+## Overview
+
+Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN...
+
+### Prompt 3
+
+<task-notification>
+<task-id>bh8p6l6uz</task-id>
+<tool-use-id>toolu_01RjJRHCfbstmcy3XjUFbf7y</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-lahore-v1/3961f28f-307a-4394-8ce5-da27168e3a02/tasks/bh8p6l6uz.output</output-file>
+<status>killed</status>
+<summary>Background command "Find newer Python installation" was stopped</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-501/-Users-marcus-conductor-work...
+
+### Prompt 4
+
+why dont we have client component tests using react + react testing library  ? bun supports jsx out of the box
+
+### Prompt 5
+
+yes, add the tests directly next to the component files
+
+### Prompt 6
+
+check the status of the agents. i dont think they're running...
+
+### Prompt 7
+
+Continue from where you left off.
+
+### Prompt 8
+
+https://bun.com/docs/guides/test/happy-dom
+
+### Prompt 9
+
+Continue from where you left off.
+
+### Prompt 10
+
+what are u doing??? u never added the preload to bunfig.toml
+
+also setup testing library: https://bun.com/docs/guides/test/testing-library
+
+### Prompt 11
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools not available in this context — use ToolSearch to enable them first
+
+### Prompt 12
+
+<task-notification>
+<task-id>a88b0b2a2f1b0d09d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-marcus-conductor-workspaces-brain-v1-lahore-v1/bb637336-b572-4975-95e6-e1aa66a53e5c/tasks/a88b0b2a2f1b0d09d.output</output-file>
+<status>completed</status>
+<summary>Agent "RTL tests ProviderTable" completed</summary>
+<result>I need permission to either Write or use Bash to create the test file. Both tools were denied. Here is what I nee...
+
+### Prompt 13
+
+Continue from where you left off.
+
+### Prompt 14
+
+STOP RUNNING AGENTS IN THE BACKGROUND. DISPATCH THEM NORMALLY
+
+### Prompt 15
+
+Commit and push all changes
+

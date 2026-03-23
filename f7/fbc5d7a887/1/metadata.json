@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f7fbc5d7a887",
+  "session_id": "3961f28f-307a-4394-8ce5-da27168e3a02",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T07:31:55.545363Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "app/src/client/components/tool-registry/AccountTable.test.tsx",
+    "app/src/client/components/tool-registry/DiscoveryReviewPanel.test.tsx",
+    "app/src/client/components/tool-registry/GrantTable.test.tsx",
+    "app/src/client/components/tool-registry/McpServerSection.test.tsx",
+    "app/src/client/components/tool-registry/ProviderTable.test.tsx",
+    "app/src/client/components/tool-registry/ToolTable.test.tsx",
+    "app/src/client/components/tool-registry/_rtl-smoke.test.tsx",
+    "bun.lock",
+    "bunfig.toml",
+    "package.json",
+    "tests/setup-dom.ts",
+    "tests/setup-testing-library.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f891edc9d82f",
+  "token_usage": {
+    "input_tokens": 302,
+    "cache_creation_tokens": 550805,
+    "cache_read_tokens": 15288857,
+    "output_tokens": 81272,
+    "api_call_count": 156
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T07:31:54.073755Z",
+    "agent_lines": 721,
+    "human_added": 222,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 943,
+    "agent_percentage": 76.45811240721103
+  }
+}
