@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "072d0490bbec",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/mcp-server-auth/deliver/.develop-progress.json",
+    "docs/feature/mcp-server-auth/deliver/execution-log.json",
+    "docs/feature/mcp-server-auth/deliver/roadmap.json",
+    "docs/feature/mcp-server-auth/design/architecture-design.md",
+    "docs/feature/mcp-server-auth/design/component-boundaries.md",
+    "docs/feature/mcp-server-auth/design/data-models.md",
+    "docs/feature/mcp-server-auth/design/wave-decisions.md",
+    "docs/feature/mcp-server-auth/discuss/acceptance-criteria.md",
+    "docs/feature/mcp-server-auth/discuss/requirements.md",
+    "docs/feature/mcp-server-auth/discuss/story-map.md",
+    "docs/feature/mcp-server-auth/discuss/user-stories.md",
+    "docs/feature/mcp-server-auth/discuss/wave-decisions.md",
+    "docs/feature/mcp-server-auth/distill/test-scenarios.md",
+    "docs/feature/mcp-server-auth/distill/walking-skeleton.md",
+    "docs/feature/mcp-server-auth/distill/wave-decisions.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/07/2d0490bbec/0/metadata.json",
+      "transcript": "/07/2d0490bbec/0/full.jsonl",
+      "context": "/07/2d0490bbec/0/context.md",
+      "content_hash": "/07/2d0490bbec/0/content_hash.txt",
+      "prompt": "/07/2d0490bbec/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
