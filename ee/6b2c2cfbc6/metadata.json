@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "ee6b2c2cfbc6",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/tool-registry/oauth-flow.ts",
+    "app/src/server/tool-registry/queries.ts",
+    "app/src/server/tool-registry/server-routes.ts",
+    "docs/feature/mcp-server-auth/deliver/execution-log.json",
+    "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ee/6b2c2cfbc6/0/metadata.json",
+      "transcript": "/ee/6b2c2cfbc6/0/full.jsonl",
+      "context": "/ee/6b2c2cfbc6/0/context.md",
+      "content_hash": "/ee/6b2c2cfbc6/0/content_hash.txt",
+      "prompt": "/ee/6b2c2cfbc6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
