@@ -22,6 +22,7 @@ import { createFeedSseBridge } from "../../app/src/server/reactive/feed-sse-brid
 // Agent activator + loop dampener are created inside createBrainServer
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
+import { createMcpClientFactory } from "../../app/src/server/tool-registry/mcp-client";
 
 // ── Shared AI dependencies for standalone acceptance tests ──
 
@@ -52,6 +53,8 @@ export type SmokeTestRuntime = AcceptanceTestRuntime;
 export type AcceptanceSuiteOptions = {
   /** Direct config overrides — applied to the ServerConfig object without touching process.env. */
   configOverrides?: Partial<ServerConfig>;
+  /** Override mcpClientFactory for tests needing mock MCP servers. */
+  mcpClientFactoryOverride?: ServerDependencies["mcpClientFactory"];
 };
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -231,6 +234,7 @@ export function setupAcceptanceSuite(
       inflight,
       asSigningKey: deps.asSigningKey,
       nonceCache: createNonceCache(),
+      mcpClientFactory: options?.mcpClientFactoryOverride ?? createMcpClientFactory(),
     };
 
     server = createBrainServer(serverDeps);

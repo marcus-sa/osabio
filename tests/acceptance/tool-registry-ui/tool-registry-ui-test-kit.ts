@@ -28,6 +28,8 @@ import {
   type TestUser,
   type TestUserWithMcp,
 } from "../acceptance-test-kit";
+import type { McpClientFactory, McpConnectionResult, ToolListResult, CallToolResult } from "../../../app/src/server/tool-registry/mcp-client";
+import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {
   createWorkspaceDirectly,
   createIdentity,
@@ -55,12 +57,87 @@ export { createWorkspaceDirectly, createIdentity };
  */
 export function setupToolRegistrySuite(
   suiteName: string,
+  options?: { mcpClientFactory?: McpClientFactory },
 ): () => AcceptanceTestRuntime {
   return setupAcceptanceSuite(suiteName, {
     configOverrides: {
       toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     },
+    mcpClientFactoryOverride: options?.mcpClientFactory,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Mock MCP Client Factory
+// ---------------------------------------------------------------------------
+
+/** Configurable tool for mock MCP server. */
+export type MockMcpTool = {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+  annotations?: Record<string, unknown>;
+};
+
+/** Configurable tool call handler. */
+export type MockToolCallHandler = (
+  name: string,
+  args: Record<string, unknown>,
+) => CallToolResult;
+
+/**
+ * Create a mock McpClientFactory that simulates upstream MCP servers.
+ *
+ * The mock returns configured tools from listTools and dispatches callTool
+ * to the provided handler (or returns a default success response).
+ */
+export function createMockMcpClientFactory(config: {
+  tools: MockMcpTool[];
+  onCallTool?: MockToolCallHandler;
+  serverInfo?: { name: string; version: string };
+}): McpClientFactory {
+  const defaultHandler: MockToolCallHandler = (name, args) => ({
+    content: [{ type: "text" as const, text: JSON.stringify({ tool: name, result: "success", args }) }],
+  });
+
+  const handler = config.onCallTool ?? defaultHandler;
+  const serverInfo = config.serverInfo ?? { name: "mock-mcp-server", version: "1.0.0" };
+
+  // Track connections for disconnect verification
+  const activeConnections = new Set<object>();
+
+  return {
+    connect: async (_url, _transport, _headers) => {
+      const fakeClient = {} as Client;
+      activeConnections.add(fakeClient);
+      return {
+        client: fakeClient,
+        serverInfo,
+        capabilities: { tools: { listChanged: true } },
+      } as McpConnectionResult;
+    },
+
+    fetchToolList: async (_client) => {
+      return {
+        tools: config.tools.map((t) => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: t.inputSchema,
+          outputSchema: t.outputSchema,
+          annotations: t.annotations,
+        })),
+      } as ToolListResult;
+    },
+
+    callTool: async (_client, name, args) => {
+      return handler(name, args);
+    },
+
+    disconnect: async (client) => {
+      activeConnections.delete(client as object);
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
