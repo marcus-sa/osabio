@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2ab0b8665529",
+  "session_id": "3961f28f-307a-4394-8ce5-da27168e3a02",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T06:12:27.323141Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/mcp-tool-registry-ui/deliver/.develop-progress.json",
+    "docs/feature/mcp-tool-registry-ui/deliver/execution-log.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c9802efaf20a",
+  "checkpoint_transcript_start": 132,
+  "transcript_lines_at_start": 132,
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 1987,
+    "cache_read_tokens": 111643,
+    "output_tokens": 1163,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T06:12:27.195993Z",
+    "agent_lines": 7,
+    "human_added": 35,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 45,
+    "agent_percentage": 15.555555555555555
+  }
+}
