@@ -30,7 +30,7 @@ import {
 import { getProviderById } from "./queries";
 import { discoverTools } from "./discovery";
 import type { McpServerRecord, EncryptedHeaderEntry } from "./types";
-import { encryptHeaders } from "./static-headers";
+import { encryptHeaders, validateHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
 
 const VALID_AUTH_MODES: ReadonlySet<string> = new Set(["none", "static_headers", "oauth", "provider"]);
@@ -186,6 +186,12 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         if (!header.name || !header.value) {
           return jsonError("Each static header must have name and value", 400);
         }
+      }
+      const headerValidation = validateHeaders(
+        body.static_headers as Array<{ name: string; value: string }>,
+      );
+      if (!headerValidation.ok) {
+        return jsonError(headerValidation.error, 400);
       }
       encryptedHeaders = encryptHeaders(
         body.static_headers as Array<{ name: string; value: string }>,
@@ -424,6 +430,12 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       if (!header.name || !header.value) {
         return jsonError("Each header must have name and value", 400);
       }
+    }
+    const headerValidation = validateHeaders(
+      body.headers as Array<{ name: string; value: string }>,
+    );
+    if (!headerValidation.ok) {
+      return jsonError(headerValidation.error, 400);
     }
 
     const encryptionKey = deps.config.toolEncryptionKey;

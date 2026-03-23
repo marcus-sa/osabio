@@ -380,10 +380,35 @@ describe("Remove all static headers", () => {
 });
 
 describe("Reject restricted header names", () => {
-  it.skip("rejects Host, Content-Length, Transfer-Encoding, Connection", async () => {
-    // Given admin tries to create MCP server with header name "Host"
-    // When POST /mcp-servers with static_headers: [{name: "Host", value: "evil.com"}]
-    // Then response is 400 with validation error
+  it("rejects Host, Content-Length, Transfer-Encoding, Connection", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-restrict-${crypto.randomUUID()}`);
+
+    const restrictedNames = ["Host", "Content-Length", "Transfer-Encoding", "Connection"];
+
+    for (const restrictedName of restrictedNames) {
+      // When POST /mcp-servers with a restricted header name
+      const response = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: `restrict-test-${restrictedName}-${crypto.randomUUID().slice(0, 8)}`,
+            url: "https://mcp.example.com",
+            transport: "streamable-http",
+            auth_mode: "static_headers",
+            static_headers: [
+              { name: restrictedName, value: "some-value" },
+            ],
+          },
+        },
+      );
+
+      // Then the response is 400 with a validation error
+      expect(response.status).toBe(400);
+      const body = await response.json() as { error: string };
+      expect(body.error).toContain("Restricted header name");
+    }
   }, 30_000);
 });
 
