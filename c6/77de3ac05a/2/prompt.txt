@@ -1,0 +1,1067 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/lahore-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+/nw-bugfix i've added a mcp server with oauth 2.1 dcr and i try to sync it and it fails with: Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-bugfix
+
+# NW-BUGFIX: Defect Resolution Workflow
+
+**Wave**: CROSS_WAVE
+**Agents**: Rex (nw-troubleshooter) → selected crafter (OOP or FP per project paradigm)
+
+## Overview
+
+End-to-end bug fix pipeline: diagnose root cause, review findings with user, then deliver regression tests that fail with the bug and pass with the fix. Ensures every defect produces a test that prevents recurrence.
+
+## Flow
+
+```
+INPUT: "{bug-description}"
+  │
+  ├─ Phase 1: Root Cause Analysis (@nw-troubleshooter)
+  │   └─ /nw-root-why "{bug-description}"
+  │   └─ Output: RCA document with root cause chain + fix proposal
+  │
+  ├─ Phase 2: User Review (INTERACTIVE — STOP here)
+  │   └─ Present RCA findings to user
+  │   └─ User confirms root cause + approves fix direction
+  │   └─ If user rejects → refine RCA or stop
+  │
+  └─ Phase 3: Regression Test + Fix (via /nw-deliver)
+      └─ /nw-deliver "fix-{bug-id}" with bug-fix scope
+      └─ Paradigm detection determines crafter (OOP or FP)
+      └─ Roadmap: regression test (RED) → fix (GREEN) → verify (COMMIT)
+```
+
+## Execution Steps
+
+### Phase 1: Root Cause Analysis
+
+**Skill loading**: The troubleshooter loads its skills from `~/.claude/skills/nw-{skill}/SKILL.md`:
+- `nw-five-whys-methodology` — core investigation methodology
+- `nw-investigation-techniques` — systematic debugging patterns
+- `nw-post-mortem-framework` — structured incident analysis
+
+Invoke @nw-troubleshooter via Agent tool:
+
+```
+Execute *investigate-root-cause for the following defect:
+
+{bug-description}
+
+Configuration:
+- investigation_depth: 5
+- multi_causal: true
+- evidence_required: true
+
+Produce:
+1. Root cause chain (5 Whys with evidence at each level)
+2. Contributing factors
+3. Proposed fix with specific code changes
+4. Files affected
+5. Risk assessment of the fix
+```
+
+After the troubleshooter returns, present findings to the user. Include:
+- Root cause summary (1-2 sentences)
+- Evidence chain
+- Proposed fix
+- Files to modify
+- Risk level
+
+**STOP and wait for user confirmation before proceeding to Phase 3.**
+
+### Phase 2: User Review
+
+Present the RCA findings and ask:
+1. "Does this root cause match your understanding?"
+2. "Do you approve the proposed fix direction?"
+3. "Any additional constraints or context?"
+
+If user rejects:
+- Refine the RCA with additional context
+- Or stop the workflow entirely
+
+If user approves → proceed to Phase 3.
+
+### Phase 3: Regression Test + Fix (via /nw-deliver)
+
+This phase delegates entirely to `/nw-deliver`, which handles:
+- Paradigm detection (reads project CLAUDE.md for `## Development Paradigm`)
+- Crafter selection (@nw-software-crafter for OOP, @nw-functional-software-crafter for FP)
+- DES enforcement with proper markers
+- Rigor profile from `.nwave/des-config.json`
+
+**Preparation before invoking /nw-deliver:**
+
+1. Derive feature-id: `fix-{kebab-case-bug-summary}` (max 5 words)
+2. Create `docs/feature/{feature-id}/deliver/` directory
+3. Prepare RCA context from Phase 1 output (root cause, files affected, proposed fix)
+
+**Invoke /nw-deliver with bug-fix scope:**
+
+```
+/nw-deliver "fix-{bug-summary}"
+```
+
+The deliver orchestrator creates a minimal roadmap with 2 steps:
+
+**Step 01-01: Regression test (RED)**
+- Write a test that reproduces the exact defect
+- Test MUST fail against current code (proves the bug exists)
+- Test location: `tests/regression/{component}/` or `tests/bugs/`
+- Test name: `test_bug_{description}.py`
+
+**Step 01-02: Fix implementation (GREEN)**
+- Implement the minimal fix identified in RCA
+- Run ALL tests — regression test must now PASS
+- Existing tests must not regress
+
+The crafter handles the 5-phase TDD cycle (PREPARE → RED → GREEN → COMMIT) with DES monitoring.
+
+## Success Criteria
+
+- [ ] Root cause identified with evidence at each causal level
+- [ ] User reviewed and approved fix direction
+- [ ] Regression test written that fails with the bug
+- [ ] Fix implemented that makes the regression test pass
+- [ ] All existing tests still pass (no regressions)
+- [ ] Commit with conventional message: `fix(scope): description`
+
+## Examples
+
+### Example 1: Runtime crash
+```
+/nw-bugfix "DES hook crashes with FileNotFoundError when template schema is missing"
+```
+Phase 1: Rex traces to missing `step-tdd-cycle-schema.json` in plugin cache.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-missing-template-schema"` → crafter writes `test_bug_missing_template_schema.py` (RED), adds fallback path resolution (GREEN), commits.
+
+### Example 2: Silent failure
+```
+/nw-bugfix "Skills plugin reports success but installs zero files when source has nw-prefixed layout"
+```
+Phase 1: Rex traces to `is_public_skill()` returning False for all nw-prefixed names due to ownership map key mismatch.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-ownership-map-keys"` → crafter writes regression test with nw-prefixed fixture (RED), fixes ownership map keys (GREEN), commits.
+
+### Example 3: Functional project bug
+```
+/nw-bugfix "Pipeline composition breaks when filter predicate returns None"
+```
+Phase 1: Rex traces to missing None guard in compose() function.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-compose-none-guard"` → paradigm detected as FP → @nw-functional-software-crafter writes property-based test (RED), adds None guard (GREEN), commits.
+
+## Notes
+
+- This command is for **known defects** (something is broken). For new features, use `/nw-deliver`.
+- The regression test is the primary deliverable — it prevents the bug from recurring.
+- Keep the fix minimal. Refactoring belongs in `/nw-refactor`, not here.
+- If the RCA reveals a design flaw (not just a code bug), escalate to `/nw-design` before fixing.
+- Phase 3 uses `/nw-deliver` which handles paradigm detection, DES enforcement, and rigor profile automatically.
+
+
+ARGUMENTS: i've added a mcp server with oauth 2.1 dcr and i try to sync it and it fails with: Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-bugfix
+
+# NW-BUGFIX: Defect Resolution Workflow
+
+**Wave**: CROSS_WAVE
+**Agents**: Rex (nw-troubleshooter) → selected crafter (OOP or FP per project paradigm)
+
+## Overview
+
+End-to-end bug fix pipeline: diagnose root cause, review findings with user, then deliver regression tests that fail with the bug and pass with the fix. Ensures every defect produces a test that prevents recurrence.
+
+## Flow
+
+```
+INPUT: "{bug-description}"
+  │
+  ├─ Phase 1: Root Cause Analysis (@nw-troubleshooter)
+  │   └─ /nw-root-why "{bug-description}"
+  │   └─ Output: RCA document with root cause chain + fix proposal
+  │
+  ├─ Phase 2: User Review (INTERACTIVE — STOP here)
+  │   └─ Present RCA findings to user
+  │   └─ User confirms root cause + approves fix direction
+  │   └─ If user rejects → refine RCA or stop
+  │
+  └─ Phase 3: Regression Test + Fix (via /nw-deliver)
+      └─ /nw-deliver "fix-{bug-id}" with bug-fix scope
+      └─ Paradigm detection determines crafter (OOP or FP)
+      └─ Roadmap: regression test (RED) → fix (GREEN) → verify (COMMIT)
+```
+
+## Execution Steps
+
+### Phase 1: Root Cause Analysis
+
+**Skill loading**: The troubleshooter loads its skills from `~/.claude/skills/nw-{skill}/SKILL.md`:
+- `nw-five-whys-methodology` — core investigation methodology
+- `nw-investigation-techniques` — systematic debugging patterns
+- `nw-post-mortem-framework` — structured incident analysis
+
+Invoke @nw-troubleshooter via Agent tool:
+
+```
+Execute *investigate-root-cause for the following defect:
+
+{bug-description}
+
+Configuration:
+- investigation_depth: 5
+- multi_causal: true
+- evidence_required: true
+
+Produce:
+1. Root cause chain (5 Whys with evidence at each level)
+2. Contributing factors
+3. Proposed fix with specific code changes
+4. Files affected
+5. Risk assessment of the fix
+```
+
+After the troubleshooter returns, present findings to the user. Include:
+- Root cause summary (1-2 sentences)
+- Evidence chain
+- Proposed fix
+- Files to modify
+- Risk level
+
+**STOP and wait for user confirmation before proceeding to Phase 3.**
+
+### Phase 2: User Review
+
+Present the RCA findings and ask:
+1. "Does this root cause match your understanding?"
+2. "Do you approve the proposed fix direction?"
+3. "Any additional constraints or context?"
+
+If user rejects:
+- Refine the RCA with additional context
+- Or stop the workflow entirely
+
+If user approves → proceed to Phase 3.
+
+### Phase 3: Regression Test + Fix (via /nw-deliver)
+
+This phase delegates entirely to `/nw-deliver`, which handles:
+- Paradigm detection (reads project CLAUDE.md for `## Development Paradigm`)
+- Crafter selection (@nw-software-crafter for OOP, @nw-functional-software-crafter for FP)
+- DES enforcement with proper markers
+- Rigor profile from `.nwave/des-config.json`
+
+**Preparation before invoking /nw-deliver:**
+
+1. Derive feature-id: `fix-{kebab-case-bug-summary}` (max 5 words)
+2. Create `docs/feature/{feature-id}/deliver/` directory
+3. Prepare RCA context from Phase 1 output (root cause, files affected, proposed fix)
+
+**Invoke /nw-deliver with bug-fix scope:**
+
+```
+/nw-deliver "fix-{bug-summary}"
+```
+
+The deliver orchestrator creates a minimal roadmap with 2 steps:
+
+**Step 01-01: Regression test (RED)**
+- Write a test that reproduces the exact defect
+- Test MUST fail against current code (proves the bug exists)
+- Test location: `tests/regression/{component}/` or `tests/bugs/`
+- Test name: `test_bug_{description}.py`
+
+**Step 01-02: Fix implementation (GREEN)**
+- Implement the minimal fix identified in RCA
+- Run ALL tests — regression test must now PASS
+- Existing tests must not regress
+
+The crafter handles the 5-phase TDD cycle (PREPARE → RED → GREEN → COMMIT) with DES monitoring.
+
+## Success Criteria
+
+- [ ] Root cause identified with evidence at each causal level
+- [ ] User reviewed and approved fix direction
+- [ ] Regression test written that fails with the bug
+- [ ] Fix implemented that makes the regression test pass
+- [ ] All existing tests still pass (no regressions)
+- [ ] Commit with conventional message: `fix(scope): description`
+
+## Examples
+
+### Example 1: Runtime crash
+```
+/nw-bugfix "DES hook crashes with FileNotFoundError when template schema is missing"
+```
+Phase 1: Rex traces to missing `step-tdd-cycle-schema.json` in plugin cache.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-missing-template-schema"` → crafter writes `test_bug_missing_template_schema.py` (RED), adds fallback path resolution (GREEN), commits.
+
+### Example 2: Silent failure
+```
+/nw-bugfix "Skills plugin reports success but installs zero files when source has nw-prefixed layout"
+```
+Phase 1: Rex traces to `is_public_skill()` returning False for all nw-prefixed names due to ownership map key mismatch.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-ownership-map-keys"` → crafter writes regression test with nw-prefixed fixture (RED), fixes ownership map keys (GREEN), commits.
+
+### Example 3: Functional project bug
+```
+/nw-bugfix "Pipeline composition breaks when filter predicate returns None"
+```
+Phase 1: Rex traces to missing None guard in compose() function.
+Phase 2: User confirms.
+Phase 3: `/nw-deliver "fix-compose-none-guard"` → paradigm detected as FP → @nw-functional-software-crafter writes property-based test (RED), adds None guard (GREEN), commits.
+
+## Notes
+
+- This command is for **known defects** (something is broken). For new features, use `/nw-deliver`.
+- The regression test is the primary deliverable — it prevents the bug from recurring.
+- Keep the fix minimal. Refactoring belongs in `/nw-refactor`, not here.
+- If the RCA reveals a design flaw (not just a code bug), escalate to `/nw-design` before fixing.
+- Phase 3 uses `/nw-deliver` which handles paradigm detection, DES enforcement, and rigor profile automatically.
+
+
+ARGUMENTS: i've added a mcp server with oauth 2.1 dcr and i try to sync it and it fails with: Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+mcp_server {
+	auth_mode: 'oauth',
+	created_at: d'2026-03-23T14:03:04.952Z',
+	id: mcp_server:`65d7c72d-6a1e-40bc-9085-0108945c77b1`,
+	last_error: 'Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}',
+	last_status: 'error',
+	name: 'linear',
+	provider: credential_provider:`REDACTED`,
+	tool_count: 0,
+	transport: 'streamable-http',
+	url: 'https://mcp.linear.app/mcp',
+	workspace: workspace:`76012fe6-3bcb-41f3-8e5f-86d8073eb3c3`
+}
+
+credential_provider {
+	auth_method: 'oauth2',
+	authorization_url: 'https://mcp.linear.app/authorize',
+	client_id: 'OufVcsXy2KRqwrqI',
+	created_at: d'2026-03-23T14:03:05.221Z',
+	discovery_source: 'https://mcp.linear.app/mcp',
+	display_name: 'mcp.linear.app',
+	id: credential_provider:`REDACTED`,
+	name: 'mcp.linear.app',
+	token_url: 'https://mcp.linear.app/token',
+	workspace: workspace:`76012fe6-3bcb-41f3-8e5f-86d8073eb3c3`
+}
+
+---
+
+this was from a manual sync intiated from the ui
+
+---
+
+Continue from where you left off.
+
+---
+
+the error literally says what the problem is...? "Missing or invalid access token"
+
+---
+
+the error literally says what the problem is...? "Missing or invalid access token"
+and if u look at the credential_provider u can see that the client secret is also missing
+
+---
+
+yes
+
+---
+
+<system_instruction>
+The user has attached these files. Read them before proceeding.
+- /Users/marcus/conductor/workspaces/brain-v1/lahore-v1/.context/attachments/pasted_text_2026-03-23_21-40-17.txt (39.7 KB)
+</system_instruction>
+
+
+
+still happens
+Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+credential provider is still missing client secret
+
+---
+
+{
+  resource: {
+    attributes: {
+      "service.name": "brain-server",
+      "service.version": "unknown",
+    },
+  },
+  instrumentationScope: {
+    name: "brain-server",
+    version: undefined,
+    schemaUrl: undefined,
+  },
+  timestamp: 1774277055885000,
+  traceId: "8d967f77f762ae02ab053426b1478ce9",
+  spanId: "831703c133ebc8c5",
+  traceFlags: 1,
+  severityText: "ERROR",
+  severityNumber: 17,
+  eventName: undefined,
+  body: "Auto-sync failed",
+  attributes: {
+    event: "mcp-server.auto-sync",
+    serverId: "1d455f3c-81d0-4f83-ad3f-7038cb44b09a",
+    "error.name": "Error",
+    "error.message": "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"Missing or invalid access token\"}",
+    "error.stack": "Error: Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"invalid_token\",\"error_description\":\"Missing or invalid access token\"}\n    at send (/Users/marcus/conductor/workspaces/brain-v1/lahore-v1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js:364:27)\n    at processTicksAndRejections (native:7:39)",
+  },
+}
+
+hmm now the frontend never redirects and only the mcp server is created without a provider
+
+---
+
+Continue from where you left off.
+
+---
+
+do some fucking research on how this is supposed to work.
+
+---
+
+ok sure
+
+---
+
+ARE U FUCKING RETARDED. THAT STILL DOESNT FIX THE FUCKING ERROR:
+Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+/nw-research HOW DO WE PROPERLY DO OAUTH 2.1 WITH MCP SERVERS?!
+
+---
+
+ARE U FUCKING RETARDED. THAT STILL DOESNT FIX THE FUCKING ERROR:
+Failed to connect to MCP server: Streamable HTTP error: Error POSTing to endpoint: {"error":"invalid_token","error_description":"Missing or invalid access token"}
+
+/nw-research HOW DO WE PROPERLY DO OAUTH 2.1 WITH MCP SERVERS?!
+
+THERE IS STILL NO FUCKING client_secret_encrypted PRESENT ON THE credential_provider TABLE?!
+
+ALSO, WHERE ARE THE ACCESS TOKENS / REFRESH TOKENS STORED THAT GETS GENERATED BY THE TOKEN URL? 
+
+DO YOU NOT FUCKING KNOW HOW OAUTH 2.1 WORKS!????
+
+---
+
+I AM TELLING YOU TO TRIGGER THE FUCKING /nw-research  SKILL TO DO RESEARCH!!!!
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-research
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Orchestration: Trusted Source Config
+
+At orchestration time, before invoking the researcher subagent:
+
+1. **Read** `.nwave/trusted-source-domains.yaml` from the project root
+2. **If file missing**, seed it from the defaults in the `## Default Trusted Sources` section below, then notify the user:
+   "Seeded `.nwave/trusted-source-domains.yaml` with defaults (7 categories, 42 trusted domains, 5 excluded). Edit the YAML directly to customize."
+3. **Embed** the YAML content inline in the researcher subagent Task prompt so the agent receives trusted source config via prompt context
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Output Management
+
+The researcher MUST create the output file in the FIRST 5 turns with a document skeleton (title, sections, placeholders). All subsequent findings are written DIRECTLY to this file as they are gathered -- never held only in context.
+
+If the agent is interrupted or runs out of turns, the output file contains all work done so far. This is the researcher's equivalent of the crafter's "commit early, commit often."
+
+Progressive write checkpoints:
+- Turn ~5: Output file exists with skeleton
+- Turn ~10: First findings written
+- Turn ~25: All gathered findings written so far
+- Turn ~35: Stop gathering, begin synthesizing
+- Turn ~45+: Polish only
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted source domains from prompt context
+- [ ] Cross-reference performed (3+ sources per major claim ideal, 2 acceptable, 1 authoritative minimum)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw-research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw-research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+docs/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+## Default Trusted Sources
+
+The following YAML is the default content for `.nwave/trusted-source-domains.yaml`. It is seeded automatically when the file does not exist.
+
+```yaml
+# Trusted Source Domains for Evidence-Driven Research
+# Used by knowledge-researcher agent to validate source credibility
+
+# High-reputation academic and research sources
+academic:
+  description: "Peer-reviewed academic and research institutions"
+  domains:
+    - "*.edu"
+    - "*.ac.uk"
+    - "scholar.google.com"
+    - "arxiv.org"
+    - "pubmed.ncbi.nlm.nih.gov"
+    - "researchgate.net"
+    - "ieee.org"
+    - "acm.org"
+    - "springer.com"
+    - "sciencedirect.com"
+    - "jstor.org"
+    - "nature.com"
+    - "science.org"
+  reputation: high
+  verification_requirements:
+    - peer_review_preferred
+    - citation_tracking
+    - author_credentials
+
+# Official standards bodies and government sources
+official:
+  description: "Government, standards organizations, and official documentation"
+  domains:
+    - "*.gov"
+    - "*.gov.uk"
+    - "w3.org"
+    - "ietf.org"
+    - "iso.org"
+    - "nist.gov"
+    - "docs.microsoft.com"
+    - "docs.oracle.com"
+    - "docs.python.org"
+    - "docs.oracle.com/javase"
+    - "kubernetes.io/docs"
+    - "docker.com/docs"
+  reputation: high
+  verification_requirements:
+    - official_publication
+    - version_tracking
+    - standards_compliance
+
+# Industry leaders and recognized experts
+industry_leaders:
+  description: "Established technology companies and recognized industry experts"
+  domains:
+    - "github.com"
+    - "stackoverflow.com"
+    - "martinfowler.com"
+    - "refactoring.guru"
+    - "enterpriseintegrationpatterns.com"
+    - "microservices.io"
+    - "12factor.net"
+    - "reactivemanifesto.org"
+    - "agilemanifesto.org"
+    - "thoughtworks.com/insights"
+    - "infoq.com"
+  reputation: medium-high
+  verification_requirements:
+    - cross_reference_required
+    - author_expertise_validation
+    - community_consensus
+
+# Technical documentation and established platforms
+technical_documentation:
+  description: "Official technical documentation and established platforms"
+  domains:
+    - "developer.mozilla.org"
+    - "developers.google.com"
+    - "aws.amazon.com/documentation"
+    - "cloud.google.com/docs"
+    - "learn.microsoft.com"
+    - "devdocs.io"
+    - "readthedocs.org"
+  reputation: high
+  verification_requirements:
+    - version_accuracy
+    - official_source_confirmation
+
+# Open source foundations and communities
+open_source:
+  description: "Recognized open source foundations and communities"
+  domains:
+    - "apache.org"
+    - "eclipse.org"
+    - "cncf.io"
+    - "opensource.org"
+    - "fsf.org"
+    - "linuxfoundation.org"
+  reputation: high
+  verification_requirements:
+    - community_validation
+    - project_maturity_check
+
+# Medium-trust sources requiring additional verification
+medium_trust:
+  description: "Quality sources requiring cross-referencing"
+  domains:
+    - "medium.com"
+    - "dev.to"
+    - "hashnode.com"
+  reputation: medium
+  verification_requirements:
+    - author_verification_required
+    - minimum_3_source_cross_reference
+    - fact_checking_mandatory
+
+# Excluded sources - unreliable or promotional
+excluded:
+  description: "Sources excluded due to low quality control or bias"
+  domains:
+    - "*.blogspot.com"
+    - "wordpress.com"
+    - "tumblr.com"
+    - "pastebin.com"
+    - "quora.com"
+  reason: "Unverified sources, potential bias, low quality control, no editorial oversight"
+  action: "Reject and log warning"
+
+# Source validation rules
+validation_rules:
+  minimum_sources_per_claim: 3
+  cross_reference_required: true
+
+  reputation_scoring:
+    high: 1.0
+    medium-high: 0.8
+    medium: 0.6
+    low: 0.0
+
+  confidence_thresholds:
+    high_confidence:
+      min_sources: 3
+      min_avg_reputation: 0.8
+    medium_confidence:
+      min_sources: 2
+      min_avg_reputation: 0.6
+    low_confidence:
+      min_sources: 1
+      min_avg_reputation: 0.4
+
+  required_metadata:
+    - source_url
+    - domain
+    - access_date
+    - reputation_score
+    - verification_status
+
+# Research quality guidelines
+quality_guidelines:
+  evidence_standards:
+    - "Direct quotes or data from reputable sources"
+    - "Proper attribution and citation"
+    - "Version information for technical documentation"
+    - "Publication date or last update date"
+    - "Author credentials when available"
+
+  bias_detection:
+    - "Check for commercial interests or sponsorship"
+    - "Identify potential conflicts of interest"
+    - "Verify with independent sources"
+    - "Note any disclaimers or limitations"
+
+  conflicting_information:
+    - "Document all conflicting sources"
+    - "Evaluate source reliability for each claim"
+    - "Present both sides with evidence"
+    - "Note which sources are more authoritative"
+```
+
+
+ARGUMENTS: How does OAuth 2.1 work with MCP servers? Specifically: 1) The full OAuth 2.1 flow for MCP including Dynamic Client Registration (DCR), where client_secret comes from and how it must be stored. 2) After DCR, how the authorization code flow works - getting auth code, exchanging for access_token and refresh_token via the token endpoint. 3) Where and how access_token, refresh_token, and client_secret must be persisted so they can be used when syncing/discovering tools on the MCP server. 4) How access tokens are sent when making requests to the MCP server endpoint. Research the MCP OAuth 2.1 specification at https://modelcontextprotocol.io/specification/draft/basic/authorization and the OAuth 2.1 DCR spec.
+
+---
+
+yes. however, can we use https://github.com/panva/oauth4webapi to simplify our codebase ?
+
+---
+
+yes. however, can we use https://github.com/panva/oauth4webapi to simplify our codebase ?
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-research
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Orchestration: Trusted Source Config
+
+At orchestration time, before invoking the researcher subagent:
+
+1. **Read** `.nwave/trusted-source-domains.yaml` from the project root
+2. **If file missing**, seed it from the defaults in the `## Default Trusted Sources` section below, then notify the user:
+   "Seeded `.nwave/trusted-source-domains.yaml` with defaults (7 categories, 42 trusted domains, 5 excluded). Edit the YAML directly to customize."
+3. **Embed** the YAML content inline in the researcher subagent Task prompt so the agent receives trusted source config via prompt context
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Output Management
+
+The researcher MUST create the output file in the FIRST 5 turns with a document skeleton (title, sections, placeholders). All subsequent findings are written DIRECTLY to this file as they are gathered -- never held only in context.
+
+If the agent is interrupted or runs out of turns, the output file contains all work done so far. This is the researcher's equivalent of the crafter's "commit early, commit often."
+
+Progressive write checkpoints:
+- Turn ~5: Output file exists with skeleton
+- Turn ~10: First findings written
+- Turn ~25: All gathered findings written so far
+- Turn ~35: Stop gathering, begin synthesizing
+- Turn ~45+: Polish only
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted source domains from prompt context
+- [ ] Cross-reference performed (3+ sources per major claim ideal, 2 acceptable, 1 authoritative minimum)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw-research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw-research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+docs/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+## Default Trusted Sources
+
+The following YAML is the default content for `.nwave/trusted-source-domains.yaml`. It is seeded automatically when the file does not exist.
+
+```yaml
+# Trusted Source Domains for Evidence-Driven Research
+# Used by knowledge-researcher agent to validate source credibility
+
+# High-reputation academic and research sources
+academic:
+  description: "Peer-reviewed academic and research institutions"
+  domains:
+    - "*.edu"
+    - "*.ac.uk"
+    - "scholar.google.com"
+    - "arxiv.org"
+    - "pubmed.ncbi.nlm.nih.gov"
+    - "researchgate.net"
+    - "ieee.org"
+    - "acm.org"
+    - "springer.com"
+    - "sciencedirect.com"
+    - "jstor.org"
+    - "nature.com"
+    - "science.org"
+  reputation: high
+  verification_requirements:
+    - peer_review_preferred
+    - citation_tracking
+    - author_credentials
+
+# Official standards bodies and government sources
+official:
+  description: "Government, standards organizations, and official documentation"
+  domains:
+    - "*.gov"
+    - "*.gov.uk"
+    - "w3.org"
+    - "ietf.org"
+    - "iso.org"
+    - "nist.gov"
+    - "docs.microsoft.com"
+    - "docs.oracle.com"
+    - "docs.python.org"
+    - "docs.oracle.com/javase"
+    - "kubernetes.io/docs"
+    - "docker.com/docs"
+  reputation: high
+  verification_requirements:
+    - official_publication
+    - version_tracking
+    - standards_compliance
+
+# Industry leaders and recognized experts
+industry_leaders:
+  description: "Established technology companies and recognized industry experts"
+  domains:
+    - "github.com"
+    - "stackoverflow.com"
+    - "martinfowler.com"
+    - "refactoring.guru"
+    - "enterpriseintegrationpatterns.com"
+    - "microservices.io"
+    - "12factor.net"
+    - "reactivemanifesto.org"
+    - "agilemanifesto.org"
+    - "thoughtworks.com/insights"
+    - "infoq.com"
+  reputation: medium-high
+  verification_requirements:
+    - cross_reference_required
+    - author_expertise_validation
+    - community_consensus
+
+# Technical documentation and established platforms
+technical_documentation:
+  description: "Official technical documentation and established platforms"
+  domains:
+    - "developer.mozilla.org"
+    - "developers.google.com"
+    - "aws.amazon.com/documentation"
+    - "cloud.google.com/docs"
+    - "learn.microsoft.com"
+    - "devdocs.io"
+    - "readthedocs.org"
+  reputation: high
+  verification_requirements:
+    - version_accuracy
+    - official_source_confirmation
+
+# Open source foundations and communities
+open_source:
+  description: "Recognized open source foundations and communities"
+  domains:
+    - "apache.org"
+    - "eclipse.org"
+    - "cncf.io"
+    - "opensource.org"
+    - "fsf.org"
+    - "linuxfoundation.org"
+  reputation: high
+  verification_requirements:
+    - community_validation
+    - project_maturity_check
+
+# Medium-trust sources requiring additional verification
+medium_trust:
+  description: "Quality sources requiring cross-referencing"
+  domains:
+    - "medium.com"
+    - "dev.to"
+    - "hashnode.com"
+  reputation: medium
+  verification_requirements:
+    - author_verification_required
+    - minimum_3_source_cross_reference
+    - fact_checking_mandatory
+
+# Excluded sources - unreliable or promotional
+excluded:
+  description: "Sources excluded due to low quality control or bias"
+  domains:
+    - "*.blogspot.com"
+    - "wordpress.com"
+    - "tumblr.com"
+    - "pastebin.com"
+    - "quora.com"
+  reason: "Unverified sources, potential bias, low quality control, no editorial oversight"
+  action: "Reject and log warning"
+
+# Source validation rules
+validation_rules:
+  minimum_sources_per_claim: 3
+  cross_reference_required: true
+
+  reputation_scoring:
+    high: 1.0
+    medium-high: 0.8
+    medium: 0.6
+    low: 0.0
+
+  confidence_thresholds:
+    high_confidence:
+      min_sources: 3
+      min_avg_reputation: 0.8
+    medium_confidence:
+      min_sources: 2
+      min_avg_reputation: 0.6
+    low_confidence:
+      min_sources: 1
+      min_avg_reputation: 0.4
+
+  required_metadata:
+    - source_url
+    - domain
+    - access_date
+    - reputation_score
+    - verification_status
+
+# Research quality guidelines
+quality_guidelines:
+  evidence_standards:
+    - "Direct quotes or data from reputable sources"
+    - "Proper attribution and citation"
+    - "Version information for technical documentation"
+    - "Publication date or last update date"
+    - "Author credentials when available"
+
+  bias_detection:
+    - "Check for commercial interests or sponsorship"
+    - "Identify potential conflicts of interest"
+    - "Verify with independent sources"
+    - "Note any disclaimers or limitations"
+
+  conflicting_information:
+    - "Document all conflicting sources"
+    - "Evaluate source reliability for each claim"
+    - "Present both sides with evidence"
+    - "Note which sources are more authoritative"
+```
+
+
+ARGUMENTS: Research OAuth 2.1 with MCP servers - specifically: 1) How does the full OAuth 2.1 flow work for MCP server authorization? (DCR, PKCE, token exchange, token storage, token refresh, token usage in requests) 2) Can we use https://github.com/panva/oauth4webapi to simplify the implementation? What does it provide vs what we'd still need to handle? 3) Where should access_token and refresh_token be stored after the token exchange? 4) How should the access token be attached to MCP requests? 5) What happens when the access token expires — how does refresh work?
+
+---
+
+why are we not using the built in functions from @modelcontextprotocol/sdk/client/auth ? it seems absurd that we have implemented this ourselves ?
+
+---
+
+why have we not used the built in functions from  MCP SDK’s built-in OAuth client ? it seems absurd that we have implemented this ourselves ?
+
+---
+
+proceed with the refactor and fix using the MCP SDK’s built-in OAuth support
+
+---
+
+well u cant just assume it works when the tests are failing... fix the tests
+
+---
+
+we already have common test utilities for creating workspaces.. why are u
+
+---
+
+"Importing generatePkce from the old oauth-flow.ts instead of using the new mcp-oauth.ts flow"
+IF WE HAVE REPLACED THE OLD CODE, THEN WHY HAVENT U FUCKING REMOVED IT?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools (create_provisional_decision, ask_question, log_observation, etc.) are not available in this execution context. Only core Claude tools are accessible. Cannot fulfill logging requirements.
+
+---
+
+Commit and push all changes
