@@ -16,6 +16,11 @@
 - Type result payloads once and avoid repetitive per-field casting.
 - Do NOT use module-level mutable singletons (e.g. `let cache` at file scope) for caching or shared state. Module-level state is shared across the entire process — when multiple server instances run concurrently (e.g. smoke tests with `--concurrent`), they silently corrupt each other. Pass shared state via dependency injection or use per-instance caches scoped to the owning object.
 
+## Internationalization
+
+- Use the `Intl` API for all locale-sensitive formatting: `Intl.RelativeTimeFormat` for relative time, `Intl.DateTimeFormat` for dates, `Intl.NumberFormat` for numbers.
+- Do NOT hand-roll formatting logic (e.g. custom "5m ago" strings). The `Intl` API handles locale, pluralization, and grammar rules automatically.
+
 ## Agentic Design: No Hardcoded Modes
 
 - Do NOT introduce hardcoded processing modes (e.g. `"deterministic" | "llm"`) when behavior should be workspace-configurable via data.

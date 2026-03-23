@@ -132,7 +132,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const orchestratorHandlers = wireOrchestratorRoutes({
     surreal: deps.surreal,
     shellExec,
-    brainBaseUrl: `http://127.0.0.1:${config.port}`,
+    brainBaseUrl: config.baseUrl,
     extractionModel: deps.extractionModel,
     asSigningKey: deps.asSigningKey,
     sseRegistry: deps.sse,

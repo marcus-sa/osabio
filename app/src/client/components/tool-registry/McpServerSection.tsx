@@ -108,18 +108,19 @@ function formatToolCount(count: number): string {
 // Relative time formatting
 // ---------------------------------------------------------------------------
 
+const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
 function formatRelativeTime(isoDate?: string): string {
   if (!isoDate) return "Never";
-  const date = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  if (diffSeconds < 60) return relativeFormatter.format(-diffSeconds, "second");
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return relativeFormatter.format(-diffMinutes, "minute");
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) return relativeFormatter.format(-diffHours, "hour");
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  return relativeFormatter.format(-diffDays, "day");
 }
 
 // ---------------------------------------------------------------------------

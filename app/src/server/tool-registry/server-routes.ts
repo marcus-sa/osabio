@@ -513,8 +513,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Dynamic client registration (RFC 7591)
       if (config.registrationEndpoint) {
         try {
-          const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
-          const redirectUri = `${brainBaseUrl}/oauth/callback`;
+          const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 
           const registrationResult = await registerDynamicClient(
             config.registrationEndpoint,
@@ -614,11 +613,10 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     );
 
     // Build the redirect_uri (Brain's OAuth callback)
-    const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
-    const redirectUri = `${brainBaseUrl}/oauth/callback`;
+    const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 
     // Use client_id from provider, or fall back to Brain's base URL
-    const clientId = providerRecord.client_id ?? brainBaseUrl;
+    const clientId = providerRecord.client_id ?? deps.config.baseUrl;
 
     // Build authorization URL with PKCE and resource parameter
     const authorizationParams: AuthorizationParams = {
@@ -696,11 +694,10 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
 
     // Build redirect_uri (must match the one used during authorize)
-    const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
-    const redirectUri = `${brainBaseUrl}/oauth/callback`;
+    const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 
     // Use client_id from provider, or fall back to Brain's base URL
-    const clientId = providerRecord.client_id ?? brainBaseUrl;
+    const clientId = providerRecord.client_id ?? deps.config.baseUrl;
 
     try {
       // Exchange the authorization code for tokens using PKCE

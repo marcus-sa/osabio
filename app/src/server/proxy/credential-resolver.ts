@@ -171,8 +171,8 @@ type OAuthProviderRow = {
   client_secret_encrypted?: string;
 };
 
-/** Buffer in milliseconds: refresh tokens that expire within 60s. */
-const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
+/** Buffer in milliseconds: refresh tokens that expire within 5 minutes. */
+const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 async function resolveOAuthHeaders(
   server: McpServerRecord,
