@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "189947fe7ecf",
+  "session_id": "83eddda0-1eda-480f-a260-b258c3aace08",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T04:51:21.766426Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-4-access-grants.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-5-account-dashboard.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-6-tool-governance.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "682ae9300a11",
+  "checkpoint_transcript_start": 3221,
+  "transcript_lines_at_start": 3221,
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 1303,
+    "cache_read_tokens": 523832,
+    "output_tokens": 754,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T04:51:19.244878Z",
+    "agent_lines": 23,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 23,
+    "agent_percentage": 100
+  }
+}
