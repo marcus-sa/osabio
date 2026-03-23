@@ -1353,8 +1353,28 @@ DEFINE INDEX idx_proxy_token_hash ON proxy_token FIELDS token_hash UNIQUE;
 DEFINE INDEX idx_proxy_token_identity_workspace ON proxy_token FIELDS identity, workspace;
 
 -- ---------------------------------------------------------------------------
--- MCP Tool Registry: Tool definitions, authorization, credentials, governance
+-- MCP Tool Registry: Server connections, tool definitions, authorization,
+-- credentials, governance
 -- ---------------------------------------------------------------------------
+
+-- mcp_server: MCP server connection configuration
+DEFINE TABLE mcp_server SCHEMAFULL;
+DEFINE FIELD name ON mcp_server TYPE string;
+DEFINE FIELD url ON mcp_server TYPE string;
+DEFINE FIELD transport ON mcp_server TYPE string DEFAULT "streamable-http"
+  ASSERT $value IN ["streamable-http", "sse"];
+DEFINE FIELD workspace ON mcp_server TYPE record<workspace>;
+DEFINE FIELD provider ON mcp_server TYPE option<record<credential_provider>>;
+DEFINE FIELD last_status ON mcp_server TYPE option<string>
+  ASSERT $value IN ["ok", "error"] OR $value IS NONE;
+DEFINE FIELD last_error ON mcp_server TYPE option<string>;
+DEFINE FIELD server_info ON mcp_server TYPE option<object> FLEXIBLE;
+DEFINE FIELD capabilities ON mcp_server TYPE option<object> FLEXIBLE;
+DEFINE FIELD last_discovery ON mcp_server TYPE option<datetime>;
+DEFINE FIELD tool_count ON mcp_server TYPE int DEFAULT 0;
+DEFINE FIELD created_at ON mcp_server TYPE datetime DEFAULT time::now();
+DEFINE INDEX idx_mcp_server_workspace ON mcp_server FIELDS workspace;
+DEFINE INDEX idx_mcp_server_workspace_name ON mcp_server FIELDS workspace, name UNIQUE;
 
 -- mcp_tool: Tool definitions registered in a workspace
 DEFINE TABLE mcp_tool SCHEMAFULL;
@@ -1367,6 +1387,7 @@ DEFINE FIELD provider ON mcp_tool TYPE option<record<credential_provider>>;
 DEFINE FIELD risk_level ON mcp_tool TYPE string ASSERT $value IN ["low", "medium", "high", "critical"];
 DEFINE FIELD workspace ON mcp_tool TYPE record<workspace>;
 DEFINE FIELD status ON mcp_tool TYPE string ASSERT $value IN ["active", "disabled"];
+DEFINE FIELD source_server ON mcp_tool TYPE option<record<mcp_server>>;
 DEFINE FIELD created_at ON mcp_tool TYPE datetime DEFAULT time::now();
 DEFINE INDEX mcp_tool_workspace ON mcp_tool FIELDS workspace;
 DEFINE INDEX mcp_tool_workspace_name ON mcp_tool FIELDS workspace, name;
