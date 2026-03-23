@@ -13,7 +13,7 @@ function Tabs({
       data-slot="tabs"
       data-orientation={orientation}
       className={cn(
-        "group/tabs flex gap-2 data-horizontal:flex-col",
+        "group/tabs flex flex-col gap-2",
         className
       )}
       {...props}
@@ -28,7 +28,7 @@ const tabsListVariants = cva(
       variant: {
         default:
           "rounded-lg bg-muted p-[3px] group-data-horizontal/tabs:h-8",
-        line: "gap-1 border-b border-border bg-transparent",
+        line: "w-full gap-1 border-b border-border bg-transparent",
       },
     },
     defaultVariants: {
