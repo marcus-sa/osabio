@@ -283,7 +283,7 @@ export function ToolRegistryPage() {
           )}
         </TabsContent>
         <TabsContent value="providers">
-          {vm.showEmptyState && vm.activeTab === "providers" ? (
+          {providers.length === 0 ? (
             <EmptyState message="No credential providers configured." cta={vm.emptyStateCta} />
           ) : (
             <>
