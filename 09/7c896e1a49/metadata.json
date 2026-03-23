@@ -3,7 +3,7 @@
   "checkpoint_id": "097c896e1a49",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "docs/feature/mcp-tool-registry-ui/deliver/execution-log.json"
   ],
@@ -14,13 +14,20 @@
       "context": "/09/7c896e1a49/0/context.md",
       "content_hash": "/09/7c896e1a49/0/content_hash.txt",
       "prompt": "/09/7c896e1a49/0/prompt.txt"
+    },
+    {
+      "metadata": "/09/7c896e1a49/1/metadata.json",
+      "transcript": "/09/7c896e1a49/1/full.jsonl",
+      "context": "/09/7c896e1a49/1/context.md",
+      "content_hash": "/09/7c896e1a49/1/content_hash.txt",
+      "prompt": "/09/7c896e1a49/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 85,
+    "cache_creation_tokens": 126605,
+    "cache_read_tokens": 4991884,
+    "output_tokens": 42725,
+    "api_call_count": 53
   }
 }
