@@ -5,11 +5,14 @@
   "branch": "marcus-sa/mcp-tool-registry",
   "checkpoints_count": 6,
   "files_touched": [
+    "app/src/client/components/tool-registry/McpServerSection.tsx",
     "app/src/client/routes/tool-registry-page.tsx",
     "app/src/server/runtime/config.ts",
+    "app/src/server/tool-registry/server-queries.ts",
     "app/src/server/tool-registry/server-routes.ts",
     "tests/acceptance/tool-registry/11-oauth-callback.test.ts",
-    "tests/unit/tool-registry/oauth-redirect.test.ts"
+    "tests/unit/tool-registry/oauth-redirect.test.ts",
+    "tests/unit/tool-registry/server-error-surfacing.test.ts"
   ],
   "sessions": [
     {
@@ -18,6 +21,13 @@
       "context": "/12/526357cbf7/0/context.md",
       "content_hash": "/12/526357cbf7/0/content_hash.txt",
       "prompt": "/12/526357cbf7/0/prompt.txt"
+    },
+    {
+      "metadata": "/12/526357cbf7/1/metadata.json",
+      "transcript": "/12/526357cbf7/1/full.jsonl",
+      "context": "/12/526357cbf7/1/context.md",
+      "content_hash": "/12/526357cbf7/1/content_hash.txt",
+      "prompt": "/12/526357cbf7/1/prompt.txt"
     }
   ],
   "token_usage": {
