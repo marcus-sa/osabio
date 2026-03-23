@@ -1,3 +1,5 @@
+OPTION IMPORT;
+
 -- BM25 full-text search analyzer (required before any FULLTEXT index)
 DEFINE ANALYZER OVERWRITE entity_search
   TOKENIZERS blank, class, camel, punct
