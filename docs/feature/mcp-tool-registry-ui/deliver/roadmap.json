@@ -1,0 +1,542 @@
+{
+  "roadmap": {
+    "project_id": "mcp-tool-registry-ui",
+    "created_at": "2026-03-23T00:00:00Z",
+    "total_steps": 35,
+    "phases": 5,
+    "status": "draft"
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Foundation: Schema, Core Endpoints, and MCP Client",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "mcp_server schema migration and source_server field",
+          "description": "Create migration 0066_mcp_server_table.surql: DEFINE TABLE mcp_server SCHEMAFULL with all fields (name, url, transport, workspace, provider, last_status, server_info, capabilities, last_discovery, last_error, tool_count, created_at), indexes (workspace, workspace+name UNIQUE), and DEFINE FIELD OVERWRITE source_server ON mcp_tool TYPE option<record<mcp_server>>.",
+          "criteria": "mcp_server table exists with all fields. source_server field exists on mcp_tool. bun migrate applies without error. Unique constraint on workspace+name prevents duplicate server names.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-7-mcp-server-connection.test.ts",
+          "scenario_name": "rejects duplicate server name within workspace",
+          "files_to_modify": [
+            "schema/migrations/0066_mcp_server_table.surql",
+            "schema/surreal-schema.surql"
+          ],
+          "dependencies": [],
+          "estimated_hours": 1
+        },
+        {
+          "id": "01-02",
+          "name": "Tool registry domain types for tools, grants, servers, and discovery",
+          "description": "Add TypeScript types to tool-registry/types.ts: ToolListItem, ToolDetail, McpServerListItem, McpServerRecord, DiscoveryResult, ToolSyncDetail, AddMcpServerInput, CreateGrantInput, AttachGovernanceInput, ResolvedTool with source_server field. Add shared contract types to contracts.ts.",
+          "criteria": "All API response shapes and input types are defined. ResolvedTool type includes optional source_server RecordId.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin browses tools and sees them grouped with grant counts",
+          "files_to_modify": [
+            "app/src/server/tool-registry/types.ts",
+            "app/src/shared/contracts.ts"
+          ],
+          "dependencies": ["01-01"],
+          "estimated_hours": 1
+        },
+        {
+          "id": "01-03",
+          "name": "Tool listing endpoint with grant and governance counts",
+          "description": "Implement GET /api/workspaces/:wsId/tools. Query mcp_tool WHERE workspace=$ws with subquery counts for can_use edges (grant_count) and governs_tool edges (governance_count). Return tools with toolkit, status, risk_level, provider info, source_server info.",
+          "criteria": "Endpoint returns all workspace tools with grant_count and governance_count. Tools without grants or governance show 0. Tools include source_server_name when linked to an MCP server.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+          "scenario_name": "returns tools grouped by toolkit with correct counts",
+          "files_to_modify": [
+            "app/src/server/tool-registry/tool-routes.ts",
+            "app/src/server/tool-registry/queries.ts",
+            "app/src/server/runtime/start-server.ts"
+          ],
+          "dependencies": ["01-02"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "01-04",
+          "name": "Tool detail endpoint with grants and governance policies",
+          "description": "Implement GET /api/workspaces/:wsId/tools/:toolId. Return tool with input_schema, grants array (identity_name, max_calls_per_hour, granted_at), and governance_policies array (policy_title, conditions, max_per_day, max_per_call).",
+          "criteria": "Tool detail returns full input_schema, all linked grants with identity names, all linked governance policies with conditions and limits. Returns 404 for nonexistent tool.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+          "scenario_name": "returns tool with grants and governance policies",
+          "files_to_modify": [
+            "app/src/server/tool-registry/tool-routes.ts",
+            "app/src/server/tool-registry/queries.ts"
+          ],
+          "dependencies": ["01-03"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "01-05",
+          "name": "Grant creation and listing endpoints",
+          "description": "Implement POST /api/workspaces/:wsId/tools/:toolId/grants (create can_use edge with optional max_calls_per_hour) and GET /api/workspaces/:wsId/tools/:toolId/grants (list grants). Validate identity exists, tool exists, no duplicate grants.",
+          "criteria": "Grants created as can_use RELATION edges. Duplicate grant returns 409. Nonexistent identity or tool returns 404. Missing identity_id returns 400. Grant list includes identity_name and granted_at.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-4-access-grants.test.ts",
+          "scenario_name": "grants access with rate limit and sees grant in list",
+          "files_to_modify": [
+            "app/src/server/tool-registry/grant-routes.ts",
+            "app/src/server/tool-registry/queries.ts",
+            "app/src/server/runtime/start-server.ts"
+          ],
+          "dependencies": ["01-03"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "01-06",
+          "name": "Governance attachment endpoint",
+          "description": "Implement POST /api/workspaces/:wsId/tools/:toolId/governance. Create governs_tool RELATION edge with optional conditions, max_per_day, max_per_call. Validate policy exists and is active (reject deprecated). Validate tool exists.",
+          "criteria": "Governance edges created between policy and tool. Deprecated policy returns 400. Nonexistent policy or tool returns 404. Missing policy_id returns 400. Multiple policies can attach to same tool.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-6-tool-governance.test.ts",
+          "scenario_name": "attaches policy with condition and rate limits",
+          "files_to_modify": [
+            "app/src/server/tool-registry/grant-routes.ts",
+            "app/src/server/tool-registry/queries.ts",
+            "app/src/server/runtime/start-server.ts"
+          ],
+          "dependencies": ["01-03"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "01-07",
+          "name": "MCP server CRUD endpoints",
+          "description": "Implement POST /api/workspaces/:wsId/mcp-servers (create with name, url, transport, optional provider_id), GET /mcp-servers (list), GET /mcp-servers/:serverId (detail), DELETE /mcp-servers/:serverId (remove + disable discovered tools). URL validation: only http/https. Transport defaults to streamable-http. Duplicate name returns 409. Provider link validated.",
+          "criteria": "Server CRUD complete. URL validation rejects file://, javascript:// schemes. Default transport is streamable-http. Server removal disables all tools linked via source_server. Workspace isolation enforced.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-7-mcp-server-connection.test.ts",
+          "scenario_name": "registers an unauthenticated MCP server with Streamable HTTP transport",
+          "files_to_modify": [
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/tool-registry/server-queries.ts",
+            "app/src/server/runtime/start-server.ts"
+          ],
+          "dependencies": ["01-01", "01-03"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "01-08",
+          "name": "MCP client module with injectable factory",
+          "description": "Implement mcp-client.ts: McpClientFactory function that creates MCP SDK Client with SSE or Streamable HTTP transport. Inject auth headers into transport requestInit. Add mcpClientFactory to ServerDependencies. Production creates real transports; tests use InMemoryTransport.",
+          "criteria": "McpClientFactory connects to MCP servers via SSE or Streamable HTTP. Auth headers injected into transport. Factory injectable via ServerDependencies. Connection timeout at 10 seconds via AbortController.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin connects an MCP server and imports discovered tools",
+          "files_to_modify": [
+            "app/src/server/tool-registry/mcp-client.ts",
+            "app/src/server/runtime/types.ts",
+            "app/src/server/runtime/dependencies.ts"
+          ],
+          "dependencies": [],
+          "estimated_hours": 3
+        },
+        {
+          "id": "01-09",
+          "name": "Test kit for tool-registry-ui acceptance tests",
+          "description": "Implement tool-registry-ui-test-kit.ts with all seed helpers (seedTool, seedMcpServer, seedDiscoveredTool, seedGrant, seedGovernance, seedPolicy, createIdentity) and HTTP helpers (listTools, getToolDetail, grantToolAccess, listToolGrants, attachGovernance, addMcpServer, listMcpServers, getMcpServerDetail, removeMcpServer, discoverTools, syncServerTools). Wire setupToolRegistrySuite.",
+          "criteria": "All helpers compile and support the test scenarios. setupToolRegistrySuite boots server with isolated DB. Seed helpers create records directly in SurrealDB. HTTP helpers use DPoP-authenticated requests.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin registers an API key provider and sees it listed",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts"
+          ],
+          "dependencies": [],
+          "estimated_hours": 3
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Discovery Service and Walking Skeleton Validation",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Discovery service with sync algorithm and risk inference",
+          "description": "Implement discovery.ts: connect to MCP server via mcpClientFactory, call client.listTools(), diff against existing mcp_tool records. Compute actions (create/update/disable/unchanged). Infer risk_level from MCP annotations (readOnlyHint->low, destructiveHint->high, etc). Support dry_run mode (no DB writes) and selective import via selected_tools filter.",
+          "criteria": "Dry-run returns DiscoveryResult with per-tool actions and risk levels without DB modifications. Full sync creates/updates/disables mcp_tool records. Selective import only processes tools in selected_tools list. Server tool_count and last_discovery updated after sync.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-8-tool-discovery.test.ts",
+          "scenario_name": "dry-run discovery returns tools with actions and risk levels",
+          "files_to_modify": [
+            "app/src/server/tool-registry/discovery.ts",
+            "app/src/server/tool-registry/server-queries.ts"
+          ],
+          "dependencies": ["01-07", "01-08"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "02-02",
+          "name": "Discovery and sync HTTP endpoints",
+          "description": "Implement POST /mcp-servers/:serverId/discover (trigger discovery with dry_run query param) and POST /mcp-servers/:serverId/sync (apply with optional selected_tools body). Load server record, resolve credentials if provider linked, connect via mcpClientFactory, run discovery service, close connection. Return DiscoveryResult.",
+          "criteria": "Discovery endpoint returns tool list with actions. Sync endpoint applies changes to DB. 404 for nonexistent server. 502 when server is unreachable. Dry-run does not modify database state.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-8-tool-discovery.test.ts",
+          "scenario_name": "full sync creates mcp_tool records linked to server",
+          "files_to_modify": [
+            "app/src/server/tool-registry/server-routes.ts",
+            "app/src/server/runtime/start-server.ts"
+          ],
+          "dependencies": ["02-01"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "02-03",
+          "name": "Enable and validate walking skeleton tests 1-4",
+          "description": "Remove it.skip from walking skeleton tests 1-4. Fix any test failures. Validate provider registration, account connection, tool browsing, and grant creation work end-to-end.",
+          "criteria": "Walking skeleton tests 1-4 pass: provider appears in list, account shows active, tools grouped by toolkit with counts, grant visible in tool detail.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin registers an API key provider and sees it listed",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
+          ],
+          "dependencies": ["01-03", "01-04", "01-05", "01-09"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "02-04",
+          "name": "Enable milestone 1 provider CRUD tests",
+          "description": "Remove it.skip from all 11 milestone-1 tests. Validate OAuth2 provider creation, all auth methods, duplicate rejection, validation errors, and secret masking.",
+          "criteria": "All 11 milestone-1 scenarios pass: 4 auth method registrations, provider listing, empty state, duplicate rejection, 3 validation errors, 2 secret masking checks.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-1-provider-crud.test.ts",
+          "scenario_name": "registers an OAuth2 provider with all OAuth-specific fields",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-1-provider-crud.test.ts",
+            "app/src/server/tool-registry/routes.ts"
+          ],
+          "dependencies": ["02-03"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "02-05",
+          "name": "Enable milestone 2 account connection tests",
+          "description": "Remove it.skip from all 11 milestone-2 tests. Validate static credential connections (API key, bearer, basic), OAuth2 initiation, credential validation, and security checks.",
+          "criteria": "All 11 milestone-2 scenarios pass: 3 static connections, OAuth2 redirect URL, 3 empty credential rejections, nonexistent provider 404, duplicate 409, 2 credential masking checks.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-2-account-connection.test.ts",
+          "scenario_name": "connects account with API key",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-2-account-connection.test.ts"
+          ],
+          "dependencies": ["02-03"],
+          "estimated_hours": 1
+        },
+        {
+          "id": "02-06",
+          "name": "Enable milestones 3-6 tests (tools, grants, accounts, governance)",
+          "description": "Remove it.skip from milestone-3 (9 scenarios), milestone-4 (9 scenarios), milestone-5 (8 scenarios), and milestone-6 (9 scenarios). Fix any failures in tool browsing, grant management, account dashboard, and governance attachment.",
+          "criteria": "All 35 scenarios across milestones 3-6 pass: tool listing with counts, tool detail, grant CRUD with count propagation, account listing with mixed statuses, revocation with credential deletion, governance attachment with policy validation.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+          "scenario_name": "returns tools grouped by toolkit with correct counts",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-3-tool-browsing.test.ts",
+            "tests/acceptance/tool-registry-ui/milestone-4-access-grants.test.ts",
+            "tests/acceptance/tool-registry-ui/milestone-5-account-dashboard.test.ts",
+            "tests/acceptance/tool-registry-ui/milestone-6-tool-governance.test.ts"
+          ],
+          "dependencies": ["01-04", "01-05", "01-06", "02-04"],
+          "estimated_hours": 3
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Tool Execution Pipeline",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Extend tool resolver with source_server field",
+          "description": "Modify the can_use graph query in tool-resolver.ts to include source_server from mcp_tool. Add source_server to ResolvedTool type. Tool resolver cache returns source_server alongside name, description, input_schema, toolkit, risk_level.",
+          "criteria": "Resolved tools include source_server RecordId when linked to an MCP server. Existing brain-native tool resolution unaffected. Cache key unchanged.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+          "scenario_name": "executes a single integration tool call and returns result to LLM",
+          "files_to_modify": [
+            "app/src/server/proxy/tool-resolver.ts"
+          ],
+          "dependencies": ["01-01"],
+          "estimated_hours": 1
+        },
+        {
+          "id": "03-02",
+          "name": "Integration tool executor via MCP protocol",
+          "description": "Revise tool-executor.ts: add executeIntegrationToolsViaMcp function. For each integration tool call: resolve source_server from ResolvedTool, load mcp_server record, resolve credentials via credential-resolver.ts, get-or-create MCP client from request-scoped Map, call client.callTool(), map CallToolResult to ToolExecutionResult. Error handling: connection failure and MCP errors returned as is_error tool_results.",
+          "criteria": "Integration tools execute via MCP protocol instead of HTTP fetch. Credential headers injected into MCP transport. Connection failures return descriptive error tool_results. MCP server errors forwarded as is_error tool_results.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+          "scenario_name": "executes a single integration tool call and returns result to LLM",
+          "files_to_modify": [
+            "app/src/server/proxy/tool-executor.ts",
+            "app/src/server/proxy/credential-resolver.ts"
+          ],
+          "dependencies": ["01-08", "03-01"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "03-03",
+          "name": "Unified executeAllToolCalls function",
+          "description": "Add executeAllToolCalls to tool-executor.ts: partition classified calls into brain-native, integration, unknown. Execute brain-native via existing executeBrainNativeTools. Execute integration via executeIntegrationToolsViaMcp. Generate error results for unknown. Merge all results ordered by original tool_use position.",
+          "criteria": "Single function handles all tool call categories. Brain-native and integration tools can execute in the same iteration. Unknown tools receive descriptive error results. Results ordered by original position.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+          "scenario_name": "completes multi-turn loop: tool call -> result -> tool call -> result -> text",
+          "files_to_modify": [
+            "app/src/server/proxy/tool-executor.ts"
+          ],
+          "dependencies": ["03-02"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "03-04",
+          "name": "Unified multi-turn loop with request-scoped connections",
+          "description": "Revise anthropic-proxy-route.ts: create request-scoped Map<string, Client> for MCP connections. Unified loop processes ALL classified tool calls per iteration (brain-native + integration + unknown). Increase MAX_TOOL_USE_ITERATIONS from 5 to 10. Close all connections in finally block. Pass connectionMap to executeAllToolCalls.",
+          "criteria": "Multi-turn loop handles mixed tool calls per iteration. Max iterations is 10. MCP connections reused within request, closed on completion. Loop exits on text response or max iterations.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+          "scenario_name": "stops after maximum 10 iterations to prevent infinite loops",
+          "files_to_modify": [
+            "app/src/server/proxy/anthropic-proxy-route.ts"
+          ],
+          "dependencies": ["03-03"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "03-05",
+          "name": "Mock MCP server infrastructure for acceptance tests",
+          "description": "Create mock MCP server using InMemoryTransport from @modelcontextprotocol/sdk that exposes configurable tools (github.create_issue, github.list_repos, etc.) with MCP annotations. Create mock Anthropic API that returns configurable tool_use/text responses. Wire both into setupToolRegistrySuite via ServerDependencies override.",
+          "criteria": "Mock MCP server responds to tools/list and tools/call with configured tools. Mock Anthropic API returns tool_use blocks referencing injected tools and eventually returns text. Both injectable via ServerDependencies.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "agent executes an injected integration tool and receives the result",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts"
+          ],
+          "dependencies": ["01-09"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "03-06",
+          "name": "Enable walking skeleton tests 5-6",
+          "description": "Remove it.skip from walking skeleton tests 5 (MCP server + discovery) and 6 (tool execution). Wire mock MCP server and mock Anthropic into skeleton tests. Validate complete end-to-end flow from server registration through tool execution.",
+          "criteria": "Skeleton 5 passes: server registered, discovery returns tools, sync imports tools, tools appear in list. Skeleton 6 passes: tool call executed on mock MCP server, result returned to LLM, final text response produced.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin connects an MCP server and imports discovered tools",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
+          ],
+          "dependencies": ["02-02", "03-04", "03-05"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "03-07",
+          "name": "Enable milestone 7 MCP server connection tests",
+          "description": "Remove it.skip from all 18 milestone-7 tests. Validate server registration (4 auth/transport variants), listing, detail, URL validation (3 schemes), input validation (4 fields), server removal with tool disabling, 404 handling, and workspace isolation.",
+          "criteria": "All 18 milestone-7 scenarios pass: server CRUD, transport defaults, provider linking, URL validation, duplicate rejection, removal disables tools, workspace isolation.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-7-mcp-server-connection.test.ts",
+          "scenario_name": "registers an unauthenticated MCP server with Streamable HTTP transport",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-7-mcp-server-connection.test.ts"
+          ],
+          "dependencies": ["01-07", "03-05"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "03-08",
+          "name": "Enable milestone 8 tool discovery tests",
+          "description": "Remove it.skip from all 11 milestone-8 tests. Wire mock MCP server with annotated tools for risk inference. Validate dry-run, full sync, selective import, re-sync diff, risk inference, error handling, and dry-run immutability.",
+          "criteria": "All 11 milestone-8 scenarios pass: dry-run returns tools, full sync creates records, selective import, re-sync detects new/removed tools, tool_count updates, risk inference from annotations, unreachable server 502, nonexistent server 404, dry-run no DB modification.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-8-tool-discovery.test.ts",
+          "scenario_name": "dry-run discovery returns tools with actions and risk levels",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-8-tool-discovery.test.ts"
+          ],
+          "dependencies": ["02-02", "03-05"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "03-09",
+          "name": "Enable milestone 9 tool execution tests",
+          "description": "Remove it.skip from all 11 milestone-9 tests. Wire mock Anthropic and mock MCP server for execution scenarios. Validate single execution, credential injection (API key + bearer), multi-turn loop, max iterations, error handling (unreachable, MCP error, no grant, no source_server), governance blocking, and connection reuse.",
+          "criteria": "All 11 milestone-9 scenarios pass: tool execution via MCP, credential injection, multi-turn loop completion, 10-iteration safety limit, error tool_results for failures, governance enforcement, connection reuse within request.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+          "scenario_name": "executes a single integration tool call and returns result to LLM",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts"
+          ],
+          "dependencies": ["03-04", "03-05"],
+          "estimated_hours": 3
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Server Management and Full Suite Validation",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Enable milestone 10 server management tests",
+          "description": "Remove it.skip from all 9 milestone-10 tests. Validate server dashboard with status indicators, server detail with transport, re-sync trigger, removal with tool disabling (including isolation from other servers), empty state, 404 handling, and workspace isolation.",
+          "criteria": "All 9 milestone-10 scenarios pass: server list with status/tool_count/last_discovery, detail with transport/created_at, re-sync returns review data, removal disables only that server's tools, empty state, 404 for nonexistent, workspace isolation.",
+          "test_file": "tests/acceptance/tool-registry-ui/milestone-10-server-management.test.ts",
+          "scenario_name": "lists servers with status indicators and tool counts",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/milestone-10-server-management.test.ts"
+          ],
+          "dependencies": ["03-07", "03-08"],
+          "estimated_hours": 2
+        },
+        {
+          "id": "04-02",
+          "name": "Full acceptance suite validation",
+          "description": "Run all 11 test files (walking-skeleton + milestones 1-10) together. Fix any cross-suite isolation issues, timing issues, or data leaks between tests. Verify total of 97 scenarios pass.",
+          "criteria": "All 97 acceptance test scenarios pass in a single test run. No test isolation failures. No flaky tests from timing or data leaks.",
+          "test_file": "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts",
+          "scenario_name": "admin registers an API key provider and sees it listed",
+          "files_to_modify": [
+            "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts"
+          ],
+          "dependencies": ["04-01", "03-09", "02-06"],
+          "estimated_hours": 2
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "name": "UI: React Components with React Testing Library",
+      "steps": [
+        {
+          "id": "05-01",
+          "name": "Page shell, route registration, sidebar entry, and shared hooks",
+          "description": "Register /tools route in router.tsx under authLayout. Create ToolRegistryPage component with four shadcn Tabs (Tools, Providers, Accounts, Access) driven by URL search param ?tab=. Add 'Tool Registry' sidebar entry in WorkspaceSidebar.tsx following existing Link+matchRoute+navItemClass pattern. Create shared data-fetching hooks: use-providers.ts, use-accounts.ts, use-tools.ts, use-mcp-servers.ts, use-grants.ts following the useState+useCallback+fetch pattern from use-policies.ts. Each hook returns { data, isLoading, error, refresh }.",
+          "criteria": "Route /tools renders ToolRegistryPage inside authenticated layout. Sidebar shows 'Tool Registry' link below 'Policies' with active state highlight. Four tabs render and switch via URL param. Tab state persists across navigation. Empty state renders when no data exists with 'Add Provider' CTA. Hooks fetch from correct API endpoints and expose loading/error/refresh. All tabs reachable via keyboard.",
+          "test_file": "tests/unit/client/integrations/integrations-page.test.tsx",
+          "scenario_name": "renders four tabs and defaults to Tools tab",
+          "files_to_modify": [
+            "app/src/client/router.tsx",
+            "app/src/client/components/layout/WorkspaceSidebar.tsx",
+            "app/src/client/routes/tool-registry-page.tsx",
+            "app/src/client/hooks/use-providers.ts",
+            "app/src/client/hooks/use-accounts.ts",
+            "app/src/client/hooks/use-tools.ts",
+            "app/src/client/hooks/use-mcp-servers.ts",
+            "app/src/client/hooks/use-grants.ts",
+            "tests/unit/client/integrations/integrations-page.test.tsx"
+          ],
+          "dependencies": ["04-02"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "05-02",
+          "name": "Providers tab: list, create dialog, delete confirmation",
+          "description": "Create ProviderTable component listing providers with columns: name, display_name, auth_method badge, has_client_secret indicator, created_at. Create CreateProviderDialog with auth_method selector that adapts form fields (OAuth2 shows authorization_url, token_url, client_id, client_secret, scopes; api_key shows only name, display_name). Client_secret uses password input masking. Form validates required fields, shows inline error on duplicate name, preserves form data on failure. Delete provider with confirmation dialog (guard: warns about active accounts). Success actions close dialog, call refresh, show success state.",
+          "criteria": "Provider list renders all providers from useProviders hook with correct badges per auth_method. 'Add Provider' button opens CreateProviderDialog. Selecting OAuth2 auth_method reveals 6 additional fields. Selecting api_key reveals only name and display_name. Client_secret field is type=password. Empty required field disables submit. Successful creation closes dialog and refreshes list. Failed creation preserves form data and shows error message. Delete confirmation warns about consequences. Empty state shows guidance message.",
+          "test_file": "tests/unit/client/integrations/providers-tab.test.tsx",
+          "scenario_name": "shows adaptive form fields when auth_method changes",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/ProviderTable.tsx",
+            "app/src/client/components/tool-registry/CreateProviderDialog.tsx",
+            "tests/unit/client/integrations/providers-tab.test.tsx"
+          ],
+          "dependencies": ["05-01"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "05-03",
+          "name": "Accounts tab: list, connect dialog, revoke action, reconnect",
+          "description": "Create AccountTable listing connected accounts with columns: provider display_name, status badge (active=default, revoked=destructive, expired=secondary), connected_at date. Active accounts show 'Revoke' action; expired/revoked show 'Reconnect'. ConnectAccountDialog adapts per auth_method: api_key shows single masked field, bearer shows single masked token field, basic shows username+password, OAuth2 shows pre-redirect confirmation with scopes and 'Continue to {provider}' button. Revoke confirmation dialog warns about permanent credential deletion. Empty state guides to Providers tab.",
+          "criteria": "Account list renders all accounts from useAccounts hook with correct status badges. Connect dialog shows correct fields per provider auth_method. api_key field is type=password. Empty credential submission shows inline validation. OAuth2 connect shows provider name, scopes, and security explanation. Revoke confirmation warns about permanent deletion. After revoke, status updates immediately. Empty state shows 'No connected accounts' with link to Providers tab. Reconnect opens appropriate form based on auth_method.",
+          "test_file": "tests/unit/client/integrations/accounts-tab.test.tsx",
+          "scenario_name": "renders status badges and correct actions per account state",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/AccountTable.tsx",
+            "app/src/client/components/tool-registry/ConnectAccountDialog.tsx",
+            "tests/unit/client/integrations/accounts-tab.test.tsx"
+          ],
+          "dependencies": ["05-01"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "05-04",
+          "name": "Tools tab: grouped list, filters, risk/status badges",
+          "description": "Create ToolTable component displaying tools grouped by toolkit field with group headers showing tool count per group. Each row: name, description (truncated), risk_level badge (low=green, medium=amber, high=red, critical=destructive), status badge (active=default, disabled=secondary), grant_count, governance_count, provider_name, provenance badge ('manual' vs server name). Filter dropdowns for status (active/disabled) and risk_level (low/medium/high/critical). Client-side text search filters by name and description. Empty search results show 'No tools match your search'. Governed tools show shield icon.",
+          "criteria": "Tools grouped by toolkit with count headers. Risk badges use correct color variants. Status badges use correct variants. Filters narrow displayed tools (client-side). Text search filters by name and description instantly. Empty results show appropriate message. Governed tools display shield indicator. Grant and governance counts render as numbers. Provenance badge shows 'manual' for tools without source_server and server name for discovered tools.",
+          "test_file": "tests/unit/client/integrations/tools-tab.test.tsx",
+          "scenario_name": "groups tools by toolkit and shows correct badge colors",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/ToolTable.tsx",
+            "tests/unit/client/integrations/tools-tab.test.tsx"
+          ],
+          "dependencies": ["05-01"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "05-05",
+          "name": "Tool detail panel: schema, grants, governance",
+          "description": "Create ToolDetailPanel as an expandable row within ToolTable. When a tool row is clicked, the detail panel expands below showing: input_schema rendered as formatted JSON, grants list (identity_name, rate limit, granted_at), governance policies list (policy_title, conditions, max_per_day, max_per_call). Detail data fetched via useToolDetail hook (GET /tools/:toolId). Loading and error states handled within the panel.",
+          "criteria": "Clicking a tool row expands ToolDetailPanel below it. Panel shows input_schema as formatted JSON. Grants section lists all identities with rate limits. Governance section lists all attached policies with conditions and limits. Loading spinner while fetching detail. Error state renders within panel. Clicking expanded row collapses it. Only one panel open at a time.",
+          "test_file": "tests/unit/client/integrations/tools-tab.test.tsx",
+          "scenario_name": "expands tool detail with schema grants and governance",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/ToolDetailPanel.tsx",
+            "app/src/client/components/tool-registry/ToolTable.tsx",
+            "tests/unit/client/integrations/tools-tab.test.tsx"
+          ],
+          "dependencies": ["05-04"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "05-06",
+          "name": "Access tab: grant table, create grant dialog",
+          "description": "Create GrantTable listing tools with expandable grant rows showing per-tool grants. Each grant row: identity_name, source (direct/skill), max_calls_per_hour, granted_at. CreateGrantDialog with identity dropdown (fetched from workspace identities endpoint) and optional max_calls_per_hour number field. Successful grant adds row and increments tool grant_count. Duplicate grant shows toast message. Revoke grant action with confirmation.",
+          "criteria": "Access tab lists tools with expandable grant sections. Grant dialog has identity dropdown and optional rate limit field. Successful grant adds row to list and increments count. Duplicate grant attempt shows 'already has access' message. Grant rows show identity name, rate limit, and date. Revoke confirmation prevents accidental removal. Empty state shows guidance.",
+          "test_file": "tests/unit/client/integrations/access-tab.test.tsx",
+          "scenario_name": "creates grant and shows updated count",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/GrantTable.tsx",
+            "app/src/client/components/tool-registry/CreateGrantDialog.tsx",
+            "tests/unit/client/integrations/access-tab.test.tsx"
+          ],
+          "dependencies": ["05-01"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "05-07",
+          "name": "MCP servers section: list, add dialog, remove action",
+          "description": "Create McpServerSection as a collapsible section at the top of the Tools tab. Server list shows: name, URL, status indicator (ok=green dot, error=red dot), tool_count, last_discovery as relative time, last_error. AddMcpServerDialog with fields: name, URL (validated http/https only), transport selector (sse, streamable-http), optional credential provider dropdown. Duplicate name shows inline error. Remove action with confirmation dialog that warns about disabling discovered tools. Empty state with 'Add MCP Server' CTA. 'Discover' and 'Sync' action buttons per server row.",
+          "criteria": "McpServerSection renders as collapsible at top of Tools tab. Server rows show name, URL, status dot (green/red), tool count, and relative last_discovery time. Add dialog validates URL scheme (rejects non-http/https). Transport defaults to streamable-http. Provider dropdown populated from useProviders. Duplicate name shows inline error. Remove confirmation warns about tool disabling. Empty state shows CTA. Discover and Sync buttons visible per row.",
+          "test_file": "tests/unit/client/integrations/mcp-servers-section.test.tsx",
+          "scenario_name": "renders server list with status indicators and action buttons",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/McpServerSection.tsx",
+            "app/src/client/components/tool-registry/AddMcpServerDialog.tsx",
+            "tests/unit/client/integrations/mcp-servers-section.test.tsx"
+          ],
+          "dependencies": ["05-04"],
+          "estimated_hours": 4
+        },
+        {
+          "id": "05-08",
+          "name": "Discovery review panel: preview, selective import, risk override",
+          "description": "Create DiscoveryReviewPanel that renders after a dry-run discovery response. Shows per-tool breakdown: name, description, inferred risk_level badge, action badge (create=green, update=amber, disable=red, unchanged=muted). Checkboxes for selective import with all new/updated selected by default, unchanged collapsed by default. Risk level dropdown per tool allows admin override before import. 'Import Selected' button triggers sync with selected_tools. Schema diff for updated tools shown in expandable section. Cancel closes panel without changes.",
+          "criteria": "Panel renders discovery results with per-tool rows. Action badges use correct color coding. New and updated tools pre-selected via checkboxes. Unchanged tools collapsed by default. Risk level dropdown allows override per tool. Import Selected triggers sync API with selected tool names. Schema diff expandable for updated tools. Cancel closes panel. Loading state during import. Success refreshes tool list and server tool_count.",
+          "test_file": "tests/unit/client/integrations/discovery-panel.test.tsx",
+          "scenario_name": "pre-selects new tools and allows risk level override before import",
+          "files_to_modify": [
+            "app/src/client/components/tool-registry/DiscoveryReviewPanel.tsx",
+            "tests/unit/client/integrations/discovery-panel.test.tsx"
+          ],
+          "dependencies": ["05-07"],
+          "estimated_hours": 3
+        },
+        {
+          "id": "05-09",
+          "name": "UI component test suite validation",
+          "description": "Run all 7 RTL test files together. Fix any test isolation issues, missing mocks, or shared state problems. Verify all component tests pass in a single run. Validate that mock fetch/hook patterns are consistent across all test files. Ensure no tests depend on execution order.",
+          "criteria": "All RTL test files pass in a single bun test run. No test isolation failures. No flaky tests from shared mocks or state. Mock patterns consistent across all test files. Tests do not depend on execution order.",
+          "test_file": "tests/unit/client/integrations/integrations-page.test.tsx",
+          "scenario_name": "renders four tabs and defaults to Tools tab",
+          "files_to_modify": [
+            "tests/unit/client/integrations/integrations-page.test.tsx",
+            "tests/unit/client/integrations/providers-tab.test.tsx",
+            "tests/unit/client/integrations/accounts-tab.test.tsx",
+            "tests/unit/client/integrations/tools-tab.test.tsx",
+            "tests/unit/client/integrations/access-tab.test.tsx",
+            "tests/unit/client/integrations/mcp-servers-section.test.tsx",
+            "tests/unit/client/integrations/discovery-panel.test.tsx"
+          ],
+          "dependencies": ["05-02", "05-03", "05-05", "05-06", "05-08"],
+          "estimated_hours": 2
+        }
+      ]
+    }
+  ]
+}
