@@ -1424,6 +1424,7 @@ DEFINE FIELD client_secret_encrypted ON credential_provider TYPE option<string>;
 DEFINE FIELD scopes ON credential_provider TYPE option<array<string>>;
 DEFINE FIELD api_key_header ON credential_provider TYPE option<string>;
 DEFINE FIELD discovery_source ON credential_provider TYPE option<string>;
+DEFINE FIELD auth_server_url ON credential_provider TYPE option<string>;
 DEFINE FIELD created_at ON credential_provider TYPE datetime DEFAULT time::now();
 DEFINE INDEX credential_provider_workspace ON credential_provider FIELDS workspace;
 DEFINE INDEX credential_provider_workspace_name ON credential_provider FIELDS workspace, name;

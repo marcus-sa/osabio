@@ -25,6 +25,7 @@ export type CreateProviderInput = {
   client_secret?: string;
   scopes?: string[];
   api_key_header?: string;
+  auth_server_url?: string;
 };
 
 /**
@@ -43,6 +44,7 @@ export type CredentialProviderRecord = {
   scopes?: string[];
   api_key_header?: string;
   discovery_source?: string;
+  auth_server_url?: string;
   created_at: Date;
 };
 
@@ -363,56 +365,6 @@ export type DiscoverAuthResponse =
       discovered: false;
       error: string;
     };
-
-// ---------------------------------------------------------------------------
-// PKCE / Authorization Types (OAuth 2.1 + RFC 8707)
-// ---------------------------------------------------------------------------
-
-/**
- * PKCE S256 code challenge pair.
- * codeVerifier: 43-128 chars of unreserved characters.
- * codeChallenge: BASE64URL(SHA256(codeVerifier)).
- */
-export type PkceChallenge = {
-  codeVerifier: string;
-  codeChallenge: string;
-};
-
-/**
- * Parameters for building an OAuth 2.1 authorization URL.
- */
-export type AuthorizationParams = {
-  authorizationEndpoint: string;
-  clientId: string;
-  redirectUri: string;
-  codeChallenge: string;
-  state: string;
-  resource: string;
-  scope?: string;
-};
-
-/**
- * Parameters for building a token exchange request (PKCE).
- * Pure data -- used by buildTokenRequest to produce { url, body, headers }.
- */
-export type TokenExchangeParams = {
-  tokenEndpoint: string;
-  code: string;
-  redirectUri: string;
-  codeVerifier: string;
-  clientId: string;
-};
-
-/**
- * Token response from the authorization server's token endpoint.
- */
-export type TokenResult = {
-  access_token: string;
-  token_type: string;
-  expires_in?: number;
-  refresh_token?: string;
-  scope?: string;
-};
 
 // ---------------------------------------------------------------------------
 // Resolved Tool (extends proxy type with source server)

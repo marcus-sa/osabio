@@ -210,6 +210,8 @@ export function setupAcceptanceSuite(
       inferenceProvider: "openrouter",
       selfHosted: false,
       worktreeManagerEnabled: false,
+      baseUrl: baseUrl,
+      orchestratorMockAgent: false,
       ...options?.configOverrides,
     };
 

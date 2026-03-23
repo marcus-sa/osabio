@@ -64,25 +64,31 @@ export async function createProvider(
 }
 
 /**
- * Update a credential_provider with client registration fields (client_id, client_secret_encrypted).
+ * Update a credential_provider with client registration fields from DCR.
  */
 export async function updateProviderClientRegistration(
   surreal: Surreal,
   providerRecord: RecordId<"credential_provider", string>,
   clientId: string,
   clientSecretEncrypted?: string,
+  authServerUrl?: string,
 ): Promise<void> {
+  const setParts = ["client_id = $clientId"];
+  const bindings: Record<string, unknown> = { provider: providerRecord, clientId };
+
   if (clientSecretEncrypted) {
-    await surreal.query(
-      `UPDATE $provider SET client_id = $clientId, client_secret_encrypted = $secret;`,
-      { provider: providerRecord, clientId, secret: clientSecretEncrypted },
-    );
-  } else {
-    await surreal.query(
-      `UPDATE $provider SET client_id = $clientId;`,
-      { provider: providerRecord, clientId },
-    );
+    setParts.push("client_secret_encrypted = $secret");
+    bindings.secret = clientSecretEncrypted;
   }
+  if (authServerUrl) {
+    setParts.push("auth_server_url = $authServerUrl");
+    bindings.authServerUrl = authServerUrl;
+  }
+
+  await surreal.query(
+    `UPDATE $provider SET ${setParts.join(", ")};`,
+    bindings,
+  );
 }
 
 /**

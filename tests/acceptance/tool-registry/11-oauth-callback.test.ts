@@ -10,8 +10,8 @@
  * Bug 3: After successful token exchange, last_status was not set to "ok"
  */
 import { describe, it, expect } from "bun:test";
-import { RecordId } from "surrealdb";
 import { setupAcceptanceSuite } from "../acceptance-test-kit";
+import { createWorkspaceDirectly } from "../shared-fixtures";
 import {
   createMcpServer,
   storePendingOAuthState,
@@ -19,33 +19,18 @@ import {
   updateMcpServerProvider,
 } from "../../../app/src/server/tool-registry/server-queries";
 import { createProvider } from "../../../app/src/server/tool-registry/queries";
-import { generatePkce } from "../../../app/src/server/tool-registry/oauth-flow";
 
-const getRuntime = setupAcceptanceSuite("oauth_callback");
+const getRuntime = setupAcceptanceSuite("oauth_callback", {
+  configOverrides: {
+    toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  },
+});
 
 describe("OAuth callback", () => {
   it("redirects to /tools?tab=servers&oauth=success and sets last_status to ok", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Create workspace record
-    const workspaceId = crypto.randomUUID();
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-    await surreal.query("CREATE $ws CONTENT $content;", {
-      ws: workspaceRecord,
-      content: { name: "test-oauth-ws", created_at: new Date() },
-    });
-
-    // Create identity + member_of edge (required by some queries)
-    const identityId = crypto.randomUUID();
-    const identityRecord = new RecordId("identity", identityId);
-    await surreal.query("CREATE $id CONTENT $content;", {
-      id: identityRecord,
-      content: { email: `oauth-test-${identityId}@test.local`, created_at: new Date() },
-    });
-    await surreal.query("RELATE $identity->member_of->$ws;", {
-      identity: identityRecord,
-      ws: workspaceRecord,
-    });
+    const { workspaceId, workspaceRecord } = await createWorkspaceDirectly(surreal, "oauth-ok");
 
     // Start a mock token server that returns a valid token response
     const mockTokenServer = Bun.serve({
@@ -61,16 +46,18 @@ describe("OAuth callback", () => {
 
     try {
       const mockTokenUrl = `http://127.0.0.1:${mockTokenServer.port}/token`;
+      const mockAuthServerUrl = `http://127.0.0.1:${mockTokenServer.port}`;
 
       // Create credential_provider pointing to mock token server
       const provider = await createProvider(surreal, workspaceRecord, {
         name: "test-oauth-provider",
         display_name: "Test OAuth Provider",
         auth_method: "oauth2",
-        authorization_url: "https://auth.example.com/authorize",
+        authorization_url: `${mockAuthServerUrl}/authorize`,
         token_url: mockTokenUrl,
         discovery_source: "https://mcp.example.com",
         client_id: "test-client-id",
+        auth_server_url: mockAuthServerUrl,
       });
 
       // Create mcp_server with oauth auth_mode
@@ -85,10 +72,10 @@ describe("OAuth callback", () => {
       // Link server to provider
       await updateMcpServerProvider(surreal, server.id, provider.id);
 
-      // Generate real PKCE and store pending state
-      const pkce = await generatePkce();
+      // Store pending state with a code_verifier (simulating what startOAuthAuthorization does)
+      const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
       const state = crypto.randomUUID();
-      await storePendingOAuthState(surreal, server.id, pkce.codeVerifier, state);
+      await storePendingOAuthState(surreal, server.id, codeVerifier, state);
 
       // Hit the OAuth callback endpoint (GET — simulating browser redirect from OAuth provider)
       const callbackUrl =
@@ -115,31 +102,27 @@ describe("OAuth callback", () => {
   it("redirects to /tools on token exchange failure", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Create workspace
-    const workspaceId = crypto.randomUUID();
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-    await surreal.query("CREATE $ws CONTENT $content;", {
-      ws: workspaceRecord,
-      content: { name: "test-oauth-fail-ws", created_at: new Date() },
-    });
+    const { workspaceId, workspaceRecord } = await createWorkspaceDirectly(surreal, "oauth-fail");
 
     // Mock token server that returns an error
     const mockTokenServer = Bun.serve({
       port: 0,
-      fetch: () => new Response("invalid_grant", { status: 400 }),
+      fetch: () => Response.json({ error: "invalid_grant" }, { status: 400 }),
     });
 
     try {
       const mockTokenUrl = `http://127.0.0.1:${mockTokenServer.port}/token`;
+      const mockAuthServerUrl = `http://127.0.0.1:${mockTokenServer.port}`;
 
       const provider = await createProvider(surreal, workspaceRecord, {
         name: "test-fail-provider",
         display_name: "Test Fail Provider",
         auth_method: "oauth2",
-        authorization_url: "https://auth.example.com/authorize",
+        authorization_url: `${mockAuthServerUrl}/authorize`,
         token_url: mockTokenUrl,
         discovery_source: "https://fail-mcp.example.com",
         client_id: "test-client-id",
+        auth_server_url: mockAuthServerUrl,
       });
 
       const server = await createMcpServer(surreal, workspaceRecord, {
@@ -152,9 +135,9 @@ describe("OAuth callback", () => {
 
       await updateMcpServerProvider(surreal, server.id, provider.id);
 
-      const pkce = await generatePkce();
+      const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
       const state = crypto.randomUUID();
-      await storePendingOAuthState(surreal, server.id, pkce.codeVerifier, state);
+      await storePendingOAuthState(surreal, server.id, codeVerifier, state);
 
       const callbackUrl =
         `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/oauth/callback` +
