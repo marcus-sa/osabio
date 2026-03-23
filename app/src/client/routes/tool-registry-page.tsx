@@ -50,7 +50,6 @@ export type ToolRegistryPageInput = {
 export type ToolRegistryViewModel = {
   activeTab: ToolRegistryTabId;
   showEmptyState: boolean;
-  emptyStateCta: string;
   tabLabels: Record<ToolRegistryTabId, string>;
 };
 
@@ -95,7 +94,6 @@ export function deriveToolRegistryViewModel(
   return {
     activeTab,
     showEmptyState,
-    emptyStateCta: "Add Provider",
     tabLabels,
   };
 }
@@ -242,7 +240,7 @@ export function ToolRegistryPage() {
         </TabsList>
         <TabsContent value="tools">
           {vm.showEmptyState && vm.activeTab === "tools" ? (
-            <EmptyState message="No tools discovered yet." cta={vm.emptyStateCta} />
+            <EmptyState message="No tools discovered yet." />
           ) : (
             <div className="flex flex-col gap-3 py-2">
               <div className="flex items-center gap-2">
@@ -284,7 +282,10 @@ export function ToolRegistryPage() {
         </TabsContent>
         <TabsContent value="providers">
           {providers.length === 0 ? (
-            <EmptyState message="No credential providers configured." cta={vm.emptyStateCta} />
+            <EmptyState
+              message="No credential providers configured."
+              action={<CreateProviderDialog onSubmit={handleCreateProvider} />}
+            />
           ) : (
             <>
               <div className="flex justify-end py-2">
@@ -296,7 +297,7 @@ export function ToolRegistryPage() {
         </TabsContent>
         <TabsContent value="accounts">
           {vm.showEmptyState && vm.activeTab === "accounts" ? (
-            <EmptyState message="No accounts connected." cta={vm.emptyStateCta} />
+            <EmptyState message="No accounts connected." />
           ) : (
             <AccountTable
               accounts={accounts}
@@ -319,7 +320,7 @@ export function ToolRegistryPage() {
             </div>
           )}
           {vm.showEmptyState && vm.activeTab === "access" ? (
-            <EmptyState message="No tools available to manage access." cta={vm.emptyStateCta} />
+            <EmptyState message="No tools available to manage access." />
           ) : (
             <GrantTable
               tools={tools}
@@ -340,11 +341,11 @@ export function ToolRegistryPage() {
 // Empty state component
 // ---------------------------------------------------------------------------
 
-function EmptyState({ message, cta }: { message: string; cta: string }) {
+function EmptyState({ message, action }: { message: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
       <p className="text-sm text-muted-foreground">{message}</p>
-      <Button size="sm">{cta}</Button>
+      {action}
     </div>
   );
 }
