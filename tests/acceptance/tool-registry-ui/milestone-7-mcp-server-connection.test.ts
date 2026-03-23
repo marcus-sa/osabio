@@ -34,7 +34,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_mcp_server_connectio
 // Happy Path: Server Registration
 // ---------------------------------------------------------------------------
 describe("Admin registers MCP servers", () => {
-  it.skip("registers an unauthenticated MCP server with Streamable HTTP transport", async () => {
+  it("registers an unauthenticated MCP server with Streamable HTTP transport", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-srv-${crypto.randomUUID()}`);
 

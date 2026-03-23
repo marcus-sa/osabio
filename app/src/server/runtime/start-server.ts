@@ -41,6 +41,7 @@ import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createProviderRouteHandlers, createAccountRouteHandlers } from "../tool-registry/routes";
 import { createToolRouteHandlers } from "../tool-registry/tool-routes";
 import { createGrantRouteHandlers } from "../tool-registry/grant-routes";
+import { createServerRouteHandlers } from "../tool-registry/server-routes";
 import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
@@ -121,6 +122,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const accountHandlers = createAccountRouteHandlers(deps);
   const toolHandlers = createToolRouteHandlers(deps);
   const grantHandlers = createGrantRouteHandlers(deps);
+  const mcpServerHandlers = createServerRouteHandlers(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -436,6 +438,30 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           "POST /api/workspaces/:workspaceId/tools/:toolId/governance",
           "POST",
           (request) => grantHandlers.handleAttachGovernance(request.params.workspaceId, request.params.toolId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/mcp-servers": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/mcp-servers",
+          "POST",
+          (request) => mcpServerHandlers.handleCreateServer(request.params.workspaceId, request),
+        ),
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/mcp-servers",
+          "GET",
+          (request) => mcpServerHandlers.handleListServers(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/mcp-servers/:serverId": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/mcp-servers/:serverId",
+          "GET",
+          (request) => mcpServerHandlers.handleGetServerDetail(request.params.workspaceId, request.params.serverId, request),
+        ),
+        DELETE: withTracing(
+          "DELETE /api/workspaces/:workspaceId/mcp-servers/:serverId",
+          "DELETE",
+          (request) => mcpServerHandlers.handleDeleteServer(request.params.workspaceId, request.params.serverId, request),
         ),
       },
       "/api/workspaces/:workspaceId/providers": {
