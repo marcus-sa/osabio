@@ -78,6 +78,13 @@
 - The proxy must forward `output_schema` when injecting tools into LLM requests and handle `structuredContent` in `CallToolResult` responses from upstream MCP servers.
 - Reference: https://modelcontextprotocol.io/specification/draft/server/tools#output-schema
 
+## Proxy Auth: X-Brain-Auth Header Format
+
+- The `X-Brain-Auth` header value is the **raw proxy token** — no `Bearer ` prefix. The value is passed directly to `hashProxyToken()` (SHA-256) and matched against `proxy_token.token_hash` in SurrealDB.
+- Sending `Bearer <token>` corrupts the hash: `sha256("Bearer brn_...")` ≠ `sha256("brn_...")`.
+- CLI sets it as `X-Brain-Auth: ${proxyToken}`, not `X-Brain-Auth: Bearer ${proxyToken}`.
+- `extractBrainAuthToken()` in `proxy-auth.ts` returns the raw header value (trim only, no prefix stripping).
+
 ## Domain Knowledge
 
 Load these references when working in the relevant domain:

@@ -64,6 +64,21 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
 - Everything else is real internal logic — no mocking internal modules at acceptance level
 - Unit tests may mock dependencies via dependency injection (function parameters)
 
+## MSW (Mock Service Worker) for External API Mocking
+
+- Use MSW (`msw/node`) to intercept outbound HTTP requests (e.g. proxy → Anthropic API) at the network level. No code changes needed in production — MSW intercepts `fetch` globally.
+- Import from `msw`: `http`, `HttpResponse` for handlers; `setupServer` from `msw/node` for Node/Bun.
+- Pattern: create a response queue, each intercepted request consumes the next response. After exhaustion, return a default.
+- Lifecycle: `server.listen({ onUnhandledRequest: "bypass" })` in `beforeAll`, `server.close()` in `afterAll`. Use `"bypass"` to let non-mocked requests (SurrealDB, local server) pass through.
+- Reset between tests: call a `reset()` helper to clear the call counter and configure new responses per test scenario.
+- See `tool-registry-ui-test-kit.ts` → `createMockAnthropicMsw()` for the reference implementation.
+
+## Mock MCP Client Factory
+
+- For tests that exercise MCP server discovery or tool execution, inject a mock `McpClientFactory` via `setupToolRegistrySuite(name, { mcpClientFactory })`.
+- The mock factory (`createMockMcpClientFactory`) returns configurable tools from `listTools` and dispatches `callTool` to a provided handler function.
+- `AcceptanceSuiteOptions.mcpClientFactoryOverride` wires the mock into `ServerDependencies` at server boot. Tests that don't need MCP mocks can omit it — a real `McpClientFactory` is used by default.
+
 ## `mock.module` Must Preserve Full Export Surface
 
 - Bun's `mock.module` replaces the entire module for all test files sharing the same worker. A partial mock (only exporting the overridden function) strips every other export, causing `SyntaxError: Export named '...' not found` in concurrent test files that import from the same module.
