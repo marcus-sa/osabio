@@ -267,11 +267,57 @@ describe("Static headers injected on MCP connect", () => {
 // Milestone 1: Static Header Management
 // ---------------------------------------------------------------------------
 describe("Update static headers", () => {
-  it.skip("replaces existing headers with new values", async () => {
-    // Given MCP server with header "Authorization: Bearer old_token"
+  it("replaces existing headers with new values", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-upd-${crypto.randomUUID()}`);
+
+    // Given an MCP server with header "Authorization: Bearer old_token"
+    const createResponse = await user.mcpFetch(
+      `/api/workspaces/${user.workspaceId}/mcp-servers`,
+      {
+        method: "POST",
+        body: {
+          name: `update-test-${crypto.randomUUID().slice(0, 8)}`,
+          url: "https://mcp.example.com",
+          transport: "streamable-http",
+          auth_mode: "static_headers",
+          static_headers: [
+            { name: "Authorization", value: "Bearer old_token" },
+          ],
+        },
+      },
+    );
+    expect(createResponse.status).toBe(201);
+    const { id: serverId } = await createResponse.json() as { id: string };
+
     // When admin PUTs new headers via /mcp-servers/:id/headers
-    // Then subsequent connections use the updated header
-    // And the old value is no longer stored
+    const updateResponse = await user.mcpFetch(
+      `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/headers`,
+      {
+        method: "PUT",
+        body: {
+          headers: [
+            { name: "Authorization", value: "Bearer new_token_value" },
+          ],
+        },
+      },
+    );
+
+    // Then the update succeeds
+    expect(updateResponse.status).toBe(200);
+    const updateBody = await updateResponse.json() as { id: string; has_static_headers: boolean };
+    expect(updateBody.has_static_headers).toBe(true);
+
+    // And the DB stores only the new encrypted value (old value removed)
+    const record = await getMcpServer(surreal, serverId);
+    expect(record).toBeDefined();
+    const headers = record!.static_headers as Array<{ name: string; value_encrypted: string }>;
+    expect(headers).toHaveLength(1);
+    expect(headers[0].name).toBe("Authorization");
+    // The encrypted value should not contain the old plaintext token
+    expect(headers[0].value_encrypted).not.toContain("old_token");
+    // The encrypted value should not contain the new plaintext token either (it's encrypted)
+    expect(headers[0].value_encrypted).not.toContain("new_token_value");
   }, 30_000);
 });
 

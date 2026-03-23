@@ -122,6 +122,29 @@ export async function getMcpServerById(
 }
 
 /**
+ * Replace all static headers on an mcp_server and set auth_mode to "static_headers".
+ * Returns the updated row, or undefined if the server was not found in the workspace.
+ */
+export async function updateMcpServerHeaders(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  workspaceRecord: RecordId<"workspace", string>,
+  encryptedHeaders: Array<{ name: string; value_encrypted: string }>,
+): Promise<McpServerRow | undefined> {
+  const existing = await getMcpServerById(surreal, serverRecord, workspaceRecord);
+  if (!existing) {
+    return undefined;
+  }
+
+  await surreal.query(
+    `UPDATE $server SET static_headers = $headers, auth_mode = "static_headers";`,
+    { server: serverRecord, headers: encryptedHeaders },
+  );
+
+  return getMcpServerById(surreal, serverRecord, workspaceRecord);
+}
+
+/**
  * Delete an mcp_server and disable all tools linked via source_server.
  * Returns true if the server existed and was deleted.
  */

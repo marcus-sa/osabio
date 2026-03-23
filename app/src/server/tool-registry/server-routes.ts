@@ -23,6 +23,7 @@ import {
   listMcpServers,
   getMcpServerById,
   deleteMcpServer,
+  updateMcpServerHeaders,
   type McpServerRow,
 } from "./server-queries";
 import { getProviderById } from "./queries";
@@ -373,6 +374,66 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
   }
 
+  async function handleUpdateHeaders(
+    workspaceId: string,
+    serverId: string,
+    request: Request,
+  ): Promise<Response> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("mcp-server.update-headers", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    let body: { headers?: Array<{ name?: string; value?: string }> };
+    try {
+      body = await request.json() as { headers?: Array<{ name?: string; value?: string }> };
+    } catch {
+      return jsonError("invalid JSON body", 400);
+    }
+
+    if (!Array.isArray(body.headers) || body.headers.length === 0) {
+      return jsonError("headers array is required and must not be empty", 400);
+    }
+
+    // Validate each header entry
+    for (const header of body.headers) {
+      if (!header.name || !header.value) {
+        return jsonError("Each header must have name and value", 400);
+      }
+    }
+
+    const encryptionKey = deps.config.toolEncryptionKey;
+    if (!encryptionKey) {
+      log.error("mcp-server.update-headers", "TOOL_ENCRYPTION_KEY not configured", undefined, { workspaceId });
+      return jsonError("Server encryption not configured", 500);
+    }
+
+    const encryptedHeaders = encryptHeaders(
+      body.headers as Array<{ name: string; value: string }>,
+      encryptionKey,
+    );
+
+    const serverRecord = new RecordId("mcp_server", serverId);
+    const updatedRow = await updateMcpServerHeaders(
+      deps.surreal,
+      serverRecord,
+      workspaceRecord,
+      encryptedHeaders,
+    );
+
+    if (!updatedRow) {
+      return jsonError("MCP server not found", 404);
+    }
+
+    return jsonResponse(toMcpServerResponse(updatedRow), 200);
+  }
+
   return {
     handleCreateServer,
     handleListServers,
@@ -380,5 +441,6 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     handleDeleteServer,
     handleDiscover,
     handleSync,
+    handleUpdateHeaders,
   };
 }
