@@ -1,0 +1,934 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/lahore-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+/nw:research how does composio and litellm gateways deal with mcp auth and mcp servers ?
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-research
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Orchestration: Trusted Source Config
+
+At orchestration time, before invoking the researcher subagent:
+
+1. **Read** `.nwave/trusted-source-domains.yaml` from the project root
+2. **If file missing**, seed it from the defaults in the `## Default Trusted Sources` section below, then notify the user:
+   "Seeded `.nwave/trusted-source-domains.yaml` with defaults (7 categories, 42 trusted domains, 5 excluded). Edit the YAML directly to customize."
+3. **Embed** the YAML content inline in the researcher subagent Task prompt so the agent receives trusted source config via prompt context
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Output Management
+
+The researcher MUST create the output file in the FIRST 5 turns with a document skeleton (title, sections, placeholders). All subsequent findings are written DIRECTLY to this file as they are gathered -- never held only in context.
+
+If the agent is interrupted or runs out of turns, the output file contains all work done so far. This is the researcher's equivalent of the crafter's "commit early, commit often."
+
+Progressive write checkpoints:
+- Turn ~5: Output file exists with skeleton
+- Turn ~10: First findings written
+- Turn ~25: All gathered findings written so far
+- Turn ~35: Stop gathering, begin synthesizing
+- Turn ~45+: Polish only
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted source domains from prompt context
+- [ ] Cross-reference performed (3+ sources per major claim ideal, 2 acceptable, 1 authoritative minimum)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw-research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw-research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+docs/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+## Default Trusted Sources
+
+The following YAML is the default content for `.nwave/trusted-source-domains.yaml`. It is seeded automatically when the file does not exist.
+
+```yaml
+# Trusted Source Domains for Evidence-Driven Research
+# Used by knowledge-researcher agent to validate source credibility
+
+# High-reputation academic and research sources
+academic:
+  description: "Peer-reviewed academic and research institutions"
+  domains:
+    - "*.edu"
+    - "*.ac.uk"
+    - "scholar.google.com"
+    - "arxiv.org"
+    - "pubmed.ncbi.nlm.nih.gov"
+    - "researchgate.net"
+    - "ieee.org"
+    - "acm.org"
+    - "springer.com"
+    - "sciencedirect.com"
+    - "jstor.org"
+    - "nature.com"
+    - "science.org"
+  reputation: high
+  verification_requirements:
+    - peer_review_preferred
+    - citation_tracking
+    - author_credentials
+
+# Official standards bodies and government sources
+official:
+  description: "Government, standards organizations, and official documentation"
+  domains:
+    - "*.gov"
+    - "*.gov.uk"
+    - "w3.org"
+    - "ietf.org"
+    - "iso.org"
+    - "nist.gov"
+    - "docs.microsoft.com"
+    - "docs.oracle.com"
+    - "docs.python.org"
+    - "docs.oracle.com/javase"
+    - "kubernetes.io/docs"
+    - "docker.com/docs"
+  reputation: high
+  verification_requirements:
+    - official_publication
+    - version_tracking
+    - standards_compliance
+
+# Industry leaders and recognized experts
+industry_leaders:
+  description: "Established technology companies and recognized industry experts"
+  domains:
+    - "github.com"
+    - "stackoverflow.com"
+    - "martinfowler.com"
+    - "refactoring.guru"
+    - "enterpriseintegrationpatterns.com"
+    - "microservices.io"
+    - "12factor.net"
+    - "reactivemanifesto.org"
+    - "agilemanifesto.org"
+    - "thoughtworks.com/insights"
+    - "infoq.com"
+  reputation: medium-high
+  verification_requirements:
+    - cross_reference_required
+    - author_expertise_validation
+    - community_consensus
+
+# Technical documentation and established platforms
+technical_documentation:
+  description: "Official technical documentation and established platforms"
+  domains:
+    - "developer.mozilla.org"
+    - "developers.google.com"
+    - "aws.amazon.com/documentation"
+    - "cloud.google.com/docs"
+    - "learn.microsoft.com"
+    - "devdocs.io"
+    - "readthedocs.org"
+  reputation: high
+  verification_requirements:
+    - version_accuracy
+    - official_source_confirmation
+
+# Open source foundations and communities
+open_source:
+  description: "Recognized open source foundations and communities"
+  domains:
+    - "apache.org"
+    - "eclipse.org"
+    - "cncf.io"
+    - "opensource.org"
+    - "fsf.org"
+    - "linuxfoundation.org"
+  reputation: high
+  verification_requirements:
+    - community_validation
+    - project_maturity_check
+
+# Medium-trust sources requiring additional verification
+medium_trust:
+  description: "Quality sources requiring cross-referencing"
+  domains:
+    - "medium.com"
+    - "dev.to"
+    - "hashnode.com"
+  reputation: medium
+  verification_requirements:
+    - author_verification_required
+    - minimum_3_source_cross_reference
+    - fact_checking_mandatory
+
+# Excluded sources - unreliable or promotional
+excluded:
+  description: "Sources excluded due to low quality control or bias"
+  domains:
+    - "*.blogspot.com"
+    - "wordpress.com"
+    - "tumblr.com"
+    - "pastebin.com"
+    - "quora.com"
+  reason: "Unverified sources, potential bias, low quality control, no editorial oversight"
+  action: "Reject and log warning"
+
+# Source validation rules
+validation_rules:
+  minimum_sources_per_claim: 3
+  cross_reference_required: true
+
+  reputation_scoring:
+    high: 1.0
+    medium-high: 0.8
+    medium: 0.6
+    low: 0.0
+
+  confidence_thresholds:
+    high_confidence:
+      min_sources: 3
+      min_avg_reputation: 0.8
+    medium_confidence:
+      min_sources: 2
+      min_avg_reputation: 0.6
+    low_confidence:
+      min_sources: 1
+      min_avg_reputation: 0.4
+
+  required_metadata:
+    - source_url
+    - domain
+    - access_date
+    - reputation_score
+    - verification_status
+
+# Research quality guidelines
+quality_guidelines:
+  evidence_standards:
+    - "Direct quotes or data from reputable sources"
+    - "Proper attribution and citation"
+    - "Version information for technical documentation"
+    - "Publication date or last update date"
+    - "Author credentials when available"
+
+  bias_detection:
+    - "Check for commercial interests or sponsorship"
+    - "Identify potential conflicts of interest"
+    - "Verify with independent sources"
+    - "Note any disclaimers or limitations"
+
+  conflicting_information:
+    - "Document all conflicting sources"
+    - "Evaluate source reliability for each claim"
+    - "Present both sides with evidence"
+    - "Note which sources are more authoritative"
+```
+
+
+ARGUMENTS: how does composio and litellm gateways deal with mcp auth and mcp servers ?
+
+---
+
+but ho wdoes litellm actually proxy to upstream mcp servers? does it keep persistent connections?
+
+---
+
+that sounds slow... would it make sense to keep mcp client instances cached?
+
+---
+
+do mcp servers only support oauth 2.1 ?
+
+---
+
+is Composio's approach better ? they connect directly to upstream api's instead of using mcp
+
+---
+
+ok, it seems like the existing implementation mcp-tool-registry and mcp-tool-registry-ui did not account for implementing the upstream mcp requests. read md artifacts
+
+---
+
+there is also the missing part of actually calling the mcp tools in the proxy...
+
+---
+
+Unknown skill: nw:discuss
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-discuss
+
+# NW-DISCUSS: Jobs-to-be-Done Analysis, UX Journey Design, and Requirements Gathering
+
+**Wave**: DISCUSS (wave 2 of 6) | **Agent**: Luna (nw-product-owner) | **Command**: `/nw-discuss`
+
+## Overview
+
+Execute DISCUSS wave through Luna's integrated workflow: JTBD analysis|UX journey discovery|emotional arc design|shared artifact tracking|requirements gathering|user story creation|acceptance criteria definition. Luna uncovers jobs users accomplish, maps to journeys and requirements, handles complete lifecycle from user motivations through DoR-validated stories ready for DESIGN. Establishes ATDD foundation.
+
+For greenfield projects (no src/ code, no docs/feature/ history), Luna proposes Walking Skeleton as Feature 0.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Type
+**Question**: What type of feature is this?
+**Options**:
+1. User-facing -- UI/UX functionality visible to end users
+2. Backend -- APIs, services, data processing
+3. Infrastructure -- DevOps, CI/CD, tooling
+4. Cross-cutting -- Spans multiple layers (auth, logging, etc.)
+5. Other -- user provides custom input
+
+### Decision 2: Walking Skeleton
+**Question**: Should we start with a walking skeleton?
+**Options**:
+1. Yes -- recommended for greenfield projects
+2. Depends -- brownfield; Luna evaluates existing structure first
+3. No -- feature is isolated enough to skip
+
+### Decision 3: UX Research Depth
+**Question**: Priority for UX research depth?
+**Options**:
+1. Lightweight -- quick journey map, focus on happy path
+2. Comprehensive -- full experience mapping with emotional arcs
+3. Deep-dive -- extensive user research, multiple personas, edge cases
+
+### Decision 4: JTBD Analysis
+**Question**: Include Jobs-to-be-Done analysis?
+**Options**:
+1. Yes -- recommended when user motivations are unclear or multiple jobs compete
+2. No -- skip JTBD, proceed directly to journey design (default)
+
+## Prior Wave Consultation
+
+Before beginning DISCUSS work, read prior wave artifacts and project context:
+
+1. **Project context**: `docs/project-brief.md` | `docs/stakeholders.yaml` | `docs/architecture/constraints.md`
+2. **DISCOVER artifacts**: Read all files in `docs/feature/{feature-id}/discover/`
+
+DISCUSS is the direct successor to DISCOVER — reading all DISCOVER artifacts is appropriate since DISCUSS must synthesize raw evidence into structured requirements.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes requirements disconnected from evidence.
+
+After reading, check whether any DISCUSS decisions would contradict DISCOVER evidence. Flag contradictions and resolve with user before proceeding. Example: DISCOVER found "users don't want automation" but DISCUSS story assumes "automated workflow" — this must be resolved.
+
+## Document Update (Back-Propagation)
+
+When DISCUSS decisions change assumptions established in DISCOVER:
+1. Document the change in a `## Changed Assumptions` section at the end of the affected DISCUSS artifact
+2. Reference the original DISCOVER document and quote the original assumption
+3. State the new assumption and the rationale for the change
+4. Do NOT modify DISCOVER documents directly — they represent historical evidence
+
+## Agent Invocation
+
+@nw-product-owner
+
+IF Decision 4 = Yes: Execute *jtbd-analysis for {feature-id}, then *journey informed by JTBD artifacts, then *story-map, then *gather-requirements with outcome KPIs.
+IF Decision 4 = No (default): Execute *journey for {feature-id}, then *story-map, then *gather-requirements with outcome KPIs.
+
+Context files: see Prior Wave Consultation above + project context files.
+
+**Configuration:**
+- format: visual | yaml | gherkin | all (default: all)
+- research_depth: {Decision 3} | interactive: high | output_format: markdown
+- elicitation_depth: comprehensive | feature_type: {Decision 1}
+- walking_skeleton: {Decision 2}
+- output_directory: docs/feature/{feature-id}/discuss/
+
+**Phase 1 -- Jobs-to-be-Done Analysis (OPTIONAL -- when Decision 4 = Yes):**
+
+Grounds all subsequent artifacts in real user motivations.
+
+1. **Job Discovery**: Ask user what users are trying to accomplish. Capture in job story format: "When [situation], I want to [motivation], so I can [outcome]."
+2. **Job Dimensions**: For each job — functional (practical task)|emotional (desired feeling)|social (desired perception)
+3. **Four Forces Analysis**: For each primary job:
+   - **Push** (current frustration): "What frustrated users enough to request this?"
+   - **Pull** (desired future): "What could they do that they cannot now?"
+   - **Anxiety** (adoption concerns): "What concerns about adopting this?"
+   - **Habit** (current behavior): "What behavior must change?"
+   If interview transcripts|support tickets|analytics exist, extract forces from those instead of relying solely on user description.
+4. **Opportunity Scoring** (multiple jobs): Rank by importance vs. satisfaction gap. High importance + low satisfaction = strongest opportunities. Produce scored table.
+5. **JTBD-to-Story Bridge**: Each job story feeds into user stories and acceptance criteria in Phase 3. Every user story must trace to at least one job.
+
+| Artifact | Path |
+|----------|------|
+| Job Stories | `docs/feature/{feature-id}/discuss/jtbd-job-stories.md` |
+| Four Forces | `docs/feature/{feature-id}/discuss/jtbd-four-forces.md` |
+| Opportunity Scores | `docs/feature/{feature-id}/discuss/jtbd-opportunity-scores.md` (when multiple jobs) |
+
+**Phase 2 -- Journey Design:**
+
+Luna runs deep discovery (mental model|emotional arc|shared artifacts|error paths) informed by JTBD, produces visual journey + YAML schema + Gherkin scenarios. Each journey maps to one or more identified jobs.
+
+| Artifact | Path |
+|----------|------|
+| Visual Journey | `docs/feature/{feature-id}/discuss/journey-{name}-visual.md` |
+| Journey Schema | `docs/feature/{feature-id}/discuss/journey-{name}.yaml` |
+| Gherkin Scenarios | `docs/feature/{feature-id}/discuss/journey-{name}.feature` |
+| Artifact Registry | `docs/feature/{feature-id}/discuss/shared-artifacts-registry.md` |
+
+**Phase 2.5 -- User Story Mapping:**
+Luna loads `user-story-mapping` skill before this phase.
+
+Organizes discovered stories into a visual story map (backbone → walking skeleton → incremental slices). Produces prioritization suggestions based on outcomes identified in earlier phases.
+
+1. **Backbone**: Map user activities (big steps) horizontally across the top
+2. **Walking Skeleton**: Identify minimum slice that delivers end-to-end value
+3. **Release Slices**: Group stories into outcome-based releases
+4. **Prioritization**: Suggest priority order based on outcome impact and dependencies
+
+| Artifact | Path |
+|----------|------|
+| Story Map | `docs/feature/{feature-id}/discuss/story-map.md` |
+| Prioritization | `docs/feature/{feature-id}/discuss/prioritization.md` |
+
+**Phase 3 -- Requirements and User Stories:**
+
+Luna crafts LeanUX stories informed by JTBD + journey artifacts. Every story traces to at least one job story. Validates against DoR, invokes peer review, prepares handoff.
+
+| Artifact | Path |
+|----------|------|
+| Requirements | `docs/feature/{feature-id}/discuss/requirements.md` |
+| User Stories | `docs/feature/{feature-id}/discuss/user-stories.md` |
+| Acceptance Criteria | `docs/feature/{feature-id}/discuss/acceptance-criteria.md` |
+| DoR Checklist | `docs/feature/{feature-id}/discuss/dor-checklist.md` |
+| Outcome KPIs | `docs/feature/{feature-id}/discuss/outcome-kpis.md` |
+
+## Success Criteria
+
+- [ ] (when JTBD selected) JTBD analysis complete: all jobs in job story format
+- [ ] (when JTBD selected) Job dimensions identified: functional|emotional|social per job
+- [ ] (when JTBD selected) Four Forces mapped per job (push|pull|anxiety|habit)
+- [ ] (when JTBD selected) Opportunity scores produced (when multiple jobs)
+- [ ] UX journey map with emotional arcs and shared artifacts
+- [ ] (when JTBD selected) Every journey maps to at least one job
+- [ ] Discovery complete: user mental model understood, no vague steps
+- [ ] Happy path defined: all steps start-to-goal with expected outputs
+- [ ] Emotional arc coherent: confidence builds progressively
+- [ ] Shared artifacts tracked: every ${variable} has single documented source
+- [ ] Story map created with backbone, walking skeleton, and release slices
+- [ ] Outcome KPIs defined with measurable targets
+- [ ] Prioritization suggestions based on outcome impact
+- [ ] Requirements completeness score > 0.95
+- [ ] (when JTBD selected) Every user story traces to at least one job story
+- [ ] All acceptance criteria testable
+- [ ] DoR passed: all 9 items validated with evidence
+- [ ] Peer review approved
+- [ ] Handoff accepted by nw-solution-architect (DESIGN wave)
+
+## Next Wave
+
+**Handoff To**: nw-solution-architect (DESIGN wave) + nw-platform-architect (DEVOPS wave, KPIs only)
+**Deliverables**: Journey artifacts + story map + requirements + outcome KPIs | JTBD artifacts (when selected)
+
+## Wave Decisions Summary
+
+Before completing DISCUSS, produce `docs/feature/{feature-id}/discuss/wave-decisions.md`:
+
+```markdown
+# DISCUSS Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Requirements Summary
+- Primary jobs/user needs: {1-3 sentence summary}
+- Walking skeleton scope: {if applicable}
+- Feature type: {user-facing|backend|infrastructure|cross-cutting}
+
+## Constraints Established
+- {constraint from requirements analysis}
+
+## Upstream Changes
+- {any DISCOVER assumptions changed, with rationale}
+```
+
+This summary enables DESIGN to quickly assess DISCUSS outcomes. DESIGN reads this plus key artifacts (requirements.md, acceptance-criteria.md, story-map.md, outcome-kpis.md) rather than all DISCUSS files.
+
+## Expected Outputs
+
+```
+docs/feature/{feature-id}/discuss/
+  jtbd-job-stories.md           (when JTBD selected)
+  jtbd-four-forces.md           (when JTBD selected)
+  jtbd-opportunity-scores.md    (when JTBD selected, multiple jobs)
+  journey-{name}-visual.md
+  journey-{name}.yaml
+  journey-{name}.feature
+  shared-artifacts-registry.md
+  story-map.md
+  prioritization.md
+  requirements.md
+  user-stories.md               (each story traces to a job)
+  acceptance-criteria.md
+  dor-checklist.md
+  outcome-kpis.md
+  wave-decisions.md
+```
+
+## Examples
+
+### Example 1: User-facing feature with comprehensive UX research
+```
+/nw-discuss first-time-setup
+```
+Orchestrator asks Decision 1-3. User selects "User-facing", "No skeleton", "Comprehensive". Luna starts with JTBD analysis: discovers jobs like "When I first open the app, I want to feel productive immediately, so I can justify the purchase." Maps four forces for each job. Scores opportunities. Then runs journey discovery informed by JTBD, produces visual journey + YAML + Gherkin. Finally crafts stories where each traces to a job, validates DoR, and prepares handoff.
+
+### Example 2: JTBD-only invocation
+```
+/nw-discuss --phase=jtbd onboarding-flow
+```
+Runs only Luna's JTBD analysis phase (job discovery + dimensions + four forces + opportunity scoring). Produces JTBD artifacts without proceeding to journey design or requirements. Useful for early discovery when you need to understand user motivations before committing to UX design.
+
+### Example 3: Journey-only invocation
+```
+/nw-discuss --phase=journey release-nwave
+```
+Runs only Luna's journey design phases (discovery + visualization + coherence validation). Produces journey artifacts without proceeding to requirements crafting. Useful when JTBD is already done and journey design needs standalone iteration.
+
+### Example 4: Requirements-only invocation
+```
+/nw-discuss --phase=requirements new-plugin-system
+```
+Runs only Luna's requirements phases (gathering + crafting + DoR validation). Assumes JTBD and journey artifacts already exist or are not needed (e.g., backend feature).
+
+
+ARGUMENTS: - see existing mcp-tool-registry and mcp-tool-registry-ui artifacts
+
+---
+
+A revision of the existing mcp-tool-registry-ui feature
+
+---
+
+yes, proceed with /nw-design
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-design
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Prior Wave Consultation
+
+Before beginning DESIGN work, read targeted prior wave artifacts:
+
+1. **DISCOVER** (synthesis check only): Read `docs/feature/{feature-id}/discover/wave-decisions.md` — if any decision is unclear or relevant to architecture, read the referenced source file
+2. **DISCUSS** (primary input): Read these key artifacts from `docs/feature/{feature-id}/discuss/`:
+   - `wave-decisions.md` — decision summary
+   - `requirements.md` — functional requirements
+   - `acceptance-criteria.md` — testable criteria driving architecture
+   - `user-stories.md` — scope of what to build
+   - `story-map.md` — walking skeleton and release slicing
+   - `outcome-kpis.md` — quality attributes informing architecture
+
+DISCUSS already synthesizes DISCOVER evidence into structured requirements. DESIGN does not need raw DISCOVER artifacts (problem-validation, interview-log, etc.) unless wave-decisions.md flags something architecturally significant.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes architectural decisions disconnected from requirements.
+
+After reading, check whether any DESIGN decisions would contradict DISCUSS requirements. Flag contradictions and resolve with user before proceeding. Example: DISCUSS requires "real-time updates" but DESIGN chooses batch processing — this must be resolved.
+
+## Document Update (Back-Propagation)
+
+When DESIGN decisions change assumptions from prior waves:
+1. Document the change in a `## Changed Assumptions` section at the end of the affected DESIGN artifact
+2. Reference the original prior-wave document and quote the original assumption
+3. State the new assumption and the rationale for the change
+4. If architecture constraints require changes to user stories or acceptance criteria, note them in `docs/feature/{feature-id}/design/upstream-changes.md` for the product owner to review
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-id}.
+
+Context files: see Prior Wave Consultation above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+**SKILL_LOADING**: Read your skill files at `~/.claude/skills/nw-{skill-name}/SKILL.md`. At Phase 4, always load: `nw-architecture-patterns`, `nw-architectural-styles-tradeoffs`. Do NOT load `nw-roadmap-design` during DESIGN wave -- roadmap creation belongs to the DELIVER wave (`/nw-roadmap` or `/nw-deliver`). Then follow your Skill Loading Strategy table for phase-specific skills.
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOPS wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOPS wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Wave Decisions Summary
+
+Before completing DESIGN, produce `docs/feature/{feature-id}/design/wave-decisions.md`:
+
+```markdown
+# DESIGN Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Architecture Summary
+- Pattern: {e.g., modular monolith with ports-and-adapters}
+- Paradigm: {OOP|FP}
+- Key components: {list top-level components}
+
+## Technology Stack
+- {language/framework}: {rationale}
+
+## Constraints Established
+- {architectural constraint}
+
+## Upstream Changes
+- {any DISCUSS assumptions changed, with rationale}
+```
+
+This summary enables DEVOPS and DISTILL to quickly assess architecture decisions without reading all DESIGN files.
+
+## Expected Outputs
+
+```
+docs/feature/{feature-id}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+  wave-decisions.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+
+ARGUMENTS: mcp-tool-registry-ui - revision to incorporate MCP client module, tool discovery, and proxy tool execution. See updated DISCUSS artifacts at docs/feature/mcp-tool-registry-ui/discuss/
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-distill
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOPS informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Acceptance Criteria: Port-to-Port Principle
+
+Every AC MUST name the driving port (entry point) through which the behavior is exercised. This enables port-to-port acceptance tests that make TBU (Tested But Unwired) defects structurally impossible.
+
+Each AC includes:
+1. **Observable outcome**: what the user/system sees
+2. **Driving port**: the entry point that triggers the behavior (service, handler, endpoint, CLI command)
+
+Without the driving port, a crafter can write correct code that is never wired into the system.
+
+**Features**: "When user {action} via {driving_port}, {observable_outcome}"
+**Bug fixes**: "When {trigger}, {modified_code_path} produces {correct_outcome} instead of {current_broken_behavior}"
+
+## Prior Wave Consultation
+
+Before beginning DISTILL work, read targeted prior wave artifacts:
+
+1. **DISCOVER** (skip): DISCUSS already synthesized DISCOVER evidence into requirements and acceptance criteria.
+2. **DISCUSS** (primary input): Read from `docs/feature/{feature-id}/discuss/`:
+   - `acceptance-criteria.md` — primary input for test creation
+   - `story-map.md` — drives walking skeleton priority and release slicing
+   - `user-stories.md` — story-to-test traceability
+   - `wave-decisions.md` — quick check for upstream changes
+3. **DESIGN** (structural context): Read from `docs/feature/{feature-id}/design/`:
+   - `architecture-design.md` — port boundaries define test scope
+   - `component-boundaries.md` — determines which components tests exercise
+   - `wave-decisions.md` — check for upstream changes from DISCUSS
+4. **DEVOPS** (test environment): Read from `docs/feature/{feature-id}/devops/`:
+   - `platform-architecture.md` — test environment setup
+   - `ci-cd-pipeline.md` — test execution context
+   - `wave-decisions.md` — check for infrastructure constraints affecting tests
+
+DISTILL is the major synthesis point. Its job is to translate all prior wave knowledge into executable acceptance tests. The acceptance criteria from DISCUSS + architecture from DESIGN + infra from DEVOPS are sufficient. Raw DISCOVER artifacts are not needed — they were already synthesized into DISCUSS requirements.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes acceptance tests disconnected from requirements and architecture.
+
+After reading, check whether any acceptance test assumptions contradict prior wave decisions. Use `wave-decisions.md` files to detect upstream changes. Example: DISCUSS acceptance criteria reference a "notification email" but DESIGN's wave-decisions.md notes email was removed in favor of in-app notifications — tests must reflect the DESIGN decision.
+
+## Document Update (Back-Propagation)
+
+When DISTILL work reveals gaps or contradictions in prior waves:
+1. Document findings in `docs/feature/{feature-id}/distill/upstream-issues.md`
+2. Reference the original prior-wave document and describe the gap
+3. If acceptance criteria from DISCUSS are untestable as written, note the specific criteria and why
+4. Resolve with user before writing tests against ambiguous or contradictory requirements
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-id}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw-distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Wave Decisions Summary
+
+Before completing DISTILL, produce `docs/feature/{feature-id}/distill/wave-decisions.md`:
+
+```markdown
+# DISTILL Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Test Coverage Summary
+- Total scenarios: {N}
+- Walking skeleton scenarios: {N}
+- Milestone features: {list}
+- Test framework: {framework}
+- Integration approach: {approach}
+
+## Constraints Established
+- {test boundary constraint}
+
+## Upstream Issues
+- {any gaps found in prior wave artifacts}
+```
+
+DISTILL is the major synthesis point. DELIVER reads DISTILL output as its authoritative specification — the acceptance tests encode all prior wave decisions into executable form.
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-id}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-id}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+  wave-decisions.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
+
+---
+
+commit

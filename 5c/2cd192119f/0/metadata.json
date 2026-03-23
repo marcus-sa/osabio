@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5c2cd192119f",
+  "session_id": "83eddda0-1eda-480f-a260-b258c3aace08",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T03:16:02.553861Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "docs/adrs/ADR-071-mcp-protocol-tool-execution.md",
+    "docs/adrs/ADR-072-unified-multi-turn-tool-loop.md",
+    "docs/feature/mcp-tool-registry-ui/architecture-mcp-discovery.md",
+    "docs/feature/mcp-tool-registry-ui/architecture.md",
+    "docs/feature/mcp-tool-registry-ui/design/wave-decisions.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/acceptance-criteria.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/dor-checklist.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/outcome-kpis.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/prioritization.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/requirements.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/story-map.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/user-stories.md",
+    "docs/feature/mcp-tool-registry-ui/discuss/wave-decisions.md",
+    "docs/feature/mcp-tool-registry-ui/distill/test-scenarios.md",
+    "docs/feature/mcp-tool-registry-ui/distill/walking-skeleton.md",
+    "docs/feature/mcp-tool-registry-ui/distill/wave-decisions.md",
+    "docs/research/mcp-gateway-auth-composio-litellm.md",
+    "tests/acceptance/tool-registry-ui/milestone-10-server-management.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-7-mcp-server-connection.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-8-tool-discovery.test.ts",
+    "tests/acceptance/tool-registry-ui/milestone-9-tool-execution.test.ts",
+    "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts",
+    "tests/acceptance/tool-registry-ui/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "610516497690",
+  "token_usage": {
+    "input_tokens": 92,
+    "cache_creation_tokens": 159954,
+    "cache_read_tokens": 5241967,
+    "output_tokens": 26726,
+    "api_call_count": 54
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T03:16:01.50124Z",
+    "agent_lines": 3772,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 3772,
+    "agent_percentage": 100
+  }
+}
