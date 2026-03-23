@@ -21,6 +21,8 @@ import {
   createTestUserWithMcp,
   setupMockMcpServer,
 } from "./mcp-server-auth-test-kit";
+import { http, HttpResponse } from "msw";
+import { setupServer as setupMswServer } from "msw/node";
 
 const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_discovery");
 
@@ -75,12 +77,90 @@ describe("Discover auth from Protected Resource Metadata", () => {
 });
 
 describe("Discover auth from WWW-Authenticate header on 401", () => {
-  it.skip("falls back to WWW-Authenticate when .well-known is not available", async () => {
+  it("falls back to WWW-Authenticate when .well-known is not available", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-www-auth-${crypto.randomUUID()}`);
+
     // Given MCP server does NOT serve /.well-known/oauth-protected-resource
     // But returns 401 with WWW-Authenticate: Bearer resource_metadata="..."
-    // When admin triggers discovery
-    // Then Brain fetches resource_metadata URL from the header
-    // And discovery succeeds
+    // The resource_metadata URL in the header can be any URL (not necessarily the well-known path)
+    const mcpServerUrl = "https://mcp-no-wellknown.example.com";
+    const authServerUrl = "https://auth-wwwauth.example.com";
+    const wellKnownUrl = `${mcpServerUrl}/.well-known/oauth-protected-resource`;
+    const resourceMetadataUrl = `${mcpServerUrl}/oauth/resource-metadata`;
+
+    const msw = setupMswServer(
+      // Standard .well-known returns 404 (not available)
+      http.get(wellKnownUrl, () => {
+        return new HttpResponse(null, { status: 404 });
+      }),
+
+      // MCP server returns 401 with WWW-Authenticate header pointing to resource metadata
+      http.post(mcpServerUrl, () => {
+        return new HttpResponse(null, {
+          status: 401,
+          headers: {
+            "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
+          },
+        });
+      }),
+
+      // The resource_metadata URL (from WWW-Authenticate) returns Protected Resource Metadata
+      http.get(resourceMetadataUrl, () => {
+        return HttpResponse.json({
+          resource: mcpServerUrl,
+          authorization_servers: [authServerUrl],
+          scopes_supported: ["tools:read"],
+          bearer_methods_supported: ["header"],
+        });
+      }),
+
+      // Auth server metadata
+      http.get(`${authServerUrl}/.well-known/oauth-authorization-server`, () => {
+        return HttpResponse.json({
+          issuer: authServerUrl,
+          authorization_endpoint: `${authServerUrl}/authorize`,
+          token_endpoint: `${authServerUrl}/token`,
+          scopes_supported: ["tools:read"],
+          response_types_supported: ["code"],
+          code_challenge_methods_supported: ["S256"],
+          grant_types_supported: ["authorization_code"],
+        });
+      }),
+    );
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // And an MCP server record exists
+      const createResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        {
+          method: "POST",
+          body: {
+            name: "www-auth-test",
+            url: mcpServerUrl,
+            transport: "streamable-http",
+            auth_mode: "oauth",
+          },
+        },
+      );
+      const { id: serverId } = await createResponse.json() as { id: string };
+
+      // When admin triggers OAuth discovery
+      const discoverResponse = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { method: "POST" },
+      );
+
+      // Then discovery succeeds with auth server details
+      expect(discoverResponse.status).toBe(200);
+      const body = await discoverResponse.json() as Record<string, unknown>;
+      expect(body.discovered).toBe(true);
+      expect(body.auth_server).toBe(authServerUrl);
+      expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 

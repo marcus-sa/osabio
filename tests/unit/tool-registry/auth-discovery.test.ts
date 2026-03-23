@@ -11,6 +11,7 @@ import {
   deriveDiscoveryEndpoints,
   deriveResourceMetadataUrl,
   selectAuthorizationServer,
+  parseWwwAuthenticate,
 } from "../../../app/src/server/tool-registry/auth-discovery";
 
 // ---------------------------------------------------------------------------
@@ -190,5 +191,45 @@ describe("selectAuthorizationServer", () => {
   it("returns undefined for empty list", () => {
     const result = selectAuthorizationServer([]);
     expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseWwwAuthenticate
+// ---------------------------------------------------------------------------
+describe("parseWwwAuthenticate", () => {
+  it("extracts resource_metadata URL from Bearer challenge with quoted value", () => {
+    const header = 'Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"';
+    const result = parseWwwAuthenticate(header);
+    expect(result.resourceMetadataUrl).toBe("https://mcp.example.com/.well-known/oauth-protected-resource");
+  });
+
+  it("extracts resource_metadata URL from Bearer challenge with unquoted value", () => {
+    const header = "Bearer resource_metadata=https://mcp.example.com/oauth/resource-metadata";
+    const result = parseWwwAuthenticate(header);
+    expect(result.resourceMetadataUrl).toBe("https://mcp.example.com/oauth/resource-metadata");
+  });
+
+  it("extracts resource_metadata when other params are present", () => {
+    const header = 'Bearer realm="example", resource_metadata="https://mcp.example.com/meta", error="insufficient_scope"';
+    const result = parseWwwAuthenticate(header);
+    expect(result.resourceMetadataUrl).toBe("https://mcp.example.com/meta");
+  });
+
+  it("returns undefined resourceMetadataUrl when header has no resource_metadata", () => {
+    const header = 'Bearer realm="example", error="invalid_token"';
+    const result = parseWwwAuthenticate(header);
+    expect(result.resourceMetadataUrl).toBeUndefined();
+  });
+
+  it("returns undefined resourceMetadataUrl for non-Bearer scheme", () => {
+    const header = 'Basic realm="example"';
+    const result = parseWwwAuthenticate(header);
+    expect(result.resourceMetadataUrl).toBeUndefined();
+  });
+
+  it("returns undefined resourceMetadataUrl for empty string", () => {
+    const result = parseWwwAuthenticate("");
+    expect(result.resourceMetadataUrl).toBeUndefined();
   });
 });
