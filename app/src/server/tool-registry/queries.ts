@@ -305,6 +305,79 @@ export async function listToolsWithCounts(
   return results[0] ?? [];
 }
 
+// ---------------------------------------------------------------------------
+// Tool Detail Query (batched)
+// ---------------------------------------------------------------------------
+
+/** Row shape for a single mcp_tool record. */
+export type ToolDetailRow = {
+  readonly id: RecordId<"mcp_tool", string>;
+  readonly name: string;
+  readonly toolkit: string;
+  readonly description: string;
+  readonly input_schema: Record<string, unknown>;
+  readonly risk_level: string;
+  readonly status: string;
+  readonly workspace: RecordId<"workspace", string>;
+  readonly source_server?: RecordId<"mcp_server", string>;
+  readonly created_at: Date;
+};
+
+/** Row shape for a can_use grant edge with identity details. */
+export type GrantDetailRow = {
+  readonly identity_id: RecordId<"identity", string>;
+  readonly identity_name: string;
+  readonly max_calls_per_hour?: number;
+  readonly granted_at: Date | string;
+};
+
+/** Row shape for a governs_tool edge with policy details. */
+export type GovernancePolicyDetailRow = {
+  readonly policy_title: string;
+  readonly policy_status: string;
+  readonly conditions?: string;
+  readonly max_per_call?: number;
+  readonly max_per_day?: number;
+};
+
+/**
+ * Fetch tool detail with grants and governance policies in a single batched query.
+ *
+ * Returns undefined if the tool does not exist or does not belong to the workspace.
+ */
+export async function getToolDetail(
+  surreal: Surreal,
+  toolRecord: RecordId<"mcp_tool", string>,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<
+  | {
+      tool: ToolDetailRow;
+      grants: GrantDetailRow[];
+      governancePolicies: GovernancePolicyDetailRow[];
+    }
+  | undefined
+> {
+  const results = await surreal.query<
+    [ToolDetailRow[], GrantDetailRow[], GovernancePolicyDetailRow[]]
+  >(
+    `SELECT * FROM $tool WHERE workspace = $ws;
+     SELECT in.id AS identity_id, in.name AS identity_name, max_calls_per_hour, granted_at FROM can_use WHERE out = $tool;
+     SELECT in.title AS policy_title, in.status AS policy_status, conditions, max_per_call, max_per_day FROM governs_tool WHERE out = $tool;`,
+    { tool: toolRecord, ws: workspaceRecord },
+  );
+
+  const toolRows = results[0] ?? [];
+  if (toolRows.length === 0) {
+    return undefined;
+  }
+
+  return {
+    tool: toolRows[0],
+    grants: results[1] ?? [],
+    governancePolicies: results[2] ?? [],
+  };
+}
+
 /**
  * Fetch rate limit from can_use edge for identity + tool.
  */

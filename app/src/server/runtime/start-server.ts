@@ -410,6 +410,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => toolHandlers.handleListTools(request.params.workspaceId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/tools/:toolId": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/tools/:toolId",
+          "GET",
+          (request) => toolHandlers.handleGetToolDetail(request.params.workspaceId, request.params.toolId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/providers": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/providers",

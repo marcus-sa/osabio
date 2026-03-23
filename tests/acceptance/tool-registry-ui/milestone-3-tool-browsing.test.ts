@@ -174,7 +174,7 @@ describe("Admin browses tools grouped by toolkit", () => {
 // Tool Detail
 // ---------------------------------------------------------------------------
 describe("Admin views tool detail", () => {
-  it.skip("returns tool with grants and governance policies", async () => {
+  it("returns tool with grants and governance policies", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-detail-${crypto.randomUUID()}`);
 
@@ -269,7 +269,7 @@ describe("Tool browsing error paths", () => {
     expect(body.tools.length).toBe(0);
   }, 60_000);
 
-  it.skip("returns 404 for nonexistent tool detail", async () => {
+  it("returns 404 for nonexistent tool detail", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-notool-${crypto.randomUUID()}`);
 
