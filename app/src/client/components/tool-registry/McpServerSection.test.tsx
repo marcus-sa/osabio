@@ -30,7 +30,6 @@ describe("McpServerSection", () => {
     onRemoveServer: noop,
     onDiscover: noop,
     onSync: noop,
-    onDiscoverAuth: noop,
     onAuthorize: noop,
   };
 
@@ -136,35 +135,43 @@ describe("McpServerSection", () => {
     expect(screen.getByText("Headers")).toBeInTheDocument();
   });
 
-  it("shows Discover Auth and Authorize buttons for oauth servers", async () => {
+  it("shows Re-authorize button for oauth server with auth_error and provider_id", async () => {
     const user = userEvent.setup();
-    const discoverCalls: string[] = [];
     const authorizeCalls: string[] = [];
     render(
       <McpServerSection
-        servers={[makeServer({ id: "srv-oauth", auth_mode: "oauth" })]}
+        servers={[makeServer({
+          id: "srv-oauth",
+          auth_mode: "oauth",
+          last_status: "auth_error",
+          provider_id: "prov-1",
+        })]}
         {...defaultProps}
-        onDiscoverAuth={(id) => discoverCalls.push(id)}
         onAuthorize={(id) => authorizeCalls.push(id)}
       />,
     );
-    expect(screen.getByRole("button", { name: /discover auth/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /discover auth/i }));
-    expect(discoverCalls).toEqual(["srv-oauth"]);
-
-    // Authorize shows when no provider_id (not yet discovered)
-    expect(screen.getByRole("button", { name: /authorize/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /authorize/i }));
+    expect(screen.getByRole("button", { name: /re-authorize/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /re-authorize/i }));
     expect(authorizeCalls).toEqual(["srv-oauth"]);
   });
 
-  it("does not show Discover Auth for non-oauth servers", () => {
+  it("does not show Re-authorize for ok oauth server", () => {
+    render(
+      <McpServerSection
+        servers={[makeServer({ auth_mode: "oauth", last_status: "ok", provider_id: "prov-1" })]}
+        {...defaultProps}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /re-authorize/i })).toBeNull();
+  });
+
+  it("does not show Re-authorize for non-oauth servers", () => {
     render(
       <McpServerSection
         servers={[makeServer({ auth_mode: "static_headers", has_static_headers: true })]}
         {...defaultProps}
       />,
     );
-    expect(screen.queryByRole("button", { name: /discover auth/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /re-authorize/i })).toBeNull();
   });
 });

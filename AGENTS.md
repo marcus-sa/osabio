@@ -21,6 +21,13 @@
 - Use the `Intl` API for all locale-sensitive formatting: `Intl.RelativeTimeFormat` for relative time, `Intl.DateTimeFormat` for dates, `Intl.NumberFormat` for numbers.
 - Do NOT hand-roll formatting logic (e.g. custom "5m ago" strings). The `Intl` API handles locale, pluralization, and grammar rules automatically.
 
+## Browser-Facing Route Authentication
+
+- Browser-facing routes (UI pages, client-side fetches) must resolve identity from the Better Auth session, NOT from `X-Brain-Identity` headers. The header-based pattern is for MCP/CLI clients only.
+- Use `deps.auth.api.getSession({ headers: request.headers })` to get the session, then resolve identity via `identity_person` edge: `SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1`.
+- Return 401 if no session or identity is found.
+- See `tool-registry/routes.ts:resolveIdentityFromSession()` or `policy/policy-route.ts:resolveIdentityFromSession()` for reference implementations.
+
 ## Agentic Design: No Hardcoded Modes
 
 - Do NOT introduce hardcoded processing modes (e.g. `"deterministic" | "llm"`) when behavior should be workspace-configurable via data.

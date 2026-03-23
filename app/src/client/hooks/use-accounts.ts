@@ -24,7 +24,14 @@ export function buildAccountsUrl(workspaceId: string): string {
   return `/api/workspaces/${encodeURIComponent(workspaceId)}/accounts`;
 }
 
-export function useAccounts(): UseAccountsReturn {
+/**
+ * Fetch accounts on demand.
+ *
+ * Pass `enabled: true` to trigger the initial fetch — this avoids a 401 from
+ * the session-based accounts endpoint when the tab is not active.
+ */
+export function useAccounts(options?: { enabled?: boolean }): UseAccountsReturn {
+  const enabled = options?.enabled ?? false;
   const workspaceId = useWorkspaceState((s) => s.workspaceId);
   const [accounts, setAccounts] = useState<AccountListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,9 +60,9 @@ export function useAccounts(): UseAccountsReturn {
   }, [workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId || !enabled) return;
     void fetchAccounts();
-  }, [workspaceId, fetchAccounts]);
+  }, [workspaceId, enabled, fetchAccounts]);
 
   const refresh = useCallback(() => {
     void fetchAccounts();

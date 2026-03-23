@@ -128,7 +128,7 @@ mock.module("../hooks/use-tools", () => ({
 }));
 
 mock.module("../hooks/use-accounts", () => ({
-  useAccounts: () => ({
+  useAccounts: (_options?: { enabled?: boolean }) => ({
     accounts: MOCK_ACCOUNTS,
     isLoading: false,
     refresh: mockRefreshAccounts,

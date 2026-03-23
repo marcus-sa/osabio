@@ -26,12 +26,22 @@ export type ToolRegistryTab = {
   label: string;
 };
 
-export const TOOL_REGISTRY_TABS: readonly ToolRegistryTab[] = [
+/** Primary tabs visible by default. */
+const PRIMARY_TABS: readonly ToolRegistryTab[] = [
   { id: "servers", label: "Servers" },
   { id: "tools", label: "Tools" },
+  { id: "access", label: "Access" },
+] as const;
+
+/** Advanced/debug tabs — collapsed behind a separator. */
+const ADVANCED_TABS: readonly ToolRegistryTab[] = [
   { id: "providers", label: "Providers" },
   { id: "accounts", label: "Accounts" },
-  { id: "access", label: "Access" },
+] as const;
+
+export const TOOL_REGISTRY_TABS: readonly ToolRegistryTab[] = [
+  ...PRIMARY_TABS,
+  ...ADVANCED_TABS,
 ] as const;
 
 const VALID_TAB_IDS = new Set<string>(TOOL_REGISTRY_TABS.map((t) => t.id));
@@ -112,8 +122,12 @@ export function ToolRegistryPage() {
   const workspaceId = useWorkspaceState((s) => s.workspaceId) ?? "default";
   const { tools, refresh: refreshTools } = useTools();
   const { providers, refresh: refreshProviders } = useProviders();
-  const { accounts, refresh: refreshAccounts } = useAccounts();
   const { mcpServers = [], refresh: refreshMcpServers } = useMcpServers();
+
+  // Lazy-load accounts only when the accounts tab is active — the endpoint
+  // requires a Better Auth session and would 401 on every page load otherwise.
+  const isAccountsTab = search.tab === "accounts";
+  const { accounts, refresh: refreshAccounts } = useAccounts({ enabled: isAccountsTab });
 
   // Access tab: track grants per expanded tool and toast messages
   const [accessToast, setAccessToast] = useState<string | undefined>();
@@ -352,8 +366,14 @@ export function ToolRegistryPage() {
       </div>
       <Tabs value={vm.activeTab} onValueChange={handleTabChange}>
         <TabsList variant="line">
-          {TOOL_REGISTRY_TABS.map((tab) => (
+          {PRIMARY_TABS.map((tab) => (
             <TabsTrigger key={tab.id} value={tab.id}>
+              {vm.tabLabels[tab.id]}
+            </TabsTrigger>
+          ))}
+          <span className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
+          {ADVANCED_TABS.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} className="text-muted-foreground/60">
               {vm.tabLabels[tab.id]}
             </TabsTrigger>
           ))}
