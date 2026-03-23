@@ -84,12 +84,11 @@ import {
   isToolUseResponse,
 } from "./tool-router";
 import {
-  executeBrainNativeTools,
-  executeIntegrationTools,
+  executeAllToolCalls,
   buildToolResultMessage,
-  type ToolExecutorDeps,
-  type IntegrationExecutorDeps,
+  type McpExecutorDeps,
 } from "./tool-executor";
+import type { McpConnectionResult } from "../tool-registry/mcp-client";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
@@ -1132,7 +1131,7 @@ export function createAnthropicProxyHandler(
           });
         }
 
-        // --- Step 8.5: Tool use interception loop (non-streaming only) ---
+        // --- Step 8.5: Unified tool use interception loop (non-streaming only) ---
         const MAX_TOOL_USE_ITERATIONS = 5;
         if (
           currentUpstreamStatus >= 200 &&
@@ -1143,71 +1142,73 @@ export function createAnthropicProxyHandler(
         ) {
           setStage("intercept_tool_use");
           let iterationCount = 0;
-          // Accumulate conversation messages for follow-up requests
-          // Type is widened to accommodate tool_result messages alongside regular messages
           let conversationMessages: Array<Record<string, unknown>> = [...(parsed?.messages ?? [])];
 
-          while (iterationCount < MAX_TOOL_USE_ITERATIONS) {
-            let responseParsed: Record<string, unknown>;
-            try {
-              responseParsed = JSON.parse(responseBody) as Record<string, unknown>;
-            } catch {
-              break; // Cannot parse response, return as-is
-            }
+          // Request-scoped MCP connection map: reuse connections across loop iterations
+          const mcpConnectionMap = new Map<string, McpConnectionResult>();
 
-            if (!isToolUseResponse(responseParsed)) {
-              break; // Not a tool_use response, return as-is
-            }
+          const executorDeps: McpExecutorDeps = {
+            surreal: deps.surreal,
+            workspaceId: identitySignals.workspaceId,
+            identityId: identitySignals.proxyTokenIdentityId,
+            sessionId: effectiveSessionId,
+            toolEncryptionKey: deps.config.toolEncryptionKey ?? "",
+            mcpClientFactory: deps.mcpClientFactory,
+          };
 
-            const toolUseBlocks = extractToolUseBlocks(responseParsed);
-            if (toolUseBlocks.length === 0) {
-              break;
-            }
+          try {
+            while (iterationCount < MAX_TOOL_USE_ITERATIONS) {
+              let responseParsed: Record<string, unknown>;
+              try {
+                responseParsed = JSON.parse(responseBody) as Record<string, unknown>;
+              } catch {
+                break;
+              }
 
-            const routingResult = classifyToolCalls(toolUseBlocks, effectiveResolvedTools);
+              if (!isToolUseResponse(responseParsed)) {
+                break;
+              }
 
-            // If ALL tool calls are unknown (not in Brain registry), return as-is
-            // so the runtime can handle them
-            if (routingResult.allUnknown) {
-              log.info("proxy.tool_routing.all_unknown", "All tool calls are unknown, passing through", {
-                workspace_id: identitySignals.workspaceId,
-                tool_count: toolUseBlocks.length,
-              });
-              break;
-            }
+              const toolUseBlocks = extractToolUseBlocks(responseParsed);
+              if (toolUseBlocks.length === 0) {
+                break;
+              }
 
-            // Execute brain-native tools
-            if (routingResult.hasBrainNative) {
-              const executorDeps: ToolExecutorDeps = {
-                surreal: deps.surreal,
-                workspaceId: identitySignals.workspaceId,
-                identityId: identitySignals.proxyTokenIdentityId,
-                sessionId: effectiveSessionId,
-              };
+              const routingResult = classifyToolCalls(toolUseBlocks, effectiveResolvedTools);
 
-              const executionResults = await executeBrainNativeTools(
+              if (routingResult.allUnknown) {
+                log.info("proxy.tool_routing.all_unknown", "All tool calls are unknown, passing through", {
+                  workspace_id: identitySignals.workspaceId,
+                  tool_count: toolUseBlocks.length,
+                });
+                break;
+              }
+
+              // Execute ALL classified tool calls (brain-native + MCP + HTTP) concurrently
+              const executionResults = await executeAllToolCalls(
                 routingResult.classified,
                 executorDeps,
+                mcpConnectionMap,
               );
 
-              log.info("proxy.tool_execution.completed", "Brain-native tool execution completed", {
+              const errorCount = executionResults.filter((r) => r.isError).length;
+
+              log.info("proxy.tool_execution.completed", "Unified tool execution completed", {
                 workspace_id: identitySignals.workspaceId,
                 tools_executed: executionResults.length,
-                errors: executionResults.filter((r) => r.isError).length,
+                errors: errorCount,
                 iteration: iterationCount + 1,
               });
 
               setSpanAttributes({
                 "proxy.tool_use_intercepted": true,
                 "proxy.tool_use_iteration": iterationCount + 1,
-                "proxy.tool_use_brain_native_count": executionResults.length,
-                "proxy.tool_use_errors": executionResults.filter((r) => r.isError).length,
+                "proxy.tool_use_count": executionResults.length,
+                "proxy.tool_use_errors": errorCount,
               });
 
-              // Build tool_result message for follow-up request
+              // Build follow-up: assistant response + tool_results -> next LLM call
               const toolResultMessage = buildToolResultMessage(executionResults);
-
-              // Build follow-up request: original messages + assistant response + tool_results
               const assistantMessage = {
                 role: "assistant" as const,
                 content: responseParsed.content,
@@ -1218,7 +1219,6 @@ export function createAnthropicProxyHandler(
                 toolResultMessage,
               ];
 
-              // Send follow-up request to Anthropic with tool results
               const followUpBody = {
                 ...parsed,
                 messages: conversationMessages,
@@ -1240,85 +1240,21 @@ export function createAnthropicProxyHandler(
                   iteration: iterationCount + 1,
                   error: String(error),
                 });
-                break; // Return last successful response
-              }
-            } else {
-              // Has classified tools but none are brain-native -- execute integration tools
-              const hasIntegration = routingResult.classified.some(
-                (c) => c.classification === "integration",
-              );
-
-              if (!hasIntegration) {
-                break; // No actionable tools
-              }
-
-              const integrationDeps: IntegrationExecutorDeps = {
-                surreal: deps.surreal,
-                workspaceId: identitySignals.workspaceId!,
-                identityId: identitySignals.proxyTokenIdentityId,
-                sessionId: effectiveSessionId,
-                toolEncryptionKey: deps.config.toolEncryptionKey ?? "",
-              };
-
-              const integrationResults = await executeIntegrationTools(
-                routingResult.classified,
-                integrationDeps,
-              );
-
-              log.info("proxy.integration_execution.completed", "Integration tool execution completed", {
-                workspace_id: identitySignals.workspaceId,
-                tools_executed: integrationResults.length,
-                errors: integrationResults.filter((r) => r.isError).length,
-                iteration: iterationCount + 1,
-              });
-
-              setSpanAttributes({
-                "proxy.tool_use_intercepted": true,
-                "proxy.tool_use_iteration": iterationCount + 1,
-                "proxy.tool_use_integration_count": integrationResults.length,
-                "proxy.tool_use_integration_errors": integrationResults.filter((r) => r.isError).length,
-              });
-
-              // Build tool_result message for follow-up request
-              const integrationToolResultMessage = buildToolResultMessage(integrationResults);
-
-              const integrationAssistantMessage = {
-                role: "assistant" as const,
-                content: responseParsed.content,
-              };
-              conversationMessages = [
-                ...conversationMessages,
-                integrationAssistantMessage,
-                integrationToolResultMessage,
-              ];
-
-              // Send follow-up request to Anthropic with integration tool results
-              const integrationFollowUpBody = {
-                ...parsed,
-                messages: conversationMessages,
-              };
-
-              try {
-                const followUpResponse = await fetch(upstreamUrl, {
-                  method: "POST",
-                  headers: upstreamHeaders,
-                  body: JSON.stringify(integrationFollowUpBody),
-                });
-
-                responseBody = await followUpResponse.text();
-                currentUpstreamStatus = followUpResponse.status;
-                currentContentType = followUpResponse.headers.get("content-type") ?? "application/json";
-              } catch (error) {
-                log.warn("proxy.tool_use_loop.integration_follow_up_failed", "Integration follow-up request failed", {
-                  workspace_id: identitySignals.workspaceId,
-                  iteration: iterationCount + 1,
-                  error: String(error),
-                });
                 break;
               }
-            }
 
-            iterationCount++;
+              iterationCount++;
+            }
+          } finally {
+            // Clean up all request-scoped MCP connections
+            for (const [serverId, conn] of mcpConnectionMap) {
+              deps.mcpClientFactory.disconnect(conn.client).catch((err) => {
+                log.warn("proxy.mcp_connection.cleanup_failed", "Failed to disconnect MCP client", {
+                  server_id: serverId,
+                  error: String(err),
+                });
+              });
+            }
           }
         }
 
