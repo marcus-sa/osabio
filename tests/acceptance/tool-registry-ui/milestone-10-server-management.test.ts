@@ -37,7 +37,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_server_management");
 // Happy Path: Server Status Dashboard
 // ---------------------------------------------------------------------------
 describe("Admin views MCP server status dashboard", () => {
-  it.skip("lists servers with status indicators and tool counts", async () => {
+  it("lists servers with status indicators and tool counts", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-dash-${crypto.randomUUID()}`);
 
@@ -92,7 +92,7 @@ describe("Admin views MCP server status dashboard", () => {
     expect(legacy!.last_error).toBe("Connection refused");
   }, 60_000);
 
-  it.skip("server detail includes transport and creation timestamp", async () => {
+  it("server detail includes transport and creation timestamp", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-det-${crypto.randomUUID()}`);
 
@@ -119,8 +119,9 @@ describe("Admin views MCP server status dashboard", () => {
 // ---------------------------------------------------------------------------
 // Re-Sync Flow
 // ---------------------------------------------------------------------------
-describe("Admin re-syncs server tools", () => {
-  it.skip("re-sync triggers discovery review flow", async () => {
+// Requires mock MCP server infrastructure (step 03-05)
+describe.skip("Admin re-syncs server tools", () => {
+  it("re-sync triggers discovery review flow", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-resync-${crypto.randomUUID()}`);
 
@@ -155,7 +156,7 @@ describe("Admin re-syncs server tools", () => {
 // Server Removal with Tool Disabling
 // ---------------------------------------------------------------------------
 describe("Admin removes MCP server and discovered tools are disabled", () => {
-  it.skip("removal disables all discovered tools for the server", async () => {
+  it("removal disables all discovered tools for the server", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rmall-${crypto.randomUUID()}`);
 
@@ -198,7 +199,7 @@ describe("Admin removes MCP server and discovered tools are disabled", () => {
     }
   }, 60_000);
 
-  it.skip("removal does not affect tools from other servers", async () => {
+  it("removal does not affect tools from other servers", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rmiso-${crypto.randomUUID()}`);
 
@@ -250,7 +251,7 @@ describe("Admin removes MCP server and discovered tools are disabled", () => {
 // Empty State
 // ---------------------------------------------------------------------------
 describe("MCP server empty state", () => {
-  it.skip("returns empty server list for workspace with no servers", async () => {
+  it("returns empty server list for workspace with no servers", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nosvr-${crypto.randomUUID()}`);
 
@@ -266,7 +267,7 @@ describe("MCP server empty state", () => {
 // Error Paths
 // ---------------------------------------------------------------------------
 describe("Server management error handling", () => {
-  it.skip("returns 404 when viewing detail of nonexistent server", async () => {
+  it("returns 404 when viewing detail of nonexistent server", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nodet-${crypto.randomUUID()}`);
 
@@ -277,7 +278,7 @@ describe("Server management error handling", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("returns 404 when removing nonexistent server", async () => {
+  it("returns 404 when removing nonexistent server", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rmnone-${crypto.randomUUID()}`);
 
@@ -288,7 +289,7 @@ describe("Server management error handling", () => {
     expect(res.status).toBe(404);
   }, 60_000);
 
-  it.skip("only returns servers belonging to the requesting workspace", async () => {
+  it("only returns servers belonging to the requesting workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin1 = await createTestUserWithMcp(baseUrl, surreal, `ws-ws1-${crypto.randomUUID()}`);
     const admin2 = await createTestUserWithMcp(baseUrl, surreal, `ws-ws2-${crypto.randomUUID()}`);

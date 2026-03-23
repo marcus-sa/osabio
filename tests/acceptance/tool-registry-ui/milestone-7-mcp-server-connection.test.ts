@@ -26,6 +26,7 @@ import {
   seedProvider,
   seedAccount,
   seedDiscoveredTool,
+  listTools,
 } from "./tool-registry-ui-test-kit";
 
 const getRuntime = setupToolRegistrySuite("tool_registry_ui_mcp_server_connection");
@@ -61,7 +62,7 @@ describe("Admin registers MCP servers", () => {
     expect(body.tool_count).toBe(0);
   }, 60_000);
 
-  it.skip("registers an MCP server with SSE transport", async () => {
+  it("registers an MCP server with SSE transport", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-sse-${crypto.randomUUID()}`);
 
@@ -76,7 +77,7 @@ describe("Admin registers MCP servers", () => {
     expect(body.transport).toBe("sse");
   }, 60_000);
 
-  it.skip("registers an authenticated MCP server linked to credential provider", async () => {
+  it("registers an authenticated MCP server linked to credential provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-auth-${crypto.randomUUID()}`);
 
@@ -103,7 +104,7 @@ describe("Admin registers MCP servers", () => {
     expect(body.provider_name).toBe("Jira API Key");
   }, 60_000);
 
-  it.skip("defaults transport to streamable-http when not specified", async () => {
+  it("defaults transport to streamable-http when not specified", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-def-${crypto.randomUUID()}`);
 
@@ -122,7 +123,7 @@ describe("Admin registers MCP servers", () => {
 // Server Listing and Detail
 // ---------------------------------------------------------------------------
 describe("Admin views MCP server list and detail", () => {
-  it.skip("lists all MCP servers in the workspace", async () => {
+  it("lists all MCP servers in the workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-list-${crypto.randomUUID()}`);
 
@@ -166,7 +167,7 @@ describe("Admin views MCP server list and detail", () => {
     expect(legacy!.last_error).toContain("Connection refused");
   }, 60_000);
 
-  it.skip("returns server detail with capabilities and server info", async () => {
+  it("returns server detail with capabilities and server info", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-detail-${crypto.randomUUID()}`);
 
@@ -193,7 +194,7 @@ describe("Admin views MCP server list and detail", () => {
     expect(body.last_discovery).toBeTruthy();
   }, 60_000);
 
-  it.skip("returns empty list when no MCP servers exist", async () => {
+  it("returns empty list when no MCP servers exist", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-empty-${crypto.randomUUID()}`);
 
@@ -209,7 +210,7 @@ describe("Admin views MCP server list and detail", () => {
 // Error Paths: Validation
 // ---------------------------------------------------------------------------
 describe("MCP server registration validates input", () => {
-  it.skip("rejects duplicate server name within workspace", async () => {
+  it("rejects duplicate server name within workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-dup-${crypto.randomUUID()}`);
 
@@ -231,7 +232,7 @@ describe("MCP server registration validates input", () => {
     expect(body.error).toContain("GitHub Tools");
   }, 60_000);
 
-  it.skip("rejects non-http URL scheme", async () => {
+  it("rejects non-http URL scheme", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-url-${crypto.randomUUID()}`);
 
@@ -247,7 +248,7 @@ describe("MCP server registration validates input", () => {
     expect(body.error).toContain("url");
   }, 60_000);
 
-  it.skip("rejects javascript: URL scheme", async () => {
+  it("rejects javascript: URL scheme", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-js-${crypto.randomUUID()}`);
 
@@ -259,7 +260,7 @@ describe("MCP server registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects missing server name", async () => {
+  it("rejects missing server name", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-noname-${crypto.randomUUID()}`);
 
@@ -271,7 +272,7 @@ describe("MCP server registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects missing URL", async () => {
+  it("rejects missing URL", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-nourl-${crypto.randomUUID()}`);
 
@@ -283,7 +284,7 @@ describe("MCP server registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects invalid transport value", async () => {
+  it("rejects invalid transport value", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-badtr-${crypto.randomUUID()}`);
 
@@ -296,7 +297,7 @@ describe("MCP server registration validates input", () => {
     expect(res.status).toBe(400);
   }, 60_000);
 
-  it.skip("rejects link to nonexistent credential provider", async () => {
+  it("rejects link to nonexistent credential provider", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-noprov-${crypto.randomUUID()}`);
 
@@ -314,7 +315,7 @@ describe("MCP server registration validates input", () => {
 // Server Removal
 // ---------------------------------------------------------------------------
 describe("Admin removes MCP servers", () => {
-  it.skip("removes server and returns confirmation", async () => {
+  it("removes server and returns confirmation", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rm-${crypto.randomUUID()}`);
 
@@ -336,7 +337,7 @@ describe("Admin removes MCP servers", () => {
     expect(found).toBeUndefined();
   }, 60_000);
 
-  it.skip("disables discovered tools when server is removed", async () => {
+  it("disables discovered tools when server is removed", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rmtools-${crypto.randomUUID()}`);
 
@@ -369,7 +370,7 @@ describe("Admin removes MCP servers", () => {
     }
   }, 60_000);
 
-  it.skip("returns 404 when removing nonexistent server", async () => {
+  it("returns 404 when removing nonexistent server", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-rmnone-${crypto.randomUUID()}`);
 
@@ -385,7 +386,7 @@ describe("Admin removes MCP servers", () => {
 // Workspace Isolation
 // ---------------------------------------------------------------------------
 describe("MCP servers are workspace-scoped", () => {
-  it.skip("only returns servers belonging to the requested workspace", async () => {
+  it("only returns servers belonging to the requested workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
     const admin1 = await createTestUserWithMcp(baseUrl, surreal, `ws-iso1-${crypto.randomUUID()}`);
     const admin2 = await createTestUserWithMcp(baseUrl, surreal, `ws-iso2-${crypto.randomUUID()}`);
