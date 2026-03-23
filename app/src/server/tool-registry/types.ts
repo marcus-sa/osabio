@@ -303,6 +303,66 @@ export type DiscoveryResult = {
 };
 
 // ---------------------------------------------------------------------------
+// OAuth Discovery Types (RFC 9728 + RFC 8414)
+// ---------------------------------------------------------------------------
+
+/**
+ * Protected Resource Metadata (RFC 9728).
+ * Returned by /.well-known/oauth-protected-resource on the MCP server.
+ */
+export type ProtectedResourceMetadata = {
+  resource: string;
+  authorization_servers: string[];
+  scopes_supported?: string[];
+  bearer_methods_supported?: string[];
+};
+
+/**
+ * Authorization Server Metadata (RFC 8414).
+ * Returned by /.well-known/oauth-authorization-server on the auth server.
+ */
+export type AuthServerMetadata = {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  registration_endpoint?: string;
+  scopes_supported?: string[];
+  response_types_supported: string[];
+  code_challenge_methods_supported?: string[];
+  grant_types_supported?: string[];
+};
+
+/**
+ * Discovered auth configuration -- pure domain type produced by discovery pipeline.
+ */
+export type DiscoveredAuthConfig = {
+  authServerUrl: string;
+  authorizationEndpoint: string;
+  tokenEndpoint: string;
+  registrationEndpoint?: string;
+  scopesSupported?: string[];
+  supportsS256: boolean;
+  resourceUri: string;
+};
+
+/**
+ * API response shape for discover-auth endpoint.
+ */
+export type DiscoverAuthResponse =
+  | {
+      discovered: true;
+      auth_server: string;
+      authorization_endpoint: string;
+      token_endpoint: string;
+      scopes_supported?: string[];
+      supports_dynamic_registration: boolean;
+    }
+  | {
+      discovered: false;
+      error: string;
+    };
+
+// ---------------------------------------------------------------------------
 // Resolved Tool (extends proxy type with source server)
 // ---------------------------------------------------------------------------
 

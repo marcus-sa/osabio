@@ -478,6 +478,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => mcpServerHandlers.handleDiscover(request.params.workspaceId, request.params.serverId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/mcp-servers/:serverId/discover-auth": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/mcp-servers/:serverId/discover-auth",
+          "POST",
+          (request) => mcpServerHandlers.handleDiscoverAuth(request.params.workspaceId, request.params.serverId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/mcp-servers/:serverId/sync": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/mcp-servers/:serverId/sync",

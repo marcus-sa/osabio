@@ -29,7 +29,8 @@ import {
 } from "./server-queries";
 import { getProviderById } from "./queries";
 import { discoverTools } from "./discovery";
-import type { McpServerRecord, EncryptedHeaderEntry } from "./types";
+import { discoverAuth } from "./auth-discovery";
+import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse } from "./types";
 import { encryptHeaders, validateHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
 
@@ -463,12 +464,53 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     return jsonResponse(toMcpServerResponse(updatedRow), 200);
   }
 
+  async function handleDiscoverAuth(
+    workspaceId: string,
+    serverId: string,
+    _request: Request,
+  ): Promise<Response> {
+    const resolved = await resolveServer(workspaceId, serverId);
+    if ("error" in resolved) return resolved.error;
+
+    const server = resolved.server;
+
+    try {
+      const config = await discoverAuth(server.url);
+
+      if (!config) {
+        const response: DiscoverAuthResponse = {
+          discovered: false,
+          error: "No OAuth metadata found at the MCP server URL",
+        };
+        return jsonResponse(response, 200);
+      }
+
+      const response: DiscoverAuthResponse = {
+        discovered: true,
+        auth_server: config.authServerUrl,
+        authorization_endpoint: config.authorizationEndpoint,
+        token_endpoint: config.tokenEndpoint,
+        scopes_supported: config.scopesSupported,
+        supports_dynamic_registration: config.registrationEndpoint !== undefined,
+      };
+
+      return jsonResponse(response, 200);
+    } catch (error) {
+      log.error("mcp-server.discover-auth", "OAuth discovery failed", error, { serverId });
+      return jsonError(
+        `OAuth discovery failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        502,
+      );
+    }
+  }
+
   return {
     handleCreateServer,
     handleListServers,
     handleGetServerDetail,
     handleDeleteServer,
     handleDiscover,
+    handleDiscoverAuth,
     handleSync,
     handleUpdateHeaders,
   };

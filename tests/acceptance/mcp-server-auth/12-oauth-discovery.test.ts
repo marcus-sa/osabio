@@ -28,7 +28,7 @@ const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_discovery");
 // Milestone 2: OAuth 2.1 Discovery
 // ---------------------------------------------------------------------------
 describe("Discover auth from Protected Resource Metadata", () => {
-  it.skip("fetches .well-known/oauth-protected-resource and auth server metadata", async () => {
+  it("fetches .well-known/oauth-protected-resource and auth server metadata", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-disc-${crypto.randomUUID()}`);
 
