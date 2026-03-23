@@ -3,7 +3,7 @@
   "checkpoint_id": "ef23c52b01ef",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".nwave/des/des-task-active",
     ".nwave/des/des-task-active-mcp-tool-registry-ui--",
@@ -34,13 +34,20 @@
       "context": "/ef/23c52b01ef/2/context.md",
       "content_hash": "/ef/23c52b01ef/2/content_hash.txt",
       "prompt": "/ef/23c52b01ef/2/prompt.txt"
+    },
+    {
+      "metadata": "/ef/23c52b01ef/3/metadata.json",
+      "transcript": "/ef/23c52b01ef/3/full.jsonl",
+      "context": "/ef/23c52b01ef/3/context.md",
+      "content_hash": "/ef/23c52b01ef/3/content_hash.txt",
+      "prompt": "/ef/23c52b01ef/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 366,
-    "cache_creation_tokens": 652607,
-    "cache_read_tokens": 17708660,
-    "output_tokens": 88863,
-    "api_call_count": 191
+    "input_tokens": 372,
+    "cache_creation_tokens": 655106,
+    "cache_read_tokens": 18036403,
+    "output_tokens": 89482,
+    "api_call_count": 195
   }
 }
