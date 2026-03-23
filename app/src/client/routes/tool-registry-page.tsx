@@ -6,10 +6,12 @@ import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
 import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
 import { ToolTable, type ToolTableFilters } from "../components/tool-registry/ToolTable";
+import { GrantTable } from "../components/tool-registry/GrantTable";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
 import { useTools } from "../hooks/use-tools";
+import type { GrantListItem } from "../hooks/use-grants";
 import { useMcpServers } from "../hooks/use-mcp-servers";
 
 // ---------------------------------------------------------------------------
@@ -105,10 +107,29 @@ export function deriveToolRegistryViewModel(
 export function ToolRegistryPage() {
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
-  const { tools } = useTools();
+  const { tools, refresh: refreshTools } = useTools();
   const { providers, refresh: refreshProviders } = useProviders();
   const { accounts, refresh: refreshAccounts } = useAccounts();
   const { mcpServers } = useMcpServers();
+
+  // Access tab: track grants per expanded tool and toast messages
+  const [accessToast, setAccessToast] = useState<string | undefined>();
+  const grantsByToolId: Record<string, GrantListItem[]> = {};
+
+  const handleRevokeGrant = useCallback(
+    async (toolId: string, identityId: string) => {
+      try {
+        await fetch(
+          `/api/workspaces/default/tools/${encodeURIComponent(toolId)}/grants/${encodeURIComponent(identityId)}`,
+          { method: "DELETE" },
+        );
+        refreshTools();
+      } catch {
+        // silently fail for now
+      }
+    },
+    [refreshTools],
+  );
 
   const handleCreateProvider = useCallback(
     async (formData: CreateProviderFormData): Promise<{ error?: string }> => {
@@ -284,10 +305,28 @@ export function ToolRegistryPage() {
           )}
         </TabsContent>
         <TabsContent value="access">
+          {accessToast && (
+            <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+              {accessToast}
+              <button
+                className="ml-2 font-medium underline"
+                onClick={() => setAccessToast(undefined)}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           {vm.showEmptyState && vm.activeTab === "access" ? (
-            <EmptyState message="No MCP servers registered." cta={vm.emptyStateCta} />
+            <EmptyState message="No tools available to manage access." cta={vm.emptyStateCta} />
           ) : (
-            <p className="py-4 text-sm text-muted-foreground">Access / MCP servers list placeholder</p>
+            <GrantTable
+              tools={tools}
+              grantsByToolId={grantsByToolId}
+              onGrantAccess={(_toolId) => {
+                // CreateGrantDialog will be opened by the GrantTable component
+              }}
+              onRevokeGrant={handleRevokeGrant}
+            />
           )}
         </TabsContent>
       </Tabs>
