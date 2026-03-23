@@ -507,6 +507,228 @@ export async function seedPolicy(
   return { policyId };
 }
 
+// ---------------------------------------------------------------------------
+// MCP Server Helpers -- HTTP driving port (NEW endpoints)
+// ---------------------------------------------------------------------------
+
+export type AddMcpServerInput = {
+  name: string;
+  url: string;
+  transport?: "sse" | "streamable-http";
+  provider_id?: string;
+};
+
+/**
+ * Register an MCP server in the workspace via HTTP endpoint.
+ */
+export async function addMcpServer(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  input: AddMcpServerInput,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+/**
+ * List MCP servers in the workspace via HTTP endpoint.
+ */
+export async function listMcpServers(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+/**
+ * Get MCP server detail via HTTP endpoint.
+ */
+export async function getMcpServerDetail(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  serverId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/${serverId}`,
+    {
+      method: "GET",
+      headers: user.headers,
+    },
+  );
+}
+
+/**
+ * Remove an MCP server via HTTP endpoint.
+ */
+export async function removeMcpServer(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  serverId: string,
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/${serverId}`,
+    {
+      method: "DELETE",
+      headers: user.headers,
+    },
+  );
+}
+
+/**
+ * Trigger tool discovery on an MCP server (dry run or apply).
+ */
+export async function discoverTools(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  serverId: string,
+  options?: { dryRun?: boolean },
+): Promise<Response> {
+  const dryRun = options?.dryRun ?? true;
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/${serverId}/discover?dry_run=${dryRun}`,
+    {
+      method: "POST",
+      headers: user.headers,
+    },
+  );
+}
+
+/**
+ * Apply discovery results (sync) to an MCP server.
+ */
+export async function syncServerTools(
+  baseUrl: string,
+  user: TestUser,
+  workspaceId: string,
+  serverId: string,
+  selectedTools?: string[],
+): Promise<Response> {
+  return fetchRaw(
+    `${baseUrl}/api/workspaces/${workspaceId}/mcp-servers/${serverId}/sync`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...user.headers },
+      body: JSON.stringify(selectedTools ? { selected_tools: selectedTools } : {}),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MCP Server DB Seed Helpers -- for Given steps (test preconditions)
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed an mcp_server record directly in SurrealDB for test preconditions.
+ */
+export async function seedMcpServer(
+  surreal: Surreal,
+  workspaceId: string,
+  options: {
+    name: string;
+    url: string;
+    transport?: "sse" | "streamable-http";
+    lastStatus?: "ok" | "error";
+    providerId?: string;
+    toolCount?: number;
+    lastDiscovery?: Date;
+    lastError?: string;
+  },
+): Promise<{ serverId: string }> {
+  const serverId = `srv-${crypto.randomUUID()}`;
+  const serverRecord = new RecordId("mcp_server", serverId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  const content: Record<string, unknown> = {
+    name: options.name,
+    url: options.url,
+    transport: options.transport ?? "streamable-http",
+    workspace: workspaceRecord,
+    last_status: options.lastStatus ?? "ok",
+    tool_count: options.toolCount ?? 0,
+    created_at: new Date(),
+  };
+
+  if (options.providerId) {
+    content.provider = new RecordId("credential_provider", options.providerId);
+  }
+  if (options.lastDiscovery) {
+    content.last_discovery = options.lastDiscovery;
+  }
+  if (options.lastError) {
+    content.last_error = options.lastError;
+  }
+
+  await surreal.query(`CREATE $server CONTENT $content;`, {
+    server: serverRecord,
+    content,
+  });
+
+  return { serverId };
+}
+
+/**
+ * Seed an mcp_tool with a source_server link for discovered tool preconditions.
+ */
+export async function seedDiscoveredTool(
+  surreal: Surreal,
+  workspaceId: string,
+  serverId: string,
+  options: {
+    name: string;
+    toolkit: string;
+    description?: string;
+    riskLevel?: "low" | "medium" | "high" | "critical";
+    status?: "active" | "disabled";
+    providerId?: string;
+    inputSchema?: Record<string, unknown>;
+  },
+): Promise<{ toolId: string }> {
+  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolRecord = new RecordId("mcp_tool", toolId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const serverRecord = new RecordId("mcp_server", serverId);
+
+  const content: Record<string, unknown> = {
+    name: options.name,
+    toolkit: options.toolkit,
+    description: options.description ?? `${options.name} tool`,
+    input_schema: options.inputSchema ?? { type: "object", properties: {} },
+    risk_level: options.riskLevel ?? "medium",
+    workspace: workspaceRecord,
+    status: options.status ?? "active",
+    source_server: serverRecord,
+    created_at: new Date(),
+  };
+
+  if (options.providerId) {
+    content.provider = new RecordId("credential_provider", options.providerId);
+  }
+
+  await surreal.query(`CREATE $tool CONTENT $content;`, {
+    tool: toolRecord,
+    content,
+  });
+
+  return { toolId };
+}
+
 /**
  * Seed a governs_tool edge directly in SurrealDB for test preconditions.
  */

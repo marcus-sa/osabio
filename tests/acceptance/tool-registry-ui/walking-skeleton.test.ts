@@ -1,14 +1,15 @@
 /**
  * Walking Skeleton: Tool Registry UI End-to-End
  *
- * Traces: US-UI-01, US-UI-02, US-UI-03, US-UI-04, US-UI-05
+ * Traces: US-UI-01, US-UI-02, US-UI-03, US-UI-04, US-UI-05, US-UI-11
  *
  * Thinnest E2E slice proving observable user value:
  *   Admin registers a provider -> Member connects account ->
- *   Admin seeds tools -> Admin grants access -> Both browse tools
+ *   Admin seeds tools -> Admin grants access -> Both browse tools ->
+ *   Agent executes injected tool end-to-end
  *
- * This skeleton answers: "Can workspace users manage integrations
- * and see their tools, providers, accounts, and grants?"
+ * This skeleton answers: "Can workspace users manage integrations,
+ * see their tools, and have agents actually execute those tools?"
  *
  * Driving ports:
  *   POST /api/workspaces/:wsId/providers         (register provider)
@@ -18,6 +19,9 @@
  *   GET  /api/workspaces/:wsId/tools               (list tools)
  *   GET  /api/workspaces/:wsId/tools/:toolId       (tool detail)
  *   POST /api/workspaces/:wsId/tools/:toolId/grants (grant access)
+ *   POST /api/workspaces/:wsId/mcp-servers         (register MCP server)
+ *   POST /api/workspaces/:wsId/mcp-servers/:id/discover (discover tools)
+ *   POST /api/workspaces/:wsId/mcp-servers/:id/sync (import tools)
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -32,6 +36,12 @@ import {
   grantToolAccess,
   seedTool,
   seedProvider,
+  seedMcpServer,
+  seedDiscoveredTool,
+  seedGrant,
+  addMcpServer,
+  discoverTools,
+  syncServerTools,
 } from "./tool-registry-ui-test-kit";
 
 const getRuntime = setupToolRegistrySuite("tool_registry_ui_walking_skeleton");
@@ -233,4 +243,105 @@ describe("Walking Skeleton: Admin manages integrations end-to-end", () => {
     expect(detail.grants[0].identity_id).toBe(admin.identityId);
     expect(detail.grants[0].max_calls_per_hour).toBe(20);
   }, 60_000);
+
+  // ---------------------------------------------------------------------------
+  // Skeleton 5: Admin connects MCP server and discovers tools
+  // US-UI-09 + US-UI-10 (MCP Server Connection + Tool Discovery)
+  // ---------------------------------------------------------------------------
+  it.skip("admin connects an MCP server and imports discovered tools", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const admin = await createTestUserWithMcp(baseUrl, surreal, `ws-skel5-${crypto.randomUUID()}`);
+
+    // Given no MCP servers exist in the workspace
+    // When admin registers an MCP server
+    const addRes = await addMcpServer(baseUrl, admin, admin.workspaceId, {
+      name: "GitHub Tools",
+      url: "https://mcp.test.local/github",
+      transport: "streamable-http",
+    });
+
+    // Then the server is registered
+    expect(addRes.status).toBe(201);
+    const server = await addRes.json() as { id: string; name: string; last_status: string };
+    expect(server.name).toBe("GitHub Tools");
+
+    // When admin triggers discovery
+    const discoverRes = await discoverTools(
+      baseUrl, admin, admin.workspaceId, server.id, { dryRun: true },
+    );
+
+    // Then discovered tools are returned for review
+    expect(discoverRes.status).toBe(200);
+    const discovery = await discoverRes.json() as {
+      tools: Array<{ name: string; action: string }>;
+    };
+    expect(discovery.tools.length).toBeGreaterThan(0);
+
+    // When admin imports all discovered tools
+    const syncRes = await syncServerTools(baseUrl, admin, admin.workspaceId, server.id);
+
+    // Then tools appear in the workspace tool list linked to the server
+    expect(syncRes.status).toBe(200);
+    const listRes = await listTools(baseUrl, admin, admin.workspaceId);
+    expect(listRes.status).toBe(200);
+    const listBody = await listRes.json() as {
+      tools: Array<{ name: string; source_server_name?: string }>;
+    };
+    const discoveredTools = listBody.tools.filter(
+      (t) => t.source_server_name === "GitHub Tools",
+    );
+    expect(discoveredTools.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  // ---------------------------------------------------------------------------
+  // Skeleton 6: Agent executes an injected integration tool end-to-end
+  // US-UI-11 (Tool Execution via Proxy)
+  //
+  // This is the critical skeleton: without tool execution, injected tools
+  // are non-functional. The proxy must connect to the upstream MCP server,
+  // call tools/call, and return the result to the LLM.
+  // ---------------------------------------------------------------------------
+  it.skip("agent executes an injected integration tool and receives the result", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-skel6-${crypto.randomUUID()}`);
+
+    // Given an MCP server is registered
+    const { serverId } = await seedMcpServer(surreal, agent.workspaceId, {
+      name: "GitHub Tools",
+      url: "https://mcp.test.local/github",
+      lastStatus: "ok",
+    });
+
+    // And a discovered tool exists linked to the server
+    const { toolId } = await seedDiscoveredTool(surreal, agent.workspaceId, serverId, {
+      name: "github.create_issue",
+      toolkit: "github",
+      description: "Create a GitHub issue",
+      riskLevel: "medium",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          body: { type: "string" },
+        },
+      },
+    });
+
+    // And the agent has a can_use grant for the tool
+    await seedGrant(surreal, agent.identityId, toolId);
+
+    // When the agent sends a proxy request that triggers tool use
+    // And the LLM responds with a tool_use block for "github.create_issue"
+    // Then the proxy executes the tool call on the upstream MCP server
+    // And returns the tool result to the LLM
+    // And the LLM produces a final text response
+    //
+    // NOTE: Full proxy round-trip test requires mock Anthropic API + mock MCP server.
+    // Implementation will inject both via ServerDependencies in the acceptance test.
+    // The test verifies the complete pipeline: classify -> execute -> result -> final response.
+    //
+    // Placeholder assertion -- replaced during DELIVER with actual proxy call.
+    expect(toolId).toBeTruthy();
+    expect(serverId).toBeTruthy();
+  }, 120_000);
 });

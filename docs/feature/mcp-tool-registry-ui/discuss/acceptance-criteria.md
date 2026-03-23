@@ -75,3 +75,55 @@ Derived from UAT scenarios in user-stories.md. Each criterion traces to a specif
 - [ ] AC-08c: Governance dialog has condition field and optional rate limit fields
 - [ ] AC-08d: Successful attachment creates governs_tool edge and updates indicator
 - [ ] AC-08e: Expanded tool row shows attached governance details (policy name, condition, limits)
+
+## US-UI-09: MCP Server Connection
+
+- [ ] AC-09a: "Add MCP Server" button visible in Tools tab MCP Servers section
+- [ ] AC-09b: Dialog with fields: name, URL, transport selector, optional credential provider dropdown
+- [ ] AC-09c: URL validation rejects non-http/https URLs
+- [ ] AC-09d: Duplicate server name (per workspace) shows inline error
+- [ ] AC-09e: On success: dialog closes, server appears in list with status indicator
+- [ ] AC-09f: On connection failure: error message with guidance, server saved with "error" status
+- [ ] AC-09g: Transport auto-detect: fallback from Streamable HTTP to SSE on 4xx
+
+## US-UI-10: Tool Discovery and Import
+
+- [ ] AC-10a: "Discover" button per server triggers dry-run discovery via tools/list
+- [ ] AC-10b: Review panel shows per-tool breakdown: name, description, risk_level, action badge
+- [ ] AC-10c: Checkboxes for selective import (all new/updated selected by default)
+- [ ] AC-10d: "Unchanged" tools collapsed by default
+- [ ] AC-10e: Risk level inferred from MCP annotations (readOnlyHint, destructiveHint, idempotentHint)
+- [ ] AC-10f: Admin can override inferred risk_level before import
+- [ ] AC-10g: "Import Selected" applies changes and updates server tool_count
+- [ ] AC-10h: Sync mode shows schema diff for updated tools (expandable)
+
+## US-UI-11: Tool Execution via Proxy
+
+- [ ] AC-11a: Integration-classified tool calls (step 8.5) routed to Tool Executor (step 9)
+- [ ] AC-11b: Tool Executor connects to source_server URL using correct transport (SSE or Streamable HTTP)
+- [ ] AC-11c: Credentials decrypted and injected as HTTP headers (api_key, bearer, basic, oauth2)
+- [ ] AC-11d: OAuth2 token refresh: expired access_token refreshed via refresh_token before execution
+- [ ] AC-11e: MCP server response converted to tool_result message and appended to conversation
+- [ ] AC-11f: Multi-turn loop: proxy re-sends to LLM until stop_reason is not "tool_use" (max 10 iterations)
+- [ ] AC-11g: Unreachable MCP server produces tool_result with is_error: true and descriptive message
+- [ ] AC-11h: Connection is short-lived per call: connect, call tools/call, disconnect
+
+## US-UI-12: MCP Server Management
+
+- [ ] AC-12a: MCP Servers section at top of Tools tab (collapsible)
+- [ ] AC-12b: Each server row shows: name, URL, status indicator, tool_count, last_discovery, last_error
+- [ ] AC-12c: Status indicators: ok=green dot, error=red dot
+- [ ] AC-12d: "Sync" action triggers discovery review flow (same as US-UI-10)
+- [ ] AC-12e: "Remove" action with confirmation dialog; disables discovered tools on removal
+- [ ] AC-12f: Empty state with "Add MCP Server" CTA
+- [ ] AC-12g: Last sync time shown as relative time
+
+---
+
+## Changed Assumptions
+
+### What changed (revision 2, 2026-03-23)
+
+Added acceptance criteria for 4 new stories (US-UI-09 through US-UI-12) covering MCP server connection, tool discovery, tool execution, and server management. These address three critical gaps: no tool executor in the proxy pipeline, no MCP client for discovery, and no credential-to-transport injection.
+
+Original criteria (US-UI-01 through US-UI-08) remain unchanged.

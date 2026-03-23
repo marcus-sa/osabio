@@ -2,13 +2,14 @@
 
 ## Scenario Inventory
 
-Total: 56 scenarios
-- Walking skeletons: 4 (7%)
-- Happy path: 22 (39%)
-- Error path: 24 (43%)
-- Security: 6 (11%)
+Total: 97 scenarios
+- Walking skeletons: 6 (6%)
+- Happy path: 34 (35%)
+- Error path: 43 (44%)
+- Security: 6 (6%)
+- Boundary/edge: 8 (8%)
 
-Error path ratio: 43% (target: >= 40%) -- PASS
+Error path ratio: 44% (target: >= 40%) -- PASS
 
 ## Story Coverage Map
 
@@ -18,6 +19,7 @@ Error path ratio: 43% (target: >= 40%) -- PASS
 | AC-01d | Empty provider list returned | milestone-1, "returns empty list when no providers exist" |
 | AC-01d | Empty tool list returned | milestone-3, "returns empty list when no tools exist" |
 | AC-01d | Empty account list returned | milestone-5, "returns empty list when member has no connected accounts" |
+| AC-01d | Empty server list returned | milestone-10, "returns empty server list" |
 
 Note: Route registration (AC-01a), sidebar (AC-01b), tab rendering (AC-01c), keyboard nav (AC-01e) are UI-only concerns tested at component level, not HTTP acceptance level.
 
@@ -107,12 +109,87 @@ Note: Full OAuth2 browser redirect (AC-06c/d/e) cannot be tested in acceptance s
 | | Nonexistent tool rejected | milestone-6 "rejects attachment to nonexistent tool" |
 | | Missing policy_id rejected | milestone-6 "rejects attachment without policy_id" |
 
+### US-UI-09: MCP Server Connection
+| AC | Scenario | File |
+|----|----------|------|
+| AC-09a/b | Register unauthenticated server | milestone-7 "registers an unauthenticated MCP server" |
+| AC-09b | Register with SSE transport | milestone-7 "registers an MCP server with SSE transport" |
+| AC-09b | Register authenticated server with provider | milestone-7 "registers an authenticated MCP server" |
+| AC-09b | Default transport is streamable-http | milestone-7 "defaults transport to streamable-http" |
+| AC-09e | Server appears in list | milestone-7 "lists all MCP servers" |
+| AC-09e | Server detail with capabilities | milestone-7 "returns server detail" |
+| AC-09c | Non-http URL rejected | milestone-7 "rejects non-http URL scheme" |
+| AC-09c | javascript: URL rejected | milestone-7 "rejects javascript: URL scheme" |
+| AC-09d | Duplicate name rejected | milestone-7 "rejects duplicate server name" |
+| | Missing name rejected | milestone-7 "rejects missing server name" |
+| | Missing URL rejected | milestone-7 "rejects missing URL" |
+| | Invalid transport rejected | milestone-7 "rejects invalid transport value" |
+| | Nonexistent provider rejected | milestone-7 "rejects link to nonexistent credential provider" |
+| | Server removal confirmation | milestone-7 "removes server and returns confirmation" |
+| AC-12e | Removal disables discovered tools | milestone-7 "disables discovered tools when server is removed" |
+| | Nonexistent server removal 404 | milestone-7 "returns 404 when removing nonexistent server" |
+| | Workspace isolation | milestone-7 "only returns servers belonging to the requested workspace" |
+
+Note: Transport auto-detect (AC-09g) requires mock MCP server returning 4xx. Tested with InMemoryTransport during DELIVER.
+
+### US-UI-10: Tool Discovery and Import
+| AC | Scenario | File |
+|----|----------|------|
+| AC-10a/b | Dry-run discovery returns tools | milestone-8 "dry-run discovery returns tools" |
+| AC-10g | Full sync creates tool records | milestone-8 "full sync creates mcp_tool records" |
+| AC-10c | Selective import | milestone-8 "imports only selected tools" |
+| AC-10h | Re-sync detects new tools | milestone-8 "re-sync detects new tools" |
+| | Re-sync detects removed tools | milestone-8 "re-sync detects removed tools" |
+| AC-10g | Sync updates server tool_count | milestone-8 "sync updates server tool_count" |
+| AC-10e | Risk level inferred from annotations | milestone-8 "read-only tool inferred as low risk" |
+| AC-10f | Admin overrides risk level | deferred to DELIVER (requires interactive review panel) |
+| | Unreachable server during discovery | milestone-8 "returns error when server is unreachable" |
+| | Discovery on nonexistent server | milestone-8 "returns 404 for discovery on nonexistent server" |
+| | Sync on nonexistent server | milestone-8 "returns 404 for sync on nonexistent server" |
+| | Dry-run does not modify DB | milestone-8 "dry-run does not modify database state" |
+
+### US-UI-11: Tool Execution via Proxy
+| AC | Scenario | File |
+|----|----------|------|
+| AC-11a/b/e | Single tool call execution | walking-skeleton #6, milestone-9 "executes a single integration tool call" |
+| AC-11c | API key credential injection | milestone-9 "injects API key credential" |
+| AC-11c | Bearer token credential injection | milestone-9 "injects bearer token credential" |
+| AC-11f | Multi-turn loop completes | milestone-9 "completes multi-turn loop" |
+| AC-11f | Max iteration safety limit | milestone-9 "stops after maximum 10 iterations" |
+| AC-11g | Unreachable server error | milestone-9 "returns error tool_result when upstream MCP server is unreachable" |
+| AC-11g | MCP server error forwarded | milestone-9 "returns error tool_result when MCP server returns an error" |
+| | No can_use grant rejects tool | milestone-9 "rejects tool call when agent lacks can_use grant" |
+| | No source_server error | milestone-9 "returns error tool_result when tool has no source_server" |
+| | Governance blocks execution | milestone-9 "blocks tool execution when governance policy rejects" |
+| AC-11h | Connection reuse within request | milestone-9 "reuses connection for multiple tool calls to same server" |
+
+Note: OAuth2 token refresh (AC-11d) is tested at unit level. Full proxy round-trip tests require mock Anthropic API + mock MCP server injected via ServerDependencies.
+
+### US-UI-12: MCP Server Management
+| AC | Scenario | File |
+|----|----------|------|
+| AC-12a/b | Server dashboard with status data | milestone-10 "lists servers with status indicators" |
+| AC-12b | Server detail includes transport | milestone-10 "server detail includes transport" |
+| AC-12d | Re-sync triggers discovery flow | milestone-10 "re-sync triggers discovery review flow" |
+| AC-12e | Removal disables all discovered tools | milestone-10 "removal disables all discovered tools" |
+| | Removal does not affect other servers | milestone-10 "removal does not affect tools from other servers" |
+| AC-12f | Empty server list | milestone-10 "returns empty server list" |
+| | 404 for nonexistent server detail | milestone-10 "returns 404 when viewing detail of nonexistent server" |
+| | 404 for nonexistent server removal | milestone-10 "returns 404 when removing nonexistent server" |
+| | Workspace isolation | milestone-10 "only returns servers belonging to the requesting workspace" |
+
 ## Implementation Sequence
 
-1. Walking skeleton (all 4 scenarios enabled)
+1. Walking skeleton (all 6 scenarios enabled -- includes tool execution)
 2. Milestone 1: Provider CRUD (11 scenarios)
 3. Milestone 2: Account Connection (11 scenarios)
 4. Milestone 3: Tool Browsing (9 scenarios)
 5. Milestone 4: Access Grants (9 scenarios)
 6. Milestone 5: Account Dashboard (8 scenarios)
 7. Milestone 6: Tool Governance (9 scenarios)
+8. Milestone 7: MCP Server Connection (17 scenarios)
+9. Milestone 8: Tool Discovery (12 scenarios)
+10. Milestone 9: Tool Execution (11 scenarios)
+11. Milestone 10: Server Management (9 scenarios)
+
+Note: Milestones 7-10 correspond to the new stories US-UI-09 through US-UI-12. They are numbered 7-10 to continue the existing sequence without renaming milestones 4-6 which already exist.
