@@ -283,13 +283,15 @@ export function ToolRegistryPage() {
           )}
         </TabsContent>
         <TabsContent value="providers">
-          <div className="flex justify-end py-2">
-            <CreateProviderDialog onSubmit={handleCreateProvider} />
-          </div>
           {vm.showEmptyState && vm.activeTab === "providers" ? (
             <EmptyState message="No credential providers configured." cta={vm.emptyStateCta} />
           ) : (
-            <ProviderTable providers={providers} onDelete={handleDeleteProvider} />
+            <>
+              <div className="flex justify-end py-2">
+                <CreateProviderDialog onSubmit={handleCreateProvider} />
+              </div>
+              <ProviderTable providers={providers} onDelete={handleDeleteProvider} />
+            </>
           )}
         </TabsContent>
         <TabsContent value="accounts">
