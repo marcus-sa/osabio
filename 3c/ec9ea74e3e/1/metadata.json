@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.8",
   "checkpoint_id": "3cec9ea74e3e",
+  "session_id": "e910ab10-cc78-4e38-bb34-d1822e35730d",
   "strategy": "manual-commit",
+  "created_at": "2026-03-23T12:03:46.550549Z",
   "branch": "marcus-sa/mcp-tool-registry",
   "checkpoints_count": 1,
   "files_touched": [
@@ -12,27 +14,22 @@
     "docs/scenarios/mcp-server-auth/test-scenarios.md",
     "docs/scenarios/mcp-server-auth/walking-skeleton.md"
   ],
-  "sessions": [
-    {
-      "metadata": "/3c/ec9ea74e3e/0/metadata.json",
-      "transcript": "/3c/ec9ea74e3e/0/full.jsonl",
-      "context": "/3c/ec9ea74e3e/0/context.md",
-      "content_hash": "/3c/ec9ea74e3e/0/content_hash.txt",
-      "prompt": "/3c/ec9ea74e3e/0/prompt.txt"
-    },
-    {
-      "metadata": "/3c/ec9ea74e3e/1/metadata.json",
-      "transcript": "/3c/ec9ea74e3e/1/full.jsonl",
-      "context": "/3c/ec9ea74e3e/1/context.md",
-      "content_hash": "/3c/ec9ea74e3e/1/content_hash.txt",
-      "prompt": "/3c/ec9ea74e3e/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "fca6ea78409b",
   "token_usage": {
     "input_tokens": 1016,
     "cache_creation_tokens": 76478,
     "cache_read_tokens": 1105718,
     "output_tokens": 6148,
     "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T12:03:46.45882Z",
+    "agent_lines": 857,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 1,
+    "total_committed": 857,
+    "agent_percentage": 100
   }
 }
