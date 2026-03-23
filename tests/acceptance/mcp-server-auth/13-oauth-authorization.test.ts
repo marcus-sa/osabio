@@ -555,25 +555,65 @@ describe("Refresh failure surfaces auth_error status", () => {
 });
 
 describe("Dynamic client registration", () => {
-  it.skip("registers Brain as OAuth client when registration_endpoint exists", async () => {
+  it("registers Brain as OAuth client when registration_endpoint exists", async () => {
     const { baseUrl, surreal } = getRuntime();
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-dyn-${crypto.randomUUID()}`);
 
-    // Given MSW mock auth server with registration_endpoint
+    // Given: MSW mock auth server with registration_endpoint
+    const mcpServerUrl = "https://mcp-dynreg.example.com";
+    const authServerUrl = "https://auth-dynreg.example.com";
     const { msw } = setupMockMcpServer({
-      mcpServerUrl: "https://mcp.example.com",
-      authServerUrl: "https://auth.example.com",
+      mcpServerUrl,
+      authServerUrl,
       supportsDynamicRegistration: true,
     });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
-      // When Brain discovers auth and registration_endpoint is available
-      // Then Brain POSTs to registration_endpoint with:
-      //   - client_name: "Brain"
-      //   - redirect_uris: [callback URL]
-      //   - grant_types: ["authorization_code"]
-      // And received client_id + client_secret are encrypted and stored
+      // Register an MCP server
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-dynreg-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // When: Brain discovers auth and registration_endpoint is available
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+      const discoverBody = (await discoverRes.json()) as {
+        discovered: boolean;
+        supports_dynamic_registration?: boolean;
+        provider_id?: string;
+      };
+      expect(discoverBody.discovered).toBe(true);
+      expect(discoverBody.supports_dynamic_registration).toBe(true);
+
+      // Then: The credential_provider has client_id from dynamic registration
+      const { RecordId: SurrealRecordId } = await import("surrealdb");
+      const providerId = discoverBody.provider_id!;
+      const [providers] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM $provider;`,
+        { provider: new SurrealRecordId("credential_provider", providerId) },
+      );
+      expect(providers.length).toBe(1);
+      const provider = providers[0];
+
+      // client_id was set from dynamic registration response
+      expect(provider.client_id).toBeDefined();
+      expect(typeof provider.client_id).toBe("string");
+      expect((provider.client_id as string).startsWith("dynamic-client-")).toBe(true);
+
+      // client_secret was encrypted and stored
+      expect(provider.client_secret_encrypted).toBeDefined();
+      expect(typeof provider.client_secret_encrypted).toBe("string");
+      expect((provider.client_secret_encrypted as string).length).toBeGreaterThan(0);
+
+      // client_secret_encrypted should NOT contain the plaintext secret
+      expect(provider.client_secret_encrypted).not.toContain("dynamic-secret-");
     } finally {
       msw.close();
     }

@@ -34,11 +34,11 @@ import {
   getMcpServerAuthStatus,
   type McpServerRow,
 } from "./server-queries";
-import { getProviderById, createProvider, createConnectedAccount } from "./queries";
+import { getProviderById, createProvider, createConnectedAccount, updateProviderClientRegistration } from "./queries";
 import { encryptSecret } from "./encryption";
 import { discoverTools } from "./discovery";
 import { discoverAuth } from "./auth-discovery";
-import { generatePkce, buildAuthorizationUrl, exchangeCode } from "./oauth-flow";
+import { generatePkce, buildAuthorizationUrl, exchangeCode, registerDynamicClient } from "./oauth-flow";
 import type { McpServerRecord, EncryptedHeaderEntry, DiscoverAuthResponse, AuthorizationParams } from "./types";
 import { encryptHeaders, validateHeaders } from "./static-headers";
 import { log } from "../telemetry/logger";
@@ -509,6 +509,40 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
           ...(config.scopesSupported ? { scopes: config.scopesSupported } : {}),
         },
       );
+
+      // Dynamic client registration (RFC 7591)
+      if (config.registrationEndpoint) {
+        try {
+          const brainBaseUrl = `http://127.0.0.1:${deps.config.port}`;
+          const redirectUri = `${brainBaseUrl}/oauth/callback`;
+
+          const registrationResult = await registerDynamicClient(
+            config.registrationEndpoint,
+            {
+              client_name: "Brain",
+              redirect_uris: [redirectUri],
+              grant_types: ["authorization_code"],
+              response_types: ["code"],
+              token_endpoint_auth_method: "none",
+            },
+          );
+
+          const encryptionKey = deps.config.toolEncryptionKey;
+          const clientSecretEncrypted = registrationResult.client_secret && encryptionKey
+            ? encryptSecret(registrationResult.client_secret, encryptionKey)
+            : undefined;
+
+          await updateProviderClientRegistration(
+            deps.surreal,
+            providerRecord.id,
+            registrationResult.client_id,
+            clientSecretEncrypted,
+          );
+        } catch (regError) {
+          log.error("mcp-server.discover-auth", "Dynamic client registration failed", regError, { serverId: server.id.id as string });
+          // Non-fatal: proceed without dynamic registration
+        }
+      }
 
       // Link mcp_server to the new provider
       await updateMcpServerProvider(

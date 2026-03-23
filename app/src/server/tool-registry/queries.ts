@@ -48,6 +48,28 @@ export async function createProvider(
 }
 
 /**
+ * Update a credential_provider with client registration fields (client_id, client_secret_encrypted).
+ */
+export async function updateProviderClientRegistration(
+  surreal: Surreal,
+  providerRecord: RecordId<"credential_provider", string>,
+  clientId: string,
+  clientSecretEncrypted?: string,
+): Promise<void> {
+  if (clientSecretEncrypted) {
+    await surreal.query(
+      `UPDATE $provider SET client_id = $clientId, client_secret_encrypted = $secret;`,
+      { provider: providerRecord, clientId, secret: clientSecretEncrypted },
+    );
+  } else {
+    await surreal.query(
+      `UPDATE $provider SET client_id = $clientId;`,
+      { provider: providerRecord, clientId },
+    );
+  }
+}
+
+/**
  * List all credential_providers in a workspace.
  */
 export async function listProviders(

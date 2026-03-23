@@ -288,6 +288,57 @@ export async function refreshAccessToken(
 }
 
 // ---------------------------------------------------------------------------
+// Dynamic Client Registration (RFC 7591)
+// ---------------------------------------------------------------------------
+
+/**
+ * Client metadata sent to the registration_endpoint.
+ */
+export type ClientRegistrationMetadata = {
+  client_name: string;
+  redirect_uris: string[];
+  grant_types: string[];
+  response_types: string[];
+  token_endpoint_auth_method: string;
+};
+
+/**
+ * Response from the registration_endpoint.
+ */
+export type ClientRegistrationResult = {
+  client_id: string;
+  client_secret?: string;
+  client_name?: string;
+  redirect_uris?: string[];
+};
+
+/**
+ * Register Brain as an OAuth client via dynamic client registration (RFC 7591).
+ * Effect function -- fetch is injectable for testability.
+ */
+export async function registerDynamicClient(
+  registrationEndpoint: string,
+  metadata: ClientRegistrationMetadata,
+  fetchFn: FetchFn = globalThis.fetch,
+): Promise<ClientRegistrationResult> {
+  const response = await fetchFn(registrationEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Dynamic client registration failed (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as ClientRegistrationResult;
+}
+
+// ---------------------------------------------------------------------------
 // PKCE Token Exchange (Effect)
 // ---------------------------------------------------------------------------
 
