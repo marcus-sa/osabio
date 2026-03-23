@@ -42,7 +42,7 @@ describe("Generate authorization URL with PKCE S256", () => {
     // Given: MCP server registered
     const mcpServerUrl = "https://mcp.example.com";
     const authServerUrl = "https://auth.example.com";
-    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl, supportsDynamicRegistration: true });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
@@ -126,7 +126,7 @@ describe("Exchange authorization code for tokens", () => {
     // Given MSW mock auth server token endpoint
     const mcpServerUrl = "https://mcp.example.com";
     const authServerUrl = "https://auth.example.com";
-    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl, supportsDynamicRegistration: true });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
@@ -202,7 +202,7 @@ describe("Tokens encrypted and stored", () => {
     // Given: MSW mock auth server
     const mcpServerUrl = "https://mcp.example.com";
     const authServerUrl = "https://auth.example.com";
-    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl, supportsDynamicRegistration: true });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
@@ -287,7 +287,7 @@ describe("Token refresh on expiry", () => {
     // Given: MSW mock auth server with token endpoint that handles refresh_token
     const mcpServerUrl = "https://mcp-refresh.example.com";
     const authServerUrl = "https://auth-refresh.example.com";
-    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl, supportsDynamicRegistration: true });
     msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
@@ -421,6 +421,7 @@ describe("Refresh failure surfaces auth_error status", () => {
           issuer: authServerUrl,
           authorization_endpoint: `${authServerUrl}/authorize`,
           token_endpoint: `${authServerUrl}/token`,
+          registration_endpoint: `${authServerUrl}/register`,
           scopes_supported: scopesSupported,
           response_types_supported: ["code"],
           code_challenge_methods_supported: ["S256"],
@@ -453,6 +454,15 @@ describe("Refresh failure surfaces auth_error status", () => {
         }
 
         return HttpResponse.json({ error: "unsupported_grant_type" }, { status: 400 });
+      }),
+      // Dynamic registration (RFC 7591) — required so provider gets a client_id
+      http.post(`${authServerUrl}/register`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({
+          client_id: `dynamic-client-${crypto.randomUUID().slice(0, 8)}`,
+          client_name: body.client_name,
+          redirect_uris: body.redirect_uris,
+        });
       }),
     ];
 

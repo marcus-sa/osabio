@@ -278,6 +278,9 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
         },
       );
 
+      // Track client_id: from existing provider or dynamic registration
+      let clientId: string | undefined = existingProvider?.client_id;
+
       // Dynamic client registration (RFC 7591) — only for newly created providers
       if (config.registrationEndpoint && !existingProvider) {
         try {
@@ -292,6 +295,8 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
               token_endpoint_auth_method: "none",
             },
           );
+
+          clientId = registrationResult.client_id;
 
           const encryptionKey = deps.config.toolEncryptionKey;
           const clientSecretEncrypted = registrationResult.client_secret && encryptionKey
@@ -314,16 +319,24 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       // Link mcp_server to provider
       await updateMcpServerProvider(deps.surreal, server.id, providerRecord.id);
 
+      // No client_id means the auth server doesn't support dynamic registration
+      // and no client_id was pre-configured. User should use static_headers instead.
+      if (!clientId) {
+        log.error("mcp-server.auto-discover", "No client_id available — authorization server does not support dynamic client registration. Use static_headers auth mode with a pre-issued token.", undefined, {
+          serverId: server.id.id as string,
+          authServer: config.authServerUrl,
+        });
+        return undefined;
+      }
+
       // Generate PKCE + authorization URL
       const pkce = await generatePkce();
       const state = crypto.randomUUID();
 
       await storePendingOAuthState(deps.surreal, server.id, pkce.codeVerifier, state);
 
-      const clientId = (providerRecord as unknown as { client_id?: string }).client_id
-        ?? deps.config.baseUrl;
       const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
-      const scopes = (providerRecord as unknown as { scopes?: string[] }).scopes;
+      const scopes = existingProvider?.scopes ?? config.scopesSupported;
 
       const authorizationParams: AuthorizationParams = {
         authorizationEndpoint: config.authorizationEndpoint,
@@ -736,8 +749,13 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     // Build the redirect_uri (Brain's OAuth callback)
     const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 
-    // Use client_id from provider, or fall back to Brain's base URL
-    const clientId = providerRecord.client_id ?? deps.config.baseUrl;
+    const clientId = providerRecord.client_id;
+    if (!clientId) {
+      return jsonError(
+        "Provider has no client_id. The authorization server may not support dynamic client registration. Use static_headers auth mode with a pre-issued token instead.",
+        400,
+      );
+    }
 
     // Build authorization URL with PKCE and resource parameter
     const authorizationParams: AuthorizationParams = {
@@ -828,8 +846,17 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     // Build redirect_uri (must match the one used during authorize)
     const redirectUri = `${deps.config.baseUrl}/oauth/callback`;
 
-    // Use client_id from provider, or fall back to Brain's base URL
-    const clientId = providerRecord.client_id ?? deps.config.baseUrl;
+    const clientId = providerRecord.client_id;
+    if (!clientId) {
+      const msg = "Provider has no client_id configured";
+      if (request.method === "GET") {
+        return Response.redirect(
+          `${deps.config.baseUrl}/tool-registry?tab=servers&oauth=error`,
+          302,
+        );
+      }
+      return jsonError(msg, 400);
+    }
 
     try {
       // Exchange the authorization code for tokens using PKCE
