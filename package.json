@@ -12,6 +12,7 @@
     "start": "bun run app/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test tests/unit/",
+    "test:client": "bun --config=bunfig.client.toml test app/src/client/",
     "test:acceptance": "bun --env-file=.env scripts/test-acceptance.ts",
     "eval": "evalite run evals/",
     "eval:analytics": "evalite run evals/analytics.eval.ts",

@@ -85,6 +85,13 @@
 - CLI sets it as `X-Brain-Auth: ${proxyToken}`, not `X-Brain-Auth: Bearer ${proxyToken}`.
 - `extractBrainAuthToken()` in `proxy-auth.ts` returns the raw header value (trim only, no prefix stripping).
 
+## Test Environment Split
+
+- Client tests (`app/src/client/**/*.test.tsx`) require happy-dom for DOM APIs. Run them with `bun --config=bunfig.client.toml test app/src/client/` (or `bun run test:client`).
+- Unit tests (`tests/unit/`) and acceptance tests (`tests/acceptance/`) must NOT load happy-dom — it replaces `globalThis.fetch` with an incompatible implementation that breaks HTTP calls to the in-process server.
+- The default `bunfig.toml` has no `[test]` preload. Only `bunfig.client.toml` preloads `setup-dom.ts` and `setup-testing-library.ts`.
+- When adding new client component tests, place them under `app/src/client/` and run via `test:client`. Never add DOM preloads to the root `bunfig.toml`.
+
 ## Domain Knowledge
 
 Load these references when working in the relevant domain:
