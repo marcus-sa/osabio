@@ -532,7 +532,7 @@ export function AddMcpServerDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger render={trigger ? <>{trigger}</> : <Button size="sm">Add MCP Server</Button>} />
+      <DialogTrigger render={trigger ?? <Button size="sm">Add MCP Server</Button>} />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add MCP Server</DialogTitle>
