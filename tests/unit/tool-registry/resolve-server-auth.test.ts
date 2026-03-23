@@ -27,13 +27,13 @@ function makeFakeServer(overrides: Partial<McpServerRecord> = {}): McpServerReco
 }
 
 describe("resolveAuthForMcpServer", () => {
-  it("returns empty headers for auth_mode none", () => {
+  it("returns empty headers for auth_mode none", async () => {
     const server = makeFakeServer({ auth_mode: "none" });
-    const result = resolveAuthForMcpServer(server, TEST_KEY);
+    const result = await resolveAuthForMcpServer(server, TEST_KEY);
     expect(result).toEqual({});
   });
 
-  it("decrypts and returns headers for auth_mode static_headers", () => {
+  it("decrypts and returns headers for auth_mode static_headers", async () => {
     const encrypted = encryptHeaders(
       [{ name: "Authorization", value: "Bearer ghp_secret" }],
       TEST_KEY,
@@ -43,20 +43,20 @@ describe("resolveAuthForMcpServer", () => {
       static_headers: encrypted,
     });
 
-    const result = resolveAuthForMcpServer(server, TEST_KEY);
+    const result = await resolveAuthForMcpServer(server, TEST_KEY);
     expect(result).toEqual({ Authorization: "Bearer ghp_secret" });
   });
 
-  it("returns empty headers when static_headers mode has no stored headers", () => {
+  it("returns empty headers when static_headers mode has no stored headers", async () => {
     const server = makeFakeServer({
       auth_mode: "static_headers",
       // no static_headers field
     });
-    const result = resolveAuthForMcpServer(server, TEST_KEY);
+    const result = await resolveAuthForMcpServer(server, TEST_KEY);
     expect(result).toEqual({});
   });
 
-  it("decrypts multiple headers", () => {
+  it("decrypts multiple headers", async () => {
     const encrypted = encryptHeaders(
       [
         { name: "Authorization", value: "Bearer token123" },
@@ -69,7 +69,7 @@ describe("resolveAuthForMcpServer", () => {
       static_headers: encrypted,
     });
 
-    const result = resolveAuthForMcpServer(server, TEST_KEY);
+    const result = await resolveAuthForMcpServer(server, TEST_KEY);
     expect(result).toEqual({
       Authorization: "Bearer token123",
       "X-Custom-Key": "custom-value",

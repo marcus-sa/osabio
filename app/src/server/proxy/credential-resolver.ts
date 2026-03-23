@@ -12,7 +12,9 @@
  */
 import { RecordId, type Surreal } from "surrealdb";
 import { decryptSecret } from "../tool-registry/encryption";
+import { encryptSecret } from "../tool-registry/encryption";
 import { decryptHeaders, buildHeaderMap } from "../tool-registry/static-headers";
+import { refreshAccessToken } from "../tool-registry/oauth-flow";
 import type { AuthMethod, McpServerRecord } from "../tool-registry/types";
 
 // ---------------------------------------------------------------------------
@@ -96,23 +98,31 @@ export function buildAuthHeaders(
 }
 
 // ---------------------------------------------------------------------------
-// Pure: resolveAuthForMcpServer
+// Resolve Auth for MCP Server
 // ---------------------------------------------------------------------------
+
+/** Dependencies for resolveAuthForMcpServer when oauth mode needs DB + network. */
+export type McpServerAuthDeps = {
+  readonly surreal: Surreal;
+  readonly toolEncryptionKey: string;
+  readonly fetchFn?: typeof globalThis.fetch;
+};
 
 /**
  * Resolve auth headers for an MCP server based on its auth_mode.
  *
- * Pure function: no IO. Dispatches by auth_mode and decrypts static headers.
+ * Async because oauth mode requires DB reads and potentially a token refresh.
  *
  *   auth_mode "none"           -> {}
  *   auth_mode "static_headers" -> decrypt stored headers, return as plain map
- *   auth_mode "oauth"          -> TODO (step 01-06)
+ *   auth_mode "oauth"          -> load connected_account, refresh if expired, return Bearer header
  *   auth_mode "provider"       -> TODO (existing credential_provider flow)
  */
-export function resolveAuthForMcpServer(
+export async function resolveAuthForMcpServer(
   server: McpServerRecord,
   encryptionKey: string,
-): Record<string, string> {
+  deps?: McpServerAuthDeps,
+): Promise<Record<string, string>> {
   switch (server.auth_mode) {
     case "static_headers": {
       if (!server.static_headers || server.static_headers.length === 0) {
@@ -121,12 +131,137 @@ export function resolveAuthForMcpServer(
       const decrypted = decryptHeaders(server.static_headers, encryptionKey);
       return buildHeaderMap(decrypted);
     }
+    case "oauth": {
+      if (!server.oauth_account || !deps) {
+        return {};
+      }
+      return resolveOAuthHeaders(server, deps);
+    }
     case "none":
-    case "oauth":
     case "provider":
     default:
       return {};
   }
+}
+
+// ---------------------------------------------------------------------------
+// OAuth Header Resolution (internal)
+// ---------------------------------------------------------------------------
+
+/** Row shape when loading connected_account for oauth resolution. */
+type OAuthAccountRow = {
+  id: RecordId<"connected_account", string>;
+  status: string;
+  access_token_encrypted?: string;
+  refresh_token_encrypted?: string;
+  token_expires_at?: string | Date;
+  provider: RecordId<"credential_provider", string>;
+};
+
+/** Row shape for loading provider token_endpoint and client_id. */
+type OAuthProviderRow = {
+  token_url?: string;
+  client_id?: string;
+  client_secret_encrypted?: string;
+};
+
+/** Buffer in milliseconds: refresh tokens that expire within 60s. */
+const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
+
+async function resolveOAuthHeaders(
+  server: McpServerRecord,
+  deps: McpServerAuthDeps,
+): Promise<Record<string, string>> {
+  const { surreal, toolEncryptionKey, fetchFn } = deps;
+
+  // Load connected_account
+  const [accountRows] = await surreal.query<[OAuthAccountRow[]]>(
+    `SELECT id, status, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider FROM $acct;`,
+    { acct: server.oauth_account },
+  );
+  const account = (accountRows ?? [])[0];
+  if (!account || account.status !== "active" || !account.access_token_encrypted) {
+    return {};
+  }
+
+  // Check if token is expired or about to expire
+  const tokenNeedsRefresh = isTokenExpiredWithBuffer(account.token_expires_at);
+
+  if (tokenNeedsRefresh && account.refresh_token_encrypted) {
+    // Load provider for token_endpoint
+    const [providerRows] = await surreal.query<[OAuthProviderRow[]]>(
+      `SELECT token_url, client_id, client_secret_encrypted FROM $provider;`,
+      { provider: account.provider },
+    );
+    const provider = (providerRows ?? [])[0];
+
+    if (provider?.token_url) {
+      const refreshToken = decryptSecret(account.refresh_token_encrypted, toolEncryptionKey);
+      const clientSecret = provider.client_secret_encrypted
+        ? decryptSecret(provider.client_secret_encrypted, toolEncryptionKey)
+        : undefined;
+
+      try {
+        const tokenResult = await refreshAccessToken(
+          {
+            tokenEndpoint: provider.token_url,
+            refreshToken,
+            clientId: provider.client_id,
+            clientSecret,
+          },
+          fetchFn,
+        );
+
+        // Store new encrypted tokens
+        const newAccessTokenEncrypted = encryptSecret(tokenResult.access_token, toolEncryptionKey);
+        const expiresAt = tokenResult.expires_in
+          ? new Date(Date.now() + tokenResult.expires_in * 1000)
+          : undefined;
+
+        const updateParts = [
+          `access_token_encrypted = $newToken`,
+          `updated_at = time::now()`,
+        ];
+        const bindings: Record<string, unknown> = {
+          acct: account.id,
+          newToken: newAccessTokenEncrypted,
+        };
+
+        if (expiresAt) {
+          updateParts.push(`token_expires_at = $expiresAt`);
+          bindings.expiresAt = expiresAt;
+        }
+
+        if (tokenResult.refresh_token) {
+          const newRefreshEncrypted = encryptSecret(tokenResult.refresh_token, toolEncryptionKey);
+          updateParts.push(`refresh_token_encrypted = $newRefresh`);
+          bindings.newRefresh = newRefreshEncrypted;
+        }
+
+        await surreal.query(`UPDATE $acct SET ${updateParts.join(", ")};`, bindings);
+
+        return { Authorization: `Bearer ${tokenResult.access_token}` };
+      } catch {
+        // Refresh failed -- mark account as expired
+        await surreal.query(`UPDATE $acct SET status = 'expired', updated_at = time::now();`, {
+          acct: account.id,
+        });
+        return {};
+      }
+    }
+  }
+
+  // Token is still valid -- decrypt and return
+  const accessToken = decryptSecret(account.access_token_encrypted, toolEncryptionKey);
+  return { Authorization: `Bearer ${accessToken}` };
+}
+
+function isTokenExpiredWithBuffer(tokenExpiresAt?: string | Date): boolean {
+  if (!tokenExpiresAt) return false;
+  const expiresAt = tokenExpiresAt instanceof Date
+    ? tokenExpiresAt.getTime()
+    : new Date(tokenExpiresAt).getTime();
+  return expiresAt < (Date.now() + TOKEN_EXPIRY_BUFFER_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -366,5 +501,5 @@ async function refreshOAuth2Token(
   }
 }
 
-/** Import encrypt for token refresh updates. */
-import { encryptSecret as encryptSecretForUpdate } from "../tool-registry/encryption";
+/** Alias for the existing refreshOAuth2Token path that uses the top-level import. */
+const encryptSecretForUpdate = encryptSecret;

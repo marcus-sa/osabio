@@ -280,12 +280,112 @@ describe("Tokens encrypted and stored", () => {
 });
 
 describe("Token refresh on expiry", () => {
-  it.skip("automatically refreshes expired tokens before MCP connect", async () => {
-    // Given MCP server with expired access_token but valid refresh_token
-    // When credential resolver resolves auth for the server
-    // Then Brain calls token_endpoint with grant_type=refresh_token
-    // And new access_token is encrypted and stored
-    // And returned headers include the new Bearer token
+  it("automatically refreshes expired tokens before MCP connect", async () => {
+    const { baseUrl, surreal } = getRuntime();
+    const user = await createTestUserWithMcp(baseUrl, surreal, `ws-refresh-${crypto.randomUUID()}`);
+
+    // Given: MSW mock auth server with token endpoint that handles refresh_token
+    const mcpServerUrl = "https://mcp-refresh.example.com";
+    const authServerUrl = "https://auth-refresh.example.com";
+    const { msw } = setupMockMcpServer({ mcpServerUrl, authServerUrl });
+    msw.listen({ onUnhandledRequest: "bypass" });
+
+    try {
+      // Register an MCP server and complete OAuth flow to get tokens
+      const createRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers`,
+        { body: { name: "test-refresh-server", url: mcpServerUrl } },
+      );
+      expect(createRes.status).toBe(201);
+      const { id: serverId } = (await createRes.json()) as { id: string };
+
+      // Discover auth (creates credential_provider linked to server)
+      const discoverRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/discover-auth`,
+        { body: {} },
+      );
+      expect(discoverRes.status).toBe(200);
+
+      // Initiate authorization
+      const authorizeRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/${serverId}/authorize`,
+        { body: {} },
+      );
+      expect(authorizeRes.status).toBe(200);
+      const { state } = (await authorizeRes.json()) as { redirect_url: string; state: string };
+
+      // Complete OAuth callback to get initial tokens stored
+      const callbackRes = await user.mcpFetch(
+        `/api/workspaces/${user.workspaceId}/mcp-servers/oauth/callback`,
+        { body: { code: "mock-auth-code-refresh", state } },
+      );
+      expect(callbackRes.status).toBe(200);
+
+      // Verify initial tokens are stored
+      const serverAfterCallback = await getMcpServer(surreal, serverId);
+      expect(serverAfterCallback?.oauth_account).toBeDefined();
+      expect(serverAfterCallback?.auth_mode).toBe("oauth");
+
+      const { RecordId: SurrealRecordId } = await import("surrealdb");
+
+      // Read the connected_account to get its raw ID
+      const [accounts] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM connected_account WHERE workspace = $ws;`,
+        { ws: new SurrealRecordId("workspace", user.workspaceId) },
+      );
+      expect(accounts.length).toBeGreaterThanOrEqual(1);
+      const account = accounts[0];
+
+      // Store the old encrypted access token for comparison
+      const oldAccessTokenEncrypted = account.access_token_encrypted as string;
+
+      // Set token_expires_at to 5 minutes in the past (expired)
+      await surreal.query(
+        `UPDATE $acct SET token_expires_at = $expired;`,
+        {
+          acct: account.id,
+          expired: new Date(Date.now() - 5 * 60 * 1000),
+        },
+      );
+
+      // When: Call resolveAuthForMcpServer directly (the driving port for credential resolution)
+      const { resolveAuthForMcpServer } = await import(
+        "../../../app/src/server/proxy/credential-resolver"
+      );
+      const serverRecord = await getMcpServer(surreal, serverId);
+      const headers = await resolveAuthForMcpServer(
+        serverRecord as any,
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        { surreal, toolEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+      );
+
+      // Then: Headers contain a Bearer token (from refresh)
+      expect(headers).toBeDefined();
+      expect(headers.Authorization).toBeDefined();
+      expect(headers.Authorization).toMatch(/^Bearer mock-refreshed-token-/);
+
+      // And: The connected_account has updated tokens in DB
+      const [accountsAfter] = await surreal.query<[Array<Record<string, unknown>>]>(
+        `SELECT * FROM connected_account WHERE workspace = $ws;`,
+        { ws: new SurrealRecordId("workspace", user.workspaceId) },
+      );
+      expect(accountsAfter.length).toBeGreaterThanOrEqual(1);
+      const accountAfter = accountsAfter[0];
+
+      // The encrypted access token should have changed (new token from refresh)
+      expect(accountAfter.access_token_encrypted).toBeDefined();
+      expect(accountAfter.access_token_encrypted).not.toBe(oldAccessTokenEncrypted);
+
+      // token_expires_at should be in the future now (refreshed)
+      expect(accountAfter.token_expires_at).toBeDefined();
+      const newExpiresAt = new Date(accountAfter.token_expires_at as string);
+      expect(newExpiresAt.getTime()).toBeGreaterThan(Date.now());
+
+      // Status should still be active
+      expect(accountAfter.status).toBe("active");
+    } finally {
+      msw.close();
+    }
   }, 30_000);
 });
 

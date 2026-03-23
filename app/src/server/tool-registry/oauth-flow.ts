@@ -235,10 +235,61 @@ export function buildTokenRequest(params: TokenExchangeParams): {
 }
 
 // ---------------------------------------------------------------------------
-// PKCE Token Exchange (Effect)
+// Token Refresh (Effect)
 // ---------------------------------------------------------------------------
 
 type FetchFn = typeof globalThis.fetch;
+
+/**
+ * Refresh parameters for grant_type=refresh_token.
+ */
+export type RefreshTokenParams = {
+  tokenEndpoint: string;
+  refreshToken: string;
+  clientId?: string;
+  clientSecret?: string;
+};
+
+/**
+ * Refresh an access token using grant_type=refresh_token.
+ * Effect function -- fetch is injectable for testability.
+ */
+export async function refreshAccessToken(
+  params: RefreshTokenParams,
+  fetchFn: FetchFn = globalThis.fetch,
+): Promise<TokenResult> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: params.refreshToken,
+  });
+
+  if (params.clientId) {
+    body.set("client_id", params.clientId);
+  }
+  if (params.clientSecret) {
+    body.set("client_secret", params.clientSecret);
+  }
+
+  const response = await fetchFn(params.tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Token refresh failed (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as TokenResult;
+}
+
+// ---------------------------------------------------------------------------
+// PKCE Token Exchange (Effect)
+// ---------------------------------------------------------------------------
 
 /**
  * Exchange an authorization code for tokens using PKCE at the token endpoint.

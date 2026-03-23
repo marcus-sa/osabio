@@ -242,7 +242,10 @@ export async function discoverTools(
 
   // 1. Resolve auth headers for the server, then connect
   const authHeaders = deps.toolEncryptionKey
-    ? resolveAuthForMcpServer(server, deps.toolEncryptionKey)
+    ? await resolveAuthForMcpServer(server, deps.toolEncryptionKey, {
+        surreal: deps.surreal,
+        toolEncryptionKey: deps.toolEncryptionKey,
+      })
     : {};
 
   const connection = await deps.mcpClientFactory.connect(
