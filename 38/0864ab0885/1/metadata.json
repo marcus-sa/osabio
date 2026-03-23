@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "380864ab0885",
+  "session_id": "add8e15f-9ad6-4243-9e98-11a5390430c7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-23T09:58:55.771314Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/mcp-server-auth/11-static-headers.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c0b4fa463c9e",
+  "token_usage": {
+    "input_tokens": 119,
+    "cache_creation_tokens": 267829,
+    "cache_read_tokens": 6519298,
+    "output_tokens": 28781,
+    "api_call_count": 64
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-23T09:58:55.010905Z",
+    "agent_lines": 0,
+    "human_added": 117,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 117,
+    "agent_percentage": 0
+  }
+}

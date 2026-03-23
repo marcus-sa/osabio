@@ -3,7 +3,7 @@
   "checkpoint_id": "380864ab0885",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "tests/acceptance/mcp-server-auth/11-static-headers.test.ts"
   ],
@@ -14,13 +14,20 @@
       "context": "/38/0864ab0885/0/context.md",
       "content_hash": "/38/0864ab0885/0/content_hash.txt",
       "prompt": "/38/0864ab0885/0/prompt.txt"
+    },
+    {
+      "metadata": "/38/0864ab0885/1/metadata.json",
+      "transcript": "/38/0864ab0885/1/full.jsonl",
+      "context": "/38/0864ab0885/1/context.md",
+      "content_hash": "/38/0864ab0885/1/content_hash.txt",
+      "prompt": "/38/0864ab0885/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 119,
+    "cache_creation_tokens": 267829,
+    "cache_read_tokens": 6519298,
+    "output_tokens": 28781,
+    "api_call_count": 64
   }
 }
