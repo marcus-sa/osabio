@@ -29,6 +29,21 @@ export {
   type TestUserWithMcp,
 };
 
+/** Test encryption key (64 hex chars = 256 bits). */
+const TEST_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+/**
+ * Pre-configured acceptance suite for MCP server auth tests.
+ * Provides TOOL_ENCRYPTION_KEY so static header encryption works.
+ */
+export function setupMcpServerAuthSuite(suiteName: string) {
+  return setupAcceptanceSuite(suiteName, {
+    configOverrides: {
+      toolEncryptionKey: TEST_ENCRYPTION_KEY,
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // MSW Mock OAuth/MCP Server
 // ---------------------------------------------------------------------------

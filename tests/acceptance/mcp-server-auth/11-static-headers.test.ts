@@ -20,14 +20,14 @@
  */
 import { describe, expect, it, afterAll, beforeAll } from "bun:test";
 import {
-  setupAcceptanceSuite,
+  setupMcpServerAuthSuite,
   createTestUserWithMcp,
   seedMcpServer,
   getMcpServer,
   setupMockMcpServer,
 } from "./mcp-server-auth-test-kit";
 
-const getRuntime = setupAcceptanceSuite("mcp_server_auth_static_headers");
+const getRuntime = setupMcpServerAuthSuite("mcp_server_auth_static_headers");
 
 // ---------------------------------------------------------------------------
 // Walking Skeleton: Create MCP server with static headers

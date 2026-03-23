@@ -13,7 +13,10 @@ export type McpServerRow = {
   readonly url: string;
   readonly transport: string;
   readonly workspace: RecordId<"workspace", string>;
+  readonly auth_mode: string;
   readonly provider?: RecordId<"credential_provider", string>;
+  readonly static_headers?: Array<{ name: string; value_encrypted: string }>;
+  readonly oauth_account?: RecordId<"connected_account", string>;
   readonly last_status?: string;
   readonly last_error?: string;
   readonly server_info?: Record<string, unknown>;
@@ -52,6 +55,8 @@ export async function createMcpServer(
     name: string;
     url: string;
     transport: string;
+    authMode?: string;
+    staticHeaders?: Array<{ name: string; value_encrypted: string }>;
     providerRecord?: RecordId<"credential_provider", string>;
   },
 ): Promise<McpServerRow> {
@@ -62,6 +67,7 @@ export async function createMcpServer(
     name: input.name,
     url: input.url,
     transport: input.transport,
+    auth_mode: input.authMode ?? "none",
     workspace: workspaceRecord,
     tool_count: 0,
     created_at: new Date(),
@@ -69,6 +75,10 @@ export async function createMcpServer(
 
   if (input.providerRecord) {
     content.provider = input.providerRecord;
+  }
+
+  if (input.staticHeaders && input.staticHeaders.length > 0) {
+    content.static_headers = input.staticHeaders;
   }
 
   await surreal.query(`CREATE $server CONTENT $content;`, {

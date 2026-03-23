@@ -220,7 +220,14 @@ export type AttachGovernanceInput = {
 // ---------------------------------------------------------------------------
 
 export type McpTransport = "sse" | "streamable-http";
-export type McpServerStatus = "ok" | "error";
+export type McpServerStatus = "ok" | "error" | "auth_error";
+export type McpServerAuthMode = "none" | "static_headers" | "oauth" | "provider";
+
+/** Plaintext header entry from API input (value encrypted before storage). */
+export type HeaderEntry = { name: string; value: string };
+
+/** Encrypted header entry as stored in SurrealDB. */
+export type EncryptedHeaderEntry = { name: string; value_encrypted: string };
 
 /**
  * SurrealDB record shape for mcp_server.
@@ -231,7 +238,10 @@ export type McpServerRecord = {
   url: string;
   transport: McpTransport;
   workspace: RecordId<"workspace", string>;
+  auth_mode: McpServerAuthMode;
   provider?: RecordId<"credential_provider", string>;
+  static_headers?: EncryptedHeaderEntry[];
+  oauth_account?: RecordId<"connected_account", string>;
   last_status?: McpServerStatus;
   last_error?: string;
   server_info?: Record<string, unknown>;
@@ -262,6 +272,8 @@ export type AddMcpServerInput = {
   url: string;
   transport?: McpTransport;
   provider_id?: string;
+  auth_mode?: McpServerAuthMode;
+  static_headers?: HeaderEntry[];
 };
 
 // ---------------------------------------------------------------------------

@@ -27,8 +27,11 @@ import {
 } from "./server-queries";
 import { getProviderById } from "./queries";
 import { discoverTools } from "./discovery";
-import type { McpServerRecord } from "./types";
+import type { McpServerRecord, EncryptedHeaderEntry } from "./types";
+import { encryptSecret } from "./encryption";
 import { log } from "../telemetry/logger";
+
+const VALID_AUTH_MODES: ReadonlySet<string> = new Set(["none", "static_headers", "oauth", "provider"]);
 
 // ---------------------------------------------------------------------------
 // Response mapping -- DB record to API shape
@@ -39,6 +42,8 @@ type McpServerResponse = {
   name: string;
   url: string;
   transport: string;
+  auth_mode: string;
+  has_static_headers: boolean;
   tool_count: number;
   last_status?: string;
   last_error?: string;
@@ -57,6 +62,8 @@ function toMcpServerResponse(
     name: row.name,
     url: row.url,
     transport: row.transport,
+    auth_mode: row.auth_mode ?? "none",
+    has_static_headers: Array.isArray(row.static_headers) && row.static_headers.length > 0,
     tool_count: row.tool_count,
     created_at: row.created_at instanceof Date
       ? row.created_at.toISOString()
@@ -93,6 +100,8 @@ type CreateMcpServerInput = {
   url?: string;
   transport?: string;
   provider_id?: string;
+  auth_mode?: string;
+  static_headers?: Array<{ name?: string; value?: string }>;
 };
 
 // ---------------------------------------------------------------------------
@@ -153,6 +162,34 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       providerName = (provider as unknown as { display_name?: string }).display_name;
     }
 
+    // Validate auth_mode
+    const authMode = body.auth_mode ?? "none";
+    if (!VALID_AUTH_MODES.has(authMode)) {
+      return jsonError(`Invalid auth_mode: must be one of none, static_headers, oauth, provider`, 400);
+    }
+
+    // Encrypt static headers if provided
+    let encryptedHeaders: EncryptedHeaderEntry[] | undefined;
+    if (authMode === "static_headers") {
+      const encryptionKey = deps.config.toolEncryptionKey;
+      if (!encryptionKey) {
+        log.error("mcp-server.create", "TOOL_ENCRYPTION_KEY not configured", undefined, { workspaceId });
+        return jsonError("Server encryption not configured", 500);
+      }
+      if (!Array.isArray(body.static_headers) || body.static_headers.length === 0) {
+        return jsonError("static_headers required when auth_mode is static_headers", 400);
+      }
+      encryptedHeaders = body.static_headers.map((header) => {
+        if (!header.name || !header.value) {
+          throw new HttpError(400, "Each static header must have name and value");
+        }
+        return {
+          name: header.name,
+          value_encrypted: encryptSecret(header.value, encryptionKey),
+        };
+      });
+    }
+
     // Check duplicate name
     const duplicate = await serverNameExists(deps.surreal, workspaceRecord, body.name);
     if (duplicate) {
@@ -164,6 +201,8 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       name: body.name,
       url: urlString,
       transport,
+      authMode,
+      staticHeaders: encryptedHeaders,
       providerRecord,
     });
 
