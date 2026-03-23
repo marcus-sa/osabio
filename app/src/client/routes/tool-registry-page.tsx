@@ -2,6 +2,9 @@ import { useCallback } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
+import { ProviderTable } from "../components/tool-registry/ProviderTable";
+import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
+import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
 import { useTools } from "../hooks/use-tools";
@@ -101,9 +104,44 @@ export function ToolRegistryPage() {
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
   const { tools } = useTools();
-  const { providers } = useProviders();
+  const { providers, refresh: refreshProviders } = useProviders();
   const { accounts } = useAccounts();
   const { mcpServers } = useMcpServers();
+
+  const handleCreateProvider = useCallback(
+    async (formData: CreateProviderFormData): Promise<{ error?: string }> => {
+      try {
+        const response = await fetch(`/api/workspaces/default/providers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          return { error: body || "Failed to create provider" };
+        }
+        refreshProviders();
+        return {};
+      } catch {
+        return { error: "Network error" };
+      }
+    },
+    [refreshProviders],
+  );
+
+  const handleDeleteProvider = useCallback(
+    async (providerId: string) => {
+      try {
+        await fetch(`/api/workspaces/default/providers/${providerId}`, {
+          method: "DELETE",
+        });
+        refreshProviders();
+      } catch {
+        // silently fail for now
+      }
+    },
+    [refreshProviders],
+  );
 
   const vm = deriveToolRegistryViewModel({
     tabParam: search.tab,
@@ -144,10 +182,13 @@ export function ToolRegistryPage() {
           )}
         </TabsContent>
         <TabsContent value="providers">
+          <div className="flex justify-end py-2">
+            <CreateProviderDialog onSubmit={handleCreateProvider} />
+          </div>
           {vm.showEmptyState && vm.activeTab === "providers" ? (
             <EmptyState message="No credential providers configured." cta={vm.emptyStateCta} />
           ) : (
-            <p className="py-4 text-sm text-muted-foreground">Providers list placeholder</p>
+            <ProviderTable providers={providers} onDelete={handleDeleteProvider} />
           )}
         </TabsContent>
         <TabsContent value="accounts">
