@@ -20,7 +20,7 @@ import { createPresenceHandler } from "./method-handlers/presence";
 import { createModelListHandler } from "./method-handlers/models";
 import { createToolsCatalogHandler } from "./method-handlers/tools-catalog";
 import { createConfigGetHandler } from "./method-handlers/config";
-import { createSessionsListHandler, createSessionsPatchHandler } from "./method-handlers/sessions";
+import { createSessionsListHandler, createSessionsPatchHandler, createSessionsHistoryHandler } from "./method-handlers/sessions";
 import { createAgentStatusHandler, createAgentWaitHandler } from "./method-handlers/agent-status";
 import { mapStreamEventToGatewayEvent } from "./event-adapter";
 import { createPresenceRegistry } from "./presence-registry";
@@ -80,6 +80,7 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
   const configGetHandler = createConfigGetHandler();
   const sessionsListHandler = createSessionsListHandler();
   const sessionsPatchHandler = createSessionsPatchHandler();
+  const sessionsHistoryHandler = createSessionsHistoryHandler();
   const agentStatusHandler = createAgentStatusHandler();
   const agentWaitHandler = createAgentWaitHandler();
 
@@ -94,6 +95,7 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
     "config.get": configGetHandler,
     "sessions.list": sessionsListHandler,
     "sessions.patch": sessionsPatchHandler,
+    "sessions.history": sessionsHistoryHandler,
   };
 }
 

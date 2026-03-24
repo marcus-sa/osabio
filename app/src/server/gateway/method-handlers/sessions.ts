@@ -1,5 +1,5 @@
 /**
- * Session management handlers -- sessions.list and sessions.patch.
+ * Session management handlers -- sessions.list, sessions.patch, sessions.history.
  *
  * Pure handlers that delegate to GatewayDeps ports for all DB access.
  * No direct IO imports.
@@ -88,6 +88,47 @@ export function createSessionsPatchHandler(): MethodHandler {
     };
 
     const result = await deps.patchSession(patchParams.runId, patch);
+
+    return {
+      ok: true,
+      payload: result,
+    };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// sessions.history — returns hierarchical trace tree for a completed session
+// ---------------------------------------------------------------------------
+
+type SessionsHistoryParams = {
+  readonly runId?: string;
+};
+
+export function createSessionsHistoryHandler(): MethodHandler {
+  return async (connection, params, deps) => {
+    if (!connection.workspaceId || !connection.identityId) {
+      return {
+        ok: false,
+        error: {
+          code: "not_authenticated",
+          message: "Connection must be authenticated to view session history",
+        },
+      };
+    }
+
+    const historyParams = (params ?? {}) as SessionsHistoryParams;
+
+    if (!historyParams.runId) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_frame",
+          message: "sessions.history requires a 'runId' parameter",
+        },
+      };
+    }
+
+    const result = await deps.getSessionHistory(historyParams.runId);
 
     return {
       ok: true,

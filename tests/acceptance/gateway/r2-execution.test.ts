@@ -200,7 +200,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-7: sessions.history returns trace tree (AC-2.4)
-  it.skip("R2-7: sessions.history returns hierarchical trace", async () => {
+  it("R2-7: sessions.history returns hierarchical trace", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 

@@ -277,6 +277,20 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       // Walking skeleton: emit simulated agent events asynchronously.
       // In production, this will be replaced by real orchestrator event streaming.
       setTimeout(async () => {
+        // Create a trace record so sessions.history has data to return
+        const traceId = crypto.randomUUID();
+        const traceRecord = new RecordId("trace", traceId);
+        await deps.surreal.query(
+          `CREATE $traceRec CONTENT {
+            type: "tool_call",
+            session: $sess,
+            tool_name: "mock_tool",
+            duration_ms: 10,
+            created_at: time::now()
+          };`,
+          { traceRec: traceRecord, sess: sessionRecord },
+        );
+
         sessionEventBus.emit(sessionId, {
           type: "agent_token",
           sessionId,
@@ -338,7 +352,65 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ...(row.ended_at ? { endedAt: typeof row.ended_at === "string" ? row.ended_at : new Date(row.ended_at).toISOString() } : {}),
       }));
     },
-    getSessionHistory: async () => ({ runId: "", trace: [] }),
+    getSessionHistory: async (runId) => {
+      const sess = new RecordId("agent_session", runId);
+      const [rows] = await deps.surreal.query<[Array<{
+        id: RecordId;
+        type: string;
+        parent_trace?: RecordId;
+        tool_name?: string;
+        duration_ms?: number;
+        model?: string;
+        input_tokens?: number;
+        output_tokens?: number;
+        cost_usd?: number;
+        created_at: string;
+      }>]>(
+        "SELECT id, type, parent_trace, tool_name, duration_ms, model, input_tokens, output_tokens, cost_usd, created_at FROM trace WHERE session = $sess ORDER BY created_at;",
+        { sess },
+      );
+
+      // Build hierarchical tree from flat rows using parent_trace references
+      type FlatNode = (typeof rows)[number];
+      const nodeMap = new Map<string, { node: FlatNode; children: FlatNode[] }>();
+
+      // First pass: index all nodes
+      for (const row of rows) {
+        const nodeId = row.id.id as string;
+        nodeMap.set(nodeId, { node: row, children: [] });
+      }
+
+      // Second pass: wire children to parents
+      const rootNodes: FlatNode[] = [];
+      for (const row of rows) {
+        const parentId = row.parent_trace?.id as string | undefined;
+        if (parentId && nodeMap.has(parentId)) {
+          nodeMap.get(parentId)!.children.push(row);
+        } else {
+          rootNodes.push(row);
+        }
+      }
+
+      // Recursive builder
+      const buildTree = (flat: FlatNode): import("../gateway/types").TraceNode => {
+        const nodeId = flat.id.id as string;
+        const entry = nodeMap.get(nodeId)!;
+        return {
+          id: nodeId,
+          type: flat.type,
+          ...(flat.tool_name ? { toolName: flat.tool_name } : {}),
+          ...(flat.duration_ms !== undefined ? { durationMs: flat.duration_ms } : {}),
+          ...(flat.model ? { model: flat.model } : {}),
+          ...(flat.input_tokens !== undefined ? { inputTokens: flat.input_tokens } : {}),
+          ...(flat.output_tokens !== undefined ? { outputTokens: flat.output_tokens } : {}),
+          ...(flat.cost_usd !== undefined ? { costUsd: flat.cost_usd } : {}),
+          children: entry.children.map(buildTree),
+          createdAt: typeof flat.created_at === "string" ? flat.created_at : new Date(flat.created_at).toISOString(),
+        };
+      };
+
+      return { runId, trace: rootNodes.map(buildTree) };
+    },
     patchSession: async (runId, patch) => {
       // Verify session exists
       const sessionRecord = new RecordId("agent_session", runId);

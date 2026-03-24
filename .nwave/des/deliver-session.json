@@ -1,1 +1,7 @@
-{"feature_id":"openclaw-gateway","started_at":"2026-03-24T14:28:32Z"}
+{
+  "feature_id": "openclaw-gateway",
+  "started_at": "2026-03-24T18:00:00Z",
+  "phase": "deliver",
+  "status": "in_progress",
+  "note": "Phase 2 extension — implementing 15 deferred scenarios (R1-5, R1-7, R2-1 through R2-11, R3-1, R3-2, R3-4, R3-6)"
+}
