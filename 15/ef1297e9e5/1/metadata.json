@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "15ef1297e9e5",
+  "session_id": "3961f28f-307a-4394-8ce5-da27168e3a02",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T04:15:06.313009Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/tool-registry/AccountTable.test.tsx",
+    "app/src/client/components/tool-registry/DiscoveryReviewPanel.test.tsx",
+    "app/src/client/components/tool-registry/GrantTable.test.tsx",
+    "app/src/client/components/tool-registry/ProviderTable.test.tsx",
+    "app/src/client/components/tool-registry/ToolTable.test.tsx",
+    "app/src/client/components/tool-registry/_rtl-smoke.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f45a17ce442f",
+  "token_usage": {
+    "input_tokens": 635,
+    "cache_creation_tokens": 1994165,
+    "cache_read_tokens": 39127324,
+    "output_tokens": 150926,
+    "api_call_count": 346
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T04:15:04.252154Z",
+    "agent_lines": 0,
+    "human_added": 1575,
+    "human_modified": 6,
+    "human_removed": 0,
+    "total_committed": 1575,
+    "agent_percentage": 0
+  }
+}
