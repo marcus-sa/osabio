@@ -13,6 +13,7 @@ export type McpServerRow = {
   readonly url: string;
   readonly transport: string;
   readonly workspace: RecordId<"workspace", string>;
+  readonly status: string;
   readonly auth_mode: string;
   readonly provider?: RecordId<"credential_provider", string>;
   readonly static_headers?: Array<{ name: string; value_encrypted: string }>;
@@ -39,7 +40,7 @@ export async function serverNameExists(
   name: string,
 ): Promise<boolean> {
   const results = await surreal.query<[Array<{ id: RecordId }>]>(
-    `SELECT id FROM mcp_server WHERE workspace = $ws AND name = $name LIMIT 1;`,
+    `SELECT id FROM mcp_server WHERE workspace = $ws AND name = $name AND status = "active" LIMIT 1;`,
     { ws: workspaceRecord, name },
   );
   return (results[0] ?? []).length > 0;
@@ -67,6 +68,7 @@ export async function createMcpServer(
     name: input.name,
     url: input.url,
     transport: input.transport,
+    status: "active",
     auth_mode: input.authMode ?? "none",
     workspace: workspaceRecord,
     tool_count: 0,
@@ -100,7 +102,7 @@ export async function listMcpServers(
   workspaceRecord: RecordId<"workspace", string>,
 ): Promise<McpServerRow[]> {
   const results = await surreal.query<[McpServerRow[]]>(
-    `SELECT * FROM mcp_server WHERE workspace = $ws ORDER BY created_at DESC;`,
+    `SELECT * FROM mcp_server WHERE workspace = $ws AND status = "active" ORDER BY created_at DESC;`,
     { ws: workspaceRecord },
   );
   return results[0] ?? [];
@@ -181,50 +183,84 @@ export async function updateMcpServerProvider(
 }
 
 /**
- * Delete an mcp_server, disable linked tools, and cascade-delete the linked
- * credential_provider + connected_accounts if no other server references
- * the same provider.
+ * Soft-delete an mcp_server: set status to "disabled" and disable all linked tools.
+ * Preserves the server record, tool records, can_use grants, and governs_tool edges
+ * so they can be re-enabled if the server is re-added.
  *
- * Returns true if the server existed and was deleted.
+ * Returns true if the server existed and was disabled.
  */
-export async function deleteMcpServer(
+export async function disableMcpServer(
   surreal: Surreal,
   serverRecord: RecordId<"mcp_server", string>,
   workspaceRecord: RecordId<"workspace", string>,
 ): Promise<boolean> {
-  // Check existence and capture provider reference before deletion
   const existing = await getMcpServerById(surreal, serverRecord, workspaceRecord);
   if (!existing) {
     return false;
   }
 
-  const providerRef = existing.provider;
-
-  // Disable all tools linked to this server, then delete the server
   await surreal.query(
-    `UPDATE mcp_tool SET status = "disabled" WHERE source_server = $server;
-     DELETE $server;`,
+    `UPDATE $server SET status = "disabled";
+     UPDATE mcp_tool SET status = "disabled" WHERE source_server = $server;`,
     { server: serverRecord },
   );
 
-  // Cascade-delete provider if no other server references it
-  if (providerRef) {
-    const [otherServers] = await surreal.query<[Array<{ id: RecordId }>]>(
-      `SELECT id FROM mcp_server WHERE provider = $provider LIMIT 1;`,
-      { provider: providerRef },
-    );
+  return true;
+}
 
-    if ((otherServers ?? []).length === 0) {
-      // Orphaned provider — delete connected_accounts first, then the provider
-      await surreal.query(
-        `DELETE connected_account WHERE provider = $provider;
-         DELETE $provider;`,
-        { provider: providerRef },
-      );
-    }
+/**
+ * Find a disabled mcp_server with the same URL in the workspace.
+ * Used during server creation to re-enable a previously disabled server.
+ */
+export async function findDisabledServerByUrl(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  url: string,
+): Promise<McpServerRow | undefined> {
+  const results = await surreal.query<[McpServerRow[]]>(
+    `SELECT * FROM mcp_server WHERE workspace = $ws AND url = $url AND status = "disabled" LIMIT 1;`,
+    { ws: workspaceRecord, url },
+  );
+  return (results[0] ?? [])[0];
+}
+
+/**
+ * Re-enable a previously disabled mcp_server.
+ * Updates the server's name, transport, auth config, and sets status back to "active".
+ * Does NOT re-enable tools — that happens via discovery/sync.
+ */
+export async function reEnableMcpServer(
+  surreal: Surreal,
+  serverRecord: RecordId<"mcp_server", string>,
+  input: {
+    name: string;
+    transport: string;
+    authMode?: string;
+    staticHeaders?: Array<{ name: string; value_encrypted: string }>;
+    providerRecord?: RecordId<"credential_provider", string>;
+  },
+): Promise<McpServerRow> {
+  const content: Record<string, unknown> = {
+    status: "active",
+    name: input.name,
+    transport: input.transport,
+    auth_mode: input.authMode ?? "none",
+  };
+
+  if (input.providerRecord) {
+    content.provider = input.providerRecord;
   }
 
-  return true;
+  if (input.staticHeaders && input.staticHeaders.length > 0) {
+    content.static_headers = input.staticHeaders;
+  }
+
+  const results = await surreal.query<[McpServerRow[]]>(
+    `UPDATE $server MERGE $content RETURN AFTER;`,
+    { server: serverRecord, content },
+  );
+
+  return (results[0] ?? [])[0]!;
 }
 
 /**

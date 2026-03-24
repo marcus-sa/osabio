@@ -758,6 +758,8 @@ export async function seedMcpServer(
     name: options.name,
     url: options.url,
     transport: options.transport ?? "streamable-http",
+    status: "active",
+    auth_mode: "none",
     workspace: workspaceRecord,
     last_status: options.lastStatus ?? "ok",
     tool_count: options.toolCount ?? 0,

@@ -1366,6 +1366,8 @@ DEFINE FIELD url ON mcp_server TYPE string;
 DEFINE FIELD transport ON mcp_server TYPE string DEFAULT "streamable-http"
   ASSERT $value IN ["streamable-http", "sse"];
 DEFINE FIELD workspace ON mcp_server TYPE record<workspace>;
+DEFINE FIELD status ON mcp_server TYPE string DEFAULT "active"
+  ASSERT $value IN ["active", "disabled"];
 DEFINE FIELD provider ON mcp_server TYPE option<record<credential_provider>>;
 DEFINE FIELD auth_mode ON mcp_server TYPE string DEFAULT "none"
   ASSERT $value IN ["none", "static_headers", "oauth", "provider"];
@@ -1385,6 +1387,7 @@ DEFINE FIELD tool_count ON mcp_server TYPE int DEFAULT 0;
 DEFINE FIELD created_at ON mcp_server TYPE datetime DEFAULT time::now();
 DEFINE INDEX idx_mcp_server_workspace ON mcp_server FIELDS workspace;
 DEFINE INDEX idx_mcp_server_workspace_name ON mcp_server FIELDS workspace, name UNIQUE;
+DEFINE INDEX idx_mcp_server_workspace_status ON mcp_server FIELDS workspace, status;
 
 -- mcp_tool: Tool definitions registered in a workspace
 DEFINE TABLE mcp_tool SCHEMAFULL;

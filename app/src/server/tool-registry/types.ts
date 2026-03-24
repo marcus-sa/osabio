@@ -243,6 +243,7 @@ export type McpServerRecord = {
   url: string;
   transport: McpTransport;
   workspace: RecordId<"workspace", string>;
+  status: "active" | "disabled";
   auth_mode: McpServerAuthMode;
   provider?: RecordId<"credential_provider", string>;
   static_headers?: EncryptedHeaderEntry[];

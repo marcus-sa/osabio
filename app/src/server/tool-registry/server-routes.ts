@@ -22,7 +22,9 @@ import {
   createMcpServer,
   listMcpServers,
   getMcpServerById,
-  deleteMcpServer,
+  disableMcpServer,
+  findDisabledServerByUrl,
+  reEnableMcpServer,
   updateMcpServerHeaders,
   clearMcpServerHeaders,
   updateMcpServerProvider,
@@ -65,6 +67,7 @@ type McpServerResponse = {
   name: string;
   url: string;
   transport: string;
+  status: string;
   auth_mode: string;
   has_static_headers: boolean;
   tool_count: number;
@@ -85,6 +88,7 @@ function toMcpServerResponse(
     name: row.name,
     url: row.url,
     transport: row.transport,
+    status: row.status ?? "active",
     auth_mode: row.auth_mode ?? "none",
     has_static_headers: Array.isArray(row.static_headers) && row.static_headers.length > 0,
     tool_count: row.tool_count,
@@ -220,7 +224,30 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       );
     }
 
-    // Check duplicate name
+    // Re-enable: check for a previously disabled server with the same URL.
+    // This preserves existing tool records, grants, and governance edges.
+    const disabledServer = await findDisabledServerByUrl(deps.surreal, workspaceRecord, urlString);
+    if (disabledServer) {
+      const row = await reEnableMcpServer(deps.surreal, disabledServer.id, {
+        name: body.name,
+        transport,
+        authMode,
+        staticHeaders: encryptedHeaders,
+        providerRecord,
+      });
+
+      const response = toMcpServerResponse(row, providerName) as Record<string, unknown>;
+      response.re_enabled = true;
+
+      // Trigger sync to re-enable matching tools from the server
+      if (authMode !== "oauth") {
+        triggerAutoSync(row as unknown as McpServerRecord);
+      }
+
+      return jsonResponse(response, 200);
+    }
+
+    // Check duplicate name (only among active servers)
     const duplicate = await serverNameExists(deps.surreal, workspaceRecord, body.name);
     if (duplicate) {
       return jsonError(`MCP server "${body.name}" already exists in this workspace`, 409);
@@ -467,13 +494,13 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
 
     const serverRecord = new RecordId("mcp_server", serverId);
-    const deleted = await deleteMcpServer(deps.surreal, serverRecord, workspaceRecord);
+    const disabled = await disableMcpServer(deps.surreal, serverRecord, workspaceRecord);
 
-    if (!deleted) {
+    if (!disabled) {
       return jsonError("MCP server not found", 404);
     }
 
-    return jsonResponse({ deleted: true }, 200);
+    return jsonResponse({ disabled: true }, 200);
   }
 
   /**
