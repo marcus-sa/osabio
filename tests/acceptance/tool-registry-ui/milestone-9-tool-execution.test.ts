@@ -109,7 +109,7 @@ describe("Proxy executes integration tool calls on upstream MCP server", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create a test issue" }],
     });
 
@@ -163,7 +163,7 @@ describe("Proxy handles multi-turn tool use loops", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "List issues and comment" }],
     });
 
@@ -197,7 +197,7 @@ describe("Proxy handles multi-turn tool use loops", () => {
     }));
     mockAnthropic.reset(infiniteToolUse);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Keep creating issues" }],
     });
 
@@ -251,7 +251,7 @@ describe("Tool execution error handling", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
     });
 
@@ -282,7 +282,7 @@ describe("Tool execution error handling", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
     });
 
@@ -332,7 +332,7 @@ describe("Tool governance is checked before execution", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
     });
 
@@ -383,7 +383,7 @@ describe("MCP connections are request-scoped", () => {
       },
     ]);
 
-    const res = await sendProxyRequest(baseUrl, agent, {
+    const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "List and create" }],
     });
 

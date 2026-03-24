@@ -492,15 +492,15 @@ export { seedProxyToken };
 // ---------------------------------------------------------------------------
 
 /**
- * Send a request through the LLM proxy with header-based identity (direct mode).
- * Uses X-Brain-Workspace + X-Brain-Identity headers for identity resolution
- * and the client-provided x-api-key for upstream Anthropic auth.
+ * Send a request through the LLM proxy with proxy token auth.
+ * Seeds a proxy_token on first call per user (cached on the user object).
  *
  * This is the driving port for tool injection tests (step 7.5) and
  * tool interception tests (step 8.5).
  */
 export async function sendProxyRequestWithIdentity(
   baseUrl: string,
+  surreal: Surreal,
   user: TestUserWithMcp,
   options: {
     messages: Array<{ role: string; content: string }>;
@@ -511,6 +511,12 @@ export async function sendProxyRequestWithIdentity(
     apiKey?: string;
   },
 ): Promise<Response> {
+  const cached = (user as unknown as { _proxyToken?: string })._proxyToken;
+  const proxyToken = cached ?? await seedProxyToken(surreal, user.identityId, user.workspaceId);
+  if (!cached) {
+    (user as unknown as { _proxyToken?: string })._proxyToken = proxyToken;
+  }
+
   const body = JSON.stringify({
     model: options.model ?? "claude-haiku-4-5-20251001",
     max_tokens: options.maxTokens ?? 100,
@@ -519,17 +525,14 @@ export async function sendProxyRequestWithIdentity(
     ...(options.tools ? { tools: options.tools } : {}),
   });
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "anthropic-version": "2023-06-01",
-    "x-api-key": options.apiKey ?? "test-api-key",
-    "X-Brain-Workspace": user.workspaceId,
-    "X-Brain-Identity": user.identityId,
-  };
-
   return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": options.apiKey ?? "test-api-key",
+      "X-Brain-Auth": proxyToken,
+    },
     body,
   });
 }
