@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1f8f6eb3520e",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+    "tests/acceptance/tool-registry/02-proxy-tool-injection.test.ts",
+    "tests/acceptance/tool-registry/03-brain-native-routing.test.ts",
+    "tests/acceptance/tool-registry/04-tool-call-tracing.test.ts",
+    "tests/acceptance/tool-registry/tool-registry-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1f/8f6eb3520e/0/metadata.json",
+      "transcript": "/1f/8f6eb3520e/0/full.jsonl",
+      "context": "/1f/8f6eb3520e/0/context.md",
+      "content_hash": "/1f/8f6eb3520e/0/content_hash.txt",
+      "prompt": "/1f/8f6eb3520e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
