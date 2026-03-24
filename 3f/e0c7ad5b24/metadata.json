@@ -3,7 +3,7 @@
   "checkpoint_id": "3fe0c7ad5b24",
   "strategy": "manual-commit",
   "branch": "marcus-sa/openclaw-gateway",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/server/gateway/identity-bridge.ts",
     "app/src/server/gateway/index.ts",
@@ -20,13 +20,20 @@
       "context": "/3f/e0c7ad5b24/0/context.md",
       "content_hash": "/3f/e0c7ad5b24/0/content_hash.txt",
       "prompt": "/3f/e0c7ad5b24/0/prompt.txt"
+    },
+    {
+      "metadata": "/3f/e0c7ad5b24/1/metadata.json",
+      "transcript": "/3f/e0c7ad5b24/1/full.jsonl",
+      "context": "/3f/e0c7ad5b24/1/context.md",
+      "content_hash": "/3f/e0c7ad5b24/1/content_hash.txt",
+      "prompt": "/3f/e0c7ad5b24/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 3343,
+    "cache_creation_tokens": 183313,
+    "cache_read_tokens": 16475485,
+    "output_tokens": 40008,
+    "api_call_count": 106
   }
 }
