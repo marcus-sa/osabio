@@ -32,6 +32,10 @@ function toToolListItem(row: ToolWithCountsRow): ToolListItem {
     status: row.status as ToolListItem["status"],
     grant_count: row.grant_count,
     governance_count: row.governance_count,
+    source_server_id: row.source_server
+      ? (row.source_server.id as string)
+      : undefined,
+    source_server_name: row.source_server_name,
     created_at: row.created_at instanceof Date
       ? row.created_at.toISOString()
       : String(row.created_at),

@@ -11,6 +11,7 @@ import {
   inferRiskLevel,
   computeSyncActions,
   filterBySelection,
+  toRemoteTools,
   type RemoteTool,
   type ExistingToolRecord,
 } from "../../../app/src/server/tool-registry/discovery";
@@ -120,6 +121,38 @@ describe("computeSyncActions", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].action).toBe("update");
+  });
+
+  it("marks tools with different output_schema as update", () => {
+    const outputSchema = { type: "object", properties: { result: { type: "string" } } };
+    const remoteTools = [makeRemoteTool({ outputSchema })];
+    const existingTools = [makeExistingTool()];
+
+    const result = computeSyncActions(remoteTools, existingTools);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe("update");
+    expect(result[0].output_schema).toEqual(outputSchema);
+  });
+
+  it("propagates output_schema from remote tools to sync details", () => {
+    const outputSchema = { type: "object", properties: { id: { type: "string" } } };
+    const remoteTools = [makeRemoteTool({ name: "tool.with_output", outputSchema })];
+
+    const result = computeSyncActions(remoteTools, []);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe("create");
+    expect(result[0].output_schema).toEqual(outputSchema);
+  });
+
+  it("preserves undefined output_schema when remote tool has none", () => {
+    const remoteTools = [makeRemoteTool({ name: "tool.no_output" })];
+
+    const result = computeSyncActions(remoteTools, []);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].output_schema).toBeUndefined();
   });
 
   it("marks local-only tools as disable", () => {
@@ -242,5 +275,66 @@ describe("filterBySelection", () => {
   it("returns empty array when no tools match selection", () => {
     const result = filterBySelection(tools, ["nonexistent.tool"]);
     expect(result).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toRemoteTools
+// ---------------------------------------------------------------------------
+
+describe("toRemoteTools", () => {
+  it("maps outputSchema from MCP tool list result", () => {
+    const outputSchema = { type: "object", properties: { id: { type: "string" } } };
+    const toolListResult = {
+      tools: [
+        {
+          name: "create_issue",
+          description: "Create an issue",
+          inputSchema: { type: "object", properties: {} },
+          outputSchema,
+          annotations: { readOnlyHint: false },
+        },
+      ],
+    };
+
+    const result = toRemoteTools(toolListResult as never);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].outputSchema).toEqual(outputSchema);
+  });
+
+  it("sets outputSchema to undefined when MCP tool has none", () => {
+    const toolListResult = {
+      tools: [
+        {
+          name: "list_repos",
+          description: "List repos",
+          inputSchema: { type: "object" },
+        },
+      ],
+    };
+
+    const result = toRemoteTools(toolListResult as never);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].outputSchema).toBeUndefined();
+  });
+
+  it("maps annotations from MCP tool list result", () => {
+    const toolListResult = {
+      tools: [
+        {
+          name: "delete_repo",
+          description: "Delete a repo",
+          inputSchema: { type: "object" },
+          annotations: { destructiveHint: true },
+        },
+      ],
+    };
+
+    const result = toRemoteTools(toolListResult as never);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].annotations).toEqual({ destructiveHint: true });
   });
 });

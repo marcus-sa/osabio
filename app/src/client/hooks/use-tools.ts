@@ -11,6 +11,8 @@ export type ToolListItem = {
   grant_count: number;
   governance_count: number;
   provider_name: string;
+  source_server_id?: string;
+  source_server_name?: string;
   created_at: string;
 };
 

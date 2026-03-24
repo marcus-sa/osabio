@@ -61,6 +61,8 @@ const MOCK_TOOLS: ToolListItem[] = [
     grant_count: 1,
     governance_count: 0,
     provider_name: "GitHub OAuth",
+    source_server_id: "srv-1",
+    source_server_name: "github-mcp",
     created_at: "2026-01-01T00:00:00Z",
   },
 ];
@@ -225,14 +227,14 @@ afterAll(() => server.close());
 // ---------------------------------------------------------------------------
 
 describe("deriveToolRegistryViewModel", () => {
-  it("defaults to tools tab when no tab param", () => {
+  it("defaults to servers tab when no tab param", () => {
     const vm = deriveToolRegistryViewModel({
       toolsCount: 3,
       providersCount: 1,
       accountsCount: 2,
       mcpServersCount: 1,
     });
-    expect(vm.activeTab).toBe("tools");
+    expect(vm.activeTab).toBe("servers");
   });
 
   it("selects the tab matching tabParam", () => {
@@ -246,7 +248,7 @@ describe("deriveToolRegistryViewModel", () => {
     expect(vm.activeTab).toBe("servers");
   });
 
-  it("falls back to tools for invalid tabParam", () => {
+  it("falls back to servers for invalid tabParam", () => {
     const vm = deriveToolRegistryViewModel({
       tabParam: "bogus",
       toolsCount: 0,
@@ -254,7 +256,7 @@ describe("deriveToolRegistryViewModel", () => {
       accountsCount: 0,
       mcpServersCount: 0,
     });
-    expect(vm.activeTab).toBe("tools");
+    expect(vm.activeTab).toBe("servers");
   });
 
   it("formats tab labels with counts", () => {
@@ -542,6 +544,5 @@ describe("ToolRegistryPage tab navigation", () => {
     expect(screen.getByRole("tab", { name: /tools/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /providers/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /accounts/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /access/i })).toBeInTheDocument();
   });
 });

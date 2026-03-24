@@ -5,13 +5,11 @@ import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
 import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
 import { ToolTable, type ToolTableFilters } from "../components/tool-registry/ToolTable";
-import { GrantTable } from "../components/tool-registry/GrantTable";
 import { McpServerSection, type AddMcpServerFormData } from "../components/tool-registry/McpServerSection";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
 import { useTools } from "../hooks/use-tools";
-import type { GrantListItem } from "../hooks/use-grants";
 import { useMcpServers } from "../hooks/use-mcp-servers";
 import { useWorkspaceState } from "../stores/workspace-state";
 
@@ -19,7 +17,7 @@ import { useWorkspaceState } from "../stores/workspace-state";
 // Tab definitions
 // ---------------------------------------------------------------------------
 
-export type ToolRegistryTabId = "servers" | "tools" | "providers" | "accounts" | "access";
+export type ToolRegistryTabId = "servers" | "tools" | "providers" | "accounts";
 
 export type ToolRegistryTab = {
   id: ToolRegistryTabId;
@@ -30,7 +28,6 @@ export type ToolRegistryTab = {
 const PRIMARY_TABS: readonly ToolRegistryTab[] = [
   { id: "servers", label: "Servers" },
   { id: "tools", label: "Tools" },
-  { id: "access", label: "Access" },
 ] as const;
 
 /** Advanced/debug tabs — collapsed behind a separator. */
@@ -45,7 +42,7 @@ export const TOOL_REGISTRY_TABS: readonly ToolRegistryTab[] = [
 ] as const;
 
 const VALID_TAB_IDS = new Set<string>(TOOL_REGISTRY_TABS.map((t) => t.id));
-const DEFAULT_TAB: ToolRegistryTabId = "tools";
+const DEFAULT_TAB: ToolRegistryTabId = "servers";
 
 // ---------------------------------------------------------------------------
 // Pure view model
@@ -78,8 +75,6 @@ function countForTab(
       return input.providersCount;
     case "accounts":
       return input.accountsCount;
-    case "access":
-      return input.toolsCount;
   }
 }
 
@@ -128,10 +123,6 @@ export function ToolRegistryPage() {
   // requires a Better Auth session and would 401 on every page load otherwise.
   const isAccountsTab = search.tab === "accounts";
   const { accounts, refresh: refreshAccounts } = useAccounts({ enabled: isAccountsTab });
-
-  // Access tab: track grants per expanded tool and toast messages
-  const [accessToast, setAccessToast] = useState<string | undefined>();
-  const grantsByToolId: Record<string, GrantListItem[]> = {};
 
   // ---------------------------------------------------------------------------
   // MCP Server handlers
@@ -377,7 +368,7 @@ export function ToolRegistryPage() {
   return (
     <section className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground">Tool Registry</h1>
+        <h1 className="text-lg font-semibold text-foreground">Tools</h1>
       </div>
       <Tabs value={vm.activeTab} onValueChange={handleTabChange}>
         <TabsList variant="line">
@@ -444,7 +435,16 @@ export function ToolRegistryPage() {
                   <option value="critical">Critical</option>
                 </select>
               </div>
-              <ToolTable tools={tools} filters={toolFilters} />
+              <ToolTable
+                tools={tools}
+                filters={toolFilters}
+                actions={{
+                  onGrantAccess: (_toolId) => {
+                    // TODO: open CreateGrantDialog
+                  },
+                  onRevokeGrant: handleRevokeGrant,
+                }}
+              />
             </div>
           )}
         </TabsContent>
@@ -472,31 +472,6 @@ export function ToolRegistryPage() {
               providers={providerInfoList}
               onRevoke={handleRevokeAccount}
               onReconnect={handleReconnectAccount}
-            />
-          )}
-        </TabsContent>
-        <TabsContent value="access">
-          {accessToast && (
-            <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-              {accessToast}
-              <button
-                className="ml-2 font-medium underline"
-                onClick={() => setAccessToast(undefined)}
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-          {vm.showEmptyState && vm.activeTab === "access" ? (
-            <EmptyState message="No tools available to manage access." />
-          ) : (
-            <GrantTable
-              tools={tools}
-              grantsByToolId={grantsByToolId}
-              onGrantAccess={(_toolId) => {
-                // CreateGrantDialog will be opened by the GrantTable component
-              }}
-              onRevokeGrant={handleRevokeGrant}
             />
           )}
         </TabsContent>

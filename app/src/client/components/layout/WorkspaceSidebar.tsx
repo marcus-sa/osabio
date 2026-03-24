@@ -71,7 +71,7 @@ export function WorkspaceSidebar({
         ) : undefined}
       </Link>
       <Link to="/policies" className={navItemClass(isPolicies)}>Policies</Link>
-      <Link to="/tools" className={navItemClass(isTools)}>Tool Registry</Link>
+      <Link to="/tools" className={navItemClass(isTools)}>Tools</Link>
 
       <Separator className="my-1" />
 

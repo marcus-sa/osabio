@@ -1,4 +1,5 @@
 import { useToolDetail } from "../../hooks/use-tool-detail";
+import { Button } from "../ui/button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +46,7 @@ export type ToolDetailViewState =
 // ---------------------------------------------------------------------------
 
 export type GrantRowViewModel = {
+  identityId: string;
   identityName: string;
   rateLimitDisplay: string;
   grantedAt: string;
@@ -63,6 +65,7 @@ export type ToolDetailViewModel =
   | {
       tag: "loaded";
       formattedInputSchema: string;
+      formattedOutputSchema?: string;
       grantRows: GrantRowViewModel[];
       governanceRows: GovernanceRowViewModel[];
       showEmptyGrants: boolean;
@@ -80,6 +83,7 @@ function formatRateLimit(maxCallsPerHour?: number): string {
 
 function toGrantRow(grant: GrantDetail): GrantRowViewModel {
   return {
+    identityId: grant.identity_id,
     identityName: grant.identity_name,
     rateLimitDisplay: formatRateLimit(grant.max_calls_per_hour),
     grantedAt: grant.granted_at,
@@ -126,6 +130,9 @@ export function deriveToolDetailViewModel(
   return {
     tag: "loaded",
     formattedInputSchema: JSON.stringify(data.input_schema, null, 2),
+    formattedOutputSchema: data.output_schema
+      ? JSON.stringify(data.output_schema, null, 2)
+      : undefined,
     grantRows,
     governanceRows,
     showEmptyGrants: grantRows.length === 0,
@@ -137,11 +144,18 @@ export function deriveToolDetailViewModel(
 // React component
 // ---------------------------------------------------------------------------
 
-type ToolDetailPanelProps = {
-  toolId: string;
+export type ToolDetailActions = {
+  onGrantAccess?: (toolId: string) => void;
+  onRevokeGrant?: (toolId: string, identityId: string) => void;
 };
 
-export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
+type ToolDetailPanelProps = {
+  toolId: string;
+  toolName?: string;
+  actions?: ToolDetailActions;
+};
+
+export function ToolDetailPanel({ toolId, actions }: ToolDetailPanelProps) {
   const { data, isLoading, error } = useToolDetail(toolId);
 
   const viewState: ToolDetailViewState = isLoading
@@ -157,7 +171,7 @@ export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
   if (vm.tag === "loading") {
     return (
       <tr>
-        <td colSpan={7} className="px-6 py-4">
+        <td colSpan={6} className="px-6 py-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="animate-spin">&#x23F3;</span>
             Loading tool details...
@@ -170,7 +184,7 @@ export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
   if (vm.tag === "error") {
     return (
       <tr>
-        <td colSpan={7} className="px-6 py-4">
+        <td colSpan={6} className="px-6 py-4">
           <div className="text-sm text-red-600">{vm.errorMessage}</div>
         </td>
       </tr>
@@ -179,7 +193,7 @@ export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
 
   return (
     <tr>
-      <td colSpan={7} className="bg-muted/30 px-6 py-4">
+      <td colSpan={6} className="bg-muted/30 px-6 py-4">
         <div className="flex flex-col gap-4">
           {/* Input Schema */}
           <div>
@@ -191,11 +205,34 @@ export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
             </pre>
           </div>
 
+          {/* Output Schema */}
+          {vm.formattedOutputSchema && (
+            <div>
+              <h4 className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                Output Schema
+              </h4>
+              <pre className="overflow-auto rounded bg-muted p-3 text-xs">
+                {vm.formattedOutputSchema}
+              </pre>
+            </div>
+          )}
+
           {/* Grants */}
           <div>
-            <h4 className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
-              Grants
-            </h4>
+            <div className="mb-1 flex items-center justify-between">
+              <h4 className="text-xs font-semibold uppercase text-muted-foreground">
+                Grants
+              </h4>
+              {actions?.onGrantAccess && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => actions.onGrantAccess!(toolId)}
+                >
+                  Grant Access
+                </Button>
+              )}
+            </div>
             {vm.showEmptyGrants ? (
               <p className="text-sm text-muted-foreground">No grants configured.</p>
             ) : (
@@ -205,14 +242,29 @@ export function ToolDetailPanel({ toolId }: ToolDetailPanelProps) {
                     <th className="px-2 py-1 font-medium">Identity</th>
                     <th className="px-2 py-1 font-medium">Rate Limit</th>
                     <th className="px-2 py-1 font-medium">Granted At</th>
+                    {actions?.onRevokeGrant && (
+                      <th className="px-2 py-1 font-medium" />
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {vm.grantRows.map((grant) => (
-                    <tr key={grant.identityName} className="border-b">
+                    <tr key={grant.identityId} className="border-b">
                       <td className="px-2 py-1">{grant.identityName}</td>
                       <td className="px-2 py-1">{grant.rateLimitDisplay}</td>
                       <td className="px-2 py-1">{grant.grantedAt}</td>
+                      {actions?.onRevokeGrant && (
+                        <td className="px-2 py-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => actions.onRevokeGrant!(toolId, grant.identityId)}
+                          >
+                            Revoke
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

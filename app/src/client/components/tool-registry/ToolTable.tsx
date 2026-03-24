@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Badge } from "../ui/badge";
 import type { ToolListItem } from "../../hooks/use-tools";
-import { ToolDetailPanel } from "./ToolDetailPanel";
+import { ToolDetailPanel, type ToolDetailActions } from "./ToolDetailPanel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,15 +19,16 @@ export type ToolRowViewModel = {
   truncatedDescription: string;
   riskBadge: BadgeViewModel;
   statusBadge: BadgeViewModel;
-  provenanceBadge: BadgeViewModel;
   grantCount: number;
   governanceCount: number;
   isGoverned: boolean;
-  providerName: string;
 };
 
 export type ToolGroupViewModel = {
-  toolkit: string;
+  /** Display label for the group header. Server name or "Ungrouped". */
+  label: string;
+  /** Server ID if tools belong to an MCP server, undefined for manual tools. */
+  serverId?: string;
   toolCount: number;
   rows: ToolRowViewModel[];
 };
@@ -75,13 +76,6 @@ export function deriveStatusBadge(status: string): BadgeViewModel {
   return STATUS_BADGES[status] ?? { label: status, variant: "outline" };
 }
 
-export function deriveProvenanceBadge(providerName: string): BadgeViewModel {
-  if (providerName === "manual") {
-    return { label: "Manual", variant: "secondary" };
-  }
-  return { label: providerName, variant: "outline" };
-}
-
 // ---------------------------------------------------------------------------
 // Description truncation
 // ---------------------------------------------------------------------------
@@ -104,11 +98,9 @@ function toToolRow(tool: ToolListItem): ToolRowViewModel {
     truncatedDescription: truncateDescription(tool.description),
     riskBadge: deriveRiskBadge(tool.risk_level),
     statusBadge: deriveStatusBadge(tool.status),
-    provenanceBadge: deriveProvenanceBadge(tool.provider_name),
     grantCount: tool.grant_count,
     governanceCount: tool.governance_count,
     isGoverned: tool.governance_count > 0,
-    providerName: tool.provider_name,
   };
 }
 
@@ -138,26 +130,57 @@ export function filterTools(
 }
 
 // ---------------------------------------------------------------------------
-// Grouping
+// Grouping — by MCP server
 // ---------------------------------------------------------------------------
 
-export function groupToolsByToolkit(tools: ToolListItem[]): ToolGroupViewModel[] {
-  const groupMap = new Map<string, ToolListItem[]>();
+const UNGROUPED_LABEL = "Ungrouped";
+
+export function groupToolsByServer(tools: ToolListItem[]): ToolGroupViewModel[] {
+  const serverGroups = new Map<string, { name: string; id: string; tools: ToolListItem[] }>();
+  const ungrouped: ToolListItem[] = [];
 
   for (const tool of tools) {
-    const existing = groupMap.get(tool.toolkit);
-    if (existing) {
-      existing.push(tool);
+    if (tool.source_server_id && tool.source_server_name) {
+      const existing = serverGroups.get(tool.source_server_id);
+      if (existing) {
+        existing.tools.push(tool);
+      } else {
+        serverGroups.set(tool.source_server_id, {
+          name: tool.source_server_name,
+          id: tool.source_server_id,
+          tools: [tool],
+        });
+      }
     } else {
-      groupMap.set(tool.toolkit, [tool]);
+      ungrouped.push(tool);
     }
   }
 
-  return Array.from(groupMap.entries()).map(([toolkit, groupTools]) => ({
-    toolkit,
-    toolCount: groupTools.length,
-    rows: groupTools.map(toToolRow),
-  }));
+  const groups: ToolGroupViewModel[] = [];
+
+  // Server groups first, sorted by name
+  const sorted = Array.from(serverGroups.values()).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  for (const group of sorted) {
+    groups.push({
+      label: group.name,
+      serverId: group.id,
+      toolCount: group.tools.length,
+      rows: group.tools.map(toToolRow),
+    });
+  }
+
+  // Ungrouped tools last
+  if (ungrouped.length > 0) {
+    groups.push({
+      label: UNGROUPED_LABEL,
+      toolCount: ungrouped.length,
+      rows: ungrouped.map(toToolRow),
+    });
+  }
+
+  return groups;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +192,7 @@ const EMPTY_SEARCH_MESSAGE = "No tools match your search";
 
 export function deriveToolTableViewModel(input: ToolTableInput): ToolTableViewModel {
   const filteredTools = filterTools(input.tools, input.filters);
-  const groups = groupToolsByToolkit(filteredTools);
+  const groups = groupToolsByServer(filteredTools);
 
   const hasTools = input.tools.length > 0;
   const hasFilteredResults = filteredTools.length > 0;
@@ -194,9 +217,10 @@ export function deriveToolTableViewModel(input: ToolTableInput): ToolTableViewMo
 type ToolTableProps = {
   tools: ToolListItem[];
   filters: ToolTableFilters;
+  actions?: ToolDetailActions;
 };
 
-export function ToolTable({ tools, filters }: ToolTableProps) {
+export function ToolTable({ tools, filters, actions }: ToolTableProps) {
   const [expandedToolId, setExpandedToolId] = useState<string | undefined>();
   const vm = deriveToolTableViewModel({ tools, filters });
 
@@ -223,9 +247,9 @@ export function ToolTable({ tools, filters }: ToolTableProps) {
   return (
     <div className="flex flex-col gap-4">
       {vm.groups.map((group) => (
-        <div key={group.toolkit}>
+        <div key={group.serverId ?? group.label}>
           <div className="flex items-center gap-2 border-b px-3 py-2">
-            <span className="text-sm font-semibold">{group.toolkit}</span>
+            <span className="text-sm font-semibold">{group.label}</span>
             <Badge variant="secondary">{group.toolCount}</Badge>
           </div>
           <table className="w-full text-sm">
@@ -237,14 +261,12 @@ export function ToolTable({ tools, filters }: ToolTableProps) {
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Grants</th>
                 <th className="px-3 py-2 font-medium">Governance</th>
-                <th className="px-3 py-2 font-medium">Source</th>
               </tr>
             </thead>
             <tbody>
               {group.rows.map((row) => (
-                <>
+                <Fragment key={row.id}>
                   <tr
-                    key={row.id}
                     className="cursor-pointer border-b hover:bg-muted/50"
                     onClick={() => handleRowClick(row.id)}
                   >
@@ -271,16 +293,11 @@ export function ToolTable({ tools, filters }: ToolTableProps) {
                     </td>
                     <td className="px-3 py-2">{row.grantCount}</td>
                     <td className="px-3 py-2">{row.governanceCount}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant={row.provenanceBadge.variant}>
-                        {row.provenanceBadge.label}
-                      </Badge>
-                    </td>
                   </tr>
                   {expandedToolId === row.id && (
-                    <ToolDetailPanel toolId={row.id} />
+                    <ToolDetailPanel toolId={row.id} toolName={row.name} actions={actions} />
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

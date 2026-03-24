@@ -144,6 +144,8 @@ export type ToolListItem = {
   status: ToolStatus;
   grant_count: number;
   governance_count: number;
+  source_server_id?: string;
+  source_server_name?: string;
   created_at: string;
 };
 

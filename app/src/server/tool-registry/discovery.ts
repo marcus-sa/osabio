@@ -351,7 +351,7 @@ async function applySyncActions(
             input_schema: tool.input_schema,
             output_schema: tool.output_schema,
             risk_level: tool.risk_level,
-            toolkit: deriveToolkit(tool.name),
+            toolkit: server.name,
             status: "active",
             workspace: workspaceRecord,
             source_server: serverRecord,
@@ -366,13 +366,15 @@ async function applySyncActions(
              description = $description,
              input_schema = $inputSchema,
              output_schema = $outputSchema,
-             risk_level = $riskLevel
+             risk_level = $riskLevel,
+             toolkit = $toolkit
            WHERE name = $name AND source_server = $server;`,
           {
             description: tool.description,
             inputSchema: tool.input_schema,
             outputSchema: tool.output_schema,
             riskLevel: tool.risk_level,
+            toolkit: server.name,
             name: tool.name,
             server: serverRecord,
           },
@@ -404,11 +406,3 @@ async function applySyncActions(
   );
 }
 
-/**
- * Derive toolkit name from a tool name.
- * Convention: first segment before the dot, or the full name if no dot.
- */
-function deriveToolkit(toolName: string): string {
-  const dotIndex = toolName.indexOf(".");
-  return dotIndex > 0 ? toolName.substring(0, dotIndex) : toolName;
-}

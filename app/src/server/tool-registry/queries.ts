@@ -313,6 +313,7 @@ export type ToolWithCountsRow = {
   readonly status: string;
   readonly workspace: RecordId<"workspace", string>;
   readonly source_server?: RecordId<"mcp_server", string>;
+  readonly source_server_name?: string;
   readonly grant_count: number;
   readonly governance_count: number;
   readonly created_at: Date;
@@ -338,6 +339,7 @@ export async function listToolsWithCounts(
        status,
        workspace,
        source_server,
+       source_server.name AS source_server_name,
        count(SELECT id FROM can_use WHERE out = $parent.id) AS grant_count,
        count(SELECT id FROM governs_tool WHERE out = $parent.id) AS governance_count,
        created_at
