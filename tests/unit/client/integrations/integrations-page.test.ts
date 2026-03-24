@@ -8,9 +8,9 @@ import { describe, it, expect } from "bun:test";
  * to map tab state and data to rendering decisions.
  *
  * Behaviors under test:
- *   1. Default tab: defaults to "tools" when no tab param provided
+ *   1. Default tab: defaults to "servers" when no tab param provided
  *   2. Tab selection: all four tabs are valid and selectable
- *   3. Invalid tab param: falls back to "tools" for unknown values
+ *   3. Invalid tab param: falls back to "servers" for unknown values
  *   4. Empty state: shows empty state with CTA when data array is empty
  *   5. Tab persistence: selected tab is reflected in view model
  */
@@ -41,23 +41,23 @@ function makeInput(overrides?: Partial<ToolRegistryPageInput>): ToolRegistryPage
 // ---------------------------------------------------------------------------
 
 describe("ToolRegistryPage view model", () => {
-  describe("renders five tabs and defaults to Tools tab", () => {
-    it("exposes exactly five tab definitions", () => {
-      expect(TOOL_REGISTRY_TABS).toHaveLength(5);
+  describe("renders four tabs and defaults to Servers tab", () => {
+    it("exposes exactly four tab definitions", () => {
+      expect(TOOL_REGISTRY_TABS).toHaveLength(4);
       const tabIds = TOOL_REGISTRY_TABS.map((t) => t.id);
-      expect(tabIds).toEqual(["servers", "tools", "access", "providers", "accounts"]);
+      expect(tabIds).toEqual(["servers", "tools", "providers", "accounts"]);
     });
 
-    it("defaults to tools tab when no tab param is provided", () => {
+    it("defaults to servers tab when no tab param is provided", () => {
       const vm = deriveToolRegistryViewModel(makeInput());
 
-      expect(vm.activeTab).toBe("tools");
+      expect(vm.activeTab).toBe("servers");
     });
 
-    it("defaults to tools tab when tab param is undefined", () => {
+    it("defaults to servers tab when tab param is undefined", () => {
       const vm = deriveToolRegistryViewModel(makeInput({ tabParam: undefined }));
 
-      expect(vm.activeTab).toBe("tools");
+      expect(vm.activeTab).toBe("servers");
     });
   });
 
@@ -74,16 +74,16 @@ describe("ToolRegistryPage view model", () => {
       expect(vm.activeTab).toBe("accounts");
     });
 
-    it("selects access tab when param is 'access'", () => {
-      const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "access" }));
-
-      expect(vm.activeTab).toBe("access");
-    });
-
-    it("falls back to tools tab for invalid tab param", () => {
-      const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "nonexistent" }));
+    it("selects tools tab when param is 'tools'", () => {
+      const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "tools" }));
 
       expect(vm.activeTab).toBe("tools");
+    });
+
+    it("falls back to servers tab for invalid tab param", () => {
+      const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "nonexistent" }));
+
+      expect(vm.activeTab).toBe("servers");
     });
   });
 
@@ -124,7 +124,6 @@ describe("ToolRegistryPage view model", () => {
         tools: "Tools (5)",
         providers: "Providers (2)",
         accounts: "Accounts (1)",
-        access: "Access (5)",
       });
     });
 
@@ -136,7 +135,6 @@ describe("ToolRegistryPage view model", () => {
         tools: "Tools",
         providers: "Providers",
         accounts: "Accounts",
-        access: "Access",
       });
     });
   });

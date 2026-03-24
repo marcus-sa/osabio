@@ -7,15 +7,14 @@ import { describe, it, expect } from "bun:test";
  * The component is a thin renderer of these view models.
  *
  * Behaviors under test:
- *   1. Tool grouping: groups tools by toolkit with correct counts
+ *   1. Tool grouping: groups tools by MCP server with correct counts
  *   2. Risk badge: maps risk_level to correct color variant
  *   3. Status badge: distinguishes active/disabled
- *   4. Provenance badge: shows 'manual' or server name
- *   5. Filtering: narrows results by status and risk_level
- *   6. Text search: filters by name and description
- *   7. Empty search: shows message when no tools match
- *   8. Governed tools: governance_count > 0 shows governed indicator
- *   9. Description truncation: long descriptions are truncated
+ *   4. Filtering: narrows results by status and risk_level
+ *   5. Text search: filters by name and description
+ *   6. Empty search: shows message when no tools match
+ *   7. Governed tools: governance_count > 0 shows governed indicator
+ *   8. Description truncation: long descriptions are truncated
  */
 
 import type { ToolListItem } from "../../../../app/src/client/hooks/use-tools";
@@ -24,10 +23,8 @@ import {
   deriveToolTableViewModel,
   deriveRiskBadge,
   deriveStatusBadge,
-  deriveProvenanceBadge,
   filterTools,
-  groupToolsByToolkit,
-  type ToolTableInput,
+  groupToolsByServer,
   type ToolTableFilters,
 } from "../../../../app/src/client/components/tool-registry/ToolTable";
 
@@ -59,27 +56,40 @@ function makeFilters(overrides?: Partial<ToolTableFilters>): ToolTableFilters {
 }
 
 // ---------------------------------------------------------------------------
-// Tool grouping
+// Tool grouping by server
 // ---------------------------------------------------------------------------
 
 describe("ToolTable view model", () => {
-  describe("groups tools by toolkit with correct counts", () => {
-    it("groups tools by toolkit field with group headers showing tool count", () => {
+  describe("groups tools by MCP server with correct counts", () => {
+    it("groups tools by source_server with group headers showing tool count", () => {
       const tools = [
-        makeTool({ id: "1", name: "read", toolkit: "filesystem" }),
-        makeTool({ id: "2", name: "write", toolkit: "filesystem" }),
-        makeTool({ id: "3", name: "query", toolkit: "database" }),
+        makeTool({ id: "1", name: "read", source_server_id: "srv-1", source_server_name: "GitHub" }),
+        makeTool({ id: "2", name: "write", source_server_id: "srv-1", source_server_name: "GitHub" }),
+        makeTool({ id: "3", name: "query", source_server_id: "srv-2", source_server_name: "Linear" }),
       ];
 
-      const groups = groupToolsByToolkit(tools);
+      const groups = groupToolsByServer(tools);
 
       expect(groups).toHaveLength(2);
-      const fsGroup = groups.find((g) => g.toolkit === "filesystem");
-      const dbGroup = groups.find((g) => g.toolkit === "database");
-      expect(fsGroup?.toolCount).toBe(2);
-      expect(fsGroup?.rows).toHaveLength(2);
-      expect(dbGroup?.toolCount).toBe(1);
-      expect(dbGroup?.rows).toHaveLength(1);
+      const ghGroup = groups.find((g) => g.label === "GitHub");
+      const lnGroup = groups.find((g) => g.label === "Linear");
+      expect(ghGroup?.toolCount).toBe(2);
+      expect(ghGroup?.rows).toHaveLength(2);
+      expect(lnGroup?.toolCount).toBe(1);
+      expect(lnGroup?.rows).toHaveLength(1);
+    });
+
+    it("puts tools without source_server in Ungrouped", () => {
+      const tools = [
+        makeTool({ id: "1", name: "brain-tool" }),
+        makeTool({ id: "2", name: "github-tool", source_server_id: "srv-1", source_server_name: "GitHub" }),
+      ];
+
+      const groups = groupToolsByServer(tools);
+
+      expect(groups).toHaveLength(2);
+      const ungrouped = groups.find((g) => g.label === "Ungrouped");
+      expect(ungrouped?.toolCount).toBe(1);
     });
 
     it("returns empty groups array when no tools provided", () => {
@@ -136,22 +146,6 @@ describe("deriveStatusBadge", () => {
     const badge = deriveStatusBadge("disabled");
     expect(badge.label).toBe("Disabled");
     expect(badge.variant).toBe("secondary");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Provenance badge
-// ---------------------------------------------------------------------------
-
-describe("deriveProvenanceBadge", () => {
-  it("shows 'Manual' for manual provenance", () => {
-    const badge = deriveProvenanceBadge("manual");
-    expect(badge.label).toBe("Manual");
-  });
-
-  it("shows server name for non-manual provenance", () => {
-    const badge = deriveProvenanceBadge("mcp-github-server");
-    expect(badge.label).toBe("mcp-github-server");
   });
 });
 
@@ -256,11 +250,11 @@ describe("ToolTable empty search", () => {
 describe("ToolTable governed tools", () => {
   it("marks tools with governance_count > 0 as governed", () => {
     const tools = [
-      makeTool({ id: "1", governance_count: 2 }),
-      makeTool({ id: "2", governance_count: 0 }),
+      makeTool({ id: "1", governance_count: 2, source_server_id: "srv-1", source_server_name: "Test" }),
+      makeTool({ id: "2", governance_count: 0, source_server_id: "srv-1", source_server_name: "Test" }),
     ];
 
-    const groups = groupToolsByToolkit(tools);
+    const groups = groupToolsByServer(tools);
     const allRows = groups.flatMap((g) => g.rows);
 
     const governed = allRows.find((r) => r.id === "1");
@@ -279,7 +273,7 @@ describe("ToolTable description truncation", () => {
     const longDesc = "A".repeat(200);
     const tools = [makeTool({ id: "1", description: longDesc })];
 
-    const groups = groupToolsByToolkit(tools);
+    const groups = groupToolsByServer(tools);
     const row = groups[0].rows[0];
 
     expect(row.truncatedDescription.length).toBeLessThan(200);
@@ -289,7 +283,7 @@ describe("ToolTable description truncation", () => {
   it("does not truncate short descriptions", () => {
     const tools = [makeTool({ id: "1", description: "Short" })];
 
-    const groups = groupToolsByToolkit(tools);
+    const groups = groupToolsByServer(tools);
     const row = groups[0].rows[0];
 
     expect(row.truncatedDescription).toBe("Short");
@@ -303,7 +297,6 @@ describe("ToolTable description truncation", () => {
 import {
   deriveToolDetailViewModel,
   type ToolDetailData,
-  type ToolDetailViewState,
 } from "../../../../app/src/client/components/tool-registry/ToolDetailPanel";
 
 function makeToolDetailData(overrides?: Partial<ToolDetailData>): ToolDetailData {
