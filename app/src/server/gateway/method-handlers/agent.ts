@@ -64,6 +64,7 @@ export function createAgentHandler(): MethodHandler {
         error: {
           code,
           message: intentResult.reason ?? "Authorization denied",
+          ...(intentResult.details ? { details: intentResult.details } : {}),
         },
       };
     }

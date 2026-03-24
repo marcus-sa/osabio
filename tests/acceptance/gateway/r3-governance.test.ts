@@ -27,7 +27,7 @@ const getRuntime = setupAcceptanceSuite("gateway-r3-governance");
 
 describe("Gateway R3: Governance & Multi-Agent", () => {
   // R3-1: Policy violation returns structured error (AC-3.1)
-  it.skip("R3-1: policy violation returns error with policy detail", async () => {
+  it("R3-1: policy violation returns error with policy detail", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Seed policy: max_risk_level "low" for this identity

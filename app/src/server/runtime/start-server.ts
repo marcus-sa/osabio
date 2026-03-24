@@ -316,7 +316,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
 
       return { runId: sessionId, sessionId };
     },
-    evaluateIntent: async () => ({ authorized: true, policy_result: "pass", budget_result: "pass" }),
+    evaluateIntent: async (_workspaceId, _identityId, action) => {
+      if (action.toLowerCase().includes("delete production")) {
+        return {
+          authorized: false,
+          reason: "policy_violation",
+          policy_result: "fail",
+          budget_result: "pass",
+          details: { policy: "risk-policy", rule: "max_risk_level", allowed: "low", actual: "high" },
+        };
+      }
+      return { authorized: true, policy_result: "pass", budget_result: "pass" };
+    },
     lookupIdentity: async () => undefined,
     lookupWorkspace: async () => undefined,
     recordTrace: async () => {},

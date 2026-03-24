@@ -96,6 +96,7 @@ export type EvaluateIntentResult = {
   readonly reason?: string;
   readonly policy_result?: string;
   readonly budget_result?: string;
+  readonly details?: unknown;
 };
 
 export type EvaluateIntentFn = (
