@@ -1,0 +1,115 @@
+journey:
+  name: agent-connect-execute
+  description: OpenClaw agent connects to Brain gateway, authenticates, submits work, streams results
+  jobs: [J1, J2, J5]
+  personas: [coding-agent-developer, autonomous-agent]
+
+  steps:
+    - id: ws-connect
+      name: WebSocket Connect
+      actor: coding-agent-developer
+      action: Open WebSocket to Brain gateway endpoint
+      system: Bun WebSocket upgrade handler; create connection state machine
+      artifacts:
+        - name: connectionId
+          source: brain-gateway
+          type: uuid
+      emotion: curiosity
+      errors:
+        - condition: upgrade-failed
+          recovery: HTTP 400 with reason; client retries with backoff
+
+    - id: device-auth
+      name: Device Authentication
+      actor: openclaw-cli
+      action: Send connect frame with Ed25519 public key; sign challenge nonce
+      system: Ed25519 challenge-response verification; device fingerprint lookup
+      artifacts:
+        - name: deviceFingerprint
+          source: ed25519-pubkey
+          type: string
+        - name: identityId
+          source: brain-identity
+          type: record-id
+      emotion: slight-tension-to-relief
+      branches:
+        - condition: known-device
+          action: Resolve existing Brain identity
+        - condition: new-device
+          action: DCR auto-registration (RFC 7591)
+      errors:
+        - condition: verification-failed
+          recovery: connect.error code auth_failed
+
+    - id: workspace-resolve
+      name: Workspace Resolution
+      actor: brain
+      action: Resolve workspace membership; load authority scopes and RAR claims
+      system: Query member_of edge; load authorization_details
+      artifacts:
+        - name: workspaceId
+          source: member-of-edge
+          type: record-id
+        - name: authorityScopes
+          source: rar-claims
+          type: object
+      emotion: confidence
+      errors:
+        - condition: no-membership
+          recovery: connect.error with enrollment instructions
+
+    - id: submit-work
+      name: Submit Work
+      actor: coding-agent-developer
+      action: Send agent frame with task description
+      system: >
+        Orchestrator pipeline: load graph context → inject learnings →
+        evaluate policies → check budget → assign task
+      artifacts:
+        - name: runId
+          source: orchestrator
+          type: uuid
+        - name: sessionId
+          source: agent-session
+          type: record-id
+      emotion: confidence
+      errors:
+        - condition: policy-violation
+          recovery: agent.error with policy ID and violation detail
+        - condition: budget-exceeded
+          recovery: agent.error with spend vs limit
+
+    - id: stream-events
+      name: Real-Time Streaming
+      actor: brain
+      action: Stream orchestrator events as Gateway Protocol events
+      system: >
+        Event bridge maps StreamEvent variants to protocol events:
+        agent_token → assistant stream, agent_file_change → lifecycle stream
+      artifacts:
+        - name: streamEvents
+          source: event-bridge
+          type: array
+      emotion: trust
+      interactions:
+        - type: exec-approval
+          action: Developer approves/denies exec requests via exec.approve/exec.deny
+      errors:
+        - condition: ws-disconnect
+          recovery: Session continues server-side; reconnect via agent.status
+        - condition: provider-error
+          recovery: error stream event; orchestrator retry logic
+
+    - id: completion
+      name: Completion & Trace
+      actor: brain
+      action: Record hierarchical trace; update spend; run extraction pipeline
+      system: Trace graph links intent → session → tool calls → decisions/observations
+      artifacts:
+        - name: traceId
+          source: trace-graph
+          type: record-id
+        - name: spendRecord
+          source: spend-tracking
+          type: object
+      emotion: satisfaction

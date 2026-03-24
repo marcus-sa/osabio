@@ -1,0 +1,79 @@
+journey:
+  name: platform-governance
+  description: Platform engineer manages device registration, authority scopes, monitoring, and audit
+  jobs: [J3, J4, J6, J7]
+  personas: [platform-engineer]
+
+  steps:
+    - id: device-registration
+      name: Device Auto-Registration
+      actor: platform-engineer
+      action: Observe new device auto-registration via DCR
+      system: Internal POST /api/oauth/register; create identity + member_of edge
+      artifacts:
+        - name: clientId
+          source: dcr
+          type: string
+        - name: deviceFingerprint
+          source: ed25519-pubkey
+          type: string
+        - name: identityId
+          source: brain-identity
+          type: record-id
+      emotion: alertness
+
+    - id: configure-scopes
+      name: Configure Authority Scopes
+      actor: platform-engineer
+      action: Set RAR authorization_details for device/agent tier
+      system: Policy graph update; RAR claims embedded in future tokens
+      artifacts:
+        - name: authorizationDetails
+          source: rar-config
+          type: object
+        - name: policyId
+          source: policy-graph
+          type: record-id
+      emotion: control
+
+    - id: monitor-agents
+      name: Monitor Active Agents
+      actor: platform-engineer
+      action: View presence, active sessions, live streams
+      system: SSE registry broadcasts; agent.status queries
+      artifacts:
+        - name: presenceState
+          source: sse-registry
+          type: object
+        - name: activeSessions
+          source: agent-session
+          type: array
+      emotion: confidence
+
+    - id: policy-enforcement
+      name: Policy Enforcement
+      actor: brain
+      action: Evaluate intent against policy graph and budget before execution
+      system: authorizer.evaluate() checks policies, risk, budgets
+      artifacts:
+        - name: intentEvaluation
+          source: authorizer
+          type: object
+        - name: spendRecord
+          source: spend-tracking
+          type: object
+      emotion: trust
+      errors:
+        - condition: policy-violation
+          recovery: Intent denied with structured error to agent
+
+    - id: trace-audit
+      name: Trace Audit
+      actor: platform-engineer
+      action: Query trace graph for full provenance chain
+      system: Hierarchical trace traversal via graph query
+      artifacts:
+        - name: traceTree
+          source: trace-graph
+          type: object
+      emotion: assurance
