@@ -11,10 +11,11 @@
 import { jsonResponse } from "../http/response";
 import { createConnection, transition, activateConnection } from "./connection";
 import { parseFrame, isParseError, serializeFrame } from "./protocol";
-import type { ResponseFrame } from "./protocol";
+import type { EventFrame, ResponseFrame } from "./protocol";
 import { createMethodDispatch, type MethodHandlerMap } from "./method-dispatch";
 import { createConnectHandler, resolveConnectionUpdate } from "./method-handlers/connect";
 import { createAgentHandler } from "./method-handlers/agent";
+import { mapStreamEventToGatewayEvent } from "./event-adapter";
 import type { GatewayConnection, GatewayDeps } from "./types";
 import type { Server } from "bun";
 
@@ -74,6 +75,35 @@ function buildHandlerMap(): MethodHandlerMap {
 // ---------------------------------------------------------------------------
 // WebSocket handlers — Bun.serve websocket config
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Event streaming loop — subscribes to session events and forwards to WebSocket
+// ---------------------------------------------------------------------------
+
+async function streamSessionEvents(
+  ws: { data: GatewayWebSocketData; send: (msg: string) => void },
+  sessionId: string,
+  deps: GatewayDeps,
+): Promise<void> {
+  const events = deps.subscribeToSessionEvents(sessionId);
+
+  for await (const streamEvent of events) {
+    // Get current connection state for seq counter
+    const currentConnection = ws.data.connection;
+    const nextSeq = currentConnection.seqCounter + 1;
+
+    const eventFrame = mapStreamEventToGatewayEvent(streamEvent, nextSeq);
+    if (eventFrame) {
+      // Update seq counter on connection
+      (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = {
+        ...currentConnection,
+        seqCounter: nextSeq,
+      };
+
+      ws.send(serializeFrame(eventFrame as EventFrame));
+    }
+  }
+}
 
 export function createGatewayWebSocketHandlers() {
   const dispatch = createMethodDispatch(buildHandlerMap());
@@ -146,6 +176,16 @@ export function createGatewayWebSocketHandlers() {
             if (update) {
               (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection =
                 activateConnection(connection, update);
+            }
+          }
+
+          // If agent method succeeded, start event streaming loop
+          if (requestFrame.method === "agent" && result.ok) {
+            const payload = result.payload as { sessionId?: string } | undefined;
+            if (payload?.sessionId) {
+              streamSessionEvents(ws, payload.sessionId, deps).catch(() => {
+                // Event streaming ended — session complete or connection closed
+              });
             }
           }
         })

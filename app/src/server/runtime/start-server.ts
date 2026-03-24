@@ -52,8 +52,94 @@ import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { createGatewayRoutes, createGatewayWebSocketHandlers } from "../gateway/index";
 import type { GatewayDeps } from "../gateway/types";
+import type { StreamEvent } from "../../shared/contracts";
 import { initTelemetry } from "../telemetry/init";
 import { log } from "../telemetry/logger";
+
+// ---------------------------------------------------------------------------
+// Gateway session event bus — simple pub/sub for session events
+// ---------------------------------------------------------------------------
+
+type SessionEventBus = {
+  emit: (sessionId: string, event: StreamEvent) => void;
+  subscribe: (sessionId: string) => AsyncIterable<StreamEvent>;
+};
+
+function createSessionEventBus(): SessionEventBus {
+  const subscribers = new Map<string, Array<(event: StreamEvent) => void>>();
+
+  return {
+    emit(sessionId: string, event: StreamEvent): void {
+      const listeners = subscribers.get(sessionId);
+      if (listeners) {
+        for (const listener of listeners) {
+          listener(event);
+        }
+      }
+    },
+
+    subscribe(sessionId: string): AsyncIterable<StreamEvent> {
+      return {
+        [Symbol.asyncIterator](): AsyncIterator<StreamEvent> {
+          const buffer: StreamEvent[] = [];
+          let resolve: ((value: IteratorResult<StreamEvent>) => void) | undefined;
+          let done = false;
+
+          const listener = (event: StreamEvent) => {
+            if (event.type === "done" || event.type === "error") {
+              if (resolve) {
+                resolve({ value: event, done: false });
+                resolve = undefined;
+              } else {
+                buffer.push(event);
+              }
+              // Mark as done — next call returns { done: true }
+              done = true;
+              // Remove listener
+              const listeners = subscribers.get(sessionId);
+              if (listeners) {
+                const idx = listeners.indexOf(listener);
+                if (idx >= 0) listeners.splice(idx, 1);
+                if (listeners.length === 0) subscribers.delete(sessionId);
+              }
+              return;
+            }
+
+            if (resolve) {
+              resolve({ value: event, done: false });
+              resolve = undefined;
+            } else {
+              buffer.push(event);
+            }
+          };
+
+          const listeners = subscribers.get(sessionId) ?? [];
+          listeners.push(listener);
+          subscribers.set(sessionId, listeners);
+
+          return {
+            next(): Promise<IteratorResult<StreamEvent>> {
+              if (buffer.length > 0) {
+                const event = buffer.shift()!;
+                // If this was the terminal event, mark iterator done on next call
+                if ((event.type === "done" || event.type === "error") && buffer.length === 0) {
+                  done = true;
+                }
+                return Promise.resolve({ value: event, done: false });
+              }
+              if (done) {
+                return Promise.resolve({ value: undefined as unknown as StreamEvent, done: true });
+              }
+              return new Promise((res) => {
+                resolve = res;
+              });
+            },
+          };
+        },
+      };
+    },
+  };
+}
 
 export function createBrainServer(deps: ServerDependencies): ReturnType<typeof Bun.serve> {
   const config = deps.config;
@@ -143,6 +229,9 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     mockAgent: config.orchestratorMockAgent,
   });
 
+  // Gateway session event bus — bridges assignTask to subscribeToSessionEvents
+  const sessionEventBus = createSessionEventBus();
+
   // Gateway dependency wiring — ports to Brain systems
   const gatewayDeps: GatewayDeps = {
     surreal: deps.surreal,
@@ -166,7 +255,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         observations: observations[0]?.count ?? 0,
       };
     },
-    assignTask: async (workspaceId, _identityId, _task, _agentConfig) => {
+    assignTask: async (workspaceId, _identityId, task, _agentConfig) => {
       const workspaceRecord = new RecordId("workspace", workspaceId);
       const sessionId = crypto.randomUUID();
       const sessionRecord = new RecordId("agent_session", sessionId);
@@ -178,6 +267,26 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         created_at: now,
         orchestrator_status: "spawning",
       });
+
+      // Walking skeleton: emit simulated agent events asynchronously.
+      // In production, this will be replaced by real orchestrator event streaming.
+      setTimeout(() => {
+        sessionEventBus.emit(sessionId, {
+          type: "agent_token",
+          sessionId,
+          token: `Acknowledged task: ${task}`,
+        });
+        sessionEventBus.emit(sessionId, {
+          type: "agent_status",
+          sessionId,
+          status: "completed",
+        });
+        sessionEventBus.emit(sessionId, {
+          type: "done",
+          messageId: sessionId,
+        });
+      }, 50);
+
       return { runId: sessionId, sessionId };
     },
     evaluateIntent: async () => ({ authorized: true }),
@@ -188,7 +297,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     getSessionHistory: async () => ({ runId: "", trace: [] }),
     patchSession: async () => ({ runId: "", applied: [] }),
     listGrantedTools: async () => [],
-    subscribeToSessionEvents: () => (async function* () {})(),
+    subscribeToSessionEvents: (sessionId: string) => sessionEventBus.subscribe(sessionId),
   };
 
   const gatewayRoutes = createGatewayRoutes(gatewayDeps);

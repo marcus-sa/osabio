@@ -1,0 +1,224 @@
+{
+  "roadmap": {
+    "project_id": "openclaw-gateway",
+    "created_at": "2026-03-24T14:28:25Z",
+    "total_steps": 13,
+    "phases": 3,
+    "deferred_scenarios": [
+      "R1-5: implicitly covered by WS-2 (valid frame dispatch is tested by agent method success)",
+      "R1-7: implicitly covered by R1-1/R1-2/R1-8/R1-9 sequence (state transitions are the mechanism)",
+      "R2-1: covered by WS-2 (context summary) + R3-governance tests (policy/budget)",
+      "R2-2/R2-3: exec approval flow requires real intent evaluation infrastructure — defer to R2 delivery",
+      "R2-5/R2-6: agent.status/agent.wait are thin aliases over sessions.list — defer to R2 delivery",
+      "R2-7: sessions.history requires completed sessions with traces — defer to R2 delivery",
+      "R2-10/R2-11: sessions.patch and file change events — defer to R2 delivery",
+      "R3-2: budget exceeded requires real budget tracking infrastructure — defer to R3 delivery",
+      "R3-4: disconnect broadcast is natural extension of R3-3 — defer to R3 delivery",
+      "R3-6: reconnect resilience requires full pipeline — defer to R3 delivery"
+    ]
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Walking Skeleton and Core Types",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Gateway route registration, protocol types, and schema migration",
+          "criteria": "GIVEN a non-WebSocket HTTP GET request to /api/gateway THEN the server returns 426 Upgrade Required",
+          "test_file": "tests/acceptance/gateway/walking-skeleton.test.ts",
+          "scenario_name": "WS-5: HTTP GET to /api/gateway returns 426 Upgrade Required",
+          "files_to_modify": [
+            "app/src/server/gateway/index.ts",
+            "app/src/server/gateway/protocol.ts",
+            "app/src/server/gateway/types.ts",
+            "app/src/server/runtime/start-server.ts",
+            "schema/migrations/00XX_gateway_device_fields.surql"
+          ],
+          "implementation_notes": "Create gateway domain directory. Define GatewayFrame discriminated union (RequestFrame | ResponseFrame | EventFrame), parseFrame/serializeFrame pure functions, MethodName union, ErrorCode union, GatewayDeps port type. Register /api/gateway route in start-server.ts returning 426 for non-upgrade requests. Create schema migration adding device_fingerprint, device_public_key, device_platform, device_family to agent table with index."
+        },
+        {
+          "id": "01-02",
+          "name": "WebSocket upgrade handler with connection state machine",
+          "criteria": "GIVEN a client sends a WebSocket upgrade request to /api/gateway THEN Brain upgrades the connection to WebSocket successfully",
+          "test_file": "tests/acceptance/gateway/walking-skeleton.test.ts",
+          "scenario_name": "WS-1: WebSocket upgrade to /api/gateway succeeds",
+          "files_to_modify": [
+            "app/src/server/gateway/index.ts",
+            "app/src/server/gateway/connection.ts"
+          ],
+          "implementation_notes": "Wire Bun WebSocket handler at /api/gateway. Create connection.ts with ConnectionState type, GatewayConnection record, and pure transition function. On WS open, create connection in 'connecting' state. Frame receive dispatches to message handler."
+        },
+        {
+          "id": "01-03",
+          "name": "Skeleton auth, method dispatch, and agent method handler",
+          "criteria": "GIVEN a WebSocket connection with skeleton auth token AND workspace has 2 decisions and 1 constraint WHEN client sends agent method THEN response contains runId, sessionId, and contextSummary matching seeded counts",
+          "test_file": "tests/acceptance/gateway/walking-skeleton.test.ts",
+          "scenario_name": "WS-2: agent method returns runId with context summary",
+          "files_to_modify": [
+            "app/src/server/gateway/connection.ts",
+            "app/src/server/gateway/method-dispatch.ts",
+            "app/src/server/gateway/method-handlers/connect.ts",
+            "app/src/server/gateway/method-handlers/agent.ts"
+          ],
+          "implementation_notes": "Skeleton auth: connect handler recognizes 'skeleton-test-token' and transitions to active with hardcoded identity. Method dispatch: pure routing table from MethodName to handler function. Agent handler: validates params, calls deps.assignTask(), maps result to AgentAcceptedPayload with contextSummary. Wire GatewayDeps ports to existing Brain systems."
+        },
+        {
+          "id": "01-04",
+          "name": "Event adapter: StreamEvent to Gateway Protocol frames with seq numbers",
+          "criteria": "GIVEN an active agent session WHEN orchestrator produces token events THEN client receives event frames with monotonically increasing seq AND at least one assistant stream event",
+          "test_file": "tests/acceptance/gateway/walking-skeleton.test.ts",
+          "scenario_name": "WS-3: token events stream with monotonically increasing seq numbers",
+          "files_to_modify": [
+            "app/src/server/gateway/event-adapter.ts",
+            "app/src/server/gateway/method-handlers/agent.ts"
+          ],
+          "implementation_notes": "Pure mapping function mapStreamEventToGatewayEvent covering all 13 StreamEvent variants. AgentTokenEvent→assistant stream, AgentFileChangeEvent→lifecycle stream, AgentStatusEvent→lifecycle, AgentStallWarningEvent→lifecycle, AgentPromptEvent→lifecycle, ErrorEvent→error stream, DoneEvent→lifecycle done. Brain-internal events (TokenEvent, ReasoningEvent, AssistantMessageEvent, ExtractionEvent, OnboardingSeedEvent, OnboardingStateEvent, ObservationEvent) return undefined. Agent handler subscribes to session events via deps.subscribeToSessionEvents, maps each via event adapter, sends on WS with incrementing seq."
+        },
+        {
+          "id": "01-05",
+          "name": "Session lifecycle: done event completes streaming",
+          "criteria": "GIVEN a streaming agent session WHEN the agent finishes THEN a lifecycle event with stream 'lifecycle' and phase 'done' is received",
+          "test_file": "tests/acceptance/gateway/walking-skeleton.test.ts",
+          "scenario_name": "WS-4: session completes with lifecycle done event",
+          "files_to_modify": [
+            "app/src/server/gateway/method-handlers/agent.ts",
+            "app/src/server/gateway/connection.ts"
+          ],
+          "implementation_notes": "Ensure DoneEvent maps to lifecycle/done frame. Agent handler's event loop terminates on DoneEvent (AsyncIterable completes). Remove session from activeSessions set. Connection stays open for further requests."
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Authentication and Protocol Compliance",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Ed25519 device auth: challenge generation on WS open",
+          "criteria": "GIVEN a client opens a WebSocket to /api/gateway THEN the gateway sends connect.challenge event within 1 second containing non-empty base64 nonce and recent timestamp",
+          "test_file": "tests/acceptance/gateway/r1-auth-protocol.test.ts",
+          "scenario_name": "R1-1: connect.challenge event sent immediately on WebSocket open",
+          "files_to_modify": [
+            "app/src/server/gateway/device-auth.ts",
+            "app/src/server/gateway/connection.ts",
+            "app/src/server/gateway/index.ts"
+          ],
+          "implementation_notes": "Create device-auth.ts with generateChallenge() using crypto.getRandomValues for 32-byte nonce (base64url). computeDeviceFingerprint() via SHA-256 of raw public key. On WS open, generate challenge and send connect.challenge event frame immediately. Store PendingChallenge (nonce + ts) in connection state."
+        },
+        {
+          "id": "02-02",
+          "name": "Full Gateway Protocol v3 connect handshake with Ed25519 verification",
+          "criteria": "GIVEN a connect.challenge was received WHEN client sends connect with Ed25519-signed nonce THEN gateway responds with hello-ok containing protocol 3, tickIntervalMs, deviceToken, and role",
+          "test_file": "tests/acceptance/gateway/r1-auth-protocol.test.ts",
+          "scenario_name": "R1-2: Gateway Protocol v3 connect handshake succeeds",
+          "files_to_modify": [
+            "app/src/server/gateway/device-auth.ts",
+            "app/src/server/gateway/identity-bridge.ts",
+            "app/src/server/gateway/method-handlers/connect.ts"
+          ],
+          "implementation_notes": "Add verifyEd25519Signature() to device-auth.ts using crypto.subtle.verify('Ed25519'). Create identity-bridge.ts with resolveDeviceIdentity (lookup by fingerprint) and registerNewDevice (DCR + DB writes). Connect handler: verify signature against pending challenge, compute fingerprint, resolve or register identity, build HelloOkPayload with protocol/policy/auth/workspace fields, transition to active state."
+        },
+        {
+          "id": "02-03",
+          "name": "Protocol error handling: malformed frames and state machine enforcement",
+          "criteria": "GIVEN a WebSocket connection WHEN malformed frame is sent THEN invalid_frame error returned AND connection stays open. WHEN method sent before auth THEN not_authenticated returned. WHEN connect sent while active THEN already_authenticated returned.",
+          "test_file": "tests/acceptance/gateway/r1-auth-protocol.test.ts",
+          "scenario_name": "R1-6: malformed frame returns invalid_frame error",
+          "also_enables": ["R1-8", "R1-9"],
+          "files_to_modify": [
+            "app/src/server/gateway/protocol.ts",
+            "app/src/server/gateway/connection.ts",
+            "app/src/server/gateway/index.ts"
+          ],
+          "implementation_notes": "Harden parseFrame: validate type field exists and is 'req'|'res'|'event', validate id exists for req/res, catch JSON parse errors. Connection state machine: transition() rejects method dispatch in 'connecting' state with not_authenticated effect, rejects 'connect' in 'active' state with already_authenticated effect. All three error paths are part of the same connection.ts state machine — shared implementation justifies bundling."
+        },
+        {
+          "id": "02-04",
+          "name": "Known device identity resolution from agent table",
+          "criteria": "GIVEN a device with known Ed25519 public key in agent table WHEN it connects and signs the challenge THEN gateway resolves existing Brain identity and workspace from device fingerprint",
+          "test_file": "tests/acceptance/gateway/r1-auth-protocol.test.ts",
+          "scenario_name": "R1-3: known device resolves Brain identity and workspace",
+          "files_to_modify": [
+            "app/src/server/gateway/identity-bridge.ts"
+          ],
+          "implementation_notes": "resolveDeviceIdentity queries agent table by device_fingerprint, follows identity_agent edge to resolve identity, follows member_of edge to resolve workspace. Returns ResolvedIdentity with isNewDevice=false. Test seeds agent+identity+workspace records before connect."
+        },
+        {
+          "id": "02-05",
+          "name": "New device auto-registration via internal DCR",
+          "criteria": "GIVEN a device with unknown Ed25519 public key WHEN it completes connect handshake THEN new agent record created with device_fingerprint AND identity record with identity_agent edge created AND member_of edge to default workspace exists",
+          "test_file": "tests/acceptance/gateway/r1-auth-protocol.test.ts",
+          "scenario_name": "R1-4: new device auto-registers via DCR",
+          "files_to_modify": [
+            "app/src/server/gateway/identity-bridge.ts"
+          ],
+          "implementation_notes": "registerNewDevice: create agent record (agent_type='openclaw', device_fingerprint, device_public_key, device_platform, device_family), create identity record, RELATE identity_agent edge, RELATE member_of edge to default workspace. DCR creates OAuth client_id for audit trail. Returns RegisteredDevice with isNewDevice=true."
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Discovery and Governance Methods",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Presence tracking: query and broadcast for connected devices",
+          "criteria": "GIVEN two authenticated gateway connections WHEN both are active THEN presence query returns at least 2 online devices with deviceFingerprint, status, and agentType",
+          "test_file": "tests/acceptance/gateway/r3-governance.test.ts",
+          "scenario_name": "R3-3: presence query returns online devices",
+          "files_to_modify": [
+            "app/src/server/gateway/method-handlers/presence.ts",
+            "app/src/server/gateway/connection.ts",
+            "app/src/server/gateway/method-dispatch.ts"
+          ],
+          "implementation_notes": "In-memory connection registry tracking active connections by workspace. Presence handler queries registry for workspace's active connections, returns DevicePresence array. On connect→active transition, add to registry + broadcast presence.update event. On close, remove from registry. Register presence method in dispatch table."
+        },
+        {
+          "id": "03-02",
+          "name": "Model listing: configured providers without API key exposure",
+          "criteria": "GIVEN an authenticated connection WHEN client sends model.list THEN response has at least 1 model with id and provider AND response JSON does not contain 'sk-', 'api_key', or 'apiKey'",
+          "test_file": "tests/acceptance/gateway/r3-governance.test.ts",
+          "scenario_name": "R3-5: model.list returns configured models without API keys",
+          "files_to_modify": [
+            "app/src/server/gateway/method-handlers/models.ts",
+            "app/src/server/gateway/method-dispatch.ts"
+          ],
+          "implementation_notes": "Model handler reads config.chatAgentModel and other configured models, maps to ModelInfo array (id, provider, capabilities). Strip any API key fields from output. Register model.list method in dispatch table."
+        },
+        {
+          "id": "03-03",
+          "name": "Tools catalog, config.get, and method_not_supported error",
+          "criteria": "GIVEN an authenticated connection WHEN tools.catalog sent THEN response has tools array. WHEN config.get sent THEN response has protocol 3 and features array. WHEN unsupported method sent THEN method_not_supported error returned.",
+          "test_file": "tests/acceptance/gateway/r2-execution.test.ts",
+          "scenario_name": "R2-12: config.get returns read-only gateway configuration",
+          "also_enables": ["R2-8", "R2-9"],
+          "files_to_modify": [
+            "app/src/server/gateway/method-handlers/tools-catalog.ts",
+            "app/src/server/gateway/method-handlers/config.ts",
+            "app/src/server/gateway/method-dispatch.ts"
+          ],
+          "implementation_notes": "Tools catalog handler: calls deps.listGrantedTools with agent identity, maps to ToolCatalogEntry array. Config handler: returns static ConfigGetPayload with gateway version, protocol 3, features list, tickIntervalMs. Method dispatch: for recognized-but-unimplemented methods, return method_not_supported error. All three are thin handlers sharing the dispatch table — bundling justified."
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "app/src/server/gateway/"
+    ],
+    "test_directories": [
+      "tests/acceptance/gateway/",
+      "tests/unit/gateway/"
+    ],
+    "excluded_patterns": [
+      "**/*.md",
+      "**/*.feature"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-software-crafter-reviewer",
+    "approved_at": "2026-03-24T14:35:00Z"
+  }
+}
