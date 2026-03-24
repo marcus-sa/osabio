@@ -3,7 +3,7 @@
   "checkpoint_id": "a16a9483aa60",
   "strategy": "manual-commit",
   "branch": "marcus-sa/openclaw-gateway",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/server/gateway/index.ts",
     "app/src/server/gateway/method-handlers/config.ts",
@@ -19,13 +19,20 @@
       "context": "/a1/6a9483aa60/0/context.md",
       "content_hash": "/a1/6a9483aa60/0/content_hash.txt",
       "prompt": "/a1/6a9483aa60/0/prompt.txt"
+    },
+    {
+      "metadata": "/a1/6a9483aa60/1/metadata.json",
+      "transcript": "/a1/6a9483aa60/1/full.jsonl",
+      "context": "/a1/6a9483aa60/1/context.md",
+      "content_hash": "/a1/6a9483aa60/1/content_hash.txt",
+      "prompt": "/a1/6a9483aa60/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 3359,
+    "cache_creation_tokens": 203067,
+    "cache_read_tokens": 18989134,
+    "output_tokens": 50703,
+    "api_call_count": 118
   }
 }
