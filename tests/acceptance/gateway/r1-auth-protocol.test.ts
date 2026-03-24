@@ -262,7 +262,7 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-4: New device auto-registers via DCR (AC-1.3)
-  it.skip("R1-4: new device auto-registers via DCR", async () => {
+  it("R1-4: new device auto-registers via DCR", async () => {
     const { baseUrl, surreal } = getRuntime();
     const client = await connectGateway(baseUrl);
 
@@ -277,18 +277,63 @@ describe("Gateway R1: Authentication & Protocol", () => {
       buildConnectParams({ ...deviceAuth, nonce }),
     );
 
-    // Verify: hello-ok includes deviceToken
+    // Verify: hello-ok received
     expect(connectRes.ok).toBe(true);
+    const payload = connectRes.payload as {
+      type: string;
+      isNewDevice?: boolean;
+    };
+    expect(payload.type).toBe("hello-ok");
+    expect(payload.isNewDevice).toBe(true);
+
+    // Compute the fingerprint the same way the gateway does
+    const { computeDeviceFingerprint } = await import(
+      "../../../app/src/server/gateway/device-auth"
+    );
+    const fingerprint = await computeDeviceFingerprint(
+      deviceAuth.publicKeyBase64,
+    );
 
     // Verify: agent record created in DB with device_fingerprint
-    // const agents = await surreal.query<[{device_fingerprint: string}[]]>(
-    //   "SELECT device_fingerprint FROM agent WHERE device_fingerprint = $fp",
-    //   { fp: expectedFingerprint }
-    // );
-    // expect(agents[0].length).toBe(1);
+    const [agents] = await surreal.query<
+      [Array<{ id: { id: string }; device_fingerprint: string; device_public_key: string }>]
+    >(
+      "SELECT id, device_fingerprint, device_public_key FROM agent WHERE device_fingerprint = $fp;",
+      { fp: fingerprint },
+    );
+    expect(agents.length).toBe(1);
+    expect(agents[0].device_fingerprint).toBe(fingerprint);
+    expect(agents[0].device_public_key).toBe(deviceAuth.publicKeyBase64);
 
-    // Verify: identity created with identity_agent edge
-    // Verify: member_of edge to default workspace
+    // Verify: identity_agent edge exists pointing to the agent
+    const agentRecord = agents[0].id;
+    const [identityAgentEdges] = await surreal.query<
+      [Array<{ in: { id: string }; out: { id: string } }>]
+    >(
+      "SELECT in, out FROM identity_agent WHERE out = $agent;",
+      { agent: agentRecord },
+    );
+    expect(identityAgentEdges.length).toBe(1);
+
+    // Verify: identity record exists
+    const identityRecord = identityAgentEdges[0].in;
+    const [identities] = await surreal.query<
+      [Array<{ id: { id: string }; type: string }>]
+    >(
+      "SELECT id, type FROM identity WHERE id = $identity;",
+      { identity: identityRecord },
+    );
+    expect(identities.length).toBe(1);
+    expect(identities[0].type).toBe("agent");
+
+    // Verify: member_of edge exists (identity -> workspace)
+    const [memberOfEdges] = await surreal.query<
+      [Array<{ in: { id: string }; out: { id: string } }>]
+    >(
+      "SELECT in, out FROM member_of WHERE in = $identity;",
+      { identity: identityRecord },
+    );
+    expect(memberOfEdges.length).toBe(1);
 
     client.close();
   });
