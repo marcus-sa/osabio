@@ -144,29 +144,119 @@ describe("Gateway R1: Authentication & Protocol", () => {
 
   // R1-3: Known device resolves Brain identity (AC-1.2)
   // Pre-register a device, then connect with same key pair.
-  it.skip("R1-3: known device resolves Brain identity and workspace", async () => {
+  it("R1-3: known device resolves Brain identity and workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Pre-register a device in the agent table
-    // (create agent + identity + identity_agent + member_of)
-    const fingerprint = `dev-${crypto.randomUUID().slice(0, 8)}`;
+    // 1. Generate an Ed25519 key pair for the pre-registered device
+    const keyPair = await crypto.subtle.generateKey("Ed25519", true, [
+      "sign",
+      "verify",
+    ]);
+    const publicKeyRaw = await crypto.subtle.exportKey(
+      "raw",
+      keyPair.publicKey,
+    );
+    const publicKeyBase64 = Buffer.from(publicKeyRaw).toString("base64");
 
-    // ... seed device in DB with known fingerprint and public key ...
+    // 2. Compute fingerprint the same way the gateway does
+    const { computeDeviceFingerprint } = await import(
+      "../../../app/src/server/gateway/device-auth"
+    );
+    const fingerprint = await computeDeviceFingerprint(publicKeyBase64);
 
+    // 3. Pre-seed: workspace, identity, agent, identity_agent edge, member_of edge
+    const { RecordId } = await import("surrealdb");
+    const workspaceRecord = new RecordId("workspace", crypto.randomUUID());
+    const identityRecord = new RecordId("identity", crypto.randomUUID());
+    const agentRecord = new RecordId("agent", crypto.randomUUID());
+    const now = new Date();
+
+    await surreal.create(workspaceRecord).content({
+      name: "Test Known Device Workspace",
+      status: "active",
+      onboarding_complete: true,
+      onboarding_turn_count: 0,
+      onboarding_summary_pending: false,
+      onboarding_started_at: now,
+      created_at: now,
+      updated_at: now,
+    });
+
+    await surreal.create(identityRecord).content({
+      name: `test-device-${fingerprint.slice(0, 8)}`,
+      type: "agent",
+      workspace: workspaceRecord,
+      created_at: now,
+    });
+
+    await surreal.create(agentRecord).content({
+      agent_type: "openclaw",
+      managed_by: identityRecord,
+      device_fingerprint: fingerprint,
+      device_public_key: publicKeyBase64,
+      device_platform: "macos",
+      device_family: "test",
+      created_at: now,
+    });
+
+    await surreal
+      .relate(
+        identityRecord,
+        new RecordId("identity_agent", crypto.randomUUID()),
+        agentRecord,
+        { added_at: now },
+      )
+      .output("after");
+
+    await surreal
+      .relate(
+        identityRecord,
+        new RecordId("member_of", crypto.randomUUID()),
+        workspaceRecord,
+        { added_at: now },
+      )
+      .output("after");
+
+    // 4. Open WS and wait for connect.challenge
     const client = await connectGateway(baseUrl);
-
-    // Wait for challenge, perform full connect handshake with known device key
     const challenge = await client.waitForEvent("connect.challenge", 5_000);
     const { nonce } = challenge.payload as { nonce: string };
 
-    // ... sign with the pre-registered device's key pair ...
-    // const connectRes = await client.request("connect", buildConnectParams({...}));
+    // 5. Sign the nonce with the pre-registered key pair
+    const nonceBytes = Buffer.from(nonce, "base64");
+    const signature = await crypto.subtle.sign(
+      "Ed25519",
+      keyPair.privateKey,
+      nonceBytes,
+    );
+    const signatureBase64 = Buffer.from(signature).toString("base64");
 
-    // Verify identity and workspace are resolved in hello-ok
-    // expect(connectRes.ok).toBe(true);
-    // const payload = connectRes.payload as { workspace: string; identity: string };
-    // expect(payload.workspace).toBeDefined();
-    // expect(payload.identity).toBeDefined();
+    // 6. Send connect request with the known device's key
+    const connectRes = await client.request(
+      "connect",
+      buildConnectParams({
+        publicKeyBase64,
+        signatureBase64,
+        deviceId: `dev-known-${crypto.randomUUID().slice(0, 8)}`,
+        nonce,
+      }),
+    );
+
+    // 7. Assert hello-ok contains the pre-seeded workspace and identity IDs
+    expect(connectRes.ok).toBe(true);
+    const payload = connectRes.payload as {
+      type: string;
+      workspace: { id: string };
+      identity: { id: string; agentId: string };
+      isNewDevice?: boolean;
+    };
+    expect(payload.type).toBe("hello-ok");
+    expect(payload.workspace.id).toBe(workspaceRecord.id as string);
+    expect(payload.identity.id).toBe(identityRecord.id as string);
+    expect(payload.identity.agentId).toBe(agentRecord.id as string);
+
+    // 8. Assert isNewDevice is false
+    expect(payload.isNewDevice).toBe(false);
 
     client.close();
   });
