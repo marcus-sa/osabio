@@ -25,12 +25,13 @@ import {
   seedCanUseEdge,
   getToolCallTraces,
   sendProxyRequestWithIdentity,
-  createMockAnthropicServer,
+  createMockAnthropicServerWithToolUse,
 } from "./tool-registry-test-kit";
 
 const getRuntime = setupAcceptanceSuite("tool_registry_tracing");
 
-const mockAnthropic = createMockAnthropicServer();
+// Mock returns tool_use for "search_entities" on first call, then end_turn
+const mockAnthropic = createMockAnthropicServerWithToolUse("search_entities", { query: "auth" });
 beforeAll(() => mockAnthropic.listen({ onUnhandledRequest: "bypass" }));
 afterAll(() => mockAnthropic.close());
 

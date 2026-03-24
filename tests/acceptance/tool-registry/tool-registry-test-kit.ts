@@ -691,3 +691,51 @@ export function createMockAnthropicServer(anthropicApiUrl = process.env.ANTHROPI
   );
   return server;
 }
+
+/**
+ * Create an MSW mock that returns a tool_use response on the first call,
+ * then end_turn on subsequent calls. Use for tests that need the proxy
+ * to enter the tool interception loop (e.g. tracing tests).
+ */
+export function createMockAnthropicServerWithToolUse(
+  toolName: string,
+  toolInput: Record<string, unknown> = { query: "test" },
+  anthropicApiUrl = process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
+) {
+  let callCount = 0;
+
+  const server = setupMswServer(
+    http.post(`${anthropicApiUrl}/v1/messages`, () => {
+      callCount++;
+      if (callCount === 1) {
+        return HttpResponse.json({
+          id: `msg_mock_${crypto.randomUUID().slice(0, 8)}`,
+          type: "message",
+          role: "assistant",
+          content: [{
+            type: "tool_use",
+            id: `toolu_mock_${crypto.randomUUID().slice(0, 8)}`,
+            name: toolName,
+            input: toolInput,
+          }],
+          model: "claude-haiku-4-5-20251001",
+          stop_reason: "tool_use",
+          stop_sequence: null,
+          usage: { input_tokens: 15, output_tokens: 20 },
+        });
+      }
+      return HttpResponse.json({
+        id: `msg_mock_${crypto.randomUUID().slice(0, 8)}`,
+        type: "message",
+        role: "assistant",
+        content: [{ type: "text", text: "Based on the search results, here is what I found." }],
+        model: "claude-haiku-4-5-20251001",
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 25, output_tokens: 15 },
+      });
+    }),
+  );
+
+  return server;
+}
