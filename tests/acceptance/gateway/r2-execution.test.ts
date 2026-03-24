@@ -232,7 +232,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   // R2-8: tools.catalog returns only agent's granted tools (AC-2.5)
   // Verifies tool access scoping: agent sees only tools granted via authority scopes,
   // not the entire workspace registry.
-  it.skip("R2-8: tools.catalog returns only tools the agent has access to", async () => {
+  it("R2-8: tools.catalog returns only tools the agent has access to", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Seed workspace with 5 MCP tools across 2 servers
@@ -262,7 +262,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-9: Unsupported method returns method_not_supported (AC-2.6)
-  it.skip("R2-9: unimplemented method returns method_not_supported", async () => {
+  it("R2-9: unimplemented method returns method_not_supported", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
@@ -335,7 +335,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-12: config.get returns gateway capabilities (AC-2.6)
-  it.skip("R2-12: config.get returns read-only gateway configuration", async () => {
+  it("R2-12: config.get returns read-only gateway configuration", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 

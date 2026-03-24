@@ -18,6 +18,8 @@ import { createConnectHandler, resolveConnectionUpdate } from "./method-handlers
 import { createAgentHandler } from "./method-handlers/agent";
 import { createPresenceHandler } from "./method-handlers/presence";
 import { createModelListHandler } from "./method-handlers/models";
+import { createToolsCatalogHandler } from "./method-handlers/tools-catalog";
+import { createConfigGetHandler } from "./method-handlers/config";
 import { mapStreamEventToGatewayEvent } from "./event-adapter";
 import { createPresenceRegistry } from "./presence-registry";
 import type { PresenceRegistry } from "./presence-registry";
@@ -72,12 +74,16 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
   const agentHandler = createAgentHandler();
   const presenceHandler = createPresenceHandler(presenceRegistry);
   const modelListHandler = createModelListHandler();
+  const toolsCatalogHandler = createToolsCatalogHandler();
+  const configGetHandler = createConfigGetHandler();
 
   return {
     connect: connectHandler,
     agent: agentHandler,
     presence: presenceHandler,
     "model.list": modelListHandler,
+    "tools.catalog": toolsCatalogHandler,
+    "config.get": configGetHandler,
   };
 }
 
