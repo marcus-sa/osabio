@@ -5,8 +5,18 @@
   "branch": "marcus-sa/mcp-tool-registry",
   "checkpoints_count": 1,
   "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/server/tool-registry/routes.ts",
+    "docs/research/oauth21-mcp-authorization.md",
+    "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
     "tests/acceptance/mcp-server-auth/12-oauth-discovery.test.ts",
-    "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts"
+    "tests/acceptance/mcp-server-auth/13-oauth-authorization.test.ts",
+    "tests/acceptance/shared-fixtures.ts",
+    "tests/acceptance/tool-registry-ui/tool-registry-ui-test-kit.ts",
+    "tests/acceptance/tool-registry/02-proxy-tool-injection.test.ts",
+    "tests/acceptance/tool-registry/03-brain-native-routing.test.ts",
+    "tests/acceptance/tool-registry/04-tool-call-tracing.test.ts",
+    "tests/acceptance/tool-registry/tool-registry-test-kit.ts"
   ],
   "sessions": [
     {
@@ -15,6 +25,13 @@
       "context": "/9e/e548d0136f/0/context.md",
       "content_hash": "/9e/e548d0136f/0/content_hash.txt",
       "prompt": "/9e/e548d0136f/0/prompt.txt"
+    },
+    {
+      "metadata": "/9e/e548d0136f/1/metadata.json",
+      "transcript": "/9e/e548d0136f/1/full.jsonl",
+      "context": "/9e/e548d0136f/1/context.md",
+      "content_hash": "/9e/e548d0136f/1/content_hash.txt",
+      "prompt": "/9e/e548d0136f/1/prompt.txt"
     }
   ],
   "token_usage": {
