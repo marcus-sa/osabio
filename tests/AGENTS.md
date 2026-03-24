@@ -91,3 +91,11 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
     targetFunction: mockFn,
   }));
   ```
+
+## Better Auth Session in Tests
+
+- Browser-facing routes (tool-registry, policy, etc.) resolve identity from the Better Auth session, NOT from headers. Tests must provide valid session cookies.
+- `createTestUser()` signs up via `/api/auth/sign-up/email` and returns `{ headers: { Cookie }, personId }`. The `personId` is the Better Auth `person` record ID.
+- `createTestUserWithMcp()` extends this by creating an `identity` record, `member_of` edge (workspace), and `identity_person` edge (person→identity linkage). The `identity_person` edge is required for `resolveIdentityFromSession()` to resolve the session to an identity.
+- **Do NOT bypass session auth with header fallbacks** (e.g. `X-Brain-Identity`). Header-based identity is for MCP/CLI clients authenticated via DPoP or proxy tokens only. Adding header fallbacks to session-based routes creates an auth bypass vulnerability.
+- Better Auth provides a `testUtils` plugin (`better-auth/plugins`) with `test.login({ userId })` and `test.getAuthHeaders({ userId })` for creating sessions without HTTP sign-up. Not currently wired in — if needed, add `testUtils()` to `createAuth()` plugins conditionally for test environments.
