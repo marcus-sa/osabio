@@ -276,7 +276,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
 
       // Walking skeleton: emit simulated agent events asynchronously.
       // In production, this will be replaced by real orchestrator event streaming.
-      setTimeout(() => {
+      setTimeout(async () => {
         sessionEventBus.emit(sessionId, {
           type: "agent_token",
           sessionId,
@@ -287,6 +287,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           sessionId,
           status: "completed",
         });
+
+        // Update DB to reflect terminal status before emitting done
+        await deps.surreal.query(
+          "UPDATE $sess SET orchestrator_status = 'completed', ended_at = time::now();",
+          { sess: sessionRecord },
+        );
+
         sessionEventBus.emit(sessionId, {
           type: "done",
           messageId: sessionId,

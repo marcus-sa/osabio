@@ -183,7 +183,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-6: agent.wait returns on completion (AC-2.3)
-  it.skip("R2-6: agent.wait blocks until session completes", async () => {
+  it("R2-6: agent.wait blocks until session completes", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
