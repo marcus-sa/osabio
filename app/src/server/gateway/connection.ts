@@ -9,14 +9,14 @@
  *
  * Effects are returned as data — the caller (impure shell) interprets them.
  */
-import type { ConnectionState, GatewayConnection } from "./types";
+import type { ConnectionState, GatewayConnection, PendingChallenge } from "./types";
 
 // ---------------------------------------------------------------------------
 // Connection events — inputs to the state machine
 // ---------------------------------------------------------------------------
 
 export type ConnectionEvent =
-  | { readonly type: "ws_open" }
+  | { readonly type: "ws_open"; readonly challenge: PendingChallenge }
   | { readonly type: "ws_close"; readonly code: number; readonly reason: string }
   | { readonly type: "ws_message"; readonly data: string };
 
@@ -84,13 +84,20 @@ function transitionFromConnecting(
   event: ConnectionEvent,
 ): TransitionResult {
   switch (event.type) {
-    case "ws_open":
+    case "ws_open": {
+      const challengeFrame = JSON.stringify({
+        type: "event",
+        event: "connect.challenge",
+        payload: { nonce: event.challenge.nonce, ts: event.challenge.ts },
+      });
       return {
-        connection: withState(connection, "authenticating"),
+        connection: { ...withState(connection, "authenticating"), challenge: event.challenge },
         effects: [
+          { type: "send_frame", frame: challengeFrame },
           { type: "record_trace", method: "ws_open", connectionId: connection.connectionId },
         ],
       };
+    }
     case "ws_close":
       return toClosedState(connection);
     case "ws_message":

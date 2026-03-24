@@ -10,6 +10,7 @@
  */
 import { jsonResponse } from "../http/response";
 import { createConnection, transition, activateConnection } from "./connection";
+import { generateChallenge } from "./device-auth";
 import { parseFrame, isParseError, serializeFrame } from "./protocol";
 import type { EventFrame, ResponseFrame } from "./protocol";
 import { createMethodDispatch, type MethodHandlerMap } from "./method-dispatch";
@@ -111,8 +112,16 @@ export function createGatewayWebSocketHandlers() {
   return {
     open(ws: { data: GatewayWebSocketData; send: (msg: string) => void }) {
       const { connection } = ws.data;
-      const result = transition(connection, { type: "ws_open" });
+      const challenge = generateChallenge();
+      const result = transition(connection, { type: "ws_open", challenge });
       (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
+
+      // Execute effects produced by the transition
+      for (const effect of result.effects) {
+        if (effect.type === "send_frame") {
+          ws.send(effect.frame);
+        }
+      }
     },
 
     message(

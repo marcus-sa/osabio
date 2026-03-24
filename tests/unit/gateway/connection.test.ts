@@ -36,7 +36,7 @@ describe("Connection State Machine", () => {
   describe("transition from connecting", () => {
     it("transitions to authenticating on ws_open event", () => {
       const connection = createConnection();
-      const event: ConnectionEvent = { type: "ws_open" };
+      const event: ConnectionEvent = { type: "ws_open", challenge: { nonce: "dGVzdC1ub25jZQ==", ts: Date.now() } };
 
       const result = transition(connection, event);
 
@@ -46,7 +46,7 @@ describe("Connection State Machine", () => {
 
     it("produces record_trace effect on ws_open", () => {
       const connection = createConnection();
-      const event: ConnectionEvent = { type: "ws_open" };
+      const event: ConnectionEvent = { type: "ws_open", challenge: { nonce: "dGVzdC1ub25jZQ==", ts: Date.now() } };
 
       const result = transition(connection, event);
 
@@ -69,7 +69,7 @@ describe("Connection State Machine", () => {
   describe("transition from authenticating", () => {
     it("transitions to closed on ws_close", () => {
       const connection = createConnection();
-      const opened = transition(connection, { type: "ws_open" });
+      const opened = transition(connection, { type: "ws_open", challenge: { nonce: "dGVzdC1ub25jZQ==", ts: Date.now() } });
       const event: ConnectionEvent = { type: "ws_close", code: 1000, reason: "going away" };
 
       const result = transition(opened.connection, event);
@@ -83,7 +83,7 @@ describe("Connection State Machine", () => {
       const connection = createConnection();
       const closed = transition(connection, { type: "ws_close", code: 1000, reason: "done" });
 
-      const result = transition(closed.connection, { type: "ws_open" });
+      const result = transition(closed.connection, { type: "ws_open", challenge: { nonce: "dGVzdC1ub25jZQ==", ts: Date.now() } });
 
       expect(result.connection.state).toBe("closed");
       expect(result.effects).toEqual([]);

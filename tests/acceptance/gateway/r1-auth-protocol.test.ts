@@ -90,7 +90,7 @@ function buildConnectParams(device: {
 describe("Gateway R1: Authentication & Protocol", () => {
   // R1-1: connect.challenge sent immediately on WS open (AC-1.1)
   // Enable first — this is the foundation for all auth tests.
-  it.skip("R1-1: connect.challenge event sent immediately on WebSocket open", async () => {
+  it("R1-1: connect.challenge event sent immediately on WebSocket open", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
 
