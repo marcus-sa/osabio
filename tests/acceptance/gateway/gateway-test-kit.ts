@@ -182,6 +182,15 @@ export function connectGateway(
               : "predicate";
 
           return new Promise((res, rej) => {
+            // Check already-received event frames first (race condition defense)
+            const alreadyReceived = receivedFrames.find(
+              (f): f is EventFrame => f.type === "event" && matchFn(f),
+            );
+            if (alreadyReceived) {
+              res(alreadyReceived);
+              return;
+            }
+
             const timer = setTimeout(() => {
               const idx = eventListeners.indexOf(listener);
               if (idx >= 0) eventListeners.splice(idx, 1);
