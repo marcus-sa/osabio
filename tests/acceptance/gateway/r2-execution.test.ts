@@ -129,7 +129,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-4: sessions.list returns active and completed sessions (AC-2.3)
-  it.skip("R2-4: sessions.list returns sessions for this identity", async () => {
+  it("R2-4: sessions.list returns sessions for this identity", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
@@ -279,7 +279,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-10: sessions.patch updates model mid-session (AC-2.3)
-  it.skip("R2-10: sessions.patch updates session properties mid-flight", async () => {
+  it("R2-10: sessions.patch updates session properties mid-flight", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 

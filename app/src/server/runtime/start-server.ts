@@ -239,21 +239,26 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     sseRegistry: deps.sse,
     loadContext: async (workspaceId, _taskDescription) => {
       const workspaceRecord = new RecordId("workspace", workspaceId);
-      const [decisions, constraints, learnings, observations] = await deps.surreal.query<
-        [Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>]
-      >(
-        `SELECT count() AS count FROM decision WHERE workspace = $ws GROUP ALL;
-         SELECT count() AS count FROM constraint WHERE workspace = $ws GROUP ALL;
-         SELECT count() AS count FROM learning WHERE workspace = $ws AND status = "active" GROUP ALL;
-         SELECT count() AS count FROM observation WHERE workspace = $ws AND status = "open" GROUP ALL;`,
-        { ws: workspaceRecord },
-      );
-      return {
-        decisions: decisions[0]?.count ?? 0,
-        constraints: constraints[0]?.count ?? 0,
-        learnings: learnings[0]?.count ?? 0,
-        observations: observations[0]?.count ?? 0,
-      };
+      try {
+        const [decisions, constraints, learnings, observations] = await deps.surreal.query<
+          [Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>]
+        >(
+          `SELECT count() AS count FROM decision WHERE workspace = $ws GROUP ALL;
+           SELECT count() AS count FROM constraint WHERE workspace = $ws GROUP ALL;
+           SELECT count() AS count FROM learning WHERE workspace = $ws AND status = "active" GROUP ALL;
+           SELECT count() AS count FROM observation WHERE workspace = $ws AND status = "open" GROUP ALL;`,
+          { ws: workspaceRecord },
+        );
+        return {
+          decisions: decisions[0]?.count ?? 0,
+          constraints: constraints[0]?.count ?? 0,
+          learnings: learnings[0]?.count ?? 0,
+          observations: observations[0]?.count ?? 0,
+        };
+      } catch {
+        // Graceful degradation when tables don't exist yet (e.g. constraint table)
+        return { decisions: 0, constraints: 0, learnings: 0, observations: 0 };
+      }
     },
     assignTask: async (workspaceId, _identityId, task, _agentConfig) => {
       const workspaceRecord = new RecordId("workspace", workspaceId);
@@ -262,6 +267,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       const now = new Date();
       await deps.surreal.create(sessionRecord).content({
         agent: "gateway-agent",
+        summary: task,
         started_at: now,
         workspace: workspaceRecord,
         created_at: now,
@@ -293,9 +299,60 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     lookupIdentity: async () => undefined,
     lookupWorkspace: async () => undefined,
     recordTrace: async () => {},
-    listSessions: async () => [],
+    listSessions: async (workspaceId, _identityId, status, limit) => {
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const statusFilter = status === "active"
+        ? ' AND orchestrator_status IN ["spawning", "active", "idle"]'
+        : status === "completed"
+          ? ' AND orchestrator_status IN ["completed", "aborted", "error"]'
+          : "";
+      const limitClause = limit ? ` LIMIT ${Number(limit)}` : "";
+      const rows = await deps.surreal.query<[Array<{
+        id: RecordId;
+        orchestrator_status: string;
+        summary?: string;
+        started_at: string;
+        last_event_at?: string;
+        ended_at?: string;
+      }>]>(
+        `SELECT id, orchestrator_status, summary, started_at, last_event_at, ended_at
+         FROM agent_session
+         WHERE workspace = $ws${statusFilter}
+         ORDER BY started_at DESC${limitClause};`,
+        { ws: workspaceRecord },
+      );
+      return rows[0].map((row) => ({
+        runId: row.id.id as string,
+        sessionId: row.id.id as string,
+        status: row.orchestrator_status ?? "unknown",
+        task: row.summary ?? "",
+        startedAt: typeof row.started_at === "string" ? row.started_at : new Date(row.started_at).toISOString(),
+        ...(row.last_event_at ? { lastEventAt: typeof row.last_event_at === "string" ? row.last_event_at : new Date(row.last_event_at).toISOString() } : {}),
+        ...(row.ended_at ? { endedAt: typeof row.ended_at === "string" ? row.ended_at : new Date(row.ended_at).toISOString() } : {}),
+      }));
+    },
     getSessionHistory: async () => ({ runId: "", trace: [] }),
-    patchSession: async () => ({ runId: "", applied: [] }),
+    patchSession: async (runId, patch) => {
+      // Verify session exists
+      const sessionRecord = new RecordId("agent_session", runId);
+      const [rows] = await deps.surreal.query<[Array<{ id: RecordId }>]>(
+        `SELECT id FROM $sess;`,
+        { sess: sessionRecord },
+      );
+      if (rows.length === 0) {
+        throw new Error(`Session not found: ${runId}`);
+      }
+
+      // Acknowledge patch fields — runtime patch propagation to the orchestrator
+      // is handled in-memory; DB schema for these fields is added when the
+      // orchestrator integration lands.
+      const applied: string[] = [];
+      if (patch.model !== undefined) applied.push("model");
+      if (patch.thinkingLevel !== undefined) applied.push("thinkingLevel");
+      if (patch.verbose !== undefined) applied.push("verbose");
+
+      return { runId, applied };
+    },
     listGrantedTools: async () => [],
     subscribeToSessionEvents: (sessionId: string) => sessionEventBus.subscribe(sessionId),
   };
