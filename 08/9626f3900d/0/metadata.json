@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "089626f3900d",
+  "session_id": "66d3b473-a7b7-4895-bffb-b18ea7a61309",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T16:08:47.861987Z",
+  "branch": "marcus-sa/openclaw-gateway",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/gateway/index.ts",
+    "app/src/server/gateway/method-handlers/presence.ts",
+    "app/src/server/gateway/presence-registry.ts",
+    "docs/feature/openclaw-gateway/deliver/.develop-progress.json",
+    "docs/feature/openclaw-gateway/deliver/execution-log.json",
+    "tests/acceptance/gateway/r3-governance.test.ts",
+    "tests/unit/gateway/presence-registry.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "45930df7a321",
+  "checkpoint_transcript_start": 13,
+  "transcript_lines_at_start": 13,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T16:08:47.832813Z",
+    "agent_lines": 3,
+    "human_added": 313,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 323,
+    "agent_percentage": 0.9287925696594427
+  }
+}
