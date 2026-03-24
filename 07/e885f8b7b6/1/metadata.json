@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "07e885f8b7b6",
+  "session_id": "8fc6c0b7-d3d8-400e-8020-c98033c19082",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T18:27:48.424993Z",
+  "branch": "marcus-sa/openclaw-gateway",
+  "checkpoints_count": 5,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "app/src/server/runtime/start-server.ts",
+    "docs/feature/openclaw-gateway/deliver/.develop-progress.json",
+    "docs/feature/openclaw-gateway/deliver/execution-log.json",
+    "docs/feature/openclaw-gateway/deliver/roadmap.json",
+    "tests/acceptance/acceptance-test-kit.ts",
+    "tests/acceptance/gateway/openclaw-cli-smoke.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5de00b56c2da",
+  "token_usage": {
+    "input_tokens": 5478,
+    "cache_creation_tokens": 1361470,
+    "cache_read_tokens": 45271240,
+    "output_tokens": 125827,
+    "api_call_count": 287
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T18:27:45.939631Z",
+    "agent_lines": 207,
+    "human_added": 19,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 227,
+    "agent_percentage": 91.18942731277532
+  }
+}
