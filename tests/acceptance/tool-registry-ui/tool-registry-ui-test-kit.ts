@@ -866,11 +866,11 @@ export { seedProxyToken };
 
 /**
  * Send a proxy request to the Anthropic Messages endpoint.
- * Creates a proxy token on first call per user (cached on the user object).
+ * Uses X-Brain-Workspace + X-Brain-Identity headers (direct mode).
+ * The x-api-key is a test placeholder — MSW intercepts before it reaches Anthropic.
  */
 export async function sendProxyRequest(
   baseUrl: string,
-  surreal: Surreal,
   user: TestUserWithMcp,
   options: {
     messages: Array<{ role: string; content: string }>;
@@ -879,20 +879,14 @@ export async function sendProxyRequest(
     maxTokens?: number;
   },
 ): Promise<Response> {
-  // Cache proxy token on user object to avoid re-creating per call
-  const cached = (user as unknown as { _proxyToken?: string })._proxyToken;
-  const proxyToken = cached ?? await seedProxyToken(surreal, user.identityId, user.workspaceId);
-  if (!cached) {
-    (user as unknown as { _proxyToken?: string })._proxyToken = proxyToken;
-  }
-
   return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
       "x-api-key": "test-api-key",
-      "X-Brain-Auth": proxyToken,
+      "X-Brain-Workspace": user.workspaceId,
+      "X-Brain-Identity": user.identityId,
     },
     body: JSON.stringify({
       model: options.model ?? "claude-haiku-4-5-20251001",

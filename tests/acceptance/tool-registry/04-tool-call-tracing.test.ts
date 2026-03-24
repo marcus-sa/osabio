@@ -49,7 +49,7 @@ describe("Walking Skeleton: Brain-native tool call produces trace record", () =>
     });
 
     // When the proxy executes a tool call for "search_entities"
-    await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "Use search_entities to find tasks about auth" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -87,7 +87,7 @@ describe("Trace records success outcome with duration", () => {
       workspaceId: user.workspaceId,
     });
 
-    await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "Use search_entities to find any entity" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -110,7 +110,7 @@ describe("Unknown tool calls do not produce trace records", () => {
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-notr-${crypto.randomUUID()}`);
 
     // Given the LLM uses "read_file" (unknown to Brain)
-    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "hello" }],
       tools: [
         { name: "read_file", description: "Read a file", input_schema: { type: "object", properties: { path: { type: "string" } } } },
@@ -144,7 +144,7 @@ describe("Trace includes identity reference for auditability", () => {
       workspaceId: user.workspaceId,
     });
 
-    await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "Use search_entities to find projects" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });

@@ -44,7 +44,7 @@ describe("Walking Skeleton: Proxy intercepts and executes Brain-native tool call
 
     // When the proxy injects the tool and the LLM returns a tool_call for "search_entities"
     // (We send a prompt that encourages tool use)
-    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "Use the search_entities tool to find tasks about authentication" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -67,7 +67,7 @@ describe("Unknown tool call passed through to runtime", () => {
 
     // Given the LLM returns tool_call for "read_file" (a runtime tool)
     // And "read_file" does not match any mcp_tool record
-    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "hello" }],
       tools: [
         { name: "read_file", description: "Read a file from disk", input_schema: { type: "object", properties: { path: { type: "string" } } } },
@@ -99,7 +99,7 @@ describe("Brain-native tool execution error returns tool_result error", () => {
     });
 
     // When the proxy tries to execute it
-    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, user, {
       messages: [{ role: "user", content: "Use the nonexistent_brain_tool" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });

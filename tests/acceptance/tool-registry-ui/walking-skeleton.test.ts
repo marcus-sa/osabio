@@ -376,7 +376,7 @@ describe("Walking Skeleton: Admin manages integrations end-to-end", () => {
     ]);
 
     // When the agent sends a proxy request
-    const res = await sendProxyRequest(baseUrl, surreal, agent, {
+    const res = await sendProxyRequest(baseUrl, agent, {
       messages: [{ role: "user", content: "Create a test issue on GitHub" }],
     });
 
