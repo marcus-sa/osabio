@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "660f2cc421d5",
+  "session_id": "8fc6c0b7-d3d8-400e-8020-c98033c19082",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T15:14:46.851752Z",
+  "branch": "marcus-sa/openclaw-gateway",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/openclaw-gateway/deliver/.develop-progress.json",
+    "docs/feature/openclaw-gateway/deliver/roadmap.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1f6f6d3b9a22",
+  "token_usage": {
+    "input_tokens": 3320,
+    "cache_creation_tokens": 167797,
+    "cache_read_tokens": 12439275,
+    "output_tokens": 31538,
+    "api_call_count": 85
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T15:14:46.437929Z",
+    "agent_lines": 248,
+    "human_added": 642,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 890,
+    "agent_percentage": 27.86516853932584
+  }
+}
