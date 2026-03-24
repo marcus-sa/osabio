@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "71ec50bc432b",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/layout/WorkspaceSidebar.tsx",
+    "app/src/client/components/tool-registry/ToolDetailPanel.test.tsx",
+    "app/src/client/components/tool-registry/ToolDetailPanel.tsx",
+    "app/src/client/components/tool-registry/ToolTable.test.tsx",
+    "app/src/client/components/tool-registry/ToolTable.tsx",
+    "app/src/client/hooks/use-tools.ts",
+    "app/src/client/routes/tool-registry-page.test.tsx",
+    "app/src/client/routes/tool-registry-page.tsx",
+    "app/src/server/tool-registry/discovery.ts",
+    "app/src/server/tool-registry/queries.ts",
+    "app/src/server/tool-registry/tool-routes.ts",
+    "app/src/server/tool-registry/types.ts",
+    "tests/unit/tool-registry/discovery.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/71/ec50bc432b/0/metadata.json",
+      "transcript": "/71/ec50bc432b/0/full.jsonl",
+      "context": "/71/ec50bc432b/0/context.md",
+      "content_hash": "/71/ec50bc432b/0/content_hash.txt",
+      "prompt": "/71/ec50bc432b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
