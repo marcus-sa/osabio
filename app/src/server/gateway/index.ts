@@ -17,6 +17,7 @@ import { createMethodDispatch, type MethodHandlerMap } from "./method-dispatch";
 import { createConnectHandler, resolveConnectionUpdate } from "./method-handlers/connect";
 import { createAgentHandler } from "./method-handlers/agent";
 import { createPresenceHandler } from "./method-handlers/presence";
+import { createModelListHandler } from "./method-handlers/models";
 import { mapStreamEventToGatewayEvent } from "./event-adapter";
 import { createPresenceRegistry } from "./presence-registry";
 import type { PresenceRegistry } from "./presence-registry";
@@ -70,11 +71,13 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
   const { handler: connectHandler } = createConnectHandler();
   const agentHandler = createAgentHandler();
   const presenceHandler = createPresenceHandler(presenceRegistry);
+  const modelListHandler = createModelListHandler();
 
   return {
     connect: connectHandler,
     agent: agentHandler,
     presence: presenceHandler,
+    "model.list": modelListHandler,
   };
 }
 

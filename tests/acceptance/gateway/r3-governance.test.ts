@@ -163,7 +163,7 @@ describe("Gateway R3: Governance & Multi-Agent", () => {
   });
 
   // R3-5: Model list returns providers without API keys (AC-3.4)
-  it.skip("R3-5: model.list returns configured models without API keys", async () => {
+  it("R3-5: model.list returns configured models without API keys", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
