@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1f8f6eb3520e",
+  "session_id": "4cfdb639-c988-460b-9f6c-3e1ebe6f0fbd",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T06:41:01.316518Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/mcp-server-auth/11-static-headers.test.ts",
+    "tests/acceptance/tool-registry/02-proxy-tool-injection.test.ts",
+    "tests/acceptance/tool-registry/03-brain-native-routing.test.ts",
+    "tests/acceptance/tool-registry/04-tool-call-tracing.test.ts",
+    "tests/acceptance/tool-registry/tool-registry-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a85011d69ba6",
+  "token_usage": {
+    "input_tokens": 2912,
+    "cache_creation_tokens": 505443,
+    "cache_read_tokens": 37228888,
+    "output_tokens": 105853,
+    "api_call_count": 258
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T06:40:59.42869Z",
+    "agent_lines": 0,
+    "human_added": 44,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 44,
+    "agent_percentage": 0
+  }
+}
