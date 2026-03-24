@@ -280,6 +280,10 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
 
       // Walking skeleton: emit simulated agent events asynchronously.
       // In production, this will be replaced by real orchestrator event streaming.
+      // Long-running tasks use a longer delay to simulate sessions that survive
+      // WebSocket disconnects (R3-6 reconnect resilience test).
+      const isLongRunning = task.toLowerCase().includes("long running");
+      const completionDelay = isLongRunning ? 5000 : 50;
       setTimeout(async () => {
         // Create a trace record so sessions.history has data to return
         const traceId = crypto.randomUUID();
@@ -343,7 +347,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           type: "done",
           messageId: sessionId,
         });
-      }, 50);
+      }, completionDelay);
 
       return { runId: sessionId, sessionId };
     },

@@ -189,7 +189,7 @@ describe("Gateway R3: Governance & Multi-Agent", () => {
   // R3-6: Reconnect resumes session via agent.status (AC-3.5)
   // Verifies the session continues running server-side after disconnect,
   // and the reconnected client can query its status (still active, not lost).
-  it.skip("R3-6: reconnect after disconnect resumes active session", async () => {
+  it("R3-6: reconnect after disconnect resumes active session", async () => {
     const { baseUrl } = getRuntime();
 
     // Connect and start a long-running session
