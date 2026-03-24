@@ -159,7 +159,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-5: agent.status returns session state — backward compat (AC-2.3)
-  it.skip("R2-5: agent.status returns current session state", async () => {
+  it("R2-5: agent.status returns current session state", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
