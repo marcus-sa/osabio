@@ -276,6 +276,13 @@ export type AgentPromptEvent = {
   text: string;
 };
 
+export type ExecRequestEvent = {
+  type: "exec_request";
+  sessionId: string;
+  requestId: string;
+  command: string;
+};
+
 export type StreamEvent =
   | TokenEvent
   | ReasoningEvent
@@ -290,7 +297,8 @@ export type StreamEvent =
   | AgentFileChangeEvent
   | AgentStatusEvent
   | AgentStallWarningEvent
-  | AgentPromptEvent;
+  | AgentPromptEvent
+  | ExecRequestEvent;
 
 export type SearchEntityResponse = {
   id: string;

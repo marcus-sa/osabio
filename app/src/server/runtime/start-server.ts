@@ -51,6 +51,7 @@ import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { createGatewayRoutes, createGatewayWebSocketHandlers } from "../gateway/index";
+import { createExecApprovalStore } from "../gateway/method-handlers/exec-approval";
 import type { GatewayDeps } from "../gateway/types";
 import type { StreamEvent } from "../../shared/contracts";
 import { initTelemetry } from "../telemetry/init";
@@ -232,6 +233,9 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   // Gateway session event bus — bridges assignTask to subscribeToSessionEvents
   const sessionEventBus = createSessionEventBus();
 
+  // Exec approval store — shared between mock agent and exec.approve/exec.deny handlers
+  const execApprovalStore = createExecApprovalStore();
+
   // Gateway dependency wiring — ports to Brain systems
   const gatewayDeps: GatewayDeps = {
     surreal: deps.surreal,
@@ -296,6 +300,25 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           sessionId,
           token: `Acknowledged task: ${task}`,
         });
+
+        // Mock agent: emit exec_request for command-like tasks and pause for approval.
+        // Real orchestrator will emit exec_request when it needs to run a shell command.
+        const commandKeywords = ["install", "delete", "build", "run", "deploy", "remove"];
+        const isCommandTask = commandKeywords.some((kw) => task.toLowerCase().includes(kw));
+
+        if (isCommandTask) {
+          const requestId = crypto.randomUUID();
+          sessionEventBus.emit(sessionId, {
+            type: "exec_request",
+            sessionId,
+            requestId,
+            command: "npm install",
+          });
+
+          // Wait for approval/denial from the client
+          await execApprovalStore.register(requestId);
+        }
+
         sessionEventBus.emit(sessionId, {
           type: "agent_status",
           sessionId,
@@ -457,7 +480,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   };
 
   const gatewayRoutes = createGatewayRoutes(gatewayDeps);
-  const gatewayWebSocket = createGatewayWebSocketHandlers();
+  const { handlers: gatewayWebSocket } = createGatewayWebSocketHandlers(execApprovalStore);
 
   return Bun.serve({
     port: config.port,

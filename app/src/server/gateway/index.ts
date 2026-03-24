@@ -22,6 +22,8 @@ import { createToolsCatalogHandler } from "./method-handlers/tools-catalog";
 import { createConfigGetHandler } from "./method-handlers/config";
 import { createSessionsListHandler, createSessionsPatchHandler, createSessionsHistoryHandler } from "./method-handlers/sessions";
 import { createAgentStatusHandler, createAgentWaitHandler } from "./method-handlers/agent-status";
+import { createExecApproveHandler, createExecDenyHandler, createExecApprovalStore } from "./method-handlers/exec-approval";
+import type { ExecApprovalStore } from "./method-handlers/exec-approval";
 import { mapStreamEventToGatewayEvent } from "./event-adapter";
 import { createPresenceRegistry } from "./presence-registry";
 import type { PresenceRegistry } from "./presence-registry";
@@ -71,7 +73,7 @@ function createGatewayRequestHandler(deps: GatewayDeps) {
 // Method handler registry
 // ---------------------------------------------------------------------------
 
-function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
+function buildHandlerMap(presenceRegistry: PresenceRegistry, execApprovalStore: ExecApprovalStore): MethodHandlerMap {
   const { handler: connectHandler } = createConnectHandler();
   const agentHandler = createAgentHandler();
   const presenceHandler = createPresenceHandler(presenceRegistry);
@@ -83,6 +85,8 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
   const sessionsHistoryHandler = createSessionsHistoryHandler();
   const agentStatusHandler = createAgentStatusHandler();
   const agentWaitHandler = createAgentWaitHandler();
+  const execApproveHandler = createExecApproveHandler(execApprovalStore);
+  const execDenyHandler = createExecDenyHandler(execApprovalStore);
 
   return {
     connect: connectHandler,
@@ -96,6 +100,8 @@ function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
     "sessions.list": sessionsListHandler,
     "sessions.patch": sessionsPatchHandler,
     "sessions.history": sessionsHistoryHandler,
+    "exec.approve": execApproveHandler,
+    "exec.deny": execDenyHandler,
   };
 }
 
@@ -173,12 +179,13 @@ function broadcastPresenceUpdate(
   }
 }
 
-export function createGatewayWebSocketHandlers() {
+export function createGatewayWebSocketHandlers(injectedExecApprovalStore?: ExecApprovalStore) {
   const presenceRegistry = createPresenceRegistry();
+  const execApprovalStore = injectedExecApprovalStore ?? createExecApprovalStore();
   const activeConnections = new Map<string, GatewayWs>();
-  const dispatch = createMethodDispatch(buildHandlerMap(presenceRegistry));
+  const dispatch = createMethodDispatch(buildHandlerMap(presenceRegistry, execApprovalStore));
 
-  return {
+  const handlers = {
     open(ws: GatewayWs) {
       const { connection } = ws.data;
       const challenge = generateChallenge();
@@ -332,6 +339,8 @@ export function createGatewayWebSocketHandlers() {
       (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
     },
   };
+
+  return { handlers, execApprovalStore };
 }
 
 // ---------------------------------------------------------------------------

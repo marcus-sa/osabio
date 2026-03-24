@@ -81,6 +81,14 @@ export function mapStreamEventToGatewayEvent(
     case "agent_prompt":
       return agentStreamFrame("lifecycle", { phase: "prompt" }, seq);
 
+    case "exec_request":
+      return {
+        type: "event",
+        event: "exec.request",
+        payload: { requestId: event.requestId, command: event.command },
+        seq,
+      };
+
     case "error":
       return agentStreamFrame("error", { error: event.error }, seq);
 

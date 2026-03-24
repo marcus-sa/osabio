@@ -80,7 +80,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-2: Exec approval forwards to client and back (AC-2.2)
-  it.skip("R2-2: exec approval flow — request forwarded, approval accepted", async () => {
+  it("R2-2: exec approval flow — request forwarded, approval accepted", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
@@ -109,7 +109,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-3: Exec denial prevents execution (AC-2.2)
-  it.skip("R2-3: exec denial prevents agent from executing command", async () => {
+  it("R2-3: exec denial prevents agent from executing command", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 
