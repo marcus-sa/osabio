@@ -674,7 +674,7 @@ export async function seedFullIntegrationTool(
  * Create a module-level MSW server that mocks the Anthropic Messages API.
  * Returns a simple text response for every request. Use in beforeAll/afterAll.
  */
-export function createMockAnthropicServer(anthropicApiUrl = "https://api.anthropic.com") {
+export function createMockAnthropicServer(anthropicApiUrl = process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com") {
   const server = setupMswServer(
     http.post(`${anthropicApiUrl}/v1/messages`, () => {
       return HttpResponse.json({

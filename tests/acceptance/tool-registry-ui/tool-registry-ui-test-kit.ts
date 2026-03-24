@@ -953,7 +953,7 @@ function buildAnthropicResponse(
  */
 export function createMockAnthropicMsw(
   responses: Array<{ content: Array<MockToolUseBlock | MockTextBlock>; stopReason: "end_turn" | "tool_use" }>,
-  anthropicApiUrl = "https://api.anthropic.com",
+  anthropicApiUrl = process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
 ) {
   let callIndex = 0;
 
