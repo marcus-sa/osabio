@@ -13,15 +13,20 @@
  *   3. Brain-native tool returns results to LLM conversation
  *   4. Error in Brain-native execution returns tool_result error
  */
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
   seedToolWithGrant,
   sendProxyRequestWithIdentity,
+  createMockAnthropicServer,
 } from "./tool-registry-test-kit";
 
 const getRuntime = setupAcceptanceSuite("tool_registry_brain_native");
+
+const mockAnthropic = createMockAnthropicServer();
+beforeAll(() => mockAnthropic.listen({ onUnhandledRequest: "bypass" }));
+afterAll(() => mockAnthropic.close());
 
 // ---------------------------------------------------------------------------
 // Walking Skeleton: Proxy executes Brain-native tool call directly

@@ -15,6 +15,8 @@
  *   - POST /proxy/llm/anthropic/v1/messages (proxy with tool injection + interception)
  */
 import { RecordId, type Surreal } from "surrealdb";
+import { http, HttpResponse } from "msw";
+import { setupServer as setupMswServer } from "msw/node";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
@@ -659,4 +661,30 @@ export async function seedFullIntegrationTool(
     toolId: options.toolId,
     accountId: options.accountId,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Mock Anthropic API (MSW)
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a module-level MSW server that mocks the Anthropic Messages API.
+ * Returns a simple text response for every request. Use in beforeAll/afterAll.
+ */
+export function createMockAnthropicServer(anthropicApiUrl = "https://api.anthropic.com") {
+  const server = setupMswServer(
+    http.post(`${anthropicApiUrl}/v1/messages`, () => {
+      return HttpResponse.json({
+        id: `msg_mock_${crypto.randomUUID().slice(0, 8)}`,
+        type: "message",
+        role: "assistant",
+        content: [{ type: "text", text: "Mock response from Anthropic." }],
+        model: "claude-haiku-4-5-20251001",
+        stop_reason: "end_turn",
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 5 },
+      });
+    }),
+  );
+  return server;
 }

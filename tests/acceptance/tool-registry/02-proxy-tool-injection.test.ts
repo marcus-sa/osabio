@@ -14,7 +14,7 @@
  *   4. Deduplication when runtime tool collides with Brain tool
  *   5. Injected tools match Anthropic tool format
  */
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
@@ -23,9 +23,15 @@ import {
   seedCanUseEdge,
   seedToolWithGrant,
   sendProxyRequestWithIdentity,
+  createMockAnthropicServer,
 } from "./tool-registry-test-kit";
 
 const getRuntime = setupAcceptanceSuite("tool_registry_injection");
+
+// MSW mock for Anthropic API — proxy forwards requests here in direct mode
+const mockAnthropic = createMockAnthropicServer();
+beforeAll(() => mockAnthropic.listen({ onUnhandledRequest: "bypass" }));
+afterAll(() => mockAnthropic.close());
 
 // ---------------------------------------------------------------------------
 // Walking Skeleton: Proxy injects Brain-managed tools into LLM request

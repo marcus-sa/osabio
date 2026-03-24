@@ -262,7 +262,7 @@ describe("Static headers injected on MCP connect", () => {
       const mcpRequest = capturedRequests.find((r) => r.headers.authorization === expectedAuth);
       expect(mcpRequest).toBeDefined();
     } finally {
-      sharedMsw.resetHandlers();
+      // No resetHandlers() — under --concurrent it removes other tests' handlers
     }
   }, 30_000);
 });
@@ -534,7 +534,7 @@ describe("Multiple headers on same server", () => {
       );
       expect(authenticatedRequest).toBeDefined();
     } finally {
-      sharedMsw.resetHandlers();
+      // No resetHandlers() — under --concurrent it removes other tests' handlers
     }
   }, 30_000);
 });

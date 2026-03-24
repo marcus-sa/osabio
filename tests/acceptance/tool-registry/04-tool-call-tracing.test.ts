@@ -15,7 +15,7 @@
  *   5. Trace records rate_limited outcome
  *   6. Unknown (pass-through) tool calls do NOT produce trace records
  */
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
 import {
   setupAcceptanceSuite,
@@ -25,9 +25,14 @@ import {
   seedCanUseEdge,
   getToolCallTraces,
   sendProxyRequestWithIdentity,
+  createMockAnthropicServer,
 } from "./tool-registry-test-kit";
 
 const getRuntime = setupAcceptanceSuite("tool_registry_tracing");
+
+const mockAnthropic = createMockAnthropicServer();
+beforeAll(() => mockAnthropic.listen({ onUnhandledRequest: "bypass" }));
+afterAll(() => mockAnthropic.close());
 
 // ---------------------------------------------------------------------------
 // Walking Skeleton: Tool execution writes trace record
