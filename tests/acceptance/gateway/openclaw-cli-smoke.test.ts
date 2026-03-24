@@ -1,7 +1,7 @@
 /**
  * OpenClaw CLI Smoke Tests — Protocol Compliance
  *
- * Spawns the real OpenClaw CLI (`npx openclaw`) as a subprocess against
+ * Spawns the real OpenClaw CLI (`bunx openclaw`) as a subprocess against
  * Brain's gateway endpoint. These tests catch protocol compliance issues
  * that the internal gateway-test-kit cannot detect, because the CLI is an
  * independent protocol implementation.
@@ -13,13 +13,13 @@
  * - hello-ok payload format issues
  *
  * Prerequisites:
- * - `openclaw` npm package available (devDependency or via npx)
+ * - `openclaw` npm package available (devDependency or via bunx)
  * - Brain gateway running with auth token configured
  *
  * Driving port: `openclaw gateway call` subprocess → WS at /api/gateway
  * Scenarios: CLI-1 through CLI-4
  *
- * All scenarios @skip until R1 auth is implemented (CLI needs real connect handshake).
+ * All scenarios enabled — gateway auth and method dispatch are implemented.
  */
 import { describe, expect, it } from "bun:test";
 import { setupAcceptanceSuite } from "../acceptance-test-kit";
@@ -38,10 +38,11 @@ async function openclawGatewayCall(
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const wsUrl = baseUrl.replace(/^http/, "ws") + "/api/gateway";
   const args = [
-    "npx", "openclaw", "gateway", "call", method,
+    "bunx", "openclaw", "gateway", "call", method,
     "--url", wsUrl,
-    "--token", "test-gateway-token",
-    "--timeout", String((options?.timeoutMs ?? 10_000) / 1000),
+    "--password", "skeleton-test-token",
+    "--timeout", String(options?.timeoutMs ?? 10_000),
+    "--json",
   ];
 
   if (params) {
@@ -73,7 +74,7 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
   // The CLI must successfully complete the connect.challenge → connect → hello-ok handshake.
   // Uses sessions.list as the health-check method since it's implemented in R2
   // and exercises the full auth + method dispatch path.
-  it.skip("CLI-1: OpenClaw CLI connects to Brain gateway", async () => {
+  it("CLI-1: OpenClaw CLI connects to Brain gateway", async () => {
     const { baseUrl } = getRuntime();
 
     // sessions.list is a lightweight method that proves:
@@ -92,7 +93,7 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
 
   // CLI-2: sessions.list returns valid JSON (AC-2.3)
   // Verifies the CLI can call sessions.list and Brain responds with correct format
-  it.skip("CLI-2: CLI sessions.list returns valid JSON response", async () => {
+  it("CLI-2: CLI sessions.list returns valid JSON response", async () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "sessions.list");
@@ -105,7 +106,7 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
 
   // CLI-3: tools.catalog returns agent's granted tools (AC-2.5)
   // Verifies the CLI can discover tools the agent has access to
-  it.skip("CLI-3: CLI tools.catalog returns agent's granted tools", async () => {
+  it("CLI-3: CLI tools.catalog returns agent's granted tools", async () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "tools.catalog");
@@ -118,7 +119,7 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
 
   // CLI-4: config.get returns gateway capabilities (AC-2.6)
   // Verifies Brain's gateway config response is parseable by the CLI
-  it.skip("CLI-4: CLI config.get returns gateway capabilities", async () => {
+  it("CLI-4: CLI config.get returns gateway capabilities", async () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "config.get");
