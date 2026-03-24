@@ -359,7 +359,8 @@ describe("Walking Skeleton: Admin manages integrations end-to-end", () => {
     await seedGrant(surreal, agent.identityId, toolId);
 
     // Mock Anthropic: first response triggers tool_use, second returns text
-    mockAnthropic.reset([
+    const testId = `skel-exec-${crypto.randomUUID()}`;
+    mockAnthropic.register(testId, [
       {
         content: [{
           type: "tool_use",
@@ -378,6 +379,7 @@ describe("Walking Skeleton: Admin manages integrations end-to-end", () => {
     // When the agent sends a proxy request
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create a test issue on GitHub" }],
+      testId,
     });
 
     // Then the proxy returns the final text response
@@ -386,6 +388,6 @@ describe("Walking Skeleton: Admin manages integrations end-to-end", () => {
     const textBlock = body.content?.find((c) => c.type === "text");
     expect(textBlock?.text).toContain("created the issue");
     // Anthropic was called twice: initial + follow-up with tool_result
-    expect(mockAnthropic.callCount).toBe(2);
+    expect(mockAnthropic.callCountFor(testId)).toBe(2);
   }, 120_000);
 });

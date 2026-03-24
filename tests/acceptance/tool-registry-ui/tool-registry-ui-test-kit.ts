@@ -878,6 +878,8 @@ export async function sendProxyRequest(
     tools?: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
     model?: string;
     maxTokens?: number;
+    /** Unique test identifier — routes to the correct MSW response queue under --concurrent. */
+    testId?: string;
   },
 ): Promise<Response> {
   const cached = (user as unknown as { _proxyToken?: string })._proxyToken;
@@ -900,6 +902,7 @@ export async function sendProxyRequest(
       stream: false,
       messages: options.messages,
       ...(options.tools ? { tools: options.tools } : {}),
+      ...(options.testId ? { metadata: { user_id: options.testId } } : {}),
     }),
   });
 }
@@ -941,31 +944,43 @@ function buildAnthropicResponse(
   };
 }
 
+type ResponseEntry = { content: Array<MockToolUseBlock | MockTextBlock>; stopReason: "end_turn" | "tool_use" };
+
+type TestQueue = {
+  responses: ResponseEntry[];
+  callIndex: number;
+};
+
 /**
  * Create an MSW server that intercepts Anthropic Messages API calls.
  *
- * Returns a sequence of responses: each proxy request consumes the next
- * response in the queue. After the queue is exhausted, returns a final
- * text response.
+ * Concurrent-safe: each test registers its response queue under a unique
+ * testId via `register(testId, responses)`. The handler reads `metadata.user_id`
+ * from the request body to route to the correct queue. Tests must pass
+ * `metadata: { user_id: testId }` in the proxy request.
  *
- * @param responses - Ordered list of Anthropic API responses to return
- * @param anthropicApiUrl - Base URL of the Anthropic API (default: https://api.anthropic.com)
+ * @param anthropicApiUrl - Base URL of the Anthropic API
  */
 export function createMockAnthropicMsw(
-  responses: Array<{ content: Array<MockToolUseBlock | MockTextBlock>; stopReason: "end_turn" | "tool_use" }>,
+  _responses: ResponseEntry[] = [],
   anthropicApiUrl = process.env.ANTHROPIC_API_URL?.trim() || "https://api.anthropic.com",
 ) {
-  let callIndex = 0;
+  const queues = new Map<string, TestQueue>();
+  // Fallback queue for tests that don't use register() (backwards compat)
+  const fallbackQueue: TestQueue = { responses: _responses, callIndex: 0 };
 
   const server = setupMswServer(
-    http.post(`${anthropicApiUrl}/v1/messages`, () => {
-      const idx = callIndex++;
-      if (idx < responses.length) {
+    http.post(`${anthropicApiUrl}/v1/messages`, async ({ request }) => {
+      const body = await request.json() as { metadata?: { user_id?: string } };
+      const testId = body.metadata?.user_id;
+      const queue = (testId ? queues.get(testId) : undefined) ?? fallbackQueue;
+
+      const idx = queue.callIndex++;
+      if (idx < queue.responses.length) {
         return HttpResponse.json(
-          buildAnthropicResponse(responses[idx].content, responses[idx].stopReason),
+          buildAnthropicResponse(queue.responses[idx].content, queue.responses[idx].stopReason),
         );
       }
-      // Default final response after queue exhausted
       return HttpResponse.json(
         buildAnthropicResponse(
           [{ type: "text", text: "Done processing tool results." }],
@@ -977,18 +992,24 @@ export function createMockAnthropicMsw(
 
   return {
     server,
-    /** Number of times the Anthropic API was called. */
-    get callCount() { return callIndex; },
+    /** Number of times the Anthropic API was called (fallback queue only). */
+    get callCount() { return fallbackQueue.callIndex; },
     /** Start intercepting. Call in beforeAll or at test start. */
     listen: () => server.listen({ onUnhandledRequest: "bypass" }),
     /** Stop intercepting and clean up. Call in afterAll or at test end. */
-    close: () => { server.close(); callIndex = 0; },
-    /** Reset call count and response queue index. */
-    reset: (newResponses?: typeof responses) => {
-      callIndex = 0;
+    close: () => { server.close(); queues.clear(); fallbackQueue.callIndex = 0; },
+    /** @deprecated Use register() + callCountFor() for concurrent tests. */
+    reset: (newResponses?: ResponseEntry[]) => {
+      fallbackQueue.callIndex = 0;
       if (newResponses) {
-        responses = newResponses;
+        fallbackQueue.responses = newResponses;
       }
     },
+    /** Register a per-test response queue. testId must match metadata.user_id in the proxy request. */
+    register: (testId: string, responses: ResponseEntry[]) => {
+      queues.set(testId, { responses, callIndex: 0 });
+    },
+    /** Get the call count for a specific test. */
+    callCountFor: (testId: string) => queues.get(testId)?.callIndex ?? 0,
   };
 }

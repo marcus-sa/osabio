@@ -63,7 +63,7 @@ const getRuntime = setupToolRegistrySuite("tool_registry_ui_tool_execution", {
   mcpClientFactory: mockMcpFactory,
 });
 
-// MSW mock for Anthropic API — configured per test via reset()
+// MSW mock for Anthropic API — per-test response queues keyed by testId
 const toolUseBlock = (name: string, input: Record<string, unknown>): MockToolUseBlock => ({
   type: "tool_use",
   id: `toolu_${crypto.randomUUID().slice(0, 8)}`,
@@ -81,6 +81,7 @@ afterAll(() => mockAnthropic.close());
 // ---------------------------------------------------------------------------
 describe("Proxy executes integration tool calls on upstream MCP server", () => {
   it("executes a single integration tool call and returns final text", async () => {
+    const testId = `single-exec-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-exec-${crypto.randomUUID()}`);
 
@@ -97,8 +98,7 @@ describe("Proxy executes integration tool calls on upstream MCP server", () => {
     });
     await seedGrant(surreal, agent.identityId, toolId);
 
-    // Mock: first call returns tool_use, second returns text
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [toolUseBlock("github.create_issue", { title: "Test issue" })],
         stopReason: "tool_use",
@@ -111,15 +111,14 @@ describe("Proxy executes integration tool calls on upstream MCP server", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create a test issue" }],
+      testId,
     });
 
     expect(res.status).toBe(200);
     const body = await res.json() as { content: Array<{ type: string; text?: string }> };
-    // The final response should be the text response after tool execution
     const textBlock = body.content?.find((c) => c.type === "text");
     expect(textBlock?.text).toContain("created the issue");
-    // Anthropic was called twice (initial + follow-up with tool_result)
-    expect(mockAnthropic.callCount).toBe(2);
+    expect(mockAnthropic.callCountFor(testId)).toBe(2);
   }, 120_000);
 });
 
@@ -128,6 +127,7 @@ describe("Proxy executes integration tool calls on upstream MCP server", () => {
 // ---------------------------------------------------------------------------
 describe("Proxy handles multi-turn tool use loops", () => {
   it("completes multi-turn loop: tool call -> result -> tool call -> result -> text", async () => {
+    const testId = `multi-turn-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-multi-${crypto.randomUUID()}`);
 
@@ -147,8 +147,7 @@ describe("Proxy handles multi-turn tool use loops", () => {
     await seedGrant(surreal, agent.identityId, t1);
     await seedGrant(surreal, agent.identityId, t2);
 
-    // Mock: first=list_issues, second=create_comment, third=final text
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [toolUseBlock("github.list_issues", {})],
         stopReason: "tool_use",
@@ -165,17 +164,18 @@ describe("Proxy handles multi-turn tool use loops", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "List issues and comment" }],
+      testId,
     });
 
     expect(res.status).toBe(200);
     const body = await res.json() as { content: Array<{ type: string; text?: string }> };
     const textBlock = body.content?.find((c) => c.type === "text");
     expect(textBlock?.text).toContain("comment");
-    // 3 Anthropic calls: initial + 2 follow-ups
-    expect(mockAnthropic.callCount).toBe(3);
+    expect(mockAnthropic.callCountFor(testId)).toBe(3);
   }, 120_000);
 
   it("stops after maximum iterations to prevent infinite loops", async () => {
+    const testId = `max-iter-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-max-${crypto.randomUUID()}`);
 
@@ -190,23 +190,21 @@ describe("Proxy handles multi-turn tool use loops", () => {
     });
     await seedGrant(surreal, agent.identityId, toolId);
 
-    // Mock: always returns tool_use (infinite loop) — enough for MAX_TOOL_USE_ITERATIONS + 1
+    // Always returns tool_use (infinite loop) — enough for MAX_TOOL_USE_ITERATIONS + 1
     const infiniteToolUse = Array.from({ length: 12 }, () => ({
-      content: [toolUseBlock("github.create_issue", { title: "loop" })] as Array<{ type: "tool_use"; id: string; name: string; input: Record<string, unknown> }>,
+      content: [toolUseBlock("github.create_issue", { title: "loop" })] as Array<MockToolUseBlock>,
       stopReason: "tool_use" as const,
     }));
-    mockAnthropic.reset(infiniteToolUse);
+    mockAnthropic.register(testId, infiniteToolUse);
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Keep creating issues" }],
+      testId,
     });
 
-    // Proxy should stop after MAX_TOOL_USE_ITERATIONS (10) and return last response
     expect(res.status).toBe(200);
-    // Should have called Anthropic at most 11 times (1 initial + 10 iterations)
-    expect(mockAnthropic.callCount).toBeLessThanOrEqual(11);
-    // Must have actually looped more than the old limit of 5
-    expect(mockAnthropic.callCount).toBeGreaterThan(6);
+    expect(mockAnthropic.callCountFor(testId)).toBeLessThanOrEqual(11);
+    expect(mockAnthropic.callCountFor(testId)).toBeGreaterThan(6);
   }, 120_000);
 });
 
@@ -215,19 +213,10 @@ describe("Proxy handles multi-turn tool use loops", () => {
 // ---------------------------------------------------------------------------
 describe("Tool execution error handling", () => {
   it("returns error tool_result when upstream MCP server fails", async () => {
+    const testId = `mcp-err-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-mcperr-${crypto.randomUUID()}`);
 
-    // Use error-throwing MCP factory for this test
-    const errorMcpFactory = createMockMcpClientFactory({
-      tools: [],
-      onCallTool: () => ({
-        content: [{ type: "text", text: "Tool execution failed" }],
-        isError: true,
-      }),
-    });
-
-    // Seed with standard factory (tools resolved from DB, not factory)
     const { serverId } = await seedMcpServer(surreal, agent.workspaceId, {
       name: "Error Server",
       url: "https://mcp.test.local/error",
@@ -239,8 +228,7 @@ describe("Tool execution error handling", () => {
     });
     await seedGrant(surreal, agent.identityId, toolId);
 
-    // Mock Anthropic returns tool_use, then the follow-up should contain error
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [toolUseBlock("github.create_issue", { title: "test" })],
         stopReason: "tool_use",
@@ -253,17 +241,17 @@ describe("Tool execution error handling", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
+      testId,
     });
 
-    // The proxy should still complete (returning the LLM's text about the failure)
     expect(res.status).toBe(200);
   }, 120_000);
 
   it("tool not in agent's grant set is not injected", async () => {
+    const testId = `no-grant-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-noacc-${crypto.randomUUID()}`);
 
-    // Given a tool exists but agent has NO grant
     const { serverId } = await seedMcpServer(surreal, agent.workspaceId, {
       name: "GitHub Tools",
       url: "https://mcp.test.local/github",
@@ -274,8 +262,7 @@ describe("Tool execution error handling", () => {
       toolkit: "github",
     });
 
-    // Mock: just return text (no tool injection = no tool_use)
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [{ type: "text", text: "I cannot use tools." }],
         stopReason: "end_turn",
@@ -284,11 +271,11 @@ describe("Tool execution error handling", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
+      testId,
     });
 
     expect(res.status).toBe(200);
-    // Only 1 Anthropic call — no tool loop triggered because no tools were injected
-    expect(mockAnthropic.callCount).toBe(1);
+    expect(mockAnthropic.callCountFor(testId)).toBe(1);
   }, 120_000);
 });
 
@@ -297,6 +284,7 @@ describe("Tool execution error handling", () => {
 // ---------------------------------------------------------------------------
 describe("Tool governance is checked before execution", () => {
   it("blocks tool execution when governance policy requires human approval", async () => {
+    const testId = `gov-block-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-gov-${crypto.randomUUID()}`);
 
@@ -320,8 +308,7 @@ describe("Tool governance is checked before execution", () => {
       conditions: "requires_human_approval",
     });
 
-    // Mock: LLM tries to use the tool
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [toolUseBlock("github.create_issue", { title: "test" })],
         stopReason: "tool_use",
@@ -334,12 +321,11 @@ describe("Tool governance is checked before execution", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "Create an issue" }],
+      testId,
     });
 
-    // The proxy should return 200 — the governance denial is a tool_result error,
-    // not an HTTP error. The LLM received the denial and responded.
     expect(res.status).toBe(200);
-    expect(mockAnthropic.callCount).toBe(2);
+    expect(mockAnthropic.callCountFor(testId)).toBe(2);
   }, 120_000);
 });
 
@@ -348,6 +334,7 @@ describe("Tool governance is checked before execution", () => {
 // ---------------------------------------------------------------------------
 describe("MCP connections are request-scoped", () => {
   it("completes proxy request with multiple tool calls to same server", async () => {
+    const testId = `conn-reuse-${crypto.randomUUID()}`;
     const { baseUrl, surreal } = getRuntime();
     const agent = await createTestUserWithMcp(baseUrl, surreal, `ws-reuse-${crypto.randomUUID()}`);
 
@@ -367,8 +354,7 @@ describe("MCP connections are request-scoped", () => {
     await seedGrant(surreal, agent.identityId, t1);
     await seedGrant(surreal, agent.identityId, t2);
 
-    // Two sequential tool calls to same server
-    mockAnthropic.reset([
+    mockAnthropic.register(testId, [
       {
         content: [toolUseBlock("github.list_issues", {})],
         stopReason: "tool_use",
@@ -385,9 +371,10 @@ describe("MCP connections are request-scoped", () => {
 
     const res = await sendProxyRequest(baseUrl, surreal, agent, {
       messages: [{ role: "user", content: "List and create" }],
+      testId,
     });
 
     expect(res.status).toBe(200);
-    expect(mockAnthropic.callCount).toBe(3);
+    expect(mockAnthropic.callCountFor(testId)).toBe(3);
   }, 120_000);
 });
