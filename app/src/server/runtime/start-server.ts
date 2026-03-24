@@ -440,6 +440,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => grantHandlers.handleAttachGovernance(request.params.workspaceId, request.params.toolId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/identities": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/identities",
+          "GET",
+          (request) => grantHandlers.handleListIdentities(request.params.workspaceId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/mcp-servers": {
         POST: withTracing(
           "POST /api/workspaces/:workspaceId/mcp-servers",

@@ -88,6 +88,8 @@ type CreateGrantDialogProps = {
   isLoadingIdentities: boolean;
   onSubmit: (formData: CreateGrantFormData) => Promise<{ error?: string }>;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 function initialFormData(): CreateGrantFormData {
@@ -102,8 +104,13 @@ export function CreateGrantDialog({
   isLoadingIdentities,
   onSubmit,
   trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: CreateGrantDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : uncontrolledOpen;
+  const setOpen = isControlled ? (controlledOnOpenChange ?? (() => {})) : setUncontrolledOpen;
   const [formData, setFormData] = useState<CreateGrantFormData>(initialFormData);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>();
@@ -163,9 +170,11 @@ export function CreateGrantDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={trigger ? <>{trigger}</> : <Button size="sm">Grant Access</Button>}
-      />
+      {!isControlled && (
+        <DialogTrigger
+          render={trigger ? <>{trigger}</> : <Button size="sm">Grant Access</Button>}
+        />
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Grant Access to {toolName}</DialogTitle>

@@ -137,6 +137,45 @@ mock.module("../hooks/use-accounts", () => ({
   }),
 }));
 
+const MOCK_IDENTITIES = [
+  { id: "ident-1", name: "Alice", type: "human" },
+  { id: "ident-2", name: "Bob", type: "agent" },
+];
+
+mock.module("../hooks/use-identities", () => ({
+  useIdentities: () => ({
+    identities: MOCK_IDENTITIES,
+    isLoading: false,
+    refresh: mock(() => {}),
+  }),
+}));
+
+mock.module("../hooks/use-tool-detail", () => ({
+  useToolDetail: (toolId: string | undefined) => ({
+    data: toolId
+      ? {
+          id: toolId,
+          name: "list_repos",
+          toolkit: "github",
+          description: "List repositories",
+          risk_level: "low",
+          status: "active",
+          grant_count: 1,
+          governance_count: 0,
+          created_at: "2026-01-01T00:00:00Z",
+          input_schema: { type: "object", properties: {} },
+          grants: [
+            { identity_id: "ident-1", identity_name: "Alice", granted_at: "2026-01-01T00:00:00Z" },
+          ],
+          governance_policies: [],
+        }
+      : undefined,
+    isLoading: false,
+    error: undefined,
+    refresh: mock(() => {}),
+  }),
+}));
+
 // Import after mocks
 const { ToolRegistryPage, deriveToolRegistryViewModel, TOOL_REGISTRY_TABS } = await import(
   "./tool-registry-page"
@@ -203,6 +242,13 @@ const handlers = [
   http.delete(`${mcpBase}/:serverId`, ({ params }) => {
     calledEndpoints.push({ method: "DELETE", url: `${mcpBase}/${params.serverId}` });
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // POST grant
+  http.post(`${BASE}/api/workspaces/${WS}/tools/:toolId/grants`, async ({ request, params }) => {
+    const body = await request.json();
+    calledEndpoints.push({ method: "POST", url: `tools/${params.toolId}/grants`, body });
+    return HttpResponse.json({ created: true }, { status: 201 });
   }),
 ];
 
@@ -544,5 +590,76 @@ describe("ToolRegistryPage tab navigation", () => {
     expect(screen.getByRole("tab", { name: /tools/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /providers/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /accounts/i })).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Grant access dialog
+// ---------------------------------------------------------------------------
+
+describe("ToolRegistryPage grant access", () => {
+  it("opens CreateGrantDialog when Grant Access is clicked on a tool", async () => {
+    mockSearchParams = { tab: "tools" };
+    const user = userEvent.setup();
+    render(<ToolRegistryPage />);
+
+    // Expand the tool row to see the Grant Access button
+    const toolRow = screen.getByText("list_repos");
+    await user.click(toolRow);
+
+    // Click Grant Access button
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /grant access/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /grant access/i }));
+
+    // Dialog should open with identities
+    await waitFor(() => {
+      expect(screen.getByText(/grant access to list_repos/i)).toBeInTheDocument();
+    });
+  });
+
+  it("submits grant and refreshes tools", async () => {
+    mockSearchParams = { tab: "tools" };
+    const user = userEvent.setup();
+    render(<ToolRegistryPage />);
+
+    // Expand tool and click Grant Access
+    await user.click(screen.getByText("list_repos"));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /grant access/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /grant access/i }));
+
+    // Wait for dialog
+    await waitFor(() => {
+      expect(screen.getByText(/grant access to list_repos/i)).toBeInTheDocument();
+    });
+
+    // Select identity from the Select dropdown
+    // The Select trigger renders as a button inside the dialog
+    const selectTrigger = screen.getByRole("combobox");
+    await user.click(selectTrigger);
+
+    // Wait for listbox options
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Alice" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("option", { name: "Alice" }));
+
+    // Submit — there are multiple "Grant Access" buttons; get the one inside the dialog footer
+    const dialogButtons = screen.getAllByRole("button", { name: /^grant access$/i });
+    const submitBtn = dialogButtons[dialogButtons.length - 1];
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      const grantCall = calledEndpoints.find((e) => e.method === "POST" && e.url.includes("grants"));
+      expect(grantCall).toBeDefined();
+      expect((grantCall!.body as Record<string, unknown>).identity_id).toBe("ident-1");
+    });
+
+    await waitFor(() => {
+      expect(mockRefreshTools).toHaveBeenCalled();
+    });
   });
 });

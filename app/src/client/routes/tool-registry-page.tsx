@@ -3,13 +3,16 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ProviderTable } from "../components/tool-registry/ProviderTable";
 import { CreateProviderDialog } from "../components/tool-registry/CreateProviderDialog";
+import { CreateGrantDialog } from "../components/tool-registry/CreateGrantDialog";
 import { AccountTable, type ProviderInfo } from "../components/tool-registry/AccountTable";
 import { ToolTable, type ToolTableFilters } from "../components/tool-registry/ToolTable";
 import { McpServerSection, type AddMcpServerFormData } from "../components/tool-registry/McpServerSection";
 import type { CreateProviderFormData } from "../components/tool-registry/ProviderTable";
+import type { CreateGrantFormData } from "../components/tool-registry/GrantTable";
 import { useProviders } from "../hooks/use-providers";
 import { useAccounts } from "../hooks/use-accounts";
 import { useTools } from "../hooks/use-tools";
+import { useIdentities } from "../hooks/use-identities";
 import { useMcpServers } from "../hooks/use-mcp-servers";
 import { useWorkspaceState } from "../stores/workspace-state";
 
@@ -119,10 +122,16 @@ export function ToolRegistryPage() {
   const { providers, refresh: refreshProviders } = useProviders();
   const { mcpServers = [], refresh: refreshMcpServers } = useMcpServers();
 
+  const { identities, isLoading: isLoadingIdentities } = useIdentities();
+
   // Lazy-load accounts only when the accounts tab is active — the endpoint
   // requires a Better Auth session and would 401 on every page load otherwise.
   const isAccountsTab = search.tab === "accounts";
   const { accounts, refresh: refreshAccounts } = useAccounts({ enabled: isAccountsTab });
+
+  // Grant dialog state
+  const [grantDialogToolId, setGrantDialogToolId] = useState<string | undefined>();
+  const grantDialogTool = tools.find((t) => t.id === grantDialogToolId);
 
   // ---------------------------------------------------------------------------
   // MCP Server handlers
@@ -267,6 +276,39 @@ export function ToolRegistryPage() {
       }
     },
     [refreshTools],
+  );
+
+  const handleGrantAccess = useCallback(
+    (toolId: string) => {
+      setGrantDialogToolId(toolId);
+    },
+    [],
+  );
+
+  const handleCreateGrant = useCallback(
+    async (formData: CreateGrantFormData): Promise<{ error?: string }> => {
+      if (!grantDialogToolId) return { error: "No tool selected" };
+      try {
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/tools/${encodeURIComponent(grantDialogToolId)}/grants`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formData),
+          },
+        );
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({})) as { error?: string };
+          return { error: body.error ?? "Failed to create grant" };
+        }
+        refreshTools();
+        setGrantDialogToolId(undefined);
+        return {};
+      } catch {
+        return { error: "Network error" };
+      }
+    },
+    [workspaceId, grantDialogToolId, refreshTools],
   );
 
   const handleCreateProvider = useCallback(
@@ -439,12 +481,21 @@ export function ToolRegistryPage() {
                 tools={tools}
                 filters={toolFilters}
                 actions={{
-                  onGrantAccess: (_toolId) => {
-                    // TODO: open CreateGrantDialog
-                  },
+                  onGrantAccess: handleGrantAccess,
                   onRevokeGrant: handleRevokeGrant,
                 }}
               />
+              {grantDialogTool && (
+                <CreateGrantDialog
+                  toolId={grantDialogTool.id}
+                  toolName={grantDialogTool.name}
+                  identities={identities.map((i) => ({ id: i.id, name: i.name }))}
+                  isLoadingIdentities={isLoadingIdentities}
+                  onSubmit={handleCreateGrant}
+                  open={!!grantDialogToolId}
+                  onOpenChange={(isOpen) => { if (!isOpen) setGrantDialogToolId(undefined); }}
+                />
+              )}
             </div>
           )}
         </TabsContent>

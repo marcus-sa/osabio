@@ -194,5 +194,39 @@ export function createGrantRouteHandlers(deps: ServerDependencies) {
     return jsonResponse({ created: true }, 201);
   }
 
-  return { handleCreateGrant, handleListGrants, handleAttachGovernance };
+  /**
+   * GET /api/workspaces/:workspaceId/identities
+   *
+   * List identities in a workspace (for grant dialog identity picker).
+   */
+  async function handleListIdentities(
+    workspaceId: string,
+    _request: Request,
+  ): Promise<Response> {
+    let workspaceRecord: RecordId<"workspace", string>;
+    try {
+      workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        return jsonError(error.message, error.status);
+      }
+      log.error("identities.list", "Failed to resolve workspace", error, { workspaceId });
+      return jsonError("internal error", 500);
+    }
+
+    const [rows] = await deps.surreal.query<[Array<{ id: RecordId; name: string; type: string }>]>(
+      `SELECT id, name, type FROM identity WHERE workspace = $ws ORDER BY name ASC;`,
+      { ws: workspaceRecord },
+    );
+
+    const identities = (rows ?? []).map((row) => ({
+      id: row.id.id as string,
+      name: row.name,
+      type: row.type,
+    }));
+
+    return jsonResponse({ identities }, 200);
+  }
+
+  return { handleCreateGrant, handleListGrants, handleAttachGovernance, handleListIdentities };
 }
