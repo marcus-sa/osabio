@@ -3,7 +3,7 @@
   "checkpoint_id": "fb3ca81c91a4",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/client/components/tool-registry/CreateGrantDialog.test.tsx",
     "app/src/client/components/tool-registry/CreateGrantDialog.tsx",
@@ -27,13 +27,20 @@
       "context": "/fb/3ca81c91a4/1/context.md",
       "content_hash": "/fb/3ca81c91a4/1/content_hash.txt",
       "prompt": "/fb/3ca81c91a4/1/prompt.txt"
+    },
+    {
+      "metadata": "/fb/3ca81c91a4/2/metadata.json",
+      "transcript": "/fb/3ca81c91a4/2/full.jsonl",
+      "context": "/fb/3ca81c91a4/2/context.md",
+      "content_hash": "/fb/3ca81c91a4/2/content_hash.txt",
+      "prompt": "/fb/3ca81c91a4/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 515,
-    "cache_creation_tokens": 1017257,
-    "cache_read_tokens": 31196725,
-    "output_tokens": 101899,
-    "api_call_count": 283
+    "input_tokens": 1234,
+    "cache_creation_tokens": 1990972,
+    "cache_read_tokens": 82765122,
+    "output_tokens": 258656,
+    "api_call_count": 678
   }
 }
