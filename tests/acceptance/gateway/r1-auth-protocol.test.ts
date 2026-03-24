@@ -339,16 +339,23 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-5: Valid request frame dispatches to handler (AC-1.4)
-  it.skip("R1-5: valid request frame dispatches to correct handler", async () => {
+  it("R1-5: valid request frame dispatches to correct handler", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
 
-    // Complete auth handshake first
-    // ... auth flow ...
+    // Complete auth handshake (same pattern as R1-2)
+    const challenge = await client.waitForEvent("connect.challenge", 5_000);
+    const { nonce } = challenge.payload as { nonce: string };
+    const deviceAuth = await createDeviceAuth(nonce);
+    const connectRes = await client.request(
+      "connect",
+      buildConnectParams({ ...deviceAuth, nonce }),
+    );
+    expect(connectRes.ok).toBe(true);
 
     // After auth, send a valid sessions.list request
-    // const res = await client.request("sessions.list", { status: "all" });
-    // expect(res.ok).toBe(true);
+    const res = await client.request("sessions.list", { status: "all" });
+    expect(res.ok).toBe(true);
 
     client.close();
   });
@@ -386,16 +393,32 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-7: State machine transitions (AC-1.5)
-  it.skip("R1-7: connection transitions connecting → authenticating → active", async () => {
+  it("R1-7: connection transitions connecting → authenticating → active", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
 
-    // Initial state: connecting (challenge sent immediately)
-    // Send connect with device identity → state: authenticating → active
-    // hello-ok received → state: active
-    // Close → state: closed
+    // State: connecting → authenticating (proven by receiving connect.challenge)
+    const challenge = await client.waitForEvent("connect.challenge", 5_000);
+    expect(challenge.payload).toBeDefined();
+    const { nonce } = challenge.payload as { nonce: string };
 
+    // State: authenticating → active (proven by successful connect handshake)
+    const deviceAuth = await createDeviceAuth(nonce);
+    const connectRes = await client.request(
+      "connect",
+      buildConnectParams({ ...deviceAuth, nonce }),
+    );
+    expect(connectRes.ok).toBe(true);
+    const payload = connectRes.payload as { type: string };
+    expect(payload.type).toBe("hello-ok");
+
+    // State: active (proven by being able to dispatch a method)
+    const sessionsRes = await client.request("sessions.list", {});
+    expect(sessionsRes.ok).toBe(true);
+
+    // State: active → closed
     client.close();
+    expect(client.isOpen()).toBe(false);
   });
 
   // R1-8: Method before auth returns not_authenticated (AC-1.5)
