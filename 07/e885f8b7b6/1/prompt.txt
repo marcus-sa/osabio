@@ -1055,3 +1055,7 @@ but are the openclaw tests passing?
 ---
 
 commit
+
+---
+
+Continue from where you left off.
