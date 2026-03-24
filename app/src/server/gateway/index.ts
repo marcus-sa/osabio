@@ -16,7 +16,10 @@ import type { EventFrame, ResponseFrame } from "./protocol";
 import { createMethodDispatch, type MethodHandlerMap } from "./method-dispatch";
 import { createConnectHandler, resolveConnectionUpdate } from "./method-handlers/connect";
 import { createAgentHandler } from "./method-handlers/agent";
+import { createPresenceHandler } from "./method-handlers/presence";
 import { mapStreamEventToGatewayEvent } from "./event-adapter";
+import { createPresenceRegistry } from "./presence-registry";
+import type { PresenceRegistry } from "./presence-registry";
 import type { GatewayConnection, GatewayDeps } from "./types";
 import type { Server } from "bun";
 
@@ -63,13 +66,15 @@ function createGatewayRequestHandler(deps: GatewayDeps) {
 // Method handler registry
 // ---------------------------------------------------------------------------
 
-function buildHandlerMap(): MethodHandlerMap {
+function buildHandlerMap(presenceRegistry: PresenceRegistry): MethodHandlerMap {
   const { handler: connectHandler } = createConnectHandler();
   const agentHandler = createAgentHandler();
+  const presenceHandler = createPresenceHandler(presenceRegistry);
 
   return {
     connect: connectHandler,
     agent: agentHandler,
+    presence: presenceHandler,
   };
 }
 
@@ -106,15 +111,61 @@ async function streamSessionEvents(
   }
 }
 
+// ---------------------------------------------------------------------------
+// WebSocket instance type for presence broadcasting
+// ---------------------------------------------------------------------------
+
+type GatewayWs = {
+  data: GatewayWebSocketData;
+  send: (msg: string) => void;
+};
+
+// ---------------------------------------------------------------------------
+// Presence broadcast — sends presence.update event to other workspace members
+// ---------------------------------------------------------------------------
+
+function broadcastPresenceUpdate(
+  activeConnections: Map<string, GatewayWs>,
+  senderConnectionId: string,
+  workspaceId: string,
+  status: "online" | "offline",
+  deviceFingerprint: string,
+  agentType: string,
+): void {
+  const eventFrame: EventFrame = {
+    type: "event",
+    event: "presence.update",
+    payload: {
+      device: deviceFingerprint,
+      status,
+      agentType,
+    },
+  };
+  const serialized = serializeFrame(eventFrame);
+
+  for (const [connId, targetWs] of activeConnections) {
+    if (connId === senderConnectionId) continue;
+    const targetConn = targetWs.data.connection;
+    if (targetConn.state === "active" && targetConn.workspaceId === workspaceId) {
+      targetWs.send(serialized);
+    }
+  }
+}
+
 export function createGatewayWebSocketHandlers() {
-  const dispatch = createMethodDispatch(buildHandlerMap());
+  const presenceRegistry = createPresenceRegistry();
+  const activeConnections = new Map<string, GatewayWs>();
+  const dispatch = createMethodDispatch(buildHandlerMap(presenceRegistry));
 
   return {
-    open(ws: { data: GatewayWebSocketData; send: (msg: string) => void }) {
+    open(ws: GatewayWs) {
       const { connection } = ws.data;
       const challenge = generateChallenge();
       const result = transition(connection, { type: "ws_open", challenge });
       (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
+
+      // Track the WebSocket for presence broadcasting
+      activeConnections.set(connection.connectionId, ws);
 
       // Execute effects produced by the transition
       for (const effect of result.effects) {
@@ -125,7 +176,7 @@ export function createGatewayWebSocketHandlers() {
     },
 
     message(
-      ws: { data: GatewayWebSocketData; send: (msg: string) => void },
+      ws: GatewayWs,
       message: string | Buffer,
     ) {
       const rawData = typeof message === "string" ? message : message.toString();
@@ -179,12 +230,33 @@ export function createGatewayWebSocketHandlers() {
 
           ws.send(serializeFrame(responseFrame));
 
-          // If connect succeeded, transition connection to active
+          // If connect succeeded, transition connection to active and register presence
           if (requestFrame.method === "connect" && result.ok) {
             const update = resolveConnectionUpdate(requestFrame.params, result.payload);
             if (update) {
+              const activatedConnection = activateConnection(connection, update);
               (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection =
-                activateConnection(connection, update);
+                activatedConnection;
+
+              // Register in presence registry
+              const fingerprint = activatedConnection.deviceFingerprint ?? activatedConnection.connectionId;
+              presenceRegistry.add({
+                connectionId: activatedConnection.connectionId,
+                deviceFingerprint: activatedConnection.deviceFingerprint,
+                agentType: activatedConnection.agentId ?? "unknown",
+                connectedAt: activatedConnection.createdAt,
+                workspaceId: update.workspaceId,
+              });
+
+              // Broadcast online presence to other connections in the same workspace
+              broadcastPresenceUpdate(
+                activeConnections,
+                activatedConnection.connectionId,
+                update.workspaceId,
+                "online",
+                fingerprint,
+                activatedConnection.agentId ?? "unknown",
+              );
             }
           }
 
@@ -218,6 +290,23 @@ export function createGatewayWebSocketHandlers() {
       reason: string,
     ) {
       const { connection } = ws.data;
+
+      // Remove from presence registry and broadcast offline
+      const removedEntry = presenceRegistry.remove(connection.connectionId);
+      if (removedEntry) {
+        broadcastPresenceUpdate(
+          activeConnections,
+          connection.connectionId,
+          removedEntry.workspaceId,
+          "offline",
+          removedEntry.deviceFingerprint ?? connection.connectionId,
+          removedEntry.agentType,
+        );
+      }
+
+      // Remove from active connections tracking
+      activeConnections.delete(connection.connectionId);
+
       const result = transition(connection, { type: "ws_close", code, reason });
       (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
     },

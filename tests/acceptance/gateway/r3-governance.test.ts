@@ -88,7 +88,7 @@ describe("Gateway R3: Governance & Multi-Agent", () => {
 
   // R3-3: Presence query returns connected devices (AC-3.3)
   // Both connections must be fully active before querying presence.
-  it.skip("R3-3: presence query returns online devices", async () => {
+  it("R3-3: presence query returns online devices", async () => {
     const { baseUrl } = getRuntime();
 
     // Connect two clients and wait for both to be fully active
