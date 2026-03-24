@@ -158,17 +158,18 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
       return jsonError("invalid JSON body", 400);
     }
 
-    // Validate name
-    if (!body.name || typeof body.name !== "string" || body.name.trim().length === 0) {
+    // Validate and trim name
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name) {
       return jsonError("name is required", 400);
     }
 
-    // Validate URL
-    const urlString = body.url ?? "";
-    const urlValidation = validateMcpServerUrl(urlString);
+    // Validate and normalize URL
+    const urlValidation = validateMcpServerUrl(body.url ?? "");
     if (!urlValidation.ok) {
       return jsonError(urlValidation.error, 400);
     }
+    const urlString = urlValidation.normalizedUrl;
 
     // Validate transport (default to streamable-http)
     const transport = body.transport ?? "streamable-http";
@@ -229,7 +230,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     const disabledServer = await findDisabledServerByUrl(deps.surreal, workspaceRecord, urlString);
     if (disabledServer) {
       const row = await reEnableMcpServer(deps.surreal, disabledServer.id, {
-        name: body.name,
+        name: name,
         transport,
         authMode,
         staticHeaders: encryptedHeaders,
@@ -248,9 +249,9 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
     }
 
     // Check duplicate name (only among active servers)
-    const duplicate = await serverNameExists(deps.surreal, workspaceRecord, body.name);
+    const duplicate = await serverNameExists(deps.surreal, workspaceRecord, name);
     if (duplicate) {
-      return jsonError(`MCP server "${body.name}" already exists in this workspace`, 409);
+      return jsonError(`MCP server "${name}" already exists in this workspace`, 409);
     }
 
     // OAuth pre-flight: probe the MCP server for OAuth metadata BEFORE creating
@@ -268,7 +269,7 @@ export function createServerRouteHandlers(deps: ServerDependencies) {
 
     // Create server
     const row = await createMcpServer(deps.surreal, workspaceRecord, {
-      name: body.name,
+      name: name,
       url: urlString,
       transport,
       authMode,

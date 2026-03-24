@@ -8,14 +8,37 @@ import {
 } from "../../../app/src/server/tool-registry/server-validation";
 
 describe("validateMcpServerUrl", () => {
-  it("accepts https URL", () => {
+  it("accepts https URL and returns normalized form", () => {
     const result = validateMcpServerUrl("https://mcp.acme.dev/github");
     expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalizedUrl).toBe("https://mcp.acme.dev/github");
+    }
   });
 
-  it("accepts http URL", () => {
+  it("accepts http URL and returns normalized form", () => {
     const result = validateMcpServerUrl("http://localhost:3000/mcp");
     expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalizedUrl).toBe("http://localhost:3000/mcp");
+    }
+  });
+
+  it("trims whitespace from URL", () => {
+    const result = validateMcpServerUrl("  https://mcp.acme.dev/github  ");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.normalizedUrl).toBe("https://mcp.acme.dev/github");
+    }
+  });
+
+  it("normalizes URL via new URL()", () => {
+    const result = validateMcpServerUrl("HTTPS://MCP.ACME.DEV/github");
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      // new URL() lowercases the scheme and host
+      expect(result.normalizedUrl).toBe("https://mcp.acme.dev/github");
+    }
   });
 
   it("rejects file:// scheme", () => {
@@ -38,6 +61,11 @@ describe("validateMcpServerUrl", () => {
 
   it("rejects empty URL", () => {
     const result = validateMcpServerUrl("");
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects whitespace-only URL", () => {
+    const result = validateMcpServerUrl("   ");
     expect(result.ok).toBe(false);
   });
 

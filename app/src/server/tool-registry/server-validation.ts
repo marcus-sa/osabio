@@ -11,18 +11,26 @@ type ValidationResult =
 const ALLOWED_SCHEMES = new Set(["http:", "https:"]);
 const ALLOWED_TRANSPORTS = new Set(["streamable-http", "sse"]);
 
+type UrlValidationResult =
+  | { readonly ok: true; readonly normalizedUrl: string }
+  | { readonly ok: false; readonly error: string };
+
 /**
- * Validate that a URL uses only http:// or https:// schemes.
- * Rejects file://, javascript://, ftp://, and malformed URLs.
+ * Validate and normalize an MCP server URL.
+ *
+ * - Trims whitespace
+ * - Rejects non-http(s) schemes
+ * - Returns the normalized URL string from `new URL()` (consistent trailing slash, encoding)
  */
-export function validateMcpServerUrl(url: string): ValidationResult {
-  if (!url) {
+export function validateMcpServerUrl(url: string): UrlValidationResult {
+  const trimmed = url?.trim() ?? "";
+  if (!trimmed) {
     return { ok: false, error: "url is required" };
   }
 
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(trimmed);
   } catch {
     return { ok: false, error: "url is not a valid URL" };
   }
@@ -31,7 +39,7 @@ export function validateMcpServerUrl(url: string): ValidationResult {
     return { ok: false, error: `url must use http or https scheme, got ${parsed.protocol.replace(":", "")}` };
   }
 
-  return { ok: true };
+  return { ok: true, normalizedUrl: parsed.href };
 }
 
 /**
