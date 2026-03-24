@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9ee548d0136f",
+  "session_id": "d2d92b4d-7d2a-4d34-b406-ea5e1e26712c",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-24T05:42:26.29074Z",
+  "branch": "marcus-sa/mcp-tool-registry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/research/oauth21-mcp-authorization.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7fe42cdabe67",
+  "token_usage": {
+    "input_tokens": 597,
+    "cache_creation_tokens": 959792,
+    "cache_read_tokens": 23789353,
+    "output_tokens": 76530,
+    "api_call_count": 241
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-24T05:42:24.420304Z",
+    "agent_lines": 640,
+    "human_added": 250,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 890,
+    "agent_percentage": 71.91011235955057
+  }
+}
