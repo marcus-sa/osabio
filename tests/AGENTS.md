@@ -64,6 +64,24 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
 - Everything else is real internal logic — no mocking internal modules at acceptance level
 - Unit tests may mock dependencies via dependency injection (function parameters)
 
+## MSW (Mock Service Worker) for External API Mocking
+
+- Use MSW (`msw/node`) to intercept outbound HTTP requests (e.g. proxy → Anthropic API) at the network level. No code changes needed in production — MSW intercepts `fetch` globally.
+- Import from `msw`: `http`, `HttpResponse` for handlers; `setupServer` from `msw/node` for Node/Bun.
+- Pattern: create a response queue, each intercepted request consumes the next response. After exhaustion, return a default.
+- Lifecycle: `server.listen({ onUnhandledRequest: "bypass" })` in `beforeAll`, `server.close()` in `afterAll`. Use `"bypass"` to let non-mocked requests (SurrealDB, local server) pass through.
+- Reset between tests: call a `reset()` helper to clear the call counter and configure new responses per test scenario.
+- **One MSW server per module, not per test.** MSW patches `globalThis.fetch` on `server.listen()`. Creating separate `setupServer()` instances per `it()` or per `describe()` causes "fetch already patched" errors under `--concurrent`. Instead, create a single module-level MSW server, call `server.listen()` in `beforeAll`, swap handlers per test with `server.resetHandlers(...newHandlers)` or `server.use(...)`, and `server.close()` in `afterAll`.
+- **Never share mutable MSW response queues across concurrent tests.** A shared `callIndex` + response array (e.g. `mockAnthropic.reset([...])`) corrupts under `--concurrent` — one test's `reset()` overwrites another's queue mid-flight. Instead, use a per-test response registry keyed by a unique test identifier (e.g. `metadata.user_id`). Each test calls `register(testId, responses)` and passes `testId` in the request body. The MSW handler reads the identifier to route to the correct queue. See `createMockAnthropicMsw` in `tool-registry-ui-test-kit.ts` for the reference implementation.
+- **Never call `resetHandlers()` in `finally` blocks under `--concurrent`.** `resetHandlers()` removes ALL runtime handlers (from all tests), not just the current test's. If tests use unique mock domains, handlers don't interfere — skip `resetHandlers()` entirely.
+- See `tool-registry-ui-test-kit.ts` → `createMockAnthropicMsw()` for the reference implementation.
+
+## Mock MCP Client Factory
+
+- For tests that exercise MCP server discovery or tool execution, inject a mock `McpClientFactory` via `setupToolRegistrySuite(name, { mcpClientFactory })`.
+- The mock factory (`createMockMcpClientFactory`) returns configurable tools from `listTools` and dispatches `callTool` to a provided handler function.
+- `AcceptanceSuiteOptions.mcpClientFactoryOverride` wires the mock into `ServerDependencies` at server boot. Tests that don't need MCP mocks can omit it — a real `McpClientFactory` is used by default.
+
 ## `mock.module` Must Preserve Full Export Surface
 
 - Bun's `mock.module` replaces the entire module for all test files sharing the same worker. A partial mock (only exporting the overridden function) strips every other export, causing `SyntaxError: Export named '...' not found` in concurrent test files that import from the same module.
@@ -75,3 +93,11 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
     targetFunction: mockFn,
   }));
   ```
+
+## Better Auth Session in Tests
+
+- Browser-facing routes (tool-registry, policy, etc.) resolve identity from the Better Auth session, NOT from headers. Tests must provide valid session cookies.
+- `createTestUser()` signs up via `/api/auth/sign-up/email` and returns `{ headers: { Cookie }, personId }`. The `personId` is the Better Auth `person` record ID.
+- `createTestUserWithMcp()` extends this by creating an `identity` record, `member_of` edge (workspace), and `identity_person` edge (person→identity linkage). The `identity_person` edge is required for `resolveIdentityFromSession()` to resolve the session to an identity.
+- **Do NOT bypass session auth with header fallbacks** (e.g. `X-Brain-Identity`). Header-based identity is for MCP/CLI clients authenticated via DPoP or proxy tokens only. Adding header fallbacks to session-based routes creates an auth bypass vulnerability.
+- Sessions are created by signing up via `POST /api/auth/sign-up/email` through the in-process server. The response `Set-Cookie` headers are captured and passed as `{ Cookie: ... }` on subsequent requests. No test utils plugin or direct DB session seeding — the full Better Auth flow runs for every test user.

@@ -26,6 +26,7 @@ export function WorkspaceSidebar({
   const isGraph = matchRoute({ to: "/graph" });
   const isLearnings = matchRoute({ to: "/learnings" });
   const isPolicies = matchRoute({ to: "/policies" });
+  const isTools = matchRoute({ to: "/tools" });
   const { pendingCount } = usePendingLearningCount();
 
   function renderConversationItem(conv: ConversationSidebarItem, depth: number = 0) {
@@ -70,6 +71,7 @@ export function WorkspaceSidebar({
         ) : undefined}
       </Link>
       <Link to="/policies" className={navItemClass(isPolicies)}>Policies</Link>
+      <Link to="/tools" className={navItemClass(isTools)}>Tools</Link>
 
       <Separator className="my-1" />
 

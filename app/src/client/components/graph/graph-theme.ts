@@ -19,6 +19,9 @@ export function entityColor(kind: EntityKind): string {
     case "learning": return "var(--entity-decision)";
     case "objective": return "var(--entity-objective)";
     case "behavior": return "var(--entity-behavior)";
+    case "mcp_tool": return "var(--entity-task)";
+    case "mcp_server": return "var(--entity-feature)";
+    default: return kind satisfies never;
   }
 }
 
@@ -41,6 +44,9 @@ export function entityMutedColor(kind: EntityKind): string {
     case "learning": return "var(--entity-decision-muted)";
     case "objective": return "var(--entity-objective-muted)";
     case "behavior": return "var(--entity-behavior-muted)";
+    case "mcp_tool": return "var(--entity-task-muted)";
+    case "mcp_server": return "var(--entity-feature-muted)";
+    default: return kind satisfies never;
   }
 }
 

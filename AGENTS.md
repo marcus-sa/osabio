@@ -16,6 +16,18 @@
 - Type result payloads once and avoid repetitive per-field casting.
 - Do NOT use module-level mutable singletons (e.g. `let cache` at file scope) for caching or shared state. Module-level state is shared across the entire process — when multiple server instances run concurrently (e.g. smoke tests with `--concurrent`), they silently corrupt each other. Pass shared state via dependency injection or use per-instance caches scoped to the owning object.
 
+## Internationalization
+
+- Use the `Intl` API for all locale-sensitive formatting: `Intl.RelativeTimeFormat` for relative time, `Intl.DateTimeFormat` for dates, `Intl.NumberFormat` for numbers.
+- Do NOT hand-roll formatting logic (e.g. custom "5m ago" strings). The `Intl` API handles locale, pluralization, and grammar rules automatically.
+
+## Browser-Facing Route Authentication
+
+- Browser-facing routes (UI pages, client-side fetches) must resolve identity from the Better Auth session, NOT from `X-Brain-Identity` headers. The header-based pattern is for MCP/CLI clients only.
+- Use `deps.auth.api.getSession({ headers: request.headers })` to get the session, then resolve identity via `identity_person` edge: `SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1`.
+- Return 401 if no session or identity is found.
+- See `tool-registry/routes.ts:resolveIdentityFromSession()` or `policy/policy-route.ts:resolveIdentityFromSession()` for reference implementations.
+
 ## Agentic Design: No Hardcoded Modes
 
 - Do NOT introduce hardcoded processing modes (e.g. `"deterministic" | "llm"`) when behavior should be workspace-configurable via data.
@@ -67,7 +79,30 @@
   - `feed/*` for governance feed and feed streaming
   - `webhook/*` for GitHub webhook integration
   - `iam/*` for identity/access management
-- `graph/*` contains reusable Surreal graph queries used by chat/tools and higher-level workflows.
+- `tools/*` for shared AI SDK tool definitions (used by chat agent, PM agent, observer, proxy)
+- `graph/*` contains reusable Surreal graph queries used by tools and higher-level workflows.
+
+## MCP Protocol: outputSchema and structuredContent (Draft Spec)
+
+- The MCP draft spec adds `outputSchema` (optional JSON Schema) to tool definitions alongside `inputSchema`. When a tool declares an `outputSchema`, its `CallToolResult` includes both `content` (text blocks for backwards compat) and `structuredContent` (typed JSON conforming to the schema).
+- The `output_schema` field exists in the SurrealDB schema (`mcp_tool` table) but must also be present in all TypeScript types that represent tools: `McpToolRecord`, `ToolDetail`, `ToolSyncDetail`, `ResolvedTool`.
+- Discovery must capture `outputSchema` from MCP `tools/list` responses and store it as `output_schema`.
+- The proxy must forward `output_schema` when injecting tools into LLM requests and handle `structuredContent` in `CallToolResult` responses from upstream MCP servers.
+- Reference: https://modelcontextprotocol.io/specification/draft/server/tools#output-schema
+
+## Proxy Auth: X-Brain-Auth Header Format
+
+- The `X-Brain-Auth` header value is the **raw proxy token** — no `Bearer ` prefix. The value is passed directly to `hashProxyToken()` (SHA-256) and matched against `proxy_token.token_hash` in SurrealDB.
+- Sending `Bearer <token>` corrupts the hash: `sha256("Bearer brn_...")` ≠ `sha256("brn_...")`.
+- CLI sets it as `X-Brain-Auth: ${proxyToken}`, not `X-Brain-Auth: Bearer ${proxyToken}`.
+- `extractBrainAuthToken()` in `proxy-auth.ts` returns the raw header value (trim only, no prefix stripping).
+
+## Test Environment Split
+
+- Client tests (`app/src/client/**/*.test.tsx`) require happy-dom for DOM APIs. Run them with `bun --config=bunfig.client.toml test app/src/client/` (or `bun run test:client`).
+- Unit tests (`tests/unit/`) and acceptance tests (`tests/acceptance/`) must NOT load happy-dom — it replaces `globalThis.fetch` with an incompatible implementation that breaks HTTP calls to the in-process server.
+- The default `bunfig.toml` has no `[test]` preload. Only `bunfig.client.toml` preloads `setup-dom.ts` and `setup-testing-library.ts`.
+- When adding new client component tests, place them under `app/src/client/` and run via `test:client`. Never add DOM preloads to the root `bunfig.toml`.
 
 ## Domain Knowledge
 

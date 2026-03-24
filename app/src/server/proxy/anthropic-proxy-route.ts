@@ -70,6 +70,25 @@ import {
   type LookupProxyToken,
   type TokenCache,
 } from "./proxy-auth";
+import {
+  resolveToolsForIdentity,
+  createToolResolutionCache,
+  createQueryGrantedTools,
+  type ToolResolutionCache,
+  type QueryGrantedTools,
+} from "./tool-resolver";
+import { injectTools, type ResolvedTool } from "./tool-injector";
+import {
+  classifyToolCalls,
+  extractToolUseBlocks,
+  isToolUseResponse,
+} from "./tool-router";
+import {
+  executeAllToolCalls,
+  buildToolResultMessage,
+  type McpExecutorDeps,
+} from "./tool-executor";
+import type { McpConnectionResult } from "../tool-registry/mcp-client";
 import type { ServerDependencies } from "../runtime/types";
 import { RecordId } from "surrealdb";
 import { trace } from "@opentelemetry/api";
@@ -168,9 +187,11 @@ type ProxyStage =
   | "validate_workspace"
   | "evaluate_policy"
   | "inject_context"
+  | "inject_tools"
   | "validate_api_key"
   | "forward_upstream"
   | "read_non_streaming_response"
+  | "intercept_tool_use"
   | "relay_stream"
   | "complete";
 
@@ -638,6 +659,10 @@ export function createAnthropicProxyHandler(
   const fetchRecentChanges: FetchRecentChangesByTime = createFetchRecentChangesByTime(deps.surreal);
   const searchContextByBm25: SearchContextByBm25 = createSearchContextByBm25(deps.surreal);
 
+  // Tool injection (02-01): per-instance cache + DB query adapter (not module-level singleton)
+  const toolResolutionCache: ToolResolutionCache = createToolResolutionCache();
+  const queryGrantedTools: QueryGrantedTools = createQueryGrantedTools(deps.surreal);
+
   // Periodic pruning of stale rate limiter entries to prevent unbounded Map growth.
   // unref() ensures this interval does not keep the process alive on shutdown.
   const pruneInterval = setInterval(
@@ -909,6 +934,61 @@ export function createAnthropicProxyHandler(
         }
       }
 
+      // --- Step 5.7: Tool injection (fail-open) ---
+      setStage("inject_tools");
+      let effectiveResolvedTools: ResolvedTool[] = [];
+      if (parsed && identitySignals.workspaceId && identitySignals.proxyTokenIdentityId && !isCountTokens) {
+        try {
+          const resolvedTools = await resolveToolsForIdentity(
+            identitySignals.proxyTokenIdentityId,
+            identitySignals.workspaceId,
+            queryGrantedTools,
+            toolResolutionCache,
+          );
+
+          effectiveResolvedTools = resolvedTools;
+          if (resolvedTools.length > 0) {
+            const currentParsed = tryParseRequestBody(effectiveBody);
+            if (currentParsed) {
+              const runtimeTools = (currentParsed as Record<string, unknown>).tools as
+                | Array<{ name: string; description: string; input_schema: Record<string, unknown> }>
+                | undefined;
+              const mergedTools = injectTools(runtimeTools, resolvedTools);
+              const bodyObj = JSON.parse(effectiveBody) as Record<string, unknown>;
+              bodyObj.tools = mergedTools;
+              effectiveBody = JSON.stringify(bodyObj);
+
+              setSpanAttributes({
+                "proxy.tools_injected": true,
+                "proxy.tools_injected_count": resolvedTools.length - (runtimeTools?.length ?? 0) + mergedTools.length - (resolvedTools.length),
+                "proxy.tools_total_count": mergedTools.length,
+                "proxy.tools_runtime_count": runtimeTools?.length ?? 0,
+                "proxy.tools_brain_count": mergedTools.length - (runtimeTools?.length ?? 0),
+              });
+
+              log.info("proxy.tool_injection.result", "Tool injection completed", {
+                workspace_id: identitySignals.workspaceId,
+                identity_id: identitySignals.proxyTokenIdentityId,
+                runtime_tools: runtimeTools?.length ?? 0,
+                brain_tools: mergedTools.length - (runtimeTools?.length ?? 0),
+                total_tools: mergedTools.length,
+              });
+            }
+          }
+        } catch (error) {
+          // Fail-open: log warning and continue with original body
+          setSpanAttributes({
+            "proxy.tool_injection_failed": true,
+            "proxy.error.stage": currentStage,
+          });
+          log.warn("proxy.tool_injection.failed", "Tool injection failed, forwarding original request", {
+            workspace_id: identitySignals.workspaceId,
+            identity_id: identitySignals.proxyTokenIdentityId,
+            error: String(error),
+          });
+        }
+      }
+
       // --- Step 5.5: Update agent_session.last_request_at (fire-and-forget) ---
       if (effectiveSessionId && !isCountTokens) {
         const sessionRecord = new RecordId("agent_session", effectiveSessionId);
@@ -1021,37 +1101,167 @@ export function createAnthropicProxyHandler(
       }
       setSpanAttributes({ "proxy.upstream_status_code": upstream.status });
 
-      // --- Non-streaming response ---
+      // --- Non-streaming response (with tool use loop) ---
       if (!isStreaming) {
         setStage("read_non_streaming_response");
-        const responseBody = await upstream.text();
+        let responseBody = await upstream.text();
+        let currentUpstreamStatus = upstream.status;
+        let currentContentType = upstream.headers.get("content-type") ?? "application/json";
         const latencyMs = elapsedMs(startedAt);
 
         log.info("proxy.anthropic.response", "Anthropic response", {
-          status: upstream.status,
+          status: currentUpstreamStatus,
           latency_ms: latencyMs,
           ...identityContext,
         });
 
-        if (upstream.status >= 400) {
+        if (currentUpstreamStatus >= 400) {
           const errorPreview = toErrorPreview(responseBody);
           setSpanAttributes({
             "proxy.error.type": "upstream_error",
             "proxy.error.stage": currentStage,
-            "proxy.upstream_error_status": upstream.status,
+            "proxy.upstream_error_status": currentUpstreamStatus,
             "proxy.upstream_error_preview": errorPreview,
           });
           log.warn("proxy.anthropic.upstream_non_2xx", "Upstream returned non-2xx response", {
-            upstream_status: upstream.status,
+            upstream_status: currentUpstreamStatus,
             stage: currentStage,
             upstream_error_preview: errorPreview,
             ...identityContext,
           });
         }
 
+        // --- Step 8.5: Unified tool use interception loop (non-streaming only) ---
+        const MAX_TOOL_USE_ITERATIONS = 10;
+        if (
+          currentUpstreamStatus >= 200 &&
+          currentUpstreamStatus < 300 &&
+          effectiveResolvedTools.length > 0 &&
+          identitySignals.workspaceId &&
+          !isCountTokens
+        ) {
+          setStage("intercept_tool_use");
+          let iterationCount = 0;
+          let conversationMessages: Array<Record<string, unknown>> = [...(parsed?.messages ?? [])];
+
+          // Request-scoped MCP connection map: reuse connections across loop iterations
+          const mcpConnectionMap = new Map<string, McpConnectionResult>();
+
+          const executorDeps: McpExecutorDeps = {
+            surreal: deps.surreal,
+            workspaceId: identitySignals.workspaceId,
+            identityId: identitySignals.proxyTokenIdentityId,
+            sessionId: effectiveSessionId,
+            toolEncryptionKey: deps.config.toolEncryptionKey ?? "",
+            mcpClientFactory: deps.mcpClientFactory,
+          };
+
+          try {
+            while (iterationCount < MAX_TOOL_USE_ITERATIONS) {
+              let responseParsed: Record<string, unknown>;
+              try {
+                responseParsed = JSON.parse(responseBody) as Record<string, unknown>;
+              } catch {
+                break;
+              }
+
+              if (!isToolUseResponse(responseParsed)) {
+                break;
+              }
+
+              const toolUseBlocks = extractToolUseBlocks(responseParsed);
+              if (toolUseBlocks.length === 0) {
+                break;
+              }
+
+              const routingResult = classifyToolCalls(toolUseBlocks, effectiveResolvedTools);
+
+              if (routingResult.allUnknown) {
+                log.info("proxy.tool_routing.all_unknown", "All tool calls are unknown, passing through", {
+                  workspace_id: identitySignals.workspaceId,
+                  tool_count: toolUseBlocks.length,
+                });
+                break;
+              }
+
+              // Execute ALL classified tool calls (brain-native + MCP + HTTP) concurrently
+              const executionResults = await executeAllToolCalls(
+                routingResult.classified,
+                executorDeps,
+                mcpConnectionMap,
+              );
+
+              const errorCount = executionResults.filter((r) => r.isError).length;
+
+              log.info("proxy.tool_execution.completed", "Unified tool execution completed", {
+                workspace_id: identitySignals.workspaceId,
+                tools_executed: executionResults.length,
+                errors: errorCount,
+                iteration: iterationCount + 1,
+              });
+
+              setSpanAttributes({
+                "proxy.tool_use_intercepted": true,
+                "proxy.tool_use_iteration": iterationCount + 1,
+                "proxy.tool_use_count": executionResults.length,
+                "proxy.tool_use_errors": errorCount,
+              });
+
+              // Build follow-up: assistant response + tool_results -> next LLM call
+              const toolResultMessage = buildToolResultMessage(executionResults);
+              const assistantMessage = {
+                role: "assistant" as const,
+                content: responseParsed.content,
+              };
+              conversationMessages = [
+                ...conversationMessages,
+                assistantMessage,
+                toolResultMessage,
+              ];
+
+              const followUpBody = {
+                ...parsed,
+                messages: conversationMessages,
+              };
+
+              try {
+                const followUpResponse = await fetch(upstreamUrl, {
+                  method: "POST",
+                  headers: upstreamHeaders,
+                  body: JSON.stringify(followUpBody),
+                });
+
+                responseBody = await followUpResponse.text();
+                currentUpstreamStatus = followUpResponse.status;
+                currentContentType = followUpResponse.headers.get("content-type") ?? "application/json";
+              } catch (error) {
+                log.warn("proxy.tool_use_loop.follow_up_failed", "Follow-up request after tool execution failed", {
+                  workspace_id: identitySignals.workspaceId,
+                  iteration: iterationCount + 1,
+                  error: String(error),
+                });
+                break;
+              }
+
+              iterationCount++;
+            }
+          } finally {
+            // Clean up all request-scoped MCP connections
+            for (const [serverId, conn] of mcpConnectionMap) {
+              deps.mcpClientFactory.disconnect(conn.client).catch((err) => {
+                log.warn("proxy.mcp_connection.cleanup_failed", "Failed to disconnect MCP client", {
+                  server_id: serverId,
+                  error: String(err),
+                });
+              });
+            }
+          }
+        }
+
         // Async trace capture for non-streaming (skip count_tokens)
-        if (!isCountTokens && upstream.status >= 200 && upstream.status < 300) {
-          const traceData = extractNonStreamingUsage(responseBody, parsed?.model, latencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
+        if (!isCountTokens && currentUpstreamStatus >= 200 && currentUpstreamStatus < 300) {
+          const traceLatencyMs = elapsedMs(startedAt);
+          const traceData = extractNonStreamingUsage(responseBody, parsed?.model, traceLatencyMs, { workspaceId: identitySignals.workspaceId, taskId: identitySignals.taskId, identityId: identitySignals.proxyTokenIdentityId }, effectiveSessionId, policyDecision, injectionResult);
           if (traceData) {
             deps.inflight.track(
               captureTrace(traceData, { surreal: deps.surreal }).catch(() => undefined),
@@ -1061,9 +1271,9 @@ export function createAnthropicProxyHandler(
 
         setStage("complete");
         return new Response(responseBody, {
-          status: upstream.status,
+          status: currentUpstreamStatus,
           headers: {
-            "Content-Type": upstream.headers.get("content-type") ?? "application/json",
+            "Content-Type": currentContentType,
             "Access-Control-Allow-Origin": "*",
           },
         });

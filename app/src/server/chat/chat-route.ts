@@ -13,7 +13,7 @@ import { deriveMessageTitle, refreshConversationTouchedBy, maybeUpgradeConversat
 import { buildChatContext, buildSystemPrompt } from "./context";
 import { loadActiveLearnings } from "../learning/loader";
 import { formatLearningsSection } from "../learning/formatter";
-import { createChatAgentTools } from "./tools";
+import { createChatAgentTools } from "../tools";
 import { transitionOnboardingState } from "../onboarding/onboarding-state";
 import { loadBranchChain } from "./branch-chain";
 import { persistSubagentTrace } from "./trace-loader";

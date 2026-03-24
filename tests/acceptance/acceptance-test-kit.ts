@@ -22,6 +22,7 @@ import { createFeedSseBridge } from "../../app/src/server/reactive/feed-sse-brid
 // Agent activator + loop dampener are created inside createBrainServer
 import type { ServerConfig } from "../../app/src/server/runtime/config";
 import type { ServerDependencies, InflightTracker } from "../../app/src/server/runtime/types";
+import { createMcpClientFactory } from "../../app/src/server/tool-registry/mcp-client";
 
 // ── Shared AI dependencies for standalone acceptance tests ──
 
@@ -52,6 +53,8 @@ export type SmokeTestRuntime = AcceptanceTestRuntime;
 export type AcceptanceSuiteOptions = {
   /** Direct config overrides — applied to the ServerConfig object without touching process.env. */
   configOverrides?: Partial<ServerConfig>;
+  /** Override mcpClientFactory for tests needing mock MCP servers. */
+  mcpClientFactoryOverride?: ServerDependencies["mcpClientFactory"];
 };
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -207,6 +210,8 @@ export function setupAcceptanceSuite(
       inferenceProvider: "openrouter",
       selfHosted: false,
       worktreeManagerEnabled: false,
+      baseUrl: baseUrl,
+      orchestratorMockAgent: false,
       ...options?.configOverrides,
     };
 
@@ -231,6 +236,7 @@ export function setupAcceptanceSuite(
       inflight,
       asSigningKey: deps.asSigningKey,
       nonceCache: createNonceCache(),
+      mcpClientFactory: options?.mcpClientFactoryOverride ?? createMcpClientFactory(),
     };
 
     server = createBrainServer(serverDeps);
@@ -311,6 +317,7 @@ export const setupSmokeSuite = setupAcceptanceSuite;
 
 export type TestUser = {
   headers: Record<string, string>;
+  personId: string;
 };
 
 export async function createTestUser(baseUrl: string, suffix: string): Promise<TestUser> {
@@ -332,8 +339,14 @@ export async function createTestUser(baseUrl: string, suffix: string): Promise<T
     throw new Error("Sign-up did not return session cookies");
   }
 
+  const body = (await response.json()) as { user?: { id?: string } };
+  const personId = body.user?.id;
+  if (!personId) {
+    throw new Error("Sign-up response did not include user.id");
+  }
+
   const cookieHeader = setCookie.map((c) => c.split(";")[0]).join("; ");
-  return { headers: { Cookie: cookieHeader } };
+  return { headers: { Cookie: cookieHeader }, personId };
 }
 
 // ---------------------------------------------------------------------------
@@ -569,6 +582,13 @@ export async function createTestUserWithMcp(
     workspace: workspaceRecord,
   });
 
+  // Create identity_person edge (required by session-based identity resolution in browser-facing routes)
+  const personRecord = new RecordId("person", user.personId);
+  await surreal.query(`RELATE $identity->identity_person->$person SET added_at = time::now();`, {
+    identity: identityRecord,
+    person: personRecord,
+  });
+
   // Seed a broad-access authorized intent covering all MCP operations
   const broadActions = [
     { type: "brain_action", action: "read", resource: "workspace" },
@@ -667,7 +687,9 @@ export async function createTestUserWithMcp(
         Authorization: `DPoP ${access_token}`,
         DPoP: proof,
       },
-      body: options?.body !== undefined ? JSON.stringify(options.body) : JSON.stringify({}),
+      body: method === "GET" || method === "HEAD"
+        ? undefined
+        : (options?.body !== undefined ? JSON.stringify(options.body) : JSON.stringify({})),
     });
   };
 

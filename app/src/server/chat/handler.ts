@@ -2,7 +2,7 @@ import { stepCountIs, streamText, type ModelMessage } from "ai";
 import { RecordId, Surreal } from "surrealdb";
 import type { ExtractedEntity, ExtractedRelationship, OnboardingState } from "../../shared/contracts";
 import { buildChatContext, buildSystemPrompt, type ChatContext } from "./context";
-import { createChatAgentTools } from "./tools";
+import { createChatAgentTools } from "../tools";
 import { createTelemetryConfig } from "../telemetry/ai-telemetry";
 import { FUNCTION_IDS } from "../telemetry/function-ids";
 import { log } from "../telemetry/logger";

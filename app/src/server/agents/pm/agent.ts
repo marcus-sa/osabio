@@ -1,7 +1,7 @@
 import { ToolLoopAgent, Output, stepCountIs } from "ai";
 import { z } from "zod";
 import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type ExtractedEntity, type ExtractedRelationship, type SubagentTrace, type SubagentTraceStep } from "../../../shared/contracts";
-import type { ChatToolDeps, ChatToolExecutionContext } from "../../chat/tools/types";
+import type { ChatToolDeps, ChatToolExecutionContext } from "../../tools/types";
 import { buildPmSystemPrompt } from "./prompt";
 import { createPmTools } from "./tools";
 import { createTelemetryConfig } from "../../telemetry/ai-telemetry";

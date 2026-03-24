@@ -4,6 +4,7 @@ import type { SseRegistry } from "../streaming/sse-registry";
 import type { Auth } from "../auth/config";
 import type { AsSigningKey } from "../oauth/as-key-management";
 import type { NonceCache } from "../oauth/nonce-cache";
+import type { McpClientFactory } from "../tool-registry/mcp-client";
 
 export type InflightTracker = {
   track(promise: Promise<unknown>): void;
@@ -42,4 +43,5 @@ export type ServerDependencies = {
   inflight: InflightTracker;
   asSigningKey: AsSigningKey;
   nonceCache: NonceCache;
+  mcpClientFactory: McpClientFactory;
 };

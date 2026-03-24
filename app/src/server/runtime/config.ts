@@ -41,6 +41,8 @@ export type ServerConfig = {
   worktreeManagerEnabled: boolean;
   orchestratorMockAgent: boolean;
   internalWebhookSecret?: string;
+  toolEncryptionKey?: string;
+  baseUrl: string;
 };
 
 export function loadServerConfig(): ServerConfig {
@@ -97,6 +99,8 @@ export function loadServerConfig(): ServerConfig {
   const worktreeManagerEnabled = parseBooleanEnv("WORKTREE_MANAGER_ENABLED");
   const orchestratorMockAgent = parseBooleanEnv("ORCHESTRATOR_MOCK_AGENT");
   const internalWebhookSecret = optionalEnv("INTERNAL_WEBHOOK_SECRET");
+  const toolEncryptionKey = optionalEnv("TOOL_ENCRYPTION_KEY");
+  const baseUrl = optionalEnv("BRAIN_BASE_URL") ?? `http://localhost:${port}`;
 
   const adminEmail = selfHosted
     ? requireSelfHostedEnv("ADMIN_EMAIL")
@@ -137,6 +141,8 @@ export function loadServerConfig(): ServerConfig {
     worktreeManagerEnabled,
     orchestratorMockAgent,
     ...(internalWebhookSecret ? { internalWebhookSecret } : {}),
+    ...(toolEncryptionKey ? { toolEncryptionKey } : {}),
+    baseUrl,
   };
 }
 

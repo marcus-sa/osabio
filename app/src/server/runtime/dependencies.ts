@@ -6,6 +6,7 @@ import { Surreal } from "surrealdb";
 import type { ServerConfig } from "./config";
 import { createAuth, type Auth } from "../auth/config";
 import { bootstrapSigningKeyFromSurreal, type AsSigningKey } from "../oauth/as-key-management";
+import { createMcpClientFactory, type McpClientFactory } from "../tool-registry/mcp-client";
 
 const devtools = process.env.AI_DEVTOOLS === "1" ? devToolsMiddleware() : undefined;
 
@@ -20,6 +21,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   observerModel: any;
   scorerModel: any;
   asSigningKey: AsSigningKey;
+  mcpClientFactory: McpClientFactory;
 }> {
   const surreal = new Surreal();
   await surreal.connect(config.surrealUrl);
@@ -52,6 +54,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   });
 
   const asSigningKey = await bootstrapSigningKeyFromSurreal(surreal);
+  const mcpClientFactory = createMcpClientFactory();
 
   return {
     surreal,
@@ -64,6 +67,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     observerModel,
     scorerModel,
     asSigningKey,
+    mcpClientFactory,
   };
 }
 

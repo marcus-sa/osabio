@@ -23,8 +23,8 @@ User Message
 **Key files:**
 - `chat/handler.ts` — `runChatAgent()`: streams chat agent responses with tool use
 - `chat/context.ts` — `buildChatContext()` / `buildSystemPrompt()`: loads graph context, builds chat agent system prompt
-- `chat/tools/index.ts` — `createChatAgentTools()`: registers all chat agent tools
-- `chat/tools/types.ts` — `ChatToolExecutionContext`: actor-typed context (`chat_agent | mcp | pm_agent | analytics_agent`)
+- `tools/index.ts` — `createChatAgentTools()`: registers all chat agent tools
+- `tools/types.ts` — `ChatToolExecutionContext`: actor-typed context (`chat_agent | mcp | pm_agent | analytics_agent`)
 
 ## Chat Agent Tools
 
@@ -52,18 +52,18 @@ User Message
 
 ## Shared Tool Layer
 
-Tools live in `chat/tools/` as composable building blocks. Any agent (chat agent, PM subagent, future subagents) can compose the tools it needs. Key shared tools for work item management:
+Tools live in `tools/` as composable building blocks. Any agent (chat agent, PM subagent, future subagents) can compose the tools it needs. Key shared tools for work item management:
 
 | Tool | File | Purpose |
 |------|------|---------|
-| `suggest_work_items` | `chat/tools/suggest-work-items.ts` | Batch triage/dedup (>0.97 exact duplicate, ≥0.8 merge, <0.8 new) |
-| `create_work_item` | `chat/tools/create-work-item.ts` | Direct entity creation in graph |
-| `edit_work_item` | `chat/tools/edit-work-item.ts` | Edit existing task or feature |
-| `move_items_to_project` | `chat/tools/move-items-to-project.ts` | Move work items between projects |
+| `suggest_work_items` | `tools/suggest-work-items.ts` | Batch triage/dedup (>0.97 exact duplicate, ≥0.8 merge, <0.8 new) |
+| `create_work_item` | `tools/create-work-item.ts` | Direct entity creation in graph |
+| `edit_work_item` | `tools/edit-work-item.ts` | Edit existing task or feature |
+| `move_items_to_project` | `tools/move-items-to-project.ts` | Move work items between projects |
 
 ## Product Manager Subagent
 
-The PM agent (`agents/pm/`) is the single authority on tasks, features, and project status. It uses the AI SDK's `ToolLoopAgent` class and composes shared tools from `chat/tools/`. It is invoked by the chat agent via `invoke_pm_agent` tool with an intent:
+The PM agent (`agents/pm/`) is the single authority on tasks, features, and project status. It uses the AI SDK's `ToolLoopAgent` class and composes shared tools from `tools/`. It is invoked by the chat agent via `invoke_pm_agent` tool with an intent:
 
 | Intent | When to use |
 |--------|-------------|

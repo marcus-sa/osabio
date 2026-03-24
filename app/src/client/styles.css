@@ -92,6 +92,12 @@
   --color-accent-hover: var(--accent-hover);
 }
 
+*,
+*::before,
+*::after {
+  border-color: var(--border);
+}
+
 :root {
   font-family: "Instrument Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;

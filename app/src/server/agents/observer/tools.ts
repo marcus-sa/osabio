@@ -4,10 +4,10 @@
  * The observer uses a subset of tools focused on reading context and creating observations.
  */
 
-import { createCreateObservationTool } from "../../chat/tools/create-observation";
-import { createGetEntityDetailTool } from "../../chat/tools/get-entity-detail";
-import { createSearchEntitiesTool } from "../../chat/tools/search-entities";
-import type { ChatToolDeps } from "../../chat/tools/types";
+import { createCreateObservationTool } from "../../tools/create-observation";
+import { createGetEntityDetailTool } from "../../tools/get-entity-detail";
+import { createSearchEntitiesTool } from "../../tools/search-entities";
+import type { ChatToolDeps } from "../../tools/types";
 
 export function createObserverTools(deps: ChatToolDeps) {
   return {

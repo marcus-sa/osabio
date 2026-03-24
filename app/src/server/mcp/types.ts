@@ -1,5 +1,5 @@
 import type { RecordId } from "surrealdb";
-import type { AgentType } from "../chat/tools/types";
+import type { AgentType } from "../tools/types";
 
 /** Validated MCP request context after workspace auth */
 export type McpRequestContext = {

@@ -1,12 +1,12 @@
-import { createCreateObservationTool } from "../../chat/tools/create-observation";
-import { createCreateSuggestionTool } from "../../chat/tools/create-suggestion";
-import { createGetProjectStatusTool } from "../../chat/tools/get-project-status";
-import { createSearchEntitiesTool } from "../../chat/tools/search-entities";
-import type { ChatToolDeps } from "../../chat/tools/types";
-import { createCreateWorkItemTool } from "../../chat/tools/create-work-item";
-import { createEditWorkItemTool } from "../../chat/tools/edit-work-item";
-import { createMoveItemsToProjectTool } from "../../chat/tools/move-items-to-project";
-import { createSuggestWorkItemsTool } from "../../chat/tools/suggest-work-items";
+import { createCreateObservationTool } from "../../tools/create-observation";
+import { createCreateSuggestionTool } from "../../tools/create-suggestion";
+import { createGetProjectStatusTool } from "../../tools/get-project-status";
+import { createSearchEntitiesTool } from "../../tools/search-entities";
+import type { ChatToolDeps } from "../../tools/types";
+import { createCreateWorkItemTool } from "../../tools/create-work-item";
+import { createEditWorkItemTool } from "../../tools/edit-work-item";
+import { createMoveItemsToProjectTool } from "../../tools/move-items-to-project";
+import { createSuggestWorkItemsTool } from "../../tools/suggest-work-items";
 
 export function createPmTools(deps: ChatToolDeps) {
   return {

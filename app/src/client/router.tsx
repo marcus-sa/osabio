@@ -13,6 +13,7 @@ import { ReviewPage } from "./routes/review-page";
 import { LearningsPage } from "./routes/learnings-page";
 import { PoliciesPage } from "./components/policy/PoliciesPage";
 import { PolicyDetailPage } from "./components/policy/PolicyDetailPage";
+import { ToolRegistryPage } from "./routes/tool-registry-page";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 import { Button } from "./components/ui/button";
@@ -183,10 +184,23 @@ const policyDetailRoute = createRoute({
   component: PolicyDetailPage,
 });
 
+type ToolsSearch = { tab?: string };
+
+const validateToolsSearch = (search: Record<string, unknown>): ToolsSearch => ({
+  ...(typeof search.tab === "string" ? { tab: search.tab } : {}),
+});
+
+const toolsRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/tools",
+  component: ToolRegistryPage,
+  validateSearch: validateToolsSearch,
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

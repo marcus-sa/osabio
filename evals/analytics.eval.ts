@@ -4,7 +4,7 @@ import { Factuality } from "autoevals";
 import { Surreal } from "surrealdb";
 import { afterAll, beforeAll } from "vitest";
 import { runAnalyticsAgent, type AnalyticsAgentOutput } from "../app/src/server/agents/analytics/agent";
-import type { ChatToolExecutionContext } from "../app/src/server/chat/tools/types";
+import type { ChatToolExecutionContext } from "../app/src/server/tools/types";
 import { RecordId } from "surrealdb";
 import {
   type EvalRuntime,
