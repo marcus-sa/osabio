@@ -377,7 +377,8 @@ describe("Auto-created credential_provider from discovery", () => {
       );
       const provider = providerRows[0];
       expect(provider).toBeDefined();
-      expect(provider.discovery_source).toBe(mcpServerUrl);
+      // URL is normalized by the server (new URL() adds trailing slash to bare hostnames)
+      expect(provider.discovery_source).toBe(new URL(mcpServerUrl).href);
       expect(provider.authorization_url).toBe(`${authServerUrl}/authorize`);
       expect(provider.token_url).toBe(`${authServerUrl}/token`);
       expect(provider.auth_method).toBe("oauth2");
