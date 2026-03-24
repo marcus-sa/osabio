@@ -317,6 +317,7 @@ export const setupSmokeSuite = setupAcceptanceSuite;
 
 export type TestUser = {
   headers: Record<string, string>;
+  personId: string;
 };
 
 export async function createTestUser(baseUrl: string, suffix: string): Promise<TestUser> {
@@ -338,8 +339,14 @@ export async function createTestUser(baseUrl: string, suffix: string): Promise<T
     throw new Error("Sign-up did not return session cookies");
   }
 
+  const body = (await response.json()) as { user?: { id?: string } };
+  const personId = body.user?.id;
+  if (!personId) {
+    throw new Error("Sign-up response did not include user.id");
+  }
+
   const cookieHeader = setCookie.map((c) => c.split(";")[0]).join("; ");
-  return { headers: { Cookie: cookieHeader } };
+  return { headers: { Cookie: cookieHeader }, personId };
 }
 
 // ---------------------------------------------------------------------------
@@ -573,6 +580,13 @@ export async function createTestUserWithMcp(
   await surreal.query(`RELATE $identity->member_of->$workspace SET added_at = time::now();`, {
     identity: identityRecord,
     workspace: workspaceRecord,
+  });
+
+  // Create identity_person edge (required by session-based identity resolution in browser-facing routes)
+  const personRecord = new RecordId("person", user.personId);
+  await surreal.query(`RELATE $identity->identity_person->$person SET created_at = time::now();`, {
+    identity: identityRecord,
+    person: personRecord,
   });
 
   // Seed a broad-access authorized intent covering all MCP operations

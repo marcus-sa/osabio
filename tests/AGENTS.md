@@ -71,6 +71,7 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
 - Pattern: create a response queue, each intercepted request consumes the next response. After exhaustion, return a default.
 - Lifecycle: `server.listen({ onUnhandledRequest: "bypass" })` in `beforeAll`, `server.close()` in `afterAll`. Use `"bypass"` to let non-mocked requests (SurrealDB, local server) pass through.
 - Reset between tests: call a `reset()` helper to clear the call counter and configure new responses per test scenario.
+- **One MSW server per module, not per test.** MSW patches `globalThis.fetch` on `server.listen()`. Creating separate `setupServer()` instances per `it()` or per `describe()` causes "fetch already patched" errors under `--concurrent`. Instead, create a single module-level MSW server, call `server.listen()` in `beforeAll`, swap handlers per test with `server.resetHandlers(...newHandlers)` or `server.use(...)`, and `server.close()` in `afterAll`.
 - See `tool-registry-ui-test-kit.ts` → `createMockAnthropicMsw()` for the reference implementation.
 
 ## Mock MCP Client Factory
