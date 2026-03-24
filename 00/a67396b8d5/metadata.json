@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "00a67396b8d5",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/openclaw-gateway",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts",
+    "docs/feature/openclaw-gateway/deliver/execution-log.json",
+    "tests/acceptance/gateway/r3-governance.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/00/a67396b8d5/0/metadata.json",
+      "transcript": "/00/a67396b8d5/0/full.jsonl",
+      "context": "/00/a67396b8d5/0/context.md",
+      "content_hash": "/00/a67396b8d5/0/content_hash.txt",
+      "prompt": "/00/a67396b8d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
