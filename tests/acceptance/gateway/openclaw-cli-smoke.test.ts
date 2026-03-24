@@ -40,7 +40,7 @@ async function openclawGatewayCall(
   const args = [
     "bunx", "openclaw", "gateway", "call", method,
     "--url", wsUrl,
-    "--password", "skeleton-test-token",
+    "--token", "skeleton-test-token",
     "--timeout", String(options?.timeoutMs ?? 10_000),
     "--json",
   ];
@@ -83,6 +83,10 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
     // 3. Response serialization is CLI-compatible
     const result = await openclawGatewayCall(baseUrl, "sessions.list");
 
+    console.log("[CLI-1] exitCode:", result.exitCode);
+    console.log("[CLI-1] stdout:", result.stdout);
+    console.log("[CLI-1] stderr:", result.stderr);
+
     // CLI should exit cleanly (0) if connect handshake succeeded
     expect(result.exitCode).toBe(0);
 
@@ -97,6 +101,11 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "sessions.list");
+
+    console.log("[CLI-2] exitCode:", result.exitCode);
+    console.log("[CLI-2] stdout:", result.stdout);
+    console.log("[CLI-2] stderr:", result.stderr);
+
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -110,6 +119,11 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "tools.catalog");
+
+    console.log("[CLI-3] exitCode:", result.exitCode);
+    console.log("[CLI-3] stdout:", result.stdout);
+    console.log("[CLI-3] stderr:", result.stderr);
+
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);
@@ -123,6 +137,11 @@ describe("Gateway CLI Smoke: OpenClaw CLI Protocol Compliance", () => {
     const { baseUrl } = getRuntime();
 
     const result = await openclawGatewayCall(baseUrl, "config.get");
+
+    console.log("[CLI-4] exitCode:", result.exitCode);
+    console.log("[CLI-4] stdout:", result.stdout);
+    console.log("[CLI-4] stderr:", result.stderr);
+
     expect(result.exitCode).toBe(0);
 
     const parsed = JSON.parse(result.stdout);

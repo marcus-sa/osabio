@@ -32,8 +32,12 @@ export const testAI = {
   openrouter,
   extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
   extractionModel: openrouter(requireTestEnv("EXTRACTION_MODEL")),
-  embeddingModel: openrouter.textEmbeddingModel(requireTestEnv("EMBEDDING_MODEL")),
-  embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
+  get embeddingModel() {
+    return openrouter.textEmbeddingModel(requireTestEnv("EMBEDDING_MODEL"));
+  },
+  get embeddingDimension() {
+    return Number(requireTestEnv("EMBEDDING_DIMENSION"));
+  },
 };
 
 /** @deprecated Use `testAI` instead. */
@@ -189,8 +193,6 @@ export function setupAcceptanceSuite(
       extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
       pmAgentModelId: process.env.PM_AGENT_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
       analyticsAgentModelId: requireTestEnv("ANALYTICS_MODEL"),
-      embeddingModelId: requireTestEnv("EMBEDDING_MODEL"),
-      embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
       extractionStoreThreshold: Number(requireTestEnv("EXTRACTION_STORE_THRESHOLD")),
       extractionDisplayThreshold: Number(requireTestEnv("EXTRACTION_DISPLAY_THRESHOLD")),
       surrealUrl,
@@ -229,7 +231,6 @@ export function setupAcceptanceSuite(
       extractionModel: deps.extractionModel,
       pmAgentModel: deps.pmAgentModel,
       analyticsAgentModel: deps.analyticsAgentModel,
-      embeddingModel: deps.embeddingModel,
       observerModel: deps.observerModel,
       scorerModel: deps.scorerModel,
       sse: createSseRegistry(),

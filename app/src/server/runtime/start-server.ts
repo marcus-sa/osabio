@@ -237,6 +237,15 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const execApprovalStore = createExecApprovalStore();
 
   // Gateway dependency wiring — ports to Brain systems
+  //
+  // TODO: Wire real implementations for these gateway ports:
+  //   - assignTask: delegate to real orchestrator (currently mock agent with simulated events)
+  //   - evaluateIntent: delegate to intent authorization pipeline (currently task-text matching stub)
+  //   - lookupIdentity: wire to device identity resolution (currently returns undefined)
+  //   - lookupWorkspace: wire to workspace lookup (currently returns undefined)
+  //   - recordTrace: wire to trace recording (currently no-op)
+  //   - listGrantedTools: wire to tool registry grants (currently returns [])
+  //
   const gatewayDeps: GatewayDeps = {
     surreal: deps.surreal,
     config,
