@@ -28,8 +28,8 @@ describe("McpServerSection", () => {
     providers: [] as ProviderListItem[],
     onAddServer: noopAsync,
     onRemoveServer: noop,
-    onDiscover: noop,
-    onSync: noop,
+    onDiscover: noopAsync,
+    onSync: noopAsync,
     onAuthorize: noop,
   };
 
@@ -77,7 +77,7 @@ describe("McpServerSection", () => {
       <McpServerSection
         servers={[makeServer({ id: "srv-42" })]}
         {...defaultProps}
-        onDiscover={(id) => calls.push(id)}
+        onDiscover={async (id) => { calls.push(id); return {}; }}
       />,
     );
     await user.click(screen.getByRole("button", { name: /^discover$/i }));
@@ -91,7 +91,7 @@ describe("McpServerSection", () => {
       <McpServerSection
         servers={[makeServer({ id: "srv-42" })]}
         {...defaultProps}
-        onSync={(id) => calls.push(id)}
+        onSync={async (id) => { calls.push(id); return {}; }}
       />,
     );
     await user.click(screen.getByRole("button", { name: /sync/i }));

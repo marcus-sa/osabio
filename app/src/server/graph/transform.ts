@@ -21,6 +21,9 @@ export function entityColor(kind: EntityKind): string {
     case "learning": return "#eab308"; // decision-yellow — behavioral rules
     case "objective": return "#10b981"; // emerald — strategic goals
     case "behavior": return "#8b5cf6"; // violet — craftsmanship metrics
+    case "mcp_tool": return "#22c55e";
+    case "mcp_server": return "#14b8a6";
+    default: return kind satisfies never;
   }
 }
 

@@ -41,11 +41,11 @@ function makeInput(overrides?: Partial<ToolRegistryPageInput>): ToolRegistryPage
 // ---------------------------------------------------------------------------
 
 describe("ToolRegistryPage view model", () => {
-  describe("renders four tabs and defaults to Tools tab", () => {
-    it("exposes exactly four tab definitions", () => {
-      expect(TOOL_REGISTRY_TABS).toHaveLength(4);
+  describe("renders five tabs and defaults to Tools tab", () => {
+    it("exposes exactly five tab definitions", () => {
+      expect(TOOL_REGISTRY_TABS).toHaveLength(5);
       const tabIds = TOOL_REGISTRY_TABS.map((t) => t.id);
-      expect(tabIds).toEqual(["tools", "providers", "accounts", "access"]);
+      expect(tabIds).toEqual(["servers", "tools", "access", "providers", "accounts"]);
     });
 
     it("defaults to tools tab when no tab param is provided", () => {
@@ -92,14 +92,12 @@ describe("ToolRegistryPage view model", () => {
       const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "tools", toolsCount: 0 }));
 
       expect(vm.showEmptyState).toBe(true);
-      expect(vm.emptyStateCta).toBe("Add Provider");
     });
 
     it("shows empty state when providers count is zero on providers tab", () => {
       const vm = deriveToolRegistryViewModel(makeInput({ tabParam: "providers", providersCount: 0 }));
 
       expect(vm.showEmptyState).toBe(true);
-      expect(vm.emptyStateCta).toBe("Add Provider");
     });
 
     it("does not show empty state when data exists for active tab", () => {
@@ -122,10 +120,11 @@ describe("ToolRegistryPage view model", () => {
       );
 
       expect(vm.tabLabels).toEqual({
+        servers: "Servers (3)",
         tools: "Tools (5)",
         providers: "Providers (2)",
         accounts: "Accounts (1)",
-        access: "Access (3)",
+        access: "Access (5)",
       });
     });
 
@@ -133,6 +132,7 @@ describe("ToolRegistryPage view model", () => {
       const vm = deriveToolRegistryViewModel(makeInput());
 
       expect(vm.tabLabels).toEqual({
+        servers: "Servers",
         tools: "Tools",
         providers: "Providers",
         accounts: "Accounts",

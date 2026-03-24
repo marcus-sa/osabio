@@ -455,7 +455,7 @@ export type AddMcpServerDialogProps = {
   onSubmit: (formData: AddMcpServerFormData) => Promise<{ error?: string }>;
   existingNames: string[];
   providers: ProviderListItem[];
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
 };
 
 function initialFormData(): AddMcpServerFormData {

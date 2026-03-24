@@ -1,5 +1,4 @@
 import { describe, it, expect, mock } from "bun:test";
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ToolListItem } from "../../hooks/use-tools";
