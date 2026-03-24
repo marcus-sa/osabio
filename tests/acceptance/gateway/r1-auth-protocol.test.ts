@@ -219,9 +219,12 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-6: Malformed frame returns invalid_frame error (AC-1.4)
-  it.skip("R1-6: malformed frame returns invalid_frame error", async () => {
+  it("R1-6: malformed frame returns invalid_frame error", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
+
+    // Wait for connect.challenge so we know the connection is fully established
+    await client.waitForEvent("connect.challenge", 5_000);
 
     // Send malformed JSON
     client.sendRaw("not json at all");
@@ -232,8 +235,17 @@ describe("Gateway R1: Authentication & Protocol", () => {
     // Send frame missing required 'id' field
     client.sendRaw(JSON.stringify({ type: "req", method: "agent" }));
 
+    // Wait briefly for the server to process all three frames and send error responses
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Connection should still be open (protocol error, not fatal)
     expect(client.isOpen()).toBe(true);
+
+    // Verify we received invalid_frame error responses for all three malformed frames
+    const errorFrames = client.receivedFrames.filter(
+      (f) => f.type === "res" && !f.ok && f.error.code === "invalid_frame",
+    );
+    expect(errorFrames.length).toBeGreaterThanOrEqual(3);
 
     client.close();
   });
@@ -252,9 +264,12 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-8: Method before auth returns not_authenticated (AC-1.5)
-  it.skip("R1-8: sending agent method before auth returns not_authenticated", async () => {
+  it("R1-8: sending agent method before auth returns not_authenticated", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
+
+    // Wait for connect.challenge so the connection is in "authenticating" state
+    await client.waitForEvent("connect.challenge", 5_000);
 
     // Send agent method without authenticating first
     const res = await client.request("agent", { task: "test" });
@@ -271,14 +286,21 @@ describe("Gateway R1: Authentication & Protocol", () => {
   });
 
   // R1-9: Double connect returns already_authenticated (AC-1.5)
-  it.skip("R1-9: sending connect while active returns already_authenticated", async () => {
+  it("R1-9: sending connect while active returns already_authenticated", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
 
-    // Complete full auth flow
-    // ... auth ...
+    // Complete full auth flow — wait for challenge, sign nonce, send connect
+    const challenge = await client.waitForEvent("connect.challenge", 5_000);
+    const { nonce } = challenge.payload as { nonce: string };
+    const deviceAuth = await createDeviceAuth(nonce);
+    const firstConnect = await client.request(
+      "connect",
+      buildConnectParams({ ...deviceAuth, nonce }),
+    );
+    expect(firstConnect.ok).toBe(true);
 
-    // Try to connect again
+    // Try to connect again — should get already_authenticated
     const res = await client.request("connect", {
       minProtocol: 3,
       maxProtocol: 3,
