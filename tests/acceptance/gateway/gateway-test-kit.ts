@@ -317,7 +317,7 @@ export async function seedDecisions(
 export async function seedConstraints(
   surreal: Surreal,
   workspaceRecord: RecordId<"workspace", string>,
-  projectRecord: RecordId<"project", string>,
+  _projectRecord: RecordId<"project", string>,
   count: number,
 ): Promise<RecordId<"constraint", string>[]> {
   const records: RecordId<"constraint", string>[] = [];
@@ -329,14 +329,8 @@ export async function seedConstraints(
       created_at: new Date(),
       updated_at: new Date(),
     });
-    await surreal
-      .relate(
-        constraintRecord,
-        new RecordId("belongs_to", crypto.randomUUID()),
-        projectRecord,
-        { added_at: new Date() },
-      )
-      .output("after");
+    // Constraints are linked to workspace via the workspace field, not belongs_to.
+    // belongs_to only accepts task|decision|question as IN.
     records.push(constraintRecord);
   }
   return records;

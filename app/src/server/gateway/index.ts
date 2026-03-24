@@ -9,8 +9,13 @@
  * impure shell that wires Bun's WebSocket handlers to the pure state machine.
  */
 import { jsonResponse } from "../http/response";
-import { createConnection, transition } from "./connection";
-import type { GatewayConnection } from "./types";
+import { createConnection, transition, activateConnection } from "./connection";
+import { parseFrame, isParseError, serializeFrame } from "./protocol";
+import type { ResponseFrame } from "./protocol";
+import { createMethodDispatch, type MethodHandlerMap } from "./method-dispatch";
+import { createConnectHandler, resolveConnectionUpdate } from "./method-handlers/connect";
+import { createAgentHandler } from "./method-handlers/agent";
+import type { GatewayConnection, GatewayDeps } from "./types";
 import type { Server } from "bun";
 
 // ---------------------------------------------------------------------------
@@ -19,34 +24,51 @@ import type { Server } from "bun";
 
 export type GatewayWebSocketData = {
   readonly connection: GatewayConnection;
+  readonly deps: GatewayDeps;
 };
 
 // ---------------------------------------------------------------------------
 // Route handler — upgrades WebSocket or returns 426
 // ---------------------------------------------------------------------------
 
-function handleGatewayRequest(
-  request: Request,
-  server: Server<GatewayWebSocketData>,
-): Response | undefined {
-  // Check for WebSocket upgrade header
-  const upgradeHeader = request.headers.get("upgrade");
-  if (upgradeHeader?.toLowerCase() === "websocket") {
-    const connection = createConnection();
-    const upgraded = server.upgrade(request, {
-      data: { connection },
-    });
-    if (upgraded) {
-      // Return undefined to signal Bun that the upgrade was handled
-      return undefined;
+function createGatewayRequestHandler(deps: GatewayDeps) {
+  return function handleGatewayRequest(
+    request: Request,
+    server: Server<GatewayWebSocketData>,
+  ): Response | undefined {
+    // Check for WebSocket upgrade header
+    const upgradeHeader = request.headers.get("upgrade");
+    if (upgradeHeader?.toLowerCase() === "websocket") {
+      const connection = createConnection();
+      const upgraded = server.upgrade(request, {
+        data: { connection, deps },
+      });
+      if (upgraded) {
+        // Return undefined to signal Bun that the upgrade was handled
+        return undefined;
+      }
+      // Upgrade failed — fall through to 426
     }
-    // Upgrade failed — fall through to 426
-  }
 
-  return jsonResponse(
-    { error: "upgrade_required", message: "This endpoint requires a WebSocket connection" },
-    426,
-  );
+    return jsonResponse(
+      { error: "upgrade_required", message: "This endpoint requires a WebSocket connection" },
+      426,
+    );
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Method handler registry
+// ---------------------------------------------------------------------------
+
+function buildHandlerMap(): MethodHandlerMap {
+  const { handler: connectHandler } = createConnectHandler();
+  const agentHandler = createAgentHandler();
+
+  return {
+    connect: connectHandler,
+    agent: agentHandler,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -54,29 +76,91 @@ function handleGatewayRequest(
 // ---------------------------------------------------------------------------
 
 export function createGatewayWebSocketHandlers() {
+  const dispatch = createMethodDispatch(buildHandlerMap());
+
   return {
     open(ws: { data: GatewayWebSocketData; send: (msg: string) => void }) {
       const { connection } = ws.data;
       const result = transition(connection, { type: "ws_open" });
-      // Update the connection state on the ws data (Bun allows mutation of ws.data)
-      (ws.data as { connection: GatewayConnection }).connection = result.connection;
+      (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
     },
 
     message(
       ws: { data: GatewayWebSocketData; send: (msg: string) => void },
       message: string | Buffer,
     ) {
-      const { connection } = ws.data;
-      const data = typeof message === "string" ? message : message.toString();
-      const result = transition(connection, { type: "ws_message", data });
-      (ws.data as { connection: GatewayConnection }).connection = result.connection;
+      const rawData = typeof message === "string" ? message : message.toString();
+      const { connection, deps } = ws.data;
 
-      // Process effects — message dispatch will be implemented in step 01-03
-      for (const effect of result.effects) {
-        if (effect.type === "send_frame") {
-          ws.send(effect.frame);
-        }
+      // Parse frame
+      const parsed = parseFrame(rawData);
+      if (isParseError(parsed)) {
+        const errorResponse: ResponseFrame = {
+          type: "res",
+          id: "unknown",
+          ok: false,
+          error: {
+            code: "invalid_frame",
+            message: parsed.parseError,
+          },
+        };
+        ws.send(serializeFrame(errorResponse));
+        return;
       }
+
+      // Only handle request frames
+      if (parsed.type !== "req") {
+        return;
+      }
+
+      const requestFrame = parsed;
+
+      // State guard: methods other than "connect" require active state
+      if (requestFrame.method !== "connect" && connection.state !== "active") {
+        const notAuthResponse: ResponseFrame = {
+          type: "res",
+          id: requestFrame.id,
+          ok: false,
+          error: {
+            code: "not_authenticated",
+            message: "Connection is not authenticated — send connect first",
+          },
+        };
+        ws.send(serializeFrame(notAuthResponse));
+        return;
+      }
+
+      // Dispatch to handler (async)
+      dispatch(requestFrame.method, connection, requestFrame.params, deps)
+        .then((result) => {
+          // Build response frame
+          const responseFrame: ResponseFrame = result.ok
+            ? { type: "res", id: requestFrame.id, ok: true, payload: result.payload }
+            : { type: "res", id: requestFrame.id, ok: false, error: result.error };
+
+          ws.send(serializeFrame(responseFrame));
+
+          // If connect succeeded, transition connection to active
+          if (requestFrame.method === "connect" && result.ok) {
+            const update = resolveConnectionUpdate(requestFrame.params);
+            if (update) {
+              (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection =
+                activateConnection(connection, update);
+            }
+          }
+        })
+        .catch((err) => {
+          const errorResponse: ResponseFrame = {
+            type: "res",
+            id: requestFrame.id,
+            ok: false,
+            error: {
+              code: "internal_error",
+              message: err instanceof Error ? err.message : "Internal error",
+            },
+          };
+          ws.send(serializeFrame(errorResponse));
+        });
     },
 
     close(
@@ -86,7 +170,7 @@ export function createGatewayWebSocketHandlers() {
     ) {
       const { connection } = ws.data;
       const result = transition(connection, { type: "ws_close", code, reason });
-      (ws.data as { connection: GatewayConnection }).connection = result.connection;
+      (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection = result.connection;
     },
   };
 }
@@ -95,10 +179,10 @@ export function createGatewayWebSocketHandlers() {
 // Public API — route registration record for Bun.serve routes object
 // ---------------------------------------------------------------------------
 
-export function createGatewayRoutes() {
+export function createGatewayRoutes(deps: GatewayDeps) {
   return {
     "/api/gateway": {
-      GET: handleGatewayRequest,
+      GET: createGatewayRequestHandler(deps),
     },
   } as const;
 }

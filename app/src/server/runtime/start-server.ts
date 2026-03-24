@@ -51,6 +51,7 @@ import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { createGatewayRoutes, createGatewayWebSocketHandlers } from "../gateway/index";
+import type { GatewayDeps } from "../gateway/types";
 import { initTelemetry } from "../telemetry/init";
 import { log } from "../telemetry/logger";
 
@@ -142,7 +143,55 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     mockAgent: config.orchestratorMockAgent,
   });
 
-  const gatewayRoutes = createGatewayRoutes();
+  // Gateway dependency wiring — ports to Brain systems
+  const gatewayDeps: GatewayDeps = {
+    surreal: deps.surreal,
+    config,
+    sseRegistry: deps.sse,
+    loadContext: async (workspaceId, _taskDescription) => {
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const [decisions, constraints, learnings, observations] = await deps.surreal.query<
+        [Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>, Array<{ count: number }>]
+      >(
+        `SELECT count() AS count FROM decision WHERE workspace = $ws GROUP ALL;
+         SELECT count() AS count FROM constraint WHERE workspace = $ws GROUP ALL;
+         SELECT count() AS count FROM learning WHERE workspace = $ws AND status = "active" GROUP ALL;
+         SELECT count() AS count FROM observation WHERE workspace = $ws AND status = "open" GROUP ALL;`,
+        { ws: workspaceRecord },
+      );
+      return {
+        decisions: decisions[0]?.count ?? 0,
+        constraints: constraints[0]?.count ?? 0,
+        learnings: learnings[0]?.count ?? 0,
+        observations: observations[0]?.count ?? 0,
+      };
+    },
+    assignTask: async (workspaceId, _identityId, _task, _agentConfig) => {
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const sessionId = crypto.randomUUID();
+      const sessionRecord = new RecordId("agent_session", sessionId);
+      const now = new Date();
+      await deps.surreal.create(sessionRecord).content({
+        agent: "gateway-agent",
+        started_at: now,
+        workspace: workspaceRecord,
+        created_at: now,
+        orchestrator_status: "spawning",
+      });
+      return { runId: sessionId, sessionId };
+    },
+    evaluateIntent: async () => ({ authorized: true }),
+    lookupIdentity: async () => undefined,
+    lookupWorkspace: async () => undefined,
+    recordTrace: async () => {},
+    listSessions: async () => [],
+    getSessionHistory: async () => ({ runId: "", trace: [] }),
+    patchSession: async () => ({ runId: "", applied: [] }),
+    listGrantedTools: async () => [],
+    subscribeToSessionEvents: () => (async function* () {})(),
+  };
+
+  const gatewayRoutes = createGatewayRoutes(gatewayDeps);
   const gatewayWebSocket = createGatewayWebSocketHandlers();
 
   return Bun.serve({

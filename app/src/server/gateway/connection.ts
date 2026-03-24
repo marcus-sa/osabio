@@ -164,3 +164,42 @@ function toClosedState(connection: GatewayConnection): TransitionResult {
     ],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Explicit state transitions — called by the impure shell after method handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * Activate a connection after successful authentication.
+ * Sets identity, workspace, and agent fields. Pure — no IO.
+ */
+export function activateConnection(
+  connection: GatewayConnection,
+  identity: {
+    readonly identityId: string;
+    readonly workspaceId: string;
+    readonly agentId: string;
+  },
+): GatewayConnection {
+  return {
+    ...connection,
+    state: "active",
+    identityId: identity.identityId,
+    workspaceId: identity.workspaceId,
+    agentId: identity.agentId,
+  };
+}
+
+/**
+ * Increment the sequence counter for event frames.
+ */
+export function incrementSeq(connection: GatewayConnection): {
+  readonly connection: GatewayConnection;
+  readonly seq: number;
+} {
+  const nextSeq = connection.seqCounter + 1;
+  return {
+    connection: { ...connection, seqCounter: nextSeq },
+    seq: nextSeq,
+  };
+}
