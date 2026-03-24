@@ -50,6 +50,7 @@ import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
+import { createGatewayRoutes } from "../gateway/index";
 import { initTelemetry } from "../telemetry/init";
 import { log } from "../telemetry/logger";
 
@@ -141,10 +142,13 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     mockAgent: config.orchestratorMockAgent,
   });
 
+  const gatewayRoutes = createGatewayRoutes();
+
   return Bun.serve({
     port: config.port,
     idleTimeout: 0,
     routes: {
+      ...gatewayRoutes,
       "/healthz": {
         GET: withTracing("GET /healthz", "GET", async () => jsonResponse({ status: "ok" }, 200)),
       },
