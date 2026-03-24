@@ -584,7 +584,7 @@ export async function createTestUserWithMcp(
 
   // Create identity_person edge (required by session-based identity resolution in browser-facing routes)
   const personRecord = new RecordId("person", user.personId);
-  await surreal.query(`RELATE $identity->identity_person->$person SET created_at = time::now();`, {
+  await surreal.query(`RELATE $identity->identity_person->$person SET added_at = time::now();`, {
     identity: identityRecord,
     person: personRecord,
   });
