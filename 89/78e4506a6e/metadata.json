@@ -3,7 +3,7 @@
   "checkpoint_id": "8978e4506a6e",
   "strategy": "manual-commit",
   "branch": "marcus-sa/mcp-tool-registry",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "app/src/server/tool-registry/auth-discovery.ts",
     "app/src/server/tool-registry/mcp-oauth.ts",
@@ -17,13 +17,20 @@
       "context": "/89/78e4506a6e/0/context.md",
       "content_hash": "/89/78e4506a6e/0/content_hash.txt",
       "prompt": "/89/78e4506a6e/0/prompt.txt"
+    },
+    {
+      "metadata": "/89/78e4506a6e/1/metadata.json",
+      "transcript": "/89/78e4506a6e/1/full.jsonl",
+      "context": "/89/78e4506a6e/1/context.md",
+      "content_hash": "/89/78e4506a6e/1/content_hash.txt",
+      "prompt": "/89/78e4506a6e/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 3006,
+    "cache_creation_tokens": 564007,
+    "cache_read_tokens": 51033162,
+    "output_tokens": 128202,
+    "api_call_count": 310
   }
 }
