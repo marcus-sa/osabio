@@ -18,7 +18,6 @@
  *   GET    /api/workspaces/:wsId/tools/:toolId/grants             (list grants)
  *   POST   /api/workspaces/:wsId/tools/:toolId/governance         (attach governance)
  */
-import { createHash } from "node:crypto";
 import { RecordId, type Surreal } from "surrealdb";
 import {
   setupAcceptanceSuite,
@@ -29,6 +28,7 @@ import {
   type TestUser,
   type TestUserWithMcp,
 } from "../acceptance-test-kit";
+import { seedProxyToken } from "../shared-fixtures";
 import type { McpClientFactory, McpConnectionResult, ToolListResult, CallToolResult } from "../../../app/src/server/tool-registry/mcp-client";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { http, HttpResponse } from "msw";
@@ -857,34 +857,8 @@ export async function seedGovernance(
 // Proxy Token Helper
 // ---------------------------------------------------------------------------
 
-/**
- * Create a proxy_token record in SurrealDB and return the raw token string.
- * The proxy uses X-Brain-Auth: <raw-token> for identity resolution.
- */
-export async function seedProxyToken(
-  surreal: Surreal,
-  identityId: string,
-  workspaceId: string,
-): Promise<string> {
-  const rawToken = `brn_test_${crypto.randomUUID()}`;
-  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const tokenId = `pt-${crypto.randomUUID()}`;
-  const tokenRecord = new RecordId("proxy_token", tokenId);
-
-  await surreal.query(`CREATE $rec CONTENT $content;`, {
-    rec: tokenRecord,
-    content: {
-      token_hash: tokenHash,
-      workspace: new RecordId("workspace", workspaceId),
-      identity: new RecordId("identity", identityId),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
-      revoked: false,
-      created_at: new Date(),
-    },
-  });
-
-  return rawToken;
-}
+// Re-export seedProxyToken from shared fixtures
+export { seedProxyToken };
 
 // ---------------------------------------------------------------------------
 // Proxy Request Helper

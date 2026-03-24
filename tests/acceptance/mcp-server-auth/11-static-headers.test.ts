@@ -32,6 +32,13 @@ import { setupServer as setupMswServer } from "msw/node";
 
 const getRuntime = setupMcpServerAuthSuite("mcp_server_auth_static_headers");
 
+// Shared MSW server instance -- avoids "fetch already patched" when --concurrent
+// runs multiple tests in the same file simultaneously. Each test adds handlers
+// via sharedMsw.use() which auto-resets between tests.
+const sharedMsw = setupMswServer();
+beforeAll(() => sharedMsw.listen({ onUnhandledRequest: "bypass" }));
+afterAll(() => sharedMsw.close());
+
 // ---------------------------------------------------------------------------
 // Walking Skeleton: Create MCP server with static headers
 // ---------------------------------------------------------------------------
@@ -155,67 +162,64 @@ describe("Static headers injected on MCP connect", () => {
     const expectedAuth = "Bearer ghp_test_inject_123";
     const capturedRequests: CapturedRequest[] = [];
 
-    // Set up MSW mock that handles the full MCP JSON-RPC protocol
-    // and requires the Authorization header on every request
-    const msw = setupMswServer(
-      http.post(mockUrl, async ({ request }) => {
-        capturedRequests.push({
-          url: request.url,
-          method: request.method,
-          headers: Object.fromEntries(request.headers.entries()),
-        });
+    // Add MSW handler for this test's mock URL using the shared instance
+    const handler = http.post(mockUrl, async ({ request }) => {
+      capturedRequests.push({
+        url: request.url,
+        method: request.method,
+        headers: Object.fromEntries(request.headers.entries()),
+      });
 
-        // Reject requests without the correct Authorization header
-        const authHeader = request.headers.get("authorization");
-        if (authHeader !== expectedAuth) {
-          return new HttpResponse(null, { status: 401 });
-        }
+      // Reject requests without the correct Authorization header
+      const authHeader = request.headers.get("authorization");
+      if (authHeader !== expectedAuth) {
+        return new HttpResponse(null, { status: 401 });
+      }
 
-        // Parse JSON-RPC request to dispatch by method
-        const body = await request.json() as { jsonrpc: string; id?: number; method: string };
+      // Parse JSON-RPC request to dispatch by method
+      const body = await request.json() as { jsonrpc: string; id?: number; method: string };
 
-        if (body.method === "initialize") {
-          return HttpResponse.json({
-            jsonrpc: "2.0",
-            id: body.id,
-            result: {
-              protocolVersion: "2025-03-26",
-              capabilities: { tools: {} },
-              serverInfo: { name: "mock-mcp-server", version: "1.0.0" },
-            },
-          });
-        }
-
-        if (body.method === "notifications/initialized") {
-          // Notification -- no response needed but return 200
-          return new HttpResponse(null, { status: 200 });
-        }
-
-        if (body.method === "tools/list") {
-          return HttpResponse.json({
-            jsonrpc: "2.0",
-            id: body.id,
-            result: {
-              tools: [
-                {
-                  name: "mock_tool",
-                  description: "A mock tool for testing",
-                  inputSchema: { type: "object", properties: {} },
-                },
-              ],
-            },
-          });
-        }
-
-        // Unknown method
+      if (body.method === "initialize") {
         return HttpResponse.json({
           jsonrpc: "2.0",
           id: body.id,
-          error: { code: -32601, message: "Method not found" },
+          result: {
+            protocolVersion: "2025-03-26",
+            capabilities: { tools: {} },
+            serverInfo: { name: "mock-mcp-server", version: "1.0.0" },
+          },
         });
-      }),
-    );
-    msw.listen({ onUnhandledRequest: "bypass" });
+      }
+
+      if (body.method === "notifications/initialized") {
+        // Notification -- no response needed but return 200
+        return new HttpResponse(null, { status: 200 });
+      }
+
+      if (body.method === "tools/list") {
+        return HttpResponse.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            tools: [
+              {
+                name: "mock_tool",
+                description: "A mock tool for testing",
+                inputSchema: { type: "object", properties: {} },
+              },
+            ],
+          },
+        });
+      }
+
+      // Unknown method
+      return HttpResponse.json({
+        jsonrpc: "2.0",
+        id: body.id,
+        error: { code: -32601, message: "Method not found" },
+      });
+    });
+    sharedMsw.use(handler);
 
     try {
       // Given an MCP server with static header "Authorization: Bearer ghp_test_inject_123"
@@ -258,7 +262,7 @@ describe("Static headers injected on MCP connect", () => {
       const mcpRequest = capturedRequests.find((r) => r.headers.authorization === expectedAuth);
       expect(mcpRequest).toBeDefined();
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });
@@ -422,64 +426,62 @@ describe("Multiple headers on same server", () => {
     const expectedCustom = "custom-secret-value-789";
     const capturedRequests: CapturedRequest[] = [];
 
-    // Set up MSW mock that captures all headers and requires both
-    const msw = setupMswServer(
-      http.post(mockUrl, async ({ request }) => {
-        capturedRequests.push({
-          url: request.url,
-          method: request.method,
-          headers: Object.fromEntries(request.headers.entries()),
-        });
+    // Add MSW handler for this test's mock URL using the shared instance
+    const handler = http.post(mockUrl, async ({ request }) => {
+      capturedRequests.push({
+        url: request.url,
+        method: request.method,
+        headers: Object.fromEntries(request.headers.entries()),
+      });
 
-        // Reject requests missing either required header
-        const authHeader = request.headers.get("authorization");
-        const customHeader = request.headers.get("x-custom-header");
-        if (authHeader !== expectedAuth || customHeader !== expectedCustom) {
-          return new HttpResponse(null, { status: 401 });
-        }
+      // Reject requests missing either required header
+      const authHeader = request.headers.get("authorization");
+      const customHeader = request.headers.get("x-custom-header");
+      if (authHeader !== expectedAuth || customHeader !== expectedCustom) {
+        return new HttpResponse(null, { status: 401 });
+      }
 
-        const body = await request.json() as { jsonrpc: string; id?: number; method: string };
+      const body = await request.json() as { jsonrpc: string; id?: number; method: string };
 
-        if (body.method === "initialize") {
-          return HttpResponse.json({
-            jsonrpc: "2.0",
-            id: body.id,
-            result: {
-              protocolVersion: "2025-03-26",
-              capabilities: { tools: {} },
-              serverInfo: { name: "mock-multi-header", version: "1.0.0" },
-            },
-          });
-        }
-
-        if (body.method === "notifications/initialized") {
-          return new HttpResponse(null, { status: 200 });
-        }
-
-        if (body.method === "tools/list") {
-          return HttpResponse.json({
-            jsonrpc: "2.0",
-            id: body.id,
-            result: {
-              tools: [
-                {
-                  name: "multi_header_tool",
-                  description: "Tool requiring multiple headers",
-                  inputSchema: { type: "object", properties: {} },
-                },
-              ],
-            },
-          });
-        }
-
+      if (body.method === "initialize") {
         return HttpResponse.json({
           jsonrpc: "2.0",
           id: body.id,
-          error: { code: -32601, message: "Method not found" },
+          result: {
+            protocolVersion: "2025-03-26",
+            capabilities: { tools: {} },
+            serverInfo: { name: "mock-multi-header", version: "1.0.0" },
+          },
         });
-      }),
-    );
-    msw.listen({ onUnhandledRequest: "bypass" });
+      }
+
+      if (body.method === "notifications/initialized") {
+        return new HttpResponse(null, { status: 200 });
+      }
+
+      if (body.method === "tools/list") {
+        return HttpResponse.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            tools: [
+              {
+                name: "multi_header_tool",
+                description: "Tool requiring multiple headers",
+                inputSchema: { type: "object", properties: {} },
+              },
+            ],
+          },
+        });
+      }
+
+      return HttpResponse.json({
+        jsonrpc: "2.0",
+        id: body.id,
+        error: { code: -32601, message: "Method not found" },
+      });
+    });
+    sharedMsw.use(handler);
 
     try {
       // Given admin creates an MCP server with Authorization + X-Custom-Header
@@ -532,7 +534,7 @@ describe("Multiple headers on same server", () => {
       );
       expect(authenticatedRequest).toBeDefined();
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });

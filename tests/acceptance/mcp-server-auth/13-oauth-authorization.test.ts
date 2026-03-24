@@ -103,7 +103,8 @@ describe("Generate authorization URL with PKCE S256", () => {
       expect(redirectUrl.searchParams.get("state")).toBe(authorizeBody.state);
 
       // Contains resource parameter (RFC 8707) matching the MCP server URI
-      expect(redirectUrl.searchParams.get("resource")).toBe(mcpServerUrl);
+      // URL constructor normalizes bare origins by adding trailing slash per RFC 3986
+      expect(redirectUrl.searchParams.get("resource")).toBe(new URL(mcpServerUrl).href);
 
       // Contains scope parameter
       const scope = redirectUrl.searchParams.get("scope");
@@ -171,18 +172,13 @@ describe("Exchange authorization code for tokens", () => {
       );
       expect(callbackRes.status).toBe(200);
       const callbackBody = (await callbackRes.json()) as {
-        access_token: string;
         token_type: string;
-        expires_in?: number;
-        refresh_token?: string;
         scope?: string;
       };
 
       // Then: Brain exchanged code at token_endpoint with code_verifier
-      expect(callbackBody.access_token).toBeDefined();
-      expect(callbackBody.access_token.length).toBeGreaterThan(0);
+      // Tokens are NOT returned in the response (encrypted server-side)
       expect(callbackBody.token_type).toBe("Bearer");
-      expect(callbackBody.refresh_token).toBeDefined();
 
       // And pending PKCE state is cleared from the server record
       const serverAfter = await getMcpServer(surreal, serverId);
@@ -237,32 +233,30 @@ describe("Tokens encrypted and stored", () => {
         { body: { code: "mock-auth-code-456", state } },
       );
       expect(callbackRes.status).toBe(200);
-      const callbackBody = (await callbackRes.json()) as {
-        access_token: string;
-        refresh_token?: string;
-      };
 
       // Then: connected_account exists with encrypted tokens
+      const { RecordId: RId } = await import("surrealdb");
       const [accounts] = await surreal.query<[Array<Record<string, unknown>>]>(
         `SELECT * FROM connected_account WHERE workspace = $ws;`,
-        { ws: new (await import("surrealdb")).RecordId("workspace", user.workspaceId) },
+        { ws: new RId("workspace", user.workspaceId) },
       );
       expect(accounts.length).toBeGreaterThanOrEqual(1);
       const account = accounts[0];
 
-      // access_token_encrypted is present and does NOT contain the plaintext token
+      // access_token_encrypted is present and encrypted (not plaintext)
       expect(account.access_token_encrypted).toBeDefined();
       expect(typeof account.access_token_encrypted).toBe("string");
       expect((account.access_token_encrypted as string).length).toBeGreaterThan(0);
-      expect(account.access_token_encrypted).not.toBe(callbackBody.access_token);
-      expect(account.access_token_encrypted).not.toContain(callbackBody.access_token);
+      // Encrypted values should not contain the mock token plaintext
+      expect(account.access_token_encrypted).not.toBe("mock-access-token");
+      expect((account.access_token_encrypted as string)).not.toContain("mock-access-token");
 
-      // refresh_token_encrypted is present and does NOT contain the plaintext token
+      // refresh_token_encrypted is present and encrypted (not plaintext)
       expect(account.refresh_token_encrypted).toBeDefined();
       expect(typeof account.refresh_token_encrypted).toBe("string");
       expect((account.refresh_token_encrypted as string).length).toBeGreaterThan(0);
-      expect(account.refresh_token_encrypted).not.toBe(callbackBody.refresh_token);
-      expect(account.refresh_token_encrypted).not.toContain(callbackBody.refresh_token!);
+      expect(account.refresh_token_encrypted).not.toBe("mock-refresh-token");
+      expect((account.refresh_token_encrypted as string)).not.toContain("mock-refresh-token");
 
       // token_expires_at is set
       expect(account.token_expires_at).toBeDefined();

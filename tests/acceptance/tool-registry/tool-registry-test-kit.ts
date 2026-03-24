@@ -21,6 +21,7 @@ import {
   type AcceptanceTestRuntime,
   type TestUserWithMcp,
 } from "../acceptance-test-kit";
+import { seedProxyToken } from "../shared-fixtures";
 
 // Re-export shared helpers
 export {
@@ -481,17 +482,22 @@ export async function getProvidersForWorkspace(
   }>;
 }
 
+// Re-export seedProxyToken from shared fixtures
+export { seedProxyToken };
+
 // ---------------------------------------------------------------------------
 // Proxy Request Helpers (for tool injection + interception tests)
 // ---------------------------------------------------------------------------
 
 /**
- * Send a request through the LLM proxy with identity headers for tool injection.
+ * Send a request through the LLM proxy with proxy token auth for tool injection.
  * This is the driving port for tool injection tests (step 7.5) and
  * tool interception tests (step 8.5).
  */
 export async function sendProxyRequestWithIdentity(
   baseUrl: string,
+  surreal: Surreal,
+  user: TestUserWithMcp,
   options: {
     messages: Array<{ role: string; content: string }>;
     tools?: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>;
@@ -499,10 +505,15 @@ export async function sendProxyRequestWithIdentity(
     maxTokens?: number;
     stream?: boolean;
     apiKey?: string;
-    workspaceHeader?: string;
-    identityHeader?: string;
   },
 ): Promise<Response> {
+  // Cache proxy token on user object to avoid re-creating per call
+  const cached = (user as unknown as { _proxyToken?: string })._proxyToken;
+  const proxyToken = cached ?? await seedProxyToken(surreal, user.identityId, user.workspaceId);
+  if (!cached) {
+    (user as unknown as { _proxyToken?: string })._proxyToken = proxyToken;
+  }
+
   const body = JSON.stringify({
     model: options.model ?? "claude-haiku-4-5-20251001",
     max_tokens: options.maxTokens ?? 100,
@@ -511,18 +522,14 @@ export async function sendProxyRequestWithIdentity(
     ...(options.tools ? { tools: options.tools } : {}),
   });
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "anthropic-version": "2023-06-01",
-  };
-
-  if (options.apiKey) headers["x-api-key"] = options.apiKey;
-  if (options.workspaceHeader) headers["X-Brain-Workspace"] = options.workspaceHeader;
-  if (options.identityHeader) headers["X-Brain-Identity"] = options.identityHeader;
-
   return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
     method: "POST",
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": options.apiKey ?? "test-api-key",
+      "X-Brain-Auth": proxyToken,
+    },
     body,
   });
 }

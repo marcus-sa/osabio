@@ -20,12 +20,19 @@ import { RecordId } from "surrealdb";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
-  setupMockMcpServer,
+  createMockMcpHandlers,
 } from "./mcp-server-auth-test-kit";
 import { http, HttpResponse } from "msw";
 import { setupServer as setupMswServer } from "msw/node";
 
 const getRuntime = setupAcceptanceSuite("mcp_server_auth_oauth_discovery");
+
+// Shared MSW server instance -- avoids "fetch already patched" when --concurrent
+// runs multiple tests in the same file simultaneously. Each test adds handlers
+// via sharedMsw.use() which are cleaned up with resetHandlers().
+const sharedMsw = setupMswServer();
+beforeAll(() => sharedMsw.listen({ onUnhandledRequest: "bypass" }));
+afterAll(() => sharedMsw.close());
 
 // ---------------------------------------------------------------------------
 // Milestone 2: OAuth 2.1 Discovery
@@ -36,12 +43,14 @@ describe("Discover auth from Protected Resource Metadata", () => {
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-disc-${crypto.randomUUID()}`);
 
     // Given MSW mock MCP server with Protected Resource Metadata
-    const { msw } = setupMockMcpServer({
+    const capturedRequests: Array<{ url: string; method: string; headers: Record<string, string> }> = [];
+    const handlers = createMockMcpHandlers({
       mcpServerUrl: "https://mcp.example.com",
       authServerUrl: "https://auth.example.com",
       scopesSupported: ["tools:read", "tools:execute"],
+      capturedRequests,
     });
-    msw.listen({ onUnhandledRequest: "bypass" });
+    sharedMsw.use(...handlers);
 
     try {
       // And an MCP server record exists
@@ -72,7 +81,7 @@ describe("Discover auth from Protected Resource Metadata", () => {
       expect(body.auth_server).toBe("https://auth.example.com");
       expect(body.authorization_endpoint).toBe("https://auth.example.com/authorize");
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });
@@ -90,7 +99,7 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
     const wellKnownUrl = `${mcpServerUrl}/.well-known/oauth-protected-resource`;
     const resourceMetadataUrl = `${mcpServerUrl}/oauth/resource-metadata`;
 
-    const msw = setupMswServer(
+    sharedMsw.use(
       // Standard .well-known returns 404 (not available)
       http.get(wellKnownUrl, () => {
         return new HttpResponse(null, { status: 404 });
@@ -129,7 +138,6 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
         });
       }),
     );
-    msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
       // And an MCP server record exists
@@ -160,7 +168,7 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
       expect(body.auth_server).toBe(authServerUrl);
       expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });
@@ -179,7 +187,7 @@ describe("Auth server metadata with path component", () => {
     //   2. https://auth-tenant.example.com/.well-known/openid-configuration/tenant1        -> 200 (success)
     //   3. https://auth-tenant.example.com/tenant1/.well-known/openid-configuration        -> (not tried)
 
-    const msw = setupMswServer(
+    sharedMsw.use(
       // Protected Resource Metadata points to auth server with path
       http.get(`${mcpServerUrl}/.well-known/oauth-protected-resource`, () => {
         return HttpResponse.json({
@@ -212,7 +220,6 @@ describe("Auth server metadata with path component", () => {
         },
       ),
     );
-    msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
       // And an MCP server record exists
@@ -243,7 +250,7 @@ describe("Auth server metadata with path component", () => {
       expect(body.auth_server).toBe(authServerUrl);
       expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });
@@ -258,7 +265,7 @@ describe("Discovery fails gracefully", () => {
     const mcpServerUrl = "https://mcp-no-auth.example.com";
     const wellKnownUrl = `${mcpServerUrl}/.well-known/oauth-protected-resource`;
 
-    const msw = setupMswServer(
+    sharedMsw.use(
       // .well-known/oauth-protected-resource returns 404
       http.get(wellKnownUrl, () => {
         return new HttpResponse(null, { status: 404 });
@@ -273,7 +280,6 @@ describe("Discovery fails gracefully", () => {
         });
       }),
     );
-    msw.listen({ onUnhandledRequest: "bypass" });
 
     try {
       // And an MCP server record exists
@@ -304,7 +310,7 @@ describe("Discovery fails gracefully", () => {
       expect(typeof body.error).toBe("string");
       expect((body.error as string).length).toBeGreaterThan(0);
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });
@@ -318,12 +324,14 @@ describe("Auto-created credential_provider from discovery", () => {
     const mcpServerUrl = "https://mcp-auto-provider.example.com";
     const authServerUrl = "https://auth-auto-provider.example.com";
 
-    const { msw } = setupMockMcpServer({
+    const capturedRequests: Array<{ url: string; method: string; headers: Record<string, string> }> = [];
+    const handlers = createMockMcpHandlers({
       mcpServerUrl,
       authServerUrl,
       scopesSupported: ["tools:read", "tools:execute"],
+      capturedRequests,
     });
-    msw.listen({ onUnhandledRequest: "bypass" });
+    sharedMsw.use(...handlers);
 
     try {
       // And an MCP server record exists
@@ -376,7 +384,7 @@ describe("Auto-created credential_provider from discovery", () => {
       expect(server.auth_mode).toBe("oauth");
       expect(server.provider).toBeDefined();
     } finally {
-      msw.close();
+      sharedMsw.resetHandlers();
     }
   }, 30_000);
 });

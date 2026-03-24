@@ -58,14 +58,12 @@ describe("Walking Skeleton: Proxy injects granted tools into LLM request", () =>
 
     // And the agent sends an LLM request with runtime tools "read_file" and "write_file"
     // When the proxy processes the request
-    const response = await sendProxyRequestWithIdentity(baseUrl, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
       messages: [{ role: "user", content: "List available tools" }],
       tools: [
         { name: "read_file", description: "Read a file", input_schema: { type: "object", properties: { path: { type: "string" } } } },
         { name: "write_file", description: "Write a file", input_schema: { type: "object", properties: { path: { type: "string" }, content: { type: "string" } } } },
       ],
-      workspaceHeader: user.workspaceId,
-      identityHeader: user.identityId,
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
@@ -97,14 +95,12 @@ describe("Runtime tools preserved alongside injected tools", () => {
     });
 
     // And the request has 2 runtime tools
-    const response = await sendProxyRequestWithIdentity(baseUrl, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
       messages: [{ role: "user", content: "hello" }],
       tools: [
         { name: "read_file", description: "Read a file", input_schema: { type: "object", properties: { path: { type: "string" } } } },
         { name: "write_file", description: "Write a file", input_schema: { type: "object", properties: {} } },
       ],
-      workspaceHeader: user.workspaceId,
-      identityHeader: user.identityId,
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
@@ -120,13 +116,11 @@ describe("No tools injected for identity with no grants", () => {
 
     // Given identity has no can_use edges (fresh identity)
     // And request has one runtime tool
-    const response = await sendProxyRequestWithIdentity(baseUrl, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
       messages: [{ role: "user", content: "hello" }],
       tools: [
         { name: "read_file", description: "Read a file", input_schema: { type: "object", properties: { path: { type: "string" } } } },
       ],
-      workspaceHeader: user.workspaceId,
-      identityHeader: user.identityId,
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
@@ -152,13 +146,11 @@ describe("Runtime tool takes precedence over Brain tool with same name", () => {
     });
 
     // And runtime also provides "read_file"
-    const response = await sendProxyRequestWithIdentity(baseUrl, {
+    const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
       messages: [{ role: "user", content: "hello" }],
       tools: [
         { name: "read_file", description: "Runtime read_file", input_schema: { type: "object", properties: { path: { type: "string" } } } },
       ],
-      workspaceHeader: user.workspaceId,
-      identityHeader: user.identityId,
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 

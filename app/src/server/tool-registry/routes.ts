@@ -45,22 +45,28 @@ async function resolveIdentityFromSession(
   deps: ServerDependencies,
   request: Request,
 ): Promise<RecordId<"identity", string> | Response> {
+  // Try Better Auth session first (browser)
   const session = await deps.auth.api.getSession({ headers: request.headers });
-  if (!session?.user?.id) {
-    return jsonError("authentication required", 401);
+  if (session?.user?.id) {
+    const personRecord = new RecordId("person", session.user.id);
+    const [identityRows] = await deps.surreal.query<[RecordId<"identity", string>[]]>(
+      "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+      { person: personRecord },
+    );
+    const identityRecord = identityRows[0] as RecordId<"identity", string> | undefined;
+    if (!identityRecord) {
+      return jsonError("identity not found for user", 500);
+    }
+    return identityRecord;
   }
 
-  const personRecord = new RecordId("person", session.user.id);
-  const [identityRows] = await deps.surreal.query<[RecordId<"identity", string>[]]>(
-    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
-    { person: personRecord },
-  );
-  const identityRecord = identityRows[0] as RecordId<"identity", string> | undefined;
-  if (!identityRecord) {
-    return jsonError("identity not found for user", 500);
+  // Fallback to X-Brain-Identity header (MCP/CLI clients)
+  const identityHeader = request.headers.get("X-Brain-Identity");
+  if (identityHeader) {
+    return new RecordId("identity", identityHeader);
   }
 
-  return identityRecord;
+  return jsonError("authentication required", 401);
 }
 
 // ---------------------------------------------------------------------------
