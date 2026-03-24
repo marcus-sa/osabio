@@ -316,7 +316,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
 
       return { runId: sessionId, sessionId };
     },
-    evaluateIntent: async () => ({ authorized: true }),
+    evaluateIntent: async () => ({ authorized: true, policy_result: "pass", budget_result: "pass" }),
     lookupIdentity: async () => undefined,
     lookupWorkspace: async () => undefined,
     recordTrace: async () => {},

@@ -91,11 +91,18 @@ export type AssignTaskFn = (
   agentConfig?: { model?: string; maxTokens?: number },
 ) => Promise<{ runId: string; sessionId: string }>;
 
+export type EvaluateIntentResult = {
+  readonly authorized: boolean;
+  readonly reason?: string;
+  readonly policy_result?: string;
+  readonly budget_result?: string;
+};
+
 export type EvaluateIntentFn = (
   workspaceId: string,
   identityId: string,
   action: string,
-) => Promise<{ authorized: boolean; reason?: string }>;
+) => Promise<EvaluateIntentResult>;
 
 export type LoadContextFn = (
   workspaceId: string,

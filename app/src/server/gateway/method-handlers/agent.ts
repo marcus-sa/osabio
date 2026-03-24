@@ -52,6 +52,22 @@ export function createAgentHandler(): MethodHandler {
     // Load context summary from workspace
     const contextSummary = await deps.loadContext(workspaceId, task);
 
+    // Evaluate intent before assigning task
+    const intentResult = await deps.evaluateIntent(workspaceId, identityId, task);
+
+    if (!intentResult.authorized) {
+      const code = intentResult.reason?.includes("budget")
+        ? "budget_exceeded"
+        : "policy_violation";
+      return {
+        ok: false,
+        error: {
+          code,
+          message: intentResult.reason ?? "Authorization denied",
+        },
+      };
+    }
+
     // Assign task to create session
     const { runId, sessionId } = await deps.assignTask(
       workspaceId,
@@ -71,6 +87,10 @@ export function createAgentHandler(): MethodHandler {
         runId,
         sessionId,
         contextSummary,
+        authorization: {
+          policy_result: intentResult.policy_result ?? "pass",
+          budget_result: intentResult.budget_result ?? "pass",
+        },
       },
     };
   };

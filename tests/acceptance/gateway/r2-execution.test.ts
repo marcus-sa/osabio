@@ -38,7 +38,7 @@ const getRuntime = setupAcceptanceSuite("gateway-r2-execution");
 describe("Gateway R2: Core Execution Pipeline", () => {
   // R2-1: Full pipeline with context + policy + budget (AC-2.1)
   // Seeds workspace with exact counts and asserts context summary matches.
-  it.skip("R2-1: agent method returns context summary and authorization result", async () => {
+  it("R2-1: agent method returns context summary and authorization result", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Seed workspace with exact known data
