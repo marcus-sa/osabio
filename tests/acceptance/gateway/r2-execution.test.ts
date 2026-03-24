@@ -304,7 +304,7 @@ describe("Gateway R2: Core Execution Pipeline", () => {
   });
 
   // R2-11: File change streams as lifecycle event
-  it.skip("R2-11: file change events stream as lifecycle phase", async () => {
+  it("R2-11: file change events stream as lifecycle phase", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGatewayWithSkeletonAuth(baseUrl);
 

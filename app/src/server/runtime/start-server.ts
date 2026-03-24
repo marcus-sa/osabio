@@ -319,6 +319,14 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           await execApprovalStore.register(requestId);
         }
 
+        // Mock agent: emit file change event for all tasks
+        sessionEventBus.emit(sessionId, {
+          type: "agent_file_change",
+          sessionId,
+          file: "test.txt",
+          changeType: "created",
+        });
+
         sessionEventBus.emit(sessionId, {
           type: "agent_status",
           sessionId,

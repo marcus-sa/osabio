@@ -58,7 +58,7 @@ export function mapStreamEventToGatewayEvent(
         "lifecycle",
         {
           phase: "file_change",
-          file: event.file,
+          path: event.file,
           changeType: event.changeType,
         },
         seq,
