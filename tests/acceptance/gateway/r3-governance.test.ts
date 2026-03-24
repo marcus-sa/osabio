@@ -125,7 +125,7 @@ describe("Gateway R3: Governance & Multi-Agent", () => {
   });
 
   // R3-4: Disconnect broadcasts offline event (AC-3.3)
-  it.skip("R3-4: disconnect broadcasts presence offline event", async () => {
+  it("R3-4: disconnect broadcasts presence offline event", async () => {
     const { baseUrl } = getRuntime();
 
     const client1 = await connectGatewayWithSkeletonAuth(baseUrl);
