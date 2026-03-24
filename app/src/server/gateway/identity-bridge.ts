@@ -56,19 +56,25 @@ export async function resolveDeviceIdentity(
   if (!agents || agents.length === 0) return undefined;
 
   const identity = agents[0];
-  const identityId = identity.id.id as string;
-  const workspaceId = (identity.workspace as RecordId).id as string;
+  if (!identity.id || !identity.workspace) return undefined;
 
-  // Get the agent id
-  const [agentRows] = await surreal.query<
-    [Array<{ id: RecordId }>]
-  >(
+  const identityId = identity.id instanceof RecordId
+    ? (identity.id.id as string)
+    : String(identity.id);
+  const workspace = identity.workspace instanceof RecordId
+    ? identity.workspace
+    : undefined;
+  if (!workspace) return undefined;
+  const workspaceId = workspace.id as string;
+
+  // Get the agent id — SELECT VALUE returns raw RecordId values
+  const [agentRows] = await surreal.query<[RecordId[]]>(
     `SELECT VALUE id FROM agent WHERE device_fingerprint = $fp LIMIT 1;`,
     { fp: fingerprint },
   );
 
-  const agentId = agentRows && agentRows.length > 0
-    ? (agentRows[0] as unknown as RecordId).id as string
+  const agentId = agentRows && agentRows.length > 0 && agentRows[0] instanceof RecordId
+    ? (agentRows[0].id as string)
     : identityId;
 
   return {

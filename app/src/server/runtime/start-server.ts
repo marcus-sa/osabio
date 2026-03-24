@@ -284,7 +284,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       // WebSocket disconnects (R3-6 reconnect resilience test).
       const isLongRunning = task.toLowerCase().includes("long running");
       const completionDelay = isLongRunning ? 5000 : 50;
-      setTimeout(async () => {
+      setTimeout(() => {
+        const work = (async () => {
         // Create a trace record so sessions.history has data to return
         const traceId = crypto.randomUUID();
         const traceRecord = new RecordId("trace", traceId);
@@ -347,6 +348,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           type: "done",
           messageId: sessionId,
         });
+        })();
+        deps.inflight.track(work);
       }, completionDelay);
 
       return { runId: sessionId, sessionId };
