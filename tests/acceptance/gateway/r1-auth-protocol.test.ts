@@ -109,7 +109,7 @@ describe("Gateway R1: Authentication & Protocol", () => {
 
   // R1-2: Full Gateway Protocol v3 connect handshake (AC-1.1)
   // New device connects, signs challenge nonce, receives hello-ok.
-  it.skip("R1-2: Gateway Protocol v3 connect handshake succeeds", async () => {
+  it("R1-2: Gateway Protocol v3 connect handshake succeeds", async () => {
     const { baseUrl } = getRuntime();
     const client = await connectGateway(baseUrl);
 

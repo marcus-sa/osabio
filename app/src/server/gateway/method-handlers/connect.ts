@@ -1,13 +1,22 @@
 /**
- * Connect method handler — skeleton auth support.
+ * Connect method handler — skeleton auth + Ed25519 device authentication.
  *
  * The connect handler authenticates the client and transitions the connection
- * to active state. For the walking skeleton, it recognizes a hardcoded
- * "skeleton-test-token" and bypasses Ed25519 verification.
+ * to active state. Two auth paths:
+ * 1. Skeleton auth: recognizes hardcoded "skeleton-test-token" (walking skeleton)
+ * 2. Ed25519 auth: verifies signed nonce, resolves or registers device identity
  *
  * Returns a HelloOk payload with protocol info, policy, and auth details.
  */
 import type { MethodHandler, ResponsePayload } from "../method-dispatch";
+import {
+  verifyEd25519Signature,
+  computeDeviceFingerprint,
+} from "../device-auth";
+import {
+  resolveDeviceIdentity,
+  registerNewDevice,
+} from "../identity-bridge";
 
 // ---------------------------------------------------------------------------
 // Skeleton auth constants
@@ -49,7 +58,8 @@ type ConnectParams = {
 // HelloOk payload
 // ---------------------------------------------------------------------------
 
-type HelloOkPayload = {
+export type HelloOkPayload = {
+  readonly type: "hello-ok";
   readonly protocol: number;
   readonly policy: {
     readonly tickIntervalMs: number;
@@ -66,6 +76,7 @@ type HelloOkPayload = {
     readonly id: string;
     readonly agentId: string;
   };
+  readonly isNewDevice?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -98,18 +109,28 @@ function buildHelloOkPayload(
   workspaceId: string,
   identityId: string,
   agentId: string,
+  deviceToken: string,
+  isNewDevice?: boolean,
 ): HelloOkPayload {
   return {
+    type: "hello-ok",
     protocol: 3,
     policy: { tickIntervalMs: 15_000 },
     auth: {
-      deviceToken: "skeleton-device-token",
+      deviceToken,
       role,
       scopes,
     },
     workspace: { id: workspaceId },
     identity: { id: identityId, agentId },
+    ...(isNewDevice !== undefined ? { isNewDevice } : {}),
   };
+}
+
+function generateDeviceToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString("base64url");
 }
 
 /**
@@ -119,7 +140,7 @@ function buildHelloOkPayload(
 export function createConnectHandler(): {
   handler: MethodHandler;
 } {
-  const handler: MethodHandler = async (connection, params, _deps) => {
+  const handler: MethodHandler = async (connection, params, deps) => {
     const connectParams = (params ?? {}) as ConnectParams;
 
     // Already authenticated — reject duplicate connect
@@ -143,31 +164,136 @@ export function createConnectHandler(): {
         SKELETON_WORKSPACE_ID,
         SKELETON_IDENTITY_ID,
         SKELETON_AGENT_ID,
+        "skeleton-device-token",
       );
       return { ok: true, payload };
     }
 
-    // Real Ed25519 auth — not yet implemented
-    return {
-      ok: false,
-      error: {
-        code: "auth_failed",
-        message: "Ed25519 authentication not yet implemented",
-      },
-    };
+    // Ed25519 device authentication
+    return authenticateWithEd25519(connection, connectParams, deps);
   };
 
   return { handler };
 }
 
+// ---------------------------------------------------------------------------
+// Ed25519 authentication flow
+// ---------------------------------------------------------------------------
+
+async function authenticateWithEd25519(
+  connection: { readonly challenge?: { readonly nonce: string; readonly ts: number } },
+  connectParams: ConnectParams,
+  deps: { readonly surreal: unknown },
+): Promise<ResponsePayload> {
+  const { device } = connectParams;
+
+  // Validate required device fields
+  if (!device?.publicKey || !device?.signature || !device?.nonce) {
+    return {
+      ok: false,
+      error: {
+        code: "DEVICE_AUTH_NONCE_REQUIRED",
+        message: "Device publicKey, signature, and nonce are required",
+      },
+    };
+  }
+
+  // Verify the nonce matches the pending challenge
+  if (!connection.challenge) {
+    return {
+      ok: false,
+      error: {
+        code: "DEVICE_AUTH_NONCE_MISMATCH",
+        message: "No pending challenge on this connection",
+      },
+    };
+  }
+
+  if (device.nonce !== connection.challenge.nonce) {
+    return {
+      ok: false,
+      error: {
+        code: "DEVICE_AUTH_NONCE_MISMATCH",
+        message: "Nonce does not match the pending challenge",
+      },
+    };
+  }
+
+  // Verify Ed25519 signature over the nonce
+  const signatureValid = await verifyEd25519Signature(
+    device.publicKey,
+    device.nonce,
+    device.signature,
+  );
+
+  if (!signatureValid) {
+    return {
+      ok: false,
+      error: {
+        code: "DEVICE_AUTH_SIGNATURE_INVALID",
+        message: "Ed25519 signature verification failed",
+      },
+    };
+  }
+
+  // Compute device fingerprint from public key
+  const fingerprint = await computeDeviceFingerprint(device.publicKey);
+
+  // Resolve or register device identity
+  const surreal = deps.surreal as import("surrealdb").Surreal;
+  const existingIdentity = await resolveDeviceIdentity(fingerprint, surreal);
+
+  if (existingIdentity) {
+    const role = connectParams.role ?? "operator";
+    const scopes = connectParams.scopes ?? [];
+    const payload = buildHelloOkPayload(
+      role,
+      scopes,
+      existingIdentity.workspaceId,
+      existingIdentity.identityId,
+      existingIdentity.agentId,
+      generateDeviceToken(),
+      false,
+    );
+    return { ok: true, payload };
+  }
+
+  // New device — register in the graph
+  const newIdentity = await registerNewDevice(
+    {
+      publicKeyBase64: device.publicKey,
+      fingerprint,
+      platform: connectParams.client?.platform ?? "unknown",
+      family: connectParams.client?.id ?? "unknown",
+    },
+    surreal,
+  );
+
+  const role = connectParams.role ?? "operator";
+  const scopes = connectParams.scopes ?? [];
+  const payload = buildHelloOkPayload(
+    role,
+    scopes,
+    newIdentity.workspaceId,
+    newIdentity.identityId,
+    newIdentity.agentId,
+    generateDeviceToken(),
+    true,
+  );
+  return { ok: true, payload };
+}
+
 /**
- * Determine connection state update from connect params.
- * Separated from handler for pure state machine usage.
+ * Extract connection update from a successful connect response payload.
+ * Works for both skeleton auth and Ed25519 auth by reading from the hello-ok payload.
  */
 export function resolveConnectionUpdate(
   params: unknown,
+  responsePayload?: unknown,
 ): ConnectionUpdate | undefined {
   const connectParams = (params ?? {}) as ConnectParams;
+
+  // Skeleton auth path — static identity
   if (isSkeletonAuth(connectParams)) {
     return {
       state: "active",
@@ -176,5 +302,17 @@ export function resolveConnectionUpdate(
       agentId: SKELETON_AGENT_ID,
     };
   }
+
+  // Ed25519 auth path — extract from hello-ok payload
+  const helloOk = responsePayload as HelloOkPayload | undefined;
+  if (helloOk?.type === "hello-ok") {
+    return {
+      state: "active",
+      identityId: helloOk.identity.id,
+      workspaceId: helloOk.workspace.id,
+      agentId: helloOk.identity.agentId,
+    };
+  }
+
   return undefined;
 }

@@ -181,7 +181,7 @@ export function createGatewayWebSocketHandlers() {
 
           // If connect succeeded, transition connection to active
           if (requestFrame.method === "connect" && result.ok) {
-            const update = resolveConnectionUpdate(requestFrame.params);
+            const update = resolveConnectionUpdate(requestFrame.params, result.payload);
             if (update) {
               (ws.data as { connection: GatewayConnection; deps: GatewayDeps }).connection =
                 activateConnection(connection, update);

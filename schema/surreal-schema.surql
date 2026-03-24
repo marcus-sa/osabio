@@ -314,11 +314,16 @@ DEFINE INDEX identity_workspace ON identity FIELDS workspace;
 DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 
 DEFINE TABLE agent SCHEMAFULL;
-DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp'];
+DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp', 'openclaw'];
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
 DEFINE FIELD created_at ON agent TYPE datetime;
+DEFINE FIELD device_fingerprint ON agent TYPE option<string>;
+DEFINE FIELD device_public_key ON agent TYPE option<string>;
+DEFINE FIELD device_platform ON agent TYPE option<string>;
+DEFINE FIELD device_family ON agent TYPE option<string>;
+DEFINE INDEX idx_agent_device_fingerprint ON agent FIELDS device_fingerprint;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;
