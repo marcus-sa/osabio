@@ -326,6 +326,15 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           details: { policy: "risk-policy", rule: "max_risk_level", allowed: "low", actual: "high" },
         };
       }
+      if (action.toLowerCase().includes("refactor auth module")) {
+        return {
+          authorized: false,
+          reason: "budget_exceeded",
+          policy_result: "pass",
+          budget_result: "fail",
+          details: { limit: 5.0, spent: 4.9, remaining: 0.1 },
+        };
+      }
       return { authorized: true, policy_result: "pass", budget_result: "pass" };
     },
     lookupIdentity: async () => undefined,

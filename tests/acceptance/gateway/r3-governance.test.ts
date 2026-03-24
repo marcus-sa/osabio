@@ -58,7 +58,7 @@ describe("Gateway R3: Governance & Multi-Agent", () => {
   });
 
   // R3-2: Budget exceeded returns spend details (AC-3.2)
-  it.skip("R3-2: budget exceeded returns limit and spend details", async () => {
+  it("R3-2: budget exceeded returns limit and spend details", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Seed identity with budget_limit $5.00 and current spend $4.90
