@@ -520,11 +520,10 @@ export async function sendProxyRequestWithIdentity(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "anthropic-version": "2023-06-01",
+    "x-api-key": options.apiKey ?? "test-api-key",
     "X-Brain-Workspace": user.workspaceId,
     "X-Brain-Identity": user.identityId,
   };
-
-  if (options.apiKey) headers["x-api-key"] = options.apiKey;
 
   return fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
     method: "POST",

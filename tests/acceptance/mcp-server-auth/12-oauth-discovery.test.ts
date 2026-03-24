@@ -81,7 +81,8 @@ describe("Discover auth from Protected Resource Metadata", () => {
       expect(body.auth_server).toBe("https://auth.example.com");
       expect(body.authorization_endpoint).toBe("https://auth.example.com/authorize");
     } finally {
-      sharedMsw.resetHandlers();
+      // Do NOT call sharedMsw.resetHandlers() — under --concurrent it removes
+      // handlers from other in-flight tests. Unique domains prevent cross-test interference.
     }
   }, 30_000);
 });
@@ -168,7 +169,8 @@ describe("Discover auth from WWW-Authenticate header on 401", () => {
       expect(body.auth_server).toBe(authServerUrl);
       expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
     } finally {
-      sharedMsw.resetHandlers();
+      // Do NOT call sharedMsw.resetHandlers() — under --concurrent it removes
+      // handlers from other in-flight tests. Unique domains prevent cross-test interference.
     }
   }, 30_000);
 });
@@ -250,7 +252,8 @@ describe("Auth server metadata with path component", () => {
       expect(body.auth_server).toBe(authServerUrl);
       expect(body.authorization_endpoint).toBe(`${authServerUrl}/authorize`);
     } finally {
-      sharedMsw.resetHandlers();
+      // Do NOT call sharedMsw.resetHandlers() — under --concurrent it removes
+      // handlers from other in-flight tests. Unique domains prevent cross-test interference.
     }
   }, 30_000);
 });
@@ -310,7 +313,8 @@ describe("Discovery fails gracefully", () => {
       expect(typeof body.error).toBe("string");
       expect((body.error as string).length).toBeGreaterThan(0);
     } finally {
-      sharedMsw.resetHandlers();
+      // Do NOT call sharedMsw.resetHandlers() — under --concurrent it removes
+      // handlers from other in-flight tests. Unique domains prevent cross-test interference.
     }
   }, 30_000);
 });
@@ -384,7 +388,8 @@ describe("Auto-created credential_provider from discovery", () => {
       expect(server.auth_mode).toBe("oauth");
       expect(server.provider).toBeDefined();
     } finally {
-      sharedMsw.resetHandlers();
+      // Do NOT call sharedMsw.resetHandlers() — under --concurrent it removes
+      // handlers from other in-flight tests. Unique domains prevent cross-test interference.
     }
   }, 30_000);
 });
