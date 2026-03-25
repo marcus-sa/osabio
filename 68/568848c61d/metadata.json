@@ -3,7 +3,7 @@
   "checkpoint_id": "68568848c61d",
   "strategy": "manual-commit",
   "branch": "marcus-sa/sandbox-agent-eval",
-  "checkpoints_count": 1,
+  "checkpoints_count": 4,
   "files_touched": [
     "docs/feature/sandbox-agent-integration/deliver/execution-log.json",
     "docs/feature/sandbox-agent-integration/deliver/roadmap.json"
@@ -15,13 +15,20 @@
       "context": "/68/568848c61d/0/context.md",
       "content_hash": "/68/568848c61d/0/content_hash.txt",
       "prompt": "/68/568848c61d/0/prompt.txt"
+    },
+    {
+      "metadata": "/68/568848c61d/1/metadata.json",
+      "transcript": "/68/568848c61d/1/full.jsonl",
+      "context": "/68/568848c61d/1/context.md",
+      "content_hash": "/68/568848c61d/1/content_hash.txt",
+      "prompt": "/68/568848c61d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 19,
-    "cache_creation_tokens": 66963,
-    "cache_read_tokens": 900900,
-    "output_tokens": 5056,
-    "api_call_count": 14
+    "input_tokens": 3126,
+    "cache_creation_tokens": 502327,
+    "cache_read_tokens": 25651275,
+    "output_tokens": 69384,
+    "api_call_count": 218
   }
 }
