@@ -214,7 +214,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
   // ─── WS-2: Developer sends follow-up prompts ───
   // US-04
-  it.skip("developer sends multiple follow-up prompts to the same session", async () => {
+  it("developer sends multiple follow-up prompts to the same session", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a developer with an active coding session
@@ -270,7 +270,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
   // ─── WS-3: Session persists in SurrealDB ───
   // US-01, US-02
-  it.skip("session record in SurrealDB has correct sandbox fields", async () => {
+  it("session record in SurrealDB has correct sandbox fields", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a developer spawns a sandbox coding session
@@ -564,7 +564,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
   // ─── EP-3: Prompt to concluded session returns 404 ───
   // US-04
-  it.skip("prompt to a completed session returns 404", async () => {
+  it("prompt to a completed session returns 404", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session that has been completed
@@ -603,7 +603,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
   // ─── EP-4: Prompt to non-existent session returns 404 ───
   // US-04
-  it.skip("prompt to a non-existent session returns 404", async () => {
+  it("prompt to a non-existent session returns 404", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session ID that does not exist
@@ -656,7 +656,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 describe("Edge Cases: Sandbox Session Boundaries", () => {
   // ─── EC-1: Concurrent prompt during active processing ───
   // US-04
-  it.skip("concurrent prompt during processing returns 202 Accepted", async () => {
+  it("concurrent prompt during processing returns 202 Accepted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given an active session currently processing a prompt
@@ -699,7 +699,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
 
   // ─── EC-2: Session restoration after server restart ───
   // US-05
-  it.skip("active sessions are discoverable from SurrealDB after server restart", async () => {
+  it("active sessions are discoverable from SurrealDB after server restart", async () => {
     const { surreal } = getRuntime();
 
     // Given an active sandbox session record in SurrealDB
@@ -729,7 +729,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
         agent: "claude",
         session_type: "sandbox_agent",
         provider: "local",
-        orchestrator_status: "running",
+        orchestrator_status: "active",
         external_session_id: "runtime-abc-123",
         created_at: new Date(),
         started_at: new Date(),
@@ -738,7 +738,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
 
     // When active sandbox sessions are queried (as server startup would do)
     const [sessions] = await surreal.query<[Array<Record<string, unknown>>]>(
-      `SELECT * FROM agent_session WHERE session_type = "sandbox_agent" AND orchestrator_status IN ["running", "idle"];`,
+      `SELECT * FROM agent_session WHERE session_type = "sandbox_agent" AND orchestrator_status IN ["active", "idle"];`,
     );
 
     // Then the session is found for restoration

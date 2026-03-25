@@ -943,6 +943,10 @@ export async function sendSessionPrompt(
   const { session, status } = lookup;
 
   if (!PROMPTABLE_STATUSES.has(status)) {
+    // Terminal sessions return 404 (session is "gone"), non-terminal return 409 (conflict)
+    if (TERMINAL_STATUSES.has(status)) {
+      return { ok: false, error: sessionNotFound(input.sessionId) };
+    }
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "prompt") };
   }
 

@@ -176,7 +176,7 @@ describe("sendSessionPrompt", () => {
     }
   });
 
-  test("returns 409 for completed session", async () => {
+  test("returns 404 for completed session (terminal sessions are gone)", async () => {
     const surrealSpy = createSurrealSpy({
       sessionSelect: {
         id: new RecordId("agent_session", "sess-1"),
@@ -193,11 +193,12 @@ describe("sendSessionPrompt", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.httpStatus).toBe(409);
+      expect(result.error.code).toBe("SESSION_NOT_FOUND");
+      expect(result.error.httpStatus).toBe(404);
     }
   });
 
-  test("returns 409 for aborted session", async () => {
+  test("returns 404 for aborted session (terminal sessions are gone)", async () => {
     const surrealSpy = createSurrealSpy({
       sessionSelect: {
         id: new RecordId("agent_session", "sess-1"),
@@ -214,7 +215,8 @@ describe("sendSessionPrompt", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.httpStatus).toBe(409);
+      expect(result.error.code).toBe("SESSION_NOT_FOUND");
+      expect(result.error.httpStatus).toBe(404);
     }
   });
 });
