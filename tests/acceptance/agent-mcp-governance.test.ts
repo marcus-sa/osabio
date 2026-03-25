@@ -435,7 +435,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
 
   // HP-5: Newly authorized intent reflected in subsequent tools/list
   // US-01, US-03
-  it.skip("newly authorized intent makes previously gated tool callable", async () => {
+  it("newly authorized intent makes previously gated tool callable", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with no intents initially
