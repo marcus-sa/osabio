@@ -9,68 +9,7 @@
  * Driving port: SandboxAgentAdapter type (injected mock)
  */
 import { describe, expect, it } from "bun:test";
-
-// ── Types (will be imported from orchestrator/sandbox-adapter.ts once implemented) ──
-
-type SessionHandle = {
-  id: string;
-  prompt: (messages: Array<{ type: string; text: string }>) => Promise<{ success: boolean }>;
-  onEvent: (handler: (event: unknown) => void) => () => void;
-  onPermissionRequest: (handler: (request: unknown) => void) => () => void;
-  respondPermission: (id: string, decision: string) => Promise<void>;
-};
-
-type SandboxAgentAdapter = {
-  createSession: (config: {
-    agent: string;
-    cwd: string;
-    env?: Record<string, string>;
-  }) => Promise<SessionHandle>;
-  resumeSession: (sessionId: string) => Promise<SessionHandle>;
-  destroySession: (sessionId: string) => Promise<void>;
-  setMcpConfig: (
-    cwd: string,
-    name: string,
-    config: { type: string; url: string; headers?: Record<string, string> },
-  ) => Promise<void>;
-};
-
-// ── Mock Adapter Factory ──
-
-function createMockAdapter(overrides?: Partial<SandboxAgentAdapter>): SandboxAgentAdapter {
-  const sessions = new Map<string, SessionHandle>();
-
-  const createHandle = (id: string): SessionHandle => ({
-    id,
-    prompt: async () => ({ success: true }),
-    onEvent: () => () => {},
-    onPermissionRequest: () => () => {},
-    respondPermission: async () => {},
-  });
-
-  return {
-    createSession: async (config) => {
-      const id = `session-${crypto.randomUUID()}`;
-      const handle = createHandle(id);
-      sessions.set(id, handle);
-      return handle;
-    },
-    resumeSession: async (sessionId) => {
-      const existing = sessions.get(sessionId);
-      if (!existing) {
-        const handle = createHandle(sessionId);
-        sessions.set(sessionId, handle);
-        return handle;
-      }
-      return existing;
-    },
-    destroySession: async (sessionId) => {
-      sessions.delete(sessionId);
-    },
-    setMcpConfig: async () => {},
-    ...overrides,
-  };
-}
+import { createMockAdapter } from "../../../app/src/server/orchestrator/sandbox-adapter";
 
 // ── Tests ──
 
@@ -167,7 +106,7 @@ describe("SandboxAgentAdapter (mock)", () => {
 
   // ─── UA-6: prompt on destroyed session throws ───
   // US-04 (error path)
-  it.skip("prompt on a destroyed session throws an error", async () => {
+  it("prompt on a destroyed session throws an error", async () => {
     // Given a session that has been destroyed
     const adapter = createMockAdapter();
     const handle = await adapter.createSession({
