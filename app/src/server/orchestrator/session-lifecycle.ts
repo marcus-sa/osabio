@@ -538,7 +538,7 @@ type AbortSessionInput = {
   shellExec: ShellExec;
   resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
-  adapter: SandboxAgentAdapter;
+  adapter?: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -557,7 +557,7 @@ export async function abortOrchestratorSession(
   const { session, record: sessionRecord } = lookup;
 
   // 1. Destroy the sandbox agent session
-  if (session.external_session_id) {
+  if (session.external_session_id && input.adapter) {
     try {
       await input.adapter.destroySession(session.external_session_id);
     } catch (err) {
@@ -617,7 +617,7 @@ type AcceptSessionInput = {
   resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
   summary: string;
-  adapter: SandboxAgentAdapter;
+  adapter?: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -642,7 +642,7 @@ export async function acceptOrchestratorSession(
   const workspaceRecord = requireWorkspace(session, input.sessionId);
 
   // 1. Destroy the sandbox agent session
-  if (session.external_session_id) {
+  if (session.external_session_id && input.adapter) {
     try {
       await input.adapter.destroySession(session.external_session_id);
     } catch (err) {

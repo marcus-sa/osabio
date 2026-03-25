@@ -668,7 +668,7 @@ export function wireOrchestratorRoutes(
 
     abortSession: async (sessionId) => {
       const [adapter, lifecycle, queries] = await Promise.all([
-        resolveAdapter(),
+        resolveAdapter().catch(() => undefined),
         lifecycleImport,
         queriesImport,
       ]);
@@ -684,7 +684,7 @@ export function wireOrchestratorRoutes(
 
     acceptSession: async (sessionId, summary) => {
       const [adapter, lifecycle, queries] = await Promise.all([
-        resolveAdapter(),
+        resolveAdapter().catch(() => undefined),
         lifecycleImport,
         queriesImport,
       ]);
