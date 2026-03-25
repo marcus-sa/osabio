@@ -1012,6 +1012,7 @@ export async function startServer(): Promise<void> {
     asSigningKey: runtime.asSigningKey,
     nonceCache: createNonceCache(),
     mcpClientFactory: runtime.mcpClientFactory,
+    sandboxAgentAdapter: runtime.sandboxAgentAdapter,
   };
 
   const server = createBrainServer(deps);
