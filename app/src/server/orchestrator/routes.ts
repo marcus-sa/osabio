@@ -625,14 +625,18 @@ export function wireOrchestratorRoutes(
     },
 
     acceptSession: async (sessionId, summary) => {
-      const [lifecycle, queries] = await Promise.all([
+      const [adapter, lifecycle, queries] = await Promise.all([
+        sandboxAdapterPromise,
         lifecycleImport,
         queriesImport,
       ]);
       return lifecycle.acceptOrchestratorSession({
         surreal: wiringDeps.surreal,
+        shellExec: wiringDeps.shellExec,
+        resolveRepoRoot,
         sessionId,
         summary,
+        adapter,
         endAgentSession: queries.endAgentSession,
       });
     },

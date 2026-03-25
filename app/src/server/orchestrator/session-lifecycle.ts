@@ -536,7 +536,7 @@ type AbortSessionInput = {
   shellExec: ShellExec;
   resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
-  adapter?: SandboxAgentAdapter;
+  adapter: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -554,8 +554,8 @@ export async function abortOrchestratorSession(
   }
   const { session, record: sessionRecord } = lookup;
 
-  // 1. Abort the agent process via adapter if available
-  if (input.adapter && session.external_session_id) {
+  // 1. Destroy the sandbox agent session
+  if (session.external_session_id) {
     try {
       await input.adapter.destroySession(session.external_session_id);
     } catch (err) {
@@ -611,8 +611,11 @@ export async function abortOrchestratorSession(
 
 type AcceptSessionInput = {
   surreal: Surreal;
+  shellExec: ShellExec;
+  resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
   summary: string;
+  adapter: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -636,14 +639,31 @@ export async function acceptOrchestratorSession(
 
   const workspaceRecord = requireWorkspace(session, input.sessionId);
 
-  // 1. Update orchestrator_status to completed
+  // 1. Destroy the sandbox agent session
+  if (session.external_session_id) {
+    try {
+      await input.adapter.destroySession(session.external_session_id);
+    } catch (err) {
+      log.warn("orchestrator.accept", "Failed to destroy sandbox session", {
+        sessionId: input.sessionId,
+        externalSessionId: session.external_session_id,
+        error: String(err),
+      });
+    }
+  }
+
+  // 2. Update orchestrator_status to completed
   await input.surreal.update(sessionRecord).merge({
     orchestrator_status: "completed" as OrchestratorStatus,
   });
 
-  // 2. (handle registry eliminated — no cleanup needed)
+  // 3. Remove worktree (branch is preserved for merge/review)
+  if (session.worktree_branch) {
+    const repoRoot = await input.resolveRepoRoot(workspaceRecord);
+    await removeWorktree(input.shellExec, repoRoot, session.worktree_branch);
+  }
 
-  // 3. End the agent session
+  // 4. End the agent session
   await input.endAgentSession({
     surreal: input.surreal,
     workspaceRecord,
