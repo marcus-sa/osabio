@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9fe624824cfc",
+  "session_id": "3c0675ed-e4d0-40a7-807a-0316109c81f1",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T19:10:39.034281Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/brain-tool-definitions.ts",
+    "app/src/server/mcp/tools-list-handler.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "eda3ea60fc31",
+  "token_usage": {
+    "input_tokens": 11655,
+    "cache_creation_tokens": 274951,
+    "cache_read_tokens": 12383207,
+    "output_tokens": 54035,
+    "api_call_count": 104
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T19:10:38.369956Z",
+    "agent_lines": 25,
+    "human_added": 1033,
+    "human_modified": 385,
+    "human_removed": 0,
+    "total_committed": 1443,
+    "agent_percentage": 1.7325017325017324
+  }
+}

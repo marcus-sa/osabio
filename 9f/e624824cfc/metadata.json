@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9fe624824cfc",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/mcp/brain-tool-definitions.ts",
+    "app/src/server/mcp/tools-list-handler.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9f/e624824cfc/0/metadata.json",
+      "transcript": "/9f/e624824cfc/0/full.jsonl",
+      "context": "/9f/e624824cfc/0/context.md",
+      "content_hash": "/9f/e624824cfc/0/content_hash.txt",
+      "prompt": "/9f/e624824cfc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 11655,
+    "cache_creation_tokens": 274951,
+    "cache_read_tokens": 12383207,
+    "output_tokens": 54035,
+    "api_call_count": 104
+  }
+}
