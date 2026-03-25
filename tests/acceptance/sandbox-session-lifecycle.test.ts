@@ -40,6 +40,7 @@ const getRuntime = setupAcceptanceSuite("sandbox_session_lifecycle", {
 async function createTestWorkspace(
   baseUrl: string,
   user: { headers: Record<string, string> },
+  surreal: AcceptanceTestRuntime["surreal"],
 ): Promise<{ workspaceId: string }> {
   const response = await fetch(`${baseUrl}/api/workspaces`, {
     method: "POST",
@@ -50,6 +51,14 @@ async function createTestWorkspace(
     throw new Error(`Failed to create workspace: ${response.status}`);
   }
   const body = (await response.json()) as { workspaceId: string };
+
+  // Set repo_path so the orchestrator can create worktrees
+  const workspaceRecord = new RecordId("workspace", body.workspaceId);
+  await surreal.query(
+    `UPDATE $ws SET repo_path = $path;`,
+    { ws: workspaceRecord, path: "/tmp/brain-test-repo" },
+  );
+
   return { workspaceId: body.workspaceId };
 }
 
@@ -66,7 +75,7 @@ async function createReadyTask(
     task: taskRecord,
     content: {
       title: task.title,
-      summary: task.description,
+      description: task.description,
       status: "ready",
       workspace: workspaceRecord,
       created_at: new Date(),
@@ -83,7 +92,7 @@ async function assignTaskToSandboxAgent(
   taskId: string,
 ): Promise<{ agentSessionId: string; streamUrl: string }> {
   const response = await fetch(
-    `${baseUrl}/api/orchestrator/${workspaceId}/sessions/assign`,
+    `${baseUrl}/api/orchestrator/${workspaceId}/assign`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", ...user.headers },
@@ -153,7 +162,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer with a workspace containing a task ready for work
     const user = await createTestUser(baseUrl, `ws1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Implement rate limiting",
       description: "Add sliding window rate limiter to the API gateway",
@@ -205,7 +214,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer with an active coding session
     const user = await createTestUser(baseUrl, `ws2-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Build authentication service",
       description: "Create JWT-based auth with refresh tokens",
@@ -261,7 +270,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer spawns a sandbox coding session
     const user = await createTestUser(baseUrl, `ws3-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Add logging middleware",
       description: "Structured logging with request tracing",
@@ -299,12 +308,12 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 describe("Happy Path: Sandbox Session Operations", () => {
   // ─── HP-1: Session spawns and returns session ID ───
   // US-01
-  it.skip("session spawns and returns a valid session ID and stream URL", async () => {
+  it("session spawns and returns a valid session ID and stream URL", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a developer with a ready task
     const user = await createTestUser(baseUrl, `hp1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Refactor database queries",
       description: "Optimize N+1 queries in entity search",
@@ -332,7 +341,7 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a freshly spawned sandbox session
     const user = await createTestUser(baseUrl, `hp5-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Add input validation",
       description: "Validate all API endpoint inputs with Zod",
@@ -357,14 +366,82 @@ describe("Happy Path: Sandbox Session Operations", () => {
     expect(["spawning", "running", "active", "idle"]).toContain(status.orchestratorStatus);
   }, 30_000);
 
+  // ─── HP-2: Prompt delivery via adapter (not 409) ───
+  // US-04
+  it("prompt is delivered via adapter instead of returning 409", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a spawned sandbox session
+    const user = await createTestUser(baseUrl, `hp2-${crypto.randomUUID()}`);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
+    const task = await createReadyTask(surreal, workspace.workspaceId, {
+      title: "Implement caching layer",
+      description: "Add Redis caching to entity queries",
+    });
+
+    const assignment = await assignTaskToSandboxAgent(
+      baseUrl,
+      user,
+      workspace.workspaceId,
+      task.taskId,
+    );
+
+    // When the developer sends a prompt to the session
+    const promptResponse = await sendPrompt(
+      baseUrl,
+      user,
+      workspace.workspaceId,
+      assignment.agentSessionId,
+      "Implement the caching layer with TTL support",
+    );
+
+    // Then the prompt is accepted (not 409 Conflict)
+    expect(promptResponse.status).not.toBe(409);
+    expect(promptResponse.ok).toBe(true);
+  }, 30_000);
+
+  // ─── HP-3: Session record has sandbox fields ───
+  // US-02
+  it("session record has session_type and external_session_id after spawn", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a spawned sandbox session
+    const user = await createTestUser(baseUrl, `hp3-${crypto.randomUUID()}`);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
+    const task = await createReadyTask(surreal, workspace.workspaceId, {
+      title: "Add API documentation",
+      description: "Generate OpenAPI spec from route handlers",
+    });
+
+    const assignment = await assignTaskToSandboxAgent(
+      baseUrl,
+      user,
+      workspace.workspaceId,
+      task.taskId,
+    );
+
+    // When the session record is queried from SurrealDB
+    const dbSession = await querySessionFromDb(surreal, assignment.agentSessionId);
+
+    // Then it has session_type "sandbox_agent"
+    expect(dbSession).toBeDefined();
+    expect(dbSession!.session_type).toBe("sandbox_agent");
+
+    // And has an external_session_id from the adapter
+    expect(dbSession!.external_session_id).toBeTruthy();
+
+    // And has a provider field
+    expect(dbSession!.provider).toBe("local");
+  }, 30_000);
+
   // ─── HP-6: Session marked completed after accept ───
   // US-01
-  it.skip("session is marked completed after developer accepts the work", async () => {
+  it("session is marked completed after developer accepts the work", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a sandbox session that has been working
     const user = await createTestUser(baseUrl, `hp6-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Write unit tests",
       description: "Add tests for the rate limiter module",
@@ -415,7 +492,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
     // Given the SandboxAgent server is not running
     // (configured to connect to unreachable address)
     const user = await createTestUser(baseUrl, `ep1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "This task should fail to assign",
       description: "Testing error handling when server is down",
@@ -423,7 +500,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // When the developer attempts to assign the task
     const response = await fetch(
-      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/sessions/assign`,
+      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/assign`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
@@ -444,7 +521,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // Given a spawn that fails due to server unavailability
     const user = await createTestUser(baseUrl, `ep2-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Orphan check task",
       description: "Verifying no partial records on failure",
@@ -452,7 +529,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // When the spawn fails
     await fetch(
-      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/sessions/assign`,
+      `${baseUrl}/api/orchestrator/${workspace.workspaceId}/assign`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
@@ -480,7 +557,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // Given a session that has been completed
     const user = await createTestUser(baseUrl, `ep3-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Completed task",
       description: "Session already done",
@@ -515,11 +592,11 @@ describe("Error Paths: Sandbox Session Failures", () => {
   // ─── EP-4: Prompt to non-existent session returns 404 ───
   // US-04
   it.skip("prompt to a non-existent session returns 404", async () => {
-    const { baseUrl } = getRuntime();
+    const { baseUrl, surreal } = getRuntime();
 
     // Given a session ID that does not exist
     const user = await createTestUser(baseUrl, `ep4-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const nonExistentSessionId = crypto.randomUUID();
 
     // When a prompt is sent to the non-existent session
@@ -546,7 +623,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // When the developer attempts to assign a task in the invalid workspace
     const response = await fetch(
-      `${baseUrl}/api/orchestrator/${fakeWorkspaceId}/sessions/assign`,
+      `${baseUrl}/api/orchestrator/${fakeWorkspaceId}/assign`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", ...user.headers },
@@ -572,7 +649,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
 
     // Given an active session currently processing a prompt
     const user = await createTestUser(baseUrl, `ec1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user);
+    const workspace = await createTestWorkspace(baseUrl, user, surreal);
     const task = await createReadyTask(surreal, workspace.workspaceId, {
       title: "Long-running implementation",
       description: "A task that takes time to process",

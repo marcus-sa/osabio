@@ -128,6 +128,7 @@ export function withTracing(route: string, method: string, handler: RouteHandler
           finalizeSpan();
           return responseWithRequestId;
         } catch (error) {
+          console.error(`[withTracing] ${route} error:`, error instanceof Error ? error.message : error, error instanceof Error ? error.stack : '');
           const durationMs = Number((performance.now() - startedAt).toFixed(2));
           const statusCode = error instanceof HttpError ? error.status : 500;
 

@@ -12,6 +12,7 @@ import type { StallDetectorHandle } from "./stall-detector";
 import { getIntentById, updateIntentStatus } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 import { log } from "../telemetry/logger";
+import type { SandboxAgentAdapter, SessionHandle } from "./sandbox-adapter";
 
 // ---------------------------------------------------------------------------
 // Types — exported for tests
@@ -49,6 +50,7 @@ export type OrchestratorSessionResult = SessionResult<{
   agentSessionId: string;
   streamId: string;
   worktreeBranch: string;
+  sessionHandle?: SessionHandle;
 }>;
 
 export type SessionStatusResult = SessionResult<{
@@ -261,6 +263,8 @@ type SessionRow = {
   task_id?: RecordId<"task", string>;
   workspace?: RecordId<"workspace", string>;
   error_message?: string;
+  external_session_id?: string;
+  session_type?: string;
 };
 
 type SessionLookup =
@@ -349,6 +353,7 @@ type CreateSessionInput = {
   intentId?: string;
   authToken?: string;
   spawnAgent?: SpawnAgentFn;
+  adapter?: SandboxAgentAdapter;
   validateAssignment: (
     surreal: Surreal,
     workspaceId: string,
@@ -385,6 +390,13 @@ export async function createOrchestratorSession(
   }
 
   const { validation } = assignmentResult;
+
+  // ── Adapter path: delegate to SandboxAgentAdapter ──
+  if (input.adapter) {
+    return createSessionViaAdapter(input, validation);
+  }
+
+  // ── Legacy path: worktree + spawn ──
   const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
   const repoRoot = validation.repoPath;
 
@@ -435,9 +447,6 @@ export async function createOrchestratorSession(
 
   const spawnFn = input.spawnAgent ?? defaultSpawnAgent;
   try {
-    // Spawn agent process — handle no longer stored in registry (ADR-075).
-    // Event iteration wiring uses the handle via routes.ts getHandle() which
-    // will be replaced by adapter integration in step 02-03.
     spawnFn(agentSpawnConfig);
   } catch (err) {
     // Rollback: remove worktree and delete agent_session on spawn failure
@@ -450,9 +459,7 @@ export async function createOrchestratorSession(
     };
   }
 
-  // 5. (handle registry eliminated — adapter.destroySession wired in step 02-03)
-
-  // 6. Update agent_session with orchestrator fields
+  // 5. Update agent_session with orchestrator fields
   const sessionRecord = new RecordId("agent_session", agentSessionId);
   await input.surreal.update(sessionRecord).merge({
     orchestrator_status: "spawning" as OrchestratorStatus,
@@ -461,7 +468,7 @@ export async function createOrchestratorSession(
     stream_id: streamId,
   });
 
-  // 7. Transition intent to executing and create gates relation
+  // 6. Transition intent to executing and create gates relation
   if (input.intentId) {
     await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
   }
@@ -545,6 +552,70 @@ async function transitionIntentToExecuting(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Adapter-based session creation
+// ---------------------------------------------------------------------------
+
+async function createSessionViaAdapter(
+  input: CreateSessionInput,
+  validation: import("./types").AssignmentValidation,
+): Promise<OrchestratorSessionResult> {
+  const adapter = input.adapter!;
+
+  // 1. Create agent_session record
+  const { session_id: agentSessionId } = await input.createAgentSession({
+    surreal: input.surreal,
+    agent: "claude",
+    workspaceRecord: validation.workspaceRecord,
+    taskId: input.taskId,
+  });
+
+  const streamId = generateStreamId(agentSessionId);
+
+  // 2. Create session via adapter
+  let handle: SessionHandle;
+  try {
+    handle = await adapter.createSession({
+      agent: "claude",
+      cwd: validation.repoPath,
+      env: input.brainEnv,
+    });
+  } catch (err) {
+    // Rollback: delete agent_session on adapter failure
+    const sessionRecord = new RecordId("agent_session", agentSessionId);
+    await input.surreal.delete(sessionRecord);
+    return {
+      ok: false,
+      error: worktreeError(`Failed to create sandbox session: ${err instanceof Error ? err.message : String(err)}`),
+    };
+  }
+
+  // 3. Update agent_session with sandbox fields
+  const sessionRecord = new RecordId("agent_session", agentSessionId);
+  await input.surreal.update(sessionRecord).merge({
+    orchestrator_status: "spawning" as OrchestratorStatus,
+    stream_id: streamId,
+    session_type: "sandbox_agent",
+    provider: "local",
+    external_session_id: handle.id,
+  });
+
+  // 4. Transition intent to executing
+  if (input.intentId) {
+    await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
+  }
+
+  return {
+    ok: true,
+    value: {
+      agentSessionId,
+      streamId,
+      worktreeBranch: `sandbox-${agentSessionId}`,
+      sessionHandle: handle,
+    },
+  };
+}
+
 // Default spawn -- placeholder for production use
 function defaultSpawnAgent(
   _config: AgentSpawnConfig,
@@ -596,6 +667,7 @@ type AbortSessionInput = {
   shellExec: ShellExec;
   resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
+  adapter?: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -613,8 +685,18 @@ export async function abortOrchestratorSession(
   }
   const { session, record: sessionRecord } = lookup;
 
-  // 1. Abort the agent process
-  // TODO: adapter.destroySession(external_session_id) will be wired in step 02-03
+  // 1. Abort the agent process via adapter if available
+  if (input.adapter && session.external_session_id) {
+    try {
+      await input.adapter.destroySession(session.external_session_id);
+    } catch (err) {
+      log.warn("orchestrator.abort", "Failed to destroy sandbox session", {
+        sessionId: input.sessionId,
+        externalSessionId: session.external_session_id,
+        error: String(err),
+      });
+    }
+  }
 
   // 2. Update orchestrator_status to aborted
   await input.surreal.update(sessionRecord).merge({
@@ -848,6 +930,7 @@ type SendPromptInput = {
   surreal: Surreal;
   sessionId: string;
   text: string;
+  adapter?: SandboxAgentAdapter;
 };
 
 export async function sendSessionPrompt(
@@ -857,14 +940,31 @@ export async function sendSessionPrompt(
   if (!lookup.ok) {
     return { ok: false, error: lookup.error };
   }
-  const { status } = lookup;
+  const { session, status } = lookup;
 
   if (!PROMPTABLE_STATUSES.has(status)) {
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "prompt") };
   }
 
-  // The Claude Agent SDK uses a single query() call per conversation.
-  // Follow-up prompts are not supported in this model.
+  // ── Adapter path: delegate to SandboxAgentAdapter ──
+  if (input.adapter && session.external_session_id) {
+    try {
+      const handle = await input.adapter.resumeSession(session.external_session_id);
+      await handle.prompt([{ type: "user", text: input.text }]);
+      return { ok: true, value: { delivered: true } };
+    } catch (err) {
+      return {
+        ok: false,
+        error: {
+          code: "SESSION_ERROR",
+          message: `Failed to deliver prompt: ${err instanceof Error ? err.message : String(err)}`,
+          httpStatus: 500,
+        },
+      };
+    }
+  }
+
+  // ── Legacy path: Agent SDK does not support follow-up prompts ──
   return {
     ok: false,
     error: {
