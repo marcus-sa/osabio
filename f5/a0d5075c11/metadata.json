@@ -5,8 +5,29 @@
   "branch": "marcus-sa/sandbox-agent-eval",
   "checkpoints_count": 3,
   "files_touched": [
+    ".claude/skills/sandbox-agent",
     "app/src/server/CLAUDE.md",
     "app/src/server/orchestrator/session-lifecycle.ts",
+    "docs/feature/intent-gated-mcp/design/architecture-design.md",
+    "docs/feature/intent-gated-mcp/design/component-boundaries.md",
+    "docs/feature/intent-gated-mcp/design/data-models.md",
+    "docs/feature/intent-gated-mcp/design/technology-stack.md",
+    "docs/feature/intent-gated-mcp/design/wave-decisions.md",
+    "docs/feature/intent-gated-mcp/discuss/dor-validation.md",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call-visual.md",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call.feature",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call.yaml",
+    "docs/feature/intent-gated-mcp/discuss/outcome-kpis.md",
+    "docs/feature/intent-gated-mcp/discuss/peer-review.md",
+    "docs/feature/intent-gated-mcp/discuss/prioritization.md",
+    "docs/feature/intent-gated-mcp/discuss/shared-artifacts-registry.md",
+    "docs/feature/intent-gated-mcp/discuss/story-map.md",
+    "docs/feature/intent-gated-mcp/discuss/user-stories.md",
+    "docs/feature/intent-gated-mcp/distill/test-scenarios.md",
+    "docs/feature/intent-gated-mcp/distill/walking-skeleton.md",
+    "docs/feature/intent-gated-mcp/distill/wave-decisions.md",
+    "docs/research/intent-rar-mcp-tool-gating.md",
+    "tests/acceptance/agent-mcp-governance.test.ts",
     "tests/acceptance/shared-fixtures.ts"
   ],
   "sessions": [
@@ -23,13 +44,20 @@
       "context": "/f5/a0d5075c11/1/context.md",
       "content_hash": "/f5/a0d5075c11/1/content_hash.txt",
       "prompt": "/f5/a0d5075c11/1/prompt.txt"
+    },
+    {
+      "metadata": "/f5/a0d5075c11/2/metadata.json",
+      "transcript": "/f5/a0d5075c11/2/full.jsonl",
+      "context": "/f5/a0d5075c11/2/context.md",
+      "content_hash": "/f5/a0d5075c11/2/content_hash.txt",
+      "prompt": "/f5/a0d5075c11/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3127,
-    "cache_creation_tokens": 503203,
-    "cache_read_tokens": 25728377,
-    "output_tokens": 69536,
-    "api_call_count": 219
+    "input_tokens": 3271,
+    "cache_creation_tokens": 887975,
+    "cache_read_tokens": 34425561,
+    "output_tokens": 119024,
+    "api_call_count": 315
   }
 }

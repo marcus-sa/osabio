@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f5a0d5075c11",
+  "session_id": "97b27f7f-6011-4ba8-a387-df80a0d0f427",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T12:02:54.660175Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/agent-mcp-governance.test.ts",
+    "tests/acceptance/shared-fixtures.ts",
+    "docs/feature/intent-gated-mcp/design/wave-decisions.md",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call.yaml",
+    "docs/feature/intent-gated-mcp/discuss/user-stories.md",
+    "docs/feature/intent-gated-mcp/distill/test-scenarios.md",
+    "docs/feature/intent-gated-mcp/distill/walking-skeleton.md",
+    "app/src/server/CLAUDE.md",
+    "docs/feature/intent-gated-mcp/design/architecture-design.md",
+    "docs/feature/intent-gated-mcp/discuss/prioritization.md",
+    "docs/feature/intent-gated-mcp/discuss/shared-artifacts-registry.md",
+    "docs/research/intent-rar-mcp-tool-gating.md",
+    "docs/feature/intent-gated-mcp/design/component-boundaries.md",
+    "docs/feature/intent-gated-mcp/discuss/dor-validation.md",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call-visual.md",
+    "docs/feature/intent-gated-mcp/discuss/journey-intent-gated-tool-call.feature",
+    "docs/feature/intent-gated-mcp/discuss/outcome-kpis.md",
+    "docs/feature/intent-gated-mcp/discuss/peer-review.md",
+    "docs/feature/intent-gated-mcp/discuss/story-map.md",
+    "docs/feature/intent-gated-mcp/distill/wave-decisions.md",
+    ".claude/skills/sandbox-agent",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "docs/feature/intent-gated-mcp/design/data-models.md",
+    "docs/feature/intent-gated-mcp/design/technology-stack.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0c95bde286ec",
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 384772,
+    "cache_read_tokens": 8697184,
+    "output_tokens": 49488,
+    "api_call_count": 96
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T12:02:53.511883Z",
+    "agent_lines": 148,
+    "human_added": 4557,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4705,
+    "agent_percentage": 3.1455897980871415
+  }
+}
