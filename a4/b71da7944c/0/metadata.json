@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a4b71da7944c",
+  "session_id": "9f95e9bd-4ff2-4d83-9f6b-4547c83d7b9f",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T14:01:12.974803Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/orchestrator/routes.ts",
+    "app/src/server/orchestrator/sandbox-adapter.ts",
+    "tests/acceptance/coding-agent-orchestrator/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4ef67fa7a89d",
+  "token_usage": {
+    "input_tokens": 929,
+    "cache_creation_tokens": 79278,
+    "cache_read_tokens": 2566046,
+    "output_tokens": 12804,
+    "api_call_count": 34
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T14:01:12.620778Z",
+    "agent_lines": 14,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 5,
+    "total_committed": 14,
+    "agent_percentage": 100
+  }
+}
