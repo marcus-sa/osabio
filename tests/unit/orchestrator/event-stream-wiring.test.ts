@@ -7,10 +7,9 @@
  * session transitions to active on first message, stall detector
  * receives signals, and iteration stops on terminal status or error.
  */
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   startEventIteration,
-  clearHandleRegistry,
   type EventIterationDeps,
 } from "../../../app/src/server/orchestrator/session-lifecycle";
 import type { SdkMessage } from "../../../app/src/server/orchestrator/event-bridge";
@@ -127,9 +126,6 @@ function createDepsSpy(options?: {
 // ---------------------------------------------------------------------------
 
 describe("startEventIteration (step 02-01: SDK messages)", () => {
-  beforeEach(() => {
-    clearHandleRegistry();
-  });
 
   // -------------------------------------------------------------------------
   // Behavior 1: SDK messages are forwarded through event bridge to SSE

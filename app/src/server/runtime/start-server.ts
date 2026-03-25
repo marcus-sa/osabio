@@ -22,7 +22,6 @@ import { createMcpRouteHandlers } from "../mcp/mcp-route";
 import { createIntentRouteHandlers } from "../intent/intent-routes";
 import { wireOrchestratorRoutes } from "../orchestrator/routes";
 import type { ShellExec } from "../orchestrator/worktree-manager";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 import { createVetoManager } from "../intent/veto-manager";
@@ -136,7 +135,6 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     extractionModel: deps.extractionModel,
     asSigningKey: deps.asSigningKey,
     sseRegistry: deps.sse,
-    queryFn: query,
     auth: deps.auth,
     mockAgent: config.orchestratorMockAgent,
     sandboxAgentAdapter: deps.sandboxAgentAdapter,

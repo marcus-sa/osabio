@@ -1,6 +1,4 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { AgentHandle, SpawnAgentFn } from "./spawn-agent";
-import type { AgentSpawnConfig } from "./agent-options";
 import type { ShellExec } from "./worktree-manager";
 import { createWorktree, removeWorktree } from "./worktree-manager";
 import type { AssignmentResult } from "./assignment-guard";
@@ -22,7 +20,6 @@ export type SessionDeps = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
-  spawnAgent?: SpawnAgentFn;
 };
 
 export type SessionErrorCode =
@@ -93,22 +90,6 @@ export type RejectSessionResult = SessionResult<{
 export type PromptSessionResult = SessionResult<{
   delivered: boolean;
 }>;
-
-// ---------------------------------------------------------------------------
-// Handle registry stubs — handleRegistry eliminated (ADR-075).
-// Session state lives in SurrealDB. Adapter wiring in step 02-03.
-// Stubs kept for backwards compatibility with existing call sites.
-// ---------------------------------------------------------------------------
-
-/** @deprecated No-op — handleRegistry eliminated. */
-export function clearHandleRegistry(): void {
-  // No-op: module-level mutable singleton removed per AGENTS.md
-}
-
-/** @deprecated Always returns undefined — handleRegistry eliminated. */
-export function getHandle(_sessionId: string): AgentHandle | undefined {
-  return undefined;
-}
 
 // ---------------------------------------------------------------------------
 // Event iteration — port (dependencies as function signatures)
@@ -298,44 +279,6 @@ function generateStreamId(sessionId: string): string {
   return `stream-${sessionId}`;
 }
 
-function appendOrchestratorProxyHeaders(
-  baseHeaders: string,
-  taskId: string,
-  sessionId: string,
-): string {
-  const lines = baseHeaders
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const headerMap = new Map<string, string>();
-  for (const line of lines) {
-    const sep = line.indexOf(":");
-    if (sep <= 0) {
-      continue;
-    }
-    const name = line.slice(0, sep).trim();
-    const value = line.slice(sep + 1).trim();
-    if (name.length === 0 || value.length === 0) {
-      continue;
-    }
-    headerMap.set(name.toLowerCase(), `${name}: ${value}`);
-  }
-
-  headerMap.set("x-brain-task", `X-Brain-Task: ${taskId}`);
-  headerMap.set("x-brain-session", `X-Brain-Session: ${sessionId}`);
-
-  return Array.from(headerMap.values()).join("\n");
-}
-
-function slugFromTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
-}
-
 // ---------------------------------------------------------------------------
 // createOrchestratorSession
 // ---------------------------------------------------------------------------
@@ -344,16 +287,11 @@ type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
-  brainIdentityId?: string;
-  brainEnv?: Record<string, string>;
-  anthropicBaseUrl?: string;
-  anthropicCustomHeaders?: string;
   workspaceId: string;
   taskId: string;
   intentId?: string;
   authToken?: string;
-  spawnAgent?: SpawnAgentFn;
-  adapter?: SandboxAgentAdapter;
+  adapter: SandboxAgentAdapter;
   sandboxAgentType?: string;
   validateAssignment: (
     surreal: Surreal,
@@ -392,96 +330,7 @@ export async function createOrchestratorSession(
 
   const { validation } = assignmentResult;
 
-  // ── Adapter path: delegate to SandboxAgentAdapter ──
-  if (input.adapter) {
-    return createSessionViaAdapter(input, validation);
-  }
-
-  // ── Legacy path: worktree + spawn ──
-  const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
-  const repoRoot = validation.repoPath;
-
-  // 2. Create worktree
-  const worktreeResult = await createWorktree(
-    input.shellExec,
-    repoRoot,
-    taskSlug,
-  );
-
-  if (!worktreeResult.ok) {
-    return {
-      ok: false,
-      error: worktreeError(worktreeResult.error.message),
-    };
-  }
-
-  const { branchName, worktreePath } = worktreeResult.value;
-
-  // 3. Create agent_session record
-  const { session_id: agentSessionId } = await input.createAgentSession({
-    surreal: input.surreal,
-    agent: "claude-agent-sdk",
-    workspaceRecord: validation.workspaceRecord,
-    taskId: input.taskId,
-  });
-
-  const streamId = generateStreamId(agentSessionId);
-  const anthropicCustomHeaders = input.anthropicCustomHeaders
-    ? appendOrchestratorProxyHeaders(
-        input.anthropicCustomHeaders,
-        input.taskId,
-        agentSessionId,
-      )
-    : undefined;
-
-  // 4. Build config and spawn agent
-  const agentSpawnConfig: AgentSpawnConfig = {
-    prompt: `/brain-start-task ${input.taskId}`,
-    workDir: worktreePath,
-    workspaceId: input.workspaceId,
-    brainBaseUrl: input.brainBaseUrl,
-    brainIdentityId: input.brainIdentityId,
-    brainEnv: input.brainEnv,
-    anthropicBaseUrl: input.anthropicBaseUrl,
-    anthropicCustomHeaders,
-  };
-
-  const spawnFn = input.spawnAgent ?? defaultSpawnAgent;
-  try {
-    spawnFn(agentSpawnConfig);
-  } catch (err) {
-    // Rollback: remove worktree and delete agent_session on spawn failure
-    await removeWorktree(input.shellExec, repoRoot, branchName);
-    const sessionRecord = new RecordId("agent_session", agentSessionId);
-    await input.surreal.delete(sessionRecord);
-    return {
-      ok: false,
-      error: worktreeError(`Failed to spawn agent: ${err instanceof Error ? err.message : String(err)}`),
-    };
-  }
-
-  // 5. Update agent_session with orchestrator fields
-  const sessionRecord = new RecordId("agent_session", agentSessionId);
-  await input.surreal.update(sessionRecord).merge({
-    orchestrator_status: "spawning" as OrchestratorStatus,
-    worktree_branch: branchName,
-    worktree_path: worktreePath,
-    stream_id: streamId,
-  });
-
-  // 6. Transition intent to executing and create gates relation
-  if (input.intentId) {
-    await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
-  }
-
-  return {
-    ok: true,
-    value: {
-      agentSessionId,
-      streamId,
-      worktreeBranch: branchName,
-    },
-  };
+  return createSessionViaAdapter(input, validation);
 }
 
 // ---------------------------------------------------------------------------
@@ -557,13 +406,39 @@ async function transitionIntentToExecuting(
 // Adapter-based session creation
 // ---------------------------------------------------------------------------
 
+function slugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+}
+
 async function createSessionViaAdapter(
   input: CreateSessionInput,
   validation: import("./types").AssignmentValidation,
 ): Promise<OrchestratorSessionResult> {
-  const adapter = input.adapter!;
+  const adapter = input.adapter;
+  const repoRoot = validation.repoPath;
+  const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
 
-  // 1. Create agent_session record
+  // 1. Create worktree for isolated agent work
+  const worktreeResult = await createWorktree(
+    input.shellExec,
+    repoRoot,
+    taskSlug,
+  );
+
+  if (!worktreeResult.ok) {
+    return {
+      ok: false,
+      error: worktreeError(worktreeResult.error.message),
+    };
+  }
+
+  const { branchName, worktreePath } = worktreeResult.value;
+
+  // 2. Create agent_session record
   const { session_id: agentSessionId } = await input.createAgentSession({
     surreal: input.surreal,
     agent: "claude",
@@ -573,15 +448,16 @@ async function createSessionViaAdapter(
 
   const streamId = generateStreamId(agentSessionId);
 
-  // 2. Create session via adapter
+  // 3. Create session via adapter — agent works in worktree, not main repo
   let handle: SessionHandle;
   try {
     handle = await adapter.createSession({
       agent: input.sandboxAgentType ?? "claude",
-      cwd: validation.repoPath,
+      cwd: worktreePath,
     });
   } catch (err) {
-    // Rollback: delete agent_session on adapter failure
+    // Rollback: remove worktree and delete agent_session on adapter failure
+    await removeWorktree(input.shellExec, repoRoot, branchName);
     const sessionRecord = new RecordId("agent_session", agentSessionId);
     await input.surreal.delete(sessionRecord);
     return {
@@ -590,7 +466,7 @@ async function createSessionViaAdapter(
     };
   }
 
-  // 3. Update agent_session with sandbox fields
+  // 4. Update agent_session with sandbox + worktree fields
   const sessionRecord = new RecordId("agent_session", agentSessionId);
   await input.surreal.update(sessionRecord).merge({
     orchestrator_status: "spawning" as OrchestratorStatus,
@@ -598,9 +474,11 @@ async function createSessionViaAdapter(
     session_type: "sandbox_agent",
     provider: "local",
     external_session_id: handle.id,
+    worktree_branch: branchName,
+    worktree_path: worktreePath,
   });
 
-  // 4. Transition intent to executing
+  // 5. Transition intent to executing
   if (input.intentId) {
     await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
   }
@@ -610,19 +488,10 @@ async function createSessionViaAdapter(
     value: {
       agentSessionId,
       streamId,
-      worktreeBranch: `sandbox-${agentSessionId}`,
+      worktreeBranch: branchName,
       sessionHandle: handle,
     },
   };
-}
-
-// Default spawn -- placeholder for production use
-function defaultSpawnAgent(
-  _config: AgentSpawnConfig,
-): AgentHandle {
-  throw new Error(
-    "spawnAgent not provided -- must be injected for production use",
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -930,7 +799,7 @@ type SendPromptInput = {
   surreal: Surreal;
   sessionId: string;
   text: string;
-  adapter?: SandboxAgentAdapter;
+  adapter: SandboxAgentAdapter;
 };
 
 export async function sendSessionPrompt(
@@ -950,31 +819,29 @@ export async function sendSessionPrompt(
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "prompt") };
   }
 
-  // ── Adapter path: delegate to SandboxAgentAdapter ──
-  if (input.adapter && session.external_session_id) {
-    try {
-      const handle = await input.adapter.resumeSession(session.external_session_id);
-      await handle.prompt([{ type: "text", text: input.text }]);
-      return { ok: true, value: { delivered: true } };
-    } catch (err) {
-      return {
-        ok: false,
-        error: {
-          code: "SESSION_ERROR",
-          message: `Failed to deliver prompt: ${err instanceof Error ? err.message : String(err)}`,
-          httpStatus: 500,
-        },
-      };
-    }
+  if (!session.external_session_id) {
+    return {
+      ok: false,
+      error: {
+        code: "SESSION_ERROR",
+        message: `Session ${input.sessionId} has no external_session_id — cannot deliver prompt`,
+        httpStatus: 500,
+      },
+    };
   }
 
-  // ── Legacy path: Agent SDK does not support follow-up prompts ──
-  return {
-    ok: false,
-    error: {
-      code: "SESSION_ERROR",
-      message: `Follow-up prompts are not supported with the Agent SDK. Session ${input.sessionId} runs a single query() conversation.`,
-      httpStatus: 409,
-    },
-  };
+  try {
+    const handle = await input.adapter.resumeSession(session.external_session_id);
+    await handle.prompt([{ type: "text", text: input.text }]);
+    return { ok: true, value: { delivered: true } };
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "SESSION_ERROR",
+        message: `Failed to deliver prompt: ${err instanceof Error ? err.message : String(err)}`,
+        httpStatus: 500,
+      },
+    };
+  }
 }

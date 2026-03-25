@@ -2,15 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { RecordId } from "surrealdb";
 import type {
   SessionDeps,
-  OrchestratorSessionResult,
-  SessionStatusResult,
-  AbortSessionResult,
-  AcceptSessionResult,
-  ReviewResult,
-  RejectSessionResult,
 } from "../../../app/src/server/orchestrator/session-lifecycle";
-import type { AgentHandle, SpawnAgentFn } from "../../../app/src/server/orchestrator/spawn-agent";
-import type { AgentSpawnConfig } from "../../../app/src/server/orchestrator/agent-options";
 import {
   createOrchestratorSession,
   getOrchestratorSessionStatus,
@@ -21,6 +13,7 @@ import {
   startEventIteration,
   type EventIterationDeps,
 } from "../../../app/src/server/orchestrator/session-lifecycle";
+import type { SandboxAgentAdapter } from "../../../app/src/server/orchestrator/sandbox-adapter";
 
 // ---------------------------------------------------------------------------
 // Stubs & helpers
@@ -109,19 +102,20 @@ function successShellExec(): SessionDeps["shellExec"] {
   });
 }
 
-function spawnAgentStub(): {
-  spawn: SpawnAgentFn;
-  abortCalls: string[];
-} {
-  const abortCalls: string[] = [];
+function mockAdapterStub(): SandboxAgentAdapter {
   return {
-    spawn: (config: AgentSpawnConfig) => ({
+    createSession: async () => ({
+      sessionId: `ext-${crypto.randomUUID()}`,
       messages: (async function* () {})(),
-      abort: () => {
-        abortCalls.push("aborted");
-      },
+      abort: () => {},
     }),
-    abortCalls,
+    sendPrompt: async () => {},
+    destroySession: async () => {},
+    resumeSession: async () => ({
+      sessionId: "ext-resumed",
+      messages: (async function* () {})(),
+      abort: () => {},
+    }),
   };
 }
 
@@ -192,12 +186,11 @@ function validateAssignmentStubErr(code = "TASK_NOT_FOUND") {
 // ---------------------------------------------------------------------------
 
 describe("createOrchestratorSession", () => {
-  test("returns agentSessionId, streamId, and worktreeBranch on success", async () => {
+  test("returns agentSessionId and streamId on success via adapter", async () => {
     const surrealSpy = createSurrealSpy({
       sessionQuery: [],
       createReturn: {},
     });
-    const { spawn } = spawnAgentStub();
     const agentSessionStub = createAgentSessionStub("agent-sess-42");
     const assignmentStub = validateAssignmentStubOk("Fix the bug");
 
@@ -207,7 +200,7 @@ describe("createOrchestratorSession", () => {
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-abc",
-      spawnAgent: spawn,
+      adapter: mockAdapterStub(),
       validateAssignment: assignmentStub.fn,
       createAgentSession: agentSessionStub.fn as any,
     });
@@ -215,7 +208,6 @@ describe("createOrchestratorSession", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.agentSessionId).toBe("agent-sess-42");
-      expect(result.value.worktreeBranch).toMatch(/^agent\//);
       expect(result.value.streamId).toBeDefined();
       expect(typeof result.value.streamId).toBe("string");
     }
@@ -231,6 +223,7 @@ describe("createOrchestratorSession", () => {
       brainBaseUrl: "http://localhost:3000",
       workspaceId: "ws-1",
       taskId: "task-missing",
+      adapter: mockAdapterStub(),
       validateAssignment: assignmentStub.fn,
       createAgentSession: createAgentSessionStub().fn as any,
     });
@@ -239,63 +232,6 @@ describe("createOrchestratorSession", () => {
     if (!result.ok) {
       expect(result.error.code).toBe("TASK_NOT_FOUND");
     }
-  });
-
-  test("propagates worktree creation errors", async () => {
-    const surrealSpy = createSurrealSpy({});
-    const assignmentStub = validateAssignmentStubOk();
-    const failingShellExec: SessionDeps["shellExec"] = async () => ({
-      exitCode: 1,
-      stdout: "",
-      stderr: "worktree already exists",
-    });
-
-    const result = await createOrchestratorSession({
-      surreal: surrealSpy.stub as any,
-      shellExec: failingShellExec,
-      brainBaseUrl: "http://localhost:3000",
-      workspaceId: "ws-1",
-      taskId: "task-abc",
-      validateAssignment: assignmentStub.fn,
-      createAgentSession: createAgentSessionStub().fn as any,
-    });
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe("WORKTREE_ERROR");
-    }
-  });
-
-  test("updates agent_session with orchestrator fields after creation", async () => {
-    const surrealSpy = createSurrealSpy({
-      sessionQuery: [],
-      createReturn: {},
-    });
-    const { spawn } = spawnAgentStub();
-    const agentSessionStub = createAgentSessionStub("agent-sess-42");
-    const assignmentStub = validateAssignmentStubOk();
-
-    await createOrchestratorSession({
-      surreal: surrealSpy.stub as any,
-      shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      workspaceId: "ws-1",
-      taskId: "task-abc",
-      spawnAgent: spawn,
-      validateAssignment: assignmentStub.fn,
-      createAgentSession: agentSessionStub.fn as any,
-    });
-
-    // Should have updated agent_session with orchestrator fields
-    const orchestratorUpdate = surrealSpy.updates.find(
-      (u) => u.merge && typeof u.merge === "object" && "orchestrator_status" in (u.merge as object),
-    );
-    expect(orchestratorUpdate).toBeDefined();
-    const mergeData = orchestratorUpdate!.merge as Record<string, unknown>;
-    expect(mergeData.orchestrator_status).toBe("spawning");
-    expect(mergeData.worktree_branch).toMatch(/^agent\//);
-    // opencode_session_id no longer set (SDK migration)
-    expect(mergeData.opencode_session_id).toBeUndefined();
   });
 });
 
