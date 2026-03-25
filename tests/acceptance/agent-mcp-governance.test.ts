@@ -330,7 +330,7 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
 describe("Happy Path: Tool Discovery and Scope", () => {
   // HP-1: Authorized tool appears as callable in tools/list
   // US-01
-  it.skip("authorized tool appears as callable in tools/list", async () => {
+  it("authorized tool appears as callable in tools/list", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with an authorized intent for github:create_pr
@@ -372,7 +372,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
 
   // HP-2: Fresh session sees only brain-native and gated tools
   // US-01
-  it.skip("fresh session with no intents lists all tools as gated plus brain-native tools", async () => {
+  it("fresh session with no intents lists all tools as gated plus brain-native tools", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a fresh session with no authorized intents
@@ -405,7 +405,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
 
   // HP-3: Gated tool listing includes escalation instructions
   // US-01
-  it.skip("gated tool description instructs agent to call create_intent", async () => {
+  it("gated tool description instructs agent to call create_intent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with no intent for stripe:create_refund
@@ -738,7 +738,7 @@ describe("Happy Path: Composite Intents", () => {
 describe("Error Paths: Authentication and Authorization", () => {
   // EP-1: Invalid proxy token returns 401
   // US-01
-  it.skip("invalid proxy token returns 401", async () => {
+  it("invalid proxy token returns 401", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session exists but the proxy token is invalid
@@ -1031,7 +1031,7 @@ describe("Error Paths: Constraint Enforcement", () => {
 describe("Edge Cases: Session and Token Boundaries", () => {
   // EC-1: Unknown session ID returns 404
   // US-01
-  it.skip("unknown session ID returns 404", async () => {
+  it("unknown session ID returns 404", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a valid proxy token but non-existent session
