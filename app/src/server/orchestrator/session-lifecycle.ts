@@ -287,6 +287,7 @@ type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
+  mcpAuthToken: string;
   workspaceId: string;
   taskId: string;
   intentId?: string;
@@ -452,6 +453,12 @@ async function createSessionViaAdapter(
   // 3. Create session via adapter — agent works in worktree, not main repo
   let handle: SessionHandle;
   try {
+    await adapter.setMcpConfig(worktreePath, "brain", {
+      type: "remote",
+      url: `${input.brainBaseUrl}/mcp/agent/${agentSessionId}`,
+      headers: { "X-Brain-Auth": input.mcpAuthToken },
+    });
+
     handle = await adapter.createSession({
       agent: input.sandboxAgentType ?? "claude",
       cwd: worktreePath,

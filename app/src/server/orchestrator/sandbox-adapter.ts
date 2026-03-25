@@ -44,9 +44,16 @@ export type CreateSessionRequest = SessionCreateRequest & {
 };
 
 /**
- * Thin wrapper around the SDK's Session, exposing only the methods Brain needs.
- * Keeps the port boundary narrow -- callers never depend on the full Session class.
+ * MCP server config for remote MCP servers.
+ * Matches the sandbox-agent SDK's McpServerConfig remote variant.
  */
+export type McpServerConfig = {
+  readonly type: "remote";
+  readonly url: string;
+  readonly transport?: string;
+  readonly headers?: Record<string, string>;
+};
+
 export type SessionHandle = {
   id: string;
   prompt: (
@@ -61,6 +68,12 @@ export type SandboxAgentAdapter = {
   createSession: (request: CreateSessionRequest) => Promise<SessionHandle>;
   resumeSession: (sessionId: string) => Promise<SessionHandle>;
   destroySession: (sessionId: string) => Promise<void>;
+  /**
+   * Configure a remote MCP server on the SDK, keyed by (directory, name).
+   * Call before createSession -- the session inherits MCP configs matching its cwd.
+   * Each session uses a unique worktree path as cwd, so configs are effectively per-session.
+   */
+  setMcpConfig: (directory: string, name: string, config: McpServerConfig) => Promise<void>;
   /** Exposed for test assertion -- last request passed to createSession. */
   lastCreateSessionRequest?: CreateSessionRequest;
 };
@@ -86,7 +99,6 @@ export function createSandboxAgentAdapter(
 ): SandboxAgentAdapter {
   return {
     createSession: async (request) => {
-      // Extract env from Brain's extended request; pass the SDK-compatible fields through
       const { env: _env, ...sdkRequest } = request;
       const session = await sdk.createSession(sdkRequest);
       return wrapSession(session);
@@ -97,6 +109,9 @@ export function createSandboxAgentAdapter(
     },
     destroySession: async (sessionId) => {
       await sdk.destroySession(sessionId);
+    },
+    setMcpConfig: async (directory, name, config) => {
+      await sdk.setMcpConfig({ directory, mcpName: name }, config);
     },
   };
 }
@@ -109,6 +124,7 @@ export function createMockAdapter(
   const sessions = new Map<string, SessionHandle>();
   const destroyed = new Set<string>();
   let lastCreateSessionRequest: CreateSessionRequest | undefined;
+  const mcpConfigs = new Map<string, Map<string, McpServerConfig>>();
 
   const createHandle = (id: string): SessionHandle => ({
     id,
@@ -153,6 +169,11 @@ export function createMockAdapter(
     destroySession: async (sessionId) => {
       sessions.delete(sessionId);
       destroyed.add(sessionId);
+    },
+    setMcpConfig: async (directory, name, config) => {
+      const key = `${directory}:${name}`;
+      if (!mcpConfigs.has(key)) mcpConfigs.set(key, new Map());
+      mcpConfigs.get(key)!.set(name, config);
     },
     ...overrides,
   };

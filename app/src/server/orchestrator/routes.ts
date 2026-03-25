@@ -589,6 +589,7 @@ export function wireOrchestratorRoutes(
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
         brainBaseUrl: wiringDeps.brainBaseUrl,
+        mcpAuthToken: rawToken,
         workspaceId,
         taskId,
         env: proxyEnv,

@@ -104,6 +104,7 @@ function successShellExec(): SessionDeps["shellExec"] {
 
 function mockAdapterStub(): SandboxAgentAdapter {
   return {
+    setMcpConfig: async () => {},
     createSession: async () => ({
       id: `ext-${crypto.randomUUID()}`,
       prompt: async () => ({ stopReason: "end_turn" as const }) as any,
@@ -123,12 +124,21 @@ function mockAdapterStub(): SandboxAgentAdapter {
 }
 
 /** Adapter that tracks destroySession calls for assertions */
-function trackingAdapterStub(): SandboxAgentAdapter & { destroyCalls: string[]; createCalls: Array<{ cwd?: string }> } {
+function trackingAdapterStub(): SandboxAgentAdapter & {
+  destroyCalls: string[];
+  createCalls: Array<{ cwd?: string }>;
+  mcpConfigCalls: Array<{ directory: string; name: string; config: Record<string, unknown> }>;
+} {
   const destroyCalls: string[] = [];
   const createCalls: Array<{ cwd?: string }> = [];
+  const mcpConfigCalls: Array<{ directory: string; name: string; config: Record<string, unknown> }> = [];
   return {
     destroyCalls,
     createCalls,
+    mcpConfigCalls,
+    setMcpConfig: async (directory, name, config) => {
+      mcpConfigCalls.push({ directory, name, config: config as Record<string, unknown> });
+    },
     createSession: async (request) => {
       createCalls.push({ cwd: (request as any).cwd });
       return {
@@ -231,6 +241,7 @@ describe("createOrchestratorSession", () => {
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
       brainBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "brn_test_token",
       workspaceId: "ws-1",
       taskId: "task-abc",
       adapter: mockAdapterStub(),
@@ -254,6 +265,7 @@ describe("createOrchestratorSession", () => {
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
       brainBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "brn_test_token",
       workspaceId: "ws-1",
       taskId: "task-missing",
       adapter: mockAdapterStub(),
@@ -829,6 +841,7 @@ describe("regression: session lifecycle cleanup", () => {
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
       brainBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "brn_test_token",
       workspaceId: "ws-1",
       taskId: "task-wt",
       adapter,
@@ -841,6 +854,10 @@ describe("regression: session lifecycle cleanup", () => {
     // Worktree path is under .brain/worktrees, NOT the repo root
     expect(adapter.createCalls[0].cwd).toContain(".brain/worktrees");
     expect(adapter.createCalls[0].cwd).not.toBe("/repo");
+    expect(adapter.mcpConfigCalls).toHaveLength(1);
+    expect(adapter.mcpConfigCalls[0].directory).toBe(adapter.createCalls[0].cwd);
+    expect(adapter.mcpConfigCalls[0].name).toBe("brain");
+    expect(adapter.mcpConfigCalls[0].config.url).toBe("http://localhost:3000/mcp/agent/agent-sess-wt");
   });
 
   test("createSession stores worktree_branch and worktree_path on agent_session record", async () => {
@@ -856,6 +873,7 @@ describe("regression: session lifecycle cleanup", () => {
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
       brainBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "brn_test_token",
       workspaceId: "ws-1",
       taskId: "task-fc",
       adapter,
