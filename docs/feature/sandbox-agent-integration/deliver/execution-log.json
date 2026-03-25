@@ -316,6 +316,34 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-25T07:42:28Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "CHECKPOINT_PENDING: completed in prior session",
+      "t": "2026-03-25T08:42:00Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "CHECKPOINT_PENDING: completed in prior session",
+      "t": "2026-03-25T08:42:01Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "CHECKPOINT_PENDING: completed in prior session",
+      "t": "2026-03-25T08:42:02Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-25T08:47:21Z"
     }
   ]
 }

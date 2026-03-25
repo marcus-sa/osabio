@@ -239,6 +239,7 @@ export function setupAcceptanceSuite(
       mcpClientFactory: options?.mcpClientFactoryOverride ?? createMcpClientFactory(),
       sandboxAgentAdapter: deps.sandboxAgentAdapter,
     };
+    destroySandbox = deps.destroySandbox;
 
     server = createBrainServer(serverDeps);
     const port = server.port;
@@ -263,6 +264,8 @@ export function setupAcceptanceSuite(
     setupSucceeded = true;
   }, 60_000);
 
+  let destroySandbox: (() => Promise<void>) | undefined;
+
   afterAll(async () => {
     // Drain fire-and-forget work (e.g. webhook extraction) before closing DB
     if (inflight) {
@@ -271,6 +274,11 @@ export function setupAcceptanceSuite(
 
     if (server) {
       server.stop(true);
+    }
+
+    // Destroy SandboxAgent embedded server if started
+    if (destroySandbox) {
+      await destroySandbox().catch(() => undefined);
     }
 
     if (runtimeSurreal) {

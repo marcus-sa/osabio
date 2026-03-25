@@ -31,7 +31,7 @@ import {
 // ── Suite Setup ──
 
 const getRuntime = setupAcceptanceSuite("sandbox_session_lifecycle", {
-  configOverrides: { sandboxAgentEnabled: true, sandboxAgentType: "claude" },
+  configOverrides: { sandboxAgentEnabled: true, sandboxAgentType: "claude", orchestratorMockAgent: true },
 });
 
 // ── Test Helpers (will be extracted to a sandbox-test-kit.ts as patterns emerge) ──
