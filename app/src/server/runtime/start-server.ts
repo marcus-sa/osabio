@@ -805,6 +805,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           intentHandlers.handleEvaluate(request.params.intentId, request),
         ),
       },
+      // Intent — approve (workspace-less shortcut for out-of-band human approval)
+      "/api/intents/:intentId/approve": {
+        POST: withTracing("POST /api/intents/:intentId/approve", "POST", (request) =>
+          intentHandlers.handleApprove("_direct", request.params.intentId),
+        ),
+      },
+      // Intent — veto (workspace-less shortcut for out-of-band human veto)
+      "/api/intents/:intentId/veto": {
+        POST: withTracing("POST /api/intents/:intentId/veto", "POST", (request) =>
+          intentHandlers.handleVeto("_direct", request.params.intentId, request),
+        ),
+      },
       // Intent — consent display
       "/api/workspaces/:workspaceId/intents/:intentId/consent": {
         GET: withTracing(

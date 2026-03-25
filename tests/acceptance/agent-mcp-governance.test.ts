@@ -242,7 +242,7 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
 
   // WS-3: Agent yields on pending veto and resumes after human approval
   // US-03, US-04, US-05
-  it.skip("agent yields on pending veto, human approves, and agent resumes", async () => {
+  it("agent yields on pending veto, human approves, and agent resumes", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a coding agent session
@@ -259,7 +259,31 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
     await grantToolToIdentity(surreal, ws.identityId, tool.toolId);
 
     // And a workspace policy requiring veto for stripe write operations
-    // (policy setup via direct DB)
+    const policyId = `policy-${crypto.randomUUID()}`;
+    const policyRecord = new RecordId("policy", policyId);
+    await surreal.query(`CREATE $policy CONTENT $content;`, {
+      policy: policyRecord,
+      content: {
+        title: "Require human veto for stripe financial operations",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "allow-stripe-with-veto",
+          condition: { field: "action_spec.provider", operator: "eq", value: "stripe" },
+          effect: "allow",
+          priority: 100,
+        }],
+        human_veto_required: true,
+        created_by: new RecordId("identity", ws.identityId),
+        workspace: new RecordId("workspace", ws.workspaceId),
+        created_at: new Date(),
+      },
+    });
+    await surreal.query(
+      `RELATE $policy->protects->$ws SET created_at = time::now();`,
+      { policy: policyRecord, ws: new RecordId("workspace", ws.workspaceId) },
+    );
 
     // When the agent creates an intent for the high-risk tool
     const intentResponse = await mcpRequest(
@@ -643,7 +667,7 @@ describe("Happy Path: Intent Creation", () => {
 describe("Happy Path: Human Veto Flow", () => {
   // HP-8: Human approves pending intent
   // US-04
-  it.skip("human approves pending intent and intent transitions to authorized", async () => {
+  it("human approves pending intent and intent transitions to authorized", async () => {
     const { surreal } = getRuntime();
 
     // Given a pending_veto intent linked to a session
@@ -672,7 +696,7 @@ describe("Happy Path: Human Veto Flow", () => {
 
   // HP-9: Human vetoes pending intent with reason
   // US-04
-  it.skip("human vetoes pending intent and veto reason is stored", async () => {
+  it("human vetoes pending intent and veto reason is stored", async () => {
     const { surreal } = getRuntime();
 
     // Given a pending_veto intent
