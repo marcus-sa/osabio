@@ -1,0 +1,274 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/el-paso-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+where is the mcp endpoint implementation that was described in feature sandbox-agent-integration ?
+
+---
+
+what are you talkign about? the research, discuss and design docs explicitly say: "Dynamic per-agent MCP endpoint"
+
+ @docs/research/sandbox-agent-sdk-evaluation.md
+
+---
+
+yes
+
+---
+
+/nw-roadmap
+
+---
+
+This skill can only be invoked by Claude, not directly by users. Ask Claude to use the "nw-roadmap" skill for you.
+
+---
+
+/nw-roadmap
+
+---
+
+This skill can only be invoked by Claude, not directly by users. Ask Claude to use the "nw-roadmap" skill for you.
+
+---
+
+/nw-roadmap
+
+---
+
+This skill can only be invoked by Claude, not directly by users. Ask Claude to use the "nw-roadmap" skill for you.
+
+---
+
+r2 needs to be expanded so that it also sets up the proxy url for the spawned agents
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-roadmap
+
+# NW-ROADMAP: Goal Planning
+
+**Wave**: CROSS_WAVE
+**Agent**: Architect (nw-solution-architect) or domain-appropriate agent
+
+## Overview
+
+Dispatches expert agent to fill a pre-scaffolded YAML roadmap skeleton. CLI tools handle structure; agent handles content.
+
+Output: `docs/feature/{feature-id}/deliver/roadmap.json`
+
+## Usage
+
+```bash
+/nw-roadmap @nw-solution-architect "Migrate monolith to microservices"
+/nw-roadmap @nw-software-crafter "Replace legacy authentication system"
+/nw-roadmap @nw-product-owner "Implement multi-tenant support"
+```
+
+## Execution Steps
+
+You MUST execute these steps in order. Do NOT skip any.
+
+**Step 1 — Parse parameters:**
+1. Agent name (after @, validated against agent registry)
+2. Goal description (quoted string)
+3. Derive feature-id from goal (kebab-case, e.g., "Migrate to OAuth2" -> "migrate-to-oauth2")
+
+**Step 2 — Scaffold skeleton via CLI (mandatory, BEFORE invoking agent):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap init \
+  --project-id {feature-id} \
+  --goal "{goal-description}" \
+  --output docs/feature/{feature-id}/deliver/roadmap.json
+```
+For complex projects add: `--phases 3 --steps "01:3,02:2,03:1"`
+
+If exit code non-zero, stop and report error. Do NOT write file manually.
+
+**Step 3 — Invoke agent to fill skeleton:**
+
+Skeleton exists with TODO placeholders. Invoke via Task tool:
+```
+@{agent-name}
+
+Fill in the roadmap skeleton at docs/feature/{feature-id}/deliver/roadmap.json.
+Replace every TODO with real content. Do NOT change the YAML structure
+(phases, steps, keys). Fill in: names, descriptions, acceptance criteria,
+time estimates, dependencies, and implementation_scope paths.
+
+Goal: {goal-description}
+```
+
+Context to pass (if available): measurement baseline|mikado-graph.md|existing docs.
+
+**Step 4 — Validate via CLI (hard gate, mandatory):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap validate docs/feature/{feature-id}/deliver/roadmap.json
+```
+- Exit 0 -> success, roadmap ready
+- Exit 1 -> print errors, STOP, do NOT proceed
+- Exit 2 -> usage error, STOP
+
+## Invocation Principles
+
+Keep agent prompt minimal. Agent knows roadmap structure and planning methodology.
+
+Pass: skeleton file path + goal description + measurement context (if available).
+Do not pass: YAML templates|phase guidance|step decomposition rules.
+
+For performance roadmaps, include measurement context inline so agent can validate targets against baselines.
+
+## Success Criteria
+
+### Dispatcher (you) — all 4 must be checked
+- [ ] Parameters parsed (agent name, goal, feature-id)
+- [ ] `des.cli.roadmap init` executed via Bash (exit 0)
+- [ ] Agent invoked via Task tool to fill TODO placeholders
+- [ ] `des.cli.roadmap validate` executed via Bash (exit 0)
+
+### Agent output (reference)
+- [ ] All TODO placeholders replaced with real content
+- [ ] Steps are self-contained and atomic
+- [ ] Acceptance criteria are behavioral and measurable
+- [ ] Step decomposition ratio <= 2.5 (steps / production files)
+- [ ] Dependencies mapped, time estimates provided
+
+## Error Handling
+
+- Invalid agent: report valid agents and stop
+- Missing goal: show usage syntax and stop
+- Scaffold failure (exit 2): report CLI error and stop
+- Validation failure (exit 1): print errors, do not proceed
+
+## Examples
+
+### Example 1: Standard architecture roadmap
+```
+/nw-roadmap @nw-solution-architect "Migrate authentication to OAuth2"
+```
+Derives feature-id="migrate-auth-to-oauth2", scaffolds skeleton, invokes agent to fill TODOs, validates. Produces docs/feature/migrate-auth-to-oauth2/deliver/roadmap.json.
+
+### Example 2: Performance roadmap with measurement context
+```
+/nw-roadmap @nw-solution-architect "Optimize test suite execution"
+```
+Passes measurement data inline. Agent fills skeleton, validates targets against baseline, prioritizes largest bottleneck first.
+
+### Example 3: Mikado refactoring
+```
+/nw-roadmap @nw-software-crafter "Extract payment module from monolith"
+```
+Agent fills skeleton with methodology: mikado, references mikado-graph.md, maps leaf nodes to steps.
+
+## Workflow Context
+
+```bash
+/nw-roadmap @agent "goal"           # 1. Plan (init -> agent fills -> validate)
+/nw-execute @agent "feature-id" "01-01" # 2. Execute steps
+/nw-finalize @agent "feature-id"        # 3. Finalize
+```
+
+
+ARGUMENTS: Create a roadmap for Release 2 of the sandbox-agent-integration feature: "Dynamic MCP Endpoint + Proxy Wiring for Sandbox Agents"
+
+## Goal
+Wire sandbox-executed agents into Brain's two governance planes:
+1. **LLM traffic plane** — Proxy URL + token so sandbox agent LLM requests flow through Brain's proxy for spend tracking, credential forwarding, and trace recording
+2. **Tool governance plane** — Dynamic per-agent MCP endpoint (`/mcp/agent/<name>`) with filtered `tools/list` and governed `tools/call`
+
+## Context
+
+### What R1 delivered (already done)
+- `sandbox-adapter.ts` — Adapter port types + mock/production factories
+- `sandbox-event-bridge.ts` — Event translation SandboxAgent → Brain StreamEvent
+- `session-lifecycle.ts` — Session CRUD with SurrealDB persistence (no in-memory registry)
+- `routes.ts` — Orchestrator route wiring with adapter injection
+- Acceptance tests for spawn, multi-turn prompt, SSE events, error paths
+
+### What R1 is missing (confirmed by code exploration)
+The adapter path in `routes.ts` **skips proxy token setup entirely**. Only the legacy path sets `anthropicBaseUrl` and `anthropicCustomHeaders`. This means sandbox agents currently have:
+- No spend tracking (LLM requests bypass Brain's proxy)
+- No tool governance (no MCP endpoint configured)
+- No credential forwarding
+
+### Key files to modify/create
+- `app/src/server/orchestrator/routes.ts` — Wire proxy token + MCP config into adapter spawn path
+- `app/src/server/orchestrator/sandbox-adapter.ts` — Add `setMcpConfig` to adapter port type (already in design doc but not implemented)
+- `app/src/server/orchestrator/session-lifecycle.ts` — Accept proxy/MCP config, pass to adapter
+- `app/src/server/mcp/agent-mcp-route.ts` (NEW) — Dynamic per-agent MCP endpoint
+- `app/src/server/orchestrator/permission-handler.ts` (NEW) — Permission request → intent auth mapping
+- `app/src/server/proxy/tool-resolver.ts` — Existing; resolves `can_use` grants (reuse as-is)
+
+### Existing infrastructure to reuse
+- `issueProxyTokenForWorkspace()` in `routes.ts` — generates proxy token + stores in `proxy_token` table
+- `issueBrainMcpAuthEnv()` in `routes.ts` — DPoP token for MCP auth
+- `resolveToolsForIdentity()` in `proxy/tool-resolver.ts` — queries `can_use` edges for tool grants
+- `injectTools()` in `proxy/tool-injector.ts` — adds tool definitions to requests
+- `executeAllToolCalls()` — MCP client for forwarding tool calls to upstream servers
+- `proxy_token` table, `can_use` relation, `mcp_tool` table — all exist in schema
+- SSE registry for permission request delivery to UI
+
+### Design docs references
+- Architecture design: `docs/feature/sandbox-agent-integration/design/architecture-design.md` Section 5.4 "Two-Plane Governance Flow"
+- Component boundaries: `docs/feature/sandbox-agent-integration/design/component-boundaries.md` Section 6 "Release 2"
+- User stories: US-06 (Dynamic MCP Endpoint), US-07 (Permission Handling)
+- Research: `docs/research/sandbox-agent-sdk-evaluation.md` Section 5 "Integration Architecture"
+
+### Adapter port type (current)
+```typescript
+SandboxAgentAdapter = {
+  createSession: (request) => Promise<SessionHandle>
+  resumeSession: (sessionId) => Promise<SessionHandle>
+  destroySession: (sessionId) => Promise<void>
+  // NOTE: setMcpConfig is in design doc but NOT yet on adapter type
+}
+```
+
+### Two-plane governance flow (from architecture design)
+```
+Coding Agent in Sandbox:
+  ├── LLM API requests → Brain Proxy (/proxy/llm/anthropic) via ANTHROPIC_BASE_URL
+  │     → X-Brain-Auth header for spend tracking + credential forwarding + trace
+  ├── MCP tools/list → Brain Dynamic MCP Endpoint (/mcp/agent/<name>)
+  │     → Filtered by agent's effective toolset
+  ├── MCP tools/call → Brain Dynamic MCP Endpoint (/mcp/agent/<name>)
+  │     → Policy evaluation → credential injection → upstream MCP → trace
+  └── Native tools (file, bash, git) → Local in sandbox (ungoverned passthrough)
+```
+
+### Constraints
+- Functional paradigm (types-first, composition, no classes)
+- No module-level mutable singletons
+- SurrealDB SCHEMAFULL — every field must be declared
+- No `null` — use `undefined` via optional fields
+- `X-Brain-Auth` header is raw token (no "Bearer " prefix)
+- Brain-native agents (chat, PM, observer) stay unchanged
+
+### Test infrastructure
+- Unit tests: `tests/unit/orchestrator/` — pure function tests
+- Acceptance tests: `tests/acceptance/` — in-process server with isolated SurrealDB
+- Existing acceptance test kit: `acceptance-test-kit.ts` with `createTestUserWithMcp()` for DPoP auth
+- Existing shared fixtures: `shared-fixtures.ts` with `createWorkspaceDirectly()`, `createTaskDirectly()`
+
+---
+
+why arent u just expanding the existing roadmap.json ?
+
+---
+
+"issueProxyTokenForWorkspace"
+
+should this use the same agent token as the mcp server requires?
+
+---
+
+but how do then relate the dpop + rar with the proxy token?

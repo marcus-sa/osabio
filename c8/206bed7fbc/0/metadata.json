@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "c8206bed7fbc",
+  "session_id": "97b27f7f-6011-4ba8-a387-df80a0d0f427",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T09:48:04.057334Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/orchestrator/agent-options.ts",
+    "app/src/server/orchestrator/routes.ts",
+    "app/src/server/orchestrator/session-lifecycle.ts",
+    "app/src/server/orchestrator/spawn-agent.ts",
+    "app/src/server/runtime/start-server.ts",
+    "tests/unit/coding-agent-orchestrator/agent-options.test.ts",
+    "tests/unit/coding-agent-orchestrator/session-lifecycle.test.ts",
+    "tests/unit/coding-agent-orchestrator/spawn-agent.test.ts",
+    "tests/unit/orchestrator/event-stream-wiring.test.ts",
+    "tests/unit/orchestrator/opencode-handle-enrichment.test.ts",
+    "tests/unit/orchestrator/send-session-prompt.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "93a00bcf9139",
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 163522,
+    "cache_read_tokens": 1812927,
+    "output_tokens": 13889,
+    "api_call_count": 29
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T09:48:03.756968Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 97,
+    "human_removed": 410,
+    "total_committed": 21,
+    "agent_percentage": 0
+  }
+}
