@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
 import { tool } from "ai";
-import { z } from "zod";
-import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 import {
   createExtractionProvenanceEdge,
   createProjectRecord,
@@ -13,6 +11,7 @@ import { seedDescriptionEntry } from "../descriptions/persist";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { requireAuthorizedContext } from "../iam/authority";
+import { createWorkItemSchema } from "../mcp/brain-tool-definitions";
 import type { ChatToolDeps } from "./types";
 import { log } from "../telemetry/logger";
 
@@ -20,17 +19,7 @@ export function createCreateWorkItemTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Create a task, feature, or project directly in the knowledge graph. Use when the user explicitly requests creation (\"add a task for X\") or during onboarding entity seeding. For uncertain/brainstormed items, prefer suggest_work_items instead.",
-    inputSchema: z.object({
-      kind: z.enum(["task", "feature", "project"]).describe(
-        "project: named product area or workstream (MUST create before features/tasks can belong to it). feature: capability within an existing project. task: concrete executable work with action verb. If no projects exist yet, create a project first.",
-      ),
-      title: z.string().min(1).describe("Concise entity title"),
-      rationale: z.string().min(1).describe("Why this entity is needed — seeds the description"),
-      category: z.enum(ENTITY_CATEGORIES).optional().describe("Category classification"),
-      priority: z.enum(ENTITY_PRIORITIES).optional().describe("critical: blocking/urgent. high: important, needs attention soon. medium: normal priority. low: nice-to-have, deferred."),
-      project: z.string().min(1).optional().describe("Project name to scope the entity under"),
-      feature: z.string().min(1).optional().describe("Feature name or record id to scope a task under"),
-    }),
+    inputSchema: createWorkItemSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_task", deps);
       const now = new Date();

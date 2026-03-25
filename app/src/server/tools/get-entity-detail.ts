@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import { z } from "zod";
 import { getEntityDetail, parseRecordIdString, type GraphEntityTable } from "../graph/queries";
+import { getEntityDetailSchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 
@@ -23,9 +23,7 @@ export function createGetEntityDetailTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Get full details about a specific entity including relationships, provenance, and related entities.",
-    inputSchema: z.object({
-      entityId: z.string().min(1).describe("Entity record ID, e.g. decision:abc123"),
-    }),
+    inputSchema: getEntityDetailSchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeGetEntityDetail(deps.surreal, context.workspaceRecord, input.entityId);

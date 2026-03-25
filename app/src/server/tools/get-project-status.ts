@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import { z } from "zod";
 import { getProjectStatus } from "../graph/queries";
+import { getProjectStatusSchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 
@@ -18,9 +18,7 @@ export function createGetProjectStatusTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Get the current status of a project including active tasks, recent decisions, open questions, and features.",
-    inputSchema: z.object({
-      projectId: z.string().min(1).describe("Project record ID or project name"),
-    }),
+    inputSchema: getProjectStatusSchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeGetProjectStatus(deps.surreal, context.workspaceRecord, input.projectId);

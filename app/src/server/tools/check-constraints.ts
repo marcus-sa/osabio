@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import { z } from "zod";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
+import { checkConstraintsSchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 
@@ -81,10 +81,7 @@ export function createCheckConstraintsTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Check if a proposed action conflicts with existing decisions or constraints. Returns hard conflicts, soft tensions, supporting context, and proceed flag.",
-    inputSchema: z.object({
-      proposed_action: z.string().min(1).describe("What is being proposed"),
-      project: z.string().optional().describe("Optional project scope"),
-    }),
+    inputSchema: checkConstraintsSchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeCheckConstraints(deps.surreal, context.workspaceRecord, input.proposed_action);

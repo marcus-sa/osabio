@@ -1,8 +1,8 @@
 import { tool } from "ai";
-import { z } from "zod";
-import { ENTITY_CATEGORIES, ENTITY_PRIORITIES, type EntityCategory } from "../../shared/contracts";
+import type { EntityCategory } from "../../shared/contracts";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import { requireAuthorizedContext } from "../iam/authority";
+import { suggestWorkItemsSchema } from "../mcp/brain-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 type SuggestedWorkItem = {
@@ -36,18 +36,7 @@ export function createSuggestWorkItemsTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Process a batch of proposed work items and return issue-style PM triage buckets: suggestions, updated, discarded.",
-    inputSchema: z.object({
-      items: z.array(
-        z.object({
-          kind: z.enum(["task", "feature", "project"]).describe("project: named product area (MUST exist before features/tasks). feature: capability within an existing project. task: concrete executable work."),
-          title: z.string().min(1).describe("Concise work item title"),
-          rationale: z.string().min(1).describe("Why this work item is needed"),
-          category: z.enum(ENTITY_CATEGORIES).optional().describe("Optional work item category"),
-          project: z.string().optional().describe("Optional project scope"),
-          priority: z.enum(ENTITY_PRIORITIES).optional().describe("critical: blocking/urgent. high: important. medium: normal. low: nice-to-have."),
-        }),
-      ).min(1).max(25),
-    }),
+    inputSchema: suggestWorkItemsSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_suggestion", deps);
       const suggestions: SuggestedWorkItem[] = [];

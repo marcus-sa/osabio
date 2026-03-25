@@ -1,8 +1,7 @@
 import { tool } from "ai";
 import { RecordId } from "surrealdb";
-import { z } from "zod";
-import { ENTITY_CATEGORIES } from "../../shared/contracts";
 import { isEntityInWorkspace, parseRecordIdString } from "../graph/queries";
+import { createObservationSchema } from "../mcp/brain-tool-definitions";
 import { createObservation } from "../observation/queries";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";
@@ -11,19 +10,7 @@ export function createCreateObservationTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Create an observation in the workspace graph. Use proactively when you notice cross-cutting concerns — risks, conflicts, gaps, or notable facts — even if the user didn't ask.",
-    inputSchema: z.object({
-      text: z.string().min(1).describe("Observation text"),
-      severity: z
-        .enum(["info", "warning", "conflict"])
-        .describe(
-          "info: awareness-level signals. warning: risks to address soon. conflict: contradictions needing human resolution.",
-        ),
-      category: z.enum(ENTITY_CATEGORIES).optional().describe("Optional observation category"),
-      related_entity_id: z
-        .string()
-        .optional()
-        .describe("Optional related entity id (project/feature/task/decision/question)"),
-    }),
+    inputSchema: createObservationSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_observation", deps);
 

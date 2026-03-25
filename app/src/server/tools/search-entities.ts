@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import { z } from "zod";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
+import { searchEntitiesSchema } from "../mcp/brain-tool-definitions";
 import {
   listEntityNeighbors,
   parseRecordIdString,
@@ -58,13 +58,7 @@ export function createSearchEntitiesTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Full-text search across the knowledge graph. Use for finding entities by keyword or topic (e.g. \"authentication decisions\", \"payment tasks\"). For listing entities by kind or status, use list_workspace_entities instead.",
-    inputSchema: z.object({
-      query: z.string().min(1).describe("Search query (keywords matched via BM25 full-text search)"),
-      kinds: z.array(z.enum(["project", "feature", "task", "decision", "question", "suggestion"]))
-        .optional()
-        .describe("Optional filter by entity kinds"),
-      limit: z.number().int().min(1).max(25).default(10).describe("Maximum number of results"),
-    }),
+    inputSchema: searchEntitiesSchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeSearchEntities(deps.surreal, context.workspaceRecord, {

@@ -1,10 +1,10 @@
 import { tool } from "ai";
-import { z } from "zod";
 import {
   parseRecordIdString,
   readEntityName,
   type GraphEntityRecord,
 } from "../graph/queries";
+import { getConversationHistorySchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 import { type RecordId, type Surreal } from "surrealdb";
@@ -112,10 +112,7 @@ export function createGetConversationHistoryTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Search past conversations for discussions about a topic and return relevant message excerpts with linked entities.",
-    inputSchema: z.object({
-      query: z.string().min(1).describe("Topic to search for"),
-      projectId: z.string().optional().describe("Optional project scope filter"),
-    }),
+    inputSchema: getConversationHistorySchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeGetConversationHistory(deps.surreal, context.workspaceRecord, input);

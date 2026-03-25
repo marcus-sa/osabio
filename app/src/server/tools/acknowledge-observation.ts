@@ -1,6 +1,6 @@
 import { tool } from "ai";
-import { z } from "zod";
 import { parseRecordIdString } from "../graph/queries";
+import { acknowledgeObservationSchema } from "../mcp/brain-tool-definitions";
 import { acknowledgeObservation } from "../observation/queries";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";
@@ -9,9 +9,7 @@ export function createAcknowledgeObservationTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Mark an observation as acknowledged — reviewed but still needs resolution. Transitions from open to acknowledged.",
-    inputSchema: z.object({
-      observation_id: z.string().min(1).describe("Observation record ID, e.g. observation:abc123"),
-    }),
+    inputSchema: acknowledgeObservationSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "acknowledge_observation", deps);
       const observationRecord = parseRecordIdString(input.observation_id, ["observation"], "observation");

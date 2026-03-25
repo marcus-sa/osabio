@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { RecordId } from "surrealdb";
 import { tool } from "ai";
-import { z } from "zod";
 import {
   parseRecordIdString,
   readEntityName,
@@ -10,6 +9,7 @@ import {
 } from "../graph/queries";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { requireAuthorizedContext } from "../iam/authority";
+import { moveItemsToProjectSchema } from "../mcp/brain-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 type MoveResult = {
@@ -26,16 +26,7 @@ export function createMoveItemsToProjectTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Move existing features or tasks to a different project. Use when reorganizing — e.g. user says items belong under a different project. Deletes the old project edge and creates a new one. Does NOT duplicate entities.",
-    inputSchema: z.object({
-      entity_ids: z
-        .array(z.string().min(1))
-        .min(1)
-        .describe("Polymorphic entity IDs to move, e.g. ['feature:uuid', 'task:uuid']"),
-      target_project: z
-        .string()
-        .min(1)
-        .describe("Target project name or 'project:uuid' to move entities into"),
-    }),
+    inputSchema: moveItemsToProjectSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_task", deps);
       const now = new Date();

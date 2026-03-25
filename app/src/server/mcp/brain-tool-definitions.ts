@@ -93,6 +93,7 @@ export const getProjectStatusSchema = z.object({
 
 export const getConversationHistorySchema = z.object({
   query: z.string().min(1).describe("Topic to search for"),
+  projectId: z.string().optional().describe("Optional project scope filter"),
 });
 
 export const checkConstraintsSchema = z.object({
