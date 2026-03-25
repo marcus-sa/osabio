@@ -3,7 +3,7 @@
   "checkpoint_id": "b2ceb460b260",
   "strategy": "manual-commit",
   "branch": "marcus-sa/sandbox-agent-eval",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/src/server/runtime/dependencies.ts",
     "tests/acceptance/acceptance-test-kit.ts"
@@ -22,13 +22,20 @@
       "context": "/b2/ceb460b260/1/context.md",
       "content_hash": "/b2/ceb460b260/1/content_hash.txt",
       "prompt": "/b2/ceb460b260/1/prompt.txt"
+    },
+    {
+      "metadata": "/b2/ceb460b260/2/metadata.json",
+      "transcript": "/b2/ceb460b260/2/full.jsonl",
+      "context": "/b2/ceb460b260/2/context.md",
+      "content_hash": "/b2/ceb460b260/2/content_hash.txt",
+      "prompt": "/b2/ceb460b260/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 195,
-    "cache_creation_tokens": 125243,
-    "cache_read_tokens": 994900,
-    "output_tokens": 7947,
-    "api_call_count": 15
+    "input_tokens": 198,
+    "cache_creation_tokens": 155477,
+    "cache_read_tokens": 1010655,
+    "output_tokens": 8049,
+    "api_call_count": 16
   }
 }
