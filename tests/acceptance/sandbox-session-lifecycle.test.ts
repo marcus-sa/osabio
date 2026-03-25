@@ -31,7 +31,7 @@ import {
 // ── Suite Setup ──
 
 const getRuntime = setupAcceptanceSuite("sandbox_session_lifecycle", {
-  configOverrides: { orchestratorMockAgent: true },
+  configOverrides: { sandboxAgentEnabled: true, sandboxAgentType: "claude" },
 });
 
 // ── Test Helpers (will be extracted to a sandbox-test-kit.ts as patterns emerge) ──
@@ -190,10 +190,14 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Implement a sliding window rate limiter with 100 requests per minute",
+      "What is the difference between a mutex and a semaphore?",
     );
 
     // Then the prompt is accepted
+    if (!promptResponse.ok) {
+      const body = await promptResponse.text();
+      console.error("Prompt failed:", promptResponse.status, body);
+    }
     expect(promptResponse.ok).toBe(true);
 
     // And the session status is active
@@ -234,7 +238,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Create the basic JWT token generation",
+      "What are the three pillars of observability?",
     );
     expect(firstPrompt.ok).toBe(true);
 
@@ -244,7 +248,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Add refresh token rotation with SurrealDB storage",
+      "Which of those three is most often neglected?",
     );
 
     // Then the follow-up is accepted (not 409 Conflict)
@@ -257,7 +261,7 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Add rate limiting to the token endpoint",
+      "Can you give an example of structured logging?",
     );
 
     // Then the third prompt is also accepted
@@ -393,7 +397,7 @@ describe("Happy Path: Sandbox Session Operations", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Implement the caching layer with TTL support",
+      "Explain the CAP theorem in one sentence.",
     );
 
     // Then the prompt is accepted (not 409 Conflict)
@@ -676,7 +680,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Start implementing the feature",
+      "What is eventual consistency?",
     );
 
     // When a second prompt is sent while the first is still processing
@@ -685,7 +689,7 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
       user,
       workspace.workspaceId,
       assignment.agentSessionId,
-      "Also add error handling",
+      "What is the difference between CP and AP systems?",
     );
 
     // Then the response is 202 Accepted (queued, not rejected)

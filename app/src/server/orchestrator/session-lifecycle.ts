@@ -354,6 +354,7 @@ type CreateSessionInput = {
   authToken?: string;
   spawnAgent?: SpawnAgentFn;
   adapter?: SandboxAgentAdapter;
+  sandboxAgentType?: string;
   validateAssignment: (
     surreal: Surreal,
     workspaceId: string,
@@ -576,9 +577,8 @@ async function createSessionViaAdapter(
   let handle: SessionHandle;
   try {
     handle = await adapter.createSession({
-      agent: "claude",
+      agent: input.sandboxAgentType ?? "claude",
       cwd: validation.repoPath,
-      env: input.brainEnv,
     });
   } catch (err) {
     // Rollback: delete agent_session on adapter failure
@@ -950,7 +950,7 @@ export async function sendSessionPrompt(
   if (input.adapter && session.external_session_id) {
     try {
       const handle = await input.adapter.resumeSession(session.external_session_id);
-      await handle.prompt([{ type: "user", text: input.text }]);
+      await handle.prompt([{ type: "text", text: input.text }]);
       return { ok: true, value: { delivered: true } };
     } catch (err) {
       return {

@@ -41,6 +41,7 @@ export type ServerConfig = {
   worktreeManagerEnabled: boolean;
   orchestratorMockAgent: boolean;
   sandboxAgentEnabled: boolean;
+  sandboxAgentType?: string;
   internalWebhookSecret?: string;
   toolEncryptionKey?: string;
   baseUrl: string;
@@ -100,6 +101,7 @@ export function loadServerConfig(): ServerConfig {
   const worktreeManagerEnabled = parseBooleanEnv("WORKTREE_MANAGER_ENABLED");
   const orchestratorMockAgent = parseBooleanEnv("ORCHESTRATOR_MOCK_AGENT");
   const sandboxAgentEnabled = parseBooleanEnv("SANDBOX_AGENT_ENABLED");
+  const sandboxAgentType = optionalEnv("SANDBOX_AGENT_TYPE");
   const internalWebhookSecret = optionalEnv("INTERNAL_WEBHOOK_SECRET");
   const toolEncryptionKey = optionalEnv("TOOL_ENCRYPTION_KEY");
   const baseUrl = optionalEnv("BRAIN_BASE_URL") ?? `http://localhost:${port}`;
@@ -142,6 +144,8 @@ export function loadServerConfig(): ServerConfig {
     ...(adminPassword ? { adminPassword } : {}),
     worktreeManagerEnabled,
     orchestratorMockAgent,
+    sandboxAgentEnabled,
+    ...(sandboxAgentType ? { sandboxAgentType } : {}),
     ...(internalWebhookSecret ? { internalWebhookSecret } : {}),
     ...(toolEncryptionKey ? { toolEncryptionKey } : {}),
     baseUrl,

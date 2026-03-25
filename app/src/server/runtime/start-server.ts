@@ -139,6 +139,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     queryFn: query,
     auth: deps.auth,
     mockAgent: config.orchestratorMockAgent,
+    sandboxAgentAdapter: deps.sandboxAgentAdapter,
+    sandboxAgentType: config.sandboxAgentType,
   });
 
   return Bun.serve({

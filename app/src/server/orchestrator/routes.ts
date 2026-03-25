@@ -340,6 +340,8 @@ export type OrchestratorWiringDeps = {
   queryFn: import("./spawn-agent").QueryFn;
   auth: { api: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string } } | null> } };
   mockAgent: boolean;
+  sandboxAgentAdapter?: import("./sandbox-adapter").SandboxAgentAdapter;
+  sandboxAgentType?: string;
 };
 
 export function wireOrchestratorRoutes(
@@ -546,10 +548,12 @@ export function wireOrchestratorRoutes(
     };
   };
 
-  // Use mock adapter for acceptance tests (sandbox path), production spawn otherwise
-  const sandboxAdapterImport = wiringDeps.mockAgent
-    ? import("./sandbox-adapter").then((mod) => mod.createMockAdapter())
-    : undefined;
+  // Resolve adapter: real SDK adapter from deps > mock adapter > none (legacy spawn)
+  const sandboxAdapterImport = wiringDeps.sandboxAgentAdapter
+    ? Promise.resolve(wiringDeps.sandboxAgentAdapter)
+    : wiringDeps.mockAgent
+      ? import("./sandbox-adapter").then((mod) => mod.createMockAdapter())
+      : undefined;
 
   const spawnAgentImport = wiringDeps.mockAgent
     ? Promise.resolve({
@@ -619,6 +623,7 @@ export function wireOrchestratorRoutes(
         createAgentSession: queries.createAgentSession,
         spawnAgent,
         adapter,
+        sandboxAgentType: wiringDeps.sandboxAgentType,
       });
 
       // Wire SSE stream + event iteration on success

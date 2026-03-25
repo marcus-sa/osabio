@@ -7,6 +7,8 @@ import type { ServerConfig } from "./config";
 import { createAuth, type Auth } from "../auth/config";
 import { bootstrapSigningKeyFromSurreal, type AsSigningKey } from "../oauth/as-key-management";
 import { createMcpClientFactory, type McpClientFactory } from "../tool-registry/mcp-client";
+import type { SandboxAgent } from "sandbox-agent";
+import type { SandboxAgentAdapter } from "../orchestrator/sandbox-adapter";
 
 const devtools = process.env.AI_DEVTOOLS === "1" ? devToolsMiddleware() : undefined;
 
@@ -56,6 +58,16 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   const asSigningKey = await bootstrapSigningKeyFromSurreal(surreal);
   const mcpClientFactory = createMcpClientFactory();
 
+  // SandboxAgent SDK — start embedded server when enabled
+  let sandboxAgentAdapter: SandboxAgentAdapter | undefined;
+  if (config.sandboxAgentEnabled) {
+    const { SandboxAgent: SandboxAgentClass } = await import("sandbox-agent");
+    const { local } = await import("sandbox-agent/local");
+    const { createSandboxAgentAdapter } = await import("../orchestrator/sandbox-adapter");
+    const sdk = await SandboxAgentClass.start({ sandbox: local() });
+    sandboxAgentAdapter = createSandboxAgentAdapter(sdk);
+  }
+
   return {
     surreal,
     analyticsSurreal,
@@ -68,6 +80,7 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
     scorerModel,
     asSigningKey,
     mcpClientFactory,
+    sandboxAgentAdapter,
   };
 }
 

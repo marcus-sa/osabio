@@ -237,6 +237,7 @@ export function setupAcceptanceSuite(
       asSigningKey: deps.asSigningKey,
       nonceCache: createNonceCache(),
       mcpClientFactory: options?.mcpClientFactoryOverride ?? createMcpClientFactory(),
+      sandboxAgentAdapter: deps.sandboxAgentAdapter,
     };
 
     server = createBrainServer(serverDeps);
