@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1924d4ba2627",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/agent-mcp-governance.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/19/24d4ba2627/0/metadata.json",
+      "transcript": "/19/24d4ba2627/0/full.jsonl",
+      "context": "/19/24d4ba2627/0/context.md",
+      "content_hash": "/19/24d4ba2627/0/content_hash.txt",
+      "prompt": "/19/24d4ba2627/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 226,
+    "cache_creation_tokens": 585657,
+    "cache_read_tokens": 12677932,
+    "output_tokens": 78138,
+    "api_call_count": 131
+  }
+}
