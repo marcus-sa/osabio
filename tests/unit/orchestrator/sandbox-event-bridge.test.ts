@@ -9,67 +9,17 @@
  * Driving port: Event bridge translation functions (pure)
  */
 import { describe, expect, it } from "bun:test";
-
-// ── Types (will be imported from orchestrator/sandbox-event-bridge.ts once implemented) ──
-
-type SandboxEvent = {
-  type: string;
-  sessionId: string;
-  timestamp: string;
-  payload: Record<string, unknown>;
-};
-
-type StreamEvent = {
-  type: string;
-  sessionId: string;
-  [key: string]: unknown;
-};
-
-type EventBridgeDeps = {
-  emitEvent: (streamId: string, event: StreamEvent) => void;
-  updateLastEventAt: (sessionId: string) => Promise<void>;
-  notifyStallDetector: (sessionId: string) => void;
-};
-
-// ── Stub translation function (placeholder until production code exists) ──
-
-function translateSandboxEvent(event: SandboxEvent): StreamEvent | undefined {
-  switch (event.type) {
-    case "tool_call":
-      return {
-        type: "agent_token",
-        sessionId: event.sessionId,
-        token: `Tool Call: ${event.payload.toolName} (${event.payload.durationMs}ms)`,
-      };
-    case "file_edit":
-      return {
-        type: "agent_file_change",
-        sessionId: event.sessionId,
-        filePath: event.payload.filePath,
-        changeType: event.payload.changeType,
-      };
-    case "text":
-    case "message":
-      return {
-        type: "agent_token",
-        sessionId: event.sessionId,
-        token: event.payload.text as string,
-      };
-    case "result":
-      return {
-        type: "agent_status",
-        sessionId: event.sessionId,
-        status: event.payload.status ?? "completed",
-      };
-    default:
-      // Unknown event types: return undefined (skip)
-      return undefined;
-  }
-}
+import {
+  translateSandboxEvent,
+  createSandboxEventBridge,
+  type SandboxEvent,
+  type SandboxEventBridgeDeps,
+} from "../../../app/src/server/orchestrator/sandbox-event-bridge";
+import type { StreamEvent } from "../../../app/src/shared/contracts";
 
 // ── Stub event bridge deps ──
 
-function stubBridgeDeps(): EventBridgeDeps & {
+function stubBridgeDeps(): SandboxEventBridgeDeps & {
   emitted: Array<{ streamId: string; event: StreamEvent }>;
   updatedSessions: string[];
   stallNotifications: string[];
@@ -120,8 +70,8 @@ describe("Sandbox Event Bridge Translation", () => {
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_token");
     expect(result!.sessionId).toBe(sessionId);
-    expect(result!.token).toContain("brain-search");
-    expect(result!.token).toContain("340ms");
+    expect((result as { token: string }).token).toContain("brain-search");
+    expect((result as { token: string }).token).toContain("340ms");
   });
 
   // ─── UB-2: file_edit event translates to agent_file_change StreamEvent ───
@@ -144,8 +94,8 @@ describe("Sandbox Event Bridge Translation", () => {
     // Then it produces an agent_file_change StreamEvent
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_file_change");
-    expect(result!.filePath).toBe("src/rate-limiter.ts");
-    expect(result!.changeType).toBe("created");
+    expect((result as { file: string }).file).toBe("src/rate-limiter.ts");
+    expect((result as { changeType: string }).changeType).toBe("created");
   });
 
   // ─── UB-3: text/message event translates to agent_token StreamEvent ───
@@ -164,7 +114,7 @@ describe("Sandbox Event Bridge Translation", () => {
     // Then it produces an agent_token StreamEvent with the text
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_token");
-    expect(result!.token).toBe("I will implement the sliding window algorithm.");
+    expect((result as { token: string }).token).toBe("I will implement the sliding window algorithm.");
   });
 
   it("translates message event to agent_token (alias for text)", () => {
@@ -182,7 +132,7 @@ describe("Sandbox Event Bridge Translation", () => {
     // Then it produces an agent_token StreamEvent
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_token");
-    expect(result!.token).toBe("Starting implementation...");
+    expect((result as { token: string }).token).toBe("Starting implementation...");
   });
 
   // ─── UB-4: result event translates to agent_status StreamEvent ───
@@ -201,7 +151,7 @@ describe("Sandbox Event Bridge Translation", () => {
     // Then it produces an agent_status StreamEvent
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_status");
-    expect(result!.status).toBe("completed");
+    expect((result as { status: string }).status).toBe("completed");
   });
 
   // ─── UB-5: Unknown event type is logged and skipped (no crash) ───
@@ -258,14 +208,39 @@ describe("Sandbox Event Bridge Translation", () => {
   });
 
   // ─── UB-7: Event bridge notifies stall detector on each event ───
-  it.skip("notifies stall detector for each processed event", () => {
+  it("notifies stall detector for each processed event", () => {
     // Given an event bridge with stall detector dependency
     const deps = stubBridgeDeps();
+    const streamId = "stream-abc";
+    const bridge = createSandboxEventBridge(deps, streamId, sessionId);
 
     // When events are processed through the bridge
-    // (requires production bridge function to be implemented)
+    const events: SandboxEvent[] = [
+      {
+        type: "text",
+        sessionId,
+        timestamp: "2026-03-25T10:00:00Z",
+        payload: { text: "Working..." },
+      },
+      {
+        type: "tool_call",
+        sessionId,
+        timestamp: "2026-03-25T10:00:01Z",
+        payload: { toolName: "read-file", durationMs: 50 },
+      },
+    ];
+
+    for (const event of events) {
+      bridge.handleEvent(event);
+    }
 
     // Then the stall detector is notified for each event
-    // expect(deps.stallNotifications.length).toBe(eventCount);
+    expect(deps.stallNotifications.length).toBe(2);
+    expect(deps.stallNotifications[0]).toBe(sessionId);
+    expect(deps.stallNotifications[1]).toBe(sessionId);
+
+    // And events are emitted to the stream
+    expect(deps.emitted.length).toBe(2);
+    expect(deps.emitted[0].streamId).toBe(streamId);
   });
 });
