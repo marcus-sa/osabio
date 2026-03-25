@@ -1,31 +1,26 @@
 /**
- * Sandbox event bridge: transforms SandboxAgent events into Brain StreamEvent
- * variants and forwards them to the SSE registry.
+ * Sandbox event bridge: transforms SandboxAgent SessionEvents into Brain
+ * StreamEvent variants and forwards them to the SSE registry.
  *
- * Pure transform function (translateSandboxEvent) + effectful bridge handle
+ * Pure transform function (translateSessionEvent) + effectful bridge handle
  * (createSandboxEventBridge) that manages the event forwarding lifecycle.
+ *
+ * SessionEvent.payload is an ACP JSON-RPC message. The bridge extracts
+ * session/update notifications and maps their content to Brain stream events.
  *
  * This module handles SandboxAgent events (different schema from event-bridge.ts
  * which handles Claude SDK messages). Both coexist until R1 migration completes.
  */
 import type {
   AgentTokenEvent,
-  AgentFileChangeEvent,
   AgentStatusEvent,
   StreamEvent,
 } from "../../shared/contracts";
+import type { SessionEvent } from "./sandbox-adapter";
 import { log } from "../telemetry/logger";
 
-// ---------------------------------------------------------------------------
-// SandboxAgent event type
-// ---------------------------------------------------------------------------
-
-export type SandboxEvent = {
-  type: string;
-  sessionId: string;
-  timestamp: string;
-  payload: Record<string, unknown>;
-};
+// Re-export for callers that reference the old SandboxEvent name
+export type SandboxEvent = SessionEvent;
 
 // ---------------------------------------------------------------------------
 // Port: dependencies as function signatures
@@ -42,74 +37,108 @@ export type SandboxEventBridgeDeps = {
 // ---------------------------------------------------------------------------
 
 export type SandboxEventBridgeHandle = {
-  handleEvent: (event: SandboxEvent) => void;
+  handleEvent: (event: SessionEvent) => void;
   stop: () => void;
 };
 
 // ---------------------------------------------------------------------------
-// Pure transform: SandboxEvent -> StreamEvent | undefined
+// ACP JSON-RPC payload helpers (untyped extraction from AnyMessage)
 // ---------------------------------------------------------------------------
 
-function translateToolCall(event: SandboxEvent): AgentTokenEvent {
-  const toolName = event.payload.toolName as string ?? "unknown";
-  const durationMs = event.payload.durationMs as number ?? 0;
+type AcpPayload = {
+  method?: string;
+  params?: {
+    sessionId?: string;
+    update?: {
+      sessionUpdate?: string;
+      content?: { type?: string; text?: string };
+      toolCallId?: string;
+      name?: string;
+      [key: string]: unknown;
+    };
+    [key: string]: unknown;
+  };
+  result?: unknown;
+  error?: unknown;
+  [key: string]: unknown;
+};
+
+function extractSessionUpdate(payload: AcpPayload): { sessionUpdate: string; [key: string]: unknown } | undefined {
+  if (payload.method === "session/update" && payload.params?.update) {
+    return payload.params.update as { sessionUpdate: string; [key: string]: unknown };
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Pure transform: SessionEvent -> StreamEvent | undefined
+// ---------------------------------------------------------------------------
+
+function translateToolCall(
+  sessionId: string,
+  update: { name?: string; toolCallId?: string; [key: string]: unknown },
+): AgentTokenEvent {
+  const toolName = (update.name as string) ?? "unknown";
   return {
     type: "agent_token",
-    sessionId: event.sessionId,
-    token: `Tool Call: ${toolName} (${durationMs}ms)`,
+    sessionId,
+    token: `Tool Call: ${toolName}`,
   };
 }
 
-function translateFileEdit(event: SandboxEvent): AgentFileChangeEvent {
-  return {
-    type: "agent_file_change",
-    sessionId: event.sessionId,
-    file: event.payload.filePath as string,
-    changeType: event.payload.changeType as AgentFileChangeEvent["changeType"],
-  };
-}
-
-function translateTextOrMessage(event: SandboxEvent): AgentTokenEvent {
+function translateMessageChunk(
+  sessionId: string,
+  update: { content?: { text?: string }; [key: string]: unknown },
+): AgentTokenEvent | undefined {
+  const text = update.content?.text;
+  if (!text) return undefined;
   return {
     type: "agent_token",
-    sessionId: event.sessionId,
-    token: event.payload.text as string,
+    sessionId,
+    token: text,
   };
 }
 
-function translateResult(event: SandboxEvent): AgentStatusEvent {
-  return {
-    type: "agent_status",
-    sessionId: event.sessionId,
-    status: (event.payload.status as AgentStatusEvent["status"]) ?? "completed",
-  };
-}
-
-export function translateSandboxEvent(
-  event: SandboxEvent,
+export function translateSessionEvent(
+  event: SessionEvent,
 ): StreamEvent | undefined {
-  switch (event.type) {
+  const payload = event.payload as AcpPayload;
+  const update = extractSessionUpdate(payload);
+
+  if (!update) {
+    // Not a session/update notification -- may be a response or other message.
+    // Check if it's a prompt response (which has result.stopReason)
+    if (payload.result && typeof payload.result === "object") {
+      const result = payload.result as { stopReason?: string };
+      if (result.stopReason) {
+        return {
+          type: "agent_status",
+          sessionId: event.sessionId,
+          status: "completed" as AgentStatusEvent["status"],
+        };
+      }
+    }
+    return undefined;
+  }
+
+  switch (update.sessionUpdate) {
     case "tool_call":
-      return translateToolCall(event);
+      return translateToolCall(event.sessionId, update);
 
-    case "file_edit":
-      return translateFileEdit(event);
-
-    case "text":
-    case "message":
-      return translateTextOrMessage(event);
-
-    case "result":
-      return translateResult(event);
+    case "agent_message_chunk":
+    case "user_message_chunk":
+    case "agent_thought_chunk":
+      return translateMessageChunk(event.sessionId, update);
 
     default:
-      log.warn("sandbox-event-bridge", "Unknown sandbox event type, skipping", {
-        eventType: event.type,
-        sessionId: event.sessionId,
-      });
+      // Other update types (plan, config_option_update, etc.) are informational
+      // and don't map to Brain stream events yet.
       return undefined;
   }
 }
+
+// Backwards-compatible alias
+export const translateSandboxEvent = translateSessionEvent;
 
 // ---------------------------------------------------------------------------
 // Bridge handle factory
@@ -122,10 +151,10 @@ export function createSandboxEventBridge(
 ): SandboxEventBridgeHandle {
   let stopped = false;
 
-  const handleEvent = (event: SandboxEvent): void => {
+  const handleEvent = (event: SessionEvent): void => {
     if (stopped) return;
 
-    const streamEvent = translateSandboxEvent(event);
+    const streamEvent = translateSessionEvent(event);
     if (!streamEvent) return;
 
     deps.emitEvent(streamId, streamEvent);

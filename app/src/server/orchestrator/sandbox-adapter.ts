@@ -1,49 +1,89 @@
 /**
- * Sandbox Agent Adapter — port types and mock factory.
+ * Sandbox Agent Adapter -- port types and adapter factories.
  *
  * Port types define the contract for interacting with a SandboxAgent server.
- * The adapter abstracts at the SDK level: one factory creates the adapter,
- * sessions are created through it.
+ * The adapter abstracts at the SDK level: one factory wraps the real SDK instance,
+ * another provides a test-injectable mock with overridable behavior.
  *
- * Mock factory provides a test-injectable implementation with overridable behavior.
+ * Real SDK types are re-exported for use by callers without direct SDK dependency.
  */
+import type {
+  SandboxAgent,
+  Session,
+  SessionCreateRequest,
+  SessionEvent,
+  SessionEventListener,
+  SessionPermissionRequest,
+  PermissionRequestListener,
+  PermissionReply,
+} from "sandbox-agent";
+import type { PromptRequest, PromptResponse } from "sandbox-agent";
+
+// Re-export SDK types used at port boundaries
+export type {
+  SessionEvent,
+  SessionEventListener,
+  SessionPermissionRequest,
+  PermissionRequestListener,
+  PermissionReply,
+  PromptResponse,
+};
 
 // ── Port Types ──
 
+/**
+ * Thin wrapper around the SDK's Session, exposing only the methods Brain needs.
+ * Keeps the port boundary narrow -- callers never depend on the full Session class.
+ */
 export type SessionHandle = {
   id: string;
   prompt: (
-    messages: Array<{ type: string; text: string }>,
-  ) => Promise<{ success: boolean }>;
-  onEvent: (handler: (event: unknown) => void) => () => void;
-  onPermissionRequest: (
-    handler: (request: unknown) => void,
-  ) => () => void;
-  respondPermission: (id: string, decision: string) => Promise<void>;
-};
-
-export type SessionConfig = {
-  agent: string;
-  cwd: string;
-  env?: Record<string, string>;
-};
-
-export type McpServerConfig = {
-  type: string;
-  url: string;
-  headers?: Record<string, string>;
+    messages: PromptRequest["prompt"],
+  ) => Promise<PromptResponse>;
+  onEvent: (listener: SessionEventListener) => () => void;
+  onPermissionRequest: (listener: PermissionRequestListener) => () => void;
+  respondPermission: (permissionId: string, reply: PermissionReply) => Promise<void>;
 };
 
 export type SandboxAgentAdapter = {
-  createSession: (config: SessionConfig) => Promise<SessionHandle>;
+  createSession: (request: SessionCreateRequest) => Promise<SessionHandle>;
   resumeSession: (sessionId: string) => Promise<SessionHandle>;
   destroySession: (sessionId: string) => Promise<void>;
-  setMcpConfig: (
-    cwd: string,
-    name: string,
-    config: McpServerConfig,
-  ) => Promise<void>;
 };
+
+// ── Production Adapter Factory ──
+
+function wrapSession(session: Session): SessionHandle {
+  return {
+    id: session.id,
+    prompt: (messages) => session.prompt(messages),
+    onEvent: (listener) => session.onEvent(listener),
+    onPermissionRequest: (listener) => session.onPermissionRequest(listener),
+    respondPermission: (permissionId, reply) => session.respondPermission(permissionId, reply),
+  };
+}
+
+/**
+ * Creates a production adapter backed by a real SandboxAgent SDK instance.
+ * The SDK instance should be created via `SandboxAgent.start()` or `SandboxAgent.connect()`.
+ */
+export function createSandboxAgentAdapter(
+  sdk: SandboxAgent,
+): SandboxAgentAdapter {
+  return {
+    createSession: async (request) => {
+      const session = await sdk.createSession(request);
+      return wrapSession(session);
+    },
+    resumeSession: async (sessionId) => {
+      const session = await sdk.resumeSession(sessionId);
+      return wrapSession(session);
+    },
+    destroySession: async (sessionId) => {
+      await sdk.destroySession(sessionId);
+    },
+  };
+}
 
 // ── Mock Adapter Factory ──
 
@@ -59,7 +99,7 @@ export function createMockAdapter(
       if (destroyed.has(id)) {
         throw new Error(`Session ${id} has been destroyed`);
       }
-      return { success: true };
+      return { stopReason: "end_turn" as const } as PromptResponse;
     },
     onEvent: () => () => {},
     onPermissionRequest: () => () => {},
@@ -71,7 +111,7 @@ export function createMockAdapter(
   });
 
   return {
-    createSession: async (config) => {
+    createSession: async (request) => {
       const id = `session-${crypto.randomUUID()}`;
       const handle = createHandle(id);
       sessions.set(id, handle);
@@ -93,7 +133,6 @@ export function createMockAdapter(
       sessions.delete(sessionId);
       destroyed.add(sessionId);
     },
-    setMcpConfig: async () => {},
     ...overrides,
   };
 }

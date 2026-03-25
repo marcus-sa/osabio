@@ -50,8 +50,8 @@ describe("SandboxAgentAdapter (mock)", () => {
       { type: "text", text: "Implement rate limiting with a sliding window" },
     ]);
 
-    // Then the prompt succeeds
-    expect(result.success).toBe(true);
+    // Then the prompt returns a valid stop reason
+    expect(result.stopReason).toBe("end_turn");
   });
 
   // ─── UA-3: destroySession completes without error ───
