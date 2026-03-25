@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4ddba728eb62",
+  "session_id": "671a7304-d4f4-4771-b2dc-b0d2204031c8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T09:27:55.767509Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docs/feature/sandbox-agent-integration/deliver/execution-log.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6857b8674c57",
+  "token_usage": {
+    "input_tokens": 2986,
+    "cache_creation_tokens": 234787,
+    "cache_read_tokens": 9982440,
+    "output_tokens": 29439,
+    "api_call_count": 92
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T09:27:54.241321Z",
+    "agent_lines": 7,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 7,
+    "agent_percentage": 100
+  }
+}
