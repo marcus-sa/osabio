@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0279f753f51b",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/architecture/intent-gated-mcp/architecture-design.md",
+    "docs/architecture/intent-gated-mcp/component-boundaries.md",
+    "docs/architecture/intent-gated-mcp/data-models.md",
+    "docs/architecture/intent-gated-mcp/technology-stack.md",
+    "docs/evolution/2026-03-25-intent-gated-mcp.md",
+    "docs/scenarios/intent-gated-mcp/test-scenarios.md",
+    "docs/scenarios/intent-gated-mcp/walking-skeleton.md",
+    "docs/ux/intent-gated-mcp/journey-intent-gated-tool-call-visual.md",
+    "docs/ux/intent-gated-mcp/journey-intent-gated-tool-call.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/02/79f753f51b/0/metadata.json",
+      "transcript": "/02/79f753f51b/0/full.jsonl",
+      "context": "/02/79f753f51b/0/context.md",
+      "content_hash": "/02/79f753f51b/0/content_hash.txt",
+      "prompt": "/02/79f753f51b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 77151,
+    "cache_read_tokens": 982356,
+    "output_tokens": 5340,
+    "api_call_count": 14
+  }
+}

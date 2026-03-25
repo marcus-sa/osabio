@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "0279f753f51b",
+  "session_id": "3c0675ed-e4d0-40a7-807a-0316109c81f1",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T14:22:22.364268Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/architecture/intent-gated-mcp/architecture-design.md",
+    "docs/architecture/intent-gated-mcp/component-boundaries.md",
+    "docs/architecture/intent-gated-mcp/data-models.md",
+    "docs/architecture/intent-gated-mcp/technology-stack.md",
+    "docs/evolution/2026-03-25-intent-gated-mcp.md",
+    "docs/scenarios/intent-gated-mcp/test-scenarios.md",
+    "docs/scenarios/intent-gated-mcp/walking-skeleton.md",
+    "docs/ux/intent-gated-mcp/journey-intent-gated-tool-call-visual.md",
+    "docs/ux/intent-gated-mcp/journey-intent-gated-tool-call.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "13dfc1183e09",
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 77151,
+    "cache_read_tokens": 982356,
+    "output_tokens": 5340,
+    "api_call_count": 14
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T14:22:22.058001Z",
+    "agent_lines": 1578,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1578,
+    "agent_percentage": 100
+  }
+}
