@@ -3,7 +3,7 @@
   "checkpoint_id": "6f0d35f750ba",
   "strategy": "manual-commit",
   "branch": "marcus-sa/sandbox-agent-eval",
-  "checkpoints_count": 18,
+  "checkpoints_count": 34,
   "files_touched": [
     ".nwave/des-config.json",
     "docs/adrs/ADR-074-sandbox-agent-sdk-adapter-interface.md",
@@ -53,13 +53,20 @@
       "context": "/6f/0d35f750ba/1/context.md",
       "content_hash": "/6f/0d35f750ba/1/content_hash.txt",
       "prompt": "/6f/0d35f750ba/1/prompt.txt"
+    },
+    {
+      "metadata": "/6f/0d35f750ba/2/metadata.json",
+      "transcript": "/6f/0d35f750ba/2/full.jsonl",
+      "context": "/6f/0d35f750ba/2/context.md",
+      "content_hash": "/6f/0d35f750ba/2/content_hash.txt",
+      "prompt": "/6f/0d35f750ba/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 153,
-    "cache_creation_tokens": 319911,
-    "cache_read_tokens": 10436172,
-    "output_tokens": 34534,
-    "api_call_count": 110
+    "input_tokens": 2076,
+    "cache_creation_tokens": 517184,
+    "cache_read_tokens": 15336368,
+    "output_tokens": 71223,
+    "api_call_count": 191
   }
 }
