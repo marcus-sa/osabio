@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "715c47b10786",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/intent-gated-mcp/deliver/execution-log.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/71/5c47b10786/0/metadata.json",
+      "transcript": "/71/5c47b10786/0/full.jsonl",
+      "context": "/71/5c47b10786/0/context.md",
+      "content_hash": "/71/5c47b10786/0/content_hash.txt",
+      "prompt": "/71/5c47b10786/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 78354,
+    "cache_read_tokens": 1157620,
+    "output_tokens": 5631,
+    "api_call_count": 16
+  }
+}
