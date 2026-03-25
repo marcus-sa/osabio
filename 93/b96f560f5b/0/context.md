@@ -174,3 +174,7 @@ this is fine, proceed: /nw-deliver
 
 run the acceptance tests first to validate the wiring
 
+### Prompt 26
+
+Continue from where you left off.
+
