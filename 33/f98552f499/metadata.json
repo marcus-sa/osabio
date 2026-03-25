@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "33f98552f499",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/architecture/sandbox-agent-integration/architecture-design.md",
+    "docs/architecture/sandbox-agent-integration/component-boundaries.md",
+    "docs/architecture/sandbox-agent-integration/data-models.md",
+    "docs/architecture/sandbox-agent-integration/technology-stack.md",
+    "docs/evolution/2026-03-25-sandbox-agent-integration.md",
+    "docs/scenarios/sandbox-agent-integration/test-scenarios.md",
+    "docs/scenarios/sandbox-agent-integration/walking-skeleton.md",
+    "docs/ux/sandbox-agent-integration/journey-agent-session-lifecycle-visual.md",
+    "docs/ux/sandbox-agent-integration/journey-agent-session-lifecycle.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/33/f98552f499/0/metadata.json",
+      "transcript": "/33/f98552f499/0/full.jsonl",
+      "context": "/33/f98552f499/0/context.md",
+      "content_hash": "/33/f98552f499/0/content_hash.txt",
+      "prompt": "/33/f98552f499/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 66427,
+    "cache_read_tokens": 824334,
+    "output_tokens": 4891,
+    "api_call_count": 13
+  }
+}
