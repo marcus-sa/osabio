@@ -31,8 +31,7 @@ import {
 // ── Suite Setup ──
 
 const getRuntime = setupAcceptanceSuite("sandbox_session_lifecycle", {
-  // Config overrides for sandbox agent tests will go here
-  // e.g., sandboxAgentServerUrl, worktreeManagerEnabled, etc.
+  configOverrides: { orchestratorMockAgent: true },
 });
 
 // ── Test Helpers (will be extracted to a sandbox-test-kit.ts as patterns emerge) ──
@@ -56,7 +55,7 @@ async function createTestWorkspace(
   const workspaceRecord = new RecordId("workspace", body.workspaceId);
   await surreal.query(
     `UPDATE $ws SET repo_path = $path;`,
-    { ws: workspaceRecord, path: "/tmp/brain-test-repo" },
+    { ws: workspaceRecord, path: process.cwd() },
   );
 
   return { workspaceId: body.workspaceId };
