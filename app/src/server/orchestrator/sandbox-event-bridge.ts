@@ -137,9 +137,6 @@ export function translateSessionEvent(
   }
 }
 
-// Backwards-compatible alias
-export const translateSandboxEvent = translateSessionEvent;
-
 // ---------------------------------------------------------------------------
 // Bridge handle factory
 // ---------------------------------------------------------------------------

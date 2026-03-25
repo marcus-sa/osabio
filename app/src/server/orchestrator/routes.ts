@@ -26,6 +26,7 @@ import type {
   RejectSessionResult,
   PromptSessionResult,
 } from "./session-lifecycle";
+import { pickDefined } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
 
 type BrainAction = {
@@ -126,16 +127,6 @@ function assignResponse(
     },
     200,
   );
-}
-
-function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      result[key] = value;
-    }
-  }
-  return result as Partial<T>;
 }
 
 function statusResponse(

@@ -16,8 +16,9 @@ import type {
   SessionPermissionRequest,
   PermissionRequestListener,
   PermissionReply,
+  PromptRequest,
+  PromptResponse,
 } from "sandbox-agent";
-import type { PromptRequest, PromptResponse } from "sandbox-agent";
 
 // Re-export SDK types used at port boundaries
 export type {
