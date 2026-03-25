@@ -18,8 +18,10 @@ import {
   computeEffectiveScope,
   classifyTools,
   type AuthorizedIntentSummary,
+  type ClassifiedTool,
 } from "./scope-engine";
 import { buildToolsList, BRAIN_NATIVE_TOOL_NAMES } from "./tools-list-handler";
+import { handleToolCall, type ToolCallParams } from "./tools-call-handler";
 import {
   resolveToolsForIdentity,
   createQueryGrantedTools,
@@ -102,6 +104,31 @@ async function querySessionIntents(
 }
 
 // ---------------------------------------------------------------------------
+// Shared scope computation
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve intents, compute scope, and classify tools for a session.
+ * Shared between tools/list and tools/call handlers.
+ */
+async function resolveClassifiedTools(
+  context: AgentSessionContext,
+  surreal: Surreal,
+  queryTools: QueryGrantedTools,
+  toolCache: ToolResolutionCache,
+): Promise<readonly ClassifiedTool[]> {
+  const intents = await querySessionIntents(surreal, context.sessionId);
+  const effectiveScope = computeEffectiveScope(intents);
+  const grantedTools = await resolveToolsForIdentity(
+    context.identityId,
+    context.workspaceId,
+    queryTools,
+    toolCache,
+  );
+  return classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
+}
+
+// ---------------------------------------------------------------------------
 // Method handlers
 // ---------------------------------------------------------------------------
 
@@ -111,24 +138,7 @@ async function handleToolsList(
   queryTools: QueryGrantedTools,
   toolCache: ToolResolutionCache,
 ): Promise<unknown> {
-  // 1. Query authorized intents for this session
-  const intents = await querySessionIntents(surreal, context.sessionId);
-
-  // 2. Compute effective scope from intents
-  const effectiveScope = computeEffectiveScope(intents);
-
-  // 3. Query granted tools for the identity
-  const grantedTools = await resolveToolsForIdentity(
-    context.identityId,
-    context.workspaceId,
-    queryTools,
-    toolCache,
-  );
-
-  // 4. Classify tools against effective scope
-  const classifiedTools = classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
-
-  // 5. Build MCP ListToolsResult
+  const classifiedTools = await resolveClassifiedTools(context, surreal, queryTools, toolCache);
   return buildToolsList(classifiedTools);
 }
 
@@ -170,11 +180,42 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           return jsonResponse(jsonRpcSuccess(requestId, result), 200);
         }
 
-        case "tools/call":
-          return jsonResponse(
-            jsonRpcError(requestId, -32601, "Not implemented: tools/call"),
-            501,
+        case "tools/call": {
+          const classifiedTools = await resolveClassifiedTools(
+            context, deps.surreal, queryTools, toolCache,
           );
+          const callParams: ToolCallParams = {
+            name: (body.params?.name as string) ?? "",
+            arguments: body.params?.arguments as Record<string, unknown> | undefined,
+          };
+          const callResult = await handleToolCall(
+            callParams,
+            classifiedTools,
+            {
+              workspaceId: context.workspaceId,
+              identityId: context.identityId,
+              sessionId: context.sessionId,
+            },
+            {
+              surreal: deps.surreal,
+              mcpClientFactory: deps.mcpClientFactory,
+              inflight: deps.inflight,
+            },
+          );
+
+          if (callResult.kind === "success") {
+            return jsonResponse(jsonRpcSuccess(requestId, callResult.result), 200);
+          }
+          // Error response: use appropriate HTTP status
+          const httpStatus = callResult.code === -32403 ? 403
+            : callResult.code === -32602 ? 400
+            : callResult.code === -32601 ? 501
+            : 500;
+          return jsonResponse(
+            jsonRpcError(requestId, callResult.code, callResult.message, callResult.data),
+            httpStatus,
+          );
+        }
 
         case "create_intent":
           return jsonResponse(

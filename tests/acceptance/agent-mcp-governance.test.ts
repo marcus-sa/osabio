@@ -484,7 +484,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
 describe("Happy Path: Tool Call Forwarding", () => {
   // HP-4: Authorized tool call is forwarded and traced
   // US-02
-  it.skip("authorized tool call is forwarded to upstream and a trace record is created", async () => {
+  it("authorized tool call is forwarded to upstream and a trace record is created", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with an authorized intent for github:create_pr
@@ -529,8 +529,8 @@ describe("Happy Path: Tool Call Forwarding", () => {
     expect(body.result).toBeDefined();
 
     // And a trace record exists in SurrealDB
-    const [traces] = await surreal.query<[Array<{ tool_name: string }>]>(
-      `SELECT tool_name FROM trace WHERE workspace = $ws ORDER BY created_at DESC LIMIT 1;`,
+    const [traces] = await surreal.query<[Array<{ tool_name: string; created_at: string }>]>(
+      `SELECT tool_name, created_at FROM trace WHERE workspace = $ws ORDER BY created_at DESC LIMIT 1;`,
       { ws: ws.workspaceRecord },
     );
     expect(traces.length).toBeGreaterThan(0);
@@ -1054,7 +1054,7 @@ describe("Edge Cases: Session and Token Boundaries", () => {
 
   // EC-2: Every tool call produces a trace record
   // US-02
-  it.skip("every tool call produces a trace record for both success and failure", async () => {
+  it("every tool call produces a trace record for both success and failure", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with authorized and gated tools
@@ -1100,8 +1100,8 @@ describe("Edge Cases: Session and Token Boundaries", () => {
     );
 
     // Then trace records exist for both calls
-    const [traces] = await surreal.query<[Array<{ tool_name: string; outcome: string }>]>(
-      `SELECT tool_name, outcome FROM trace WHERE workspace = $ws ORDER BY created_at DESC LIMIT 5;`,
+    const [traces] = await surreal.query<[Array<{ tool_name: string; outcome: string; created_at: string }>]>(
+      `SELECT tool_name, outcome, created_at FROM trace WHERE workspace = $ws ORDER BY created_at DESC LIMIT 5;`,
       { ws: ws.workspaceRecord },
     );
     expect(traces.length).toBeGreaterThanOrEqual(2);

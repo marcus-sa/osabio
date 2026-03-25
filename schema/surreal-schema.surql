@@ -536,6 +536,8 @@ DEFINE FIELD stop_reason ON trace TYPE option<string>;
 DEFINE FIELD request_id ON trace TYPE option<string>;
 DEFINE FIELD latency_ms ON trace TYPE option<int>;
 DEFINE FIELD policy_decision ON trace TYPE option<object> FLEXIBLE;
+DEFINE FIELD outcome ON trace TYPE option<string>;
+DEFINE FIELD intent ON trace TYPE option<record<intent>>;
 DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
