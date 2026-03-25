@@ -22,6 +22,7 @@ import {
 } from "./scope-engine";
 import { buildToolsList, BRAIN_NATIVE_TOOL_NAMES } from "./tools-list-handler";
 import { handleToolCall, type ToolCallParams } from "./tools-call-handler";
+import { handleCreateIntent } from "./create-intent-handler";
 import {
   resolveToolsForIdentity,
   createQueryGrantedTools,
@@ -181,11 +182,39 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
         }
 
         case "tools/call": {
+          const toolName = (body.params?.name as string) ?? "";
+          const toolArgs = body.params?.arguments as Record<string, unknown> ?? {};
+
+          // Brain-native tools are handled directly, not via classified tool lookup
+          if (toolName === "create_intent") {
+            const outcome = await handleCreateIntent(
+              toolArgs,
+              {
+                workspaceId: context.workspaceId,
+                identityId: context.identityId,
+                sessionId: context.sessionId,
+              },
+              deps.surreal,
+            );
+
+            if (outcome.status === "authorized") {
+              return jsonResponse(
+                jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId }),
+                200,
+              );
+            }
+            return jsonResponse(
+              jsonRpcError(requestId, -32000, outcome.reason),
+              500,
+            );
+          }
+
+          // Non-brain-native tools: classify and dispatch
           const classifiedTools = await resolveClassifiedTools(
             context, deps.surreal, queryTools, toolCache,
           );
           const callParams: ToolCallParams = {
-            name: (body.params?.name as string) ?? "",
+            name: toolName,
             arguments: body.params?.arguments as Record<string, unknown> | undefined,
           };
           const callResult = await handleToolCall(
@@ -217,11 +246,30 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           );
         }
 
-        case "create_intent":
-          return jsonResponse(
-            jsonRpcError(requestId, -32601, "Not implemented: create_intent"),
-            501,
+        case "create_intent": {
+          // Also handle create_intent as a top-level JSON-RPC method
+          const intentArgs = body.params ?? {};
+          const outcome = await handleCreateIntent(
+            intentArgs,
+            {
+              workspaceId: context.workspaceId,
+              identityId: context.identityId,
+              sessionId: context.sessionId,
+            },
+            deps.surreal,
           );
+
+          if (outcome.status === "authorized") {
+            return jsonResponse(
+              jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId }),
+              200,
+            );
+          }
+          return jsonResponse(
+            jsonRpcError(requestId, -32000, outcome.reason),
+            500,
+          );
+        }
 
         default:
           return jsonResponse(

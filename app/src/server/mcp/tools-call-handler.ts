@@ -13,6 +13,7 @@ import type { Surreal } from "surrealdb";
 import type { McpClientFactory } from "../tool-registry/mcp-client";
 import type { ClassifiedTool } from "./scope-engine";
 import { buildIntentRequiredError } from "./error-response-builder";
+import { handleCreateIntent } from "./create-intent-handler";
 import type { InflightTracker } from "../runtime/types";
 import { log } from "../telemetry/logger";
 
@@ -270,7 +271,37 @@ export async function handleToolCall(
     }
 
     case "brain_native": {
-      // Brain-native tools handled in a future step (03-01)
+      if (toolName === "create_intent") {
+        const outcome = await handleCreateIntent(toolArgs, context, deps.surreal);
+        const durationMs = performance.now() - startTime;
+
+        if (outcome.status === "authorized") {
+          deps.inflight.track(
+            recordToolTrace(
+              deps.surreal, context, toolName, "success", durationMs,
+              outcome.intentId, toolArgs, { outcome: "success", intent_id: outcome.intentId },
+            ),
+          );
+          return {
+            kind: "success",
+            result: { status: outcome.status, intentId: outcome.intentId },
+          };
+        }
+
+        deps.inflight.track(
+          recordToolTrace(
+            deps.surreal, context, toolName, "error", durationMs,
+            undefined, toolArgs, { outcome: "error", reason: outcome.reason },
+          ),
+        );
+        return {
+          kind: "error",
+          code: -32000,
+          message: outcome.reason,
+        };
+      }
+
+      // Other brain-native tools (get_context, etc.) not yet implemented
       const durationMs = performance.now() - startTime;
       deps.inflight.track(
         recordToolTrace(deps.surreal, context, toolName, "error", durationMs),
@@ -278,7 +309,7 @@ export async function handleToolCall(
       return {
         kind: "error",
         code: -32601,
-        message: "Not implemented: brain-native tool handling",
+        message: `Not implemented: brain-native tool '${toolName}'`,
       };
     }
   }

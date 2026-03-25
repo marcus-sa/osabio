@@ -540,7 +540,7 @@ describe("Happy Path: Tool Call Forwarding", () => {
 describe("Happy Path: Intent Creation", () => {
   // HP-6: Auto-approved intent creates gates edge and returns authorized
   // US-03
-  it.skip("auto-approved intent creates gates edge and returns authorized status", async () => {
+  it("auto-approved intent creates gates edge and returns authorized status", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a session and auto-approve policy for github read ops
