@@ -196,7 +196,7 @@ describe("buildIntentRequiredError", () => {
     expect(error.message).toBe("intent_required");
     expect(error.data.tool).toBe("list_repos");
     expect(error.data.action_spec_template.provider).toBe("github");
-    expect(error.data.action_spec_template.action).toBe("execute");
+    expect(error.data.action_spec_template.action).toBe("list_repos");
   });
 
   it("includes parameterSchema when provided", () => {

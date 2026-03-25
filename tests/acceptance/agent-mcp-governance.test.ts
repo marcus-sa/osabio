@@ -756,7 +756,7 @@ describe("Error Paths: Authentication and Authorization", () => {
 
   // EP-2: Gated tool call without intent returns 403 intent_required
   // US-02
-  it.skip("tool call for gated tool without intent returns 403 intent_required", async () => {
+  it("tool call for gated tool without intent returns 403 intent_required", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a session with no intents for stripe:create_refund
@@ -786,7 +786,7 @@ describe("Error Paths: Authentication and Authorization", () => {
 
   // EP-3: 403 includes action_spec_template for agent self-escalation
   // US-02, US-03
-  it.skip("403 intent_required response includes action_spec_template", async () => {
+  it("403 intent_required response includes action_spec_template", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a gated tool call that returns 403

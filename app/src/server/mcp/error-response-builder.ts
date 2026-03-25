@@ -46,7 +46,7 @@ export function buildIntentRequiredError(
 ): IntentRequiredError {
   const actionSpecTemplate: ActionSpecTemplate = {
     provider: toolkit,
-    action: "execute",
+    action: toolName,
     ...(parameterSchema ? { parameterSchema } : {}),
   };
 
