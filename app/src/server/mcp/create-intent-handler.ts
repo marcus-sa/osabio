@@ -40,6 +40,7 @@ export type CreateIntentInput = {
 
 export type CreateIntentOutcome =
   | { readonly status: "authorized"; readonly intentId: string }
+  | { readonly status: "pending_veto"; readonly intentId: string }
   | { readonly status: "vetoed"; readonly intentId: string; readonly reason: string }
   | { readonly status: "error"; readonly reason: string };
 
@@ -218,7 +219,35 @@ export async function handleCreateIntent(
     return { status: "vetoed", intentId, reason: policyResult.reason };
   }
 
-  // 8. Policy passed: transition pending_auth -> authorized
+  // 8. Policy passed but human veto required: transition to pending_veto, create gates edge
+  if (policyResult.human_veto_required) {
+    const toPendingVeto = await updateIntentStatus(surreal, intentId, "pending_veto");
+    if (!toPendingVeto.ok) {
+      log.error("create_intent.transition_failed", "Failed to transition intent to pending_veto", {
+        intent_id: intentId,
+        error: toPendingVeto.error,
+      });
+      return { status: "error", reason: `Intent transition failed: ${toPendingVeto.error}` };
+    }
+
+    // Create gates edge: intent -> gates -> session (needed for scope computation after approval)
+    const sessionRecordForVeto = new RecordId("agent_session", context.sessionId);
+    await surreal.query(
+      `RELATE $intent->gates->$sess SET created_at = time::now();`,
+      { intent: intentRecord, sess: sessionRecordForVeto },
+    );
+
+    log.info("create_intent.pending_veto", "Intent requires human veto review", {
+      intent_id: intentId,
+      session_id: context.sessionId,
+      workspace_id: context.workspaceId,
+      action: `${actionSpec.provider}:${actionSpec.action}`,
+    });
+
+    return { status: "pending_veto", intentId };
+  }
+
+  // 9. Policy passed, no veto required: transition pending_auth -> authorized
   const toAuthorized = await updateIntentStatus(surreal, intentId, "authorized", {
     evaluation: {
       decision: "APPROVE",

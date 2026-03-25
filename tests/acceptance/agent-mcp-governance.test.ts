@@ -579,7 +579,7 @@ describe("Happy Path: Intent Creation", () => {
 
   // HP-7: Veto-required intent returns pending_veto status
   // US-03
-  it.skip("veto-required intent returns pending_veto status", async () => {
+  it("veto-required intent returns pending_veto status", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a veto policy for stripe financial operations
@@ -587,6 +587,33 @@ describe("Happy Path: Intent Creation", () => {
     const session = await createAgentSessionDirectly(surreal, ws.workspaceId);
     const proxyToken = await seedProxyToken(
       surreal, ws.identityId, ws.workspaceId, { sessionId: session.sessionId },
+    );
+
+    // Seed an active policy with human_veto_required for stripe operations
+    const policyId = `policy-${crypto.randomUUID()}`;
+    const policyRecord = new RecordId("policy", policyId);
+    await surreal.query(`CREATE $policy CONTENT $content;`, {
+      policy: policyRecord,
+      content: {
+        title: "Require human veto for stripe financial operations",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "allow-stripe-with-veto",
+          condition: { field: "action_spec.provider", operator: "eq", value: "stripe" },
+          effect: "allow",
+          priority: 100,
+        }],
+        human_veto_required: true,
+        created_by: new RecordId("identity", ws.identityId),
+        workspace: new RecordId("workspace", ws.workspaceId),
+        created_at: new Date(),
+      },
+    });
+    await surreal.query(
+      `RELATE $policy->protects->$ws SET created_at = time::now();`,
+      { policy: policyRecord, ws: new RecordId("workspace", ws.workspaceId) },
     );
 
     // When the agent calls create_intent for a financial operation

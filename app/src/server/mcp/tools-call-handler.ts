@@ -288,6 +288,33 @@ export async function handleToolCall(
           };
         }
 
+        if (outcome.status === "pending_veto") {
+          deps.inflight.track(
+            recordToolTrace(
+              deps.surreal, context, toolName, "success", durationMs,
+              outcome.intentId, toolArgs, { outcome: "pending_veto", intent_id: outcome.intentId },
+            ),
+          );
+          return {
+            kind: "success",
+            result: { status: outcome.status, intentId: outcome.intentId },
+          };
+        }
+
+        if (outcome.status === "vetoed") {
+          deps.inflight.track(
+            recordToolTrace(
+              deps.surreal, context, toolName, "error", durationMs,
+              undefined, toolArgs, { outcome: "vetoed", reason: outcome.reason },
+            ),
+          );
+          return {
+            kind: "error",
+            code: -32000,
+            message: outcome.reason,
+          };
+        }
+
         deps.inflight.track(
           recordToolTrace(
             deps.surreal, context, toolName, "error", durationMs,

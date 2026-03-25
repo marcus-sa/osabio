@@ -203,6 +203,12 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
                 200,
               );
             }
+            if (outcome.status === "pending_veto") {
+              return jsonResponse(
+                jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId }),
+                200,
+              );
+            }
             if (outcome.status === "vetoed") {
               return jsonResponse(
                 jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId, reason: outcome.reason }),
@@ -266,6 +272,12 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           );
 
           if (outcome.status === "authorized") {
+            return jsonResponse(
+              jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId }),
+              200,
+            );
+          }
+          if (outcome.status === "pending_veto") {
             return jsonResponse(
               jsonRpcSuccess(requestId, { status: outcome.status, intentId: outcome.intentId }),
               200,
