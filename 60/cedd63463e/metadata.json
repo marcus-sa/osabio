@@ -3,7 +3,7 @@
   "checkpoint_id": "60cedd63463e",
   "strategy": "manual-commit",
   "branch": "marcus-sa/sandbox-agent-eval",
-  "checkpoints_count": 2,
+  "checkpoints_count": 15,
   "files_touched": [
     "app/src/server/orchestrator/routes.ts",
     "docs/feature/sandbox-agent-integration/deliver/execution-log.json",
@@ -24,13 +24,20 @@
       "context": "/60/cedd63463e/1/context.md",
       "content_hash": "/60/cedd63463e/1/content_hash.txt",
       "prompt": "/60/cedd63463e/1/prompt.txt"
+    },
+    {
+      "metadata": "/60/cedd63463e/2/metadata.json",
+      "transcript": "/60/cedd63463e/2/full.jsonl",
+      "context": "/60/cedd63463e/2/context.md",
+      "content_hash": "/60/cedd63463e/2/content_hash.txt",
+      "prompt": "/60/cedd63463e/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2828,
-    "cache_creation_tokens": 393064,
-    "cache_read_tokens": 4444500,
-    "output_tokens": 19396,
-    "api_call_count": 60
+    "input_tokens": 2967,
+    "cache_creation_tokens": 709211,
+    "cache_read_tokens": 12976392,
+    "output_tokens": 68178,
+    "api_call_count": 152
   }
 }
