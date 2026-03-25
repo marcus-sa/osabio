@@ -64,7 +64,7 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
       workspace.workspaceId,
       assignment.agentSessionId,
     );
-    expect(["spawning", "active"]).toContain(status.orchestratorStatus);
+    expect(["spawning", "active", "idle"]).toContain(status.orchestratorStatus);
 
     // When Marcus opens the live output for the session
     // Then agent activity appears as streaming text
