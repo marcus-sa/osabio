@@ -179,7 +179,7 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
 
   // WS-2: Agent escalates for gated tool and calls after auto-approval
   // US-01, US-02, US-03
-  it.skip("agent escalates for a gated tool via create_intent and calls after auto-approval", async () => {
+  it("agent escalates for a gated tool via create_intent and calls after auto-approval", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a coding agent session
