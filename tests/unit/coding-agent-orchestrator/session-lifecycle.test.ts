@@ -372,7 +372,7 @@ describe("getOrchestratorSessionStatus", () => {
 // ---------------------------------------------------------------------------
 
 describe("abortOrchestratorSession", () => {
-  test("marks session as aborted, kills process, removes worktree, returns task to ready", async () => {
+  test("marks session as aborted, removes worktree, returns task to ready", async () => {
     const surrealSpy = createSurrealSpy({
       sessionSelect: {
         id: new RecordId("agent_session", "sess-1"),
@@ -383,24 +383,7 @@ describe("abortOrchestratorSession", () => {
         workspace: new RecordId("workspace", "ws-1"),
       },
     });
-    const { spawn, abortCalls } = spawnAgentStub();
     const endSessionStub = endAgentSessionStub();
-
-    // First create a session to register the handle
-    const agentSessionStub = createAgentSessionStub("sess-1");
-    const assignmentStub = validateAssignmentStubOk();
-
-    // Create session to populate the handle registry
-    await createOrchestratorSession({
-      surreal: surrealSpy.stub as any,
-      shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      workspaceId: "ws-1",
-      taskId: "task-abc",
-      spawnAgent: spawn,
-      validateAssignment: assignmentStub.fn,
-      createAgentSession: agentSessionStub.fn as any,
-    });
 
     const result = await abortOrchestratorSession({
       surreal: surrealSpy.stub as any,
@@ -415,8 +398,8 @@ describe("abortOrchestratorSession", () => {
       expect(result.value.aborted).toBe(true);
     }
 
-    // Verify the process abort was called
-    expect(abortCalls).toHaveLength(1);
+    // handle.abort() no longer called — handle registry eliminated (ADR-075).
+    // adapter.destroySession will be wired in step 02-03.
 
     // Verify endAgentSession was called
     expect(endSessionStub.calls).toHaveLength(1);

@@ -93,18 +93,19 @@ export type PromptSessionResult = SessionResult<{
 }>;
 
 // ---------------------------------------------------------------------------
-// In-memory handle registry — maps agentSessionId to AgentHandle
+// Handle registry stubs — handleRegistry eliminated (ADR-075).
+// Session state lives in SurrealDB. Adapter wiring in step 02-03.
+// Stubs kept for backwards compatibility with existing call sites.
 // ---------------------------------------------------------------------------
 
-const handleRegistry = new Map<string, AgentHandle>();
-
-// Exported for testing cleanup
+/** @deprecated No-op — handleRegistry eliminated. */
 export function clearHandleRegistry(): void {
-  handleRegistry.clear();
+  // No-op: module-level mutable singleton removed per AGENTS.md
 }
 
-export function getHandle(sessionId: string): AgentHandle | undefined {
-  return handleRegistry.get(sessionId);
+/** @deprecated Always returns undefined — handleRegistry eliminated. */
+export function getHandle(_sessionId: string): AgentHandle | undefined {
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,7 +203,6 @@ export function startEventIteration(
         log.warn("orchestrator.iteration", "Agent stream ended with zero messages", { sessionId, streamId });
       }
       bridge.stop();
-      handleRegistry.delete(sessionId);
     }
   }
 
@@ -434,9 +434,11 @@ export async function createOrchestratorSession(
   };
 
   const spawnFn = input.spawnAgent ?? defaultSpawnAgent;
-  let handle: AgentHandle;
   try {
-    handle = spawnFn(agentSpawnConfig);
+    // Spawn agent process — handle no longer stored in registry (ADR-075).
+    // Event iteration wiring uses the handle via routes.ts getHandle() which
+    // will be replaced by adapter integration in step 02-03.
+    spawnFn(agentSpawnConfig);
   } catch (err) {
     // Rollback: remove worktree and delete agent_session on spawn failure
     await removeWorktree(input.shellExec, repoRoot, branchName);
@@ -448,8 +450,7 @@ export async function createOrchestratorSession(
     };
   }
 
-  // 5. Register handle for later abort
-  handleRegistry.set(agentSessionId, handle);
+  // 5. (handle registry eliminated — adapter.destroySession wired in step 02-03)
 
   // 6. Update agent_session with orchestrator fields
   const sessionRecord = new RecordId("agent_session", agentSessionId);
@@ -612,12 +613,8 @@ export async function abortOrchestratorSession(
   }
   const { session, record: sessionRecord } = lookup;
 
-  // 1. Abort the agent process if handle exists
-  const handle = handleRegistry.get(input.sessionId);
-  if (handle) {
-    handle.abort();
-    handleRegistry.delete(input.sessionId);
-  }
+  // 1. Abort the agent process
+  // TODO: adapter.destroySession(external_session_id) will be wired in step 02-03
 
   // 2. Update orchestrator_status to aborted
   await input.surreal.update(sessionRecord).merge({
@@ -693,10 +690,9 @@ export async function acceptOrchestratorSession(
     orchestrator_status: "completed" as OrchestratorStatus,
   });
 
-  // 2. Clean up handle registry
-  handleRegistry.delete(input.sessionId);
+  // 2. (handle registry eliminated — no cleanup needed)
 
-  // 4. End the agent session
+  // 3. End the agent session
   await input.endAgentSession({
     surreal: input.surreal,
     workspaceRecord,

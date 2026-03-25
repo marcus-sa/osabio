@@ -327,7 +327,7 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
   // ─── HP-5: Session status shows active after spawn ───
   // US-01
-  it.skip("session status is active or running after spawn", async () => {
+  it("session status is active or running after spawn", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a freshly spawned sandbox session

@@ -157,7 +157,7 @@ describe("AgentHandle lifecycle (step 02-01)", () => {
     expect(capture.abortCalls).toBe(1);
   });
 
-  test("handle is registered and retrievable via getHandle", async () => {
+  test("getHandle returns undefined — handle registry eliminated (ADR-075)", async () => {
     const capture = createHandleCapture();
     const surreal = createSurrealStub();
     const agentSessionId = "agent-sess-for-abort";
@@ -175,10 +175,10 @@ describe("AgentHandle lifecycle (step 02-01)", () => {
 
     expect(result.ok).toBe(true);
 
-    // Handle should be retrievable from the registry
+    // Handle registry eliminated — getHandle always returns undefined
+    // Session lookup now routes through SurrealDB (adapter wired in step 02-03)
     const retrieved = getHandle(agentSessionId);
-    expect(retrieved).toBeDefined();
-    expect(retrieved).toBe(capture.capturedHandle);
+    expect(retrieved).toBeUndefined();
   });
 
   test("session record does NOT contain opencode_session_id", async () => {
