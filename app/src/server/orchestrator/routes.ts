@@ -351,6 +351,7 @@ export function wireOrchestratorRoutes(
   const issueProxyTokenForWorkspace = async (
     workspaceId: string,
     authToken: string,
+    opts?: { intentRecord?: RecordId<"intent", string>; sessionRecord?: RecordId<"agent_session", string> },
   ): Promise<{ proxyToken: string; identityId: string }> => {
     const sessionHeaders = new Headers(authToken ? { Cookie: authToken } : undefined);
     const session = await wiringDeps.auth.api.getSession({ headers: sessionHeaders });
@@ -375,23 +376,30 @@ export function wireOrchestratorRoutes(
     const tokenHash = hashProxyToken(rawToken);
     const expiresAt = computeExpiresAt(proxyTokenTtlDays);
 
+    const contentFields: Record<string, unknown> = {
+      token_hash: tokenHash,
+      workspace: workspaceRecord,
+      identity: identityRecord,
+      expires_at: expiresAt,
+      created_at: new Date(),
+      revoked: false,
+    };
+    if (opts?.intentRecord) {
+      contentFields.intent = opts.intentRecord;
+    }
+    if (opts?.sessionRecord) {
+      contentFields.session = opts.sessionRecord;
+    }
+
     await wiringDeps.surreal.query(
       `BEGIN TRANSACTION;
        UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;
-       CREATE proxy_token CONTENT {
-         token_hash: $hash,
-         workspace: $ws,
-         identity: $identity,
-         expires_at: $expires,
-         created_at: time::now(),
-         revoked: false
-       };
+       CREATE proxy_token CONTENT $content;
        COMMIT TRANSACTION;`,
       {
-        hash: tokenHash,
-        ws: workspaceRecord,
         identity: identityRecord,
-        expires: expiresAt,
+        ws: workspaceRecord,
+        content: contentFields,
       },
     );
 
@@ -403,7 +411,7 @@ export function wireOrchestratorRoutes(
     identityId: string,
     intentGoal: string,
     intentReasoning: string,
-  ): Promise<Record<string, string>> => {
+  ): Promise<{ env: Record<string, string>; intentId: string }> => {
     const dpopKeys = await generateKeyPair();
     const intentResult = await submitIntentForAuthorization(
       {
@@ -466,15 +474,18 @@ export function wireOrchestratorRoutes(
     const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenResult.value.expiresIn;
 
     return {
-      BRAIN_CLIENT_ID: "orchestrator-session",
-      BRAIN_ACCESS_TOKEN: "orchestrator-session",
-      BRAIN_REFRESH_TOKEN: "orchestrator-session",
-      BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
-      BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
-      BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
-      BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
-      BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
-      BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+      env: {
+        BRAIN_CLIENT_ID: "orchestrator-session",
+        BRAIN_ACCESS_TOKEN: "orchestrator-session",
+        BRAIN_REFRESH_TOKEN: "orchestrator-session",
+        BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+        BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
+        BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
+        BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
+        BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
+        BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+      },
+      intentId: intentResult.intentId,
     };
   };
 
@@ -546,7 +557,7 @@ export function wireOrchestratorRoutes(
       : Promise.reject(new Error("No sandbox adapter configured — set sandboxAgentAdapter or mockAgent"));
 
   const routeDeps: OrchestratorRouteDeps = {
-    createSession: async (workspaceId, taskId, _authToken) => {
+    createSession: async (workspaceId, taskId, authToken) => {
       const [adapter, lifecycle, queries, guard, stallDetector] = await Promise.all([
         sandboxAdapterPromise,
         lifecycleImport,
@@ -555,17 +566,65 @@ export function wireOrchestratorRoutes(
         stallDetectorImport,
       ]);
 
+      // Build task-scoped intent context, issue MCP auth env with intent
+      const { goal, reasoning } = await buildTaskScopedIntentContext(taskId);
+      const { identityId } = await issueProxyTokenForWorkspace(workspaceId, authToken);
+      const mcpAuth = await issueBrainMcpAuthEnv(workspaceId, identityId, goal, reasoning);
+      const intentRecord = new RecordId("intent", mcpAuth.intentId);
+
+      // Issue a governed proxy token (revoke the ungoverned one from issueProxyTokenForWorkspace)
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const identityRecord = new RecordId("identity", identityId);
+      const rawToken = generateProxyToken();
+      const tokenHash = hashProxyToken(rawToken);
+      const expiresAt = computeExpiresAt(proxyTokenTtlDays);
+
+      // Build proxy env for the sandbox agent
+      const proxyEnv: Record<string, string> = {
+        ...mcpAuth.env,
+        ANTHROPIC_BASE_URL: `${wiringDeps.brainBaseUrl}/proxy/llm/anthropic`,
+        ANTHROPIC_CUSTOM_HEADERS: `X-Brain-Auth: ${rawToken}`,
+      };
+
       const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
         brainBaseUrl: wiringDeps.brainBaseUrl,
         workspaceId,
         taskId,
+        env: proxyEnv,
         validateAssignment: guard.validateAssignment,
         createAgentSession: queries.createAgentSession,
         adapter,
         sandboxAgentType: wiringDeps.sandboxAgentType,
       });
+
+      // After session creation, create the governed proxy token with intent + session
+      if (result.ok) {
+        const sessionRecord = new RecordId("agent_session", result.value.agentSessionId);
+
+        // Revoke the ungoverned token and create a governed one
+        await wiringDeps.surreal.query(
+          `UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;`,
+          { identity: identityRecord, ws: workspaceRecord },
+        );
+
+        const contentFields: Record<string, unknown> = {
+          token_hash: tokenHash,
+          workspace: workspaceRecord,
+          identity: identityRecord,
+          expires_at: expiresAt,
+          created_at: new Date(),
+          revoked: false,
+          intent: intentRecord,
+          session: sessionRecord,
+        };
+
+        await wiringDeps.surreal.query(
+          `CREATE proxy_token CONTENT $content;`,
+          { content: contentFields },
+        );
+      }
 
       // Wire SSE stream + event iteration on success
       if (result.ok && wiringDeps.sseRegistry) {
