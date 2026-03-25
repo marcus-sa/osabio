@@ -1,0 +1,423 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/el-paso-v1 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+/nw-finalize sandbox-agent-integration
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-finalize
+
+# NW-FINALIZE: Feature Completion and Archive
+
+**Wave**: CROSS_WAVE
+**Agent**: @nw-platform-architect (default) or specified agent
+
+## Overview
+
+Finalize a completed feature: verify all steps done|create evolution document|migrate lasting artifacts to permanent directories|clean up temporary workspace. Agent gathers project data|analyzes execution history|writes summaries|migrates|cleans up.
+
+`docs/feature/{feature-id}/` is a **temporary workspace** — it exists during active nWave waves (DISCUSS through DELIVER). At finalize, artifacts with lasting value migrate to permanent directories; the rest is discarded.
+
+## Usage
+
+```
+/nw-finalize @{agent} "{feature-id}"
+```
+
+## Context Files Required
+
+- docs/feature/{feature-id}/deliver/roadmap.json - Original project plan
+- docs/feature/{feature-id}/deliver/execution-log.json - Step execution history
+
+## Pre-Dispatch Gate: All Steps Complete
+
+Before dispatching, verify all steps are done — prevents archiving incomplete features.
+
+Parse execution-log.json, verify every step has status DONE. If any step is not DONE, block finalization and list incomplete steps with current status. Do not dispatch until all steps complete.
+
+## Phases
+
+### Phase A — Evolution Document
+
+Create `docs/evolution/YYYY-MM-DD-{feature-id}.md` with:
+- Feature summary, business context, key decisions
+- Steps completed (from execution-log.json)
+- Key wave decisions (extracted from `*/wave-decisions.md` files)
+- Lessons learned, issues encountered
+- Links to migrated permanent artifacts
+
+### Phase B — Migrate Lasting Artifacts
+
+Scan `docs/feature/{feature-id}/` and migrate artifacts with lasting value to permanent directories. Create destination directories as needed.
+
+#### Destination Map
+
+| Source (temporary workspace) | Destination (permanent) | Condition |
+|---|---|---|
+| `design/architecture-design.md` | `docs/architecture/{feature}/` | If exists |
+| `design/component-boundaries.md` | `docs/architecture/{feature}/` | If exists |
+| `design/technology-stack.md` | `docs/architecture/{feature}/` | If exists |
+| `design/data-models.md` | `docs/architecture/{feature}/` | If exists |
+| `design/adrs/ADR-*.md` | `docs/adrs/` | Flat namespace, cross-feature |
+| `distill/test-scenarios.md` | `docs/scenarios/{feature}/` | Scenario-to-story traceability |
+| `distill/walking-skeleton.md` | `docs/scenarios/{feature}/` | Walking skeleton specification |
+| `discuss/journey-*.yaml` | `docs/ux/{feature}/` | If UX journeys exist |
+| `discuss/journey-*-visual.md` | `docs/ux/{feature}/` | If UX visuals exist |
+
+Research docs (`docs/research/`) are already in a permanent location — no migration needed.
+
+#### What NOT to Migrate (Discard)
+
+These are process scaffolding — valuable during delivery, disposable after:
+
+| File pattern | Why discard |
+|---|---|
+| `deliver/execution-log.json` | Audit trail captured in evolution doc |
+| `deliver/roadmap.json` | Step plan — superseded by evolution doc + git history |
+| `deliver/.develop-progress.json` | Resume state — temporary |
+| `design/review-*.md` | Review findings captured in evolution doc |
+| `distill/acceptance-review.md` | Test review — tests themselves remain in `tests/` |
+| `discuss/dor-checklist.md` | Process gate, not lasting value |
+| `discuss/shared-artifacts-registry.md` | Process scaffolding |
+| `discuss/prioritization.md` | Superseded by roadmap execution |
+| `*/wave-decisions.md` | Key decisions extracted into evolution doc |
+
+### Phase C — Cleanup Workspace
+
+1. List all remaining files in `docs/feature/{feature-id}/` after migration
+2. Show the list to the user for approval
+3. On approval: `rm -rf docs/feature/{feature-id}/`
+4. If `docs/feature/` directory is now empty: remove it too
+
+**NEVER delete without user approval.** Show exactly what will be removed.
+
+### Phase D — Post-Cleanup Verification
+
+1. Verify all migrated files exist in their destinations
+2. Update architecture doc statuses from "FUTURE DESIGN" to "IMPLEMENTED"
+3. Optionally invoke /nw-document for reference docs (skip with --skip-docs)
+4. Commit in logical groups:
+   - Commit 1: evolution doc + migrated artifacts
+   - Commit 2: workspace cleanup (removal)
+
+## Agent Invocation
+
+@{agent}
+
+Finalize: {feature-id}
+
+**Key constraints:**
+- Follow the 4-phase process (A → B → C → D) in order
+- Create evolution document BEFORE migration (needs source files)
+- Migrate BEFORE cleanup (preserves artifacts)
+- Always show cleanup list and wait for user approval
+- Commit and push after approval
+
+## Success Criteria
+
+- [ ] All steps verified DONE before dispatch
+- [ ] Evolution document created in docs/evolution/
+- [ ] Architecture docs migrated to docs/architecture/{feature}/
+- [ ] ADRs migrated to docs/adrs/ (if any)
+- [ ] Scenario docs migrated to docs/scenarios/{feature}/ (if any)
+- [ ] UX journeys migrated to docs/ux/{feature}/ (if any)
+- [ ] User approved cleanup before workspace removal
+- [ ] Workspace directory removed: docs/feature/{feature-id}/
+- [ ] Architecture docs updated to "IMPLEMENTED" status
+- [ ] Committed and pushed
+
+## Permanent Directory Structure
+
+```
+docs/
+  adrs/                  # ADR-NNN-{slug}.md (flat, cross-feature)
+  architecture/          # Design docs by feature
+    {feature}/
+      architecture-design.md
+      component-boundaries.md
+      data-models.md
+      technology-stack.md
+  decisions/             # Product decisions by feature (optional)
+    {feature}/
+  evolution/             # Post-mortem summaries
+    YYYY-MM-DD-{feature-id}.md
+  research/              # Research docs (flat, cross-feature)
+  scenarios/             # Acceptance test documentation by feature
+    {feature}/
+      test-scenarios.md
+      walking-skeleton.md
+  ux/                    # UX specs and journeys by feature
+    {feature}/
+      journey-*.yaml
+      journey-*-visual.md
+```
+
+## Error Handling
+
+| Error | Response |
+|-------|----------|
+| Invalid agent name | "Invalid agent. Available: nw-researcher, nw-software-crafter, nw-solution-architect, nw-product-owner, nw-acceptance-designer, nw-platform-architect" |
+| Missing feature ID | "Usage: /nw-finalize @agent 'feature-id'" |
+| Project directory not found | "Project not found: docs/feature/{feature-id}/" |
+| Incomplete steps | Block finalization, list incomplete steps |
+| No files to migrate | Log "No lasting artifacts found — skipping Phase B" and proceed to cleanup |
+
+## Examples
+
+### Example 1: Standard finalization
+```
+/nw-finalize @nw-platform-architect "auth-upgrade"
+```
+Verifies all steps done. Creates evolution doc. Migrates `design/architecture-design.md` → `docs/architecture/auth-upgrade/`, ADRs → `docs/adrs/`, test-scenarios → `docs/scenarios/auth-upgrade/`. Shows remaining files, user approves, removes workspace. Commits.
+
+### Example 2: Blocked by incomplete steps
+```
+/nw-finalize @nw-platform-architect "data-pipeline"
+```
+Pre-dispatch gate finds step 02-03 status IN_PROGRESS. Returns: "BLOCKED: 1 incomplete step - 02-03: IN_PROGRESS. Complete all steps before finalizing."
+
+## Next Wave
+
+**Handoff To**: Feature complete - no next wave
+**Deliverables**: docs/evolution/YYYY-MM-DD-{feature-id}.md, migrated artifacts, cleaned workspace
+
+## Expected Outputs
+
+```
+docs/evolution/YYYY-MM-DD-{feature-id}.md
+docs/architecture/{feature}/ (migrated design docs)
+docs/adrs/ADR-*.md (migrated ADRs)
+docs/scenarios/{feature}/ (migrated test scenarios)
+docs/ux/{feature}/ (migrated UX journeys, if any)
+Removed: docs/feature/{feature-id}/
+```
+
+
+ARGUMENTS: sandbox-agent-integration
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-execute
+
+# NW-EXECUTE: Atomic Task Execution
+
+**Wave**: EXECUTION_WAVE | **Agent**: Dispatched agent (specified by caller)
+
+## Overview
+
+Dispatch a single roadmap step to an agent. Orchestrator extracts step context from roadmap so agent never loads the full roadmap.
+
+## Syntax
+
+```
+/nw-execute @{agent} "{feature-id}" "{step-id}"
+```
+
+## Context Files Required
+
+- `docs/feature/{feature-id}/deliver/roadmap.json` — Orchestrator reads once, extracts step context
+- `docs/feature/{feature-id}/deliver/execution-log.json` — Agent appends only (never reads)
+
+## Rigor Profile Integration
+
+Before dispatching the agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Agent tool. If `"inherit"`, omit `model` (inherits from session).
+- **`tdd_phases`**: If `["RED_UNIT", "GREEN"]` (lean), modify the TDD_PHASES section in the DES template to only include those 2 phases. Remove PREPARE/RED_ACCEPTANCE/COMMIT instructions.
+- **`refactor_pass`**: If `false`, skip COMMIT phase refactoring instructions.
+
+## Dispatcher Workflow
+
+1. Parse parameters: agent name|feature ID|step ID
+2. Read rigor profile from `.nwave/des-config.json` (default: standard)
+3. Validate roadmap and execution-log exist
+4. Grep roadmap for `step_id: "{step-id}"` with ~50 lines context
+5. Extract step fields and invoke Agent tool with DES template below, applying rigor model and phases
+
+## Agent Invocation
+
+@{agent}
+
+Use this DES template verbatim. Fill `{placeholders}` from roadmap. Without DES markers, hooks cannot validate.
+
+```
+<!-- DES-VALIDATION : required -->
+<!-- DES-PROJECT-ID : {feature-id} -->
+<!-- DES-STEP-ID : {step-id} -->
+
+# DES_METADATA
+Step: {step-id}
+Feature: {feature-id}
+Command: /nw-execute
+
+# AGENT_IDENTITY
+Agent: {agent-name}
+
+# SKILL_LOADING
+Before starting TDD phases, read your skill files for methodology guidance.
+Skills path: ~/.claude/skills/nw-{skill-name}/SKILL.md
+Always load at PREPARE: tdd-methodology.md, quality-framework.md
+Load on-demand per phase as specified in your Skill Loading Strategy table.
+
+# TASK_CONTEXT
+{step context from roadmap - name|description|acceptance_criteria|test_file|scenario_name|quality_gates|implementation_notes|dependencies|estimated_hours|deliverables|files_to_modify}
+
+# DESIGN_CONTEXT
+{Summary of architectural decisions relevant to this step, extracted by the orchestrator from design wave artifacts (architecture-design.md, component-boundaries.md, wave-decisions.md). Include: component structure, dependency boundaries, technology choices, and any design constraints that affect implementation. If no design artifacts exist, write "No design artifacts available — use project conventions."}
+
+# TDD_PHASES
+Execute in order:
+0. PREPARE - Load context, verify prerequisites
+1. RED_ACCEPTANCE - Activate or write acceptance test (PRIMARY TBU DEFENSE)
+   If TASK_CONTEXT includes test_file: locate it, remove @skip/@ignore/@pending/xit/.skip/[Ignore] marker
+   from the target scenario, run it — must fail for business logic reason (not import/syntax error).
+   If no test_file in TASK_CONTEXT: write a new failing acceptance test from acceptance_criteria.
+   PORT-TO-PORT PRINCIPLE: The acceptance test exercises the scenario through
+   the driving port (application service, orchestrator, CLI handler, API controller),
+   not a decomposed helper or internal class. A correctly-written port-to-port test
+   makes TBU structurally impossible — if a new function were missing or unwired,
+   THIS test stays RED. That is the entire point: GREEN is unreachable without wiring.
+   Litmus test: "If I delete the call-site that wires the new code, does this test fail?"
+   If no → the test is at the wrong level. Fix it before proceeding.
+2. RED_UNIT - Write failing unit test (or integration test for adapter/infrastructure
+   code — adapters use real infrastructure, never mocked unit tests)
+3. GREEN - Minimal code to pass tests
+   After GREEN: run FULL test suite. If all pass, proceed to COMMIT immediately.
+   Smell test: if any new function is only called from test code, your acceptance
+   test is at the wrong abstraction level — go back to RED_ACCEPTANCE and fix it.
+   Never move to new task or stop without committing green code.
+4. COMMIT - Stage and commit with conventional message
+   Include git trailer: `Step-ID: {step-id}` (required for DES verification)
+   Example:
+   ```
+   feat(feature-id): implement feature X
+
+   Step-ID: 02-01
+   ```
+
+# QUALITY_GATES
+- All tests pass before COMMIT
+- No skipped phases without blocked_by reason
+- Coverage maintained or improved
+
+# OUTCOME_RECORDING
+After ACTUALLY EXECUTING each phase, record via DES CLI:
+
+    PYTHONPATH=$HOME/.claude/lib/python python3 -m des.cli.log_phase \
+      --project-dir docs/feature/{feature-id}/deliver \
+      --step-id {step-id} \
+      --phase {PHASE_NAME} \
+      --status EXECUTED \
+      --data PASS
+
+For SKIPPED phases (genuinely not applicable):
+
+    PYTHONPATH=$HOME/.claude/lib/python python3 -m des.cli.log_phase \
+      --project-dir docs/feature/{feature-id}/deliver \
+      --step-id {step-id} \
+      --phase {PHASE_NAME} \
+      --status SKIPPED \
+      --data "NOT_APPLICABLE: reason"
+
+CLI enforces real UTC timestamps and validates phase names.
+Do NOT manually edit execution-log.json.
+Use the DES CLI to record phase outcomes and create log files.
+Python resolution: `python3` — works on macOS (python3 only), Linux, and Windows.
+
+CRITICAL: Only the executing agent calls the CLI.
+Orchestrator MUST NEVER write phase entries — only the agent that performed the work. A log entry without actual execution is a **violation that DES detects and that will cause integrity verification to fail**, blocking finalize.
+
+# RECORDING_INTEGRITY
+Valid Skip Prefixes: NOT_APPLICABLE, BLOCKED_BY_DEPENDENCY, APPROVED_SKIP, CHECKPOINT_PENDING
+Anti-Fraud Rules:
+- NEVER write EXECUTED for phases you did not actually perform
+- NEVER invent timestamps — DES CLI generates real UTC timestamps
+- DES audits all entries; integrity violations block finalize
+
+# BOUNDARY_RULES
+- Only modify files listed in step's files_to_modify
+- Do not load roadmap.json
+- Do not modify execution-log.json structure (append only)
+- NEVER write execution-log entries for phases you did not execute
+
+# TIMEOUT_INSTRUCTION
+Target: 30 turns max. If approaching limit, COMMIT current progress.
+If GREEN complete (all tests pass), MUST commit before returning — even at turn limit.
+```
+
+**Configuration:**
+- subagent_type: extracted agent name
+- Turn limits are defined in each agent's `maxTurns` frontmatter field (not as a tool parameter)
+
+## Error Handling
+
+- Invalid agent: report available agents
+- Missing roadmap/execution-log: report path not found
+- Step not in roadmap: report available step IDs
+- Dependency failure: explain blocking tasks
+
+## Resume vs Restart
+
+When subagent times out:
+
+| Last Completed Phase | Action | Rationale |
+|---------------------|--------|-----------|
+| GREEN (or later) | Resume | Only COMMIT remains (~5 turns) |
+| RED_UNIT with partial GREEN | Resume | Preserves implementation progress |
+| PREPARE or RED_ACCEPTANCE | Restart | Little context worth replaying |
+
+Resume costs ~50% more tokens/call due to context replay (measured: 3.7K vs 2.5K tokens/call). For <5 remaining turns, resume is efficient. For 15+ turns, restart is cheaper.
+
+## Examples
+
+```bash
+/nw-execute @nw-software-crafter "des-us007-boundary-rules" "02-01"
+/nw-execute @nw-researcher "auth-upgrade" "01-01"
+/nw-execute @nw-software-crafter "des-us007" "03-01"  # retry after failure
+```
+
+## TDD_PHASES
+<!-- Schema v4.0 — canonical source: TDDPhaseValidator.MANDATORY_PHASES -->
+<!-- Build system injects mandatory phases from step-tdd-cycle-schema.json -->
+{{MANDATORY_PHASES}}
+
+## Success Criteria
+
+- [ ] Agent invoked via Agent tool (dispatcher does not execute the work)
+- [ ] Step context extracted from roadmap and passed in prompt
+- [ ] Agent appended phase events to execution-log.json
+- [ ] Agent did not load roadmap.json
+
+## Next Wave
+
+**Handoff To**: /nw-review for post-execution review
+**Deliverables**: Updated execution-log.json|implementation artifacts|git commits
+
+
+ARGUMENTS: sandbox-agent-integration 04-03
+
+---
+
+Continue from where you left off.
+
+---
+
+remove embedding env vars. no longer required
+
+X-Brain-Auth header will have to be defined via ANTHROPIC_CUSTOM_HEADERS env var
+
+---
+
+Continue from where you left off.
+
+---
+
+THE EMBEDDING ENV VARS ARE NO LONGER USED!!!!
