@@ -57,7 +57,7 @@ describe("AgentStatusSection (acceptance)", () => {
     const active = view as AgentStatusViewActive;
     expect(active.orchestratorStatus).toBe("active");
     expect(active.filesChangedCount).toBe(3);
-    expect(active.streamUrl).toBeDefined();
+    expect(active.streamId).toBe("stream-1");
     expect(active.startedAt).toBe("2026-03-07T10:00:00Z");
   });
 
@@ -87,7 +87,7 @@ describe("AgentStatusSection (acceptance)", () => {
 // ---------------------------------------------------------------------------
 
 describe("deriveAgentStatusView", () => {
-  it("assigns streamUrl from session streamId", () => {
+  it("assigns streamId from session streamId", () => {
     const view = deriveAgentStatusView({
       entityKind: "task",
       entityStatus: "in_progress",
@@ -102,7 +102,7 @@ describe("deriveAgentStatusView", () => {
 
     expect(view.variant).toBe("active");
     const active = view as AgentStatusViewActive;
-    expect(active.streamUrl).toContain("stream-abc");
+    expect(active.streamId).toBe("stream-abc");
   });
 
   it("shows assign for task with ready status even with in_progress parent", () => {

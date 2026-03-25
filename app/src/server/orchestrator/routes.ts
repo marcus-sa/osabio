@@ -11,6 +11,7 @@ import { generateKeyPair } from "../../../shared/dpop";
 import { submitIntentForAuthorization } from "../oauth/intent-submission";
 import { exchangeIntentForToken } from "../oauth/token-endpoint";
 import { evaluatePendingIntent } from "../intent/intent-evaluation";
+import { log } from "../telemetry/logger";
 import {
   computeExpiresAt,
   generateProxyToken,
@@ -626,34 +627,151 @@ export function wireOrchestratorRoutes(
         );
       }
 
-      // Wire SSE stream + event iteration on success
-      if (result.ok && wiringDeps.sseRegistry) {
-        const { agentSessionId, streamId, sessionHandle } = result.value;
-        wiringDeps.sseRegistry.registerMessage(streamId);
+      // Wire SSE stream + bootstrap prompt on success
+      if (!result.ok) {
+        return result;
+      }
 
-        // Wire sandbox event bridge for real-time SSE events
-        if (sessionHandle) {
-          const { createSandboxEventBridge } = await import("./sandbox-event-bridge");
-          const bridge = createSandboxEventBridge(
-            {
-              emitEvent: wiringDeps.sseRegistry.emitEvent,
-              updateLastEventAt: async (sid) => {
-                const rec = new RecordId("agent_session", sid);
-                await wiringDeps.surreal.update(rec).merge({
-                  last_event_at: new Date(),
-                });
-              },
-              notifyStallDetector: () => {
-                // Stall detector integration deferred to later step
-              },
-            },
-            streamId,
-            agentSessionId,
-          );
-          sessionHandle.onEvent((event) => {
-            bridge.handleEvent(event as import("./sandbox-event-bridge").SandboxEvent);
+      const { agentSessionId, streamId, sessionHandle } = result.value;
+      const sessionRecord = new RecordId("agent_session", agentSessionId);
+      const sseRegistry = wiringDeps.sseRegistry;
+      let emittedActiveStatus = false;
+      let observedAgentEvent = false;
+      if (!sessionHandle) {
+        const cleanup = await lifecycle.abortOrchestratorSession({
+          surreal: wiringDeps.surreal,
+          shellExec: wiringDeps.shellExec,
+          resolveRepoRoot,
+          sessionId: agentSessionId,
+          adapter,
+          endAgentSession: queries.endAgentSession,
+        });
+        if (!cleanup.ok) {
+          log.warn("orchestrator.assign", "Failed to clean up session after missing session handle", {
+            sessionId: agentSessionId,
+            error: cleanup.error.message,
           });
         }
+        return {
+          ok: false,
+          error: {
+            code: "SESSION_ERROR",
+            message: `Session ${agentSessionId} was created without a handle - bootstrap failed`,
+            httpStatus: 500,
+          },
+        };
+      }
+
+      if (sseRegistry) {
+        sseRegistry.registerMessage(streamId);
+
+        const { createSandboxEventBridge } = await import("./sandbox-event-bridge");
+
+        const bridge = createSandboxEventBridge(
+          {
+            emitEvent: sseRegistry.emitEvent,
+            updateLastEventAt: async (sid) => {
+              const rec = new RecordId("agent_session", sid);
+              await wiringDeps.surreal.update(rec).merge({
+                last_event_at: new Date(),
+              });
+            },
+            updateSessionStatus: async (sid, status, error) => {
+              const rec = new RecordId("agent_session", sid);
+              await wiringDeps.surreal.update(rec).merge({
+                orchestrator_status: status,
+                last_event_at: new Date(),
+                ...(error !== undefined ? { error_message: error } : {}),
+              });
+            },
+            notifyStallDetector: () => {
+              // Stall detector integration deferred to later step
+            },
+          },
+          streamId,
+          agentSessionId,
+        );
+
+        sessionHandle.onEvent((event) => {
+          if (event.sender === "agent") {
+            observedAgentEvent = true;
+          }
+          if (!emittedActiveStatus && event.sender === "agent") {
+            emittedActiveStatus = true;
+            sseRegistry.emitEvent(streamId, {
+              type: "agent_status",
+              sessionId: agentSessionId,
+              status: "active",
+            });
+            wiringDeps.surreal.update(sessionRecord).merge({
+              orchestrator_status: "active",
+              last_event_at: new Date(),
+            }).catch((err) => {
+              log.warn("orchestrator.assign", "Failed to mark session active after first event", {
+                sessionId: agentSessionId,
+                error: String(err),
+              });
+            });
+          }
+          bridge.handleEvent(event as import("./sandbox-event-bridge").SandboxEvent);
+        });
+      }
+
+      if (!emittedActiveStatus) {
+        emittedActiveStatus = true;
+        if (sseRegistry) {
+          sseRegistry.emitEvent(streamId, {
+            type: "agent_status",
+            sessionId: agentSessionId,
+            status: "active",
+          });
+        }
+      }
+      await wiringDeps.surreal.update(sessionRecord).merge({
+        orchestrator_status: "active",
+        last_event_at: new Date(),
+      });
+
+      const initialTaskPrompt = `/brain-start-task ${taskId}`;
+      try {
+        await sessionHandle.prompt([{ type: "text", text: initialTaskPrompt }]);
+        if (!observedAgentEvent) {
+          if (sseRegistry) {
+            sseRegistry.emitEvent(streamId, {
+              type: "agent_status",
+              sessionId: agentSessionId,
+              status: "idle",
+            });
+          }
+          await wiringDeps.surreal.update(sessionRecord).merge({
+            orchestrator_status: "idle",
+            last_event_at: new Date(),
+          });
+        }
+      } catch (err) {
+        const cleanup = await lifecycle.abortOrchestratorSession({
+          surreal: wiringDeps.surreal,
+          shellExec: wiringDeps.shellExec,
+          resolveRepoRoot,
+          sessionId: agentSessionId,
+          adapter,
+          endAgentSession: queries.endAgentSession,
+        });
+        if (!cleanup.ok) {
+          log.warn("orchestrator.assign", "Failed to clean up session after initial prompt failure", {
+            sessionId: agentSessionId,
+            error: cleanup.error.message,
+          });
+        }
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        return {
+          ok: false,
+          error: {
+            code: "SESSION_ERROR",
+            message: `Failed to start task session: ${errorMessage}`,
+            httpStatus: 500,
+          },
+        };
       }
 
       return result;

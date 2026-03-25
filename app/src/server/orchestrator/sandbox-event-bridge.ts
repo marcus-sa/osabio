@@ -29,6 +29,11 @@ export type SandboxEvent = SessionEvent;
 export type SandboxEventBridgeDeps = {
   emitEvent: (streamId: string, event: StreamEvent) => void;
   updateLastEventAt: (sessionId: string) => Promise<void>;
+  updateSessionStatus: (
+    sessionId: string,
+    status: AgentStatusEvent["status"],
+    error?: string,
+  ) => Promise<void>;
   notifyStallDetector: (sessionId: string) => void;
 };
 
@@ -99,6 +104,27 @@ function translateMessageChunk(
   };
 }
 
+function translateToolCallUpdate(
+  sessionId: string,
+  update: { title?: string; status?: string; [key: string]: unknown },
+): AgentTokenEvent | undefined {
+  if (typeof update.title === "string" && update.title.trim().length > 0) {
+    return {
+      type: "agent_token",
+      sessionId,
+      token: `Tool Update: ${update.title}`,
+    };
+  }
+  if (typeof update.status === "string" && update.status.trim().length > 0) {
+    return {
+      type: "agent_token",
+      sessionId,
+      token: `Tool Status: ${update.status}`,
+    };
+  }
+  return undefined;
+}
+
 export function translateSessionEvent(
   event: SessionEvent,
 ): StreamEvent | undefined {
@@ -114,7 +140,7 @@ export function translateSessionEvent(
         return {
           type: "agent_status",
           sessionId: event.sessionId,
-          status: "completed" as AgentStatusEvent["status"],
+          status: "idle" as AgentStatusEvent["status"],
         };
       }
     }
@@ -124,6 +150,9 @@ export function translateSessionEvent(
   switch (update.sessionUpdate) {
     case "tool_call":
       return translateToolCall(event.sessionId, update);
+
+    case "tool_call_update":
+      return translateToolCallUpdate(event.sessionId, update);
 
     case "agent_message_chunk":
     case "user_message_chunk":
@@ -155,6 +184,16 @@ export function createSandboxEventBridge(
     if (!streamEvent) return;
 
     deps.emitEvent(streamId, streamEvent);
+
+    if (streamEvent.type === "agent_status") {
+      deps.updateSessionStatus(sessionId, streamEvent.status, streamEvent.error).catch((err) => {
+        log.warn("sandbox-event-bridge", "Failed to update orchestrator status", {
+          sessionId,
+          status: streamEvent.status,
+          error: String(err),
+        });
+      });
+    }
 
     // Fire-and-forget: update last_event_at for stall detection
     deps.updateLastEventAt(sessionId).catch((err) => {

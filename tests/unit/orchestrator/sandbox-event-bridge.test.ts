@@ -95,10 +95,12 @@ function unknownUpdateEvent(sessionId: string): SessionEvent {
 function stubBridgeDeps(): SandboxEventBridgeDeps & {
   emitted: Array<{ streamId: string; event: StreamEvent }>;
   updatedSessions: string[];
+  statusUpdates: Array<{ sessionId: string; status: string; error?: string }>;
   stallNotifications: string[];
 } {
   const emitted: Array<{ streamId: string; event: StreamEvent }> = [];
   const updatedSessions: string[] = [];
+  const statusUpdates: Array<{ sessionId: string; status: string; error?: string }> = [];
   const stallNotifications: string[] = [];
   return {
     emitEvent: (streamId, event) => {
@@ -107,11 +109,15 @@ function stubBridgeDeps(): SandboxEventBridgeDeps & {
     updateLastEventAt: async (sessionId) => {
       updatedSessions.push(sessionId);
     },
+    updateSessionStatus: async (sessionId, status, error) => {
+      statusUpdates.push({ sessionId, status, ...(error ? { error } : {}) });
+    },
     notifyStallDetector: (sessionId) => {
       stallNotifications.push(sessionId);
     },
     emitted,
     updatedSessions,
+    statusUpdates,
     stallNotifications,
   };
 }
@@ -190,7 +196,7 @@ describe("Sandbox Event Bridge Translation", () => {
   });
 
   // ─── UB-4: result event translates to agent_status StreamEvent ───
-  it("translates result event to agent_status with completion status", () => {
+  it("translates result event to agent_status with idle status", () => {
     // Given a SandboxAgent prompt result (ACP response envelope)
     const event = resultEvent(sessionId);
 
@@ -200,7 +206,7 @@ describe("Sandbox Event Bridge Translation", () => {
     // Then it produces an agent_status StreamEvent
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_status");
-    expect((result as { status: string }).status).toBe("completed");
+    expect((result as { status: string }).status).toBe("idle");
   });
 
   // ─── UB-5: Unknown event type is logged and skipped (no crash) ───
@@ -261,5 +267,16 @@ describe("Sandbox Event Bridge Translation", () => {
     // And events are emitted to the stream
     expect(deps.emitted.length).toBe(2);
     expect(deps.emitted[0].streamId).toBe(streamId);
+  });
+
+  it("persists orchestrator status when bridge emits status events", () => {
+    const deps = stubBridgeDeps();
+    const streamId = "stream-status";
+    const bridge = createSandboxEventBridge(deps, streamId, sessionId);
+
+    bridge.handleEvent(resultEvent(sessionId));
+
+    expect(deps.statusUpdates.length).toBe(1);
+    expect(deps.statusUpdates[0]).toEqual({ sessionId, status: "idle" });
   });
 });
