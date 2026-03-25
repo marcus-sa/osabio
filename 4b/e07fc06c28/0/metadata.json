@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4be07fc06c28",
+  "session_id": "97b27f7f-6011-4ba8-a387-df80a0d0f427",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T12:41:44.42975Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/intent-gated-mcp/deliver/execution-log.json",
+    "tests/acceptance/agent-mcp-governance.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7e77f976c05b",
+  "token_usage": {
+    "input_tokens": 212,
+    "cache_creation_tokens": 574195,
+    "cache_read_tokens": 11523435,
+    "output_tokens": 71109,
+    "api_call_count": 122
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T12:41:43.0806Z",
+    "agent_lines": 13,
+    "human_added": 338,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 354,
+    "agent_percentage": 3.672316384180791
+  }
+}
