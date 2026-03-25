@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "3b994ecbb6ac",
+  "session_id": "97b27f7f-6011-4ba8-a387-df80a0d0f427",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T15:40:24.469138Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/server/orchestrator/routes.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4e3e03128edd",
+  "token_usage": {
+    "input_tokens": 323,
+    "cache_creation_tokens": 1539918,
+    "cache_read_tokens": 22472099,
+    "output_tokens": 105928,
+    "api_call_count": 211
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T15:40:21.258505Z",
+    "agent_lines": 0,
+    "human_added": 236,
+    "human_modified": 33,
+    "human_removed": 0,
+    "total_committed": 236,
+    "agent_percentage": 0
+  }
+}
