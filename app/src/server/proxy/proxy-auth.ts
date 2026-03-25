@@ -28,6 +28,8 @@ import type { ServerDependencies } from "../runtime/types";
 export type ProxyAuthResult = {
   workspaceId: string;
   identityId: string;
+  intentId?: string;
+  sessionId?: string;
 };
 
 export type ProxyTokenRecord = {
@@ -35,6 +37,8 @@ export type ProxyTokenRecord = {
   identityId: string;
   expiresAt: Date;
   revoked: boolean;
+  intentId?: string;
+  sessionId?: string;
 };
 
 /** Driven port: look up a proxy token by its SHA-256 hash */
@@ -166,6 +170,8 @@ export async function resolveProxyAuth(
   const result: ProxyAuthResult = {
     workspaceId: record.workspaceId,
     identityId: record.identityId,
+    ...(record.intentId ? { intentId: record.intentId } : {}),
+    ...(record.sessionId ? { sessionId: record.sessionId } : {}),
   };
 
   // Cache the successful resolution — cap TTL at token's remaining validity
@@ -185,6 +191,8 @@ type ProxyTokenRow = {
   identity: RecordId;
   expires_at: Date;
   revoked: boolean;
+  intent?: RecordId;
+  session?: RecordId;
 };
 
 /**
@@ -197,7 +205,7 @@ export function createLookupProxyToken(
 ): LookupProxyToken {
   return async (tokenHash: string): Promise<ProxyTokenRecord | undefined> => {
     const results = await surreal.query<[ProxyTokenRow[]]>(
-      `SELECT workspace, identity, expires_at, revoked FROM proxy_token WHERE token_hash = $hash LIMIT 1;`,
+      `SELECT workspace, identity, expires_at, revoked, intent, session FROM proxy_token WHERE token_hash = $hash LIMIT 1;`,
       { hash: tokenHash },
     );
 
@@ -209,6 +217,8 @@ export function createLookupProxyToken(
       identityId: row.identity.id as string,
       expiresAt: new Date(row.expires_at),
       revoked: row.revoked,
+      ...(row.intent ? { intentId: row.intent.id as string } : {}),
+      ...(row.session ? { sessionId: row.session.id as string } : {}),
     };
   };
 }

@@ -1353,6 +1353,8 @@ DEFINE FIELD identity ON proxy_token TYPE record<identity>;
 DEFINE FIELD expires_at ON proxy_token TYPE datetime;
 DEFINE FIELD created_at ON proxy_token TYPE datetime DEFAULT time::now();
 DEFINE FIELD revoked ON proxy_token TYPE bool DEFAULT false;
+DEFINE FIELD intent ON proxy_token TYPE option<record<intent>>;
+DEFINE FIELD session ON proxy_token TYPE option<record<agent_session>>;
 DEFINE INDEX idx_proxy_token_hash ON proxy_token FIELDS token_hash UNIQUE;
 DEFINE INDEX idx_proxy_token_identity_workspace ON proxy_token FIELDS identity, workspace;
 
