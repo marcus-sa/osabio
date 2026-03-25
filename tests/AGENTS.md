@@ -58,6 +58,16 @@ Each subdirectory under `tests/acceptance/` runs as a separate CI matrix job (se
 - NEVER use shared `let` variables at `describe` scope for per-test state (e.g. `user`, `workspace`). Concurrent tests overwrite the shared variable, causing cross-test contamination (wrong workspace ID, wrong auth context).
 - Always declare per-test state as `const` inside each `it()` block.
 
+## Shared Fixtures — No Duplicate Entity Helpers
+
+- `tests/acceptance/shared-fixtures.ts` is the single source of truth for creating test entities (workspaces, identities, intents, tasks, decisions, observations, proxy tokens).
+- Do NOT redefine `createTestUser`, `createWorkspaceDirectly`, `createWorkspaceViaHttp`, `createTaskDirectly`, or similar entity-creation helpers inside individual test files. Import from `shared-fixtures.ts` instead.
+- If `shared-fixtures.ts` lacks a helper you need, add it there — not inline in the test file. Domain-specific test kits (e.g. `orchestrator-test-kit.ts`) compose shared fixtures, they don't reimplement them.
+- **Workspace creation — choose the right helper:**
+  - `createWorkspaceDirectly()` — direct SurrealDB insert. Use for tests that don't go through session-authenticated HTTP routes, or when you only need the workspace record in the DB.
+  - `createWorkspaceViaHttp()` — HTTP `POST /api/workspaces`. Use when tests exercise routes that validate workspace membership through the Better Auth session (e.g. orchestrator routes). This wires person→identity→member_of edges automatically.
+- **Task creation:** Use `createTaskDirectly()` from shared fixtures. Do NOT write inline `CREATE task` queries in test files.
+
 ## What to Mock
 
 - External processes (OpenCode spawn) — mock the handle, not the process

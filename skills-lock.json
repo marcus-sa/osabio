@@ -76,6 +76,11 @@
       "sourceType": "github",
       "computedHash": "4312095789cc328883428b1f9bd61549ca44b376aeda8d62bb977efad017e594"
     },
+    "sandbox-agent": {
+      "source": "rivet-dev/skills",
+      "sourceType": "github",
+      "computedHash": "fc6484b8829da3523193470e2026a1910f4302d530590eea2b2cb66d863918f9"
+    },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",

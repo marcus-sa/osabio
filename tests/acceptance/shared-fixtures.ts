@@ -9,6 +9,7 @@
  */
 import { createHash } from "crypto";
 import { RecordId, type Surreal } from "surrealdb";
+export { createTestUser, type TestUser } from "./acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Shared Types — Schema-aligned, required fields enforced
@@ -50,6 +51,7 @@ export async function createWorkspaceDirectly(
     workspaceName?: string;
     identityName?: string;
     identityType?: "human" | "agent";
+    repoPath?: string;
   },
 ): Promise<DirectWorkspaceResult> {
   const workspaceId = `ws-${crypto.randomUUID()}`;
@@ -69,6 +71,7 @@ export async function createWorkspaceDirectly(
         onboarding_summary_pending: false,
         onboarding_started_at: new Date(),
         created_at: new Date(),
+        ...(opts?.repoPath ? { repo_path: opts.repoPath } : {}),
       },
     },
   );
@@ -93,6 +96,49 @@ export async function createWorkspaceDirectly(
   );
 
   return { workspaceId, workspaceRecord, identityId, identityRecord };
+}
+
+// ---------------------------------------------------------------------------
+// Workspace (HTTP — session-authenticated)
+// ---------------------------------------------------------------------------
+
+export type HttpWorkspaceResult = {
+  workspaceId: string;
+};
+
+/**
+ * Creates a workspace via HTTP API so the authenticated person gets proper
+ * member_of edges wired by the server. Use this when tests exercise routes
+ * that validate workspace membership through the Better Auth session.
+ *
+ * Optionally sets `repo_path` on the workspace for orchestrator tests that
+ * need worktree support.
+ */
+export async function createWorkspaceViaHttp(
+  baseUrl: string,
+  user: { headers: Record<string, string> },
+  surreal: Surreal,
+  opts?: { repoPath?: string },
+): Promise<HttpWorkspaceResult> {
+  const response = await fetch(`${baseUrl}/api/workspaces`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...user.headers },
+    body: JSON.stringify({ name: `Test Workspace ${crypto.randomUUID()}` }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create workspace: ${response.status}`);
+  }
+  const body = (await response.json()) as { workspaceId: string };
+
+  if (opts?.repoPath) {
+    const workspaceRecord = new RecordId("workspace", body.workspaceId);
+    await surreal.query(
+      `UPDATE $ws SET repo_path = $path;`,
+      { ws: workspaceRecord, path: opts.repoPath },
+    );
+  }
+
+  return { workspaceId: body.workspaceId };
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +440,45 @@ export async function queryWorkspaceObservations(
 }
 
 // ---------------------------------------------------------------------------
+// Task
+// ---------------------------------------------------------------------------
+
+export type CreateTaskOpts = {
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  repoPath?: string;
+};
+
+/**
+ * Creates a task record directly in SurrealDB.
+ */
+export async function createTaskDirectly(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: CreateTaskOpts,
+): Promise<{ taskId: string; taskRecord: RecordId<"task"> }> {
+  const taskId = `task-${crypto.randomUUID()}`;
+  const taskRecord = new RecordId("task", taskId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  await surreal.query(`CREATE $task CONTENT $content;`, {
+    task: taskRecord,
+    content: {
+      title: opts.title,
+      description: opts.description,
+      status: opts.status ?? "ready",
+      priority: opts.priority,
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    },
+  });
+
+  return { taskId, taskRecord };
+}
+
+// ---------------------------------------------------------------------------
 // Proxy Token
 // ---------------------------------------------------------------------------
 
@@ -401,28 +486,160 @@ export async function queryWorkspaceObservations(
  * Seed a proxy_token record for acceptance tests and return the raw token.
  * The raw token is sent as `X-Brain-Auth` header; the server hashes it with
  * SHA-256 and looks up the hash in the `proxy_token` table.
+ *
+ * Optional `sessionId` and `intentId` link the token to an agent_session
+ * and authorizing intent (R2 intent-gated-mcp governance).
  */
 export async function seedProxyToken(
   surreal: Surreal,
   identityId: string,
   workspaceId: string,
+  opts?: { sessionId?: string; intentId?: string },
 ): Promise<string> {
   const rawToken = `brn_test_${crypto.randomUUID()}`;
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const tokenId = `pt-${crypto.randomUUID()}`;
   const tokenRecord = new RecordId("proxy_token", tokenId);
 
+  const content: Record<string, unknown> = {
+    token_hash: tokenHash,
+    workspace: new RecordId("workspace", workspaceId),
+    identity: new RecordId("identity", identityId),
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    revoked: false,
+    created_at: new Date(),
+  };
+  if (opts?.sessionId) content.session = new RecordId("agent_session", opts.sessionId);
+  if (opts?.intentId) content.intent = new RecordId("intent", opts.intentId);
+
   await surreal.query(`CREATE $rec CONTENT $content;`, {
     rec: tokenRecord,
+    content,
+  });
+
+  return rawToken;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Session
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates an agent_session record directly in SurrealDB.
+ * Use for orchestrator and MCP governance acceptance tests.
+ */
+export async function createAgentSessionDirectly(
+  surreal: Surreal,
+  workspaceId: string,
+  opts?: {
+    agent?: string;
+    status?: string;
+    sessionType?: string;
+    provider?: string;
+    taskId?: string;
+  },
+): Promise<{ sessionId: string; sessionRecord: RecordId<"agent_session"> }> {
+  const sessionId = `sess-${crypto.randomUUID()}`;
+  const sessionRecord = new RecordId("agent_session", sessionId);
+
+  const content: Record<string, unknown> = {
+    workspace: new RecordId("workspace", workspaceId),
+    agent: opts?.agent ?? "claude",
+    session_type: opts?.sessionType ?? "sandbox_agent",
+    provider: opts?.provider ?? "local",
+    orchestrator_status: opts?.status ?? "active",
+    external_session_id: `ext-${sessionId}`,
+    created_at: new Date(),
+    started_at: new Date(),
+  };
+  if (opts?.taskId) content.task_id = new RecordId("task", opts.taskId);
+
+  await surreal.query(`CREATE $record CONTENT $content;`, {
+    record: sessionRecord,
+    content,
+  });
+
+  return { sessionId, sessionRecord };
+}
+
+// ---------------------------------------------------------------------------
+// MCP Tool
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates an mcp_tool record directly in SurrealDB.
+ * Use for tool registry and MCP governance acceptance tests.
+ */
+export async function createMcpToolDirectly(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: {
+    name: string;
+    toolkit: string;
+    riskLevel?: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  },
+): Promise<{ toolId: string; toolRecord: RecordId<"mcp_tool"> }> {
+  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolRecord = new RecordId("mcp_tool", toolId);
+
+  await surreal.query(`CREATE $rec CONTENT $content;`, {
+    rec: toolRecord,
     content: {
-      token_hash: tokenHash,
+      name: opts.name,
+      toolkit: opts.toolkit,
+      description: opts.description ?? `${opts.toolkit}:${opts.name} tool`,
+      input_schema: opts.inputSchema ?? { type: "object", properties: {} },
+      risk_level: opts.riskLevel ?? "low",
       workspace: new RecordId("workspace", workspaceId),
-      identity: new RecordId("identity", identityId),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      revoked: false,
+      status: "active",
       created_at: new Date(),
     },
   });
 
-  return rawToken;
+  return { toolId, toolRecord };
+}
+
+// ---------------------------------------------------------------------------
+// Tool Grant (can_use edge)
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a can_use relation edge granting an identity access to an MCP tool.
+ */
+export async function grantToolToIdentity(
+  surreal: Surreal,
+  identityId: string,
+  toolId: string,
+): Promise<void> {
+  await surreal.query(
+    `RELATE $identity->can_use->$tool SET granted_at = time::now();`,
+    {
+      identity: new RecordId("identity", identityId),
+      tool: new RecordId("mcp_tool", toolId),
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gates Edge (intent → agent_session)
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a gates relation edge linking an authorized intent to an agent session.
+ * Direction: intent → gates → agent_session (per schema).
+ */
+export async function createGatesEdge(
+  surreal: Surreal,
+  intentId: string,
+  sessionId: string,
+): Promise<void> {
+  await surreal.query(
+    `RELATE $intent->gates->$sess SET created_at = time::now();`,
+    {
+      intent: new RecordId("intent", intentId),
+      sess: new RecordId("agent_session", sessionId),
+    },
+  );
 }

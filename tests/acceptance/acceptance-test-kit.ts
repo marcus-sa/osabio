@@ -32,8 +32,6 @@ export const testAI = {
   openrouter,
   extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
   extractionModel: openrouter(requireTestEnv("EXTRACTION_MODEL")),
-  embeddingModel: openrouter.textEmbeddingModel(requireTestEnv("EMBEDDING_MODEL")),
-  embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
 };
 
 /** @deprecated Use `testAI` instead. */
@@ -45,6 +43,7 @@ export type AcceptanceTestRuntime = {
   namespace: string;
   database: string;
   port: number;
+  sandboxAgentAdapter?: import("../../app/src/server/orchestrator/sandbox-adapter").SandboxAgentAdapter;
 };
 
 /** @deprecated Use `AcceptanceTestRuntime` instead. */
@@ -189,8 +188,6 @@ export function setupAcceptanceSuite(
       extractionModelId: requireTestEnv("EXTRACTION_MODEL"),
       pmAgentModelId: process.env.PM_AGENT_MODEL?.trim() || requireTestEnv("EXTRACTION_MODEL"),
       analyticsAgentModelId: requireTestEnv("ANALYTICS_MODEL"),
-      embeddingModelId: requireTestEnv("EMBEDDING_MODEL"),
-      embeddingDimension: Number(requireTestEnv("EMBEDDING_DIMENSION")),
       extractionStoreThreshold: Number(requireTestEnv("EXTRACTION_STORE_THRESHOLD")),
       extractionDisplayThreshold: Number(requireTestEnv("EXTRACTION_DISPLAY_THRESHOLD")),
       surrealUrl,
@@ -237,7 +234,9 @@ export function setupAcceptanceSuite(
       asSigningKey: deps.asSigningKey,
       nonceCache: createNonceCache(),
       mcpClientFactory: options?.mcpClientFactoryOverride ?? createMcpClientFactory(),
+      sandboxAgentAdapter: deps.sandboxAgentAdapter,
     };
+    destroySandbox = deps.destroySandbox;
 
     server = createBrainServer(serverDeps);
     const port = server.port;
@@ -258,9 +257,11 @@ export function setupAcceptanceSuite(
       liveSelectManager.start().catch(() => undefined),
     );
 
-    runtime = { baseUrl, surreal, namespace, database, port };
+    runtime = { baseUrl, surreal, namespace, database, port, sandboxAgentAdapter: deps.sandboxAgentAdapter };
     setupSucceeded = true;
   }, 60_000);
+
+  let destroySandbox: (() => Promise<void>) | undefined;
 
   afterAll(async () => {
     // Drain fire-and-forget work (e.g. webhook extraction) before closing DB
@@ -270,6 +271,11 @@ export function setupAcceptanceSuite(
 
     if (server) {
       server.stop(true);
+    }
+
+    // Destroy SandboxAgent embedded server if started
+    if (destroySandbox) {
+      await destroySandbox().catch(() => undefined);
     }
 
     if (runtimeSurreal) {

@@ -1,6 +1,5 @@
 import { tool } from "ai";
 import { RecordId, Surreal } from "surrealdb";
-import { z } from "zod";
 import {
   listWorkspaceProjectSummaries,
   listWorkspaceRecentDecisions,
@@ -8,10 +7,9 @@ import {
   resolveWorkspaceProjectRecord,
 } from "../graph/queries";
 import { listWorkspaceOpenObservations } from "../observation/queries";
+import { listWorkspaceEntitiesSchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
-
-const entityKindEnum = z.enum(["project", "feature", "task", "decision", "question", "observation"]);
 
 /** Core logic — shared by AI SDK tool wrapper and proxy handler. */
 export async function executeListWorkspaceEntities(
@@ -87,12 +85,7 @@ export function createListWorkspaceEntitiesTool(deps: ChatToolDeps) {
   return tool({
     description:
       "List workspace entities by kind. Use this to answer questions about what entities exist (e.g. \"what decisions are there?\", \"list open questions\", \"show all tasks\"). For semantic search by topic, use search_entities instead.",
-    inputSchema: z.object({
-      kind: entityKindEnum.describe("Entity kind to list."),
-      status: z.string().optional().describe("Optional status filter, e.g. 'provisional', 'confirmed', 'open', 'done'."),
-      project: z.string().optional().describe("Optional project name or ID to scope results. Only use when the user explicitly mentions a project."),
-      limit: z.number().int().min(1).max(50).default(25).describe("Maximum number of results."),
-    }),
+    inputSchema: listWorkspaceEntitiesSchema,
     execute: async (input, options) => {
       const context = requireToolContext(options);
       return executeListWorkspaceEntities(deps.surreal, context.workspaceRecord, {

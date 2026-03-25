@@ -29,7 +29,7 @@ export type AgentStatusViewActive = {
   agentSessionId: string;
   orchestratorStatus: string;
   filesChangedCount: number;
-  streamUrl: string;
+  streamId: string;
   startedAt: string;
 };
 
@@ -55,7 +55,7 @@ export function deriveAgentStatusView(input: DeriveAgentStatusInput): AgentStatu
       agentSessionId: input.agentSession.agentSessionId,
       orchestratorStatus: input.agentSession.orchestratorStatus,
       filesChangedCount: input.agentSession.filesChangedCount,
-      streamUrl: `/api/orchestrator/stream/${encodeURIComponent(input.agentSession.streamId)}`,
+      streamId: input.agentSession.streamId,
       startedAt: input.agentSession.startedAt,
     };
   }
@@ -134,7 +134,11 @@ export function AgentStatusSection({
 
   const initialView = deriveAgentStatusView({ entityKind, entityStatus, agentSession });
 
-  const streamUrl = assignResult?.streamUrl ?? (initialView.variant === "active" ? initialView.streamUrl : undefined);
+  const streamUrl = assignResult?.streamUrl ?? (
+    initialView.variant === "active"
+      ? `/api/orchestrator/${encodeURIComponent(workspaceId)}/sessions/${encodeURIComponent(initialView.agentSessionId)}/stream`
+      : undefined
+  );
   const startedAt = initialView.variant === "active" ? initialView.startedAt : new Date().toISOString();
 
   const { state: sessionState } = useAgentSession(streamUrl, startedAt);

@@ -1,0 +1,207 @@
+journey:
+  name: "Intent-Gated MCP Tool Call"
+  goal: "Coding agent in sandbox can call governed MCP tools through Brain's dynamic endpoint, with policy evaluation and optional human veto gating access"
+  feature_id: "intent-gated-mcp"
+  feature_type: "cross-cutting"
+
+  actors:
+    - id: coding_agent
+      type: machine
+      description: "Coding agent (Claude Code, Codex) running in sandbox, communicates via MCP protocol"
+      interface: "MCP over SSE (tools/list, tools/call, create_intent)"
+      auth: "X-Brain-Auth proxy token"
+
+    - id: human_operator
+      type: human
+      description: "Developer or team lead who approves/vetoes high-risk intents"
+      interface: "Brain Feed/UI"
+
+    - id: observer_agent
+      type: machine
+      description: "Graph-scanning agent that detects authorized intents for idle sessions"
+      interface: "Graph queries + adapter.resumeSession"
+
+    - id: workspace_admin
+      type: human
+      description: "Configures policies determining which tools are gated and at what risk level"
+      interface: "Brain Policy Management UI"
+
+steps:
+  - id: 1
+    name: "Dynamic tools/list"
+    actor: coding_agent
+    action: "Agent sends tools/list to Brain dynamic MCP endpoint"
+    preconditions:
+      - "Session spawned with proxy token (from sandbox-agent-integration R2)"
+      - "Proxy token linked to session via proxy_token.session field"
+    behavior:
+      - "Resolve session from proxy token"
+      - "Load all intents linked via gates edges"
+      - "Union authorization_details from all authorized intents"
+      - "Merge with base Brain MCP tools (context, decisions, create_intent)"
+      - "For tools in mcp_tool registry but NOT in effective scope: include with gated=true and description enrichment"
+      - "Return MCP tools/list response"
+    outputs:
+      - "Authorized tools: full tool definitions"
+      - "Gated tools: tool definitions with enriched descriptions instructing agent to create_intent"
+      - "Brain-native tools: always available (create_intent, get_context, etc.)"
+    error_paths:
+      - condition: "Invalid proxy token"
+        response: "401 Unauthorized"
+      - condition: "Session not found"
+        response: "404 Session not found"
+
+  - id: 2
+    name: "Authorized tools/call (in scope)"
+    actor: coding_agent
+    action: "Agent calls a tool that is within effective scope"
+    preconditions:
+      - "Tool is authorized via existing intent authorization_details"
+    behavior:
+      - "Resolve session and effective scope (same as step 1)"
+      - "Match tool name + arguments against authorization_details constraints"
+      - "If constraints satisfied: forward to upstream MCP server"
+      - "Record trace (tool_call linked to session, intent, upstream result)"
+      - "Return upstream result to agent"
+    outputs:
+      - "MCP CallToolResult with tool output"
+    error_paths:
+      - condition: "Constraint exceeded (e.g., amount > authorized)"
+        response: "403 constraint_violation with details"
+      - condition: "Upstream MCP server failure"
+        response: "502 with error detail, trace recorded as failed"
+
+  - id: 3
+    name: "Gated tools/call (not in scope)"
+    actor: coding_agent
+    action: "Agent calls a tool that is NOT in effective scope"
+    preconditions:
+      - "Tool exists in mcp_tool registry but no matching authorization_details"
+    behavior:
+      - "Resolve session and effective scope"
+      - "Tool not found in scope"
+      - "Return structured 403 with intent_required error"
+      - "Include action_spec_template with tool name, provider, and parameter schema"
+    outputs:
+      - "403 JSON-RPC error with intent_required code"
+      - "action_spec_template for agent to use in create_intent"
+
+  - id: 4
+    name: "Agent creates intent"
+    actor: coding_agent
+    action: "Agent calls create_intent Brain MCP tool with goal, reasoning, and action_spec"
+    preconditions:
+      - "Agent received 403 intent_required with template"
+      - "Agent formulates goal and reasoning from its task context"
+    behavior:
+      - "Create intent record (draft)"
+      - "Auto-submit to pending_auth"
+      - "Run through policy gate evaluation"
+      - "Route by risk score"
+    outputs:
+      - "If auto-approve: intent status authorized, gates edge created to session"
+      - "If veto required: intent status pending_veto, gates edge created to session"
+      - "If denied: intent status vetoed with reason"
+
+  - id: 5
+    name: "Agent yields on pending veto"
+    actor: coding_agent
+    action: "Agent receives pending_veto status and yields execution"
+    preconditions:
+      - "Intent in pending_veto state"
+      - "Agent understands yield protocol from tool description"
+    behavior:
+      - "Agent stops making further tool calls"
+      - "Session status transitions to idle"
+      - "Intent surfaces in governance feed for human operator"
+    outputs:
+      - "Session in idle state"
+      - "Intent visible in feed with goal, reasoning, risk score, action details"
+
+  - id: 6
+    name: "Human approves or vetoes"
+    actor: human_operator
+    action: "Reviews intent in governance feed and approves or vetoes"
+    preconditions:
+      - "Intent in pending_veto state"
+      - "Intent visible in feed with full context"
+    behavior:
+      - "Human reviews goal, reasoning, risk score, tool details"
+      - "Approve: intent transitions to authorized"
+      - "Veto: intent transitions to vetoed with reason"
+    outputs:
+      - "Intent in authorized or vetoed state"
+
+  - id: 7
+    name: "Observer detects and triggers resume"
+    actor: observer_agent
+    action: "Scans graph for authorized intents linked to idle sessions"
+    preconditions:
+      - "Intent just transitioned to authorized"
+      - "Session linked via gates edge is in idle status"
+    behavior:
+      - "Observer graph scan detects pattern: authorized intent + idle session"
+      - "Observer calls adapter.resumeSession(sessionId)"
+      - "Session transitions from idle to active"
+      - "Agent receives resume signal and continues execution"
+    outputs:
+      - "Session resumed"
+      - "Agent can now retry the previously-gated tools/call"
+
+  - id: 8
+    name: "Retry tools/call after authorization"
+    actor: coding_agent
+    action: "Agent retries the gated tool call now that scope includes the new intent"
+    preconditions:
+      - "Session resumed"
+      - "New intent authorized and linked via gates edge"
+    behavior:
+      - "Same as step 2 (authorized tools/call)"
+      - "Effective scope now includes the new intent's authorization_details"
+      - "Tool call succeeds"
+    outputs:
+      - "Tool result returned to agent"
+      - "Trace recorded"
+
+shared_artifacts:
+  proxy_token:
+    source_of_truth: "proxy_token table in SurrealDB"
+    consumers: ["MCP endpoint auth", "session resolution", "tools/list", "tools/call"]
+    owner: "sandbox-agent-integration R2"
+    integration_risk: "HIGH - token must link to session and resolve intents"
+
+  gates_edge:
+    source_of_truth: "gates relation (agent_session -> intent) in SurrealDB"
+    consumers: ["tools/list scope union", "tools/call scope check", "observer resume detection"]
+    owner: "intent-gated-mcp"
+    integration_risk: "HIGH - missing edge means tool call rejected despite authorized intent"
+
+  effective_scope:
+    source_of_truth: "Computed at request time from union of all authorized intents' authorization_details"
+    consumers: ["tools/list response", "tools/call authorization"]
+    owner: "intent-gated-mcp"
+    integration_risk: "HIGH - scope must be consistent between tools/list and tools/call"
+
+  action_spec_template:
+    source_of_truth: "Derived from mcp_tool registry entry"
+    consumers: ["403 intent_required response", "agent create_intent call"]
+    owner: "intent-gated-mcp"
+    integration_risk: "MEDIUM - template must match what policy gate expects"
+
+  intent_record:
+    source_of_truth: "intent table in SurrealDB"
+    consumers: ["policy gate", "veto manager", "governance feed", "observer", "scope computation"]
+    owner: "intent system (existing)"
+    integration_risk: "LOW - well-established existing infrastructure"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "effective_scope"
+      must_match_across: [1, 2, 3]
+      failure_message: "tools/list and tools/call must agree on what is authorized"
+    - artifact: "gates_edge"
+      must_match_across: [4, 7, 8]
+      failure_message: "Intent creation must produce gates edge that subsequent scope checks find"
+    - artifact: "proxy_token"
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "All MCP requests must resolve to same session via proxy token"

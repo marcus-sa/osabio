@@ -1,6 +1,4 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { AgentHandle, SpawnAgentFn } from "./spawn-agent";
-import type { AgentSpawnConfig } from "./agent-options";
 import type { ShellExec } from "./worktree-manager";
 import { createWorktree, removeWorktree } from "./worktree-manager";
 import type { AssignmentResult } from "./assignment-guard";
@@ -12,6 +10,7 @@ import type { StallDetectorHandle } from "./stall-detector";
 import { getIntentById, updateIntentStatus } from "../intent/intent-queries";
 import type { IntentStatus } from "../intent/types";
 import { log } from "../telemetry/logger";
+import type { SandboxAgentAdapter, SessionHandle } from "./sandbox-adapter";
 
 // ---------------------------------------------------------------------------
 // Types — exported for tests
@@ -21,7 +20,6 @@ export type SessionDeps = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
-  spawnAgent?: SpawnAgentFn;
 };
 
 export type SessionErrorCode =
@@ -49,6 +47,7 @@ export type OrchestratorSessionResult = SessionResult<{
   agentSessionId: string;
   streamId: string;
   worktreeBranch: string;
+  sessionHandle?: SessionHandle;
 }>;
 
 export type SessionStatusResult = SessionResult<{
@@ -91,21 +90,6 @@ export type RejectSessionResult = SessionResult<{
 export type PromptSessionResult = SessionResult<{
   delivered: boolean;
 }>;
-
-// ---------------------------------------------------------------------------
-// In-memory handle registry — maps agentSessionId to AgentHandle
-// ---------------------------------------------------------------------------
-
-const handleRegistry = new Map<string, AgentHandle>();
-
-// Exported for testing cleanup
-export function clearHandleRegistry(): void {
-  handleRegistry.clear();
-}
-
-export function getHandle(sessionId: string): AgentHandle | undefined {
-  return handleRegistry.get(sessionId);
-}
 
 // ---------------------------------------------------------------------------
 // Event iteration — port (dependencies as function signatures)
@@ -202,7 +186,6 @@ export function startEventIteration(
         log.warn("orchestrator.iteration", "Agent stream ended with zero messages", { sessionId, streamId });
       }
       bridge.stop();
-      handleRegistry.delete(sessionId);
     }
   }
 
@@ -213,7 +196,7 @@ export function startEventIteration(
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+export function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined) {
@@ -261,6 +244,8 @@ type SessionRow = {
   task_id?: RecordId<"task", string>;
   workspace?: RecordId<"workspace", string>;
   error_message?: string;
+  external_session_id?: string;
+  session_type?: string;
 };
 
 type SessionLookup =
@@ -294,44 +279,6 @@ function generateStreamId(sessionId: string): string {
   return `stream-${sessionId}`;
 }
 
-function appendOrchestratorProxyHeaders(
-  baseHeaders: string,
-  taskId: string,
-  sessionId: string,
-): string {
-  const lines = baseHeaders
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const headerMap = new Map<string, string>();
-  for (const line of lines) {
-    const sep = line.indexOf(":");
-    if (sep <= 0) {
-      continue;
-    }
-    const name = line.slice(0, sep).trim();
-    const value = line.slice(sep + 1).trim();
-    if (name.length === 0 || value.length === 0) {
-      continue;
-    }
-    headerMap.set(name.toLowerCase(), `${name}: ${value}`);
-  }
-
-  headerMap.set("x-brain-task", `X-Brain-Task: ${taskId}`);
-  headerMap.set("x-brain-session", `X-Brain-Session: ${sessionId}`);
-
-  return Array.from(headerMap.values()).join("\n");
-}
-
-function slugFromTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
-}
-
 // ---------------------------------------------------------------------------
 // createOrchestratorSession
 // ---------------------------------------------------------------------------
@@ -340,15 +287,14 @@ type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
   brainBaseUrl: string;
-  brainIdentityId?: string;
-  brainEnv?: Record<string, string>;
-  anthropicBaseUrl?: string;
-  anthropicCustomHeaders?: string;
+  mcpAuthToken: string;
   workspaceId: string;
   taskId: string;
   intentId?: string;
   authToken?: string;
-  spawnAgent?: SpawnAgentFn;
+  env?: Record<string, string>;
+  adapter: SandboxAgentAdapter;
+  sandboxAgentType?: string;
   validateAssignment: (
     surreal: Surreal,
     workspaceId: string,
@@ -385,94 +331,8 @@ export async function createOrchestratorSession(
   }
 
   const { validation } = assignmentResult;
-  const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
-  const repoRoot = validation.repoPath;
 
-  // 2. Create worktree
-  const worktreeResult = await createWorktree(
-    input.shellExec,
-    repoRoot,
-    taskSlug,
-  );
-
-  if (!worktreeResult.ok) {
-    return {
-      ok: false,
-      error: worktreeError(worktreeResult.error.message),
-    };
-  }
-
-  const { branchName, worktreePath } = worktreeResult.value;
-
-  // 3. Create agent_session record
-  const { session_id: agentSessionId } = await input.createAgentSession({
-    surreal: input.surreal,
-    agent: "claude-agent-sdk",
-    workspaceRecord: validation.workspaceRecord,
-    taskId: input.taskId,
-  });
-
-  const streamId = generateStreamId(agentSessionId);
-  const anthropicCustomHeaders = input.anthropicCustomHeaders
-    ? appendOrchestratorProxyHeaders(
-        input.anthropicCustomHeaders,
-        input.taskId,
-        agentSessionId,
-      )
-    : undefined;
-
-  // 4. Build config and spawn agent
-  const agentSpawnConfig: AgentSpawnConfig = {
-    prompt: `/brain-start-task ${input.taskId}`,
-    workDir: worktreePath,
-    workspaceId: input.workspaceId,
-    brainBaseUrl: input.brainBaseUrl,
-    brainIdentityId: input.brainIdentityId,
-    brainEnv: input.brainEnv,
-    anthropicBaseUrl: input.anthropicBaseUrl,
-    anthropicCustomHeaders,
-  };
-
-  const spawnFn = input.spawnAgent ?? defaultSpawnAgent;
-  let handle: AgentHandle;
-  try {
-    handle = spawnFn(agentSpawnConfig);
-  } catch (err) {
-    // Rollback: remove worktree and delete agent_session on spawn failure
-    await removeWorktree(input.shellExec, repoRoot, branchName);
-    const sessionRecord = new RecordId("agent_session", agentSessionId);
-    await input.surreal.delete(sessionRecord);
-    return {
-      ok: false,
-      error: worktreeError(`Failed to spawn agent: ${err instanceof Error ? err.message : String(err)}`),
-    };
-  }
-
-  // 5. Register handle for later abort
-  handleRegistry.set(agentSessionId, handle);
-
-  // 6. Update agent_session with orchestrator fields
-  const sessionRecord = new RecordId("agent_session", agentSessionId);
-  await input.surreal.update(sessionRecord).merge({
-    orchestrator_status: "spawning" as OrchestratorStatus,
-    worktree_branch: branchName,
-    worktree_path: worktreePath,
-    stream_id: streamId,
-  });
-
-  // 7. Transition intent to executing and create gates relation
-  if (input.intentId) {
-    await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
-  }
-
-  return {
-    ok: true,
-    value: {
-      agentSessionId,
-      streamId,
-      worktreeBranch: branchName,
-    },
-  };
+  return createSessionViaAdapter(input, validation);
 }
 
 // ---------------------------------------------------------------------------
@@ -544,13 +404,103 @@ async function transitionIntentToExecuting(
   });
 }
 
-// Default spawn -- placeholder for production use
-function defaultSpawnAgent(
-  _config: AgentSpawnConfig,
-): AgentHandle {
-  throw new Error(
-    "spawnAgent not provided -- must be injected for production use",
+// ---------------------------------------------------------------------------
+// Adapter-based session creation
+// ---------------------------------------------------------------------------
+
+function slugFromTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+}
+
+async function createSessionViaAdapter(
+  input: CreateSessionInput,
+  validation: import("./types").AssignmentValidation,
+): Promise<OrchestratorSessionResult> {
+  const adapter = input.adapter;
+  const repoRoot = validation.repoPath;
+  const taskSlug = `${slugFromTitle(validation.title)}-${crypto.randomUUID()}`;
+
+  // 1. Create worktree for isolated agent work
+  const worktreeResult = await createWorktree(
+    input.shellExec,
+    repoRoot,
+    taskSlug,
   );
+
+  if (!worktreeResult.ok) {
+    return {
+      ok: false,
+      error: worktreeError(worktreeResult.error.message),
+    };
+  }
+
+  const { branchName, worktreePath } = worktreeResult.value;
+
+  // 2. Create agent_session record
+  const { session_id: agentSessionId } = await input.createAgentSession({
+    surreal: input.surreal,
+    agent: "claude",
+    workspaceRecord: validation.workspaceRecord,
+    taskId: input.taskId,
+  });
+
+  const streamId = generateStreamId(agentSessionId);
+
+  // 3. Create session via adapter — agent works in worktree, not main repo
+  let handle: SessionHandle;
+  try {
+    await adapter.setMcpConfig(worktreePath, "brain", {
+      type: "remote",
+      url: `${input.brainBaseUrl}/mcp/agent/${agentSessionId}`,
+      headers: { "X-Brain-Auth": input.mcpAuthToken },
+    });
+
+    handle = await adapter.createSession({
+      agent: input.sandboxAgentType ?? "claude",
+      cwd: worktreePath,
+      ...(input.env ? { env: input.env } : {}),
+    });
+  } catch (err) {
+    // Rollback: remove worktree and delete agent_session on adapter failure
+    await removeWorktree(input.shellExec, repoRoot, branchName);
+    const sessionRecord = new RecordId("agent_session", agentSessionId);
+    await input.surreal.delete(sessionRecord);
+    return {
+      ok: false,
+      error: worktreeError(`Failed to create sandbox session: ${err instanceof Error ? err.message : String(err)}`),
+    };
+  }
+
+  // 4. Update agent_session with sandbox + worktree fields
+  const sessionRecord = new RecordId("agent_session", agentSessionId);
+  await input.surreal.update(sessionRecord).merge({
+    orchestrator_status: "spawning" as OrchestratorStatus,
+    stream_id: streamId,
+    session_type: "sandbox_agent",
+    provider: "local",
+    external_session_id: handle.id,
+    worktree_branch: branchName,
+    worktree_path: worktreePath,
+  });
+
+  // 5. Transition intent to executing
+  if (input.intentId) {
+    await transitionIntentToExecuting(input.surreal, input.intentId, sessionRecord);
+  }
+
+  return {
+    ok: true,
+    value: {
+      agentSessionId,
+      streamId,
+      worktreeBranch: branchName,
+      sessionHandle: handle,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -595,6 +545,7 @@ type AbortSessionInput = {
   shellExec: ShellExec;
   resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
+  adapter?: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -612,11 +563,17 @@ export async function abortOrchestratorSession(
   }
   const { session, record: sessionRecord } = lookup;
 
-  // 1. Abort the agent process if handle exists
-  const handle = handleRegistry.get(input.sessionId);
-  if (handle) {
-    handle.abort();
-    handleRegistry.delete(input.sessionId);
+  // 1. Destroy the sandbox agent session
+  if (session.external_session_id && input.adapter) {
+    try {
+      await input.adapter.destroySession(session.external_session_id);
+    } catch (err) {
+      log.warn("orchestrator.abort", "Failed to destroy sandbox session", {
+        sessionId: input.sessionId,
+        externalSessionId: session.external_session_id,
+        error: String(err),
+      });
+    }
   }
 
   // 2. Update orchestrator_status to aborted
@@ -663,8 +620,11 @@ export async function abortOrchestratorSession(
 
 type AcceptSessionInput = {
   surreal: Surreal;
+  shellExec: ShellExec;
+  resolveRepoRoot: (workspaceRecord: RecordId<"workspace", string>) => Promise<string>;
   sessionId: string;
   summary: string;
+  adapter?: SandboxAgentAdapter;
   endAgentSession: (input: {
     surreal: Surreal;
     workspaceRecord: RecordId<"workspace", string>;
@@ -688,13 +648,29 @@ export async function acceptOrchestratorSession(
 
   const workspaceRecord = requireWorkspace(session, input.sessionId);
 
-  // 1. Update orchestrator_status to completed
+  // 1. Destroy the sandbox agent session
+  if (session.external_session_id && input.adapter) {
+    try {
+      await input.adapter.destroySession(session.external_session_id);
+    } catch (err) {
+      log.warn("orchestrator.accept", "Failed to destroy sandbox session", {
+        sessionId: input.sessionId,
+        externalSessionId: session.external_session_id,
+        error: String(err),
+      });
+    }
+  }
+
+  // 2. Update orchestrator_status to completed
   await input.surreal.update(sessionRecord).merge({
     orchestrator_status: "completed" as OrchestratorStatus,
   });
 
-  // 2. Clean up handle registry
-  handleRegistry.delete(input.sessionId);
+  // 3. Remove worktree (branch is preserved for merge/review)
+  if (session.worktree_branch) {
+    const repoRoot = await input.resolveRepoRoot(workspaceRecord);
+    await removeWorktree(input.shellExec, repoRoot, session.worktree_branch);
+  }
 
   // 4. End the agent session
   await input.endAgentSession({
@@ -852,6 +828,7 @@ type SendPromptInput = {
   surreal: Surreal;
   sessionId: string;
   text: string;
+  adapter: SandboxAgentAdapter;
 };
 
 export async function sendSessionPrompt(
@@ -861,20 +838,39 @@ export async function sendSessionPrompt(
   if (!lookup.ok) {
     return { ok: false, error: lookup.error };
   }
-  const { status } = lookup;
+  const { session, status } = lookup;
 
   if (!PROMPTABLE_STATUSES.has(status)) {
+    // Terminal sessions return 404 (session is "gone"), non-terminal return 409 (conflict)
+    if (TERMINAL_STATUSES.has(status)) {
+      return { ok: false, error: sessionNotFound(input.sessionId) };
+    }
     return { ok: false, error: sessionStateConflict(input.sessionId, status, "prompt") };
   }
 
-  // The Claude Agent SDK uses a single query() call per conversation.
-  // Follow-up prompts are not supported in this model.
-  return {
-    ok: false,
-    error: {
-      code: "SESSION_ERROR",
-      message: `Follow-up prompts are not supported with the Agent SDK. Session ${input.sessionId} runs a single query() conversation.`,
-      httpStatus: 409,
-    },
-  };
+  if (!session.external_session_id) {
+    return {
+      ok: false,
+      error: {
+        code: "SESSION_ERROR",
+        message: `Session ${input.sessionId} has no external_session_id — cannot deliver prompt`,
+        httpStatus: 500,
+      },
+    };
+  }
+
+  try {
+    const handle = await input.adapter.resumeSession(session.external_session_id);
+    await handle.prompt([{ type: "text", text: input.text }]);
+    return { ok: true, value: { delivered: true } };
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "SESSION_ERROR",
+        message: `Failed to deliver prompt: ${err instanceof Error ? err.message : String(err)}`,
+        httpStatus: 500,
+      },
+    };
+  }
 }

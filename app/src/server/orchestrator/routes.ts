@@ -11,6 +11,7 @@ import { generateKeyPair } from "../../../shared/dpop";
 import { submitIntentForAuthorization } from "../oauth/intent-submission";
 import { exchangeIntentForToken } from "../oauth/token-endpoint";
 import { evaluatePendingIntent } from "../intent/intent-evaluation";
+import { log } from "../telemetry/logger";
 import {
   computeExpiresAt,
   generateProxyToken,
@@ -26,6 +27,7 @@ import type {
   RejectSessionResult,
   PromptSessionResult,
 } from "./session-lifecycle";
+import { pickDefined } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
 
 type BrainAction = {
@@ -126,16 +128,6 @@ function assignResponse(
     },
     200,
   );
-}
-
-function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      result[key] = value;
-    }
-  }
-  return result as Partial<T>;
 }
 
 function statusResponse(
@@ -337,9 +329,10 @@ export type OrchestratorWiringDeps = {
   extractionModel: import("../runtime/types").ServerDependencies["extractionModel"];
   asSigningKey: import("../oauth/as-key-management").AsSigningKey;
   sseRegistry?: SseRegistry;
-  queryFn: import("./spawn-agent").QueryFn;
   auth: { api: { getSession: (opts: { headers: Headers }) => Promise<{ user?: { id?: string } } | null> } };
   mockAgent: boolean;
+  sandboxAgentAdapter?: import("./sandbox-adapter").SandboxAgentAdapter;
+  sandboxAgentType?: string;
 };
 
 export function wireOrchestratorRoutes(
@@ -359,6 +352,7 @@ export function wireOrchestratorRoutes(
   const issueProxyTokenForWorkspace = async (
     workspaceId: string,
     authToken: string,
+    opts?: { intentRecord?: RecordId<"intent", string>; sessionRecord?: RecordId<"agent_session", string> },
   ): Promise<{ proxyToken: string; identityId: string }> => {
     const sessionHeaders = new Headers(authToken ? { Cookie: authToken } : undefined);
     const session = await wiringDeps.auth.api.getSession({ headers: sessionHeaders });
@@ -383,23 +377,30 @@ export function wireOrchestratorRoutes(
     const tokenHash = hashProxyToken(rawToken);
     const expiresAt = computeExpiresAt(proxyTokenTtlDays);
 
+    const contentFields: Record<string, unknown> = {
+      token_hash: tokenHash,
+      workspace: workspaceRecord,
+      identity: identityRecord,
+      expires_at: expiresAt,
+      created_at: new Date(),
+      revoked: false,
+    };
+    if (opts?.intentRecord) {
+      contentFields.intent = opts.intentRecord;
+    }
+    if (opts?.sessionRecord) {
+      contentFields.session = opts.sessionRecord;
+    }
+
     await wiringDeps.surreal.query(
       `BEGIN TRANSACTION;
        UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;
-       CREATE proxy_token CONTENT {
-         token_hash: $hash,
-         workspace: $ws,
-         identity: $identity,
-         expires_at: $expires,
-         created_at: time::now(),
-         revoked: false
-       };
+       CREATE proxy_token CONTENT $content;
        COMMIT TRANSACTION;`,
       {
-        hash: tokenHash,
-        ws: workspaceRecord,
         identity: identityRecord,
-        expires: expiresAt,
+        ws: workspaceRecord,
+        content: contentFields,
       },
     );
 
@@ -411,7 +412,7 @@ export function wireOrchestratorRoutes(
     identityId: string,
     intentGoal: string,
     intentReasoning: string,
-  ): Promise<Record<string, string>> => {
+  ): Promise<{ env: Record<string, string>; intentId: string }> => {
     const dpopKeys = await generateKeyPair();
     const intentResult = await submitIntentForAuthorization(
       {
@@ -474,15 +475,18 @@ export function wireOrchestratorRoutes(
     const dpopTokenExpiresAt = Math.floor(Date.now() / 1000) + tokenResult.value.expiresIn;
 
     return {
-      BRAIN_CLIENT_ID: "orchestrator-session",
-      BRAIN_ACCESS_TOKEN: "orchestrator-session",
-      BRAIN_REFRESH_TOKEN: "orchestrator-session",
-      BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
-      BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
-      BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
-      BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
-      BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
-      BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+      env: {
+        BRAIN_CLIENT_ID: "orchestrator-session",
+        BRAIN_ACCESS_TOKEN: "orchestrator-session",
+        BRAIN_REFRESH_TOKEN: "orchestrator-session",
+        BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+        BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
+        BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
+        BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
+        BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
+        BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+      },
+      intentId: intentResult.intentId,
     };
   };
 
@@ -510,8 +514,6 @@ export function wireOrchestratorRoutes(
   const lifecycleImport = import("./session-lifecycle");
   const queriesImport = import("../mcp/mcp-queries");
   const guardImport = import("./assignment-guard");
-  const stallDetectorImport = import("./stall-detector");
-
   // Helper: resolve repo_path from workspace record
   const resolveRepoRoot = async (workspaceRecord: import("surrealdb").RecordId<"workspace", string>): Promise<string> => {
     const [rows] = await wiringDeps.surreal.query<[Array<{ repo_path?: string }>]>(
@@ -546,124 +548,230 @@ export function wireOrchestratorRoutes(
     };
   };
 
-  // Use mock spawn for acceptance tests, production spawn otherwise
-  const spawnAgentImport = wiringDeps.mockAgent
-    ? Promise.resolve({
-        createSpawnAgent: (_qfn: import("./spawn-agent").QueryFn): import("./spawn-agent").SpawnAgentFn =>
-          () => ({
-            messages: (async function* () {})(),
-            abort: () => {},
-          }),
-      })
-    : import("./spawn-agent");
+  // Resolve adapter: real SDK adapter from deps, or mock for tests.
+  // Eagerly resolved when configured; lazy rejection to avoid unhandled promise
+  // rejections in test suites that don't exercise orchestrator routes.
+  const resolveAdapter = (): Promise<import("./sandbox-adapter").SandboxAgentAdapter> => {
+    if (wiringDeps.sandboxAgentAdapter) return Promise.resolve(wiringDeps.sandboxAgentAdapter);
+    if (wiringDeps.mockAgent) return import("./sandbox-adapter").then((mod) => mod.createMockAdapter());
+    return Promise.reject(new Error("No sandbox adapter configured — set sandboxAgentAdapter or mockAgent"));
+  };
 
   const routeDeps: OrchestratorRouteDeps = {
     createSession: async (workspaceId, taskId, authToken) => {
-      const [lifecycle, queries, guard, { createSpawnAgent }, stallDetector] = await Promise.all([
+      const [adapter, lifecycle, queries, guard] = await Promise.all([
+        resolveAdapter(),
         lifecycleImport,
         queriesImport,
         guardImport,
-        spawnAgentImport,
-        stallDetectorImport,
       ]);
 
-      let proxyToken: string;
-      let brainIdentityId: string;
-      let brainAuthEnv: Record<string, string>;
-      try {
-        const tokenResult = await issueProxyTokenForWorkspace(workspaceId, authToken);
-        proxyToken = tokenResult.proxyToken;
-        brainIdentityId = tokenResult.identityId;
-        const intentContext = await buildTaskScopedIntentContext(taskId);
-        brainAuthEnv = await issueBrainMcpAuthEnv(
-          workspaceId,
-          brainIdentityId,
-          intentContext.goal,
-          intentContext.reasoning,
+      // Build task-scoped intent context, issue MCP auth env with intent
+      const { goal, reasoning } = await buildTaskScopedIntentContext(taskId);
+      const { identityId } = await issueProxyTokenForWorkspace(workspaceId, authToken);
+      const mcpAuth = await issueBrainMcpAuthEnv(workspaceId, identityId, goal, reasoning);
+      const intentRecord = new RecordId("intent", mcpAuth.intentId);
+
+      // Issue a governed proxy token (revoke the ungoverned one from issueProxyTokenForWorkspace)
+      const workspaceRecord = new RecordId("workspace", workspaceId);
+      const identityRecord = new RecordId("identity", identityId);
+      const rawToken = generateProxyToken();
+      const tokenHash = hashProxyToken(rawToken);
+      const expiresAt = computeExpiresAt(proxyTokenTtlDays);
+
+      // Build proxy env for the sandbox agent
+      const proxyEnv: Record<string, string> = {
+        ...mcpAuth.env,
+        ANTHROPIC_BASE_URL: `${wiringDeps.brainBaseUrl}/proxy/llm/anthropic`,
+        ANTHROPIC_CUSTOM_HEADERS: `X-Brain-Auth: ${rawToken}`,
+      };
+
+      const result = await lifecycle.createOrchestratorSession({
+        surreal: wiringDeps.surreal,
+        shellExec: wiringDeps.shellExec,
+        brainBaseUrl: wiringDeps.brainBaseUrl,
+        mcpAuthToken: rawToken,
+        workspaceId,
+        taskId,
+        env: proxyEnv,
+        validateAssignment: guard.validateAssignment,
+        createAgentSession: queries.createAgentSession,
+        adapter,
+        sandboxAgentType: wiringDeps.sandboxAgentType,
+      });
+
+      // After session creation, create the governed proxy token with intent + session
+      if (result.ok) {
+        const sessionRecord = new RecordId("agent_session", result.value.agentSessionId);
+
+        // Revoke the ungoverned token and create a governed one
+        await wiringDeps.surreal.query(
+          `UPDATE proxy_token SET revoked = true WHERE identity = $identity AND workspace = $ws AND revoked = false;`,
+          { identity: identityRecord, ws: workspaceRecord },
         );
-      } catch (err) {
+
+        const contentFields: Record<string, unknown> = {
+          token_hash: tokenHash,
+          workspace: workspaceRecord,
+          identity: identityRecord,
+          expires_at: expiresAt,
+          created_at: new Date(),
+          revoked: false,
+          intent: intentRecord,
+          session: sessionRecord,
+        };
+
+        await wiringDeps.surreal.query(
+          `CREATE proxy_token CONTENT $content;`,
+          { content: contentFields },
+        );
+      }
+
+      // Wire SSE stream + bootstrap prompt on success
+      if (!result.ok) {
+        return result;
+      }
+
+      const { agentSessionId, streamId, sessionHandle } = result.value;
+      const sessionRecord = new RecordId("agent_session", agentSessionId);
+      const sseRegistry = wiringDeps.sseRegistry;
+      let emittedActiveStatus = false;
+      let observedAgentEvent = false;
+      if (!sessionHandle) {
+        const cleanup = await lifecycle.abortOrchestratorSession({
+          surreal: wiringDeps.surreal,
+          shellExec: wiringDeps.shellExec,
+          resolveRepoRoot,
+          sessionId: agentSessionId,
+          adapter,
+          endAgentSession: queries.endAgentSession,
+        });
+        if (!cleanup.ok) {
+          log.warn("orchestrator.assign", "Failed to clean up session after missing session handle", {
+            sessionId: agentSessionId,
+            error: cleanup.error.message,
+          });
+        }
         return {
           ok: false,
           error: {
             code: "SESSION_ERROR",
-            message: err instanceof Error ? err.message : "Failed to issue proxy token",
+            message: `Session ${agentSessionId} was created without a handle - bootstrap failed`,
             httpStatus: 500,
           },
         };
       }
 
-      const spawnAgent = createSpawnAgent(wiringDeps.queryFn);
-      const result = await lifecycle.createOrchestratorSession({
-        surreal: wiringDeps.surreal,
-        shellExec: wiringDeps.shellExec,
-        brainBaseUrl: wiringDeps.brainBaseUrl,
-        brainIdentityId,
-        brainEnv: brainAuthEnv,
-        anthropicBaseUrl: `${wiringDeps.brainBaseUrl}/proxy/llm/anthropic`,
-        anthropicCustomHeaders: `X-Brain-Auth: ${proxyToken}`,
-        workspaceId,
-        taskId,
-        authToken,
-        validateAssignment: guard.validateAssignment,
-        createAgentSession: queries.createAgentSession,
-        spawnAgent,
+      if (sseRegistry) {
+        sseRegistry.registerMessage(streamId);
+
+        const { createSandboxEventBridge } = await import("./sandbox-event-bridge");
+
+        const bridge = createSandboxEventBridge(
+          {
+            emitEvent: sseRegistry.emitEvent,
+            updateLastEventAt: async (sid) => {
+              const rec = new RecordId("agent_session", sid);
+              await wiringDeps.surreal.update(rec).merge({
+                last_event_at: new Date(),
+              });
+            },
+            updateSessionStatus: async (sid, status, error) => {
+              const rec = new RecordId("agent_session", sid);
+              await wiringDeps.surreal.update(rec).merge({
+                orchestrator_status: status,
+                last_event_at: new Date(),
+                ...(error !== undefined ? { error_message: error } : {}),
+              });
+            },
+            notifyStallDetector: () => {
+              // Stall detector integration deferred to later step
+            },
+          },
+          streamId,
+          agentSessionId,
+        );
+
+        sessionHandle.onEvent((event) => {
+          if (event.sender === "agent") {
+            observedAgentEvent = true;
+          }
+          if (!emittedActiveStatus && event.sender === "agent") {
+            emittedActiveStatus = true;
+            sseRegistry.emitEvent(streamId, {
+              type: "agent_status",
+              sessionId: agentSessionId,
+              status: "active",
+            });
+            wiringDeps.surreal.update(sessionRecord).merge({
+              orchestrator_status: "active",
+              last_event_at: new Date(),
+            }).catch((err) => {
+              log.warn("orchestrator.assign", "Failed to mark session active after first event", {
+                sessionId: agentSessionId,
+                error: String(err),
+              });
+            });
+          }
+          bridge.handleEvent(event as import("./sandbox-event-bridge").SandboxEvent);
+        });
+      }
+
+      if (!emittedActiveStatus) {
+        emittedActiveStatus = true;
+        if (sseRegistry) {
+          sseRegistry.emitEvent(streamId, {
+            type: "agent_status",
+            sessionId: agentSessionId,
+            status: "active",
+          });
+        }
+      }
+      await wiringDeps.surreal.update(sessionRecord).merge({
+        orchestrator_status: "active",
+        last_event_at: new Date(),
       });
 
-      // Wire SSE stream + event iteration on success
-      if (result.ok && wiringDeps.sseRegistry) {
-        const { agentSessionId, streamId } = result.value;
-        wiringDeps.sseRegistry.registerMessage(streamId);
-
-        const handle = lifecycle.getHandle(agentSessionId);
-        if (handle) {
-          const { RecordId } = await import("surrealdb");
-          lifecycle.startEventIteration(
-            {
-              emitEvent: wiringDeps.sseRegistry.emitEvent,
-              updateSessionStatus: async (sid, status, error) => {
-                const rec = new RecordId("agent_session", sid);
-                await wiringDeps.surreal.update(rec).merge({
-                  orchestrator_status: status,
-                  ...(error !== undefined ? { error_message: error } : {}),
-                });
-              },
-              updateLastEventAt: async (sid) => {
-                const rec = new RecordId("agent_session", sid);
-                await wiringDeps.surreal.update(rec).merge({
-                  last_event_at: new Date(),
-                });
-              },
-              getSessionStatus: async (sid) => {
-                const rec = new RecordId("agent_session", sid);
-                const row = await wiringDeps.surreal.select(rec) as { orchestrator_status?: string } | undefined;
-                return (row?.orchestrator_status ?? "error") as import("./types").OrchestratorStatus;
-              },
-              startStallDetector: (sid, stId) =>
-                stallDetector.startStallDetector(
-                  {
-                    abortSession: async (abortSid) => {
-                      const abortResult = await lifecycle.abortOrchestratorSession({
-                        surreal: wiringDeps.surreal,
-                        shellExec: wiringDeps.shellExec,
-                        resolveRepoRoot,
-                        sessionId: abortSid,
-                        endAgentSession: queries.endAgentSession,
-                      });
-                      return abortResult;
-                    },
-                    createObservation: async () => {},
-                    emitEvent: wiringDeps.sseRegistry!.emitEvent,
-                  },
-                  stallDetector.DEFAULT_STALL_CONFIG,
-                  sid,
-                  stId,
-                ),
-            },
-            handle.messages,
-            streamId,
-            agentSessionId,
-          );
+      const initialTaskPrompt = `/brain-start-task ${taskId}`;
+      try {
+        await sessionHandle.prompt([{ type: "text", text: initialTaskPrompt }]);
+        if (!observedAgentEvent) {
+          if (sseRegistry) {
+            sseRegistry.emitEvent(streamId, {
+              type: "agent_status",
+              sessionId: agentSessionId,
+              status: "idle",
+            });
+          }
+          await wiringDeps.surreal.update(sessionRecord).merge({
+            orchestrator_status: "idle",
+            last_event_at: new Date(),
+          });
         }
+      } catch (err) {
+        const cleanup = await lifecycle.abortOrchestratorSession({
+          surreal: wiringDeps.surreal,
+          shellExec: wiringDeps.shellExec,
+          resolveRepoRoot,
+          sessionId: agentSessionId,
+          adapter,
+          endAgentSession: queries.endAgentSession,
+        });
+        if (!cleanup.ok) {
+          log.warn("orchestrator.assign", "Failed to clean up session after initial prompt failure", {
+            sessionId: agentSessionId,
+            error: cleanup.error.message,
+          });
+        }
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        return {
+          ok: false,
+          error: {
+            code: "SESSION_ERROR",
+            message: `Failed to start task session: ${errorMessage}`,
+            httpStatus: 500,
+          },
+        };
       }
 
       return result;
@@ -678,7 +786,8 @@ export function wireOrchestratorRoutes(
     },
 
     abortSession: async (sessionId) => {
-      const [lifecycle, queries] = await Promise.all([
+      const [adapter, lifecycle, queries] = await Promise.all([
+        resolveAdapter().catch(() => undefined),
         lifecycleImport,
         queriesImport,
       ]);
@@ -687,19 +796,24 @@ export function wireOrchestratorRoutes(
         shellExec: wiringDeps.shellExec,
         resolveRepoRoot,
         sessionId,
+        adapter,
         endAgentSession: queries.endAgentSession,
       });
     },
 
     acceptSession: async (sessionId, summary) => {
-      const [lifecycle, queries] = await Promise.all([
+      const [adapter, lifecycle, queries] = await Promise.all([
+        resolveAdapter().catch(() => undefined),
         lifecycleImport,
         queriesImport,
       ]);
       return lifecycle.acceptOrchestratorSession({
         surreal: wiringDeps.surreal,
+        shellExec: wiringDeps.shellExec,
+        resolveRepoRoot,
         sessionId,
         summary,
+        adapter,
         endAgentSession: queries.endAgentSession,
       });
     },
@@ -737,11 +851,12 @@ export function wireOrchestratorRoutes(
     },
 
     sendPrompt: async (sessionId, text) => {
-      const lifecycle = await lifecycleImport;
+      const [adapter, lifecycle] = await Promise.all([resolveAdapter(), lifecycleImport]);
       return lifecycle.sendSessionPrompt({
         surreal: wiringDeps.surreal,
         sessionId,
         text,
+        adapter,
       });
     },
   };

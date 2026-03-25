@@ -64,7 +64,7 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
       workspace.workspaceId,
       assignment.agentSessionId,
     );
-    expect(["spawning", "active"]).toContain(status.orchestratorStatus);
+    expect(["spawning", "active", "idle"]).toContain(status.orchestratorStatus);
 
     // When Marcus opens the live output for the session
     // Then agent activity appears as streaming text
@@ -86,9 +86,8 @@ describe("Walking Skeleton: Live coding session with agent interaction", () => {
       "Please also add input validation",
     );
 
-    // Then the prompt is rejected because the Agent SDK uses single-query conversations
-    // (follow-up prompts are not supported in the current architecture)
-    expect(promptResponse.status).toBe(409);
+    // Then the prompt is delivered to the agent session
+    expect(promptResponse.status).toBe(202);
   }, 60_000);
 
   // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import type { Auth } from "../auth/config";
 import type { AsSigningKey } from "../oauth/as-key-management";
 import type { NonceCache } from "../oauth/nonce-cache";
 import type { McpClientFactory } from "../tool-registry/mcp-client";
+import type { SandboxAgentAdapter } from "../orchestrator/sandbox-adapter";
 
 export type InflightTracker = {
   track(promise: Promise<unknown>): void;
@@ -44,4 +45,5 @@ export type ServerDependencies = {
   asSigningKey: AsSigningKey;
   nonceCache: NonceCache;
   mcpClientFactory: McpClientFactory;
+  sandboxAgentAdapter?: SandboxAgentAdapter;
 };

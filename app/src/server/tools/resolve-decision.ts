@@ -1,4 +1,5 @@
 import { tool } from "ai";
+import { RecordId, type Surreal } from "surrealdb";
 import { z } from "zod";
 import {
   createDecisionRecord,
@@ -12,6 +13,55 @@ import {
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";
+
+/**
+ * Read-only resolve: BM25 search for matching decisions, no record creation.
+ * Used by the MCP agent endpoint where conversation/message context is unavailable.
+ */
+export async function executeResolveDecisionReadOnly(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+  input: { question: string; project?: string; feature?: string },
+) {
+  const candidates = await searchEntitiesByBm25({
+    surreal,
+    workspaceRecord,
+    query: input.question,
+    kinds: ["decision"],
+    limit: 10,
+  });
+
+  const decisionCandidates = candidates.filter((c) => c.kind === "decision");
+  const topDecision = decisionCandidates[0];
+
+  if (topDecision && topDecision.score >= 0.92) {
+    return {
+      status: "resolved" as const,
+      decision: { id: `decision:${topDecision.id}`, name: topDecision.name },
+      confidence: Number(topDecision.score.toFixed(4)),
+      sources: [{ id: `decision:${topDecision.id}`, name: topDecision.name, score: Number(topDecision.score.toFixed(4)) }],
+    };
+  }
+
+  if (topDecision && topDecision.score >= 0.78) {
+    const sources = candidates.slice(0, 5);
+    return {
+      status: "likely_match" as const,
+      decision: { id: `decision:${topDecision.id}`, name: topDecision.name },
+      confidence: Number(topDecision.score.toFixed(4)),
+      rationale: `Top matching decision: ${topDecision.name}. Use create_provisional_decision to create a new decision if this doesn't match.`,
+      sources: sources.map((s) => ({ id: `${s.kind}:${s.id}`, name: s.name, score: Number(s.score.toFixed(4)) })),
+    };
+  }
+
+  return {
+    status: "unresolved" as const,
+    relatedContext: candidates.slice(0, 6).map((s) => ({
+      id: `${s.kind}:${s.id}`, kind: s.kind, name: s.name, score: Number(s.score.toFixed(4)),
+    })),
+    suggestProvisional: true,
+  };
+}
 
 const resolveDecisionInputSchema = z.object({
   question: z.string().min(1).describe("The decision question"),

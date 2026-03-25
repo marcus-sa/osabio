@@ -1,5 +1,4 @@
 import { tool } from "ai";
-import { z } from "zod";
 import {
   createDecisionRecord,
   createExtractionProvenanceEdge,
@@ -7,23 +6,14 @@ import {
   resolveWorkspaceProjectRecord,
 } from "../graph/queries";
 import { requireAuthorizedContext } from "../iam/authority";
+import { createProvisionalDecisionSchema } from "../mcp/brain-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 export function createCreateProvisionalDecisionTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Create a provisional decision when no existing answer exists. Use after resolve_decision returns unresolved and the user wants to proceed.",
-    inputSchema: z.object({
-      name: z.string().min(1).describe("Concise decision name"),
-      rationale: z.string().min(1).describe("Why this decision was made"),
-      context: z
-        .object({
-          project: z.string().optional(),
-          feature: z.string().optional(),
-        })
-        .optional(),
-      options_considered: z.array(z.string().min(1)).optional(),
-    }),
+    inputSchema: createProvisionalDecisionSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_decision", deps);
       const now = new Date();

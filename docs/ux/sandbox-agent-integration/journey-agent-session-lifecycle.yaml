@@ -1,0 +1,255 @@
+journey:
+  name: "Agent Session Lifecycle"
+  goal: "Spawn, govern, iterate, and persist coding agent sessions via SandboxAgent SDK"
+  persona: "Rafael Torres (developer using governed coding agents) + Carla Mendes (workspace admin)"
+
+  emotional_arc:
+    start: "Deliberate, in control (admin configuring sandbox)"
+    middle: "Aware, engaged (monitoring governed agent activity)"
+    end: "Satisfied, complete (session persisted with full trace)"
+
+steps:
+  - id: 1
+    name: "Configure Workspace Sandbox"
+    actor: "Workspace Admin (Carla Mendes)"
+    action: "Select sandbox provider and default agent type in workspace settings"
+
+    shared_artifacts:
+      - name: "sandbox_provider"
+        source: "workspace settings (SurrealDB workspace record)"
+        displayed_as: "${sandbox_provider}"
+        consumers: ["orchestrator spawn logic", "worktree manager (local only)"]
+      - name: "default_agent_type"
+        source: "workspace settings (SurrealDB workspace record)"
+        displayed_as: "${default_agent_type}"
+        consumers: ["orchestrator session creation"]
+      - name: "brain_proxy_url"
+        source: "server config (runtime/config.ts)"
+        displayed_as: "${brain_proxy_url}"
+        consumers: ["agent env ANTHROPIC_BASE_URL", "session config"]
+      - name: "brain_mcp_base_url"
+        source: "server config (runtime/config.ts)"
+        displayed_as: "${brain_mcp_base_url}"
+        consumers: ["setMcpConfig remote URL", "dynamic MCP endpoint registration"]
+
+    emotional_state:
+      entry: "Deliberate -- choosing right isolation level for team"
+      exit: "Confident -- workspace is ready for governed agent execution"
+
+    integration_checkpoint: |
+      Workspace record in SurrealDB has sandbox_provider and default_agent_type fields.
+      Server config provides brain_proxy_url and brain_mcp_base_url.
+
+    gherkin: |
+      Scenario: Workspace admin configures sandbox provider
+        Given Carla Mendes is a workspace admin for "acme-engineering"
+        When she sets the sandbox provider to "docker" and default agent to "claude"
+        Then the workspace configuration is persisted
+        And the orchestrator uses Docker isolation for new sessions
+
+  - id: 2
+    name: "Spawn Agent Session"
+    actor: "Brain Orchestrator"
+    action: "Resolve grants, register MCP endpoint, create sandbox session"
+
+    shared_artifacts:
+      - name: "session_id"
+        source: "SandboxAgent SDK createSession() response"
+        displayed_as: "${session_id}"
+        consumers: ["prompt endpoint", "event bridge", "session lifecycle", "SurrealDB persistence"]
+      - name: "agent_token"
+        source: "DPoP token mint (orchestrator)"
+        displayed_as: "${agent_token}"
+        consumers: ["MCP endpoint X-Brain-Auth header", "proxy X-Brain-Auth header"]
+      - name: "effective_toolset"
+        source: "grant resolution (can_use + possesses->skill_requires)"
+        displayed_as: "${effective_toolset}"
+        consumers: ["dynamic MCP endpoint tools/list filter"]
+      - name: "mcp_endpoint_url"
+        source: "brain_mcp_base_url + agent name"
+        displayed_as: "${mcp_endpoint_url}"
+        consumers: ["setMcpConfig remote URL", "governance feed"]
+
+    emotional_state:
+      entry: "Anticipation -- agent is being provisioned"
+      exit: "Confident -- session ready, governance configured"
+
+    integration_checkpoint: |
+      Dynamic MCP endpoint registered and responding to tools/list with filtered toolset.
+      Proxy accepting LLM requests with agent token.
+      Session record created in SurrealDB.
+
+    gherkin: |
+      Scenario: Orchestrator spawns governed agent session
+        Given workspace "acme-engineering" uses Docker sandbox provider
+        And agent "claude-rate-limiter" has grants for [github, slack, brain-search]
+        When the orchestrator receives task "implement-rate-limiting"
+        Then a sandbox session is created with Docker isolation
+        And a dynamic MCP endpoint is registered at /mcp/agent/claude-rate-limiter-a1b2
+        And the endpoint serves only [github, slack, brain-search] tools
+        And the session record is persisted to SurrealDB
+
+  - id: 3
+    name: "First Prompt"
+    actor: "Developer (Rafael Torres)"
+    action: "Send initial prompt to coding agent via Brain chat"
+
+    shared_artifacts:
+      - name: "prompt_text"
+        source: "user input via chat UI or API"
+        displayed_as: "${prompt_text}"
+        consumers: ["SandboxAgent session.prompt()", "trace graph"]
+
+    emotional_state:
+      entry: "Hopeful, curious -- watching agent begin work"
+      exit: "Engaged -- agent is producing visible progress"
+
+    integration_checkpoint: |
+      Prompt delivered to sandbox session via session.prompt().
+      Events streaming from SandboxAgent to SSE registry.
+      LLM requests flowing through proxy with spend tracking.
+
+    gherkin: |
+      Scenario: Developer sends first prompt to coding agent
+        Given Rafael Torres has an active coding session "rate-limiter-a1b2"
+        When he sends "Implement rate limiting for /api/chat/messages"
+        Then the prompt is delivered to the Claude Code agent in the sandbox
+        And events begin streaming to the governance feed
+        And LLM requests are routed through Brain's proxy
+
+  - id: 4
+    name: "Monitor Agent Activity"
+    actor: "Developer (Rafael Torres)"
+    action: "Observe real-time events in governance feed and trace graph"
+
+    shared_artifacts:
+      - name: "event_stream"
+        source: "SandboxAgent session event stream"
+        displayed_as: "${event_stream}"
+        consumers: ["SSE registry", "trace graph", "governance feed UI"]
+      - name: "policy_evaluation_results"
+        source: "dynamic MCP endpoint policy evaluation"
+        displayed_as: "${policy_evaluation_results}"
+        consumers: ["governance feed", "trace graph"]
+
+    emotional_state:
+      entry: "Attentive -- tracking what the agent is doing"
+      exit: "Aware, informed -- full visibility into governed actions"
+
+    integration_checkpoint: |
+      All MCP tool calls appear in governance feed with policy evaluation status.
+      Permission requests surface in UI with approve/reject controls.
+      Trace graph records tool calls with timing and outcomes.
+
+    gherkin: |
+      Scenario: Tool calls appear in governance feed with policy status
+        Given Claude Code agent calls github:create-branch via Brain MCP endpoint
+        When the policy evaluation completes
+        Then the governance feed shows the tool call with "APPROVED" status
+        And the trace graph records the call with 340ms duration
+        And OAuth credentials were injected by Brain's credential broker
+
+  - id: 5
+    name: "Iterate with Follow-Up Prompts"
+    actor: "Developer (Rafael Torres)"
+    action: "Send follow-up prompts to refine agent work without respawning"
+
+    shared_artifacts:
+      - name: "followup_prompt"
+        source: "user input via chat UI or API"
+        displayed_as: "${followup_prompt}"
+        consumers: ["SandboxAgent session.prompt()", "trace graph"]
+
+    emotional_state:
+      entry: "In control -- directing the agent like a collaborator"
+      exit: "Collaborative -- natural iteration without friction"
+
+    integration_checkpoint: |
+      Follow-up prompt delivered to existing session (no 409).
+      Agent retains context from previous prompts.
+      New events append to existing trace graph.
+
+    gherkin: |
+      Scenario: Developer sends follow-up prompt to existing session
+        Given Rafael has an active session with previous context about rate limiting
+        When he sends "Use SurrealDB for distributed state instead of in-memory"
+        Then the follow-up is delivered to the same session without respawning
+        And the agent modifies rate-limiter.ts with SurrealDB integration
+        And new events append to the existing trace
+
+  - id: 6
+    name: "Session Restoration"
+    actor: "Brain Orchestrator (automatic)"
+    action: "Auto-restore session after connection loss using persisted events"
+
+    shared_artifacts:
+      - name: "replay_events"
+        source: "SurrealDB session persistence driver"
+        displayed_as: "${replay_events}"
+        consumers: ["SandboxAgent session restoration", "restored session context"]
+
+    emotional_state:
+      entry: "Brief alarm -- connection lost notification"
+      exit: "Relieved -- session restored automatically, no work lost"
+
+    integration_checkpoint: |
+      Session restored with correct event replay from SurrealDB.
+      New runtime session ID bound to original logical session ID.
+      User notified of restoration with event count.
+
+    gherkin: |
+      Scenario: Session auto-restores after network interruption
+        Given Rafael's session has 23 persisted events in SurrealDB
+        When the network connection to the sandbox is lost
+        Then the SDK auto-creates a fresh session
+        And replays 23 events as context to the new session
+        And Rafael sees "Session restored automatically"
+        And subsequent prompts work without re-setup
+
+  - id: 7
+    name: "Conclude Session"
+    actor: "Developer (Rafael Torres) + Brain Orchestrator"
+    action: "End session, persist all data, update agent_session status"
+
+    shared_artifacts:
+      - name: "session_summary"
+        source: "computed from trace graph events"
+        displayed_as: "${session_summary}"
+        consumers: ["chat UI", "governance feed", "agent_session record"]
+
+    emotional_state:
+      entry: "Anticipating completion -- agent finished work"
+      exit: "Satisfied, proud -- work done with full audit trail"
+
+    integration_checkpoint: |
+      Session destroyed in sandbox provider.
+      All events persisted in SurrealDB trace graph.
+      agent_session status updated to "completed".
+      Worktree preserved for code review (local provider).
+
+    gherkin: |
+      Scenario: Session concludes with full persistence
+        Given the coding agent has completed its task with 47 events
+        When Rafael ends the session
+        Then the sandbox session is destroyed
+        And 47 events are persisted in the trace graph
+        And the agent_session record shows status "completed"
+        And the session summary shows 2 prompts, 8 tool calls, 3 files modified
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "session_id"
+      must_match_across: [2, 3, 4, 5, 6, 7]
+      failure_message: "Session ID must be consistent from spawn through conclusion and restoration"
+    - artifact: "agent_token"
+      must_match_across: [2, 4]
+      failure_message: "Agent token used for MCP endpoint must match token used for proxy"
+    - artifact: "effective_toolset"
+      must_match_across: [2, 4]
+      failure_message: "Tools served by MCP endpoint must match resolved grants from spawn"
+    - artifact: "brain_proxy_url"
+      must_match_across: [1, 2, 3]
+      failure_message: "Proxy URL in workspace config must match env var passed to sandbox"
+    - artifact: "mcp_endpoint_url"
+      must_match_across: [2, 4]
+      failure_message: "MCP endpoint URL in setMcpConfig must match registered endpoint"

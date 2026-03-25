@@ -1,6 +1,5 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { ENTITY_CATEGORIES, ENTITY_PRIORITIES } from "../../shared/contracts";
 import {
   createExtractionProvenanceEdge,
   isEntityInWorkspace,
@@ -8,6 +7,7 @@ import {
   readEntityName,
 } from "../graph/queries";
 import { requireAuthorizedContext } from "../iam/authority";
+import { editWorkItemSchema } from "../mcp/brain-tool-definitions";
 import { seedDescriptionEntry } from "../descriptions/persist";
 import type { ChatToolDeps } from "./types";
 
@@ -17,14 +17,7 @@ export function createEditWorkItemTool(deps: ChatToolDeps) {
   return tool({
     description:
       "Edit an existing task/feature/project by id. Use for rename or metadata updates. Do NOT use this to create new entities.",
-    inputSchema: z.object({
-      id: z.string().min(1).describe("Existing work item id in table:id format (task:..., feature:..., project:...)"),
-      title: z.string().min(1).optional().describe("New title/name"),
-      status: z.string().min(1).optional().describe("Optional new status"),
-      category: z.enum(ENTITY_CATEGORIES).optional().describe("Optional category (task/feature only)"),
-      priority: z.enum(ENTITY_PRIORITIES).optional().describe("Optional priority (task only)"),
-      rationale: z.string().min(1).optional().describe("Optional rationale note appended as a description entry"),
-    }),
+    inputSchema: editWorkItemSchema,
     execute: async (input, options) => {
       const { context } = await requireAuthorizedContext(options, "create_task", deps);
       const now = new Date();

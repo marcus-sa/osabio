@@ -22,7 +22,6 @@ import { createMcpRouteHandlers } from "../mcp/mcp-route";
 import { createIntentRouteHandlers } from "../intent/intent-routes";
 import { wireOrchestratorRoutes } from "../orchestrator/routes";
 import type { ShellExec } from "../orchestrator/worktree-manager";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { BRAIN_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 import { createVetoManager } from "../intent/veto-manager";
@@ -46,6 +45,7 @@ import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
 import { createLoopDampener } from "../reactive/loop-dampener";
+import { createAgentMcpHandler } from "../mcp/agent-mcp-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
@@ -123,6 +123,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const toolHandlers = createToolRouteHandlers(deps);
   const grantHandlers = createGrantRouteHandlers(deps);
   const mcpServerHandlers = createServerRouteHandlers(deps);
+  const agentMcpHandler = createAgentMcpHandler(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -136,9 +137,10 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     extractionModel: deps.extractionModel,
     asSigningKey: deps.asSigningKey,
     sseRegistry: deps.sse,
-    queryFn: query,
     auth: deps.auth,
     mockAgent: config.orchestratorMockAgent,
+    sandboxAgentAdapter: deps.sandboxAgentAdapter,
+    sandboxAgentType: config.sandboxAgentType,
   });
 
   return Bun.serve({
@@ -773,6 +775,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
         ),
       },
+      // Agent MCP — intent-gated tool access for sandbox agents
+      "/mcp/agent/:sessionId": {
+        POST: withTracing("POST /mcp/agent/:sessionId", "POST", (request) =>
+          agentMcpHandler(request.params.sessionId, request),
+        ),
+      },
       // Observer — periodic graph scan
       "/api/observe/scan/:workspaceId": {
         POST: withTracing("POST /api/observe/scan/:workspaceId", "POST", (request) =>
@@ -795,6 +803,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/api/intents/:intentId/evaluate": {
         POST: withTracing("POST /api/intents/:intentId/evaluate", "POST", (request) =>
           intentHandlers.handleEvaluate(request.params.intentId, request),
+        ),
+      },
+      // Intent — approve (workspace-less shortcut for out-of-band human approval)
+      "/api/intents/:intentId/approve": {
+        POST: withTracing("POST /api/intents/:intentId/approve", "POST", (request) =>
+          intentHandlers.handleApprove("_direct", request.params.intentId),
+        ),
+      },
+      // Intent — veto (workspace-less shortcut for out-of-band human veto)
+      "/api/intents/:intentId/veto": {
+        POST: withTracing("POST /api/intents/:intentId/veto", "POST", (request) =>
+          intentHandlers.handleVeto("_direct", request.params.intentId, request),
         ),
       },
       // Intent — consent display
@@ -992,6 +1012,7 @@ export async function startServer(): Promise<void> {
     asSigningKey: runtime.asSigningKey,
     nonceCache: createNonceCache(),
     mcpClientFactory: runtime.mcpClientFactory,
+    sandboxAgentAdapter: runtime.sandboxAgentAdapter,
   };
 
   const server = createBrainServer(deps);

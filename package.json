@@ -63,6 +63,7 @@
     "react-markdown": "^10.1.0",
     "reagraph": "^4.30.8",
     "reaviz": "^16.1.2",
+    "sandbox-agent": "^0.4.0",
     "shadcn": "^4.0.8",
     "surrealdb": "2.0.2",
     "tailwind-merge": "^3.5.0",
@@ -90,5 +91,8 @@
     "msw": "^2.12.14",
     "typescript": "^5.9.2",
     "vitest": "^4.0.18"
-  }
+  },
+  "trustedDependencies": [
+    "@sandbox-agent/cli-darwin-arm64"
+  ]
 }

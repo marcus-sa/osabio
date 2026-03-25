@@ -276,6 +276,30 @@ export type AgentPromptEvent = {
   text: string;
 };
 
+export type AgentPermissionRequestEvent = {
+  type: "agent_permission_request";
+  sessionId: string;
+  permissionId: string;
+  toolName: string;
+  arguments: string;
+  timeoutSeconds: number;
+};
+
+export type AgentPermissionResponseEvent = {
+  type: "agent_permission_response";
+  sessionId: string;
+  permissionId: string;
+  decision: "once" | "always" | "reject" | "timeout";
+};
+
+export type AgentRestorationEvent = {
+  type: "agent_restoration";
+  sessionId: string;
+  status: "started" | "completed" | "failed";
+  eventsReplayed?: number;
+  totalEvents?: number;
+};
+
 export type StreamEvent =
   | TokenEvent
   | ReasoningEvent
@@ -290,7 +314,10 @@ export type StreamEvent =
   | AgentFileChangeEvent
   | AgentStatusEvent
   | AgentStallWarningEvent
-  | AgentPromptEvent;
+  | AgentPromptEvent
+  | AgentPermissionRequestEvent
+  | AgentPermissionResponseEvent
+  | AgentRestorationEvent;
 
 export type SearchEntityResponse = {
   id: string;

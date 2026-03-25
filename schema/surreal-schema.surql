@@ -206,6 +206,8 @@ DEFINE FIELD files_changed[*].change_type ON agent_session TYPE string ASSERT $v
 DEFINE FIELD observations_logged ON agent_session TYPE option<array<record<observation>>>;
 DEFINE FIELD external_session_id ON agent_session TYPE option<string>;
 DEFINE FIELD source ON agent_session TYPE option<string>;
+DEFINE FIELD session_type ON agent_session TYPE option<string>;
+DEFINE FIELD provider ON agent_session TYPE option<string>;
 DEFINE FIELD orchestrator_status ON agent_session TYPE option<string>
   ASSERT $value IS NONE OR $value IN ["spawning", "active", "idle", "completed", "aborted", "error"];
 DEFINE FIELD worktree_branch ON agent_session TYPE option<string>;
@@ -534,6 +536,8 @@ DEFINE FIELD stop_reason ON trace TYPE option<string>;
 DEFINE FIELD request_id ON trace TYPE option<string>;
 DEFINE FIELD latency_ms ON trace TYPE option<int>;
 DEFINE FIELD policy_decision ON trace TYPE option<object> FLEXIBLE;
+DEFINE FIELD outcome ON trace TYPE option<string>;
+DEFINE FIELD intent ON trace TYPE option<record<intent>>;
 DEFINE INDEX trace_parent ON trace FIELDS parent_trace;
 DEFINE INDEX trace_session ON trace FIELDS session;
 DEFINE INDEX trace_workspace ON trace FIELDS workspace;
@@ -1351,6 +1355,8 @@ DEFINE FIELD identity ON proxy_token TYPE record<identity>;
 DEFINE FIELD expires_at ON proxy_token TYPE datetime;
 DEFINE FIELD created_at ON proxy_token TYPE datetime DEFAULT time::now();
 DEFINE FIELD revoked ON proxy_token TYPE bool DEFAULT false;
+DEFINE FIELD intent ON proxy_token TYPE option<record<intent>>;
+DEFINE FIELD session ON proxy_token TYPE option<record<agent_session>>;
 DEFINE INDEX idx_proxy_token_hash ON proxy_token FIELDS token_hash UNIQUE;
 DEFINE INDEX idx_proxy_token_identity_workspace ON proxy_token FIELDS identity, workspace;
 
