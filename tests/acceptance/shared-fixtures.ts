@@ -9,6 +9,7 @@
  */
 import { createHash } from "crypto";
 import { RecordId, type Surreal } from "surrealdb";
+export { createTestUser, type TestUser } from "./acceptance-test-kit";
 
 // ---------------------------------------------------------------------------
 // Shared Types — Schema-aligned, required fields enforced
@@ -50,6 +51,7 @@ export async function createWorkspaceDirectly(
     workspaceName?: string;
     identityName?: string;
     identityType?: "human" | "agent";
+    repoPath?: string;
   },
 ): Promise<DirectWorkspaceResult> {
   const workspaceId = `ws-${crypto.randomUUID()}`;
@@ -69,6 +71,7 @@ export async function createWorkspaceDirectly(
         onboarding_summary_pending: false,
         onboarding_started_at: new Date(),
         created_at: new Date(),
+        ...(opts?.repoPath ? { repo_path: opts.repoPath } : {}),
       },
     },
   );
@@ -93,6 +96,49 @@ export async function createWorkspaceDirectly(
   );
 
   return { workspaceId, workspaceRecord, identityId, identityRecord };
+}
+
+// ---------------------------------------------------------------------------
+// Workspace (HTTP — session-authenticated)
+// ---------------------------------------------------------------------------
+
+export type HttpWorkspaceResult = {
+  workspaceId: string;
+};
+
+/**
+ * Creates a workspace via HTTP API so the authenticated person gets proper
+ * member_of edges wired by the server. Use this when tests exercise routes
+ * that validate workspace membership through the Better Auth session.
+ *
+ * Optionally sets `repo_path` on the workspace for orchestrator tests that
+ * need worktree support.
+ */
+export async function createWorkspaceViaHttp(
+  baseUrl: string,
+  user: { headers: Record<string, string> },
+  surreal: Surreal,
+  opts?: { repoPath?: string },
+): Promise<HttpWorkspaceResult> {
+  const response = await fetch(`${baseUrl}/api/workspaces`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...user.headers },
+    body: JSON.stringify({ name: `Test Workspace ${crypto.randomUUID()}` }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create workspace: ${response.status}`);
+  }
+  const body = (await response.json()) as { workspaceId: string };
+
+  if (opts?.repoPath) {
+    const workspaceRecord = new RecordId("workspace", body.workspaceId);
+    await surreal.query(
+      `UPDATE $ws SET repo_path = $path;`,
+      { ws: workspaceRecord, path: opts.repoPath },
+    );
+  }
+
+  return { workspaceId: body.workspaceId };
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +437,45 @@ export async function queryWorkspaceObservations(
     { ws: workspaceRecord },
   )) as Array<ObsRow[]>;
   return rows[0] ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Task
+// ---------------------------------------------------------------------------
+
+export type CreateTaskOpts = {
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  repoPath?: string;
+};
+
+/**
+ * Creates a task record directly in SurrealDB.
+ */
+export async function createTaskDirectly(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: CreateTaskOpts,
+): Promise<{ taskId: string; taskRecord: RecordId<"task"> }> {
+  const taskId = `task-${crypto.randomUUID()}`;
+  const taskRecord = new RecordId("task", taskId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  await surreal.query(`CREATE $task CONTENT $content;`, {
+    task: taskRecord,
+    content: {
+      title: opts.title,
+      description: opts.description,
+      status: opts.status ?? "ready",
+      priority: opts.priority,
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    },
+  });
+
+  return { taskId, taskRecord };
 }
 
 // ---------------------------------------------------------------------------

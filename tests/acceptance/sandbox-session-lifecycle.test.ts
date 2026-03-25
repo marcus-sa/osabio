@@ -24,65 +24,15 @@ import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
 import {
   setupAcceptanceSuite,
-  createTestUser,
   type AcceptanceTestRuntime,
 } from "./acceptance-test-kit";
+import { createTestUser, createWorkspaceViaHttp, createWorkspaceDirectly, createTaskDirectly } from "./shared-fixtures";
 
 // ── Suite Setup ──
 
 const getRuntime = setupAcceptanceSuite("sandbox_session_lifecycle", {
   configOverrides: { sandboxAgentEnabled: true, sandboxAgentType: "claude", orchestratorMockAgent: true },
 });
-
-// ── Test Helpers (will be extracted to a sandbox-test-kit.ts as patterns emerge) ──
-
-async function createTestWorkspace(
-  baseUrl: string,
-  user: { headers: Record<string, string> },
-  surreal: AcceptanceTestRuntime["surreal"],
-): Promise<{ workspaceId: string }> {
-  const response = await fetch(`${baseUrl}/api/workspaces`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...user.headers },
-    body: JSON.stringify({ name: `Sandbox Test ${crypto.randomUUID()}` }),
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to create workspace: ${response.status}`);
-  }
-  const body = (await response.json()) as { workspaceId: string };
-
-  // Set repo_path so the orchestrator can create worktrees
-  const workspaceRecord = new RecordId("workspace", body.workspaceId);
-  await surreal.query(
-    `UPDATE $ws SET repo_path = $path;`,
-    { ws: workspaceRecord, path: process.cwd() },
-  );
-
-  return { workspaceId: body.workspaceId };
-}
-
-async function createReadyTask(
-  surreal: AcceptanceTestRuntime["surreal"],
-  workspaceId: string,
-  task: { title: string; description: string },
-): Promise<{ taskId: string }> {
-  const taskId = crypto.randomUUID();
-  const taskRecord = new RecordId("task", taskId);
-  const workspaceRecord = new RecordId("workspace", workspaceId);
-
-  await surreal.query(`CREATE $task CONTENT $content;`, {
-    task: taskRecord,
-    content: {
-      title: task.title,
-      description: task.description,
-      status: "ready",
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
-  return { taskId };
-}
 
 async function assignTaskToSandboxAgent(
   baseUrl: string,
@@ -161,8 +111,8 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer with a workspace containing a task ready for work
     const user = await createTestUser(baseUrl, `ws1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Implement rate limiting",
       description: "Add sliding window rate limiter to the API gateway",
     });
@@ -219,8 +169,8 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer with an active coding session
     const user = await createTestUser(baseUrl, `ws2-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Build authentication service",
       description: "Create JWT-based auth with refresh tokens",
     });
@@ -275,8 +225,8 @@ describe("Walking Skeleton: Sandbox Agent Session Lifecycle", () => {
 
     // Given a developer spawns a sandbox coding session
     const user = await createTestUser(baseUrl, `ws3-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Add logging middleware",
       description: "Structured logging with request tracing",
     });
@@ -318,8 +268,8 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a developer with a ready task
     const user = await createTestUser(baseUrl, `hp1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Refactor database queries",
       description: "Optimize N+1 queries in entity search",
     });
@@ -346,8 +296,8 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a freshly spawned sandbox session
     const user = await createTestUser(baseUrl, `hp5-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Add input validation",
       description: "Validate all API endpoint inputs with Zod",
     });
@@ -378,8 +328,8 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a spawned sandbox session
     const user = await createTestUser(baseUrl, `hp2-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Implement caching layer",
       description: "Add Redis caching to entity queries",
     });
@@ -412,8 +362,8 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a spawned sandbox session
     const user = await createTestUser(baseUrl, `hp3-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Add API documentation",
       description: "Generate OpenAPI spec from route handlers",
     });
@@ -446,8 +396,8 @@ describe("Happy Path: Sandbox Session Operations", () => {
 
     // Given a sandbox session that has been working
     const user = await createTestUser(baseUrl, `hp6-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Write unit tests",
       description: "Add tests for the rate limiter module",
     });
@@ -501,8 +451,8 @@ describe("Error Paths: Sandbox Session Failures", () => {
     // Given the SandboxAgent server is not running
     // (configured to connect to unreachable address)
     const user = await createTestUser(baseUrl, `ep1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "This task should fail to assign",
       description: "Testing error handling when server is down",
     });
@@ -533,8 +483,8 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // Given a spawn that fails due to server unavailability
     const user = await createTestUser(baseUrl, `ep2-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Orphan check task",
       description: "Verifying no partial records on failure",
     });
@@ -569,8 +519,8 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // Given a session that has been completed
     const user = await createTestUser(baseUrl, `ep3-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Completed task",
       description: "Session already done",
     });
@@ -608,7 +558,7 @@ describe("Error Paths: Sandbox Session Failures", () => {
 
     // Given a session ID that does not exist
     const user = await createTestUser(baseUrl, `ep4-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
     const nonExistentSessionId = crypto.randomUUID();
 
     // When a prompt is sent to the non-existent session
@@ -661,8 +611,8 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
 
     // Given an active session currently processing a prompt
     const user = await createTestUser(baseUrl, `ec1-${crypto.randomUUID()}`);
-    const workspace = await createTestWorkspace(baseUrl, user, surreal);
-    const task = await createReadyTask(surreal, workspace.workspaceId, {
+    const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
+    const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Long-running implementation",
       description: "A task that takes time to process",
     });
@@ -704,28 +654,13 @@ describe("Edge Cases: Sandbox Session Boundaries", () => {
 
     // Given an active sandbox session record in SurrealDB
     const sessionId = crypto.randomUUID();
-    const workspaceId = crypto.randomUUID();
-    const workspaceRecord = new RecordId("workspace", workspaceId);
-
-    // Create workspace for the session
-    await surreal.query(`CREATE $ws CONTENT $content;`, {
-      ws: workspaceRecord,
-      content: {
-        name: "Restoration Test Workspace",
-        status: "active",
-        onboarding_complete: true,
-        onboarding_turn_count: 0,
-        onboarding_summary_pending: false,
-        onboarding_started_at: new Date(),
-        created_at: new Date(),
-      },
-    });
+    const workspace = await createWorkspaceDirectly(surreal, "ec2");
 
     // Create agent_session record as if it was running before restart
     await surreal.query(`CREATE $record CONTENT $content;`, {
       record: new RecordId("agent_session", sessionId),
       content: {
-        workspace: workspaceRecord,
+        workspace: workspace.workspaceRecord,
         agent: "claude",
         session_type: "sandbox_agent",
         provider: "local",
