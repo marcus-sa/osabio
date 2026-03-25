@@ -9,7 +9,7 @@
  * Driving port: SandboxAgentAdapter type (injected mock)
  */
 import { describe, expect, it } from "bun:test";
-import { createMockAdapter } from "../../../app/src/server/orchestrator/sandbox-adapter";
+import { createMockAdapter, type CreateSessionRequest } from "../../../app/src/server/orchestrator/sandbox-adapter";
 
 // ── Tests ──
 
@@ -120,5 +120,46 @@ describe("SandboxAgentAdapter (mock)", () => {
     await expect(
       handle.prompt([{ type: "text", text: "This should fail" }]),
     ).rejects.toThrow();
+  });
+
+  // ─── UA-7: createSession passes env record through to adapter ───
+  it("createSession passes env record through to the adapter", async () => {
+    // Given environment variables for the sandbox session
+    const env: Record<string, string> = {
+      ANTHROPIC_BASE_URL: "https://brain.example.com/proxy",
+      "X-Brain-Auth": "brn_test_token_abc123",
+    };
+
+    // When a session is created with env
+    const adapter = createMockAdapter();
+    const handle = await adapter.createSession({
+      agent: "claude",
+      cwd: "/workspace/proxy-env",
+      env,
+    });
+
+    // Then the adapter captured the env from the request
+    const lastRequest = adapter.lastCreateSessionRequest;
+    expect(lastRequest).toBeDefined();
+    expect(lastRequest!.env).toEqual(env);
+    // And the session handle is still valid
+    expect(handle.id).toBeTruthy();
+  });
+
+  // ─── UA-8: createSession works when env is omitted ───
+  it("createSession works correctly when env is omitted", async () => {
+    // Given a session creation request without env
+    const adapter = createMockAdapter();
+    const handle = await adapter.createSession({
+      agent: "claude",
+      cwd: "/workspace/no-env",
+    });
+
+    // Then the adapter captured a request without env
+    const lastRequest = adapter.lastCreateSessionRequest;
+    expect(lastRequest).toBeDefined();
+    expect(lastRequest!.env).toBeUndefined();
+    // And the session handle is still valid
+    expect(handle.id).toBeTruthy();
   });
 });

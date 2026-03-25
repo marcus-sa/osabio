@@ -33,6 +33,15 @@ export type {
 // ── Port Types ──
 
 /**
+ * Brain-owned session creation request.
+ * Extends the SDK's SessionCreateRequest with env for passing environment
+ * variables (e.g. ANTHROPIC_BASE_URL, X-Brain-Auth) into the sandbox.
+ */
+export type CreateSessionRequest = SessionCreateRequest & {
+  env?: Record<string, string>;
+};
+
+/**
  * Thin wrapper around the SDK's Session, exposing only the methods Brain needs.
  * Keeps the port boundary narrow -- callers never depend on the full Session class.
  */
@@ -47,9 +56,11 @@ export type SessionHandle = {
 };
 
 export type SandboxAgentAdapter = {
-  createSession: (request: SessionCreateRequest) => Promise<SessionHandle>;
+  createSession: (request: CreateSessionRequest) => Promise<SessionHandle>;
   resumeSession: (sessionId: string) => Promise<SessionHandle>;
   destroySession: (sessionId: string) => Promise<void>;
+  /** Exposed for test assertion -- last request passed to createSession. */
+  lastCreateSessionRequest?: CreateSessionRequest;
 };
 
 // ── Production Adapter Factory ──
@@ -73,7 +84,9 @@ export function createSandboxAgentAdapter(
 ): SandboxAgentAdapter {
   return {
     createSession: async (request) => {
-      const session = await sdk.createSession(request);
+      // Extract env from Brain's extended request; pass the SDK-compatible fields through
+      const { env: _env, ...sdkRequest } = request;
+      const session = await sdk.createSession(sdkRequest);
       return wrapSession(session);
     },
     resumeSession: async (sessionId) => {
@@ -93,6 +106,7 @@ export function createMockAdapter(
 ): SandboxAgentAdapter {
   const sessions = new Map<string, SessionHandle>();
   const destroyed = new Set<string>();
+  let lastCreateSessionRequest: CreateSessionRequest | undefined;
 
   const createHandle = (id: string): SessionHandle => ({
     id,
@@ -112,7 +126,11 @@ export function createMockAdapter(
   });
 
   return {
+    get lastCreateSessionRequest() {
+      return lastCreateSessionRequest;
+    },
     createSession: async (request) => {
+      lastCreateSessionRequest = request;
       const id = `session-${crypto.randomUUID()}`;
       const handle = createHandle(id);
       sessions.set(id, handle);
