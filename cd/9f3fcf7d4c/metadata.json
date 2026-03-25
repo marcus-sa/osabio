@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cd9f3fcf7d4c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/sandbox-agent-integration/deliver/execution-log.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/9f3fcf7d4c/0/metadata.json",
+      "transcript": "/cd/9f3fcf7d4c/0/full.jsonl",
+      "context": "/cd/9f3fcf7d4c/0/context.md",
+      "content_hash": "/cd/9f3fcf7d4c/0/content_hash.txt",
+      "prompt": "/cd/9f3fcf7d4c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 223,
+    "cache_creation_tokens": 527812,
+    "cache_read_tokens": 18817518,
+    "output_tokens": 66014,
+    "api_call_count": 163
+  }
+}
