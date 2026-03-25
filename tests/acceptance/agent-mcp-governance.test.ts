@@ -820,7 +820,7 @@ describe("Error Paths: Authentication and Authorization", () => {
 describe("Error Paths: Intent Denial", () => {
   // EP-4: Policy-denied intent returns vetoed with denial reason
   // US-03
-  it.skip("policy-denied intent returns vetoed status with denial reason", async () => {
+  it("policy-denied intent returns vetoed status with denial reason", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace policy that denies all access to production-db
@@ -830,7 +830,33 @@ describe("Error Paths: Intent Denial", () => {
       surreal, ws.identityId, ws.workspaceId, { sessionId: session.sessionId },
     );
 
-    // (Policy denying production-db would be seeded here)
+    // Seed an active deny policy for production-db provider
+    const policyId = `policy-${crypto.randomUUID()}`;
+    const policyRecord = new RecordId("policy", policyId);
+    await surreal.query(`CREATE $policy CONTENT $content;`, {
+      policy: policyRecord,
+      content: {
+        title: "Deny production-db access",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "deny-production-db",
+          condition: { field: "action_spec.provider", operator: "eq", value: "production-db" },
+          effect: "deny",
+          priority: 100,
+        }],
+        human_veto_required: false,
+        created_by: new RecordId("identity", ws.identityId),
+        workspace: new RecordId("workspace", ws.workspaceId),
+        created_at: new Date(),
+      },
+    });
+    // Create protects edge so policy gate loads this policy
+    await surreal.query(
+      `RELATE $policy->protects->$ws SET created_at = time::now();`,
+      { policy: policyRecord, ws: new RecordId("workspace", ws.workspaceId) },
+    );
 
     // When the agent creates an intent for the denied provider
     const response = await mcpRequest(
@@ -854,7 +880,7 @@ describe("Error Paths: Intent Denial", () => {
 
   // EP-5: No gates edge created for denied intent
   // US-03
-  it.skip("denied intent does not create a gates edge", async () => {
+  it("denied intent does not create a gates edge", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a denied intent creation
@@ -862,6 +888,33 @@ describe("Error Paths: Intent Denial", () => {
     const session = await createAgentSessionDirectly(surreal, ws.workspaceId);
     const proxyToken = await seedProxyToken(
       surreal, ws.identityId, ws.workspaceId, { sessionId: session.sessionId },
+    );
+
+    // Seed an active deny policy for production-db provider
+    const policyId = `policy-${crypto.randomUUID()}`;
+    const policyRecord = new RecordId("policy", policyId);
+    await surreal.query(`CREATE $policy CONTENT $content;`, {
+      policy: policyRecord,
+      content: {
+        title: "Deny production-db access",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "deny-production-db",
+          condition: { field: "action_spec.provider", operator: "eq", value: "production-db" },
+          effect: "deny",
+          priority: 100,
+        }],
+        human_veto_required: false,
+        created_by: new RecordId("identity", ws.identityId),
+        workspace: new RecordId("workspace", ws.workspaceId),
+        created_at: new Date(),
+      },
+    });
+    await surreal.query(
+      `RELATE $policy->protects->$ws SET created_at = time::now();`,
+      { policy: policyRecord, ws: new RecordId("workspace", ws.workspaceId) },
     );
 
     // When the agent creates an intent that gets denied

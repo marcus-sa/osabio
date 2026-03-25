@@ -5,9 +5,9 @@
  *   1. Parse and validate input arguments
  *   2. Derive authorization_details from action_spec
  *   3. Create intent record in SurrealDB (draft)
- *   4. Evaluate through policy gate (auto-approve path)
- *   5. Transition to authorized on approval
- *   6. Create gates edge linking intent to session
+ *   4. Evaluate through policy gate
+ *   5. If denied: transition to vetoed (no gates edge)
+ *   6. If approved: transition to authorized, create gates edge
  *   7. Return CreateIntentOutcome
  *
  * Effect boundary: performs IO (SurrealDB writes, policy gate evaluation).
@@ -21,6 +21,7 @@ import {
   createTrace,
   updateIntentStatus,
 } from "../intent/intent-queries";
+import { evaluatePolicyGate } from "../policy/policy-gate";
 import { log } from "../telemetry/logger";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ export type CreateIntentInput = {
 
 export type CreateIntentOutcome =
   | { readonly status: "authorized"; readonly intentId: string }
+  | { readonly status: "vetoed"; readonly intentId: string; readonly reason: string }
   | { readonly status: "error"; readonly reason: string };
 
 export type CreateIntentContext = {
@@ -116,11 +118,10 @@ function validateInput(
  *
  * Pipeline:
  *   validate input -> derive auth details -> create trace -> create intent (draft)
- *   -> transition to pending_auth -> transition to authorized -> create gates edge
+ *   -> transition to pending_auth -> evaluate policy gate
+ *   -> if denied: transition to vetoed (no gates edge)
+ *   -> if approved: transition to authorized -> create gates edge
  *   -> return outcome
- *
- * For this initial implementation, all intents are auto-approved (no policy gate
- * or LLM evaluator). The full policy gate wiring is added in subsequent steps.
  */
 export async function handleCreateIntent(
   args: Record<string, unknown>,
@@ -176,7 +177,48 @@ export async function handleCreateIntent(
     return { status: "error", reason: `Intent transition failed: ${toPendingAuth.error}` };
   }
 
-  // 6. Auto-approve: transition pending_auth -> authorized
+  // 6. Evaluate policy gate
+  const identityRecord = new RecordId("identity", context.identityId);
+  const workspaceRecord = new RecordId("workspace", context.workspaceId);
+
+  const policyResult = await evaluatePolicyGate(
+    surreal,
+    identityRecord,
+    workspaceRecord,
+    {
+      goal: parsed.goal,
+      reasoning: parsed.reasoning,
+      priority: 50,
+      action_spec: actionSpec,
+      requester_type: "agent",
+    },
+  );
+
+  // 7. If policy denies: transition to vetoed, no gates edge
+  if (!policyResult.passed) {
+    const toVetoed = await updateIntentStatus(surreal, intentId, "vetoed", {
+      veto_reason: policyResult.reason,
+    });
+
+    if (!toVetoed.ok) {
+      log.error("create_intent.transition_failed", "Failed to transition intent to vetoed", {
+        intent_id: intentId,
+        error: toVetoed.error,
+      });
+      return { status: "error", reason: `Intent transition failed: ${toVetoed.error}` };
+    }
+
+    log.info("create_intent.vetoed", "Intent denied by policy gate", {
+      intent_id: intentId,
+      workspace_id: context.workspaceId,
+      action: `${actionSpec.provider}:${actionSpec.action}`,
+      deny_rule_id: policyResult.deny_rule_id,
+    });
+
+    return { status: "vetoed", intentId, reason: policyResult.reason };
+  }
+
+  // 8. Policy passed: transition pending_auth -> authorized
   const toAuthorized = await updateIntentStatus(surreal, intentId, "authorized", {
     evaluation: {
       decision: "APPROVE",
@@ -195,7 +237,7 @@ export async function handleCreateIntent(
     return { status: "error", reason: `Intent transition failed: ${toAuthorized.error}` };
   }
 
-  // 7. Create gates edge: intent -> gates -> session
+  // 9. Create gates edge: intent -> gates -> session
   const sessionRecord = new RecordId("agent_session", context.sessionId);
   await surreal.query(
     `RELATE $intent->gates->$sess SET created_at = time::now();`,
