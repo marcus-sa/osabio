@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "6f0d35f750ba",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docs/adrs/ADR-074-sandbox-agent-sdk-adapter-interface.md",
+    "docs/adrs/ADR-075-surrealdb-session-store-over-in-memory-registry.md",
+    "docs/adrs/ADR-076-sandbox-fields-on-agent-session.md",
+    "docs/adrs/ADR-077-buffered-event-persistence-100ms-window.md",
+    "docs/feature/sandbox-agent-integration/design/architecture-design.md",
+    "docs/feature/sandbox-agent-integration/design/component-boundaries.md",
+    "docs/feature/sandbox-agent-integration/design/data-models.md",
+    "docs/feature/sandbox-agent-integration/design/technology-stack.md",
+    "docs/feature/sandbox-agent-integration/design/wave-decisions.md",
+    "docs/feature/sandbox-agent-integration/discuss/acceptance-criteria.md",
+    "docs/feature/sandbox-agent-integration/discuss/dor-checklist.md",
+    "docs/feature/sandbox-agent-integration/discuss/journey-agent-session-lifecycle-visual.md",
+    "docs/feature/sandbox-agent-integration/discuss/journey-agent-session-lifecycle.feature",
+    "docs/feature/sandbox-agent-integration/discuss/journey-agent-session-lifecycle.yaml",
+    "docs/feature/sandbox-agent-integration/discuss/jtbd-four-forces.md",
+    "docs/feature/sandbox-agent-integration/discuss/jtbd-job-stories.md",
+    "docs/feature/sandbox-agent-integration/discuss/jtbd-opportunity-scores.md",
+    "docs/feature/sandbox-agent-integration/discuss/outcome-kpis.md",
+    "docs/feature/sandbox-agent-integration/discuss/prioritization.md",
+    "docs/feature/sandbox-agent-integration/discuss/requirements.md",
+    "docs/feature/sandbox-agent-integration/discuss/shared-artifacts-registry.md",
+    "docs/feature/sandbox-agent-integration/discuss/story-map.md",
+    "docs/feature/sandbox-agent-integration/discuss/user-stories.md",
+    "docs/feature/sandbox-agent-integration/discuss/wave-decisions.md",
+    "docs/feature/sandbox-agent-integration/distill/test-scenarios.md",
+    "docs/feature/sandbox-agent-integration/distill/walking-skeleton.md",
+    "docs/feature/sandbox-agent-integration/distill/wave-decisions.md",
+    "docs/research/sandbox-agent-sdk-evaluation.md",
+    "tests/acceptance/sandbox-session-lifecycle.test.ts",
+    "tests/unit/orchestrator/sandbox-adapter.test.ts",
+    "tests/unit/orchestrator/sandbox-event-bridge.test.ts",
+    "tests/unit/orchestrator/session-store.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6f/0d35f750ba/0/metadata.json",
+      "transcript": "/6f/0d35f750ba/0/full.jsonl",
+      "context": "/6f/0d35f750ba/0/context.md",
+      "content_hash": "/6f/0d35f750ba/0/content_hash.txt",
+      "prompt": "/6f/0d35f750ba/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 40219,
+    "cache_read_tokens": 159142,
+    "output_tokens": 576,
+    "api_call_count": 4
+  }
+}
