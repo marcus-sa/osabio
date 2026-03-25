@@ -215,14 +215,24 @@ describe("workspace description in onboarding", () => {
 
     await collectSseEvents<StreamEvent>(`${baseUrl}${chatResponse.streamUrl}`, 180_000);
 
-    // Verify entity classification in the database
+    // Verify entity classification in the database.
+    // Classification writes may land shortly after stream completion.
     const workspaceRecord = new RecordId("workspace", create.workspaceId);
-    const [projects] = await surreal
-      .query<[Array<{ id: RecordId<"project", string>; name: string }>]>(
-        "SELECT id, name FROM project WHERE id IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace);",
-        { workspace: workspaceRecord },
-      )
-      .then((r) => r as unknown as [Array<{ id: RecordId<"project", string>; name: string }>]);
+    const startedAt = Date.now();
+    const timeoutMs = 10_000;
+    let projects: Array<{ id: RecordId<"project", string>; name: string }> = [];
+    do {
+      [projects] = await surreal
+        .query<[Array<{ id: RecordId<"project", string>; name: string }>]>(
+          "SELECT id, name FROM project WHERE id IN (SELECT VALUE out FROM has_project WHERE `in` = $workspace);",
+          { workspace: workspaceRecord },
+        )
+        .then((r) => r as unknown as [Array<{ id: RecordId<"project", string>; name: string }>]);
+      if (projects.some((p) => p.name.toLowerCase() === "dashboard")) {
+        break;
+      }
+      await Bun.sleep(250);
+    } while (Date.now() - startedAt < timeoutMs);
 
     // Workspace name must NOT be created as a project
     expect(projects.some((p) => p.name.toLowerCase() === "dabdash")).toBe(false);
