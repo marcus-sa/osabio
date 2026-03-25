@@ -5,6 +5,11 @@
  * Pure core: no IO, no DB, no side effects.
  */
 import type { ClassifiedTool } from "./scope-engine";
+import {
+  BRAIN_READ_TOOLS,
+  BRAIN_WRITE_TOOLS,
+  ALL_BRAIN_TOOL_NAMES,
+} from "./brain-tool-definitions";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -67,10 +72,8 @@ const BRAIN_NATIVE_TOOLS: readonly McpToolDefinition[] = [
   GET_CONTEXT_TOOL,
 ];
 
-/** Tool names that are always available without intent authorization. */
-export const BRAIN_NATIVE_TOOL_NAMES: ReadonlySet<string> = new Set(
-  BRAIN_NATIVE_TOOLS.map((t) => t.name),
-);
+/** Tool names that are handled by Brain (not forwarded to external MCP servers). */
+export const BRAIN_NATIVE_TOOL_NAMES: ReadonlySet<string> = ALL_BRAIN_TOOL_NAMES;
 
 // ---------------------------------------------------------------------------
 // Pure function: buildToolsList
@@ -120,13 +123,31 @@ function classifiedToolToDefinition(classified: ClassifiedTool): McpToolDefiniti
 }
 
 /**
+ * Build gated description for a brain write tool.
+ */
+function buildBrainGatedToolDescription(
+  originalDescription: string,
+  toolName: string,
+): string {
+  return (
+    `[GATED] This tool requires an approved intent. ` +
+    `Call create_intent with provider="brain" and action="${toolName}" to request authorization.\n\n` +
+    originalDescription
+  );
+}
+
+/**
  * Build the MCP ListToolsResult from classified tools.
  *
  * Pipeline:
- *   classifiedTools -> filter out brain_native -> map to definitions -> append brain-native tools
+ *   classifiedTools -> filter out brain_native -> map to definitions
+ *   -> append brain read tools (always available)
+ *   -> append brain write tools (gated or authorized based on intent)
+ *   -> append infrastructure tools (get_context, create_intent)
  */
 export function buildToolsList(
   classifiedTools: readonly ClassifiedTool[],
+  authorizedBrainWriteTools: ReadonlySet<string> = new Set(),
 ): ListToolsResult {
   // Convert granted tools (authorized + gated), excluding brain_native from the classified set
   // because we append canonical brain-native definitions separately
@@ -134,7 +155,23 @@ export function buildToolsList(
     .filter((ct) => ct.classification.kind !== "brain_native")
     .map(classifiedToolToDefinition);
 
+  // Brain write tools: gated or authorized based on intent
+  const brainWriteToolDefinitions = BRAIN_WRITE_TOOLS.map((tool) => {
+    if (authorizedBrainWriteTools.has(tool.name)) {
+      return tool; // authorized — show with clean description
+    }
+    return {
+      ...tool,
+      description: buildBrainGatedToolDescription(tool.description, tool.name),
+    };
+  });
+
   return {
-    tools: [...grantedToolDefinitions, ...BRAIN_NATIVE_TOOLS],
+    tools: [
+      ...grantedToolDefinitions,
+      ...BRAIN_READ_TOOLS,
+      ...brainWriteToolDefinitions,
+      ...BRAIN_NATIVE_TOOLS,
+    ],
   };
 }

@@ -17,12 +17,21 @@ import { resolveAgentSession, type AgentSessionContext } from "./agent-mcp-auth"
 import {
   computeEffectiveScope,
   classifyTools,
+  computeAuthorizedBrainWriteTools,
+  findBrainWriteIntent,
   type AuthorizedIntentSummary,
   type ClassifiedTool,
+  type EffectiveScope,
 } from "./scope-engine";
 import { buildToolsList, BRAIN_NATIVE_TOOL_NAMES } from "./tools-list-handler";
 import { handleToolCall, type ToolCallParams } from "./tools-call-handler";
 import { handleCreateIntent } from "./create-intent-handler";
+import { handleBrainToolCall } from "./brain-tools-handler";
+import {
+  BRAIN_READ_TOOL_NAMES,
+  BRAIN_WRITE_TOOL_NAMES,
+} from "./brain-tool-definitions";
+import { buildIntentRequiredError } from "./error-response-builder";
 import {
   resolveToolsForIdentity,
   createQueryGrantedTools,
@@ -108,6 +117,11 @@ async function querySessionIntents(
 // Shared scope computation
 // ---------------------------------------------------------------------------
 
+type ResolvedToolsAndScope = {
+  readonly classifiedTools: readonly ClassifiedTool[];
+  readonly effectiveScope: EffectiveScope;
+};
+
 /**
  * Resolve intents, compute scope, and classify tools for a session.
  * Shared between tools/list and tools/call handlers.
@@ -117,7 +131,7 @@ async function resolveClassifiedTools(
   surreal: Surreal,
   queryTools: QueryGrantedTools,
   toolCache: ToolResolutionCache,
-): Promise<readonly ClassifiedTool[]> {
+): Promise<ResolvedToolsAndScope> {
   const intents = await querySessionIntents(surreal, context.sessionId);
   const effectiveScope = computeEffectiveScope(intents);
   const grantedTools = await resolveToolsForIdentity(
@@ -126,7 +140,8 @@ async function resolveClassifiedTools(
     queryTools,
     toolCache,
   );
-  return classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
+  const classifiedTools = classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
+  return { classifiedTools, effectiveScope };
 }
 
 // ---------------------------------------------------------------------------
@@ -139,8 +154,9 @@ async function handleToolsList(
   queryTools: QueryGrantedTools,
   toolCache: ToolResolutionCache,
 ): Promise<unknown> {
-  const classifiedTools = await resolveClassifiedTools(context, surreal, queryTools, toolCache);
-  return buildToolsList(classifiedTools);
+  const { classifiedTools, effectiveScope } = await resolveClassifiedTools(context, surreal, queryTools, toolCache);
+  const authorizedBrainWriteTools = computeAuthorizedBrainWriteTools(effectiveScope, BRAIN_WRITE_TOOL_NAMES);
+  return buildToolsList(classifiedTools, authorizedBrainWriteTools);
 }
 
 // ---------------------------------------------------------------------------
@@ -184,16 +200,17 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
         case "tools/call": {
           const toolName = (body.params?.name as string) ?? "";
           const toolArgs = body.params?.arguments as Record<string, unknown> ?? {};
+          const brainToolContext = {
+            workspaceId: context.workspaceId,
+            identityId: context.identityId,
+            sessionId: context.sessionId,
+          };
 
-          // Brain-native tools are handled directly, not via classified tool lookup
+          // Infrastructure: create_intent
           if (toolName === "create_intent") {
             const outcome = await handleCreateIntent(
               toolArgs,
-              {
-                workspaceId: context.workspaceId,
-                identityId: context.identityId,
-                sessionId: context.sessionId,
-              },
+              brainToolContext,
               deps.surreal,
             );
 
@@ -221,8 +238,49 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
             );
           }
 
-          // Non-brain-native tools: classify and dispatch
-          const classifiedTools = await resolveClassifiedTools(
+          // Brain read tools: always available, execute directly
+          if (BRAIN_READ_TOOL_NAMES.has(toolName)) {
+            const callResult = await handleBrainToolCall(
+              toolName, toolArgs, true, brainToolContext, { surreal: deps.surreal },
+            );
+            if (callResult.kind === "success") {
+              return jsonResponse(jsonRpcSuccess(requestId, callResult.result), 200);
+            }
+            return jsonResponse(
+              jsonRpcError(requestId, callResult.code, callResult.message),
+              500,
+            );
+          }
+
+          // Brain write tools: require intent authorization
+          if (BRAIN_WRITE_TOOL_NAMES.has(toolName)) {
+            const { effectiveScope } = await resolveClassifiedTools(
+              context, deps.surreal, queryTools, toolCache,
+            );
+            const matchingIntent = findBrainWriteIntent(toolName, effectiveScope);
+
+            if (!matchingIntent) {
+              const intentRequiredError = buildIntentRequiredError(toolName, "brain");
+              return jsonResponse(
+                jsonRpcError(requestId, intentRequiredError.code, intentRequiredError.message, intentRequiredError.data),
+                403,
+              );
+            }
+
+            const callResult = await handleBrainToolCall(
+              toolName, toolArgs, false, brainToolContext, { surreal: deps.surreal },
+            );
+            if (callResult.kind === "success") {
+              return jsonResponse(jsonRpcSuccess(requestId, callResult.result), 200);
+            }
+            return jsonResponse(
+              jsonRpcError(requestId, callResult.code, callResult.message),
+              500,
+            );
+          }
+
+          // External MCP tools: classify and dispatch
+          const { classifiedTools } = await resolveClassifiedTools(
             context, deps.surreal, queryTools, toolCache,
           );
           const callParams: ToolCallParams = {
@@ -232,11 +290,7 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           const callResult = await handleToolCall(
             callParams,
             classifiedTools,
-            {
-              workspaceId: context.workspaceId,
-              identityId: context.identityId,
-              sessionId: context.sessionId,
-            },
+            brainToolContext,
             {
               surreal: deps.surreal,
               mcpClientFactory: deps.mcpClientFactory,

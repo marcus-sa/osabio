@@ -85,6 +85,38 @@ function classifyTool(
   return { kind: "gated" };
 }
 
+/**
+ * Compute the set of brain write tools that have an approved intent.
+ * Checks for resources matching `mcp_tool:brain:{toolName}`.
+ */
+export function computeAuthorizedBrainWriteTools(
+  effectiveScope: EffectiveScope,
+  brainWriteToolNames: ReadonlySet<string>,
+): ReadonlySet<string> {
+  const authorized = new Set<string>();
+  for (const toolName of brainWriteToolNames) {
+    const resource = `mcp_tool:brain:${toolName}`;
+    if (effectiveScope.authorizedActions.some((a) => a.resource === resource)) {
+      authorized.add(toolName);
+    }
+  }
+  return authorized;
+}
+
+/**
+ * Find the first intent whose authorization_details match a brain write tool.
+ * Returns the intent summary or undefined if no match.
+ */
+export function findBrainWriteIntent(
+  toolName: string,
+  effectiveScope: EffectiveScope,
+): AuthorizedIntentSummary | undefined {
+  const resource = `mcp_tool:brain:${toolName}`;
+  return effectiveScope.intents.find((intent) =>
+    intent.authorizationDetails.some((action) => action.resource === resource),
+  );
+}
+
 /** Classifies each granted tool as authorized, gated, or brain_native. */
 export function classifyTools(
   grantedTools: readonly ResolvedTool[],
