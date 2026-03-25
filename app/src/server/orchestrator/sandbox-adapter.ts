@@ -16,9 +16,11 @@ import type {
   SessionPermissionRequest,
   PermissionRequestListener,
   PermissionReply,
-  PromptRequest,
-  PromptResponse,
 } from "sandbox-agent";
+
+// Derive prompt types from Session's method signature (not directly exported by sandbox-agent)
+type PromptInput = Parameters<Session["prompt"]>[0];
+type PromptResponse = Awaited<ReturnType<Session["prompt"]>>;
 
 // Re-export SDK types used at port boundaries
 export type {
@@ -48,7 +50,7 @@ export type CreateSessionRequest = SessionCreateRequest & {
 export type SessionHandle = {
   id: string;
   prompt: (
-    messages: PromptRequest["prompt"],
+    messages: PromptInput,
   ) => Promise<PromptResponse>;
   onEvent: (listener: SessionEventListener) => () => void;
   onPermissionRequest: (listener: PermissionRequestListener) => () => void;

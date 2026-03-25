@@ -513,8 +513,6 @@ export function wireOrchestratorRoutes(
   const lifecycleImport = import("./session-lifecycle");
   const queriesImport = import("../mcp/mcp-queries");
   const guardImport = import("./assignment-guard");
-  const stallDetectorImport = import("./stall-detector");
-
   // Helper: resolve repo_path from workspace record
   const resolveRepoRoot = async (workspaceRecord: import("surrealdb").RecordId<"workspace", string>): Promise<string> => {
     const [rows] = await wiringDeps.surreal.query<[Array<{ repo_path?: string }>]>(
@@ -549,21 +547,22 @@ export function wireOrchestratorRoutes(
     };
   };
 
-  // Resolve adapter: real SDK adapter from deps, or mock for tests
-  const sandboxAdapterPromise = wiringDeps.sandboxAgentAdapter
-    ? Promise.resolve(wiringDeps.sandboxAgentAdapter)
-    : wiringDeps.mockAgent
-      ? import("./sandbox-adapter").then((mod) => mod.createMockAdapter())
-      : Promise.reject(new Error("No sandbox adapter configured — set sandboxAgentAdapter or mockAgent"));
+  // Resolve adapter: real SDK adapter from deps, or mock for tests.
+  // Eagerly resolved when configured; lazy rejection to avoid unhandled promise
+  // rejections in test suites that don't exercise orchestrator routes.
+  const resolveAdapter = (): Promise<import("./sandbox-adapter").SandboxAgentAdapter> => {
+    if (wiringDeps.sandboxAgentAdapter) return Promise.resolve(wiringDeps.sandboxAgentAdapter);
+    if (wiringDeps.mockAgent) return import("./sandbox-adapter").then((mod) => mod.createMockAdapter());
+    return Promise.reject(new Error("No sandbox adapter configured — set sandboxAgentAdapter or mockAgent"));
+  };
 
   const routeDeps: OrchestratorRouteDeps = {
     createSession: async (workspaceId, taskId, authToken) => {
-      const [adapter, lifecycle, queries, guard, stallDetector] = await Promise.all([
-        sandboxAdapterPromise,
+      const [adapter, lifecycle, queries, guard] = await Promise.all([
+        resolveAdapter(),
         lifecycleImport,
         queriesImport,
         guardImport,
-        stallDetectorImport,
       ]);
 
       // Build task-scoped intent context, issue MCP auth env with intent
@@ -669,7 +668,7 @@ export function wireOrchestratorRoutes(
 
     abortSession: async (sessionId) => {
       const [adapter, lifecycle, queries] = await Promise.all([
-        sandboxAdapterPromise,
+        resolveAdapter(),
         lifecycleImport,
         queriesImport,
       ]);
@@ -685,7 +684,7 @@ export function wireOrchestratorRoutes(
 
     acceptSession: async (sessionId, summary) => {
       const [adapter, lifecycle, queries] = await Promise.all([
-        sandboxAdapterPromise,
+        resolveAdapter(),
         lifecycleImport,
         queriesImport,
       ]);
@@ -733,7 +732,7 @@ export function wireOrchestratorRoutes(
     },
 
     sendPrompt: async (sessionId, text) => {
-      const [adapter, lifecycle] = await Promise.all([sandboxAdapterPromise, lifecycleImport]);
+      const [adapter, lifecycle] = await Promise.all([resolveAdapter(), lifecycleImport]);
       return lifecycle.sendSessionPrompt({
         surreal: wiringDeps.surreal,
         sessionId,
