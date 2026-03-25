@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "b2ceb460b260",
+  "session_id": "f3ec64bf-e3c2-493c-baa2-daff53277df0",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-25T08:48:04.997551Z",
+  "branch": "marcus-sa/sandbox-agent-eval",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/runtime/dependencies.ts",
+    "tests/acceptance/acceptance-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a13fb2bef127",
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 30180,
+    "cache_read_tokens": 15755,
+    "output_tokens": 251,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-25T08:48:04.993996Z",
+    "agent_lines": 9,
+    "human_added": 35,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 46,
+    "agent_percentage": 19.565217391304348
+  }
+}
