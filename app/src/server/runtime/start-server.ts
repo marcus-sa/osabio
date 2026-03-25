@@ -45,6 +45,7 @@ import { createLiveSelectManager } from "../reactive/live-select-manager";
 import { createFeedSseBridge } from "../reactive/feed-sse-bridge";
 import { createAgentActivatorHandler } from "../reactive/agent-activator";
 import { createLoopDampener } from "../reactive/loop-dampener";
+import { createAgentMcpHandler } from "../mcp/agent-mcp-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
@@ -122,6 +123,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const toolHandlers = createToolRouteHandlers(deps);
   const grantHandlers = createGrantRouteHandlers(deps);
   const mcpServerHandlers = createServerRouteHandlers(deps);
+  const agentMcpHandler = createAgentMcpHandler(deps);
   const anthropicProxyHandler = createAnthropicProxyHandler(deps);
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
@@ -771,6 +773,12 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/api/mcp/:workspaceId/intents/status": {
         POST: withTracing("POST /api/mcp/:workspaceId/intents/status", "POST", (request) =>
           mcpHandlers.handleGetIntentStatus(request.params.workspaceId, request),
+        ),
+      },
+      // Agent MCP — intent-gated tool access for sandbox agents
+      "/mcp/agent/:sessionId": {
+        POST: withTracing("POST /mcp/agent/:sessionId", "POST", (request) =>
+          agentMcpHandler(request.params.sessionId, request),
         ),
       },
       // Observer — periodic graph scan
