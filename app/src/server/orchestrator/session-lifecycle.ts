@@ -291,6 +291,7 @@ type CreateSessionInput = {
   taskId: string;
   intentId?: string;
   authToken?: string;
+  env?: Record<string, string>;
   adapter: SandboxAgentAdapter;
   sandboxAgentType?: string;
   validateAssignment: (
@@ -454,6 +455,7 @@ async function createSessionViaAdapter(
     handle = await adapter.createSession({
       agent: input.sandboxAgentType ?? "claude",
       cwd: worktreePath,
+      ...(input.env ? { env: input.env } : {}),
     });
   } catch (err) {
     // Rollback: remove worktree and delete agent_session on adapter failure
