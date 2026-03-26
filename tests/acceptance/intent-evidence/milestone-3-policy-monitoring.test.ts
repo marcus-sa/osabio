@@ -297,7 +297,7 @@ describe("US-10: Observer evidence anomaly detection", () => {
     expect(evidenceAnomalies[0].severity).toBe("warning");
   }, 60_000);
 
-  it.skip("normal evidence usage does not trigger anomaly", async () => {
+  it("M3-6: normal evidence usage does not trigger anomaly", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with normal evidence usage patterns
@@ -322,11 +322,15 @@ describe("US-10: Observer evidence anomaly detection", () => {
       );
     }
 
-    // When the Observer runs its periodic scan
-    // Driving port: POST /api/workspaces/:ws/observer/scan
+    // When the Observer runs its evidence anomaly scans
+    // Driving port: detectEvidenceSpam + detectEvidenceReuse (deterministic graph scan functions)
+    const { detectEvidenceSpam, detectEvidenceReuse } = await import("../../../app/src/server/observer/graph-scan");
+    const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
+    await detectEvidenceSpam(surreal, workspaceRecord);
+    await detectEvidenceReuse(surreal, workspaceRecord);
 
     // Then no evidence anomaly observations are created
-    const observations = await queryWorkspaceObservations(surreal, workspace.workspaceId, "observer-agent");
+    const observations = await queryWorkspaceObservations(surreal, workspace.workspaceId, "observer_agent");
     const anomalies = observations.filter(o => o.observation_type === "evidence_anomaly");
     expect(anomalies).toHaveLength(0);
   }, 60_000);
