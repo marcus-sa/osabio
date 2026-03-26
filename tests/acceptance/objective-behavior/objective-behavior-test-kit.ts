@@ -545,7 +545,7 @@ export async function createAlignmentWarningObservation(
   intentId: string,
   bestScore: number,
 ): Promise<void> {
-  const observationId = `obs-${crypto.randomUUID()}`;
+  const observationId = crypto.randomUUID();
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const intentRecord = new RecordId("intent", intentId);

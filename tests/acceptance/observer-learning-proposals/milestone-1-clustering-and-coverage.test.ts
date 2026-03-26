@@ -124,7 +124,7 @@ describe("Milestone 1: Observation Clustering and Coverage Check", () => {
 
     // One observation about rate limits
     const text1 = "Agent exceeded rate limit on external payment API";
-    const obs1Id = `obs-${crypto.randomUUID()}`;
+    const obs1Id = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs1Id),
       content: {
@@ -136,7 +136,7 @@ describe("Milestone 1: Observation Clustering and Coverage Check", () => {
 
     // One observation about missing documentation
     const text2 = "Feature shipped without updating user-facing documentation";
-    const obs2Id = `obs-${crypto.randomUUID()}`;
+    const obs2Id = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs2Id),
       content: {
@@ -148,7 +148,7 @@ describe("Milestone 1: Observation Clustering and Coverage Check", () => {
 
     // One observation about incorrect data formatting
     const text3 = "Agent returned dates in wrong timezone format for the billing report";
-    const obs3Id = `obs-${crypto.randomUUID()}`;
+    const obs3Id = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obs3Id),
       content: {

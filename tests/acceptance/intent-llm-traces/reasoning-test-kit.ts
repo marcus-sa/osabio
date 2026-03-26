@@ -106,7 +106,7 @@ export async function setupReasoningWorkspace(
   const user = await createTestUser(baseUrl, suffix);
   const workspace = await createTestWorkspace(baseUrl, user);
 
-  const identityId = `id-${crypto.randomUUID()}`;
+  const identityId = crypto.randomUUID();
   const identityRecord = new RecordId("identity", identityId);
   const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
 
@@ -144,7 +144,7 @@ export async function createObservationWithReasoning(
     verified?: boolean;
   },
 ): Promise<{ observationId: string }> {
-  const observationId = `obs-${crypto.randomUUID()}`;
+  const observationId = crypto.randomUUID();
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -288,7 +288,7 @@ export async function createDraftIntent(
     action_spec: { provider: string; action: string; params: Record<string, unknown> };
   },
 ): Promise<{ intentId: string }> {
-  const intentId = `intent-${crypto.randomUUID()}`;
+  const intentId = crypto.randomUUID();
   const intentRecord = new RecordId("intent", intentId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const requesterRecord = new RecordId("identity", requesterId);

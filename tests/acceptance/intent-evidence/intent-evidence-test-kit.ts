@@ -349,7 +349,7 @@ export async function createDecisionInOtherWorkspace(
   otherWorkspaceId: string;
 }> {
   // Create the "other" workspace
-  const otherWsId = `ws-other-${crypto.randomUUID()}`;
+  const otherWsId = crypto.randomUUID();
   const otherWsRecord = new RecordId("workspace", otherWsId);
   await surreal.query(`CREATE $ws CONTENT $content;`, {
     ws: otherWsRecord,

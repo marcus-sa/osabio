@@ -147,7 +147,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
     const user = await createTestUser(baseUrl, "scan-stale");
     const workspace = await createTestWorkspace(baseUrl, user);
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspace.workspaceId);
 
@@ -193,7 +193,7 @@ describe("Milestone 3: Periodic Graph Scan (Story 7)", () => {
     const user = await createTestUser(baseUrl, "scan-dedup");
     const workspace = await createTestWorkspace(baseUrl, user);
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspace.workspaceId);
 

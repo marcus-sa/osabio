@@ -95,7 +95,7 @@ describe("Graph-based objective alignment (US-EMB-003)", () => {
   }
 
   async function seedIdentity(workspaceId: string, name: string): Promise<string> {
-    const identityId = `id-${crypto.randomUUID()}`;
+    const identityId = crypto.randomUUID();
     await surreal.query(`CREATE $identity CONTENT $content;`, {
       identity: new RecordId("identity", identityId),
       content: {
@@ -124,7 +124,7 @@ describe("Graph-based objective alignment (US-EMB-003)", () => {
   }
 
   async function seedTask(workspaceId: string, projectId: string, title: string): Promise<string> {
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const projectRecord = new RecordId("project", projectId);
 
@@ -186,7 +186,7 @@ describe("Graph-based objective alignment (US-EMB-003)", () => {
     goal: string,
     opts?: { taskId?: string },
   ): Promise<string> {
-    const intentId = `intent-${crypto.randomUUID()}`;
+    const intentId = crypto.randomUUID();
     const intentRecord = new RecordId("intent", intentId);
     const traceId = `trace-${intentId}`;
     const traceRecord = new RecordId("trace", traceId);
@@ -373,7 +373,7 @@ describe("Graph-based objective alignment (US-EMB-003)", () => {
     await createAlignmentWarningObservation(
       surreal,
       new RecordId("workspace", workspaceId),
-      new RecordId("intent", `intent-${crypto.randomUUID()}`),
+      new RecordId("intent", crypto.randomUUID()),
       0,
     );
 

@@ -107,7 +107,7 @@ describe("Live Select Manager: subscribe to governance tables and route events",
       const workspaceRecord = new RecordId("workspace", workspaceId);
 
       await surreal.query(`CREATE $rec CONTENT $content;`, {
-        rec: new RecordId("task", `task-${crypto.randomUUID()}`),
+        rec: new RecordId("task", crypto.randomUUID()),
         content: {
           title: "Implement rate limiting",
           status: "open",
@@ -118,7 +118,7 @@ describe("Live Select Manager: subscribe to governance tables and route events",
       });
 
       await surreal.query(`CREATE $rec CONTENT $content;`, {
-        rec: new RecordId("observation", `obs-${crypto.randomUUID()}`),
+        rec: new RecordId("observation", crypto.randomUUID()),
         content: {
           text: "Schema drift detected",
           severity: "warning",

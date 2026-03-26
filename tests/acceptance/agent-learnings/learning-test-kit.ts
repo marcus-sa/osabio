@@ -241,7 +241,7 @@ export async function createTestPolicy(
   const policyRecord = new RecordId("policy", policyId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
-  const identityId = `id-${crypto.randomUUID()}`;
+  const identityId = crypto.randomUUID();
   const identityRecord = new RecordId("identity", identityId);
   await surreal.query(`CREATE $identity CONTENT $content;`, {
     identity: identityRecord,

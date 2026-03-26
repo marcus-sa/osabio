@@ -57,7 +57,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
       `m4-escalate-${crypto.randomUUID()}`,
     );
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -117,7 +117,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
       `m4-below-${crypto.randomUUID()}`,
     );
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -175,7 +175,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
     );
 
     // And a task with two existing observations about connection pooling
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -227,7 +227,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
       `m4-no-dupe-${crypto.randomUUID()}`,
     );
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -284,7 +284,7 @@ describe("Milestone 4: Event-Driven Escalation", () => {
       `m4-graceful-${crypto.randomUUID()}`,
     );
 
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 

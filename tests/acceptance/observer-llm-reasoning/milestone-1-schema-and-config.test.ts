@@ -37,7 +37,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-conf");
     const wsRecord = new RecordId("workspace", workspaceId);
 
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {
@@ -70,7 +70,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-noconf");
     const wsRecord = new RecordId("workspace", workspaceId);
 
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {
@@ -102,7 +102,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
     const wsRecord = new RecordId("workspace", workspaceId);
 
     // Create referenced entities first
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     await surreal.query(`CREATE $task CONTENT $content;`, {
       task: taskRecord,
@@ -128,7 +128,7 @@ describe("Milestone 1: Observation LLM Fields (Phase 01-02)", () => {
       },
     });
 
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {

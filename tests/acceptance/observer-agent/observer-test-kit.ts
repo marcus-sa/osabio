@@ -246,7 +246,7 @@ export async function createTaskWithCommit(
     authorName: "test-agent",
   });
 
-  const taskId = `task-${crypto.randomUUID()}`;
+  const taskId = crypto.randomUUID();
   const taskRecord = new RecordId("task", taskId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 

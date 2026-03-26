@@ -112,7 +112,7 @@ export async function createObservationCluster(
   entityId: string;
 }> {
   const entityTable = opts.entityTable ?? "task";
-  const entityId = opts.entityId ?? `task-${crypto.randomUUID()}`;
+  const entityId = opts.entityId ?? crypto.randomUUID();
 
   // Ensure the target entity exists
   const entityRecord = new RecordId(entityTable, entityId);
@@ -139,7 +139,7 @@ export async function createObservationCluster(
   const observationIds: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {
@@ -293,7 +293,7 @@ export async function createAgedObservations(
   );
 
   for (let i = 0; i < count; i++) {
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
 
     await surreal.query(`CREATE $obs CONTENT $content;`, {

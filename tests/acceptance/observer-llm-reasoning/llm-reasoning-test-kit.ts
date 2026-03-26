@@ -139,7 +139,7 @@ export async function createTaskInProject(
     status?: string;
   },
 ): Promise<{ taskId: string }> {
-  const taskId = `task-${crypto.randomUUID()}`;
+  const taskId = crypto.randomUUID();
   const taskRecord = new RecordId("task", taskId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const projectRecord = new RecordId("project", projectId);

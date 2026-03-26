@@ -1140,7 +1140,7 @@ describe("Edge Cases: Session and Token Boundaries", () => {
 
     // Given a valid proxy token but non-existent session
     const ws = await createWorkspaceDirectly(surreal, "ec1");
-    const nonExistentSessionId = `sess-${crypto.randomUUID()}`;
+    const nonExistentSessionId = crypto.randomUUID();
 
     // Create a proxy token pointing to the non-existent session
     const rawToken = await seedProxyToken(

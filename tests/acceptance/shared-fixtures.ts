@@ -54,8 +54,8 @@ export async function createWorkspaceDirectly(
     repoPath?: string;
   },
 ): Promise<DirectWorkspaceResult> {
-  const workspaceId = `ws-${crypto.randomUUID()}`;
-  const identityId = `id-${crypto.randomUUID()}`;
+  const workspaceId = crypto.randomUUID();
+  const identityId = crypto.randomUUID();
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const identityRecord = new RecordId("identity", identityId);
 
@@ -155,7 +155,7 @@ export async function createIdentity(
   name: string,
   type: "human" | "agent" = "agent",
 ): Promise<{ identityId: string; identityRecord: RecordId<"identity"> }> {
-  const identityId = `id-${crypto.randomUUID()}`;
+  const identityId = crypto.randomUUID();
   const identityRecord = new RecordId("identity", identityId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -206,11 +206,11 @@ export async function createIntentDirectly(
   requesterId: string,
   opts: CreateIntentOpts,
 ): Promise<{ intentId: string; intentRecord: RecordId<"intent">; traceRecord: RecordId<"trace"> }> {
-  const intentId = `intent-${crypto.randomUUID()}`;
+  const intentId = crypto.randomUUID();
   const intentRecord = new RecordId("intent", intentId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const requesterRecord = new RecordId("identity", requesterId);
-  const traceId = `trace-${intentId}`;
+  const traceId = crypto.randomUUID();
   const traceRecord = new RecordId("trace", traceId);
 
   await surreal.query(`CREATE $trace CONTENT $content;`, {
@@ -274,7 +274,7 @@ export async function createGitCommitDirectly(
   sha: string,
   opts?: CreateGitCommitOpts,
 ): Promise<{ commitId: string; commitRecord: RecordId<"git_commit"> }> {
-  const commitId = `commit-${crypto.randomUUID()}`;
+  const commitId = crypto.randomUUID();
   const commitRecord = new RecordId("git_commit", commitId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -316,7 +316,7 @@ export async function createDecisionDirectly(
   workspaceId: string,
   opts: CreateDecisionOpts,
 ): Promise<{ decisionId: string; decisionRecord: RecordId<"decision"> }> {
-  const decisionId = `decision-${crypto.randomUUID()}`;
+  const decisionId = crypto.randomUUID();
   const decisionRecord = new RecordId("decision", decisionId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -360,7 +360,7 @@ export async function createObservationDirectly(
   workspaceId: string,
   opts: CreateObservationOpts,
 ): Promise<{ observationId: string; observationRecord: RecordId<"observation"> }> {
-  const observationId = `obs-${crypto.randomUUID()}`;
+  const observationId = crypto.randomUUID();
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -459,7 +459,7 @@ export async function createTaskDirectly(
   workspaceId: string,
   opts: CreateTaskOpts,
 ): Promise<{ taskId: string; taskRecord: RecordId<"task"> }> {
-  const taskId = `task-${crypto.randomUUID()}`;
+  const taskId = crypto.randomUUID();
   const taskRecord = new RecordId("task", taskId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -498,7 +498,7 @@ export async function seedProxyToken(
 ): Promise<string> {
   const rawToken = `brn_test_${crypto.randomUUID()}`;
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const tokenId = `pt-${crypto.randomUUID()}`;
+  const tokenId = crypto.randomUUID();
   const tokenRecord = new RecordId("proxy_token", tokenId);
 
   const content: Record<string, unknown> = {
@@ -539,7 +539,7 @@ export async function createAgentSessionDirectly(
     taskId?: string;
   },
 ): Promise<{ sessionId: string; sessionRecord: RecordId<"agent_session"> }> {
-  const sessionId = `sess-${crypto.randomUUID()}`;
+  const sessionId = crypto.randomUUID();
   const sessionRecord = new RecordId("agent_session", sessionId);
 
   const content: Record<string, unknown> = {
@@ -581,7 +581,7 @@ export async function createMcpToolDirectly(
     inputSchema?: Record<string, unknown>;
   },
 ): Promise<{ toolId: string; toolRecord: RecordId<"mcp_tool"> }> {
-  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolId = crypto.randomUUID();
   const toolRecord = new RecordId("mcp_tool", toolId);
 
   await surreal.query(`CREATE $rec CONTENT $content;`, {

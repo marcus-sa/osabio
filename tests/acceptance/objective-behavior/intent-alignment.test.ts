@@ -103,7 +103,7 @@ describe("Happy Path: Intent links to highest-scoring objective (US-OB-02)", () 
 
     // When the alignment adapter links the intent to the best-matching objective
     // (alignment now uses BM25 + graph traversal instead of KNN vector search)
-    await createSupportsEdge(surreal, `intent-${crypto.randomUUID()}`, objA, {
+    await createSupportsEdge(surreal, crypto.randomUUID(), objA, {
       alignment_score: 0.87,
       alignment_method: "bm25",
     });

@@ -146,7 +146,7 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
 
     // Given a workspace with a task that has no linked commits or PRs
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "verify-none");
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -191,7 +191,7 @@ describe("Milestone 2: Intent Completion Verification (Story 2)", () => {
     // Given a workspace with an intent that has been authorized
     const { workspaceId, identityId } = await setupObserverWorkspace(baseUrl, surreal, "intent-verify");
 
-    const intentId = `intent-${crypto.randomUUID()}`;
+    const intentId = crypto.randomUUID();
     const intentRecord = new RecordId("intent", intentId);
     const wsRecord = new RecordId("workspace", workspaceId);
     const requesterRecord = new RecordId("identity", identityId);
@@ -239,7 +239,7 @@ describe("Milestone 2: Intent Completion Verification (Story 2)", () => {
     // Given a workspace with an intent that was executing
     const { workspaceId, identityId } = await setupObserverWorkspace(baseUrl, surreal, "intent-fail");
 
-    const intentId = `intent-${crypto.randomUUID()}`;
+    const intentId = crypto.randomUUID();
     const intentRecord = new RecordId("intent", intentId);
     const wsRecord = new RecordId("workspace", workspaceId);
     const requesterRecord = new RecordId("identity", identityId);
