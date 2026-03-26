@@ -121,7 +121,7 @@ describe("US-10: Policy-driven evidence requirements", () => {
     expect(record.status).toBe("failed");
   }, 60_000);
 
-  it.skip("policy overrides default tier requirements for specific action type", async () => {
+  it("policy overrides default tier requirements for specific action type", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a policy allowing 1 ref for data_read actions
@@ -131,7 +131,23 @@ describe("US-10: Policy-driven evidence requirements", () => {
     await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "hard");
     const agentId = await createTestIdentity(surreal, "logistics-planner", "agent", workspace.workspaceId);
 
-    // Create policy override (details depend on implementation)
+    // Create and activate policy allowing 1 ref for data_read actions
+    // Driving port: SurrealDB direct (policy creation + activation)
+    const { policyId } = await createPolicy(surreal, workspace.workspaceId, agentId, {
+      title: "Data Read Evidence Policy",
+      description: "Allows 1 evidence reference for data_read actions",
+      selector: { resource: "intent" },
+      rules: [
+        {
+          id: "data-read-evidence-override",
+          condition: { field: "action_spec.action", operator: "eq", value: "data_read" },
+          effect: "evidence_requirement",
+          priority: 100,
+          min_evidence_count: 1,
+        },
+      ],
+    });
+    await activatePolicy(surreal, policyId, agentId, workspace.workspaceId);
 
     // When the agent submits a data read intent with 1 observation reference
     // Driving port: intent creation with evidence_refs (SurrealDB)
