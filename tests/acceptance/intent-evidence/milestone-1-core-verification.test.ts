@@ -49,7 +49,7 @@ beforeAll(async () => {
 // US-01: Evidence Schema and Submission
 // =============================================================================
 describe("US-01: Evidence references on intent submission", () => {
-  it.skip("agent submits intent with valid evidence references to decision and task", async () => {
+  it("agent submits intent with valid evidence references to decision and task", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "soft"
@@ -87,7 +87,7 @@ describe("US-01: Evidence references on intent submission", () => {
     expect(refs!.length).toBe(2);
   });
 
-  it.skip("agent submits intent without evidence references and field is absent", async () => {
+  it("agent submits intent without evidence references and field is absent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
