@@ -432,7 +432,7 @@ describe("US-03: Soft enforcement adjusts risk score", () => {
 // US-04: Verification Result Storage
 // =============================================================================
 describe("US-04: Verification result storage and LLM context", () => {
-  it.skip("verification result is persisted on intent record with verified count and timing", async () => {
+  it("verification result is persisted on intent record with verified count and timing", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence entities
