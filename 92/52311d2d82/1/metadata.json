@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9252311d2d82",
+  "session_id": "82c5b138-5960-45b3-921e-8589071f53bb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T07:42:13.157707Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/server/intent/intent-evaluation.ts",
+    "app/src/server/intent/risk-router.ts",
+    "docs/feature/intent-evidence/deliver/execution-log.json",
+    "tests/acceptance/intent-evidence/walking-skeleton.test.ts",
+    "tests/unit/intent/risk-router.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dd6a3f94ea75",
+  "checkpoint_transcript_start": 30,
+  "transcript_lines_at_start": 30,
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 9653,
+    "cache_read_tokens": 60807,
+    "output_tokens": 2373,
+    "api_call_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T07:42:13.098503Z",
+    "agent_lines": 5,
+    "human_added": 133,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 140,
+    "agent_percentage": 3.571428571428571
+  }
+}
