@@ -176,7 +176,7 @@ describe("US-10: Policy-driven evidence requirements", () => {
     expect(record.status).not.toBe("failed");
   }, 60_000);
 
-  it.skip("intent without matching policy falls back to default tier requirements", async () => {
+  it("intent without matching policy falls back to default tier requirements", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with no policy for "configuration_update" actions

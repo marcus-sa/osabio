@@ -974,6 +974,111 @@
       "s": "SKIPPED",
       "d": "NOT_APPLICABLE: all tests already passing -- no code changes required",
       "t": "2026-03-26T12:02:07Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:03:15Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:05:25Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:06:36Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:07:19Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:17:03Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:17:03Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:19:32Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:19:35Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: default low-risk tier already allows 1 ref of any type, matching the policy override",
+      "t": "2026-03-26T12:19:42Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no implementation changes needed, test passes with existing code",
+      "t": "2026-03-26T12:19:47Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:20:20Z"
+    },
+    {
+      "sid": "04-03",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:21:21Z"
+    },
+    {
+      "sid": "04-03",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:21:41Z"
+    },
+    {
+      "sid": "04-03",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no code change needed, default tier fallback already implemented",
+      "t": "2026-03-26T12:21:48Z"
+    },
+    {
+      "sid": "04-03",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passed immediately, no implementation needed",
+      "t": "2026-03-26T12:21:49Z"
     }
   ]
 }
