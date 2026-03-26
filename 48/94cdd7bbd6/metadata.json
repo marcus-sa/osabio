@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4894cdd7bbd6",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/48/94cdd7bbd6/0/metadata.json",
+      "transcript": "/48/94cdd7bbd6/0/full.jsonl",
+      "context": "/48/94cdd7bbd6/0/context.md",
+      "content_hash": "/48/94cdd7bbd6/0/content_hash.txt",
+      "prompt": "/48/94cdd7bbd6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 333,
+    "cache_creation_tokens": 140188,
+    "cache_read_tokens": 4280863,
+    "output_tokens": 24476,
+    "api_call_count": 36
+  }
+}
