@@ -111,7 +111,7 @@ describe("US-05: Authorship independence check", () => {
     expect(authorshipWarnings).toHaveLength(0);
   }, 60_000);
 
-  it.skip("self-referencing evidence fails authorship check for high-risk intent", async () => {
+  it("self-referencing evidence fails authorship check for high-risk intent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace

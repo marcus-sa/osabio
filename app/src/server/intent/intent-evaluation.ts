@@ -40,14 +40,29 @@ type EvaluatePendingIntentOptions = {
   intent?: IntentRecord;
 };
 
+/**
+ * Resolves a record reference to a typed RecordId.
+ *
+ * Handles three input shapes:
+ * 1. RecordId object (SDK response) -- extracts .id directly
+ * 2. String "table:\`uuid\`" (SurrealDB EVENT webhook serialization) -- strips
+ *    table prefix and backtick/angle-bracket escaping
+ * 3. Plain string UUID -- used as-is
+ */
 function resolveRecordId<T extends string>(
   table: T,
   ref: unknown,
 ): RecordId<T> {
-  const rawId = typeof ref === "object" && ref !== null
-    ? ((ref as { id: unknown }).id as string)
-    : String(ref);
-  return new RecordId(table, rawId);
+  if (typeof ref === "object" && ref !== null) {
+    return new RecordId(table, (ref as { id: unknown }).id as string);
+  }
+  const s = String(ref);
+  // Strip table prefix if present (e.g. "identity:`uuid`" -> "`uuid`")
+  const colonIdx = s.indexOf(":");
+  const afterPrefix = colonIdx >= 0 ? s.slice(colonIdx + 1) : s;
+  // Strip backtick or angle-bracket escaping
+  const cleanId = afterPrefix.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
+  return new RecordId(table, cleanId);
 }
 
 type TransitionPlan = {
