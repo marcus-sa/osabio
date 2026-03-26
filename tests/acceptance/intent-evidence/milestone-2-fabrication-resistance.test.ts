@@ -375,7 +375,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
 // US-07: Risk-Tiered Evidence Requirements
 // =============================================================================
 describe("US-07: Risk-tiered evidence requirements", () => {
-  it.skip("low-risk intent meets tier requirement with 1 reference of any type", async () => {
+  it("low-risk intent meets tier requirement with 1 reference of any type", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
