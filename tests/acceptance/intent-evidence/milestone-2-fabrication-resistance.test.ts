@@ -162,7 +162,7 @@ describe("US-05: Authorship independence check", () => {
     ).toBe(true);
   }, 60_000);
 
-  it.skip("agent-confirmed evidence counts as independent from another agent", async () => {
+  it("agent-confirmed evidence counts as independent from another agent", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with two different agent identities
