@@ -149,7 +149,7 @@ describe("US-08: Governance feed evidence chain display", () => {
     expect(feed).toBeDefined();
   }, 30_000);
 
-  it.skip("feed shows zero-evidence warning for intents without evidence references", async () => {
+  it("feed shows zero-evidence warning for intents without evidence references", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with soft enforcement
