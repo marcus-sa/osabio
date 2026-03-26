@@ -3,7 +3,7 @@
   "checkpoint_id": "0291fc917536",
   "strategy": "manual-commit",
   "branch": "marcus-sa/intent-evidence-req",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     ".nwave/des-config.json",
     "docs/feature/intent-evidence/deliver/.develop-progress.json",
@@ -16,13 +16,20 @@
       "context": "/02/91fc917536/0/context.md",
       "content_hash": "/02/91fc917536/0/content_hash.txt",
       "prompt": "/02/91fc917536/0/prompt.txt"
+    },
+    {
+      "metadata": "/02/91fc917536/1/metadata.json",
+      "transcript": "/02/91fc917536/1/full.jsonl",
+      "context": "/02/91fc917536/1/context.md",
+      "content_hash": "/02/91fc917536/1/content_hash.txt",
+      "prompt": "/02/91fc917536/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5,
-    "cache_creation_tokens": 39752,
-    "cache_read_tokens": 106279,
-    "output_tokens": 435,
-    "api_call_count": 3
+    "input_tokens": 541,
+    "cache_creation_tokens": 371981,
+    "cache_read_tokens": 17437663,
+    "output_tokens": 57515,
+    "api_call_count": 123
   }
 }
