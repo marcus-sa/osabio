@@ -52,7 +52,7 @@ beforeAll(async () => {
 // US-08: Governance Feed Evidence Display
 // =============================================================================
 describe("US-08: Governance feed evidence chain display", () => {
-  it.skip("feed shows verified evidence chain for pending intent with 3 verified references", async () => {
+  it("feed shows verified evidence chain for pending intent with 3 verified references", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence

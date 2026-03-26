@@ -411,6 +411,15 @@ export type GovernanceFeedAction = {
   label: string;
 };
 
+export type EvidenceVerificationSummary = {
+  verifiedCount: number;
+  totalCount: number;
+  failedRefs?: string[];
+  warnings?: string[];
+  enforcementMode: string;
+  tierMet?: boolean;
+};
+
 export type GovernanceFeedItem = {
   id: string;               // composite: "decision:<uuid>:provisional"
   tier: GovernanceTier;
@@ -430,12 +439,14 @@ export type GovernanceFeedItem = {
     entityKind: EntityKind;
     entityName: string;
   };
+  evidenceVerification?: EvidenceVerificationSummary;
 };
 
 export type GovernanceFeedResponse = {
   blocking: GovernanceFeedItem[];
   review: GovernanceFeedItem[];
   awareness: GovernanceFeedItem[];
+  items: GovernanceFeedItem[];
   updatedAt: string;
 };
 

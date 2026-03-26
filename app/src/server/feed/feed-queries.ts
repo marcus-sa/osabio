@@ -1,5 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { GovernanceFeedAction, GovernanceFeedItem } from "../../shared/contracts";
+import type { EvidenceVerificationSummary, GovernanceFeedAction, GovernanceFeedItem } from "../../shared/contracts";
 
 // --- Shared types ---
 
@@ -829,25 +829,34 @@ export type PendingIntentRow = {
   reason?: string;
   veto_expires_at?: string | Date;
   created_at: string | Date;
+  evidence_verification?: EvidenceVerificationSummary;
 };
 
 export async function listPendingVetoIntents(
   input: WorkspaceQueryInput,
 ): Promise<PendingIntentRow[]> {
+  type IntentQueryRow = {
+    id: RecordId<"intent", string>;
+    goal: string;
+    status: string;
+    priority: number;
+    evaluation?: { risk_score: number; reason: string };
+    veto_expires_at?: string | Date;
+    created_at: string | Date;
+    evidence_verification?: {
+      verified_count: number;
+      total_count: number;
+      failed_refs?: string[];
+      warnings?: string[];
+      enforcement_mode: string;
+      tier_met?: boolean;
+    };
+  };
+
   const [rows] = await input.surreal
-    .query<[
-      Array<{
-        id: RecordId<"intent", string>;
-        goal: string;
-        status: string;
-        priority: number;
-        evaluation?: { risk_score: number; reason: string };
-        veto_expires_at?: string | Date;
-        created_at: string | Date;
-      }>,
-    ]>(
+    .query<[IntentQueryRow[]]>(
       [
-        "SELECT id, goal, status, priority, evaluation, veto_expires_at, created_at",
+        "SELECT id, goal, status, priority, evaluation, veto_expires_at, created_at, evidence_verification",
         "FROM intent",
         "WHERE status = 'pending_veto'",
         `AND ${WORKSPACE_SCOPE_CLAUSE}`,
@@ -856,17 +865,7 @@ export async function listPendingVetoIntents(
       ].join(" "),
       { workspace: input.workspaceRecord, limit: input.limit },
     )
-    .collect<[
-      Array<{
-        id: RecordId<"intent", string>;
-        goal: string;
-        status: string;
-        priority: number;
-        evaluation?: { risk_score: number; reason: string };
-        veto_expires_at?: string | Date;
-        created_at: string | Date;
-      }>,
-    ]>();
+    .collect<[IntentQueryRow[]]>();
 
   return rows.map((row) => ({
     id: row.id,
@@ -876,6 +875,16 @@ export async function listPendingVetoIntents(
     ...(row.evaluation ? { risk_score: row.evaluation.risk_score, reason: row.evaluation.reason } : {}),
     ...(row.veto_expires_at ? { veto_expires_at: row.veto_expires_at } : {}),
     created_at: row.created_at,
+    ...(row.evidence_verification ? {
+      evidence_verification: {
+        verifiedCount: row.evidence_verification.verified_count,
+        totalCount: row.evidence_verification.total_count,
+        ...(row.evidence_verification.failed_refs ? { failedRefs: row.evidence_verification.failed_refs } : {}),
+        ...(row.evidence_verification.warnings ? { warnings: row.evidence_verification.warnings } : {}),
+        enforcementMode: row.evidence_verification.enforcement_mode,
+        ...(row.evidence_verification.tier_met !== undefined ? { tierMet: row.evidence_verification.tier_met } : {}),
+      },
+    } : {}),
   }));
 }
 
@@ -894,6 +903,7 @@ export function mapPendingIntentToFeedItem(row: PendingIntentRow): GovernanceFee
     priority: row.priority > 50 ? "high" : "medium",
     createdAt: toIso(row.created_at),
     actions: intentActions(),
+    ...(row.evidence_verification ? { evidenceVerification: row.evidence_verification } : {}),
   };
 }
 
