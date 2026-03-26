@@ -182,9 +182,9 @@ type IntentRecord = {
 
 **Phase 1: Bootstrap Exemption (workspace creation)**
 - The workspace creation flow is a trusted ceremony performed by a human user.
-- Intents created during the initial bootstrap period (first N minutes, or until the first human-confirmed decision exists) receive an automatic `bootstrap_exemption` flag.
+- Intents created during the initial bootstrap period (first N minutes, or until the first confirmed decision exists) receive an automatic `bootstrap_exemption` flag.
 - These intents are logged but not held to evidence requirements.
-- The bootstrap window closes when a human makes the first confirmed decision, creating the root evidence node.
+- The bootstrap window closes when the first confirmed decision is created (by a human or another authorized agent), creating the root evidence node. The constraint is that the requester cannot confirm their own evidence — any other identity with the appropriate authority scope can confirm.
 
 **Phase 2: Soft Enforcement (early workspace)**
 - After bootstrap, evidence_refs is required but verification is advisory only.
@@ -237,7 +237,7 @@ DEFINE FIELD evidence_enforcement_threshold.min_tasks ON workspace TYPE int;
 
 4. **Evidence Creation Rate Limiting**: Add Observer monitoring pattern for agents creating abnormally high volumes of observations or decisions in a short window. This is a behavioral anomaly signal, not a hard block.
 
-5. **Human-Originated Evidence Bonus**: Evidence refs pointing to entities created or confirmed by human users receive higher trust weight in the LLM evaluator's risk assessment.
+5. **Independent Confirmation Bonus**: Evidence refs pointing to entities confirmed by an identity other than the requester receive higher trust weight in the LLM evaluator's risk assessment. Human-confirmed evidence carries the highest weight, but agent-confirmed evidence from a different identity is also valid — the key constraint is that the requester cannot confirm their own evidence.
 
 ### 8. Performance Implications
 
