@@ -4,6 +4,7 @@ import type { LlmEvaluator } from "./authorizer";
 import { updateIntentStatus, getIntentById } from "./intent-queries";
 import { routeByRisk } from "./risk-router";
 import type { IntentRecord, EvaluationResult } from "./types";
+import type { EvidenceEnforcementMode } from "./evidence-types";
 import type { ServerDependencies } from "../runtime/types";
 import {
   findAlignedObjectivesSurreal,
@@ -116,6 +117,20 @@ export async function evaluatePendingIntent(
   if (!llmEvaluator) {
     return { ok: false, error: "Missing evaluator model", httpStatus: 500 };
   }
+
+  // Read workspace evidence enforcement mode
+  let evidenceEnforcementMode: EvidenceEnforcementMode = "bootstrap";
+  try {
+    const [wsRows] = await deps.surreal.query<[Array<{ evidence_enforcement?: string }>]>(
+      `SELECT evidence_enforcement FROM $ws;`,
+      { ws: workspaceRecord },
+    );
+    evidenceEnforcementMode =
+      (wsRows[0]?.evidence_enforcement as EvidenceEnforcementMode) ?? "bootstrap";
+  } catch {
+    // Default to bootstrap if enforcement mode cannot be read
+  }
+
   const evaluation = await evaluateIntent({
     intent: {
       goal: intent.goal,
@@ -136,10 +151,12 @@ export async function evaluatePendingIntent(
     createSupportsEdge: createSupportsEdgeSurreal(deps.surreal),
     createAlignmentWarning: (ws, iId, score) =>
       createAlignmentWarningObservation(deps.surreal, ws, iId, score),
+    evidenceRefs: intent.evidence_refs,
+    evidenceEnforcementMode,
   });
 
-  // Strip `alignment` — it's used in-memory but not defined in the intent schema
-  const { alignment: _alignment, ...evaluationForDb } = evaluation;
+  // Strip `alignment` and `evidence_verification` — they are stored separately
+  const { alignment: _alignment, evidence_verification, ...evaluationForDb } = evaluation;
   const evaluationRecord: EvaluatedIntent["evaluation"] = {
     ...evaluationForDb,
     evaluated_at: new Date(),
@@ -148,6 +165,11 @@ export async function evaluatePendingIntent(
     humanVetoRequired: evaluation.human_veto_required,
   });
   const transition = toTransition(routing, evaluationRecord);
+
+  // Include evidence_verification in the status update
+  if (evidence_verification) {
+    transition.updateFields.evidence_verification = evidence_verification;
+  }
 
   const result = await updateIntentStatus(
     deps.surreal,

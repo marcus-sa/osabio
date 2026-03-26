@@ -1,5 +1,6 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { IntentRecord, IntentStatus, ActionSpec, BudgetLimit, EvaluationResult } from "./types";
+import type { EvidenceVerificationResult } from "./evidence-types";
 import type { BrainAction } from "../oauth/types";
 import { transitionStatus } from "./status-machine";
 
@@ -17,6 +18,7 @@ type CreateIntentParams = {
   expiry?: Date;
   authorization_details?: BrainAction[];
   dpop_jwk_thumbprint?: string;
+  evidence_refs?: RecordId[];
 };
 
 type StatusUpdateFields = {
@@ -24,6 +26,7 @@ type StatusUpdateFields = {
   veto_expires_at?: Date;
   veto_reason?: string;
   error_reason?: string;
+  evidence_verification?: EvidenceVerificationResult;
 };
 
 type ListFilters = {
@@ -103,6 +106,9 @@ export async function createIntent(
   if (params.dpop_jwk_thumbprint) {
     content.dpop_jwk_thumbprint = params.dpop_jwk_thumbprint;
   }
+  if (params.evidence_refs) {
+    content.evidence_refs = params.evidence_refs;
+  }
 
   await surreal.query(
     "CREATE $record CONTENT $content;",
@@ -159,6 +165,9 @@ export async function updateIntentStatus(
   }
   if (updates?.error_reason) {
     setFields.error_reason = updates.error_reason;
+  }
+  if (updates?.evidence_verification) {
+    setFields.evidence_verification = updates.evidence_verification;
   }
 
   const [rows] = await surreal.query<[IntentRecord[]]>(
