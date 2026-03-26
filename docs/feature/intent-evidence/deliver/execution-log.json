@@ -379,6 +379,41 @@
       "s": "SKIPPED",
       "d": "NOT_APPLICABLE: acceptance test already green with existing penalty logic",
       "t": "2026-03-26T08:30:49Z"
+    },
+    {
+      "sid": "02-09",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T08:31:21Z"
+    },
+    {
+      "sid": "02-10",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T08:32:57Z"
+    },
+    {
+      "sid": "02-10",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T08:32:58Z"
+    },
+    {
+      "sid": "02-10",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passes without new production code",
+      "t": "2026-03-26T08:32:59Z"
+    },
+    {
+      "sid": "02-10",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T08:34:01Z"
     }
   ]
 }

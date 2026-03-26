@@ -388,7 +388,7 @@ describe("US-03: Soft enforcement adjusts risk score", () => {
     // (Exact assertion depends on whether effective_risk_score is stored separately)
   }, 60_000);
 
-  it.skip("full evidence keeps risk score unchanged under soft enforcement", async () => {
+  it("full evidence keeps risk score unchanged under soft enforcement", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "soft"
