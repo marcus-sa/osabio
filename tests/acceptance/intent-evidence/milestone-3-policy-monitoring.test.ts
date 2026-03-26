@@ -36,6 +36,9 @@ import {
   createIntentWithEvidence,
   setWorkspaceEnforcementMode,
   getEvidenceVerification,
+  // Policy helpers
+  createPolicy,
+  activatePolicy,
 } from "./intent-evidence-test-kit";
 import { queryWorkspaceObservations } from "../shared-fixtures";
 
@@ -50,7 +53,7 @@ beforeAll(async () => {
 // US-10: Policy Evidence Rules
 // =============================================================================
 describe("US-10: Policy-driven evidence requirements", () => {
-  it.skip("policy defines stricter evidence requirements for financial actions", async () => {
+  it("policy defines stricter evidence requirements for financial actions", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a policy requiring 4 evidence refs for financial transactions
@@ -60,9 +63,24 @@ describe("US-10: Policy-driven evidence requirements", () => {
     await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "hard");
     const agentId = await createTestIdentity(surreal, "logistics-planner", "agent", workspace.workspaceId);
 
-    // Create policy with evidence rules for financial actions
-    // Driving port: POST /api/workspaces/:ws/policies
-    // (Policy creation details depend on implementation -- skeleton assertion below)
+    // Create and activate policy with evidence_requirement rule for financial actions
+    // Driving port: SurrealDB direct (policy creation + activation)
+    const { policyId } = await createPolicy(surreal, workspace.workspaceId, agentId, {
+      title: "Financial Transaction Evidence Policy",
+      description: "Requires 4 evidence references for financial transaction actions",
+      selector: { resource: "intent" },
+      rules: [
+        {
+          id: "financial-evidence-req",
+          condition: { field: "action_spec.action", operator: "eq", value: "financial_transaction" },
+          effect: "evidence_requirement",
+          priority: 100,
+          min_evidence_count: 4,
+          required_types: ["decision", "task"],
+        },
+      ],
+    });
+    await activatePolicy(surreal, policyId, agentId, workspace.workspaceId);
 
     // And the agent provides only 2 evidence references for a financial transaction
     const decision = await createEvidenceDecision(surreal, workspace.workspaceId, {
@@ -92,9 +110,15 @@ describe("US-10: Policy-driven evidence requirements", () => {
 
     // Then the intent fails the policy-specific evidence requirement
     const record = await getIntentRecord(surreal, intentId);
-    // Assertion depends on whether policy-based rejection or warning is produced
     const verification = await getEvidenceVerification(surreal, intentId);
     expect(verification).toBeDefined();
+    // Policy requires 4 evidence refs but only 2 were provided
+    expect(verification!.warnings).toBeDefined();
+    expect(verification!.warnings!.some((w: string) =>
+      w.includes("policy") || w.includes("evidence") || w.includes("4"),
+    )).toBe(true);
+    // The intent should be rejected or reflect the unmet policy requirement
+    expect(record.status).toBe("failed");
   }, 60_000);
 
   it.skip("policy overrides default tier requirements for specific action type", async () => {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { RecordId, Surreal } from "surrealdb";
 import type { ActionSpec, BudgetLimit, EvaluationResult } from "./types";
 import type { EvidenceVerificationResult, EvidenceEnforcementMode } from "./evidence-types";
-import type { PolicyTraceEntry, IntentEvaluationContext } from "../policy/types";
+import type { PolicyTraceEntry, IntentEvaluationContext, PolicyEvidenceRequirements } from "../policy/types";
 import { evaluatePolicyGate } from "../policy/policy-gate";
 import { verifyEvidence } from "./evidence-verification";
 import type { AlignmentResult, AlignmentCandidate, AlignmentMethod } from "../objective/alignment";
@@ -114,6 +114,46 @@ export type EvaluateIntentInput = {
   minEvidenceAgeMinutes?: number;
 };
 
+// --- Policy Evidence Requirements Evaluation ---
+
+type PolicyEvidenceEvaluation = {
+  met: boolean;
+  warnings: string[];
+};
+
+/**
+ * Evaluates whether the provided evidence meets policy-defined requirements.
+ * Pure function -- no IO.
+ */
+export function evaluatePolicyEvidenceRequirements(
+  requirements: PolicyEvidenceRequirements,
+  evidenceCount: number,
+  verifiedTableCounts?: Record<string, number>,
+): PolicyEvidenceEvaluation {
+  const warnings: string[] = [];
+  let met = true;
+
+  if (evidenceCount < requirements.min_count) {
+    warnings.push(
+      `Policy requires at least ${requirements.min_count} evidence references but only ${evidenceCount} were provided`,
+    );
+    met = false;
+  }
+
+  if (requirements.required_types && verifiedTableCounts) {
+    for (const requiredType of requirements.required_types) {
+      if ((verifiedTableCounts[requiredType] ?? 0) === 0) {
+        warnings.push(
+          `Policy requires at least one ${requiredType} evidence reference`,
+        );
+        met = false;
+      }
+    }
+  }
+
+  return { met, warnings };
+}
+
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
 
 export async function evaluateIntent(
@@ -173,6 +213,38 @@ export async function evaluateIntent(
       verification_time_ms: 0,
       enforcement_mode: enforcementMode,
     };
+  }
+
+  // --- Policy evidence requirements gate (after verification, before LLM) ---
+  const policyEvidenceRequirements = gateResult.evidence_requirements;
+  if (policyEvidenceRequirements && enforcementMode === "hard") {
+    const evidenceCount = input.evidenceRefs?.length ?? 0;
+    const policyEval = evaluatePolicyEvidenceRequirements(
+      policyEvidenceRequirements,
+      evidenceCount,
+    );
+
+    if (!policyEval.met) {
+      // Merge policy warnings into evidence verification
+      const mergedVerification: EvidenceVerificationResult = {
+        ...evidenceVerification!,
+        warnings: [
+          ...(evidenceVerification?.warnings ?? []),
+          ...policyEval.warnings,
+        ],
+      };
+
+      return {
+        decision: "REJECT",
+        risk_score: 0,
+        reason: `Policy evidence requirement not met: ${policyEval.warnings[0]}`,
+        policy_only: false,
+        policy_trace: policyTrace,
+        human_veto_required: false,
+        evidence_verification: mergedVerification,
+        hard_enforcement_rejection: true,
+      };
+    }
   }
 
   // --- Hard enforcement gate: reject zero-evidence intents before LLM ---

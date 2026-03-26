@@ -60,6 +60,13 @@ export {
   type TestProject,
 } from "../intent-node/intent-test-kit";
 
+// Policy helpers for M3 tests
+export {
+  createPolicy,
+  activatePolicy,
+  type CreatePolicyOptions,
+} from "../policy-node/policy-test-kit";
+
 // ---------------------------------------------------------------------------
 // Evidence-Specific Types
 // ---------------------------------------------------------------------------

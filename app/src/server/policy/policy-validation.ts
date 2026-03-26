@@ -20,7 +20,7 @@ const VALID_OPERATORS = new Set([
   "eq", "neq", "lt", "lte", "gt", "gte", "in", "not_in", "exists",
 ]);
 
-const VALID_EFFECTS = new Set(["allow", "deny"]);
+const VALID_EFFECTS = new Set(["allow", "deny", "evidence_requirement"]);
 
 // ---------------------------------------------------------------------------
 // Predicate validation
@@ -90,7 +90,17 @@ function validateRule(rule: unknown, index: number): string[] {
 
   // Effect
   if (!VALID_EFFECTS.has(rule.effect as string)) {
-    errors.push(`rule[${index}]: effect must be "allow" or "deny"`);
+    errors.push(`rule[${index}]: effect must be "allow", "deny", or "evidence_requirement"`);
+  }
+
+  // Evidence requirement fields
+  if (rule.effect === "evidence_requirement") {
+    if (typeof rule.min_evidence_count !== "number" || !Number.isFinite(rule.min_evidence_count) || (rule.min_evidence_count as number) < 1) {
+      errors.push(`rule[${index}]: evidence_requirement rules must have min_evidence_count >= 1`);
+    }
+    if (rule.required_types !== undefined && !Array.isArray(rule.required_types)) {
+      errors.push(`rule[${index}]: required_types must be an array of strings when provided`);
+    }
   }
 
   // Condition

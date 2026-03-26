@@ -28,8 +28,12 @@ export type RuleCondition = RulePredicate | RulePredicate[];
 export type PolicyRule = {
   id: string;
   condition: RuleCondition;
-  effect: "allow" | "deny";
+  effect: "allow" | "deny" | "evidence_requirement";
   priority: number;
+  /** Minimum evidence count required (only for evidence_requirement rules) */
+  min_evidence_count?: number;
+  /** Required evidence entity types (only for evidence_requirement rules) */
+  required_types?: string[];
 };
 
 export type PolicySelector = {
@@ -70,7 +74,7 @@ export type PolicyTraceEntry = {
   policy_id: string;
   policy_version: number;
   rule_id: string;
-  effect: "allow" | "deny";
+  effect: "allow" | "deny" | "evidence_requirement";
   matched: boolean;
   priority: number;
 };
@@ -85,12 +89,18 @@ export type PolicyGateWarning = {
   policy_id: string;
 };
 
+export type PolicyEvidenceRequirements = {
+  min_count: number;
+  required_types?: string[];
+};
+
 export type PolicyGateResult =
   | {
       passed: true;
       policy_trace: PolicyTraceEntry[];
       human_veto_required: boolean;
       warnings: PolicyGateWarning[];
+      evidence_requirements?: PolicyEvidenceRequirements;
     }
   | {
       passed: false;
