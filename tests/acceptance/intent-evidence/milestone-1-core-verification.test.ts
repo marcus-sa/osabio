@@ -474,7 +474,7 @@ describe("US-04: Verification result storage and LLM context", () => {
     expect(verification!.verification_time_ms).toBeLessThan(500);
   }, 60_000);
 
-  it.skip("failed references are individually identified with failure reason", async () => {
+  it("failed references are individually identified with failure reason", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
