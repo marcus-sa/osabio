@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "63b3a99af6a3",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/intent-evidence/deliver/execution-log.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/63/b3a99af6a3/0/metadata.json",
+      "transcript": "/63/b3a99af6a3/0/full.jsonl",
+      "context": "/63/b3a99af6a3/0/context.md",
+      "content_hash": "/63/b3a99af6a3/0/content_hash.txt",
+      "prompt": "/63/b3a99af6a3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 1375,
+    "cache_read_tokens": 93247,
+    "output_tokens": 1144,
+    "api_call_count": 1
+  }
+}
