@@ -192,7 +192,7 @@ describe("US-08: Governance feed evidence chain display", () => {
 // US-09: Workspace Bootstrapping
 // =============================================================================
 describe("US-09: Workspace bootstrapping and enforcement transitions", () => {
-  it.skip("new workspace in bootstrap mode allows intents without evidence", async () => {
+  it("new workspace in bootstrap mode allows intents without evidence", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a newly created workspace in bootstrap mode
