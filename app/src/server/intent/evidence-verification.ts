@@ -403,7 +403,7 @@ export async function verifyEvidence(
   requesterAgent?: string,
   minEvidenceAgeMinutes?: number,
 ): Promise<EvidenceVerificationResult> {
-  const startMs = Date.now();
+  const startMs = performance.now();
 
   // Pure: parse refs
   const { parsed, invalidRefs } = parseAllEvidenceRefs(evidenceRefs);
@@ -444,7 +444,7 @@ export async function verifyEvidence(
     ...(tierResult?.warnings ?? []),
   ];
 
-  const elapsedMs = Date.now() - startMs;
+  const elapsedMs = Math.max(1, Math.ceil(performance.now() - startMs));
 
   // Pure: build final result
   return buildVerificationResult({
