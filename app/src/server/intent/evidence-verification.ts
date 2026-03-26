@@ -28,14 +28,26 @@ export type EvidenceQueryRow = {
 // Pure: Parse a single evidence reference string
 // ---------------------------------------------------------------------------
 
+/**
+ * Strip SurrealDB record-ID escaping from a string.
+ *
+ * SurrealDB wraps record IDs that contain special characters (e.g. hyphens)
+ * in backticks when serialized as strings in JSON payloads (e.g. via
+ * SurrealDB EVENT http::post webhooks). The SDK's String() uses Unicode
+ * angle brackets (⟨⟩) for display, but over-the-wire JSON uses backticks.
+ *
+ * Examples: "`decision-abc123`" -> "decision-abc123"
+ *           "⟨decision-abc123⟩" -> "decision-abc123"
+ */
+const stripRecordIdEscaping = (id: string): string =>
+  id.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
+
 export function parseEvidenceRef(ref: string): ParsedEvidenceRef | undefined {
   const colonIndex = ref.indexOf(":");
   if (colonIndex <= 0 || colonIndex === ref.length - 1) return undefined;
 
   const table = ref.slice(0, colonIndex);
-  // SurrealDB serializes record references with backtick-wrapped IDs (e.g. `decision-uuid`).
-  // Strip backticks to get the raw ID for RecordId construction.
-  const rawId = ref.slice(colonIndex + 1).replace(/^`|`$/g, "");
+  const rawId = stripRecordIdEscaping(ref.slice(colonIndex + 1));
 
   if (!EVIDENCE_TABLE_ALLOWLIST.has(table)) return undefined;
 
@@ -101,12 +113,16 @@ export function classifyQueryResults(
     rowMap.set(key, row);
   }
 
-  // Normalize workspace ID: strip table prefix and backticks to get the raw UUID.
-  // SurrealDB serializes record references inconsistently — sometimes as RecordId objects,
-  // sometimes as strings like "workspace:`uuid`". Comparing raw IDs avoids format mismatches.
-  const normalizeId = (id: unknown): string =>
-    String(id).replace(/^`|`$/g, "").replace(/^[^:]+:/, "").replace(/^`|`$/g, "");
-  const targetWsId = normalizeId(workspaceId.id);
+  // Normalize workspace ID: strip SurrealDB angle-bracket escaping and table prefix.
+  // The workspace RecordId may arrive via JSON (EVENT webhook) with the full string
+  // representation embedded in .id (e.g. "workspace:⟨uuid⟩"), or as a clean UUID.
+  const normalizeWsId = (id: unknown): string => {
+    const s = String(id);
+    // Strip table prefix if present (e.g. "workspace:⟨uuid⟩" -> "⟨uuid⟩")
+    const afterColon = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
+    return stripRecordIdEscaping(afterColon);
+  };
+  const targetWsId = normalizeWsId(workspaceId.id);
   let verifiedCount = 0;
   const failedRefs: string[] = [];
   const warnings: string[] = [];
@@ -122,7 +138,7 @@ export function classifyQueryResults(
     }
 
     // Check workspace scope
-    const rowWsId = normalizeId(row.workspace.id);
+    const rowWsId = normalizeWsId(row.workspace.id);
     if (rowWsId !== targetWsId) {
       failedRefs.push(key);
       warnings.push(`${key} belongs to a different workspace`);
