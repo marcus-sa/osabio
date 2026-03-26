@@ -141,7 +141,7 @@ describe("US-01: Evidence references on intent submission", () => {
 // US-02: Deterministic Verification Pipeline
 // =============================================================================
 describe("US-02: Deterministic evidence verification", () => {
-  it.skip("all evidence references pass verification when valid", async () => {
+  it("all evidence references pass verification when valid", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence entities
