@@ -218,11 +218,10 @@ describe("US-10: Policy-driven evidence requirements", () => {
 // US-10: Observer Anomaly Detection
 // =============================================================================
 describe("US-10: Observer evidence anomaly detection", () => {
-  it.skip("evidence spam pattern triggers Observer anomaly detection", async () => {
+  it("M3-4: evidence spam pattern triggers Observer anomaly detection", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
-    // Driving port: workspace settings (SurrealDB)
     const user = await createTestUser(baseUrl, "m3-observer-spam");
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createTestIdentity(surreal, "logistics-planner", "agent", workspace.workspaceId);
@@ -235,15 +234,21 @@ describe("US-10: Observer evidence anomaly detection", () => {
       });
     }
 
-    // When the Observer runs its periodic scan
-    // Driving port: POST /api/workspaces/:ws/observer/scan
-    // (Trigger depends on Observer implementation -- manual trigger via endpoint)
+    // When the Observer runs its evidence anomaly scan
+    // Driving port: detectEvidenceSpam (deterministic graph scan function)
+    const { detectEvidenceSpam } = await import("../../../app/src/server/observer/graph-scan");
+    const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
+    const scanResult = await detectEvidenceSpam(surreal, workspaceRecord);
 
     // Then the Observer creates an anomaly observation of type "evidence_anomaly"
-    // (Assertion depends on Observer scan implementation)
-    const observations = await queryWorkspaceObservations(surreal, workspace.workspaceId, "observer-agent");
-    // We expect at least one evidence_anomaly observation after scan
-    // This test will be fully fleshed out once the Observer evidence detection is implemented
+    expect(scanResult.observations_created).toBeGreaterThanOrEqual(1);
+
+    const observations = await queryWorkspaceObservations(surreal, workspace.workspaceId, "observer_agent");
+    const evidenceAnomalies = observations.filter(o => o.observation_type === "evidence_anomaly");
+    expect(evidenceAnomalies.length).toBeGreaterThanOrEqual(1);
+    // The observation should mention the agent and the spam pattern
+    expect(evidenceAnomalies[0].text).toContain("logistics-planner");
+    expect(evidenceAnomalies[0].severity).toBe("warning");
   }, 60_000);
 
   it.skip("repeated evidence reuse across intents triggers anomaly detection", async () => {

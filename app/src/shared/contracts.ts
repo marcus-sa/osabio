@@ -43,7 +43,7 @@ export type OnboardingAction = "finalize_onboarding" | "continue_onboarding";
 export type ObservationSeverity = "info" | "warning" | "conflict";
 export type ObservationStatus = "open" | "acknowledged" | "resolved";
 
-export const OBSERVATION_TYPES = ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] as const;
+export const OBSERVATION_TYPES = ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "evidence_anomaly"] as const;
 export type ObservationType = (typeof OBSERVATION_TYPES)[number];
 
 export type ObservationSummary = {

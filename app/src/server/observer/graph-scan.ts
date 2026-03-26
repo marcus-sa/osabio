@@ -104,6 +104,7 @@ export type GraphScanResult = {
   clusters_found: number;
   coverage_skips: number;
   behavior_learning_proposals: number;
+  evidence_spam_agents_flagged: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -555,6 +556,108 @@ export async function runCoherenceScans(
 }
 
 // ---------------------------------------------------------------------------
+// Evidence spam detection (deterministic, no LLM)
+// ---------------------------------------------------------------------------
+
+export const EVIDENCE_SPAM_THRESHOLD = 15;
+const EVIDENCE_SPAM_WINDOW_HOURS = 1;
+
+type AgentObservationCount = {
+  source_agent: string;
+  observation_count: number;
+};
+
+export type EvidenceSpamScanResult = {
+  agents_flagged: number;
+  observations_created: number;
+};
+
+/**
+ * Detects agents that create an unusually high number of observations in a
+ * short time window within a workspace. This is a potential evidence spam
+ * pattern -- an agent rapidly generating observations to inflate evidence
+ * references for intent authorization.
+ *
+ * Deterministic graph query, no LLM needed.
+ */
+export async function detectEvidenceSpam(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<EvidenceSpamScanResult> {
+  const result: EvidenceSpamScanResult = {
+    agents_flagged: 0,
+    observations_created: 0,
+  };
+
+  const windowStart = new Date(
+    Date.now() - EVIDENCE_SPAM_WINDOW_HOURS * 60 * 60 * 1000,
+  );
+
+  // Query observation counts per source_agent in the recent time window
+  const [rows] = await surreal.query<[AgentObservationCount[]]>(
+    `SELECT source_agent, count() AS observation_count FROM observation
+     WHERE workspace = $ws
+       AND created_at >= $windowStart
+       AND source_agent != "observer_agent"
+     GROUP BY source_agent
+     ORDER BY observation_count DESC;`,
+    { ws: workspaceRecord, windowStart },
+  );
+
+  const spammingAgents = (rows ?? []).filter(
+    (row) => row.observation_count >= EVIDENCE_SPAM_THRESHOLD,
+  );
+
+  if (spammingAgents.length === 0) {
+    return result;
+  }
+
+  // Load existing observations for deduplication
+  const existingObservations = await listWorkspaceOpenObservations({
+    surreal,
+    workspaceRecord,
+    limit: 100,
+  });
+
+  for (const agent of spammingAgents) {
+    const observationText =
+      `Evidence spam pattern detected: Agent "${agent.source_agent}" created ${agent.observation_count} observations ` +
+      `within the last ${EVIDENCE_SPAM_WINDOW_HOURS} hour(s) in this workspace. ` +
+      `This exceeds the ${EVIDENCE_SPAM_THRESHOLD}-observation threshold and may indicate ` +
+      `automated evidence generation for intent authorization.`;
+
+    if (isAlreadyObserved(existingObservations, observationText)) {
+      log.info("observer.evidence_spam.dedup", "Skipping duplicate evidence spam observation", {
+        sourceAgent: agent.source_agent,
+        observationCount: agent.observation_count,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      observationType: "evidence_anomaly",
+      now,
+    });
+
+    result.agents_flagged += 1;
+    result.observations_created += 1;
+  }
+
+  log.info("observer.evidence_spam.completed", "Evidence spam scan completed", {
+    workspaceId: workspaceRecord.id,
+    ...result,
+  });
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Scan orchestrator
 // ---------------------------------------------------------------------------
 
@@ -577,6 +680,7 @@ export async function runGraphScan(
     clusters_found: 0,
     coverage_skips: 0,
     behavior_learning_proposals: 0,
+    evidence_spam_agents_flagged: 0,
   };
 
   // Load existing observations for deduplication
@@ -896,7 +1000,19 @@ export async function runGraphScan(
   result.implementations_without_decisions_found = coherenceResult.implementations_without_decisions_found;
   result.observations_created += coherenceResult.observations_created;
 
-  // 6. Diagnostic learning proposals: cluster observations and check coverage
+  // 6. Evidence spam detection (deterministic, no LLM)
+  try {
+    const evidenceSpamResult = await detectEvidenceSpam(surreal, workspaceRecord);
+    result.evidence_spam_agents_flagged = evidenceSpamResult.agents_flagged;
+    result.observations_created += evidenceSpamResult.observations_created;
+  } catch (error) {
+    log.info("observer.scan.evidence_spam_error", "Evidence spam detection failed, continuing scan", {
+      workspaceId: workspaceRecord.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // 7. Diagnostic learning proposals: cluster observations and check coverage
   try {
     const diagnostic = await runDiagnosticClustering(surreal, workspaceRecord, observerModel);
     result.clusters_found = diagnostic.result.clusters_found;
