@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f0bcb0090dc6",
+  "session_id": "5b1feea6-14f6-46da-a8aa-8340c4401ca6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T12:16:53.922272Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/policy/policy-gate.ts",
+    "app/src/server/policy/policy-validation.ts",
+    "app/src/server/policy/types.ts",
+    "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+    "tests/unit/policy-gate.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b9516a016016",
+  "token_usage": {
+    "input_tokens": 504,
+    "cache_creation_tokens": 298448,
+    "cache_read_tokens": 12723279,
+    "output_tokens": 40403,
+    "api_call_count": 94
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T12:16:53.434441Z",
+    "agent_lines": 309,
+    "human_added": 16,
+    "human_modified": 29,
+    "human_removed": 0,
+    "total_committed": 354,
+    "agent_percentage": 87.28813559322035
+  }
+}
