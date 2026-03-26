@@ -226,6 +226,45 @@ export async function queryExpiredVetoIntents(
   return rows;
 }
 
+// --- Maturity Threshold Queries ---
+
+export async function countConfirmedDecisions(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<number> {
+  const [rows] = await surreal.query<[Array<{ total: number }>]>(
+    `SELECT count() AS total FROM decision WHERE workspace = $ws AND status = "confirmed" GROUP ALL;`,
+    { ws: workspaceId },
+  );
+  return rows[0]?.total ?? 0;
+}
+
+export async function countCompletedTasks(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<number> {
+  const [rows] = await surreal.query<[Array<{ total: number }>]>(
+    `SELECT count() AS total FROM task WHERE workspace = $ws AND status IN ["done", "completed"] GROUP ALL;`,
+    { ws: workspaceId },
+  );
+  return rows[0]?.total ?? 0;
+}
+
+/**
+ * CAS (Compare-And-Swap) update: transitions workspace enforcement from soft to hard.
+ * Only updates if current mode is still "soft" to prevent race conditions.
+ */
+export async function transitionEnforcementToHard(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<boolean> {
+  const [rows] = await surreal.query<[Array<{ evidence_enforcement: string }>]>(
+    `UPDATE $ws SET evidence_enforcement = "hard" WHERE evidence_enforcement = "soft" RETURN AFTER;`,
+    { ws: workspaceId },
+  );
+  return (rows.length > 0 && rows[0]?.evidence_enforcement === "hard");
+}
+
 export async function listIntentsByWorkspace(
   surreal: Surreal,
   workspaceId: string,

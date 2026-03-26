@@ -1,7 +1,14 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import type { LlmEvaluator } from "./authorizer";
-import { updateIntentStatus, getIntentById } from "./intent-queries";
+import {
+  updateIntentStatus,
+  getIntentById,
+  countConfirmedDecisions,
+  countCompletedTasks,
+  transitionEnforcementToHard,
+} from "./intent-queries";
+import { shouldTransitionToHardEnforcement } from "./maturity-transition";
 import { routeByRisk } from "./risk-router";
 import type { IntentRecord, EvaluationResult } from "./types";
 import type { EvidenceEnforcementMode } from "./evidence-types";
@@ -133,17 +140,42 @@ export async function evaluatePendingIntent(
     return { ok: false, error: "Missing evaluator model", httpStatus: 500 };
   }
 
-  // Read workspace evidence enforcement mode and minimum evidence age
+  // Read workspace evidence enforcement mode, minimum evidence age, and maturity threshold
   let evidenceEnforcementMode: EvidenceEnforcementMode = "bootstrap";
   let minEvidenceAgeMinutes: number | undefined;
   try {
-    const [wsRows] = await deps.surreal.query<[Array<{ evidence_enforcement?: string; min_evidence_age_minutes?: number }>]>(
-      `SELECT evidence_enforcement, min_evidence_age_minutes FROM $ws;`,
+    const [wsRows] = await deps.surreal.query<[Array<{
+      evidence_enforcement?: string;
+      min_evidence_age_minutes?: number;
+      evidence_enforcement_threshold?: { min_decisions?: number; min_tasks?: number };
+    }>]>(
+      `SELECT evidence_enforcement, min_evidence_age_minutes, evidence_enforcement_threshold FROM $ws;`,
       { ws: workspaceRecord },
     );
     evidenceEnforcementMode =
       (wsRows[0]?.evidence_enforcement as EvidenceEnforcementMode) ?? "bootstrap";
     minEvidenceAgeMinutes = wsRows[0]?.min_evidence_age_minutes;
+
+    // Lazy maturity evaluation (WD-08): check if soft -> hard transition is warranted
+    const threshold = wsRows[0]?.evidence_enforcement_threshold;
+    if (evidenceEnforcementMode === "soft" && threshold?.min_decisions !== undefined && threshold?.min_tasks !== undefined) {
+      const [confirmedDecisionCount, completedTaskCount] = await Promise.all([
+        countConfirmedDecisions(deps.surreal, workspaceRecord),
+        countCompletedTasks(deps.surreal, workspaceRecord),
+      ]);
+
+      if (shouldTransitionToHardEnforcement({
+        currentMode: evidenceEnforcementMode,
+        confirmedDecisionCount,
+        completedTaskCount,
+        threshold: { min_decisions: threshold.min_decisions, min_tasks: threshold.min_tasks },
+      })) {
+        const transitioned = await transitionEnforcementToHard(deps.surreal, workspaceRecord);
+        if (transitioned) {
+          evidenceEnforcementMode = "hard";
+        }
+      }
+    }
   } catch {
     // Default to bootstrap if enforcement mode cannot be read
   }

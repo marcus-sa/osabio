@@ -518,7 +518,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
 // US-06: Auto-Transition from Soft to Hard
 // =============================================================================
 describe("US-06: Workspace enforcement auto-transition", () => {
-  it.skip("workspace transitions from soft to hard when maturity threshold is reached", async () => {
+  it("workspace transitions from soft to hard when maturity threshold is reached", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace in "soft" enforcement mode
