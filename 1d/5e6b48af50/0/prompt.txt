@@ -1,0 +1,1185 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/phoenix-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+By default, the user will only see the last message that you send before stopping. Include all essential information in the last message. The intermediate messages will be collapsed and accessible by the user but not displayed by default.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+/nw-design  intent-evidence @docs/research/intent-evidence-requirements.md
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-design
+
+# NW-DESIGN: Architecture Design
+
+**Wave**: DESIGN (wave 3 of 6) | **Agents**: Morgan (nw-solution-architect) | **Command**: `*design-architecture`
+
+## Overview
+
+Execute DESIGN wave through discovery-driven architecture design. Morgan asks about business drivers and constraints first, then recommends architecture that fits. Analyzes existing codebase, evaluates open-source alternatives, produces C4 diagrams (Mermaid) as mandatory output.
+
+## Prior Wave Consultation
+
+Before beginning DESIGN work, read targeted prior wave artifacts:
+
+1. **DISCOVER** (synthesis check only): Read `docs/feature/{feature-id}/discover/wave-decisions.md` — if any decision is unclear or relevant to architecture, read the referenced source file
+2. **DISCUSS** (primary input): Read these key artifacts from `docs/feature/{feature-id}/discuss/`:
+   - `wave-decisions.md` — decision summary
+   - `requirements.md` — functional requirements
+   - `acceptance-criteria.md` — testable criteria driving architecture
+   - `user-stories.md` — scope of what to build
+   - `story-map.md` — walking skeleton and release slicing
+   - `outcome-kpis.md` — quality attributes informing architecture
+
+DISCUSS already synthesizes DISCOVER evidence into structured requirements. DESIGN does not need raw DISCOVER artifacts (problem-validation, interview-log, etc.) unless wave-decisions.md flags something architecturally significant.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes architectural decisions disconnected from requirements.
+
+After reading, check whether any DESIGN decisions would contradict DISCUSS requirements. Flag contradictions and resolve with user before proceeding. Example: DISCUSS requires "real-time updates" but DESIGN chooses batch processing — this must be resolved.
+
+## Document Update (Back-Propagation)
+
+When DESIGN decisions change assumptions from prior waves:
+1. Document the change in a `## Changed Assumptions` section at the end of the affected DESIGN artifact
+2. Reference the original prior-wave document and quote the original assumption
+3. State the new assumption and the rationale for the change
+4. If architecture constraints require changes to user stories or acceptance criteria, note them in `docs/feature/{feature-id}/design/upstream-changes.md` for the product owner to review
+
+## Discovery Flow
+
+Architecture decisions driven by quality attributes, not pattern shopping:
+
+### Step 1: Understand the Problem
+Review JTBD artifacts from DISCUSS to understand which jobs the architecture must serve. Morgan asks: What are we building? For whom? Which quality attributes matter most? (scalability|maintainability|testability|time-to-market|fault tolerance|auditability)
+
+### Step 2: Understand Constraints
+Morgan asks: Team size/experience? Timeline? Existing systems to integrate? Regulatory requirements? Operational maturity (CI/CD, monitoring)?
+
+### Step 3: Team Structure (Conway's Law)
+Morgan asks: How many teams? Communication patterns? Does proposed architecture match org chart?
+
+### Step 3.5: Development Paradigm Selection
+
+Morgan identifies primary language(s) from constraints, then applies:
+
+- **FP-native** (Haskell|F#|Scala|Clojure|Elixir): recommend Functional
+- **OOP-native** (Java|C#|Go): recommend OOP
+- **Multi-paradigm** (TypeScript|Kotlin|Python|Rust|Swift): present both, let user choose based on team experience and domain fit
+
+After confirmation, ask user permission to write paradigm to project CLAUDE.md:
+- FP: `This project follows the **functional programming** paradigm. Use @nw-functional-software-crafter for implementation.`
+- OOP: `This project follows the **object-oriented** paradigm. Use @nw-software-crafter for implementation.`
+
+Default if user declines/unsure: OOP. User can override later.
+
+### Step 4: Recommend Architecture Based on Drivers
+Recommend based on quality attribute priorities|constraints|paradigm from Steps 1-3.5. Default: modular monolith with dependency inversion (ports-and-adapters). Overrides require evidence.
+
+If functional paradigm selected, Morgan adapts architectural strategy:
+- Types-first design: define algebraic data types and domain models before components
+- Composition pipelines: data flows through transformation chains, not method dispatch
+- Pure core / effect shell: domain logic is pure, IO lives at boundaries (adapters are functions)
+- Effect boundaries replace port interfaces: function signatures serve as ports
+- Immutable state: state changes produce new values, no mutation in the domain
+These are strategic guidance items for the architecture document — no code snippets.
+
+### Step 5: Advanced Architecture Stress Analysis (HIDDEN -- `--residuality` flag only)
+When activated: apply complexity-science-based stress analysis — stressors|attractors|residues|incidence matrix|resilience modifications. See `stress-analysis` skill.
+When not activated: skip entirely, do not mention.
+
+### Step 6: Produce Deliverables
+- Architecture document with component boundaries|tech stack|integration patterns
+- C4 System Context diagram (Mermaid) -- MANDATORY
+- C4 Container diagram (Mermaid) -- MANDATORY
+- C4 Component diagrams (Mermaid) -- only for complex subsystems
+- ADRs for significant decisions
+
+## Rigor Profile Integration
+
+Before dispatching the architect agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+- **`reviewer_model`**: If design review is performed, use this model for the reviewer agent. If `"skip"`, skip design review.
+- **`review_enabled`**: If `false`, skip post-design review step.
+
+## Agent Invocation
+
+@nw-solution-architect
+
+Execute \*design-architecture for {feature-id}.
+
+Context files: see Prior Wave Consultation above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- interactive: moderate
+- output_format: markdown
+- diagram_format: mermaid (C4)
+- stress_analysis: {true if --residuality flag, false otherwise}
+
+**SKILL_LOADING**: Read your skill files at `~/.claude/skills/nw-{skill-name}/SKILL.md`. At Phase 4, always load: `nw-architecture-patterns`, `nw-architectural-styles-tradeoffs`. Do NOT load `nw-roadmap-design` during DESIGN wave -- roadmap creation belongs to the DELIVER wave (`/nw-roadmap` or `/nw-deliver`). Then follow your Skill Loading Strategy table for phase-specific skills.
+
+## Success Criteria
+
+- [ ] Business drivers and constraints gathered before architecture selection
+- [ ] Existing system analyzed before design (codebase search performed)
+- [ ] Integration points with existing components documented
+- [ ] Reuse vs. new component decisions justified
+- [ ] Architecture supports all business requirements
+- [ ] Technology stack selected with clear rationale
+- [ ] Development paradigm selected and (optionally) written to project CLAUDE.md
+- [ ] Component boundaries defined with dependency-inversion compliance
+- [ ] C4 System Context + Container diagrams produced (Mermaid)
+- [ ] ADRs written with alternatives considered
+- [ ] Handoff accepted by nw-platform-architect (DEVOPS wave)
+
+## Next Wave
+
+**Handoff To**: nw-platform-architect (DEVOPS wave)
+**Deliverables**: See Morgan's handoff package specification in agent file
+
+## Wave Decisions Summary
+
+Before completing DESIGN, produce `docs/feature/{feature-id}/design/wave-decisions.md`:
+
+```markdown
+# DESIGN Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Architecture Summary
+- Pattern: {e.g., modular monolith with ports-and-adapters}
+- Paradigm: {OOP|FP}
+- Key components: {list top-level components}
+
+## Technology Stack
+- {language/framework}: {rationale}
+
+## Constraints Established
+- {architectural constraint}
+
+## Upstream Changes
+- {any DISCUSS assumptions changed, with rationale}
+```
+
+This summary enables DEVOPS and DISTILL to quickly assess architecture decisions without reading all DESIGN files.
+
+## Expected Outputs
+
+```
+docs/feature/{feature-id}/design/
+  architecture-design.md       (includes C4 diagrams in Mermaid)
+  technology-stack.md
+  component-boundaries.md
+  data-models.md
+  wave-decisions.md
+docs/adrs/
+  ADR-NNN-*.md
+CLAUDE.md (project root)   (optional: ## Development Paradigm section)
+```
+
+
+ARGUMENTS: intent-evidence @docs/research/intent-evidence-requirements.md
+
+---
+
+we need to also update existing mcp tool descriptions
+
+---
+
+anything else we might have missed ?
+
+---
+
+get_context is not really needed. that's what the proxy is for
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-review
+
+# NW-REVIEW: Expert Critique and Quality Assurance
+
+**Wave**: CROSS_WAVE
+**Agent**: Dynamic (nw-*-reviewer)
+
+## Overview
+
+Dispatches expert reviewer agent to critique workflow artifacts. Takes base agent name, appends `-reviewer`, invokes with artifact. Reviewer agent owns all review methodology|criteria|output format.
+
+## Review Philosophy: Radical Candor
+
+Every review MUST embody Radical Candor — kind AND clear, specific AND sincere:
+
+- **Care personally**: Acknowledge what works. Understand author's intent before critiquing. Include at least one genuine `praise:` per review.
+- **Challenge directly**: Be specific about what is wrong and WHY. Ground feedback in evidence|consequences, not preference. Never soften security/data-loss issues.
+- **Avoid ruinous empathy**: Never "LGTM" when real issues exist. Hedging ("maybe consider possibly...") on blocking concerns is a review failure.
+- **Avoid obnoxious aggression**: Never "this is terrible" without constructive alternative. Focus on work, not author. Explain "why" behind every critique.
+
+## Feedback Format: Conventional Comments
+
+All findings MUST use Conventional Comments labels:
+
+| Label | Purpose | Blocking? |
+|---|---|---|
+| `praise:` | Highlight something done well (genuine, not filler) | No |
+| `issue (blocking):` | Must be resolved before proceeding | Yes |
+| `issue (blocking, security):` | Security vulnerability — maximum directness | Yes |
+| `suggestion:` | Propose improvement with reasoning | Mark `(blocking)` or `(non-blocking)` |
+| `nitpick (non-blocking):` | Trivial, preference-based | No |
+| `question (non-blocking):` | Seek clarification before assuming | No |
+| `thought (non-blocking):` | Idea sparked by the review | No |
+
+Findings MUST be priority-ordered: blocking issues first, then suggestions, then nitpicks/praise.
+
+## Approval Criteria
+
+| Verdict | Criteria |
+|---|---|
+| **APPROVED** | No blocking issues. Non-blocking feedback is advisory. |
+| **NEEDS_REVISION** | Blocking issues exist. Author must address. Each blocking issue enumerated. |
+| **REJECTED** | Fundamental design problems requiring significant rework. Rare — explain thoroughly, offer alternatives. |
+
+## Syntax
+
+```
+/nw-review @{agent-name} {artifact-type} "{artifact-path}" [step_id={id}] [--dimensions=rpp] [--from=1] [--to=3]
+```
+
+**Parameters:**
+- `@{agent-name}` - Base agent (e.g., `@nw-software-crafter`). `-reviewer` suffix appended automatically.
+- `{artifact-type}` - One of: `baseline`, `roadmap`, `step`, `task`, `implementation`
+- `{artifact-path}` - Path to artifact file (resolved to absolute)
+- `step_id={id}` - Required for step and implementation reviews
+- `--dimensions=rpp` - Triggers RPP code smell scan alongside standard review (Dimension 4)
+- `--from=N` / `--to=N` - RPP level range (default: 1-6). Requires `--dimensions=rpp`
+
+## Rigor Profile Integration
+
+Before dispatching the reviewer agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`review_enabled`**: If `false`, skip the review entirely. Output: "Review skipped per rigor profile (review_enabled=false)."
+- **`reviewer_model`**: Pass as `model` parameter to Task tool. If `"skip"`, skip the review. Overrides the default Haiku model.
+- **`double_review`**: If `true` and called from deliver Phase 4, the caller is responsible for invoking review twice.
+
+## Agent Derivation
+
+| User provides | Reviewer invoked |
+|---|---|
+| `@nw-software-crafter` | `nw-software-crafter-reviewer` |
+| `@nw-solution-architect` | `nw-solution-architect-reviewer` |
+| `@nw-platform-architect` | `nw-platform-architect-reviewer` |
+
+Default model: Haiku (overridden by `rigor.reviewer_model` when set).
+
+## Agent Invocation
+
+Parse parameters, validate, then invoke via Task tool:
+
+```python
+Task(
+    subagent_type="{agent-name}-reviewer",
+    model=rigor_reviewer_model,  # omit if using default haiku
+    prompt="Review {artifact-type}: {absolute-artifact-path} [step_id={id}]"
+)
+```
+
+Reviewer handles: reading artifact|applying domain expertise|generating structured critique|updating original artifact with review metadata.
+
+## Validation (before invoking)
+
+1. Base agent name exists (strip `@`, check agent registry)
+2. Artifact type valid (baseline, roadmap, step, task, implementation)
+3. Artifact file exists at resolved absolute path
+4. step_id provided when artifact type is `step` or `implementation`
+
+On validation failure, return specific error and stop.
+
+## Success Criteria
+
+- [ ] Reviewer agent invoked (not self-performed)
+- [ ] Original artifact file updated with review metadata
+- [ ] Review includes severity levels and approval status (APPROVED, NEEDS_REVISION, REJECTED)
+
+## Examples
+
+### Example 1: Step review
+```
+/nw-review @nw-software-crafter step "docs/feature/auth-upgrade/execution-log.json" step_id=02-01
+```
+Invokes `nw-software-crafter-reviewer` with step review of execution log, step 02-01.
+
+### Example 2: Roadmap review
+```
+/nw-review @nw-solution-architect roadmap "docs/feature/auth-upgrade/roadmap.json"
+```
+Invokes `nw-solution-architect-reviewer` with roadmap review.
+
+### Example 3: Implementation review
+```
+/nw-review @nw-platform-architect implementation "docs/feature/auth-upgrade/execution-log.json" step_id=01-01
+```
+Invokes `nw-platform-architect-reviewer` with implementation review of step 01-01.
+
+### Example 4: RPP code quality review
+```
+/nw-review @nw-software-crafter implementation "src/des/" --dimensions=rpp --from=1 --to=3
+```
+Invokes `nw-software-crafter-reviewer` with implementation review + RPP L1-L3 code smell detection using cascade rule.
+
+## Error Messages
+
+- Invalid agent: "Unknown agent: {name}. Check available agents with /nw-agents."
+- Invalid type: "Invalid artifact type: {type}. Use: baseline, roadmap, step, task, implementation."
+- Missing file: "Artifact not found: {path}."
+- Missing step_id: "step_id required for {type} reviews."
+
+## Next Wave
+
+**Handoff To**: Depends on review outcome (rework or proceed)
+**Deliverables**: Updated artifact file with embedded review metadata
+
+## Expected Outputs
+
+```
+Updated artifact file (roadmap.json, execution-log.json, etc.) with reviews section
+```
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-distill
+
+# NW-DISTILL: Acceptance Test Creation and Business Validation
+
+**Wave**: DISTILL (wave 5 of 6) | **Agent**: Quinn (nw-acceptance-designer)
+
+## Overview
+
+Create E2E acceptance tests from requirements|architecture|infrastructure design using Given-When-Then format. Produces executable specifications bridging business requirements and technical implementation. Infrastructure design from DEVOPS informs test environment setup.
+
+## Interactive Decision Points
+
+### Decision 1: Feature Scope
+**Question**: What is the scope of this feature?
+**Options**:
+1. Core feature -- primary application functionality
+2. Extension -- modular add-on or integration
+3. Bug fix -- regression tests for a known defect
+
+### Decision 2: Test Framework
+**Question**: Which test framework to use?
+**Options**:
+1. pytest-bdd -- Python BDD framework
+2. Cucumber -- Ruby/JS BDD framework
+3. SpecFlow -- .NET BDD framework
+4. Custom -- user provides details
+
+### Decision 3: Integration Approach
+**Question**: How should integration tests connect to services?
+**Options**:
+1. Real services -- test against actual running services
+2. Test containers -- ephemeral containers for dependencies
+3. Mocks for external only -- real internal, mocked external services
+
+### Decision 4: Infrastructure Testing
+**Question**: Should acceptance tests cover infrastructure concerns?
+**Options**:
+1. Yes -- include CI/CD validation, deployment smoke tests
+2. No -- functional acceptance tests only
+
+## Acceptance Criteria: Port-to-Port Principle
+
+Every AC MUST name the driving port (entry point) through which the behavior is exercised. This enables port-to-port acceptance tests that make TBU (Tested But Unwired) defects structurally impossible.
+
+Each AC includes:
+1. **Observable outcome**: what the user/system sees
+2. **Driving port**: the entry point that triggers the behavior (service, handler, endpoint, CLI command)
+
+Without the driving port, a crafter can write correct code that is never wired into the system.
+
+**Features**: "When user {action} via {driving_port}, {observable_outcome}"
+**Bug fixes**: "When {trigger}, {modified_code_path} produces {correct_outcome} instead of {current_broken_behavior}"
+
+## Prior Wave Consultation
+
+Before beginning DISTILL work, read targeted prior wave artifacts:
+
+1. **DISCOVER** (skip): DISCUSS already synthesized DISCOVER evidence into requirements and acceptance criteria.
+2. **DISCUSS** (primary input): Read from `docs/feature/{feature-id}/discuss/`:
+   - `acceptance-criteria.md` — primary input for test creation
+   - `story-map.md` — drives walking skeleton priority and release slicing
+   - `user-stories.md` — story-to-test traceability
+   - `wave-decisions.md` — quick check for upstream changes
+3. **DESIGN** (structural context): Read from `docs/feature/{feature-id}/design/`:
+   - `architecture-design.md` — port boundaries define test scope
+   - `component-boundaries.md` — determines which components tests exercise
+   - `wave-decisions.md` — check for upstream changes from DISCUSS
+4. **DEVOPS** (test environment): Read from `docs/feature/{feature-id}/devops/`:
+   - `platform-architecture.md` — test environment setup
+   - `ci-cd-pipeline.md` — test execution context
+   - `wave-decisions.md` — check for infrastructure constraints affecting tests
+
+DISTILL is the major synthesis point. Its job is to translate all prior wave knowledge into executable acceptance tests. The acceptance criteria from DISCUSS + architecture from DESIGN + infra from DEVOPS are sufficient. Raw DISCOVER artifacts are not needed — they were already synthesized into DISCUSS requirements.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes acceptance tests disconnected from requirements and architecture.
+
+After reading, check whether any acceptance test assumptions contradict prior wave decisions. Use `wave-decisions.md` files to detect upstream changes. Example: DISCUSS acceptance criteria reference a "notification email" but DESIGN's wave-decisions.md notes email was removed in favor of in-app notifications — tests must reflect the DESIGN decision.
+
+## Document Update (Back-Propagation)
+
+When DISTILL work reveals gaps or contradictions in prior waves:
+1. Document findings in `docs/feature/{feature-id}/distill/upstream-issues.md`
+2. Reference the original prior-wave document and describe the gap
+3. If acceptance criteria from DISCUSS are untestable as written, note the specific criteria and why
+4. Resolve with user before writing tests against ambiguous or contradictory requirements
+
+## Rigor Profile Integration
+
+Before dispatching the acceptance designer, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`agent_model`**: Pass as `model` parameter to Task tool. If `"inherit"`, omit `model` (inherits from session).
+
+## Agent Invocation
+
+@nw-acceptance-designer
+
+Execute \*create-acceptance-tests for {feature-id}.
+
+Context files: see above.
+
+**Configuration:**
+- model: rigor.agent_model (omit if "inherit")
+- test_type: {Decision 1: core|extension|bugfix}
+- test_framework: {Decision 2: specflow|cucumber|pytest-bdd}
+- integration_approach: {Decision 3} | infrastructure_testing: {Decision 4}
+- interactive: moderate | output_format: gherkin
+
+## Success Criteria
+
+- [ ] All user stories have corresponding acceptance tests
+- [ ] Step methods call real production services (no mocks at acceptance level)
+- [ ] One-at-a-time implementation strategy established (@skip/@pending tags)
+- [ ] Tests exercise driving ports, not internal components (hexagonal boundary)
+- [ ] Walking skeleton created first with user-centric scenarios (features only; optional for bugs)
+- [ ] Infrastructure test scenarios included (if Decision 4 = Yes)
+- [ ] Handoff package ready for nw-software-crafter (DELIVER wave)
+
+## Examples
+
+### Example 1: Core feature acceptance tests
+```
+/nw-distill payment-webhook --test-framework=pytest-bdd --integration=real-services
+```
+Quinn creates Given-When-Then acceptance tests from requirements and architecture, establishes walking skeleton first, then milestone features with @skip tags for one-at-a-time implementation.
+
+## Next Wave
+
+**Handoff To**: nw-software-crafter (DELIVER wave)
+**Deliverables**: Feature files|step definitions|test-scenarios.md|walking-skeleton.md
+
+## Wave Decisions Summary
+
+Before completing DISTILL, produce `docs/feature/{feature-id}/distill/wave-decisions.md`:
+
+```markdown
+# DISTILL Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Test Coverage Summary
+- Total scenarios: {N}
+- Walking skeleton scenarios: {N}
+- Milestone features: {list}
+- Test framework: {framework}
+- Integration approach: {approach}
+
+## Constraints Established
+- {test boundary constraint}
+
+## Upstream Issues
+- {any gaps found in prior wave artifacts}
+```
+
+DISTILL is the major synthesis point. DELIVER reads DISTILL output as its authoritative specification — the acceptance tests encode all prior wave decisions into executable form.
+
+## Expected Outputs
+
+```
+tests/{test-type-path}/{feature-id}/acceptance/
+  walking-skeleton.feature
+  milestone-{N}-{description}.feature
+  integration-checkpoints.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+docs/feature/{feature-id}/distill/
+  test-scenarios.md
+  walking-skeleton.md
+  acceptance-review.md
+  wave-decisions.md
+```
+
+Bug fix regression tests:
+```
+tests/regression/{component-or-module}/
+  bug-{ticket-or-description}.feature
+  steps/
+    conftest.py
+    {domain}_steps.py
+
+tests/unit/{component-or-module}/
+  test_{module}_bug_{ticket-or-description}.py
+```
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-deliver
+
+# NW-DELIVER: Complete DELIVER Wave Orchestrator
+
+**Wave**: DELIVER (wave 6 of 6)|**Agent**: Main Instance (orchestrator)|**Command**: `/nw-deliver "{feature-description}"`
+
+## Overview
+
+Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN > DEVOPS > DISTILL > DELIVER).
+
+Sub-agents cannot use Skill tool or `/nw-*` commands. You MUST:
+- Read the relevant command file and embed instructions in the Task prompt
+- Remind the crafter to load its skills as needed for the task (skill files are at `~/.claude/skills/nw-{skill-name}/SKILL.md`)
+
+## CRITICAL BOUNDARY RULES
+
+1. **NEVER implement steps directly.** ALL implementation MUST be delegated to the selected crafter (@nw-software-crafter or @nw-functional-software-crafter per step 1.5) via Task tool with DES markers. You are ORCHESTRATOR — coordinate, not implement.
+2. **NEVER write phase entries to execution-log.json.** Only the crafter subagent that performed TDD work may append entries.
+3. **Extract step context from roadmap.json ONLY for Task prompt.** Grep roadmap for step_id ~50 lines context, extract (description|acceptance_criteria|files_to_modify), pass in DES template.
+
+**DES monitoring is non-negotiable.** Circumventing DES — faking step IDs, omitting markers, or writing log entries manually — is a **violation that invalidates the delivery**. DES detects unmonitored steps and flags them; finalize **blocks** until every flagged step is re-executed through a properly instrumented Task. There is no workaround: unverified steps cannot pass integrity verification, and the delivery cannot be finalized. Without DES monitoring, nWave cannot **verify** TDD phase compliance. For non-deliver tasks (docs, research, one-off edits): `<!-- DES-ENFORCEMENT : exempt -->`.
+
+## Rigor Profile Integration
+
+Before dispatching any agent, read the rigor profile from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+**How rigor affects deliver phases:**
+
+| Setting | Effect |
+|---------|--------|
+| `agent_model` | Pass as `model` parameter to all Task tool invocations for crafter agents. If `"inherit"`, omit `model` parameter (Task tool inherits from session). |
+| `reviewer_model` | Pass as `model` parameter to reviewer Task invocations. If `"skip"`, skip Phase 4 entirely. |
+| `review_enabled` | If `false`, skip Phase 4 (Adversarial Review). |
+| `double_review` | If `true`, run Phase 4 twice with separate review scopes. |
+| `tdd_phases` | Pass to crafter in DES template. Replace `# TDD_PHASES` section with the configured phases. If only `[RED_UNIT, GREEN]`, omit PREPARE/RED_ACCEPTANCE/COMMIT instructions. |
+| `refactor_pass` | If `false`, skip Phase 3 (Complete Refactoring). |
+| `mutation_enabled` | If `false`, skip Phase 5 regardless of mutation strategy in CLAUDE.md. |
+
+**Task invocation with rigor model:**
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit this line entirely if "inherit"
+    max_turns=45,
+    prompt=...,
+)
+```
+
+## Prior Wave Consultation
+
+Before beginning DELIVER work, read targeted prior wave artifacts. DISTILL is the major synthesis point — its acceptance tests encode all prior wave decisions into executable specifications.
+
+1. **DISCOVER** (skip): Synthesized into DISCUSS, then into DISTILL acceptance tests.
+2. **DISCUSS** (skip): Synthesized into DISTILL acceptance tests. If needed during implementation, read specific files on demand.
+3. **DESIGN** (structural context): Read from `docs/feature/{feature-id}/design/`:
+   - `architecture-design.md` — component structure and C4 diagrams guide implementation
+   - `component-boundaries.md` — dependency-inversion boundaries
+   - `wave-decisions.md` — paradigm, tech stack, upstream changes
+4. **DEVOPS** (skip): Infrastructure setup is independent of implementation. Read `wave-decisions.md` only if test environment issues arise.
+5. **DISTILL** (primary input): Read all files in `docs/feature/{feature-id}/distill/` — test scenarios, walking skeleton, acceptance review are the authoritative specification for implementation.
+
+**READING ENFORCEMENT**: You MUST read every file listed in Prior Wave Consultation above using the Read tool before proceeding. After reading, output a confirmation checklist (`✓ {file}` for each read, `⊘ {file} (not found)` for missing). Do NOT skip files that exist — skipping causes implementation disconnected from architecture and acceptance tests.
+
+Additionally, check for `upstream-changes.md` and `upstream-issues.md` in DESIGN and DISTILL directories. If unresolved issues exist, flag them to the user before starting implementation. Do not implement against contradictory specifications.
+
+**On-demand escalation**: If during implementation a crafter encounters ambiguity not resolved by DISTILL tests or DESIGN architecture, the orchestrator reads the specific prior wave file referenced in wave-decisions.md — never re-reads entire directories.
+
+## Document Update (Back-Propagation)
+
+When DELIVER implementation reveals gaps or contradictions in prior waves:
+1. Document findings in `docs/feature/{feature-id}/deliver/upstream-issues.md`
+2. Reference the original prior-wave document and describe the issue
+3. If implementation requires deviating from architecture or requirements, document the deviation and rationale
+4. Resolve with user before continuing past the affected step
+
+## Orchestration Flow
+
+```
+INPUT: "{feature-description}"
+  |
+  0. Read rigor profile from .nwave/des-config.json (default: standard)
+     Store: agent_model|reviewer_model|tdd_phases|review_enabled|double_review|mutation_enabled|refactor_pass
+  |
+  0.5. Prior Wave Consultation (see section above)
+     Read DISTILL (all) + DESIGN (architecture + boundaries + wave-decisions)|flag contradictions|resolve before proceeding
+     Summarize key design decisions into a reusable DESIGN_CONTEXT block for crafter dispatch (component structure, boundaries, tech choices, data models). This summary is injected into every crafter's DES template so sub-agents make implementation decisions aligned with the architecture.
+  |
+  1. Parse input|derive feature-id (kebab-case)|create docs/feature/{feature-id}/deliver/
+     a. Create execution-log.json if missing via CLI:
+        PYTHONPATH=$HOME/.claude/lib/python python3 -m des.cli.init_log --project-dir docs/feature/{feature-id}/deliver --feature-id {feature-id}
+        Do NOT create execution-log.json directly with Write — use the CLI only.
+     b. Create deliver session marker: .nwave/des/deliver-session.json
+  |
+  1.5. Detect development paradigm
+     a. Read project CLAUDE.md (project root, NOT ~/.claude/CLAUDE.md)
+     b. Search "## Development Paradigm"
+     c. Found → extract paradigm: "functional"/@nw-functional-software-crafter or "object-oriented"/@nw-software-crafter (default)
+     d. Not found → ask user "OOP or Functional?"|offer to write to CLAUDE.md
+     e. Store selected crafter for all Phase 2 dispatches
+     f. Functional → property-based testing default|@property tags signal PBT|example-based = fallback
+  |
+  1.6. Detect mutation testing strategy
+     a. Same CLAUDE.md|search "## Mutation Testing Strategy"
+     b. Found → extract: per-feature|nightly-delta|pre-release|disabled
+     c. Not found → default "per-feature"
+     d. Log strategy for traceability
+     Note: Strategy locks at deliver start. CLAUDE.md edits during delivery take effect next run.
+  |
+  2. Phase 1 — Roadmap Creation + Review
+     a. Skip if docs/feature/{feature-id}/deliver/roadmap.json exists with validation.status == "approved"
+        IMPORTANT: Only check the deliver/ subdirectory. If roadmap.json is found in design/ instead,
+        MOVE it to deliver/ and log warning: "Roadmap relocated from design/ to deliver/ — was created in wrong wave."
+     b. @nw-solution-architect creates roadmap.json (read ~/.claude/skills/nw-roadmap/SKILL.md)
+        Step IDs: NN-NN format (01-01, 01-02, 02-01). 01-A or 1-1 = invalid.
+        DISTILL LINKAGE: If docs/feature/{feature-id}/distill/ exists, the architect MUST populate
+        test_file and scenario_name fields in each roadmap step from the distilled acceptance tests.
+        Each step maps to one acceptance scenario (1 Step = 1 Scenario = 1 TDD Cycle).
+     c. Automated quality gate (see below)
+     d. @nw-software-crafter-reviewer reviews (read ~/.claude/skills/nw-review/SKILL.md)
+     e. Retry once on rejection → stop for manual intervention
+  |
+  3. Phase 2 — Execute All Steps
+     a. Extract steps from roadmap.json in dependency order
+     b. Check execution-log.json for prior completion (resume)
+     c. {selected-crafter} executes 5-phase TDD cycle (read ~/.claude/skills/nw-execute/SKILL.md)
+        Use crafter from step 1.5|@nw-functional-software-crafter → PBT default|@property tags signal PBT
+        IMPORTANT: Use DES Prompt Template from execute.md|Include DES markers (DES-VALIDATION|DES-PROJECT-ID|DES-STEP-ID) + all mandatory sections
+        OUTCOME_RECORDING: agents use DES CLI (PYTHONPATH=$HOME/.claude/lib/python python3 -m des.cli.log_phase)|CLI bypass → SubagentStop hook corrects timestamps
+     d. Verify COMMIT/PASS in execution-log.json per step
+     e. Missing phase → RE-DISPATCH agent. NEVER write entries yourself.
+     f. Stop on first failure
+     g. Timeout recovery: GREEN completed → resume (~5 turns)|GREEN partial → resume|Otherwise → restart higher max_turns
+     h. Wiring smoke check: for each step, verify every new function defined in
+        production files has at least one call site in production code (not just tests).
+        Flag "function X defined but only called from tests" → re-dispatch crafter.
+     i. Acceptance test gate: after each step's COMMIT/PASS, run the feature's acceptance
+        tests (tests matching the feature path, e.g., tests/acceptance/{feature-id}/).
+        If any acceptance test fails, fix the issue before proceeding to the next step.
+        Do NOT skip or defer failing tests. This applies to EVERY individual step, not just the final one.
+  |
+  4. Phase 3 — Complete Refactoring (L1-L4) [SKIP if rigor.refactor_pass = false]
+     a. Collect modified files: git diff --name-only {base-commit}..HEAD -- '*.py' | sort -u
+        Split: PRODUCTION_FILES (src/) | TEST_FILES (tests/)
+     b. /nw-refactor {files} --levels L1-L4 via {selected-crafter} with DES orchestrator markers:
+        <!-- DES-VALIDATION : required -->|<!-- DES-PROJECT-ID : {feature-id} -->|<!-- DES-MODE : orchestrator -->
+     c. All tests green after each module
+  |
+  5. Phase 4 — Adversarial Review [SKIP if rigor.review_enabled = false]
+     a. If rigor.reviewer_model = "skip" → SKIP phase entirely
+     b. /nw-review @nw-software-crafter-reviewer implementation "{execution-log-path}"
+        Use model=rigor.reviewer_model for reviewer Task invocation
+        Include DES orchestrator markers (same as Phase 3)
+     c. If rigor.double_review = true → run review a second time with different scope focus
+     d. Scope: ALL files modified during feature|includes Testing Theater 7-pattern detection
+     e. One revision pass on rejection → proceed
+  |
+  6. Phase 5 — Mutation Testing [SKIP if rigor.mutation_enabled = false]
+     If rigor.mutation_enabled = false → SKIP regardless of CLAUDE.md strategy
+     Otherwise, apply CLAUDE.md strategy:
+     per-feature → gate ≥80% kill rate (read ~/.claude/skills/nw-mutation-test/SKILL.md)
+     nightly-delta → SKIP|log "handled by CI nightly pipeline"
+     pre-release → SKIP|log "handled at release boundary"
+     disabled → SKIP|log "disabled per project configuration"
+  |
+  7. Phase 6 — Deliver Integrity Verification
+     a. PYTHONPATH=$HOME/.claude/lib/python python3 -m des.cli.verify_deliver_integrity docs/feature/{feature-id}/deliver/
+     b. Exit 0 → proceed|Exit 1 → STOP, read output
+     c. No entries = not executed through DES|Partial = incomplete TDD
+     d. Violations → re-execute via Task with DES markers|Only proceed after pass
+  |
+  8. Phase 7 — Finalize
+     a. @nw-platform-architect archives to docs/evolution/ (read ~/.claude/skills/nw-finalize/SKILL.md)
+     b. Commit + push|rm -f .nwave/des/deliver-session.json .nwave/des/des-task-active
+  |
+  9. Phase 8 — Retrospective (conditional)
+     Skip if clean execution|@nw-troubleshooter 5 Whys on issues found
+  |
+  10. Phase 9 — Report Completion
+      Display summary: phases|steps|reviews|artifacts|Return to DISCOVER for next iteration
+```
+
+## Orchestrator Responsibilities
+
+Follow this flow directly. Do not delegate orchestration.
+
+Per phase:
+1. Read the relevant command file (paths listed above)
+2. Extract instructions and embed them in the Task prompt
+3. Include task boundary instructions to prevent workflow continuation
+4. Verify output artifacts exist after each Task completes
+5. Update .develop-progress.json for resume capability
+
+## Task Invocation Pattern
+
+DES markers required for step execution. Without markers → unmonitored. Full DES Prompt Template in `~/.claude/skills/nw-execute/SKILL.md`.
+
+When dispatching steps via Agent tool, use the COMPLETE DES template from execute.md verbatim. Fill all `{placeholders}` from roadmap step context. The DES hook validates the prompt BEFORE the sub-agent starts — abbreviated prompts that delegate template reading to the sub-agent will be BLOCKED.
+
+Copy the template from the code block in `~/.claude/skills/nw-execute/SKILL.md` (between ``` markers), fill placeholders, and pass as the Agent prompt. The template sections are defined in execute.md — do not hardcode the list here.
+
+```python
+Task(
+    subagent_type="{agent}",
+    model=rigor_agent_model,  # omit if "inherit"
+    prompt=f'''
+<!-- DES-VALIDATION : required -->
+<!-- DES-PROJECT-ID : {project_id} -->
+<!-- DES-STEP-ID : {step_id} -->
+
+# DES_METADATA
+Step: {step_id}
+Feature: {project_id}
+Command: /nw-execute
+
+# AGENT_IDENTITY
+Agent: {agent}
+
+# SKILL_LOADING
+Before starting TDD phases, read your skill files for methodology guidance.
+Skills path: ~/.claude/skills/nw-{skill-name}/SKILL.md
+Always load at PREPARE: tdd-methodology.md, quality-framework.md
+Load on-demand per phase as specified in your Skill Loading Strategy table.
+
+# TASK_CONTEXT
+{step context extracted from roadmap - name|description|acceptance_criteria|test_file|scenario_name|quality_gates|implementation_notes|dependencies|estimated_hours|deliverables|files_to_modify}
+
+# DESIGN_CONTEXT
+{Summarize key architectural decisions from design wave artifacts read at step 0.5.
+Include: component structure, dependency-inversion boundaries, technology choices,
+data models, and any design constraints relevant to this step.
+Source files: architecture-design.md, component-boundaries.md, wave-decisions.md.
+If no design artifacts exist, write "No design artifacts available — use project conventions."}
+
+# TDD_PHASES
+... (copy remaining sections from execute.md template verbatim)
+
+# TIMEOUT_INSTRUCTION
+Target: 30 turns max. If approaching limit, COMMIT current progress.
+''',
+    description="{phase description}"
+)
+```
+
+## Roadmap Quality Gate (Automated, Zero Token Cost)
+
+After roadmap creation, before reviewer:
+1. AC coupling: flag AC referencing private methods (`_method()`)
+2. Decomposition ratio: flag steps/files > 2.5
+3. Identical patterns: flag 3+ steps with same AC structure (batch them)
+4. Validation-only: flag steps with no files_to_modify
+5. Step ID format: flag non-matching `^\d{2}-\d{2}$`
+6. DISTILL linkage: if docs/feature/{feature-id}/distill/ exists, flag steps missing test_file/scenario_name
+
+HIGH findings → return to architect for one revision.
+
+## Skip and Resume
+
+- Check `.develop-progress.json` on start for resume
+- Skip if file exists with validation.status == "approved"
+- Skip completed steps via execution-log.json COMMIT/PASS
+- Max 2 retry per review rejection → stop for manual intervention
+
+## Input
+
+- `feature-description` (string, required, min 10 chars)
+- feature-id: strip prefixes (implement|add|create)|remove stop words|kebab-case|max 5 words
+
+## Output Artifacts
+
+```
+docs/feature/{feature-id}/deliver/
+  roadmap.json|execution-log.json|.develop-progress.json
+docs/evolution/
+  {feature-id}-evolution.md
+```
+
+## Quality Gates
+
+Roadmap review (1 review, max 2 attempts)|Per-step 5-phase TDD (PREPARE→RED_ACCEPTANCE→RED_UNIT→GREEN→COMMIT)|Paradigm-appropriate crafter|L1-L4 refactoring (Phase 3)|Adversarial review + Testing Theater detection (Phase 4)|Mutation ≥80% if per-feature (Phase 5)|Integrity verification (Phase 6)|All tests passing per phase
+
+## Success Criteria
+
+- [ ] Roadmap created and approved
+- [ ] All steps COMMIT/PASS (5-phase TDD)
+- [ ] L1-L4 refactoring complete (Phase 3)
+- [ ] Adversarial review passed (Phase 4)
+- [ ] Mutation gate ≥80% or skipped per strategy (Phase 5)
+- [ ] Integrity verification passed (Phase 6)
+- [ ] Evolution archived (Phase 7)
+- [ ] Retrospective or clean execution noted (Phase 8)
+- [ ] Completion report (Phase 9)
+
+## Examples
+
+### 1: Fresh Feature
+`/nw-deliver "Implement user authentication with JWT"` → roadmap → review → TDD all steps → mutation → finalize → report
+
+### 2: Resume After Failure
+Same command → loads .develop-progress.json → skips completed → resumes from failure
+
+### 3: Single Step Alternative
+For manual granular control, use individual commands:
+```
+/nw-roadmap @nw-solution-architect "goal"
+/nw-execute {selected-crafter} "feature-id" "01-01"
+/nw-finalize @nw-platform-architect "feature-id"
+```
+
+## Completion
+
+DELIVER is final wave. After completion → DISCOVER for next feature or mark project complete.
+
+---
+
+proceed with Release 1 scope
+
+---
+
+proceed
+
+---
+
+backticks?? when would there ever be backticks in an id?
+
+---
+
+but why are we prefixing id with the table name?
+it is already prefixed with the table name...
+decision:1234
+decision:decision-1234
+
+---
+
+address the shared fixtures id convention first
+
+---
+
+Continue from where you left off.
+
+---
+
+add this as learning to docs/agents/surrealdb.md
+
+---
+
+relase 1 is done. how do i proceed with releases 2-4? do we create a new roadmap?
+
+---
+
+/nw-roadmap
+
+---
+
+This skill can only be invoked by Claude, not directly by users. Ask Claude to use the "nw-roadmap" skill for you.
+
+---
+
+use the /nw-roadmap skill to
+ extend the current roadmap with r2-r4
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-roadmap
+
+# NW-ROADMAP: Goal Planning
+
+**Wave**: CROSS_WAVE
+**Agent**: Architect (nw-solution-architect) or domain-appropriate agent
+
+## Overview
+
+Dispatches expert agent to fill a pre-scaffolded YAML roadmap skeleton. CLI tools handle structure; agent handles content.
+
+Output: `docs/feature/{feature-id}/deliver/roadmap.json`
+
+## Usage
+
+```bash
+/nw-roadmap @nw-solution-architect "Migrate monolith to microservices"
+/nw-roadmap @nw-software-crafter "Replace legacy authentication system"
+/nw-roadmap @nw-product-owner "Implement multi-tenant support"
+```
+
+## Execution Steps
+
+You MUST execute these steps in order. Do NOT skip any.
+
+**Step 1 — Parse parameters:**
+1. Agent name (after @, validated against agent registry)
+2. Goal description (quoted string)
+3. Derive feature-id from goal (kebab-case, e.g., "Migrate to OAuth2" -> "migrate-to-oauth2")
+
+**Step 2 — Scaffold skeleton via CLI (mandatory, BEFORE invoking agent):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap init \
+  --project-id {feature-id} \
+  --goal "{goal-description}" \
+  --output docs/feature/{feature-id}/deliver/roadmap.json
+```
+For complex projects add: `--phases 3 --steps "01:3,02:2,03:1"`
+
+If exit code non-zero, stop and report error. Do NOT write file manually.
+
+**Step 3 — Invoke agent to fill skeleton:**
+
+Skeleton exists with TODO placeholders. Invoke via Task tool:
+```
+@{agent-name}
+
+Fill in the roadmap skeleton at docs/feature/{feature-id}/deliver/roadmap.json.
+Replace every TODO with real content. Do NOT change the YAML structure
+(phases, steps, keys). Fill in: names, descriptions, acceptance criteria,
+time estimates, dependencies, and implementation_scope paths.
+
+Goal: {goal-description}
+```
+
+Context to pass (if available): measurement baseline|mikado-graph.md|existing docs.
+
+**Step 4 — Validate via CLI (hard gate, mandatory):**
+
+```bash
+PYTHONPATH=~/.claude/lib/python python3 -m des.cli.roadmap validate docs/feature/{feature-id}/deliver/roadmap.json
+```
+- Exit 0 -> success, roadmap ready
+- Exit 1 -> print errors, STOP, do NOT proceed
+- Exit 2 -> usage error, STOP
+
+## Invocation Principles
+
+Keep agent prompt minimal. Agent knows roadmap structure and planning methodology.
+
+Pass: skeleton file path + goal description + measurement context (if available).
+Do not pass: YAML templates|phase guidance|step decomposition rules.
+
+For performance roadmaps, include measurement context inline so agent can validate targets against baselines.
+
+## Success Criteria
+
+### Dispatcher (you) — all 4 must be checked
+- [ ] Parameters parsed (agent name, goal, feature-id)
+- [ ] `des.cli.roadmap init` executed via Bash (exit 0)
+- [ ] Agent invoked via Task tool to fill TODO placeholders
+- [ ] `des.cli.roadmap validate` executed via Bash (exit 0)
+
+### Agent output (reference)
+- [ ] All TODO placeholders replaced with real content
+- [ ] Steps are self-contained and atomic
+- [ ] Acceptance criteria are behavioral and measurable
+- [ ] Step decomposition ratio <= 2.5 (steps / production files)
+- [ ] Dependencies mapped, time estimates provided
+
+## Error Handling
+
+- Invalid agent: report valid agents and stop
+- Missing goal: show usage syntax and stop
+- Scaffold failure (exit 2): report CLI error and stop
+- Validation failure (exit 1): print errors, do not proceed
+
+## Examples
+
+### Example 1: Standard architecture roadmap
+```
+/nw-roadmap @nw-solution-architect "Migrate authentication to OAuth2"
+```
+Derives feature-id="migrate-auth-to-oauth2", scaffolds skeleton, invokes agent to fill TODOs, validates. Produces docs/feature/migrate-auth-to-oauth2/deliver/roadmap.json.
+
+### Example 2: Performance roadmap with measurement context
+```
+/nw-roadmap @nw-solution-architect "Optimize test suite execution"
+```
+Passes measurement data inline. Agent fills skeleton, validates targets against baseline, prioritizes largest bottleneck first.
+
+### Example 3: Mikado refactoring
+```
+/nw-roadmap @nw-software-crafter "Extract payment module from monolith"
+```
+Agent fills skeleton with methodology: mikado, references mikado-graph.md, maps leaf nodes to steps.
+
+## Workflow Context
+
+```bash
+/nw-roadmap @agent "goal"           # 1. Plan (init -> agent fills -> validate)
+/nw-execute @agent "feature-id" "01-01" # 2. Execute steps
+/nw-finalize @agent "feature-id"        # 3. Finalize
+```
+
+
+ARGUMENTS: extend the current roadmap at docs/feature/intent-evidence/deliver/roadmap.json with releases 2-4 (R2: soft enforcement pipeline - evidence verification, risk scoring, enforcement modes; R3: MCP tool description updates and evidence_refs parameter; R4: Observer integration for evidence anomaly detection). Use milestone prefixes 02-xx, 03-xx, 04-xx matching the release numbers. Read the existing roadmap, design docs at docs/feature/intent-evidence/design/, and distill docs at docs/feature/intent-evidence/distill/ for full context.
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-review
+
+# NW-REVIEW: Expert Critique and Quality Assurance
+
+**Wave**: CROSS_WAVE
+**Agent**: Dynamic (nw-*-reviewer)
+
+## Overview
+
+Dispatches expert reviewer agent to critique workflow artifacts. Takes base agent name, appends `-reviewer`, invokes with artifact. Reviewer agent owns all review methodology|criteria|output format.
+
+## Review Philosophy: Radical Candor
+
+Every review MUST embody Radical Candor — kind AND clear, specific AND sincere:
+
+- **Care personally**: Acknowledge what works. Understand author's intent before critiquing. Include at least one genuine `praise:` per review.
+- **Challenge directly**: Be specific about what is wrong and WHY. Ground feedback in evidence|consequences, not preference. Never soften security/data-loss issues.
+- **Avoid ruinous empathy**: Never "LGTM" when real issues exist. Hedging ("maybe consider possibly...") on blocking concerns is a review failure.
+- **Avoid obnoxious aggression**: Never "this is terrible" without constructive alternative. Focus on work, not author. Explain "why" behind every critique.
+
+## Feedback Format: Conventional Comments
+
+All findings MUST use Conventional Comments labels:
+
+| Label | Purpose | Blocking? |
+|---|---|---|
+| `praise:` | Highlight something done well (genuine, not filler) | No |
+| `issue (blocking):` | Must be resolved before proceeding | Yes |
+| `issue (blocking, security):` | Security vulnerability — maximum directness | Yes |
+| `suggestion:` | Propose improvement with reasoning | Mark `(blocking)` or `(non-blocking)` |
+| `nitpick (non-blocking):` | Trivial, preference-based | No |
+| `question (non-blocking):` | Seek clarification before assuming | No |
+| `thought (non-blocking):` | Idea sparked by the review | No |
+
+Findings MUST be priority-ordered: blocking issues first, then suggestions, then nitpicks/praise.
+
+## Approval Criteria
+
+| Verdict | Criteria |
+|---|---|
+| **APPROVED** | No blocking issues. Non-blocking feedback is advisory. |
+| **NEEDS_REVISION** | Blocking issues exist. Author must address. Each blocking issue enumerated. |
+| **REJECTED** | Fundamental design problems requiring significant rework. Rare — explain thoroughly, offer alternatives. |
+
+## Syntax
+
+```
+/nw-review @{agent-name} {artifact-type} "{artifact-path}" [step_id={id}] [--dimensions=rpp] [--from=1] [--to=3]
+```
+
+**Parameters:**
+- `@{agent-name}` - Base agent (e.g., `@nw-software-crafter`). `-reviewer` suffix appended automatically.
+- `{artifact-type}` - One of: `baseline`, `roadmap`, `step`, `task`, `implementation`
+- `{artifact-path}` - Path to artifact file (resolved to absolute)
+- `step_id={id}` - Required for step and implementation reviews
+- `--dimensions=rpp` - Triggers RPP code smell scan alongside standard review (Dimension 4)
+- `--from=N` / `--to=N` - RPP level range (default: 1-6). Requires `--dimensions=rpp`
+
+## Rigor Profile Integration
+
+Before dispatching the reviewer agent, read rigor config from `.nwave/des-config.json` (key: `rigor`). If absent, use standard defaults.
+
+- **`review_enabled`**: If `false`, skip the review entirely. Output: "Review skipped per rigor profile (review_enabled=false)."
+- **`reviewer_model`**: Pass as `model` parameter to Task tool. If `"skip"`, skip the review. Overrides the default Haiku model.
+- **`double_review`**: If `true` and called from deliver Phase 4, the caller is responsible for invoking review twice.
+
+## Agent Derivation
+
+| User provides | Reviewer invoked |
+|---|---|
+| `@nw-software-crafter` | `nw-software-crafter-reviewer` |
+| `@nw-solution-architect` | `nw-solution-architect-reviewer` |
+| `@nw-platform-architect` | `nw-platform-architect-reviewer` |
+
+Default model: Haiku (overridden by `rigor.reviewer_model` when set).
+
+## Agent Invocation
+
+Parse parameters, validate, then invoke via Task tool:
+
+```python
+Task(
+    subagent_type="{agent-name}-reviewer",
+    model=rigor_reviewer_model,  # omit if using default haiku
+    prompt="Review {artifact-type}: {absolute-artifact-path} [step_id={id}]"
+)
+```
+
+Reviewer handles: reading artifact|applying domain expertise|generating structured critique|updating original artifact with review metadata.
+
+## Validation (before invoking)
+
+1. Base agent name exists (strip `@`, check agent registry)
+2. Artifact type valid (baseline, roadmap, step, task, implementation)
+3. Artifact file exists at resolved absolute path
+4. step_id provided when artifact type is `step` or `implementation`
+
+On validation failure, return specific error and stop.
+
+## Success Criteria
+
+- [ ] Reviewer agent invoked (not self-performed)
+- [ ] Original artifact file updated with review metadata
+- [ ] Review includes severity levels and approval status (APPROVED, NEEDS_REVISION, REJECTED)
+
+## Examples
+
+### Example 1: Step review
+```
+/nw-review @nw-software-crafter step "docs/feature/auth-upgrade/execution-log.json" step_id=02-01
+```
+Invokes `nw-software-crafter-reviewer` with step review of execution log, step 02-01.
+
+### Example 2: Roadmap review
+```
+/nw-review @nw-solution-architect roadmap "docs/feature/auth-upgrade/roadmap.json"
+```
+Invokes `nw-solution-architect-reviewer` with roadmap review.
+
+### Example 3: Implementation review
+```
+/nw-review @nw-platform-architect implementation "docs/feature/auth-upgrade/execution-log.json" step_id=01-01
+```
+Invokes `nw-platform-architect-reviewer` with implementation review of step 01-01.
+
+### Example 4: RPP code quality review
+```
+/nw-review @nw-software-crafter implementation "src/des/" --dimensions=rpp --from=1 --to=3
+```
+Invokes `nw-software-crafter-reviewer` with implementation review + RPP L1-L3 code smell detection using cascade rule.
+
+## Error Messages
+
+- Invalid agent: "Unknown agent: {name}. Check available agents with /nw-agents."
+- Invalid type: "Invalid artifact type: {type}. Use: baseline, roadmap, step, task, implementation."
+- Missing file: "Artifact not found: {path}."
+- Missing step_id: "step_id required for {type} reviews."
+
+## Next Wave
+
+**Handoff To**: Depends on review outcome (rework or proceed)
+**Deliverables**: Updated artifact file with embedded review metadata
+
+## Expected Outputs
+
+```
+Updated artifact file (roadmap.json, execution-log.json, etc.) with reviews section
+```
