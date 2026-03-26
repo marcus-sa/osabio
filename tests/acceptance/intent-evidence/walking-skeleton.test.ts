@@ -124,7 +124,7 @@ describe("Walking Skeleton: Evidence-backed intent authorization", () => {
   // Walking Skeleton 2: Missing evidence elevates risk under soft enforcement
   // US-01 + US-03
   // ---------------------------------------------------------------------------
-  it.skip("agent submits intent without evidence and soft enforcement elevates risk score", async () => {
+  it("agent submits intent without evidence and soft enforcement elevates risk score", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "soft"

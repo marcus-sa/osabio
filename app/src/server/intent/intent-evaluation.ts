@@ -163,6 +163,7 @@ export async function evaluatePendingIntent(
   };
   const routing = routeByRisk(evaluation, {
     humanVetoRequired: evaluation.human_veto_required,
+    evidenceVerification: evidence_verification,
   });
   const transition = toTransition(routing, evaluationRecord);
 
