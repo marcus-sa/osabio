@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "688ad21bb0e6",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/intent/evidence-constants.ts",
+    "app/src/server/intent/evidence-types.ts",
+    "app/src/server/intent/evidence-verification.ts",
+    "app/src/server/intent/intent-evaluation.ts",
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/intent/types.ts",
+    "docs/feature/intent-evidence/deliver/execution-log.json",
+    "schema/migrations/0075_intent_evidence_verification_extra_fields.surql",
+    "schema/surreal-schema.surql",
+    "tests/unit/intent/evidence-verification.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/8ad21bb0e6/0/metadata.json",
+      "transcript": "/68/8ad21bb0e6/0/full.jsonl",
+      "context": "/68/8ad21bb0e6/0/context.md",
+      "content_hash": "/68/8ad21bb0e6/0/content_hash.txt",
+      "prompt": "/68/8ad21bb0e6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 165,
+    "cache_creation_tokens": 259799,
+    "cache_read_tokens": 26421253,
+    "output_tokens": 52144,
+    "api_call_count": 138
+  }
+}

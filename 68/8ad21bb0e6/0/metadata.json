@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "688ad21bb0e6",
+  "session_id": "4081045a-20e0-41f5-96e1-5848203ba47b",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T07:13:48.357157Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/intent/authorizer.ts",
+    "app/src/server/intent/evidence-constants.ts",
+    "app/src/server/intent/evidence-types.ts",
+    "app/src/server/intent/evidence-verification.ts",
+    "app/src/server/intent/intent-evaluation.ts",
+    "app/src/server/intent/intent-queries.ts",
+    "app/src/server/intent/intent-routes.ts",
+    "app/src/server/intent/types.ts",
+    "docs/feature/intent-evidence/deliver/execution-log.json",
+    "schema/migrations/0075_intent_evidence_verification_extra_fields.surql",
+    "schema/surreal-schema.surql",
+    "tests/unit/intent/evidence-verification.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4c9255501e9b",
+  "token_usage": {
+    "input_tokens": 165,
+    "cache_creation_tokens": 259799,
+    "cache_read_tokens": 26421253,
+    "output_tokens": 52144,
+    "api_call_count": 138
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T07:13:47.578188Z",
+    "agent_lines": 536,
+    "human_added": 23,
+    "human_modified": 17,
+    "human_removed": 0,
+    "total_committed": 576,
+    "agent_percentage": 93.05555555555556
+  }
+}
