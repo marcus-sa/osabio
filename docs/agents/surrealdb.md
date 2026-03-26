@@ -48,6 +48,18 @@
 - If a webhook path must do DB follow-up without `ASYNC`, wait briefly for the triggering transition to commit before applying routing/state transitions.
 - If async follow-up work is needed in route handlers, track it with `deps.inflight.track(...)`.
 
+## RecordId Escaping in EVENT Webhook Payloads
+
+- SurrealDB EVENT webhooks (`http::post`) serialize record references as **strings**, not SDK `RecordId` objects. The JSON payload contains strings like `"decision:\`550e8400-...\`"` (backtick-escaped) for IDs that contain special characters (hyphens, digits at start, etc.).
+- The SDK's `String(recordId)` uses **Unicode angle brackets** (`⟨⟩`, U+27E8/U+27E9) for display, but the **wire format** from EVENT webhooks uses **ASCII backticks** (`` ` ``, U+0060). Code that parses record references from webhook payloads must handle backticks, not angle brackets.
+- UUIDs always contain hyphens, so SurrealDB always escapes them: `decision:\`550e8400-e29b-41d4-...\``.
+- When parsing `table:id` strings from webhook payloads, strip the backtick escaping:
+  ```typescript
+  const stripRecordIdEscaping = (id: string): string =>
+    id.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
+  ```
+- Do NOT prefix record IDs with the table name (e.g. `decision-${uuid}`). This creates redundant IDs like `decision:decision-uuid`. Use plain `crypto.randomUUID()` for IDs — the table context is already in the `RecordId` table field.
+
 ## RecordId and Table Access Rules
 
 - After request parsing, use `RecordId` objects everywhere for Surreal identifiers (never raw `table:id` strings in internal logic).
@@ -79,6 +91,26 @@
 - The SDK returns a typed tuple matching the statement order: `surreal.query<[ResultA[], ResultB[], ResultC[]]>("SELECT ...; SELECT ...; SELECT ...;", vars)`.
 - For `LET` + `SELECT` pairs (e.g. two-step KNN pattern), `LET` occupies result indices too: a query with `LET $a = ...; SELECT FROM $a; LET $b = ...; SELECT FROM $b;` returns results at indices `[0, 1, 2, 3]` where the `SELECT` results are at odd indices `[1, 3]`.
 - Multiple statements in a single `.query()` call do not trigger WebSocket concurrency issues; those only apply to multiple parallel `.query()` calls on the same connection.
+
+## SurrealDB SELECT FROM Array of RecordIds Bug (v3.0)
+
+- `SELECT ... FROM $refs` where `$refs` is a bound parameter containing an **array of RecordIds** throws `"Specify a database to use"` instead of returning results. This applies regardless of whether the RecordIds are homogeneous or heterogeneous.
+- Workaround: use per-record `SELECT` statements combined in a **single `.query()` call** (one round-trip, multiple statements):
+  ```typescript
+  // BROKEN: array of RecordIds as FROM target
+  const refs = [new RecordId("decision", id1), new RecordId("task", id2)];
+  await surreal.query("SELECT id, workspace FROM $refs;", { refs });
+  // → Error: "Specify a database to use"
+
+  // WORKS: per-ref SELECT statements in one round-trip
+  const statements = refs.map((_, i) => `SELECT id, workspace FROM $r${i};`).join(" ");
+  const bindings: Record<string, RecordId> = {};
+  refs.forEach((ref, i) => { bindings[`r${i}`] = ref; });
+  const results = await surreal.query(statements, bindings);
+  // → results is an array of arrays, one per statement
+  ```
+- A single RecordId works fine: `SELECT ... FROM $ref` where `$ref` is one `RecordId`.
+- Cap the number of per-ref statements to avoid query size limits (10 is a safe upper bound for most use cases).
 
 ## SurrealDB KNN + WHERE Bug (v3.0)
 
