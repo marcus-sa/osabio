@@ -204,7 +204,7 @@ describe("US-05: Authorship independence check", () => {
     expect(verification!.verified_count).toBe(1);
   }, 60_000);
 
-  it.skip("low-risk intent has no authorship requirement even when self-authored", async () => {
+  it("low-risk intent has no authorship requirement even when self-authored", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
