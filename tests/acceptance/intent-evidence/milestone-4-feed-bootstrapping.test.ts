@@ -103,7 +103,7 @@ describe("US-08: Governance feed evidence chain display", () => {
     expect(feed.items).toBeDefined();
   }, 30_000);
 
-  it.skip("feed highlights failed evidence references with failure reason", async () => {
+  it("feed highlights failed evidence references with failure reason", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
