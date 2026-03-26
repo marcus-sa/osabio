@@ -26,14 +26,6 @@ export type MaturityCheckInput = {
 
 // --- Pure Function ---
 
-/**
- * Determines whether a workspace should transition from soft to hard enforcement.
- *
- * Returns true only when:
- * 1. Current mode is "soft" (only soft transitions to hard)
- * 2. A threshold is configured
- * 3. Both confirmed decisions and completed tasks meet or exceed the threshold
- */
 // --- Bootstrap -> Soft Transition ---
 
 export type BootstrapCheckInput = {

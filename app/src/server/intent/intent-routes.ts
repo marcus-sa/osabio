@@ -94,13 +94,10 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
       return jsonResponse(response, 200);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      const errStack = error instanceof Error ? error.stack : "";
       log.error("intent.evaluate.error", "Intent evaluation pipeline failed", error, {
         intentId,
         error_message: errMsg,
-        error_stack: errStack,
       });
-      console.error("[INTENT_EVAL_ERROR]", intentId, errMsg, errStack);
       return jsonError("Internal evaluation error", 500);
     }
   };

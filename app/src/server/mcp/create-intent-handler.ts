@@ -123,6 +123,8 @@ function validateInput(
 // Pure: validate evidence_refs input (defense in depth at handler boundary)
 // ---------------------------------------------------------------------------
 
+const SORTED_ALLOWLIST_DISPLAY = [...EVIDENCE_TABLE_ALLOWLIST].sort().join(", ");
+
 /**
  * Validates evidence_refs from MCP input against the table allowlist.
  * Returns parsed RecordIds or an error identifying the unsupported type.
@@ -139,7 +141,6 @@ export function validateEvidenceRefs(
   }
 
   const parsed: RecordId[] = [];
-  const sortedAllowlist = [...EVIDENCE_TABLE_ALLOWLIST].sort().join(", ");
 
   for (const ref of refs) {
     if (typeof ref !== "string") {
@@ -156,7 +157,7 @@ export function validateEvidenceRefs(
 
     if (!EVIDENCE_TABLE_ALLOWLIST.has(table)) {
       return {
-        error: `Unsupported evidence entity type: '${table}'. Allowed types: ${sortedAllowlist}`,
+        error: `Unsupported evidence entity type: '${table}'. Allowed types: ${SORTED_ALLOWLIST_DISPLAY}`,
       };
     }
 

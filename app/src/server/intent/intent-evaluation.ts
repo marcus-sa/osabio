@@ -1,6 +1,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import type { LlmEvaluator } from "./authorizer";
+import { stripRecordIdEscaping } from "./evidence-verification";
 import {
   updateIntentStatus,
   getIntentById,
@@ -68,15 +69,12 @@ function resolveRecordId<T extends string>(
   // Strip table prefix if present (e.g. "identity:`uuid`" -> "`uuid`")
   const colonIdx = s.indexOf(":");
   const afterPrefix = colonIdx >= 0 ? s.slice(colonIdx + 1) : s;
-  // Strip backtick or angle-bracket escaping
-  const cleanId = afterPrefix.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
-  return new RecordId(table, cleanId);
+  return new RecordId(table, stripRecordIdEscaping(afterPrefix));
 }
 
 type TransitionPlan = {
-  targetStatus: EvaluatedStatus;
-  updateFields: Record<string, unknown>;
   status: EvaluatedStatus;
+  updateFields: Record<string, unknown>;
   vetoExpiresAt?: Date;
 };
 
@@ -87,20 +85,17 @@ function toTransition(
   switch (routing.route) {
     case "auto_approve":
       return {
-        targetStatus: "authorized",
         status: "authorized",
         updateFields: { evaluation: evaluationRecord },
       };
     case "veto_window":
       return {
-        targetStatus: "pending_veto",
         status: "pending_veto",
         updateFields: { evaluation: evaluationRecord, veto_expires_at: routing.expires_at },
         vetoExpiresAt: routing.expires_at,
       };
     case "reject":
       return {
-        targetStatus: "vetoed",
         status: "vetoed",
         updateFields: { evaluation: evaluationRecord },
       };
@@ -272,7 +267,7 @@ export async function evaluatePendingIntent(
   const result = await updateIntentStatus(
     deps.surreal,
     intentId,
-    transition.targetStatus,
+    transition.status,
     transition.updateFields,
   );
   if (!result.ok) {

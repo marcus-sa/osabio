@@ -42,7 +42,7 @@ export type EvidenceQueryRow = {
  * Examples: "`decision-abc123`" -> "decision-abc123"
  *           "⟨decision-abc123⟩" -> "decision-abc123"
  */
-const stripRecordIdEscaping = (id: string): string =>
+export const stripRecordIdEscaping = (id: string): string =>
   id.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
 
 export function parseEvidenceRef(ref: string): ParsedEvidenceRef | undefined {
@@ -91,6 +91,31 @@ export function parseAllEvidenceRefs(
 }
 
 // ---------------------------------------------------------------------------
+// Pure: Date coercion (shared by classification checks)
+// ---------------------------------------------------------------------------
+
+function toMs(d: unknown): number {
+  return d instanceof Date ? d.getTime() : new Date(d as string).getTime();
+}
+
+// ---------------------------------------------------------------------------
+// Pure: Normalize workspace ID for comparison
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize a workspace RecordId's inner id for comparison.
+ * Strips SurrealDB angle-bracket/backtick escaping and table prefix.
+ * The workspace RecordId may arrive via JSON (EVENT webhook) with the full
+ * string representation embedded in .id (e.g. "workspace:⟨uuid⟩"), or as
+ * a clean UUID.
+ */
+function normalizeWorkspaceId(id: unknown): string {
+  const s = String(id);
+  const afterColon = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
+  return stripRecordIdEscaping(afterColon);
+}
+
+// ---------------------------------------------------------------------------
 // Pure: Classify query results against parsed refs
 // ---------------------------------------------------------------------------
 
@@ -124,16 +149,7 @@ export function classifyQueryResults(
     rowMap.set(key, row);
   }
 
-  // Normalize workspace ID: strip SurrealDB angle-bracket escaping and table prefix.
-  // The workspace RecordId may arrive via JSON (EVENT webhook) with the full string
-  // representation embedded in .id (e.g. "workspace:⟨uuid⟩"), or as a clean UUID.
-  const normalizeWsId = (id: unknown): string => {
-    const s = String(id);
-    // Strip table prefix if present (e.g. "workspace:⟨uuid⟩" -> "⟨uuid⟩")
-    const afterColon = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
-    return stripRecordIdEscaping(afterColon);
-  };
-  const targetWsId = normalizeWsId(workspaceId.id);
+  const targetWsId = normalizeWorkspaceId(workspaceId.id);
   let verifiedCount = 0;
   const failedRefs: string[] = [];
   const warnings: string[] = [];
@@ -150,7 +166,7 @@ export function classifyQueryResults(
     }
 
     // Check workspace scope
-    const rowWsId = normalizeWsId(row.workspace.id);
+    const rowWsId = normalizeWorkspaceId(row.workspace.id);
     if (rowWsId !== targetWsId) {
       failedRefs.push(key);
       warnings.push(`${key} belongs to a different workspace`);
@@ -167,11 +183,7 @@ export function classifyQueryResults(
 
     // Check temporal ordering: evidence must have been created before the intent
     if (intentCreatedAt && row.created_at) {
-      const toMs = (d: unknown): number =>
-        d instanceof Date ? d.getTime() : new Date(d as string).getTime();
-      const evidenceTime = toMs(row.created_at);
-      const intentTime = toMs(intentCreatedAt);
-      if (evidenceTime > intentTime) {
+      if (toMs(row.created_at) > toMs(intentCreatedAt)) {
         failedRefs.push(key);
         warnings.push(`${key} has temporal_violation: created after the intent`);
         continue;
@@ -180,11 +192,8 @@ export function classifyQueryResults(
 
     // Check minimum evidence age: evidence must be older than the configured threshold
     if (options?.minEvidenceAgeMinutes && row.created_at) {
-      const toMs = (d: unknown): number =>
-        d instanceof Date ? d.getTime() : new Date(d as string).getTime();
-      const evidenceTime = toMs(row.created_at);
       const referenceTime = (options.now ?? new Date()).getTime();
-      const ageMs = referenceTime - evidenceTime;
+      const ageMs = referenceTime - toMs(row.created_at);
       const minAgeMs = options.minEvidenceAgeMinutes * 60 * 1000;
       if (ageMs < minAgeMs) {
         failedRefs.push(key);
