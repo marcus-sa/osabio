@@ -111,7 +111,7 @@ describe("US-01: Evidence references on intent submission", () => {
     expect(refs).toBeUndefined();
   });
 
-  it.skip("agent cannot submit intent with references to unsupported entity types", async () => {
+  it("agent cannot submit intent with references to unsupported entity types", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
