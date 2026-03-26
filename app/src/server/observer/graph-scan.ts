@@ -105,6 +105,7 @@ export type GraphScanResult = {
   coverage_skips: number;
   behavior_learning_proposals: number;
   evidence_spam_agents_flagged: number;
+  evidence_reuse_agents_flagged: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -658,6 +659,166 @@ export async function detectEvidenceSpam(
 }
 
 // ---------------------------------------------------------------------------
+// Evidence reuse detection (deterministic, no LLM)
+// ---------------------------------------------------------------------------
+
+export const EVIDENCE_REUSE_THRESHOLD = 5;
+
+type IntentEvidenceRow = {
+  id: RecordId<"intent">;
+  requester: RecordId<"identity">;
+  evidence_refs: RecordId[];
+};
+
+export type EvidenceReuseScanResult = {
+  agents_flagged: number;
+  observations_created: number;
+};
+
+/**
+ * Detects agents that reuse the same evidence references across many intents
+ * within a workspace. When the same set of evidence_refs appears in 5+
+ * intents from the same requester, this signals a potential evidence reuse
+ * anomaly -- an agent recycling stale evidence instead of gathering fresh
+ * justification for each intent.
+ *
+ * Deterministic graph query, no LLM needed.
+ */
+export async function detectEvidenceReuse(
+  surreal: Surreal,
+  workspaceRecord: RecordId<"workspace", string>,
+): Promise<EvidenceReuseScanResult> {
+  const result: EvidenceReuseScanResult = {
+    agents_flagged: 0,
+    observations_created: 0,
+  };
+
+  // Query all intents with evidence_refs in this workspace
+  const [rows] = await surreal.query<[IntentEvidenceRow[]]>(
+    `SELECT id, requester, evidence_refs, created_at FROM intent
+     WHERE workspace = $ws
+       AND evidence_refs IS NOT NONE
+       AND array::len(evidence_refs) > 0
+     ORDER BY created_at DESC
+     LIMIT 500;`,
+    { ws: workspaceRecord },
+  );
+
+  const intents = rows ?? [];
+  if (intents.length === 0) {
+    return result;
+  }
+
+  // Group by requester, then count how many intents share each evidence ref
+  const refCountByRequester = new Map<string, Map<string, number>>();
+
+  for (const intent of intents) {
+    const requesterId = String(intent.requester);
+    if (!refCountByRequester.has(requesterId)) {
+      refCountByRequester.set(requesterId, new Map());
+    }
+    const refCounts = refCountByRequester.get(requesterId)!;
+
+    for (const ref of intent.evidence_refs) {
+      const refKey = String(ref);
+      refCounts.set(refKey, (refCounts.get(refKey) ?? 0) + 1);
+    }
+  }
+
+  // Find requesters with any evidence ref reused across EVIDENCE_REUSE_THRESHOLD+ intents
+  const flaggedRequesters: Array<{ requesterId: string; maxReuse: number; refKey: string }> = [];
+
+  for (const [requesterId, refCounts] of refCountByRequester) {
+    let maxReuse = 0;
+    let maxRefKey = "";
+    for (const [refKey, count] of refCounts) {
+      if (count > maxReuse) {
+        maxReuse = count;
+        maxRefKey = refKey;
+      }
+    }
+    if (maxReuse >= EVIDENCE_REUSE_THRESHOLD) {
+      flaggedRequesters.push({ requesterId, maxReuse, refKey: maxRefKey });
+    }
+  }
+
+  if (flaggedRequesters.length === 0) {
+    return result;
+  }
+
+  // Resolve requester identity names for observation text
+  const existingObservations = await listWorkspaceOpenObservations({
+    surreal,
+    workspaceRecord,
+    limit: 100,
+  });
+
+  for (const flagged of flaggedRequesters) {
+    // Look up the identity name from the requester RecordId
+    const identityName = await resolveIdentityName(surreal, flagged.requesterId);
+
+    const observationText =
+      `Evidence reuse pattern detected: Agent "${identityName}" reused the same evidence reference across ${flagged.maxReuse} intents ` +
+      `in this workspace. This exceeds the ${EVIDENCE_REUSE_THRESHOLD}-intent threshold and may indicate ` +
+      `stale or recycled evidence being used to justify multiple intents without fresh justification.`;
+
+    if (isAlreadyObserved(existingObservations, observationText)) {
+      log.info("observer.evidence_reuse.dedup", "Skipping duplicate evidence reuse observation", {
+        requesterId: flagged.requesterId,
+        maxReuse: flagged.maxReuse,
+      });
+      continue;
+    }
+
+    const now = new Date();
+    await createObservation({
+      surreal,
+      workspaceRecord,
+      text: observationText,
+      severity: "warning",
+      sourceAgent: "observer_agent",
+      observationType: "evidence_anomaly",
+      now,
+    });
+
+    result.agents_flagged += 1;
+    result.observations_created += 1;
+  }
+
+  log.info("observer.evidence_reuse.completed", "Evidence reuse scan completed", {
+    workspaceId: workspaceRecord.id,
+    ...result,
+  });
+
+  return result;
+}
+
+/**
+ * Resolves identity name from a requester RecordId string.
+ * Falls back to the raw ID string if the identity record is not found.
+ */
+async function resolveIdentityName(
+  surreal: Surreal,
+  requesterId: string,
+): Promise<string> {
+  try {
+    // Parse the requester string back to a RecordId for query
+    // requesterId comes as String(RecordId) which is "identity:uuid"
+    const parts = requesterId.match(/^(\w+):(.*)/);
+    if (!parts) return requesterId;
+
+    const record = new RecordId(parts[1], parts[2].replace(/^[`\u27e8]|[`\u27e9]$/g, ""));
+    const [rows] = await surreal.query<[Array<{ name: string }>]>(
+      `SELECT name FROM $record;`,
+      { record },
+    );
+    return rows?.[0]?.name ?? requesterId;
+  } catch {
+    return requesterId;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Scan orchestrator
 // ---------------------------------------------------------------------------
 
@@ -681,6 +842,7 @@ export async function runGraphScan(
     coverage_skips: 0,
     behavior_learning_proposals: 0,
     evidence_spam_agents_flagged: 0,
+    evidence_reuse_agents_flagged: 0,
   };
 
   // Load existing observations for deduplication
@@ -1012,7 +1174,19 @@ export async function runGraphScan(
     });
   }
 
-  // 7. Diagnostic learning proposals: cluster observations and check coverage
+  // 7. Evidence reuse detection (deterministic, no LLM)
+  try {
+    const evidenceReuseResult = await detectEvidenceReuse(surreal, workspaceRecord);
+    result.evidence_reuse_agents_flagged = evidenceReuseResult.agents_flagged;
+    result.observations_created += evidenceReuseResult.observations_created;
+  } catch (error) {
+    log.info("observer.scan.evidence_reuse_error", "Evidence reuse detection failed, continuing scan", {
+      workspaceId: workspaceRecord.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // 8. Diagnostic learning proposals: cluster observations and check coverage
   try {
     const diagnostic = await runDiagnosticClustering(surreal, workspaceRecord, observerModel);
     result.clusters_found = diagnostic.result.clusters_found;

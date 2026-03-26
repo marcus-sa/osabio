@@ -251,7 +251,7 @@ describe("US-10: Observer evidence anomaly detection", () => {
     expect(evidenceAnomalies[0].severity).toBe("warning");
   }, 60_000);
 
-  it.skip("repeated evidence reuse across intents triggers anomaly detection", async () => {
+  it("M3-5: repeated evidence reuse across intents triggers anomaly detection", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
@@ -280,11 +280,21 @@ describe("US-10: Observer evidence anomaly detection", () => {
       );
     }
 
-    // When the Observer runs its periodic scan
-    // Driving port: POST /api/workspaces/:ws/observer/scan
+    // When the Observer runs its evidence reuse scan
+    // Driving port: detectEvidenceReuse (deterministic graph scan function)
+    const { detectEvidenceReuse } = await import("../../../app/src/server/observer/graph-scan");
+    const workspaceRecord = new RecordId("workspace", workspace.workspaceId);
+    const scanResult = await detectEvidenceReuse(surreal, workspaceRecord);
 
     // Then the Observer flags the reuse pattern as an evidence anomaly
-    // (Assertion depends on Observer evidence reuse detection implementation)
+    expect(scanResult.observations_created).toBeGreaterThanOrEqual(1);
+
+    const observations = await queryWorkspaceObservations(surreal, workspace.workspaceId, "observer_agent");
+    const evidenceAnomalies = observations.filter(o => o.observation_type === "evidence_anomaly");
+    expect(evidenceAnomalies.length).toBeGreaterThanOrEqual(1);
+    // The observation should mention the agent and the reuse pattern
+    expect(evidenceAnomalies[0].text).toContain("logistics-planner");
+    expect(evidenceAnomalies[0].severity).toBe("warning");
   }, 60_000);
 
   it.skip("normal evidence usage does not trigger anomaly", async () => {
