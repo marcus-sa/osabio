@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "afa622faef21",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/intent-evidence/deliver/.develop-progress.json",
+    "docs/feature/intent-evidence/deliver/execution-log.json",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/af/a622faef21/0/metadata.json",
+      "transcript": "/af/a622faef21/0/full.jsonl",
+      "context": "/af/a622faef21/0/context.md",
+      "content_hash": "/af/a622faef21/0/content_hash.txt",
+      "prompt": "/af/a622faef21/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 510,
+    "cache_creation_tokens": 303143,
+    "cache_read_tokens": 13375104,
+    "output_tokens": 44428,
+    "api_call_count": 98
+  }
+}
