@@ -302,7 +302,7 @@ describe("US-02: Deterministic evidence verification", () => {
     expect(verification!.warnings!.some(w => w.toLowerCase().includes("superseded"))).toBe(true);
   }, 60_000);
 
-  it.skip("evidence created after intent fails temporal ordering check", async () => {
+  it("evidence created after intent fails temporal ordering check", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace

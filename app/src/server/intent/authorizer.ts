@@ -104,6 +104,8 @@ export type EvaluateIntentInput = {
   evidenceRefs?: ReadonlyArray<RecordId>;
   /** Optional: workspace evidence enforcement mode */
   evidenceEnforcementMode?: EvidenceEnforcementMode;
+  /** Optional: intent created_at for temporal ordering check */
+  intentCreatedAt?: Date;
 };
 
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
@@ -152,6 +154,7 @@ export async function evaluateIntent(
       input.evidenceRefs,
       input.workspaceId,
       enforcementMode,
+      input.intentCreatedAt,
     );
   } else {
     // No evidence provided -- record that fact

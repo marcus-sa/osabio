@@ -115,6 +115,25 @@ describe("classifyQueryResults", () => {
     expect(result.verifiedCount).toBe(0);
     expect(result.failedRefs).toHaveLength(0);
   });
+
+  it("marks evidence created after intent as temporal violation", () => {
+    const intentCreatedAt = new Date("2026-01-15T10:00:00Z");
+    const parsedRefs: ParsedEvidenceRef[] = [
+      { table: "observation", id: "obs1", record: new RecordId("observation", "obs1") },
+    ];
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        created_at: new Date("2026-01-15T10:01:00Z"), // 1 minute AFTER intent
+      },
+    ];
+
+    const result = classifyQueryResults(parsedRefs, queryRows, workspaceId, intentCreatedAt);
+    expect(result.verifiedCount).toBe(0);
+    expect(result.failedRefs).toContain("observation:obs1");
+    expect(result.warnings.some(w => w.toLowerCase().includes("temporal"))).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

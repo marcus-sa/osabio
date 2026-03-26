@@ -23,6 +23,7 @@ export type EvidenceQueryRow = {
   id: RecordId;
   workspace: RecordId;
   status?: string;
+  created_at?: Date;
 };
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,7 @@ export function classifyQueryResults(
   parsedRefs: ParsedEvidenceRef[],
   queryRows: EvidenceQueryRow[],
   workspaceId: RecordId,
+  intentCreatedAt?: Date,
 ): ClassificationResult {
   if (parsedRefs.length === 0) {
     return { verifiedCount: 0, failedRefs: [], warnings: [] };
@@ -154,6 +156,19 @@ export function classifyQueryResults(
       continue;
     }
 
+    // Check temporal ordering: evidence must have been created before the intent
+    if (intentCreatedAt && row.created_at) {
+      const toMs = (d: unknown): number =>
+        d instanceof Date ? d.getTime() : new Date(d as string).getTime();
+      const evidenceTime = toMs(row.created_at);
+      const intentTime = toMs(intentCreatedAt);
+      if (evidenceTime > intentTime) {
+        failedRefs.push(key);
+        warnings.push(`${key} has temporal_violation: created after the intent`);
+        continue;
+      }
+    }
+
     verifiedCount++;
   }
 
@@ -199,7 +214,7 @@ async function batchQueryEvidence(
   // SurrealDB does not support SELECT FROM $array where $array is an array
   // of RecordIds (throws "Specify a database to use"). Use per-ref SELECT
   // statements combined in a single .query() call for one round-trip.
-  const statements = parsedRefs.map((_, i) => `SELECT id, workspace, status FROM $r${i};`).join(" ");
+  const statements = parsedRefs.map((_, i) => `SELECT id, workspace, status, created_at FROM $r${i};`).join(" ");
   const bindings: Record<string, RecordId> = {};
   for (let i = 0; i < parsedRefs.length; i++) {
     bindings[`r${i}`] = parsedRefs[i].record;
@@ -227,6 +242,7 @@ export async function verifyEvidence(
   evidenceRefs: ReadonlyArray<string | RecordId>,
   workspaceId: RecordId<"workspace">,
   enforcementMode: EvidenceEnforcementMode,
+  intentCreatedAt?: Date,
 ): Promise<EvidenceVerificationResult> {
   const startMs = Date.now();
 
@@ -242,7 +258,7 @@ export async function verifyEvidence(
   const queryRows = await batchQueryEvidence(surreal, parsed);
 
   // Pure: classify results
-  const classification = classifyQueryResults(parsed, queryRows, workspaceId);
+  const classification = classifyQueryResults(parsed, queryRows, workspaceId, intentCreatedAt);
 
   const elapsedMs = Date.now() - startMs;
 

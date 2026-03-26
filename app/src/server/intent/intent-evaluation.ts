@@ -153,6 +153,7 @@ export async function evaluatePendingIntent(
       createAlignmentWarningObservation(deps.surreal, ws, iId, score),
     evidenceRefs: intent.evidence_refs,
     evidenceEnforcementMode,
+    intentCreatedAt: intent.created_at,
   });
 
   // Strip `alignment` and `evidence_verification` — they are stored separately
