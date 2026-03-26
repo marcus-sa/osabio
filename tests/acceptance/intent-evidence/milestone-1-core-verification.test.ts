@@ -187,7 +187,7 @@ describe("US-02: Deterministic evidence verification", () => {
     expect(verification!.verification_time_ms).toBeLessThan(100);
   }, 60_000);
 
-  it.skip("non-existent evidence reference fails verification", async () => {
+  it("non-existent evidence reference fails verification", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
