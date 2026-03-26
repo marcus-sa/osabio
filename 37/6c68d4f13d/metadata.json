@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "376c68d4f13d",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 11,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "AGENTS.md",
+    "docker-compose.yml",
+    "docs/feature/intent-evidence/discuss/dor-validation.md",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle-visual.md",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle.feature",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle.yaml",
+    "docs/feature/intent-evidence/discuss/outcome-kpis.md",
+    "docs/feature/intent-evidence/discuss/prioritization.md",
+    "docs/feature/intent-evidence/discuss/shared-artifacts-registry.md",
+    "docs/feature/intent-evidence/discuss/story-map.md",
+    "docs/feature/intent-evidence/discuss/user-stories.md",
+    "docs/feature/intent-evidence/distill/test-scenarios.md",
+    "docs/feature/intent-evidence/distill/walking-skeleton.md",
+    "docs/feature/intent-evidence/distill/wave-decisions.md",
+    "docs/research/intent-evidence-requirements.md",
+    "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+    "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.feature",
+    "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/37/6c68d4f13d/0/metadata.json",
+      "transcript": "/37/6c68d4f13d/0/full.jsonl",
+      "context": "/37/6c68d4f13d/0/context.md",
+      "content_hash": "/37/6c68d4f13d/0/content_hash.txt",
+      "prompt": "/37/6c68d4f13d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 218251,
+    "cache_read_tokens": 2213847,
+    "output_tokens": 11420,
+    "api_call_count": 44
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "376c68d4f13d",
+  "session_id": "2b81ac70-2a32-4b84-8165-a3a83ff74fe8",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T06:24:54.224652Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 11,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "AGENTS.md",
+    "docker-compose.yml",
+    "docs/feature/intent-evidence/discuss/dor-validation.md",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle-visual.md",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle.feature",
+    "docs/feature/intent-evidence/discuss/journey-evidence-lifecycle.yaml",
+    "docs/feature/intent-evidence/discuss/outcome-kpis.md",
+    "docs/feature/intent-evidence/discuss/prioritization.md",
+    "docs/feature/intent-evidence/discuss/shared-artifacts-registry.md",
+    "docs/feature/intent-evidence/discuss/story-map.md",
+    "docs/feature/intent-evidence/discuss/user-stories.md",
+    "docs/feature/intent-evidence/distill/test-scenarios.md",
+    "docs/feature/intent-evidence/distill/walking-skeleton.md",
+    "docs/feature/intent-evidence/distill/wave-decisions.md",
+    "docs/research/intent-evidence-requirements.md",
+    "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+    "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.feature",
+    "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a91f63d5b26b",
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 218251,
+    "cache_read_tokens": 2213847,
+    "output_tokens": 11420,
+    "api_call_count": 44
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T06:24:53.768415Z",
+    "agent_lines": 2752,
+    "human_added": 22193,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 24946,
+    "agent_percentage": 11.031828750100217
+  }
+}
