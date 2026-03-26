@@ -261,7 +261,7 @@ describe("US-02: Deterministic evidence verification", () => {
     expect(verification!.failed_refs!.length).toBeGreaterThan(0);
   }, 60_000);
 
-  it.skip("superseded decision fails liveness check", async () => {
+  it("superseded decision fails liveness check", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace

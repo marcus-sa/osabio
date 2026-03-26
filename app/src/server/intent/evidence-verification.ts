@@ -8,7 +8,7 @@
  * Pipeline: parse refs -> batch query -> classify results -> build verification result
  */
 import { RecordId, type Surreal } from "surrealdb";
-import { EVIDENCE_TABLE_ALLOWLIST } from "./evidence-constants";
+import { EVIDENCE_TABLE_ALLOWLIST, VALID_EVIDENCE_STATUSES } from "./evidence-constants";
 import type {
   EvidenceEnforcementMode,
   EvidenceVerificationResult,
@@ -22,6 +22,7 @@ import type {
 export type EvidenceQueryRow = {
   id: RecordId;
   workspace: RecordId;
+  status?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -145,6 +146,14 @@ export function classifyQueryResults(
       continue;
     }
 
+    // Check liveness: entity status must be in the valid set for its table
+    const validStatuses = VALID_EVIDENCE_STATUSES[ref.table];
+    if (validStatuses && row.status && !validStatuses.has(row.status)) {
+      failedRefs.push(key);
+      warnings.push(`${key} has status '${row.status}' which is not live`);
+      continue;
+    }
+
     verifiedCount++;
   }
 
@@ -190,7 +199,7 @@ async function batchQueryEvidence(
   // SurrealDB does not support SELECT FROM $array where $array is an array
   // of RecordIds (throws "Specify a database to use"). Use per-ref SELECT
   // statements combined in a single .query() call for one round-trip.
-  const statements = parsedRefs.map((_, i) => `SELECT id, workspace FROM $r${i};`).join(" ");
+  const statements = parsedRefs.map((_, i) => `SELECT id, workspace, status FROM $r${i};`).join(" ");
   const bindings: Record<string, RecordId> = {};
   for (let i = 0; i < parsedRefs.length; i++) {
     bindings[`r${i}`] = parsedRefs[i].record;
