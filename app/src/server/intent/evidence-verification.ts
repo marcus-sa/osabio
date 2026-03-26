@@ -101,11 +101,17 @@ type ClassificationResult = {
   verifiedTableCounts: Record<string, number>;
 };
 
+type ClassificationOptions = {
+  minEvidenceAgeMinutes?: number;
+  now?: Date;
+};
+
 export function classifyQueryResults(
   parsedRefs: ParsedEvidenceRef[],
   queryRows: EvidenceQueryRow[],
   workspaceId: RecordId,
   intentCreatedAt?: Date,
+  options?: ClassificationOptions,
 ): ClassificationResult {
   if (parsedRefs.length === 0) {
     return { verifiedCount: 0, failedRefs: [], warnings: [], verifiedTableCounts: {} };
@@ -168,6 +174,21 @@ export function classifyQueryResults(
       if (evidenceTime > intentTime) {
         failedRefs.push(key);
         warnings.push(`${key} has temporal_violation: created after the intent`);
+        continue;
+      }
+    }
+
+    // Check minimum evidence age: evidence must be older than the configured threshold
+    if (options?.minEvidenceAgeMinutes && row.created_at) {
+      const toMs = (d: unknown): number =>
+        d instanceof Date ? d.getTime() : new Date(d as string).getTime();
+      const evidenceTime = toMs(row.created_at);
+      const referenceTime = (options.now ?? new Date()).getTime();
+      const ageMs = referenceTime - evidenceTime;
+      const minAgeMs = options.minEvidenceAgeMinutes * 60 * 1000;
+      if (ageMs < minAgeMs) {
+        failedRefs.push(key);
+        warnings.push(`${key} fails minimum age check: evidence is too recent (minimum age: ${options.minEvidenceAgeMinutes} minutes)`);
         continue;
       }
     }
@@ -371,6 +392,7 @@ export async function verifyEvidence(
   intentCreatedAt?: Date,
   riskScore?: number,
   requesterAgent?: string,
+  minEvidenceAgeMinutes?: number,
 ): Promise<EvidenceVerificationResult> {
   const startMs = Date.now();
 
@@ -386,7 +408,10 @@ export async function verifyEvidence(
   const queryRows = await batchQueryEvidence(surreal, parsed);
 
   // Pure: classify results
-  const classification = classifyQueryResults(parsed, queryRows, workspaceId, intentCreatedAt);
+  const classificationOptions: ClassificationOptions = {
+    ...(minEvidenceAgeMinutes ? { minEvidenceAgeMinutes } : {}),
+  };
+  const classification = classifyQueryResults(parsed, queryRows, workspaceId, intentCreatedAt, classificationOptions);
 
   // Pure: authorship independence check
   const independentAuthorCount = requesterAgent

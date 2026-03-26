@@ -251,7 +251,7 @@ describe("US-05: Authorship independence check", () => {
 // US-06: Minimum Evidence Age and Hard Enforcement
 // =============================================================================
 describe("US-06: Minimum evidence age and hard enforcement", () => {
-  it.skip("recently created evidence fails minimum age check", async () => {
+  it("recently created evidence fails minimum age check", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with minimum evidence age of 5 minutes

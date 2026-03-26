@@ -108,6 +108,8 @@ export type EvaluateIntentInput = {
   intentCreatedAt?: Date;
   /** Optional: requester agent name for authorship independence check */
   requesterAgent?: string;
+  /** Optional: minimum evidence age in minutes (from workspace settings) */
+  minEvidenceAgeMinutes?: number;
 };
 
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
@@ -159,6 +161,7 @@ export async function evaluateIntent(
       input.intentCreatedAt,
       input.intent.priority,
       input.requesterAgent,
+      input.minEvidenceAgeMinutes,
     );
   } else {
     // No evidence provided -- record that fact

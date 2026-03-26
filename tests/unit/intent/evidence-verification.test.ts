@@ -118,6 +118,60 @@ describe("classifyQueryResults", () => {
     expect(result.failedRefs).toHaveLength(0);
   });
 
+  it("marks evidence below minimum age as too recent with warning", () => {
+    const now = new Date("2026-01-15T10:05:00Z");
+    const parsedRefs: ParsedEvidenceRef[] = [
+      { table: "observation", id: "obs1", record: new RecordId("observation", "obs1") },
+    ];
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        created_at: new Date("2026-01-15T10:04:00Z"), // 1 minute old, below 5-minute minimum
+      },
+    ];
+
+    const result = classifyQueryResults(parsedRefs, queryRows, workspaceId, undefined, { minEvidenceAgeMinutes: 5, now });
+    expect(result.verifiedCount).toBe(0);
+    expect(result.failedRefs).toContain("observation:obs1");
+    expect(result.warnings.some(w => w.toLowerCase().includes("minimum age"))).toBe(true);
+  });
+
+  it("passes evidence that meets minimum age requirement", () => {
+    const now = new Date("2026-01-15T10:10:00Z");
+    const parsedRefs: ParsedEvidenceRef[] = [
+      { table: "decision", id: "d1", record: new RecordId("decision", "d1") },
+    ];
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("decision", "d1"),
+        workspace: workspaceId,
+        created_at: new Date("2026-01-15T10:04:00Z"), // 6 minutes old, above 5-minute minimum
+      },
+    ];
+
+    const result = classifyQueryResults(parsedRefs, queryRows, workspaceId, undefined, { minEvidenceAgeMinutes: 5, now });
+    expect(result.verifiedCount).toBe(1);
+    expect(result.failedRefs).toHaveLength(0);
+  });
+
+  it("skips minimum age check when minEvidenceAgeMinutes is undefined", () => {
+    const parsedRefs: ParsedEvidenceRef[] = [
+      { table: "observation", id: "obs1", record: new RecordId("observation", "obs1") },
+    ];
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        created_at: new Date(), // just now
+      },
+    ];
+
+    const result = classifyQueryResults(parsedRefs, queryRows, workspaceId);
+    expect(result.verifiedCount).toBe(1);
+    expect(result.failedRefs).toHaveLength(0);
+  });
+
   it("marks evidence created after intent as temporal violation", () => {
     const intentCreatedAt = new Date("2026-01-15T10:00:00Z");
     const parsedRefs: ParsedEvidenceRef[] = [

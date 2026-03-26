@@ -133,15 +133,17 @@ export async function evaluatePendingIntent(
     return { ok: false, error: "Missing evaluator model", httpStatus: 500 };
   }
 
-  // Read workspace evidence enforcement mode
+  // Read workspace evidence enforcement mode and minimum evidence age
   let evidenceEnforcementMode: EvidenceEnforcementMode = "bootstrap";
+  let minEvidenceAgeMinutes: number | undefined;
   try {
-    const [wsRows] = await deps.surreal.query<[Array<{ evidence_enforcement?: string }>]>(
-      `SELECT evidence_enforcement FROM $ws;`,
+    const [wsRows] = await deps.surreal.query<[Array<{ evidence_enforcement?: string; min_evidence_age_minutes?: number }>]>(
+      `SELECT evidence_enforcement, min_evidence_age_minutes FROM $ws;`,
       { ws: workspaceRecord },
     );
     evidenceEnforcementMode =
       (wsRows[0]?.evidence_enforcement as EvidenceEnforcementMode) ?? "bootstrap";
+    minEvidenceAgeMinutes = wsRows[0]?.min_evidence_age_minutes;
   } catch {
     // Default to bootstrap if enforcement mode cannot be read
   }
@@ -170,6 +172,7 @@ export async function evaluatePendingIntent(
     evidenceEnforcementMode,
     intentCreatedAt: intent.created_at,
     requesterAgent: identityInfo?.name,
+    minEvidenceAgeMinutes,
   });
 
   // Strip `alignment` and `evidence_verification` — they are stored separately
