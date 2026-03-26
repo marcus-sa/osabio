@@ -352,7 +352,7 @@ describe("US-02: Deterministic evidence verification", () => {
 // US-03: Soft Enforcement
 // =============================================================================
 describe("US-03: Soft enforcement adjusts risk score", () => {
-  it.skip("evidence shortfall elevates effective risk score under soft enforcement", async () => {
+  it("evidence shortfall elevates effective risk score under soft enforcement", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "soft"
