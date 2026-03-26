@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "1a8e725f154c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-intent-evidence--",
+    ".nwave/des/des-task-active-intent-evidence--03-04",
+    ".nwave/des/des-task-active-intent-evidence--04-01"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1a/8e725f154c/0/metadata.json",
+      "transcript": "/1a/8e725f154c/0/full.jsonl",
+      "context": "/1a/8e725f154c/0/context.md",
+      "content_hash": "/1a/8e725f154c/0/content_hash.txt",
+      "prompt": "/1a/8e725f154c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 539,
+    "cache_creation_tokens": 513338,
+    "cache_read_tokens": 17341523,
+    "output_tokens": 57328,
+    "api_call_count": 123
+  }
+}
