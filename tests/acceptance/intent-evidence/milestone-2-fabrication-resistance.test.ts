@@ -329,7 +329,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     expect(record.evaluation).toBeUndefined();
   }, 30_000);
 
-  it.skip("hard enforcement passes intent with sufficient evidence to evaluation", async () => {
+  it("hard enforcement passes intent with sufficient evidence to evaluation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "hard"
