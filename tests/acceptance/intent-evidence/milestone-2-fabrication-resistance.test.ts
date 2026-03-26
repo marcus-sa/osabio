@@ -293,7 +293,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     ).toBe(true);
   }, 60_000);
 
-  it.skip("hard enforcement rejects intent with zero evidence references before evaluation", async () => {
+  it("hard enforcement rejects intent with zero evidence references before evaluation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with evidence enforcement set to "hard"

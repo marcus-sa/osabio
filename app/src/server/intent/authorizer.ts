@@ -63,6 +63,8 @@ type EvaluationOutput = EvaluationResult & {
   human_veto_required: boolean;
   alignment?: AlignmentResult;
   evidence_verification?: EvidenceVerificationResult;
+  /** When true, intent was rejected by hard enforcement gate before LLM evaluation */
+  hard_enforcement_rejection?: boolean;
 };
 
 export type EvaluateIntentInput = {
@@ -170,6 +172,21 @@ export async function evaluateIntent(
       total_count: 0,
       verification_time_ms: 0,
       enforcement_mode: enforcementMode,
+    };
+  }
+
+  // --- Hard enforcement gate: reject zero-evidence intents before LLM ---
+  const hasNoEvidence = !input.evidenceRefs || input.evidenceRefs.length === 0;
+  if (enforcementMode === "hard" && hasNoEvidence) {
+    return {
+      decision: "REJECT",
+      risk_score: 0,
+      reason: "Hard enforcement requires evidence references — intent rejected without evaluation",
+      policy_only: false,
+      policy_trace: policyTrace,
+      human_veto_required: false,
+      evidence_verification: evidenceVerification,
+      hard_enforcement_rejection: true,
     };
   }
 

@@ -175,6 +175,36 @@ export async function evaluatePendingIntent(
     minEvidenceAgeMinutes,
   });
 
+  // --- Hard enforcement rejection: transition to "failed" without LLM evaluation record ---
+  if (evaluation.hard_enforcement_rejection) {
+    const failResult = await updateIntentStatus(
+      deps.surreal,
+      intentId,
+      "failed",
+      {
+        error_reason: evaluation.reason,
+        evidence_verification: evaluation.evidence_verification,
+      },
+    );
+    if (!failResult.ok) {
+      return { ok: false, error: failResult.error, httpStatus: 409 };
+    }
+    return {
+      ok: true,
+      value: {
+        intentId,
+        status: "vetoed" as EvaluatedStatus, // Return type requires EvaluatedStatus but intent is "failed" in DB
+        evaluation: {
+          decision: evaluation.decision,
+          risk_score: evaluation.risk_score,
+          reason: evaluation.reason,
+          evaluated_at: new Date(),
+          policy_only: false,
+        },
+      },
+    };
+  }
+
   // Strip `alignment` and `evidence_verification` — they are stored separately
   const { alignment: _alignment, evidence_verification, ...evaluationForDb } = evaluation;
   const evaluationRecord: EvaluatedIntent["evaluation"] = {
