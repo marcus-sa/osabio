@@ -1254,6 +1254,146 @@
       "s": "SKIPPED",
       "d": "NOT_APPLICABLE: no code changes needed, 05-01 implementation covers failed evidence display",
       "t": "2026-03-26T12:41:52Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:42:13Z"
+    },
+    {
+      "sid": "05-03",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:43:07Z"
+    },
+    {
+      "sid": "05-03",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:43:18Z"
+    },
+    {
+      "sid": "05-03",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passes from existing feed query infrastructure built in 05-01",
+      "t": "2026-03-26T12:43:20Z"
+    },
+    {
+      "sid": "05-03",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passes from existing implementation in feed-queries.ts listPendingVetoIntents",
+      "t": "2026-03-26T12:43:21Z"
+    },
+    {
+      "sid": "05-03",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:45:31Z"
+    },
+    {
+      "sid": "05-04",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:46:48Z"
+    },
+    {
+      "sid": "05-04",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:46:49Z"
+    },
+    {
+      "sid": "05-04",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: bootstrap mode already passes through evaluation pipeline without rejection - no unit-level changes needed",
+      "t": "2026-03-26T12:46:51Z"
+    },
+    {
+      "sid": "05-04",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passes without implementation changes - bootstrap mode correctly allows intents without evidence",
+      "t": "2026-03-26T12:46:53Z"
+    },
+    {
+      "sid": "05-04",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:47:06Z"
+    },
+    {
+      "sid": "05-05",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:48:15Z"
+    },
+    {
+      "sid": "05-05",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:48:45Z"
+    },
+    {
+      "sid": "05-05",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:49:20Z"
+    },
+    {
+      "sid": "05-05",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:50:42Z"
+    },
+    {
+      "sid": "05-05",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:51:07Z"
+    },
+    {
+      "sid": "05-06",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:52:09Z"
+    },
+    {
+      "sid": "05-06",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-26T12:52:33Z"
+    },
+    {
+      "sid": "05-06",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test passes with existing helpers, no new logic needed",
+      "t": "2026-03-26T12:52:37Z"
+    },
+    {
+      "sid": "05-06",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: test already green with existing implementation",
+      "t": "2026-03-26T12:52:41Z"
     }
   ]
 }

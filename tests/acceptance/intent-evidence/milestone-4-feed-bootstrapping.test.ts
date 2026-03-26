@@ -262,7 +262,7 @@ describe("US-09: Workspace bootstrapping and enforcement transitions", () => {
     expect(mode).toBe("soft");
   }, 60_000);
 
-  it.skip("admin manually overrides enforcement mode", async () => {
+  it("admin manually overrides enforcement mode", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace in soft enforcement mode
