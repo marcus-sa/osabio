@@ -414,7 +414,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     expect(record.status).not.toBe("failed");
   }, 60_000);
 
-  it.skip("high-risk intent fails when all references are observations and no decision or task", async () => {
+  it("high-risk intent fails when all references are observations and no decision or task", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
