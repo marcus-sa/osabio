@@ -63,6 +63,10 @@ DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>
 DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
 DEFINE FIELD evidence_enforcement ON workspace TYPE option<string>
   ASSERT $value = NONE OR $value IN ['bootstrap', 'soft', 'hard'];
+DEFINE FIELD evidence_enforcement_threshold ON workspace TYPE option<object>;
+DEFINE FIELD evidence_enforcement_threshold.min_decisions ON workspace TYPE option<int>;
+DEFINE FIELD evidence_enforcement_threshold.min_tasks ON workspace TYPE option<int>;
+DEFINE FIELD min_evidence_age_minutes ON workspace TYPE option<int>;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -617,6 +621,8 @@ DEFINE FIELD evidence_verification.failed_refs ON intent TYPE option<array<strin
 DEFINE FIELD evidence_verification.verification_time_ms ON intent TYPE int;
 DEFINE FIELD evidence_verification.warnings ON intent TYPE option<array<string>>;
 DEFINE FIELD evidence_verification.enforcement_mode ON intent TYPE string;
+DEFINE FIELD evidence_verification.independent_author_count ON intent TYPE option<int>;
+DEFINE FIELD evidence_verification.tier_met ON intent TYPE option<bool>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;

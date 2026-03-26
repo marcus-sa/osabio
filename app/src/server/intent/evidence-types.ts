@@ -26,4 +26,6 @@ export type EvidenceVerificationResult = {
   readonly verification_time_ms: number;
   readonly warnings?: string[];
   readonly enforcement_mode: EvidenceEnforcementMode;
+  readonly independent_author_count?: number;
+  readonly tier_met?: boolean;
 };

@@ -57,6 +57,13 @@ export const createIntentSchema = z.object({
     action: z.string().describe("The tool action name"),
     params: z.record(z.string(), z.unknown()).optional().describe("Parameters for the tool call"),
   }),
+  evidence_refs: z.array(z.string()).optional().describe(
+    "Graph record references justifying this intent, in table:id format " +
+    "(e.g. \"decision:abc123\", \"task:def456\"). " +
+    "Valid entity types: decision, task, observation, feature, project, policy, objective, learning, git_commit. " +
+    "Evidence quality affects authorization routing — stronger evidence (confirmed decisions, completed tasks) " +
+    "reduces risk assessment. Workspaces with hard enforcement require evidence for non-trivial intents.",
+  ),
 });
 
 export const getContextSchema = z.object({
@@ -198,7 +205,12 @@ export const CREATE_INTENT_TOOL = defineTool(
   "create_intent",
   "Create an intent to request authorization for a gated tool. " +
   "Use this when a tool you need is marked as [GATED]. " +
-  "Provide the goal, reasoning, and action_spec describing the tool you want to use.",
+  "Provide the goal, reasoning, and action_spec describing the tool you want to use. " +
+  "Include evidence_refs to submit graph references (decision, task, observation, feature, " +
+  "project, policy, objective, learning, git_commit) that justify your intent. " +
+  "Evidence quality determines authorization routing: confirmed decisions and completed tasks " +
+  "carry the most weight. Workspaces may operate under enforcement modes (bootstrap, soft, hard) " +
+  "where hard enforcement rejects intents without sufficient evidence before LLM evaluation.",
   createIntentSchema,
 );
 
