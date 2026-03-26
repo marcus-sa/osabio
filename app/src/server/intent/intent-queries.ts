@@ -2,6 +2,7 @@ import { RecordId, type Surreal } from "surrealdb";
 import type { IntentRecord, IntentStatus, ActionSpec, BudgetLimit, EvaluationResult } from "./types";
 import type { EvidenceVerificationResult } from "./evidence-types";
 import type { BrainAction } from "../oauth/types";
+import type { PolicyTraceEntry } from "../policy/types";
 import { transitionStatus } from "./status-machine";
 
 // --- Query Result Types ---
@@ -22,7 +23,12 @@ type CreateIntentParams = {
 };
 
 type StatusUpdateFields = {
-  evaluation?: EvaluationResult & { evaluated_at: Date; policy_only: boolean };
+  evaluation?: EvaluationResult & {
+    evaluated_at: Date;
+    policy_only: boolean;
+    policy_trace?: PolicyTraceEntry[];
+    human_veto_required?: boolean;
+  };
   veto_expires_at?: Date;
   veto_reason?: string;
   error_reason?: string;

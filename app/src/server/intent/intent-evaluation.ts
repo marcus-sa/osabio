@@ -1,7 +1,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { evaluateIntent, createLlmEvaluator } from "./authorizer";
 import type { LlmEvaluator } from "./authorizer";
-import { stripRecordIdEscaping } from "./evidence-verification";
+import { stripRecordIdEscaping } from "../graph/record-id";
 import {
   updateIntentStatus,
   getIntentById,

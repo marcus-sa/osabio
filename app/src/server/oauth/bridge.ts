@@ -16,6 +16,7 @@ import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
 import { createIntent, createTrace, updateIntentStatus, recordTokenIssuance } from "../intent/intent-queries";
+import { normalizeRecordIdValue } from "../graph/record-id";
 import {
   isLowRiskReadAction,
   deriveActionSpec,
@@ -89,15 +90,6 @@ type HumanContext = {
   identityId: string;
   workspaceId: string;
 };
-
-function normalizeRecordIdValue(value: unknown): string {
-  const raw = typeof value === "object" && value !== null && "id" in value
-    ? String((value as { id: unknown }).id)
-    : String(value);
-  const trimmed = raw.trim();
-  const withoutTable = trimmed.includes(":") ? trimmed.slice(trimmed.indexOf(":") + 1) : trimmed;
-  return withoutTable.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
-}
 
 /**
  * Resolves a person's identity and primary workspace via graph traversal.
@@ -246,7 +238,7 @@ export function createBridgeExchangeHandler(
       // 7. Evaluate intent
       const isLowRisk = isLowRiskReadAction(authorizationDetails);
 
-      let evaluation = {
+      let evaluation: Awaited<ReturnType<typeof evaluateIntent>> = {
         decision: "APPROVE" as const,
         risk_score: 0,
         reason: "Low-risk read operation auto-approved",

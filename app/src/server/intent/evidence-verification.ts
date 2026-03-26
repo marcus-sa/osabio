@@ -8,6 +8,7 @@
  * Pipeline: parse refs -> batch query -> classify results -> build verification result
  */
 import { RecordId, type Surreal } from "surrealdb";
+import { normalizeRecordIdValue, stripRecordIdEscaping } from "../graph/record-id";
 import { EVIDENCE_TABLE_ALLOWLIST, VALID_EVIDENCE_STATUSES } from "./evidence-constants";
 import type {
   EvidenceEnforcementMode,
@@ -30,20 +31,6 @@ export type EvidenceQueryRow = {
 // ---------------------------------------------------------------------------
 // Pure: Parse a single evidence reference string
 // ---------------------------------------------------------------------------
-
-/**
- * Strip SurrealDB record-ID escaping from a string.
- *
- * SurrealDB wraps record IDs that contain special characters (e.g. hyphens)
- * in backticks when serialized as strings in JSON payloads (e.g. via
- * SurrealDB EVENT http::post webhooks). The SDK's String() uses Unicode
- * angle brackets (⟨⟩) for display, but over-the-wire JSON uses backticks.
- *
- * Examples: "`decision-abc123`" -> "decision-abc123"
- *           "⟨decision-abc123⟩" -> "decision-abc123"
- */
-export const stripRecordIdEscaping = (id: string): string =>
-  id.replace(/^[`\u27e8]|[`\u27e9]$/g, "");
 
 export function parseEvidenceRef(ref: string): ParsedEvidenceRef | undefined {
   const colonIndex = ref.indexOf(":");
@@ -110,9 +97,7 @@ function toMs(d: unknown): number {
  * a clean UUID.
  */
 function normalizeWorkspaceId(id: unknown): string {
-  const s = String(id);
-  const afterColon = s.includes(":") ? s.slice(s.indexOf(":") + 1) : s;
-  return stripRecordIdEscaping(afterColon);
+  return normalizeRecordIdValue(id);
 }
 
 // ---------------------------------------------------------------------------
