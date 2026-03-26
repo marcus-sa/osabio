@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "d02b8205f1f1",
+  "session_id": "5b1feea6-14f6-46da-a8aa-8340c4401ca6",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T11:14:36.842254Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "14ebf63dc23b",
+  "token_usage": {
+    "input_tokens": 331,
+    "cache_creation_tokens": 138710,
+    "cache_read_tokens": 3984848,
+    "output_tokens": 23190,
+    "api_call_count": 34
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T11:14:36.570947Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  }
+}
