@@ -5,7 +5,7 @@
  * determines whether the workspace should transition from soft to hard enforcement.
  */
 import { describe, expect, it } from "bun:test";
-import { shouldTransitionToHardEnforcement } from "../../../app/src/server/intent/maturity-transition";
+import { shouldTransitionToHardEnforcement, shouldTransitionToSoftEnforcement } from "../../../app/src/server/intent/maturity-transition";
 
 describe("shouldTransitionToHardEnforcement", () => {
   it("returns true when both counts meet the threshold", () => {
@@ -86,5 +86,47 @@ describe("shouldTransitionToHardEnforcement", () => {
       threshold: { min_decisions: 0, min_tasks: 0 },
     });
     expect(result).toBe(true);
+  });
+});
+
+describe("shouldTransitionToSoftEnforcement", () => {
+  it("returns true when workspace is in bootstrap mode and has at least one confirmed decision", () => {
+    const result = shouldTransitionToSoftEnforcement({
+      currentMode: "bootstrap",
+      confirmedDecisionCount: 1,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns true when workspace is in bootstrap mode and has multiple confirmed decisions", () => {
+    const result = shouldTransitionToSoftEnforcement({
+      currentMode: "bootstrap",
+      confirmedDecisionCount: 5,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("returns false when workspace is in bootstrap mode but has no confirmed decisions", () => {
+    const result = shouldTransitionToSoftEnforcement({
+      currentMode: "bootstrap",
+      confirmedDecisionCount: 0,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("returns false when workspace is already in soft mode", () => {
+    const result = shouldTransitionToSoftEnforcement({
+      currentMode: "soft",
+      confirmedDecisionCount: 5,
+    });
+    expect(result).toBe(false);
+  });
+
+  it("returns false when workspace is in hard mode", () => {
+    const result = shouldTransitionToSoftEnforcement({
+      currentMode: "hard",
+      confirmedDecisionCount: 5,
+    });
+    expect(result).toBe(false);
   });
 });

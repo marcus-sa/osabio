@@ -224,7 +224,7 @@ describe("US-09: Workspace bootstrapping and enforcement transitions", () => {
     expect(record.evaluation).toBeDefined();
   }, 60_000);
 
-  it.skip("workspace transitions from bootstrap to soft when first decision is confirmed", async () => {
+  it("workspace transitions from bootstrap to soft when first decision is confirmed", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace in bootstrap mode

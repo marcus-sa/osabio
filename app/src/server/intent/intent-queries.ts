@@ -265,6 +265,21 @@ export async function transitionEnforcementToHard(
   return (rows.length > 0 && rows[0]?.evidence_enforcement === "hard");
 }
 
+/**
+ * CAS (Compare-And-Swap) update: transitions workspace enforcement from bootstrap to soft.
+ * Only updates if current mode is still "bootstrap" to prevent race conditions.
+ */
+export async function transitionEnforcementToSoft(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<boolean> {
+  const [rows] = await surreal.query<[Array<{ evidence_enforcement: string }>]>(
+    `UPDATE $ws SET evidence_enforcement = "soft" WHERE evidence_enforcement = "bootstrap" RETURN AFTER;`,
+    { ws: workspaceId },
+  );
+  return (rows.length > 0 && rows[0]?.evidence_enforcement === "soft");
+}
+
 export async function listIntentsByWorkspace(
   surreal: Surreal,
   workspaceId: string,

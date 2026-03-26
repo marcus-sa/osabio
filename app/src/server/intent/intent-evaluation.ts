@@ -7,8 +7,9 @@ import {
   countConfirmedDecisions,
   countCompletedTasks,
   transitionEnforcementToHard,
+  transitionEnforcementToSoft,
 } from "./intent-queries";
-import { shouldTransitionToHardEnforcement } from "./maturity-transition";
+import { shouldTransitionToHardEnforcement, shouldTransitionToSoftEnforcement } from "./maturity-transition";
 import { routeByRisk } from "./risk-router";
 import type { IntentRecord, EvaluationResult } from "./types";
 import type { EvidenceEnforcementMode } from "./evidence-types";
@@ -155,6 +156,20 @@ export async function evaluatePendingIntent(
     evidenceEnforcementMode =
       (wsRows[0]?.evidence_enforcement as EvidenceEnforcementMode) ?? "bootstrap";
     minEvidenceAgeMinutes = wsRows[0]?.min_evidence_age_minutes;
+
+    // Lazy maturity evaluation (WD-08): check if bootstrap -> soft transition is warranted
+    if (evidenceEnforcementMode === "bootstrap") {
+      const confirmedDecisionCount = await countConfirmedDecisions(deps.surreal, workspaceRecord);
+      if (shouldTransitionToSoftEnforcement({
+        currentMode: evidenceEnforcementMode,
+        confirmedDecisionCount,
+      })) {
+        const transitioned = await transitionEnforcementToSoft(deps.surreal, workspaceRecord);
+        if (transitioned) {
+          evidenceEnforcementMode = "soft";
+        }
+      }
+    }
 
     // Lazy maturity evaluation (WD-08): check if soft -> hard transition is warranted
     const threshold = wsRows[0]?.evidence_enforcement_threshold;
