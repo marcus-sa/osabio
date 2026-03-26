@@ -470,7 +470,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     ).toBe(true);
   }, 60_000);
 
-  it.skip("medium-risk intent meets requirement with decision and 1 independent author", async () => {
+  it("medium-risk intent meets requirement with decision and 1 independent author", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace
