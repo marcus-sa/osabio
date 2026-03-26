@@ -1,0 +1,207 @@
+{
+  "roadmap": {
+    "project_id": "intent-evidence",
+    "created_at": "2026-03-26T06:38:36Z",
+    "total_steps": 15,
+    "phases": 2
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Walking Skeleton",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Schema migration: evidence_refs, evidence_verification on intent; evidence_enforcement on workspace",
+          "criteria": "GIVEN a SurrealDB instance with the base schema applied WHEN the evidence migration runs THEN the intent table accepts evidence_refs (array of record references) and evidence_verification (object), and the workspace table accepts evidence_enforcement (string enum: bootstrap, soft, hard) with default 'soft'",
+          "test_file": "tests/acceptance/intent-evidence/walking-skeleton.test.ts",
+          "scenario_name": "WS-1",
+          "files_to_modify": [
+            "schema/surreal-schema.surql",
+            "schema/migrations/NNNN_intent_evidence_fields.surql"
+          ]
+        },
+        {
+          "id": "01-02",
+          "name": "Evidence types, constants, MCP tool definition, handler, and intent query persistence",
+          "criteria": "GIVEN an agent calls create_intent via MCP with evidence_refs containing valid table:id references to existing decision and task records WHEN the intent is created and evaluated THEN the intent record contains the evidence_refs array, verification pipeline confirms both references exist in the workspace, evidence_verification result is stored on the intent record with verified_count 2, and evaluation completes successfully",
+          "test_file": "tests/acceptance/intent-evidence/walking-skeleton.test.ts",
+          "scenario_name": "WS-1",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-types.ts",
+            "app/src/server/intent/evidence-constants.ts",
+            "app/src/server/intent/types.ts",
+            "app/src/server/mcp/brain-tool-definitions.ts",
+            "app/src/server/mcp/create-intent-handler.ts",
+            "app/src/server/intent/intent-queries.ts",
+            "app/src/server/intent/evidence-verification.ts",
+            "app/src/server/intent/authorizer.ts",
+            "app/src/server/intent/intent-evaluation.ts"
+          ]
+        },
+        {
+          "id": "01-03",
+          "name": "Soft enforcement: missing evidence elevates risk score",
+          "criteria": "GIVEN a workspace in soft enforcement mode WHEN an agent submits an intent without evidence_refs THEN the effective risk score is higher than the base risk score by the configured penalty amount AND the intent is routed to veto window instead of auto-approval",
+          "test_file": "tests/acceptance/intent-evidence/walking-skeleton.test.ts",
+          "scenario_name": "WS-2",
+          "files_to_modify": [
+            "app/src/server/intent/risk-router.ts",
+            "app/src/server/intent/authorizer.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Core Verification",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Agent submits intent with valid evidence references via MCP",
+          "criteria": "GIVEN an agent calls create_intent via MCP with evidence_refs containing two valid table:id strings WHEN the handler validates the input THEN evidence_refs are parsed to RecordId objects, persisted on the intent record, and retrievable from the intent query",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-1",
+          "files_to_modify": [
+            "app/src/server/mcp/create-intent-handler.ts",
+            "app/src/server/intent/intent-queries.ts"
+          ]
+        },
+        {
+          "id": "02-02",
+          "name": "Agent submits intent without evidence references",
+          "criteria": "GIVEN an agent calls create_intent via MCP without an evidence_refs field WHEN the intent is created THEN the intent record has no evidence_refs field AND evidence verification produces a result with verified_count 0 and total_count 0",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-2",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "02-03",
+          "name": "Agent cannot submit references to unsupported entity types",
+          "criteria": "GIVEN an agent calls create_intent via MCP with evidence_refs containing a reference to an unsupported table (e.g. conversation:abc123) WHEN the handler validates the input THEN the request is rejected with an error identifying the unsupported entity type",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-3",
+          "files_to_modify": [
+            "app/src/server/mcp/create-intent-handler.ts",
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "02-04",
+          "name": "All evidence references pass verification",
+          "criteria": "GIVEN an intent with evidence_refs pointing to two records that exist in the same workspace with valid statuses WHEN the evidence verification pipeline runs THEN all references pass existence, scope, temporal, and liveness checks AND the result shows verified_count equal to total_count with zero failed_refs",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-4",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "02-05",
+          "name": "Non-existent evidence reference fails verification",
+          "criteria": "GIVEN an intent with evidence_refs containing a reference to a record ID that does not exist in SurrealDB WHEN the evidence verification pipeline runs THEN the non-existent reference fails the existence check AND failed_refs includes the reference with reason 'not_found'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-5",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "02-06",
+          "name": "Cross-workspace evidence reference fails scope check",
+          "criteria": "GIVEN an intent in workspace A with evidence_refs pointing to a record that exists in workspace B WHEN the evidence verification pipeline runs THEN the cross-workspace reference fails the scope check AND failed_refs includes the reference with reason 'scope_mismatch'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-6",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "02-07",
+          "name": "Superseded decision fails liveness check",
+          "criteria": "GIVEN an intent with evidence_refs pointing to a decision with status 'superseded' WHEN the evidence verification pipeline runs THEN the superseded decision fails the liveness check AND failed_refs includes the reference with reason 'not_live'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-7",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts",
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "02-08",
+          "name": "Evidence created after intent fails temporal check",
+          "criteria": "GIVEN an intent created at time T with evidence_refs pointing to a record created at time T+1 WHEN the evidence verification pipeline runs THEN the future-dated reference fails the temporal check AND failed_refs includes the reference with reason 'temporal_violation'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-8",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "02-09",
+          "name": "Evidence shortfall elevates risk under soft enforcement",
+          "criteria": "GIVEN a workspace in soft enforcement mode AND a low-risk tier requiring 1 evidence reference WHEN an intent is submitted with zero evidence references THEN the risk router applies the shortfall penalty (default +20 per missing reference) to the effective risk score",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-9",
+          "files_to_modify": [
+            "app/src/server/intent/risk-router.ts",
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "02-10",
+          "name": "Full evidence keeps risk unchanged under soft enforcement",
+          "criteria": "GIVEN a workspace in soft enforcement mode AND a low-risk tier requiring 1 evidence reference WHEN an intent is submitted with 1 valid evidence reference that passes all verification checks THEN the risk router does not apply any evidence penalty AND the effective risk score equals the base risk score",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-10",
+          "files_to_modify": [
+            "app/src/server/intent/risk-router.ts"
+          ]
+        },
+        {
+          "id": "02-11",
+          "name": "Verification result persisted with count and timing",
+          "criteria": "GIVEN an intent with evidence_refs that has completed evaluation WHEN the intent record is queried from SurrealDB THEN the evidence_verification field contains verified_count, total_count, failed_refs array, and verification_ms timing",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-11",
+          "files_to_modify": [
+            "app/src/server/intent/intent-queries.ts",
+            "app/src/server/intent/authorizer.ts"
+          ]
+        },
+        {
+          "id": "02-12",
+          "name": "Failed references individually identified in verification result",
+          "criteria": "GIVEN an intent with 3 evidence_refs where 1 does not exist and 1 is in a different workspace WHEN the evidence verification pipeline runs THEN the verification result contains exactly 2 entries in failed_refs each with the specific reference ID and distinct failure reason",
+          "test_file": "tests/acceptance/intent-evidence/milestone-1-core-verification.test.ts",
+          "scenario_name": "M1-12",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "app/src/server/intent/",
+      "app/src/server/mcp/",
+      "schema/",
+      "schema/migrations/"
+    ],
+    "test_directories": [
+      "tests/acceptance/intent-evidence/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "orchestrator-quality-gate",
+    "approved_at": "2026-03-26T06:45:00Z"
+  }
+}

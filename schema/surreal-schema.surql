@@ -61,6 +61,8 @@ DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
 DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
+DEFINE FIELD evidence_enforcement ON workspace TYPE option<string>
+  ASSERT $value = NONE OR $value IN ['bootstrap', 'soft', 'hard'];
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -607,6 +609,12 @@ DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> 
 DEFINE FIELD dpop_jwk_thumbprint ON intent TYPE option<string>;
 DEFINE FIELD token_issued_at ON intent TYPE option<datetime>;
 DEFINE FIELD token_expires_at ON intent TYPE option<datetime>;
+DEFINE FIELD evidence_refs ON intent TYPE option<array<record<decision | task | feature | project | observation | policy | objective | learning | git_commit>>>;
+DEFINE FIELD evidence_verification ON intent TYPE option<object>;
+DEFINE FIELD evidence_verification.verified_count ON intent TYPE int;
+DEFINE FIELD evidence_verification.failed_refs ON intent TYPE option<array<string>>;
+DEFINE FIELD evidence_verification.verification_time_ms ON intent TYPE int;
+DEFINE FIELD evidence_verification.warnings ON intent TYPE option<array<string>>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
