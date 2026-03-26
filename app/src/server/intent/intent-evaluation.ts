@@ -106,8 +106,8 @@ export async function evaluatePendingIntent(
   const workspaceRecord = resolveRecordId("workspace", intent.workspace);
   const intentRecord = new RecordId("intent", intentId);
 
-  const [identityRows] = await deps.surreal.query<[Array<{ type?: string; role?: string }>]>(
-    `SELECT type, role FROM $identity;`,
+  const [identityRows] = await deps.surreal.query<[Array<{ type?: string; role?: string; name?: string }>]>(
+    `SELECT type, role, name FROM $identity;`,
     { identity: identityId },
   );
   const identityInfo = identityRows[0];
@@ -154,6 +154,7 @@ export async function evaluatePendingIntent(
     evidenceRefs: intent.evidence_refs,
     evidenceEnforcementMode,
     intentCreatedAt: intent.created_at,
+    requesterAgent: identityInfo?.name,
   });
 
   // Strip `alignment` and `evidence_verification` — they are stored separately

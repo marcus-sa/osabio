@@ -2,8 +2,8 @@
   "roadmap": {
     "project_id": "intent-evidence",
     "created_at": "2026-03-26T06:38:36Z",
-    "total_steps": 15,
-    "phases": 2
+    "total_steps": 40,
+    "phases": 5
   },
   "phases": [
     {
@@ -182,12 +182,300 @@
           ]
         }
       ]
+    },
+    {
+      "id": "03",
+      "name": "Fabrication Resistance",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "R2 schema migration and MCP tool surface for evidence_refs",
+          "criteria": "GIVEN the R2 migration runs THEN intent.evidence_verification gains independent_author_count (int), tier_met (bool), enforcement_mode (string) fields AND workspace gains evidence_enforcement_threshold (object with min_decisions, min_tasks) AND the createIntentSchema Zod schema includes evidence_refs as optional array of strings with describe guidance AND the CREATE_INTENT_TOOL description explains evidence submission, valid entity types, and enforcement impact",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-1",
+          "files_to_modify": [
+            "schema/surreal-schema.surql",
+            "schema/migrations/NNNN_intent_evidence_r2.surql",
+            "app/src/server/mcp/brain-tool-definitions.ts"
+          ]
+        },
+        {
+          "id": "03-02",
+          "name": "Proxy context injects workspace enforcement mode for agent awareness",
+          "criteria": "GIVEN a workspace with evidence_enforcement set to 'hard' WHEN the proxy builds the brain-context XML block for an agent session THEN the context includes the workspace enforcement mode AND the context cache fetches enforcement mode alongside existing context",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-1",
+          "files_to_modify": [
+            "app/src/server/proxy/context-injector.ts",
+            "app/src/server/proxy/context-cache.ts"
+          ]
+        },
+        {
+          "id": "03-03",
+          "name": "High-risk intent passes with 2 independent author references",
+          "criteria": "GIVEN a high-risk intent with 3 evidence_refs where 2 are authored by different agents (not the requesting agent) WHEN the evidence verification pipeline runs THEN independent_author_count is 2 AND tier_met is true AND the intent proceeds to evaluation",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-1",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts",
+            "app/src/server/intent/evidence-constants.ts",
+            "app/src/server/intent/evidence-types.ts"
+          ]
+        },
+        {
+          "id": "03-04",
+          "name": "Self-referencing evidence fails authorship check for high-risk intent",
+          "criteria": "GIVEN a high-risk intent where all evidence_refs are authored by the requesting agent WHEN the evidence verification pipeline runs THEN independent_author_count is 0 AND tier_met is false AND the verification result includes a warning about self-referencing",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-2",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "03-05",
+          "name": "Agent-confirmed decision counts as independent evidence",
+          "criteria": "GIVEN a decision confirmed by a human (not the requesting agent) WHEN it is included as evidence for a high-risk intent THEN the decision's confirming author is counted as an independent author in the authorship check",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-3",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "03-06",
+          "name": "Low-risk intent has no authorship independence requirement",
+          "criteria": "GIVEN a low-risk intent with 1 evidence_ref authored by the requesting agent WHEN the evidence verification pipeline runs THEN the intent passes tier requirements because low-risk tier requires 0 independent authors",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-4",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "03-07",
+          "name": "Recently created evidence fails minimum age check",
+          "criteria": "GIVEN an intent with evidence_refs pointing to a decision created 30 seconds ago WHEN the workspace requires minimum evidence age of 5 minutes THEN the reference fails the age check AND failed_refs includes the reference with reason 'too_recent'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-5",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts",
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "03-08",
+          "name": "Hard enforcement rejects zero evidence before LLM evaluation",
+          "criteria": "GIVEN a workspace in hard enforcement mode WHEN an agent submits an intent with zero evidence_refs THEN the intent is rejected before the LLM evaluator runs AND the intent status is 'failed' with error_reason containing 'evidence' AND no evaluation result exists on the intent",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-6",
+          "files_to_modify": [
+            "app/src/server/intent/authorizer.ts"
+          ]
+        },
+        {
+          "id": "03-09",
+          "name": "Hard enforcement passes sufficient evidence to LLM evaluation",
+          "criteria": "GIVEN a workspace in hard enforcement mode WHEN an agent submits an intent with sufficient evidence_refs that pass all verification checks THEN the intent proceeds to LLM evaluation AND evaluation completes with evidence context in the evaluator prompt",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-7",
+          "files_to_modify": [
+            "app/src/server/intent/authorizer.ts"
+          ]
+        },
+        {
+          "id": "03-10",
+          "name": "Low-risk tier requirement satisfied with 1 reference of any type",
+          "criteria": "GIVEN a low-risk intent (risk score 0-30) with 1 evidence_ref of type observation WHEN the tier evaluator runs THEN tier_met is true because low-risk requires only 1 reference of any type",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-8",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts",
+            "app/src/server/intent/evidence-constants.ts"
+          ]
+        },
+        {
+          "id": "03-11",
+          "name": "High-risk intent fails when all references are observations only",
+          "criteria": "GIVEN a high-risk intent (risk score 71-100) with 3 evidence_refs all of type observation WHEN the tier evaluator runs THEN tier_met is false because high-risk requires at least one decision AND at least one task or observation",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-9",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "03-12",
+          "name": "Medium-risk meets requirement with decision reference and independent author",
+          "criteria": "GIVEN a medium-risk intent (risk score 31-70) with 2 evidence_refs including a decision authored by a different agent WHEN the tier evaluator runs THEN tier_met is true because medium-risk requires 2+ refs with decision or task type and 1 independent author",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-10",
+          "files_to_modify": [
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "03-13",
+          "name": "Workspace auto-transitions from soft to hard enforcement at maturity threshold",
+          "criteria": "GIVEN a workspace in soft enforcement mode with evidence_enforcement_threshold of min_decisions: 5 and min_tasks: 10 WHEN the workspace has 5+ confirmed decisions and 10+ completed tasks AND an intent is evaluated THEN the workspace enforcement mode is automatically updated to hard AND subsequent intents are evaluated under hard enforcement",
+          "test_file": "tests/acceptance/intent-evidence/milestone-2-fabrication-resistance.test.ts",
+          "scenario_name": "M2-11",
+          "files_to_modify": [
+            "app/src/server/intent/intent-evaluation.ts",
+            "app/src/server/intent/intent-queries.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Policy + Monitoring",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Policy defines stricter evidence requirements for financial actions",
+          "criteria": "GIVEN an active policy with rule type 'evidence_requirement' targeting action 'financial_transfer' requiring min_count 3 and required_types ['decision', 'task'] WHEN an intent for financial_transfer is evaluated with only 1 evidence_ref THEN the policy gate applies the stricter requirement AND the intent fails tier evaluation",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-1",
+          "files_to_modify": [
+            "app/src/server/policy/policy-gate.ts",
+            "app/src/server/intent/authorizer.ts",
+            "app/src/server/intent/evidence-types.ts"
+          ]
+        },
+        {
+          "id": "04-02",
+          "name": "Policy overrides default tier requirements for specific action type",
+          "criteria": "GIVEN a policy that sets evidence requirements for 'deploy_production' to min_count 2 with required_types ['decision'] WHEN a low-risk intent for deploy_production is evaluated THEN the policy requirement overrides the default low-risk tier (which requires only 1 of any type) AND the intent needs 2 refs including a decision",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-2",
+          "files_to_modify": [
+            "app/src/server/policy/policy-gate.ts",
+            "app/src/server/intent/evidence-verification.ts"
+          ]
+        },
+        {
+          "id": "04-03",
+          "name": "Intent without matching policy uses default tier requirements",
+          "criteria": "GIVEN policies exist for 'financial_transfer' and 'deploy_production' but not for 'create_branch' WHEN an intent for create_branch is evaluated THEN the default risk-tier requirements apply AND no policy override is used",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-3",
+          "files_to_modify": [
+            "app/src/server/policy/policy-gate.ts"
+          ]
+        },
+        {
+          "id": "04-04",
+          "name": "Observer detects evidence spam pattern across recent intents",
+          "criteria": "GIVEN an agent has submitted 10 intents in the last hour all referencing the same single decision WHEN the Observer runs an evidence anomaly scan THEN an observation is created with observation_type 'evidence_anomaly' and severity 'warning' identifying the repeated reference pattern",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-4",
+          "files_to_modify": [
+            "app/src/server/observer/graph-scan.ts",
+            "schema/surreal-schema.surql"
+          ]
+        },
+        {
+          "id": "04-05",
+          "name": "Observer detects evidence reuse pattern across agents",
+          "criteria": "GIVEN 5 different agents have all cited the same 2 evidence_refs across their recent intents WHEN the Observer runs an evidence anomaly scan THEN an observation is created with observation_type 'evidence_anomaly' identifying the shared-evidence cluster",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-5",
+          "files_to_modify": [
+            "app/src/server/observer/graph-scan.ts"
+          ]
+        },
+        {
+          "id": "04-06",
+          "name": "Normal evidence usage does not trigger anomaly detection",
+          "criteria": "GIVEN 3 agents have submitted intents with varied evidence_refs (different decisions and tasks) WHEN the Observer runs an evidence anomaly scan THEN no evidence_anomaly observations are created",
+          "test_file": "tests/acceptance/intent-evidence/milestone-3-policy-monitoring.test.ts",
+          "scenario_name": "M3-6",
+          "files_to_modify": [
+            "app/src/server/observer/graph-scan.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "name": "Feed + Bootstrapping",
+      "steps": [
+        {
+          "id": "05-01",
+          "name": "Governance feed shows verified evidence chain for pending intent",
+          "criteria": "GIVEN an intent with 2 verified evidence_refs (a confirmed decision and a completed task) WHEN the governance feed is queried THEN the feed item includes evidenceRefs with entityId, entityKind, title, verified for each ref AND evidenceSummary shows verified 2 total 2",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-1",
+          "files_to_modify": [
+            "app/src/server/feed/feed-queries.ts",
+            "app/src/shared/contracts.ts"
+          ]
+        },
+        {
+          "id": "05-02",
+          "name": "Governance feed highlights failed evidence with failure reason",
+          "criteria": "GIVEN an intent with 2 evidence_refs where 1 failed scope check WHEN the governance feed is queried THEN the feed item includes the failed ref with verified=false and failureReason 'scope_mismatch' AND evidenceSummary shows verified 1 total 2",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-2",
+          "files_to_modify": [
+            "app/src/server/feed/feed-queries.ts"
+          ]
+        },
+        {
+          "id": "05-03",
+          "name": "Governance feed shows zero-evidence warning for intent without references",
+          "criteria": "GIVEN an intent submitted without evidence_refs under soft enforcement WHEN the governance feed is queried THEN the feed item includes an evidenceSummary with verified 0 total 0 AND includes a warning indicator for zero evidence",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-3",
+          "files_to_modify": [
+            "app/src/server/feed/feed-queries.ts"
+          ]
+        },
+        {
+          "id": "05-04",
+          "name": "New workspace in bootstrap mode allows intents without evidence",
+          "criteria": "GIVEN a newly created workspace with evidence_enforcement defaulting to 'bootstrap' WHEN an agent submits an intent without evidence_refs THEN the intent proceeds to evaluation without penalty AND evidence_verification shows enforcement_mode 'bootstrap'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-4",
+          "files_to_modify": [
+            "app/src/server/intent/intent-evaluation.ts"
+          ]
+        },
+        {
+          "id": "05-05",
+          "name": "Bootstrap workspace transitions to soft enforcement when maturity threshold met",
+          "criteria": "GIVEN a workspace in bootstrap mode with evidence_enforcement_threshold of min_decisions 3 WHEN the workspace has 3+ confirmed decisions AND an intent is evaluated THEN the workspace enforcement mode is automatically updated from 'bootstrap' to 'soft'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-5",
+          "files_to_modify": [
+            "app/src/server/intent/intent-evaluation.ts",
+            "app/src/server/intent/intent-queries.ts"
+          ]
+        },
+        {
+          "id": "05-06",
+          "name": "Admin manually overrides enforcement mode via workspace settings",
+          "criteria": "GIVEN a workspace in soft enforcement mode WHEN an admin updates the evidence_enforcement setting to 'hard' via the workspace API THEN subsequent intents are evaluated under hard enforcement AND the manual override persists regardless of maturity threshold",
+          "test_file": "tests/acceptance/intent-evidence/milestone-4-feed-bootstrapping.test.ts",
+          "scenario_name": "M4-6",
+          "files_to_modify": [
+            "app/src/server/workspace/workspace-routes.ts"
+          ]
+        }
+      ]
     }
   ],
   "implementation_scope": {
     "source_directories": [
       "app/src/server/intent/",
       "app/src/server/mcp/",
+      "app/src/server/policy/",
+      "app/src/server/observer/",
+      "app/src/server/feed/",
+      "app/src/server/proxy/",
+      "app/src/server/workspace/",
+      "app/src/shared/",
       "schema/",
       "schema/migrations/"
     ],

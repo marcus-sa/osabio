@@ -54,7 +54,7 @@ beforeAll(async () => {
 // US-05: Authorship Independence
 // =============================================================================
 describe("US-05: Authorship independence check", () => {
-  it.skip("high-risk intent passes with 2 independently authored evidence references", async () => {
+  it("high-risk intent passes with 2 independently authored evidence references", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with multiple identities

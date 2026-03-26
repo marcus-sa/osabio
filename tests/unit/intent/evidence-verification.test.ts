@@ -10,6 +10,8 @@ import {
   parseEvidenceRef,
   classifyQueryResults,
   buildVerificationResult,
+  countIndependentAuthors,
+  evaluateRiskTierRequirements,
   type EvidenceQueryRow,
 } from "../../../app/src/server/intent/evidence-verification";
 import {
@@ -187,5 +189,192 @@ describe("buildVerificationResult", () => {
 
     expect(result.failed_refs).toBeUndefined();
     expect(result.warnings).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countIndependentAuthors
+// ---------------------------------------------------------------------------
+
+describe("countIndependentAuthors", () => {
+  const workspaceId = new RecordId("workspace", "ws-test");
+
+  it("counts authors that are different from the requester", () => {
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        source_agent: "observer-agent",
+      },
+      {
+        id: new RecordId("decision", "d1"),
+        workspace: workspaceId,
+        source_agent: "architect-agent",
+      },
+      {
+        id: new RecordId("task", "t1"),
+        workspace: workspaceId,
+        source_agent: "logistics-planner",
+      },
+    ];
+
+    const result = countIndependentAuthors(queryRows, "logistics-planner");
+    // observer-agent and architect-agent are independent (not the requester)
+    expect(result).toBe(2);
+  });
+
+  it("returns zero when all evidence is authored by the requester", () => {
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        source_agent: "logistics-planner",
+      },
+      {
+        id: new RecordId("observation", "obs2"),
+        workspace: workspaceId,
+        source_agent: "logistics-planner",
+      },
+    ];
+
+    const result = countIndependentAuthors(queryRows, "logistics-planner");
+    expect(result).toBe(0);
+  });
+
+  it("counts distinct independent authors, not distinct evidence refs", () => {
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        source_agent: "observer-agent",
+      },
+      {
+        id: new RecordId("observation", "obs2"),
+        workspace: workspaceId,
+        source_agent: "observer-agent",  // same author as obs1
+      },
+      {
+        id: new RecordId("decision", "d1"),
+        workspace: workspaceId,
+        source_agent: "architect-agent",
+      },
+    ];
+
+    const result = countIndependentAuthors(queryRows, "logistics-planner");
+    // 2 distinct independent authors: observer-agent, architect-agent
+    expect(result).toBe(2);
+  });
+
+  it("treats evidence with no source_agent as independently authored", () => {
+    const queryRows: EvidenceQueryRow[] = [
+      {
+        id: new RecordId("decision", "d1"),
+        workspace: workspaceId,
+        // no source_agent -- entity type without explicit authorship, treated as independent
+      },
+      {
+        id: new RecordId("observation", "obs1"),
+        workspace: workspaceId,
+        source_agent: "observer-agent",
+      },
+    ];
+
+    const result = countIndependentAuthors(queryRows, "logistics-planner");
+    // decision (anonymous, independent) + observer-agent (independent) = 2
+    expect(result).toBe(2);
+  });
+
+  it("returns zero for empty query rows", () => {
+    const result = countIndependentAuthors([], "logistics-planner");
+    expect(result).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// evaluateRiskTierRequirements
+// ---------------------------------------------------------------------------
+
+describe("evaluateRiskTierRequirements", () => {
+  it("high-risk tier met with 3+ refs including decision and 2 independent authors", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 85,
+      verifiedCount: 3,
+      verifiedTableCounts: { decision: 1, task: 1, observation: 1 },
+      independentAuthorCount: 2,
+    });
+
+    expect(result.tierMet).toBe(true);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("high-risk tier fails when independent author count is below 2", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 85,
+      verifiedCount: 3,
+      verifiedTableCounts: { decision: 1, task: 1, observation: 1 },
+      independentAuthorCount: 1,
+    });
+
+    expect(result.tierMet).toBe(false);
+    expect(result.warnings.some(w => w.toLowerCase().includes("independent"))).toBe(true);
+  });
+
+  it("medium-risk tier met with 2+ refs including decision and 1 independent author", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 50,
+      verifiedCount: 2,
+      verifiedTableCounts: { decision: 1, observation: 1 },
+      independentAuthorCount: 1,
+    });
+
+    expect(result.tierMet).toBe(true);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("medium-risk tier fails when no decision or task type present", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 50,
+      verifiedCount: 2,
+      verifiedTableCounts: { observation: 2 },
+      independentAuthorCount: 1,
+    });
+
+    expect(result.tierMet).toBe(false);
+    expect(result.warnings.some(w => w.toLowerCase().includes("decision") || w.toLowerCase().includes("task"))).toBe(true);
+  });
+
+  it("low-risk tier met with 1 ref of any type and no independent authors required", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 15,
+      verifiedCount: 1,
+      verifiedTableCounts: { task: 1 },
+      independentAuthorCount: 0,
+    });
+
+    expect(result.tierMet).toBe(true);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it("low-risk tier fails when zero verified refs", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 15,
+      verifiedCount: 0,
+      verifiedTableCounts: {},
+      independentAuthorCount: 0,
+    });
+
+    expect(result.tierMet).toBe(false);
+  });
+
+  it("high-risk tier fails when no decision type present", () => {
+    const result = evaluateRiskTierRequirements({
+      riskScore: 85,
+      verifiedCount: 3,
+      verifiedTableCounts: { task: 2, observation: 1 },
+      independentAuthorCount: 2,
+    });
+
+    expect(result.tierMet).toBe(false);
+    expect(result.warnings.some(w => w.toLowerCase().includes("decision"))).toBe(true);
   });
 });

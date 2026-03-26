@@ -106,6 +106,8 @@ export type EvaluateIntentInput = {
   evidenceEnforcementMode?: EvidenceEnforcementMode;
   /** Optional: intent created_at for temporal ordering check */
   intentCreatedAt?: Date;
+  /** Optional: requester agent name for authorship independence check */
+  requesterAgent?: string;
 };
 
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
@@ -155,6 +157,8 @@ export async function evaluateIntent(
       input.workspaceId,
       enforcementMode,
       input.intentCreatedAt,
+      input.intent.priority,
+      input.requesterAgent,
     );
   } else {
     // No evidence provided -- record that fact
