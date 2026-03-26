@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2e6d809b3c0f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/agents/surrealdb.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2e/6d809b3c0f/0/metadata.json",
+      "transcript": "/2e/6d809b3c0f/0/full.jsonl",
+      "context": "/2e/6d809b3c0f/0/context.md",
+      "content_hash": "/2e/6d809b3c0f/0/content_hash.txt",
+      "prompt": "/2e/6d809b3c0f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 50668,
+    "cache_read_tokens": 115715,
+    "output_tokens": 551,
+    "api_call_count": 3
+  }
+}

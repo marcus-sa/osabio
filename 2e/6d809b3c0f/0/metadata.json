@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2e6d809b3c0f",
+  "session_id": "82c5b138-5960-45b3-921e-8589071f53bb",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-26T07:36:44.587839Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/agents/surrealdb.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dd6a3f94ea75",
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 50668,
+    "cache_read_tokens": 115715,
+    "output_tokens": 551,
+    "api_call_count": 3
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-26T07:36:44.378358Z",
+    "agent_lines": 0,
+    "human_added": 32,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 32,
+    "agent_percentage": 0
+  }
+}
