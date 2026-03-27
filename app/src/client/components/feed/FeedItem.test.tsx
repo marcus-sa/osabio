@@ -71,6 +71,40 @@ describe("FeedItem expandable evidence detail section", () => {
     expect(screen.getByText("scope_mismatch")).toBeInTheDocument();
   });
 
+  it("shows zero-evidence warning and risk elevation messaging under soft enforcement", () => {
+    const item = buildFeedItem({
+      evidenceSummary: { verified: 0, total: 0 },
+      evidenceVerification: {
+        verifiedCount: 0,
+        totalCount: 0,
+        enforcementMode: "soft",
+        tierMet: false,
+      },
+    });
+
+    render(<FeedItem item={item} onAction={() => {}} />);
+
+    expect(screen.getByText("No evidence provided")).toBeInTheDocument();
+    expect(screen.getByText("Risk score elevated")).toBeInTheDocument();
+  });
+
+  it("does not show zero-evidence warning when evidenceSummary has evidence", () => {
+    const item = buildFeedItem({
+      evidenceSummary: { verified: 2, total: 3 },
+      evidenceVerification: {
+        verifiedCount: 2,
+        totalCount: 3,
+        enforcementMode: "soft",
+        tierMet: true,
+      },
+    });
+
+    render(<FeedItem item={item} onAction={() => {}} />);
+
+    expect(screen.queryByText("No evidence provided")).not.toBeInTheDocument();
+    expect(screen.queryByText("Risk score elevated")).not.toBeInTheDocument();
+  });
+
   it("does not render expandable section when evidenceRefs is absent", () => {
     const item = buildFeedItem({
       evidenceSummary: { verified: 2, total: 3 },

@@ -412,3 +412,77 @@ describe("M5-4: Feed evidenceRefs show entity type title verification state and 
     expect(summary!.total).toBe(3);
   }, 30_000);
 });
+
+// =============================================================================
+// M5-5: Zero-evidence warning under soft enforcement
+// =============================================================================
+describe("M5-5: Zero-evidence intent under soft enforcement shows warning data in feed", () => {
+  it("feed item has evidenceSummary verified 0 total 0 and evidenceVerification with soft enforcementMode when intent has no evidence refs", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with soft enforcement
+    const user = await createTestUser(baseUrl, "m5-zero-evidence");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "soft");
+    const agentId = await createTestIdentity(surreal, "inventory-planner", "agent", workspace.workspaceId);
+
+    // And an intent with NO evidence references
+    const { intentId } = await createIntentWithEvidence(
+      surreal, workspace.workspaceId, agentId,
+      {
+        goal: "Rebalance warehouse inventory across Southern region",
+        reasoning: "Seasonal demand forecast indicates surplus in two locations",
+        evidenceRefs: [],
+      },
+    );
+
+    // And evidence_verification showing 0 verified, 0 total under soft enforcement
+    await surreal.query(
+      `UPDATE $intent SET evidence_verification = $ev;`,
+      {
+        intent: new RecordId("intent", intentId),
+        ev: {
+          verified_count: 0,
+          total_count: 0,
+          failed_refs: [],
+          warnings: ["No evidence provided"],
+          enforcement_mode: "soft",
+          tier_met: false,
+          verification_time_ms: 1,
+        },
+      },
+    );
+
+    // And the intent is in pending_veto status (soft enforcement allows progression)
+    await simulateEvaluation(surreal, intentId, {
+      decision: "APPROVE",
+      risk_score: 70,
+      reason: "Approved with elevated risk due to no evidence",
+    }, "pending_veto");
+
+    // When the governance feed is queried
+    const feed = await fetchJson<{ items: Array<GovernanceFeedItem> }>(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/feed`,
+      { headers: user.headers },
+    );
+
+    // Then find the intent feed item
+    const intentItem = feed.items.find(
+      (item) => item.entityKind === "intent" && item.entityId.includes(intentId),
+    );
+    expect(intentItem).toBeDefined();
+
+    // Then evidenceSummary shows verified 0, total 0
+    const summary = intentItem!.evidenceSummary;
+    expect(summary).toBeDefined();
+    expect(summary!.verified).toBe(0);
+    expect(summary!.total).toBe(0);
+
+    // Then evidenceVerification is present with soft enforcement mode
+    const ev = intentItem!.evidenceVerification;
+    expect(ev).toBeDefined();
+    expect(ev!.enforcementMode).toBe("soft");
+    expect(ev!.verifiedCount).toBe(0);
+    expect(ev!.totalCount).toBe(0);
+  }, 30_000);
+});

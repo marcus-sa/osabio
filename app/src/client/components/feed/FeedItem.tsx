@@ -61,6 +61,13 @@ export function FeedItem({
         <p className="text-xs text-entity-project-fg">{item.project}</p>
       ) : undefined}
 
+      {item.evidenceSummary && item.evidenceSummary.total === 0 && item.evidenceVerification?.enforcementMode === "soft" ? (
+        <div className="flex flex-col gap-0.5 rounded border border-yellow-300 bg-yellow-50 px-2 py-1.5 dark:border-yellow-700 dark:bg-yellow-950">
+          <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300">No evidence provided</span>
+          <span className="text-[0.65rem] text-yellow-700 dark:text-yellow-400">Risk score elevated</span>
+        </div>
+      ) : undefined}
+
       {item.evidenceSummary ? (
         <Badge
           variant="outline"
