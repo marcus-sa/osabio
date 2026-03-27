@@ -5,9 +5,20 @@ import { CategoryBadge } from "../graph/CategoryBadge";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
-function EvidenceRefRow({ detail }: { detail: EvidenceRefDetail }) {
+function EvidenceRefRow({
+  detail,
+  onClick,
+}: {
+  detail: EvidenceRefDetail;
+  onClick?: (entityId: string) => void;
+}) {
+  const isClickable = onClick !== undefined;
   return (
-    <div className="flex items-center gap-1.5 text-xs">
+    <div
+      className={`flex items-center gap-1.5 text-xs${isClickable ? " cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1" : ""}`}
+      role={isClickable ? "button" : undefined}
+      onClick={isClickable ? () => onClick(detail.entityId) : undefined}
+    >
       <EntityBadge kind={detail.entityKind as EntityKind} />
       <span className="text-foreground">{detail.title}</span>
       {detail.verified ? (
@@ -27,9 +38,11 @@ function EvidenceRefRow({ detail }: { detail: EvidenceRefDetail }) {
 export function FeedItem({
   item,
   onAction,
+  onEvidenceClick,
 }: {
   item: GovernanceFeedItem;
   onAction: (action: GovernanceFeedAction) => void;
+  onEvidenceClick?: (entityId: string) => void;
 }) {
   const [evidenceExpanded, setEvidenceExpanded] = useState(false);
 
@@ -81,7 +94,7 @@ export function FeedItem({
       {evidenceExpanded && item.evidenceRefs?.length ? (
         <div className="flex flex-col gap-1 pl-1">
           {item.evidenceRefs.map((ref) => (
-            <EvidenceRefRow key={ref.entityId} detail={ref} />
+            <EvidenceRefRow key={ref.entityId} detail={ref} onClick={onEvidenceClick} />
           ))}
         </div>
       ) : undefined}

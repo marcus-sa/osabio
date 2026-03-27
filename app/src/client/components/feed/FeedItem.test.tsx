@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, mock } from "bun:test";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FeedItem } from "./FeedItem";
@@ -114,5 +114,68 @@ describe("FeedItem expandable evidence detail section", () => {
 
     // Summary badge is visible
     expect(screen.getByText("2/3 verified")).toBeInTheDocument();
+  });
+});
+
+describe("M6-5: Evidence ref row navigates to entity detail", () => {
+  it("calls onEvidenceClick with the entityId when a ref row is clicked", async () => {
+    const onEvidenceClick = mock(() => {});
+    const item = buildFeedItem({
+      evidenceSummary: { verified: 1, total: 1 },
+      evidenceRefs: [
+        { entityId: "decision:abc123", entityKind: "decision", title: "Standardize procurement workflow", verified: true },
+      ],
+    });
+
+    render(<FeedItem item={item} onAction={() => {}} onEvidenceClick={onEvidenceClick} />);
+
+    // Expand the evidence section
+    const trigger = screen.getByText("1/1 verified");
+    await userEvent.click(trigger);
+
+    // Click the evidence ref row
+    const refRow = screen.getByText("Standardize procurement workflow");
+    await userEvent.click(refRow);
+
+    // Then the callback is called with the entityId
+    expect(onEvidenceClick).toHaveBeenCalledTimes(1);
+    expect(onEvidenceClick).toHaveBeenCalledWith("decision:abc123");
+  });
+
+  it("does not crash when onEvidenceClick is not provided and ref row is clicked", async () => {
+    const item = buildFeedItem({
+      evidenceSummary: { verified: 1, total: 1 },
+      evidenceRefs: [
+        { entityId: "decision:abc123", entityKind: "decision", title: "Standardize procurement workflow", verified: true },
+      ],
+    });
+
+    render(<FeedItem item={item} onAction={() => {}} />);
+
+    // Expand and click -- should not throw
+    const trigger = screen.getByText("1/1 verified");
+    await userEvent.click(trigger);
+
+    const refRow = screen.getByText("Standardize procurement workflow");
+    await userEvent.click(refRow);
+  });
+
+  it("renders ref rows as clickable with cursor pointer styling", async () => {
+    const item = buildFeedItem({
+      evidenceSummary: { verified: 1, total: 1 },
+      evidenceRefs: [
+        { entityId: "decision:abc123", entityKind: "decision", title: "Standardize procurement workflow", verified: true },
+      ],
+    });
+
+    render(<FeedItem item={item} onAction={() => {}} onEvidenceClick={() => {}} />);
+
+    // Expand
+    const trigger = screen.getByText("1/1 verified");
+    await userEvent.click(trigger);
+
+    // The row container should have cursor-pointer class when onEvidenceClick is provided
+    const refRow = screen.getByText("Standardize procurement workflow").closest("[role='button']");
+    expect(refRow).toBeTruthy();
   });
 });

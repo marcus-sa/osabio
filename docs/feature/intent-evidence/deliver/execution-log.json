@@ -1709,6 +1709,41 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-27T07:35:18Z"
+    },
+    {
+      "sid": "07-04",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:36:03Z"
+    },
+    {
+      "sid": "07-05",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:39:56Z"
+    },
+    {
+      "sid": "07-05",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: M6-5 is purely client-side navigation behavior - no HTTP driving port exercised. The client component test serves as both acceptance and unit test.",
+      "t": "2026-03-27T07:40:05Z"
+    },
+    {
+      "sid": "07-05",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:41:37Z"
+    },
+    {
+      "sid": "07-05",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:44:31Z"
     }
   ]
 }

@@ -43,7 +43,13 @@ export function GovernanceFeed({
 }) {
   const workspaceId = useWorkspaceState((s) => s.workspaceId);
   const navigateToDiscussEntity = useViewState((s) => s.navigateToDiscussEntity);
+  const navigateToGraph = useViewState((s) => s.navigateToGraph);
   const navigate = useNavigate();
+
+  function handleEvidenceClick(entityId: string) {
+    navigateToGraph(entityId);
+    void navigate({ to: "/graph" });
+  }
 
   async function handleAction(item: GovernanceFeedItem, action: GovernanceFeedAction) {
     if (!workspaceId) return;
@@ -104,9 +110,9 @@ export function GovernanceFeed({
 
   return (
     <div className="flex flex-col gap-4">
-      <FeedSection tier="blocking" items={feed.blocking} onAction={handleAction} />
-      <FeedSection tier="review" items={feed.review} onAction={handleAction} />
-      <FeedSection tier="awareness" items={feed.awareness} onAction={handleAction} />
+      <FeedSection tier="blocking" items={feed.blocking} onAction={handleAction} onEvidenceClick={handleEvidenceClick} />
+      <FeedSection tier="review" items={feed.review} onAction={handleAction} onEvidenceClick={handleEvidenceClick} />
+      <FeedSection tier="awareness" items={feed.awareness} onAction={handleAction} onEvidenceClick={handleEvidenceClick} />
     </div>
   );
 }
