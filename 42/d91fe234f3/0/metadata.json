@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "42d91fe234f3",
+  "session_id": "ec5aa01d-82b8-450a-830a-f8b5cfd34fe9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T07:35:59.033054Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/intent-evidence/deliver/execution-log.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7948cb894529",
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 145327,
+    "cache_read_tokens": 3087622,
+    "output_tokens": 24380,
+    "api_call_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T07:35:58.745533Z",
+    "agent_lines": 42,
+    "human_added": 426,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 468,
+    "agent_percentage": 8.974358974358974
+  }
+}
