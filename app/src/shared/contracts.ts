@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior" | "mcp_tool" | "mcp_server";
+export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior" | "mcp_tool" | "mcp_server" | "git_commit";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 

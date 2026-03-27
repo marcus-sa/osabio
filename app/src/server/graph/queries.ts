@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 export { searchEntitiesByBm25 } from "./bm25-search";
 
-export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session" | "objective" | "behavior";
+export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session" | "objective" | "behavior" | "learning" | "git_commit";
 
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
@@ -223,6 +223,12 @@ export async function readEntityName(
     return row ? `${row.metric_type} (${row.score.toFixed(2)})` : undefined;
   }
 
+  if (table === "git_commit") {
+    const row = await surreal.select<{ message: string; sha: string }>(record as RecordId<"git_commit", string>);
+    return row?.message ?? row?.sha;
+  }
+
+  // Fallback for tables with a `text` field (question, suggestion, observation, learning)
   const row = await surreal.select<{ text: string }>(record as RecordId<"question", string>);
   return row?.text;
 }
@@ -326,6 +332,17 @@ export async function isEntityInWorkspace(
       .collect<[Array<{ id: RecordId<"has_feature", string> }>]>();
 
     return linkedRows.length > 0;
+  }
+
+  if (table === "observation" || table === "objective" || table === "behavior" || table === "learning" || table === "git_commit") {
+    const [rows] = await surreal
+      .query<[Array<{ id: RecordId<string, string> }>]>(
+        `SELECT id FROM ${table} WHERE id = $entity AND workspace = $workspace;`,
+        { workspace: workspaceRecord, entity: entityRecord },
+      )
+      .collect<[Array<{ id: RecordId<string, string> }>]>();
+
+    return rows.length > 0;
   }
 
   if (table === "task" || table === "decision" || table === "question" || table === "suggestion" || table === "intent" || table === "agent_session") {
