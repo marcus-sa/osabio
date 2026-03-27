@@ -65,12 +65,44 @@ function useWorkspaceSettings() {
     void fetchSettings();
   }, [fetchSettings]);
 
-  return { settings, isLoading, error, refresh: fetchSettings, updateEnforcementMode };
+  const updateThresholds = useCallback(
+    async (thresholds: Record<string, number>) => {
+      if (!workspaceId) return;
+      setError(undefined);
+      try {
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ thresholds }),
+          },
+        );
+        if (!response.ok) {
+          setError("Failed to update thresholds");
+          return;
+        }
+        await fetchSettings();
+      } catch {
+        setError("Failed to update thresholds");
+      }
+    },
+    [workspaceId, fetchSettings],
+  );
+
+  return { settings, isLoading, error, refresh: fetchSettings, updateEnforcementMode, updateThresholds };
 }
 
 export function SettingsPage() {
   const workspaceName = useWorkspaceState((s) => s.workspaceName);
-  const { settings, isLoading, error, updateEnforcementMode } = useWorkspaceSettings();
+  const { settings, isLoading, error, updateEnforcementMode, updateThresholds } = useWorkspaceSettings();
+  const [editedThresholds, setEditedThresholds] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (settings?.thresholds) {
+      setEditedThresholds({ ...settings.thresholds });
+    }
+  }, [settings?.thresholds]);
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
@@ -121,16 +153,44 @@ export function SettingsPage() {
               </Badge>
             </div>
             {Object.keys(settings.thresholds).length > 0 ? (
-              <div className="mt-3 flex flex-col gap-1">
+              <div className="mt-3 flex flex-col gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   Thresholds
                 </span>
-                {Object.entries(settings.thresholds).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">{key.replace(/_/g, " ")}</span>
-                    <span className="text-foreground">{value}</span>
-                  </div>
-                ))}
+                {Object.entries(editedThresholds).map(([key, value]) => {
+                  const label = key.replace(/_/g, " ");
+                  const inputId = `threshold-${key}`;
+                  return (
+                    <div key={key} className="flex items-center gap-2 text-sm">
+                      <label htmlFor={inputId} className="text-muted-foreground">
+                        {label}
+                      </label>
+                      <input
+                        id={inputId}
+                        aria-label={label}
+                        type="number"
+                        min={0}
+                        value={value}
+                        onChange={(event) => {
+                          setEditedThresholds((previous) => ({
+                            ...previous,
+                            [key]: Number(event.target.value),
+                          }));
+                        }}
+                        className="w-20 rounded-md border border-input bg-transparent px-2 py-1 text-sm text-foreground"
+                      />
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void updateThresholds(editedThresholds);
+                  }}
+                  className="mt-1 w-fit rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  Save Thresholds
+                </button>
               </div>
             ) : undefined}
           </div>

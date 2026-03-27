@@ -129,4 +129,66 @@ describe("SettingsPage", () => {
       expect(badge).toHaveTextContent("hard");
     });
   });
+
+  it("displays threshold values and sends PUT with updated thresholds on save", async () => {
+    const { SettingsPage } = await import("./settings-page");
+    const { fireEvent } = await import("@testing-library/react");
+
+    const putCalls: Array<{ url: string; body: string }> = [];
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes(`/api/workspaces/${WS}/settings`)) {
+        if (init?.method === "PUT") {
+          putCalls.push({ url, body: init.body as string });
+          const payload = JSON.parse(init.body as string);
+          return new Response(
+            JSON.stringify({
+              enforcementMode: "soft",
+              thresholds: {
+                min_decisions: payload.thresholds?.min_decisions ?? 5,
+                min_tasks: payload.thresholds?.min_tasks ?? 10,
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            enforcementMode: "soft",
+            thresholds: { min_decisions: 5, min_tasks: 10 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return originalFetch(input, init);
+    }) as typeof fetch;
+
+    render(<SettingsPage />);
+
+    // Wait for initial load with thresholds displayed
+    await waitFor(() => {
+      const minDecisionsInput = screen.getByLabelText("min decisions");
+      expect(minDecisionsInput).toBeInTheDocument();
+      expect((minDecisionsInput as HTMLInputElement).value).toBe("5");
+    });
+
+    const minTasksInput = screen.getByLabelText("min tasks") as HTMLInputElement;
+    expect(minTasksInput.value).toBe("10");
+
+    // Change min_decisions to 3
+    const minDecisionsInput = screen.getByLabelText("min decisions") as HTMLInputElement;
+    fireEvent.change(minDecisionsInput, { target: { value: "3" } });
+
+    // Click save thresholds button
+    const saveButton = screen.getByRole("button", { name: /save thresholds/i });
+    fireEvent.click(saveButton);
+
+    // Verify PUT was called with correct thresholds payload
+    await waitFor(() => {
+      expect(putCalls.length).toBe(1);
+    });
+    const putBody = JSON.parse(putCalls[0].body);
+    expect(putBody.thresholds).toEqual({ min_decisions: 3, min_tasks: 10 });
+  });
 });

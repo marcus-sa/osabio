@@ -135,6 +135,67 @@ describe("M7-3: Admin manual enforcement mode override", () => {
 // =============================================================================
 // M7-2: Settings page shell -- API returns workspace name in settings context
 // =============================================================================
+// =============================================================================
+// M7-4: Threshold display and editing controls
+// =============================================================================
+describe("M7-4: Threshold values can be viewed and updated via settings API", () => {
+  it("displays threshold values and allows updating min_decisions via PUT", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with thresholds min_decisions 5 min_tasks 10
+    const user = await createTestUser(baseUrl, "m7-thresholds");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setEnforcementThreshold(surreal, workspace.workspaceId, {
+      min_decisions: 5,
+      min_tasks: 10,
+    });
+
+    // When the admin views settings
+    const getResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+    expect(getResponse.status).toBe(200);
+    const settings = await getResponse.json();
+
+    // Then the threshold values are displayed
+    expect(settings.thresholds).toEqual({
+      min_decisions: 5,
+      min_tasks: 10,
+    });
+
+    // When they change min_decisions to 3 and save
+    const putResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      {
+        method: "PUT",
+        headers: {
+          ...user.headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          thresholds: { min_decisions: 3 },
+        }),
+      },
+    );
+    expect(putResponse.status).toBe(200);
+
+    // Then the PUT request updates the thresholds
+    const verifyResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+    expect(verifyResponse.status).toBe(200);
+    const updatedSettings = await verifyResponse.json();
+    expect(updatedSettings.thresholds.min_decisions).toBe(3);
+    // min_tasks should remain unchanged
+    expect(updatedSettings.thresholds.min_tasks).toBe(10);
+  });
+});
+
+// =============================================================================
+// M7-2: Settings page shell -- API returns workspace name in settings context
+// =============================================================================
 describe("M7-2: Settings route loads with workspace name", () => {
   it("GET /settings returns 200 with enforcementMode for an authenticated workspace", async () => {
     const { baseUrl, surreal } = getRuntime();
