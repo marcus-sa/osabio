@@ -1744,6 +1744,97 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-27T07:44:31Z"
+    },
+    {
+      "sid": "07-05",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:45:01Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:47:08Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:47:46Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: acceptance test covers GET/PUT settings API behavior",
+      "t": "2026-03-27T07:48:00Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:49:42Z"
+    },
+    {
+      "sid": "08-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:50:07Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:51:49Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: M7-2 is a client navigation test -- acceptance test suite drives through HTTP endpoints; M7-1 already covers the settings API. Client rendering is tested in RED_UNIT via RTL.",
+      "t": "2026-03-27T07:52:01Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T07:52:47Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T08:03:46Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T08:04:27Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T08:06:34Z"
+    },
+    {
+      "sid": "08-02",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-27T08:06:34Z"
     }
   ]
 }

@@ -14,6 +14,7 @@ import { LearningsPage } from "./routes/learnings-page";
 import { PoliciesPage } from "./components/policy/PoliciesPage";
 import { PolicyDetailPage } from "./components/policy/PolicyDetailPage";
 import { ToolRegistryPage } from "./routes/tool-registry-page";
+import { SettingsPage } from "./routes/settings-page";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
 import { Button } from "./components/ui/button";
@@ -197,10 +198,16 @@ const toolsRoute = createRoute({
   validateSearch: validateToolsSearch,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/settings",
+  component: SettingsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute, settingsRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

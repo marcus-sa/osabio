@@ -2,8 +2,8 @@
   "roadmap": {
     "project_id": "intent-evidence",
     "created_at": "2026-03-26T06:38:36Z",
-    "total_steps": 40,
-    "phases": 5
+    "total_steps": 55,
+    "phases": 8
   },
   "phases": [
     {
@@ -464,6 +464,180 @@
           ]
         }
       ]
+    },
+    {
+      "id": "06",
+      "name": "Feed Evidence Cards",
+      "steps": [
+        {
+          "id": "06-01",
+          "name": "Expand shared contract with per-ref evidence detail types",
+          "criteria": "GIVEN the GovernanceFeedItem type is imported WHEN an intent feed item includes evidenceRefs THEN each ref has entityId, entityKind, title, verified boolean, and optional failureReason",
+          "test_file": "tests/acceptance/intent-evidence/milestone-5-feed-evidence-cards.test.ts",
+          "scenario_name": "M5-1",
+          "files_to_modify": [
+            "app/src/shared/contracts.ts"
+          ]
+        },
+        {
+          "id": "06-02",
+          "name": "Feed query joins evidence_refs with entity titles and verification results",
+          "criteria": "GIVEN an intent with 2 evidence_refs pointing to a confirmed decision and completed task WHEN the governance feed is queried THEN the feed item includes evidenceRefs with entityId entityKind title verified for each ref AND evidenceSummary shows verified 2 total 2",
+          "test_file": "tests/acceptance/intent-evidence/milestone-5-feed-evidence-cards.test.ts",
+          "scenario_name": "M5-2",
+          "files_to_modify": [
+            "app/src/server/feed/feed-queries.ts"
+          ]
+        },
+        {
+          "id": "06-03",
+          "name": "Evidence summary badge on intent feed cards",
+          "criteria": "GIVEN an intent feed item with evidenceSummary verified 2 total 3 WHEN the feed card renders THEN it displays a badge showing '2/3 verified'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-5-feed-evidence-cards.test.ts",
+          "scenario_name": "M5-3",
+          "files_to_modify": [
+            "app/src/client/components/feed/FeedItem.tsx"
+          ]
+        },
+        {
+          "id": "06-04",
+          "name": "Expandable evidence detail section on feed cards",
+          "criteria": "GIVEN an intent feed item with 3 evidenceRefs where 1 failed scope check WHEN the user expands the evidence section THEN each ref shows entity type title and verification state AND the failed ref shows failure reason 'scope_mismatch'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-5-feed-evidence-cards.test.ts",
+          "scenario_name": "M5-4",
+          "files_to_modify": [
+            "app/src/client/components/feed/FeedItem.tsx"
+          ]
+        },
+        {
+          "id": "06-05",
+          "name": "Zero-evidence warning and soft-penalty messaging",
+          "criteria": "GIVEN an intent feed item with zero evidenceRefs under soft enforcement WHEN the feed card renders THEN it shows a warning 'No evidence provided' AND displays the risk score elevation messaging",
+          "test_file": "tests/acceptance/intent-evidence/milestone-5-feed-evidence-cards.test.ts",
+          "scenario_name": "M5-5",
+          "files_to_modify": [
+            "app/src/client/components/feed/FeedItem.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "name": "Evidence Reference Drill-Down",
+      "steps": [
+        {
+          "id": "07-01",
+          "name": "Extend entity detail route table allowlist for evidence entity types",
+          "criteria": "GIVEN a request for entity detail with entityId 'observation:abc123' WHEN the entity detail handler processes the request THEN it accepts the observation table and queries the record instead of returning an error",
+          "test_file": "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+          "scenario_name": "M6-1",
+          "files_to_modify": [
+            "app/src/server/entities/entity-detail-route.ts",
+            "app/src/server/graph/queries.ts"
+          ]
+        },
+        {
+          "id": "07-02",
+          "name": "Extend readEntityNameByTable for evidence entity types",
+          "criteria": "GIVEN a feed query needs to resolve the name of an observation record WHEN readEntityNameByTable is called with table 'observation' THEN it returns the observation's text field",
+          "test_file": "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+          "scenario_name": "M6-2",
+          "files_to_modify": [
+            "app/src/server/feed/feed-queries.ts"
+          ]
+        },
+        {
+          "id": "07-03",
+          "name": "Entity detail response builders for observation, learning, git_commit",
+          "criteria": "GIVEN an observation record exists with text severity status fields WHEN the entity detail endpoint is called THEN the response includes all observation-specific fields in the detail payload",
+          "test_file": "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+          "scenario_name": "M6-3",
+          "files_to_modify": [
+            "app/src/server/entities/entity-detail-response.ts"
+          ]
+        },
+        {
+          "id": "07-04",
+          "name": "EntityDetailPanel renders new evidence entity kinds",
+          "criteria": "GIVEN the user navigates to entity detail for an observation WHEN the EntityDetailPanel renders THEN it shows the observation text severity status and related entities",
+          "test_file": "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+          "scenario_name": "M6-4",
+          "files_to_modify": [
+            "app/src/client/components/graph/EntityDetailPanel.tsx"
+          ]
+        },
+        {
+          "id": "07-05",
+          "name": "Evidence ref links in feed navigate to entity detail",
+          "criteria": "GIVEN a feed card shows an evidence ref for decision:abc123 WHEN the user clicks the evidence ref row THEN the browser navigates to the graph view with the decision entity selected",
+          "test_file": "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+          "scenario_name": "M6-5",
+          "files_to_modify": [
+            "app/src/client/components/feed/FeedItem.tsx",
+            "app/src/client/components/feed/feed-action-routing.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "name": "Workspace Settings - Evidence Enforcement",
+      "steps": [
+        {
+          "id": "08-01",
+          "name": "Workspace settings API endpoints for evidence enforcement config",
+          "criteria": "GIVEN a workspace with evidence_enforcement 'soft' and thresholds min_decisions 5 min_tasks 10 WHEN GET /settings is called THEN the response includes enforcementMode 'soft' and thresholds object AND WHEN PUT /settings updates enforcementMode to 'hard' THEN subsequent GET returns 'hard'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-7-workspace-settings.test.ts",
+          "scenario_name": "M7-1",
+          "files_to_modify": [
+            "app/src/server/workspace/workspace-routes.ts",
+            "app/src/server/runtime/start-server.ts"
+          ]
+        },
+        {
+          "id": "08-02",
+          "name": "Settings route and page shell with sidebar navigation",
+          "criteria": "GIVEN the user is logged in to a workspace WHEN they click Settings in the sidebar THEN the browser navigates to /settings AND the settings page loads with the workspace name",
+          "test_file": "tests/acceptance/intent-evidence/milestone-7-workspace-settings.test.ts",
+          "scenario_name": "M7-2",
+          "files_to_modify": [
+            "app/src/client/router.tsx",
+            "app/src/client/components/layout/WorkspaceSidebar.tsx",
+            "app/src/client/routes/settings-page.tsx"
+          ]
+        },
+        {
+          "id": "08-03",
+          "name": "Enforcement mode display and manual override control",
+          "criteria": "GIVEN a workspace in soft enforcement mode WHEN the admin views the settings page THEN the current mode 'soft' is displayed AND WHEN they select 'hard' from the dropdown THEN the PUT request updates the mode and the badge changes to 'hard'",
+          "test_file": "tests/acceptance/intent-evidence/milestone-7-workspace-settings.test.ts",
+          "scenario_name": "M7-3",
+          "files_to_modify": [
+            "app/src/client/routes/settings-page.tsx"
+          ]
+        },
+        {
+          "id": "08-04",
+          "name": "Threshold display and editing controls",
+          "criteria": "GIVEN a workspace with thresholds min_decisions 5 min_tasks 10 WHEN the admin views settings THEN the threshold values are displayed AND WHEN they change min_decisions to 3 and save THEN the PUT request updates the thresholds",
+          "test_file": "tests/acceptance/intent-evidence/milestone-7-workspace-settings.test.ts",
+          "scenario_name": "M7-4",
+          "files_to_modify": [
+            "app/src/client/routes/settings-page.tsx"
+          ]
+        },
+        {
+          "id": "08-05",
+          "name": "Enforcement transition audit display",
+          "criteria": "GIVEN a workspace that transitioned from bootstrap to soft automatically and then from soft to hard manually WHEN the admin views the settings page THEN they see both transitions with timestamps and whether each was auto or manual",
+          "test_file": "tests/acceptance/intent-evidence/milestone-7-workspace-settings.test.ts",
+          "scenario_name": "M7-5",
+          "files_to_modify": [
+            "app/src/client/routes/settings-page.tsx",
+            "app/src/server/workspace/workspace-routes.ts"
+          ]
+        }
+      ]
     }
   ],
   "implementation_scope": {
@@ -476,11 +650,18 @@
       "app/src/server/proxy/",
       "app/src/server/workspace/",
       "app/src/shared/",
+      "app/src/client/components/feed/",
+      "app/src/client/components/graph/",
+      "app/src/client/components/layout/",
+      "app/src/client/routes/",
       "schema/",
       "schema/migrations/"
     ],
     "test_directories": [
-      "tests/acceptance/intent-evidence/"
+      "tests/acceptance/intent-evidence/",
+      "app/src/client/components/feed/",
+      "app/src/client/components/graph/",
+      "app/src/client/routes/"
     ],
     "excluded_patterns": [
       "node_modules/**",

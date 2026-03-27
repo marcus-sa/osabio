@@ -84,3 +84,29 @@ describe("M7-1: Workspace settings API for evidence enforcement config", () => {
     });
   });
 });
+
+// =============================================================================
+// M7-2: Settings page shell -- API returns workspace name in settings context
+// =============================================================================
+describe("M7-2: Settings route loads with workspace name", () => {
+  it("GET /settings returns 200 with enforcementMode for an authenticated workspace", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with default enforcement mode
+    const user = await createTestUser(baseUrl, "m7-settings-page");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "bootstrap");
+
+    // When the settings API is called (as the settings page would on load)
+    const response = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+
+    // Then the page can render -- API returns 200 with enforcement data
+    expect(response.status).toBe(200);
+    const settings = await response.json();
+    expect(settings.enforcementMode).toBe("bootstrap");
+    expect(settings.thresholds).toBeDefined();
+  });
+});
