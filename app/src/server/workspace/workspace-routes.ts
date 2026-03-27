@@ -57,6 +57,8 @@ export function createWorkspaceRouteHandlers(
   handleWorkspaceSidebar: (workspaceId: string) => Promise<Response>;
   handleWorkspaceConversation: (workspaceId: string, conversationId: string) => Promise<Response>;
   handleUpdateRepoPath: (workspaceId: string, request: Request) => Promise<Response>;
+  handleGetSettings: (workspaceId: string, request: Request) => Promise<Response>;
+  handlePutSettings: (workspaceId: string, request: Request) => Promise<Response>;
 } {
   return {
     handleCreateWorkspace: (request: Request) => handleCreateWorkspace(deps, request, shellExec),
@@ -66,6 +68,10 @@ export function createWorkspaceRouteHandlers(
       handleWorkspaceConversation(deps, workspaceId, conversationId),
     handleUpdateRepoPath: (workspaceId: string, request: Request) =>
       handleUpdateRepoPath(deps, workspaceId, request, shellExec),
+    handleGetSettings: (workspaceId: string, request: Request) =>
+      handleGetSettings(deps, workspaceId, request),
+    handlePutSettings: (workspaceId: string, request: Request) =>
+      handlePutSettings(deps, workspaceId, request),
   };
 }
 
@@ -581,5 +587,202 @@ async function handleUpdateRepoPath(
     log.error("workspace.repo_path.update.failed", "Repo path update failed", error, { workspaceId });
     const errorText = error instanceof Error ? error.message : "repo path update failed";
     return jsonError(errorText, 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/workspaces/:workspaceId/settings
+// ---------------------------------------------------------------------------
+
+type WorkspaceSettingsRow = {
+  evidence_enforcement?: string;
+  evidence_enforcement_threshold?: {
+    min_decisions?: number;
+    min_tasks?: number;
+  };
+};
+
+type WorkspaceSettingsResponse = {
+  enforcementMode: string;
+  thresholds: {
+    min_decisions: number;
+    min_tasks: number;
+  };
+};
+
+const VALID_ENFORCEMENT_MODES: ReadonlySet<string> = new Set(["bootstrap", "soft", "hard"]);
+
+async function resolveSessionIdentity(
+  deps: ServerDependencies,
+  request: Request,
+): Promise<{ personRecord: RecordId<"person", string> } | Response> {
+  const session = await deps.auth.api.getSession({ headers: request.headers });
+  if (!session?.user?.id) {
+    return jsonError("authentication required", 401);
+  }
+
+  const personRecord = new RecordId("person", session.user.id);
+
+  const [identityRows] = await deps.surreal.query<[RecordId<"identity", string>[]]>(
+    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+    { person: personRecord },
+  );
+  if (!identityRows[0]) {
+    return jsonError("identity not found for user", 401);
+  }
+
+  return { personRecord };
+}
+
+function isSettingsResponse(value: unknown): value is Response {
+  return value instanceof Response;
+}
+
+function toSettingsResponse(row: WorkspaceSettingsRow): WorkspaceSettingsResponse {
+  return {
+    enforcementMode: row.evidence_enforcement ?? "bootstrap",
+    thresholds: {
+      min_decisions: row.evidence_enforcement_threshold?.min_decisions ?? 0,
+      min_tasks: row.evidence_enforcement_threshold?.min_tasks ?? 0,
+    },
+  };
+}
+
+async function handleGetSettings(
+  deps: ServerDependencies,
+  workspaceId: string,
+  request: Request,
+): Promise<Response> {
+  const identityOrError = await resolveSessionIdentity(deps, request);
+  if (isSettingsResponse(identityOrError)) return identityOrError;
+
+  try {
+    const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+
+    const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
+      "SELECT evidence_enforcement, evidence_enforcement_threshold FROM $ws;",
+      { ws: workspaceRecord },
+    );
+
+    if (!rows[0]) {
+      return jsonError("workspace not found", 404);
+    }
+
+    return jsonResponse(toSettingsResponse(rows[0]), 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+
+    log.error("workspace.settings.get.failed", "Failed to get workspace settings", error, { workspaceId });
+    return jsonError("failed to get workspace settings", 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/workspaces/:workspaceId/settings
+// ---------------------------------------------------------------------------
+
+async function handlePutSettings(
+  deps: ServerDependencies,
+  workspaceId: string,
+  request: Request,
+): Promise<Response> {
+  const identityOrError = await resolveSessionIdentity(deps, request);
+  if (isSettingsResponse(identityOrError)) return identityOrError;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("Request body must be valid JSON", 400);
+  }
+
+  if (!body || typeof body !== "object") {
+    return jsonError("Body must be an object", 400);
+  }
+
+  const { enforcementMode, thresholds } = body as {
+    enforcementMode?: string;
+    thresholds?: { min_decisions?: number; min_tasks?: number };
+  };
+
+  // Validate enforcementMode if provided
+  if (enforcementMode !== undefined) {
+    if (typeof enforcementMode !== "string" || !VALID_ENFORCEMENT_MODES.has(enforcementMode)) {
+      return jsonError(`enforcementMode must be one of: bootstrap, soft, hard`, 400);
+    }
+  }
+
+  // Validate thresholds if provided
+  if (thresholds !== undefined) {
+    if (typeof thresholds !== "object") {
+      return jsonError("thresholds must be an object", 400);
+    }
+    if (thresholds.min_decisions !== undefined) {
+      if (!Number.isInteger(thresholds.min_decisions) || thresholds.min_decisions < 0) {
+        return jsonError("thresholds.min_decisions must be a non-negative integer", 400);
+      }
+    }
+    if (thresholds.min_tasks !== undefined) {
+      if (!Number.isInteger(thresholds.min_tasks) || thresholds.min_tasks < 0) {
+        return jsonError("thresholds.min_tasks must be a non-negative integer", 400);
+      }
+    }
+  }
+
+  try {
+    const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
+
+    // Build SET clauses for provided fields only
+    const setClauses: string[] = [];
+    const bindings: Record<string, unknown> = { ws: workspaceRecord };
+
+    if (enforcementMode !== undefined) {
+      setClauses.push("evidence_enforcement = $mode");
+      bindings.mode = enforcementMode;
+    }
+
+    if (thresholds !== undefined) {
+      // Merge provided threshold fields with existing
+      if (thresholds.min_decisions !== undefined) {
+        setClauses.push("evidence_enforcement_threshold.min_decisions = $minDec");
+        bindings.minDec = thresholds.min_decisions;
+      }
+      if (thresholds.min_tasks !== undefined) {
+        setClauses.push("evidence_enforcement_threshold.min_tasks = $minTasks");
+        bindings.minTasks = thresholds.min_tasks;
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return jsonError("No valid fields to update", 400);
+    }
+
+    setClauses.push("updated_at = time::now()");
+
+    await deps.surreal.query(
+      `UPDATE $ws SET ${setClauses.join(", ")};`,
+      bindings,
+    );
+
+    // Read back the updated settings
+    const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
+      "SELECT evidence_enforcement, evidence_enforcement_threshold FROM $ws;",
+      { ws: workspaceRecord },
+    );
+
+    if (!rows[0]) {
+      return jsonError("workspace not found", 404);
+    }
+
+    return jsonResponse(toSettingsResponse(rows[0]), 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+
+    log.error("workspace.settings.put.failed", "Failed to update workspace settings", error, { workspaceId });
+    return jsonError("failed to update workspace settings", 500);
   }
 }

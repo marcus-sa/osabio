@@ -182,6 +182,18 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => workspaceHandlers.handleUpdateRepoPath(request.params.workspaceId, request),
         ),
       },
+      "/api/workspaces/:workspaceId/settings": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/settings",
+          "GET",
+          (request) => workspaceHandlers.handleGetSettings(request.params.workspaceId, request),
+        ),
+        PUT: withTracing(
+          "PUT /api/workspaces/:workspaceId/settings",
+          "PUT",
+          (request) => workspaceHandlers.handlePutSettings(request.params.workspaceId, request),
+        ),
+      },
       "/api/workspaces/:workspaceId/conversations/:conversationId": {
         GET: withTracing(
           "GET /api/workspaces/:workspaceId/conversations/:conversationId",
