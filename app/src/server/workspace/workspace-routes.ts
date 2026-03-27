@@ -594,12 +594,27 @@ async function handleUpdateRepoPath(
 // GET /api/workspaces/:workspaceId/settings
 // ---------------------------------------------------------------------------
 
+type EnforcementTransitionRow = {
+  from: string;
+  to: string;
+  trigger: "auto" | "manual";
+  timestamp: Date | string;
+};
+
 type WorkspaceSettingsRow = {
   evidence_enforcement?: string;
   evidence_enforcement_threshold?: {
     min_decisions?: number;
     min_tasks?: number;
   };
+  evidence_enforcement_transitions?: EnforcementTransitionRow[];
+};
+
+type EnforcementTransitionResponse = {
+  from: string;
+  to: string;
+  trigger: "auto" | "manual";
+  timestamp: string;
 };
 
 type WorkspaceSettingsResponse = {
@@ -608,6 +623,7 @@ type WorkspaceSettingsResponse = {
     min_decisions: number;
     min_tasks: number;
   };
+  transitions: EnforcementTransitionResponse[];
 };
 
 const VALID_ENFORCEMENT_MODES: ReadonlySet<string> = new Set(["bootstrap", "soft", "hard"]);
@@ -638,6 +654,20 @@ function isSettingsResponse(value: unknown): value is Response {
   return value instanceof Response;
 }
 
+function formatTransition(transition: EnforcementTransitionRow): EnforcementTransitionResponse {
+  const timestamp = transition.timestamp instanceof Date
+    ? transition.timestamp.toISOString()
+    : typeof transition.timestamp === "string"
+      ? transition.timestamp
+      : new Date(transition.timestamp as unknown as number).toISOString();
+  return {
+    from: transition.from,
+    to: transition.to,
+    trigger: transition.trigger,
+    timestamp,
+  };
+}
+
 function toSettingsResponse(row: WorkspaceSettingsRow): WorkspaceSettingsResponse {
   return {
     enforcementMode: row.evidence_enforcement ?? "bootstrap",
@@ -645,6 +675,7 @@ function toSettingsResponse(row: WorkspaceSettingsRow): WorkspaceSettingsRespons
       min_decisions: row.evidence_enforcement_threshold?.min_decisions ?? 0,
       min_tasks: row.evidence_enforcement_threshold?.min_tasks ?? 0,
     },
+    transitions: (row.evidence_enforcement_transitions ?? []).map(formatTransition),
   };
 }
 
@@ -660,7 +691,7 @@ async function handleGetSettings(
     const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
 
     const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
-      "SELECT evidence_enforcement, evidence_enforcement_threshold FROM $ws;",
+      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions FROM $ws;",
       { ws: workspaceRecord },
     );
 
@@ -734,6 +765,13 @@ async function handlePutSettings(
   try {
     const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
 
+    // Read current enforcement mode to detect transitions
+    const [currentRows] = await deps.surreal.query<[Array<{ evidence_enforcement?: string }>]>(
+      "SELECT evidence_enforcement FROM $ws;",
+      { ws: workspaceRecord },
+    );
+    const currentMode = currentRows[0]?.evidence_enforcement ?? "bootstrap";
+
     // Build SET clauses for provided fields only
     const setClauses: string[] = [];
     const bindings: Record<string, unknown> = { ws: workspaceRecord };
@@ -741,6 +779,18 @@ async function handlePutSettings(
     if (enforcementMode !== undefined) {
       setClauses.push("evidence_enforcement = $mode");
       bindings.mode = enforcementMode;
+
+      // Append transition entry when mode actually changes
+      if (enforcementMode !== currentMode) {
+        const transitionEntry = {
+          from: currentMode,
+          to: enforcementMode,
+          trigger: "manual" as const,
+          timestamp: new Date(),
+        };
+        setClauses.push("evidence_enforcement_transitions = array::append(evidence_enforcement_transitions ?? [], $transition)");
+        bindings.transition = transitionEntry;
+      }
     }
 
     if (thresholds !== undefined) {
@@ -768,7 +818,7 @@ async function handlePutSettings(
 
     // Read back the updated settings
     const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
-      "SELECT evidence_enforcement, evidence_enforcement_threshold FROM $ws;",
+      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions FROM $ws;",
       { ws: workspaceRecord },
     );
 

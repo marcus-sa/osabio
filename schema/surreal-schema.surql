@@ -67,6 +67,12 @@ DEFINE FIELD evidence_enforcement_threshold ON workspace TYPE option<object>;
 DEFINE FIELD evidence_enforcement_threshold.min_decisions ON workspace TYPE option<int>;
 DEFINE FIELD evidence_enforcement_threshold.min_tasks ON workspace TYPE option<int>;
 DEFINE FIELD min_evidence_age_minutes ON workspace TYPE option<int>;
+DEFINE FIELD evidence_enforcement_transitions ON workspace TYPE option<array<object>>;
+DEFINE FIELD evidence_enforcement_transitions[*].from ON workspace TYPE string;
+DEFINE FIELD evidence_enforcement_transitions[*].to ON workspace TYPE string;
+DEFINE FIELD evidence_enforcement_transitions[*].trigger ON workspace TYPE string
+  ASSERT $value IN ['auto', 'manual'];
+DEFINE FIELD evidence_enforcement_transitions[*].timestamp ON workspace TYPE datetime;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;

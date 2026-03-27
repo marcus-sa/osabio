@@ -2,9 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useWorkspaceState } from "../stores/workspace-state";
 import { Badge } from "../components/ui/badge";
 
+type EnforcementTransition = {
+  from: string;
+  to: string;
+  trigger: "auto" | "manual";
+  timestamp: string;
+};
+
 type WorkspaceSettings = {
   enforcementMode: string;
   thresholds: Record<string, number>;
+  transitions: EnforcementTransition[];
 };
 
 const ENFORCEMENT_MODES = ["bootstrap", "soft", "hard"] as const;
@@ -194,6 +202,36 @@ export function SettingsPage() {
               </div>
             ) : undefined}
           </div>
+
+          {settings.transitions.length > 0 ? (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h2 className="mb-3 text-sm font-semibold text-foreground">
+                Enforcement Transition History
+              </h2>
+              <div className="flex flex-col gap-2">
+                {settings.transitions.map((transition, index) => {
+                  const formattedTime = new Intl.DateTimeFormat(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(transition.timestamp));
+                  return (
+                    <div
+                      key={`${transition.timestamp}-${index}`}
+                      className="flex items-center gap-3 text-sm"
+                    >
+                      <span className="text-muted-foreground">{formattedTime}</span>
+                      <span className="text-foreground">
+                        {transition.from} &rarr; {transition.to}
+                      </span>
+                      <Badge variant="outline">
+                        {transition.trigger}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : undefined}
         </div>
       ) : undefined}
     </section>

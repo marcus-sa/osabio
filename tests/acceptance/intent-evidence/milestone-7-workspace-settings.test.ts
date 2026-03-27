@@ -218,3 +218,82 @@ describe("M7-2: Settings route loads with workspace name", () => {
     expect(settings.thresholds).toBeDefined();
   });
 });
+
+// =============================================================================
+// M7-5: Enforcement transition audit display
+// =============================================================================
+describe("M7-5: Enforcement transition audit trail", () => {
+  it("shows both auto and manual transitions with timestamps after mode changes", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace that starts in bootstrap mode
+    const user = await createTestUser(baseUrl, "m7-transitions");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "bootstrap");
+
+    // When the admin manually transitions from bootstrap to soft via PUT
+    const putSoftResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      {
+        method: "PUT",
+        headers: {
+          ...user.headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enforcementMode: "soft" }),
+      },
+    );
+    expect(putSoftResponse.status).toBe(200);
+
+    // And then manually transitions from soft to hard via PUT
+    const putHardResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      {
+        method: "PUT",
+        headers: {
+          ...user.headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enforcementMode: "hard" }),
+      },
+    );
+    expect(putHardResponse.status).toBe(200);
+
+    // Then the settings page shows both transitions with timestamps and trigger type
+    const getResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+    expect(getResponse.status).toBe(200);
+    const settings = (await getResponse.json()) as {
+      enforcementMode: string;
+      transitions: Array<{
+        from: string;
+        to: string;
+        trigger: "auto" | "manual";
+        timestamp: string;
+      }>;
+    };
+
+    expect(settings.enforcementMode).toBe("hard");
+    expect(settings.transitions).toBeDefined();
+    expect(settings.transitions).toHaveLength(2);
+
+    // First transition: bootstrap -> soft (manual)
+    expect(settings.transitions[0].from).toBe("bootstrap");
+    expect(settings.transitions[0].to).toBe("soft");
+    expect(settings.transitions[0].trigger).toBe("manual");
+    expect(settings.transitions[0].timestamp).toBeTruthy();
+
+    // Second transition: soft -> hard (manual)
+    expect(settings.transitions[1].from).toBe("soft");
+    expect(settings.transitions[1].to).toBe("hard");
+    expect(settings.transitions[1].trigger).toBe("manual");
+    expect(settings.transitions[1].timestamp).toBeTruthy();
+
+    // Timestamps should be valid ISO strings and in chronological order
+    const firstTime = new Date(settings.transitions[0].timestamp).getTime();
+    const secondTime = new Date(settings.transitions[1].timestamp).getTime();
+    expect(firstTime).toBeLessThanOrEqual(secondTime);
+  });
+});
