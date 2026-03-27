@@ -1,8 +1,28 @@
-import type { GovernanceFeedAction, GovernanceFeedItem } from "../../../shared/contracts";
+import { useState } from "react";
+import type { GovernanceFeedAction, GovernanceFeedItem, EvidenceRefDetail, EntityKind } from "../../../shared/contracts";
 import { EntityBadge } from "../ui/entity-badge";
 import { CategoryBadge } from "../graph/CategoryBadge";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+
+function EvidenceRefRow({ detail }: { detail: EvidenceRefDetail }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs">
+      <EntityBadge kind={detail.entityKind as EntityKind} />
+      <span className="text-foreground">{detail.title}</span>
+      {detail.verified ? (
+        <Badge variant="outline" className="text-[0.55rem] text-green-600">verified</Badge>
+      ) : (
+        <span className="flex items-center gap-1">
+          <Badge variant="destructive" className="text-[0.55rem]">failed</Badge>
+          {detail.failureReason ? (
+            <span className="text-destructive text-[0.6rem]">{detail.failureReason}</span>
+          ) : undefined}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function FeedItem({
   item,
@@ -11,6 +31,8 @@ export function FeedItem({
   item: GovernanceFeedItem;
   onAction: (action: GovernanceFeedAction) => void;
 }) {
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false);
+
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -40,9 +62,21 @@ export function FeedItem({
       ) : undefined}
 
       {item.evidenceSummary ? (
-        <Badge variant="outline" className="text-[0.6rem] w-fit">
+        <Badge
+          variant="outline"
+          className={`text-[0.6rem] w-fit${item.evidenceRefs?.length ? " cursor-pointer" : ""}`}
+          onClick={item.evidenceRefs?.length ? () => setEvidenceExpanded((prev) => !prev) : undefined}
+        >
           {item.evidenceSummary.verified}/{item.evidenceSummary.total} verified
         </Badge>
+      ) : undefined}
+
+      {evidenceExpanded && item.evidenceRefs?.length ? (
+        <div className="flex flex-col gap-1 pl-1">
+          {item.evidenceRefs.map((ref) => (
+            <EvidenceRefRow key={ref.entityId} detail={ref} />
+          ))}
+        </div>
       ) : undefined}
 
       <div className="flex flex-wrap gap-1.5 pt-1">
