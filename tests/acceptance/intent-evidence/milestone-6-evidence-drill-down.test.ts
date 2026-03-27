@@ -11,6 +11,7 @@
  */
 import { describe, expect, it, beforeAll } from "bun:test";
 import type {
+  EntityDetailResponse,
   GovernanceFeedItem,
 } from "../../../app/src/shared/contracts";
 import {
@@ -138,5 +139,109 @@ describe("M6-2: Feed resolves learning and git_commit evidence ref names", () =>
     const gitCommitRef = refs!.find((r) => r.entityKind === "git_commit");
     expect(gitCommitRef).toBeDefined();
     expect(gitCommitRef!.title).toBe("feat(compliance): add quarterly revenue breakdown to filing template");
+  });
+});
+
+// =============================================================================
+// M6-3: Entity detail response builders for observation, learning, git_commit
+// =============================================================================
+describe("M6-3: Entity detail response includes entity-specific fields", () => {
+  it("returns observation-specific fields in the detail payload", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with an observation that has all typed fields
+    const user = await createTestUser(baseUrl, "m6-obs-fields");
+    const workspace = await createTestWorkspace(baseUrl, user);
+
+    const observation = await createEvidenceObservation(
+      surreal,
+      workspace.workspaceId,
+      {
+        text: "Vendor delivery SLA breach detected in Southeast Asia corridor",
+        sourceAgent: "supply-chain-monitor",
+        severity: "conflict",
+      },
+    );
+
+    // When entity detail is requested for the observation
+    const entityId = `observation:${observation.observationId}`;
+    const response = await fetch(
+      `${baseUrl}/api/entities/${entityId}?workspaceId=${workspace.workspaceId}`,
+      { headers: user.headers },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body: EntityDetailResponse = await response.json();
+
+    // Then the response includes observation-specific fields in entity.data
+    expect(body.entity.kind).toBe("observation");
+    expect(body.entity.data.text).toBe("Vendor delivery SLA breach detected in Southeast Asia corridor");
+    expect(body.entity.data.severity).toBe("conflict");
+    expect(body.entity.data.status).toBe("open");
+    expect(body.entity.data.source_agent).toBe("supply-chain-monitor");
+  });
+
+  it("returns learning-specific fields in the detail payload", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with a learning
+    const user = await createTestUser(baseUrl, "m6-learn-fields");
+    const workspace = await createTestWorkspace(baseUrl, user);
+
+    const learning = await createEvidenceLearning(surreal, workspace.workspaceId, {
+      text: "Customs clearance requires advance filing 72 hours before arrival",
+      learningType: "constraint",
+    });
+
+    // When entity detail is requested for the learning
+    const entityId = `learning:${learning.learningId}`;
+    const response = await fetch(
+      `${baseUrl}/api/entities/${entityId}?workspaceId=${workspace.workspaceId}`,
+      { headers: user.headers },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body: EntityDetailResponse = await response.json();
+
+    // Then the response includes learning-specific fields in entity.data
+    expect(body.entity.kind).toBe("learning");
+    expect(body.entity.data.text).toBe("Customs clearance requires advance filing 72 hours before arrival");
+    expect(body.entity.data.learning_type).toBe("constraint");
+    expect(body.entity.data.status).toBe("active");
+    expect(body.entity.data.source).toBe("human");
+  });
+
+  it("returns git_commit-specific fields in the detail payload", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with a git_commit
+    const user = await createTestUser(baseUrl, "m6-commit-fields");
+    const workspace = await createTestWorkspace(baseUrl, user);
+
+    const gitCommit = await createEvidenceGitCommit(surreal, workspace.workspaceId, {
+      message: "fix(logistics): correct duty calculation for cross-border shipments",
+      sha: "abc123def456789012345678901234567890abcd",
+      repository: "supply-chain/logistics-engine",
+    });
+
+    // When entity detail is requested for the git_commit
+    const entityId = `git_commit:${gitCommit.commitId}`;
+    const response = await fetch(
+      `${baseUrl}/api/entities/${entityId}?workspaceId=${workspace.workspaceId}`,
+      { headers: user.headers },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body: EntityDetailResponse = await response.json();
+
+    // Then the response includes git_commit-specific fields in entity.data
+    expect(body.entity.kind).toBe("git_commit");
+    expect(body.entity.data.message).toBe("fix(logistics): correct duty calculation for cross-border shipments");
+    expect(body.entity.data.sha).toBe("abc123def456789012345678901234567890abcd");
+    expect(body.entity.data.author_name).toBeDefined();
+    expect(body.entity.data.repository).toBe("supply-chain/logistics-engine");
   });
 });
