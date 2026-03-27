@@ -245,3 +245,41 @@ describe("M6-3: Entity detail response includes entity-specific fields", () => {
     expect(body.entity.data.repository).toBe("supply-chain/logistics-engine");
   });
 });
+
+// =============================================================================
+// M6-4: EntityDetailPanel renders evidence entity kinds (API shape validation)
+// =============================================================================
+describe("M6-4: Entity detail for intent entity kind", () => {
+  it("returns intent-specific fields (goal, status, action_type) in the detail payload", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with an intent
+    const user = await createTestUser(baseUrl, "m6-intent-detail");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    const agentId = await createTestIdentity(surreal, "logistics-planner", "agent", workspace.workspaceId);
+
+    const { intentId } = await createIntentWithEvidence(
+      surreal, workspace.workspaceId, agentId,
+      {
+        goal: "Reroute shipments through alternate port due to congestion",
+        reasoning: "Port congestion at primary hub exceeds 72-hour threshold",
+        evidenceRefs: [],
+      },
+    );
+
+    // When entity detail is requested for the intent
+    const entityId = `intent:${intentId}`;
+    const response = await fetch(
+      `${baseUrl}/api/entities/${entityId}?workspaceId=${workspace.workspaceId}`,
+      { headers: user.headers },
+    );
+
+    // Then the response is successful with intent-specific fields
+    expect(response.status).toBe(200);
+
+    const body: EntityDetailResponse = await response.json();
+    expect(body.entity.kind).toBe("intent");
+    expect(body.entity.data.goal).toBe("Reroute shipments through alternate port due to congestion");
+    expect(body.entity.data.status).toBeDefined();
+  });
+});
