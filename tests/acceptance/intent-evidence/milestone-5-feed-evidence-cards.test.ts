@@ -129,3 +129,98 @@ describe("M5-1: Feed evidence cards with per-ref detail", () => {
     expect(summary!.verified).toBeLessThanOrEqual(3);
   }, 30_000);
 });
+
+// =============================================================================
+// M5-2: Evidence refs join with entity titles and verification results
+// =============================================================================
+describe("M5-2: Feed query joins evidence_refs with entity titles and verification results", () => {
+  it("feed item includes evidenceRefs with entityId entityKind title verified for each ref and evidenceSummary shows verified 2 total 2", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with soft enforcement
+    const user = await createTestUser(baseUrl, "m5-evidence-join");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "soft");
+    const agentId = await createTestIdentity(surreal, "logistics-optimizer", "agent", workspace.workspaceId);
+
+    // And 2 evidence references: a confirmed decision and a completed task
+    const decision = await createEvidenceDecision(surreal, workspace.workspaceId, {
+      summary: "Adopt just-in-time inventory for European warehouses",
+      status: "confirmed",
+    });
+    const task = await createEvidenceTask(surreal, workspace.workspaceId, {
+      title: "Audit current European warehouse stock levels",
+      status: "completed",
+    });
+
+    // And an intent referencing both as evidence
+    const { intentId } = await createIntentWithEvidence(
+      surreal, workspace.workspaceId, agentId,
+      {
+        goal: "Transition European warehouses to JIT inventory model",
+        reasoning: "Decision confirmed and audit completed",
+        evidenceRefs: [decision.decisionRecord, task.taskRecord],
+      },
+    );
+
+    // And the intent has evidence_verification showing both refs verified
+    await surreal.query(
+      `UPDATE $intent SET evidence_verification = $ev;`,
+      {
+        intent: new RecordId("intent", intentId),
+        ev: {
+          verified_count: 2,
+          total_count: 2,
+          failed_refs: [],
+          warnings: [],
+          enforcement_mode: "soft",
+          tier_met: true,
+          verification_time_ms: 10,
+        },
+      },
+    );
+
+    // And the intent is in pending_veto status
+    await simulateEvaluation(surreal, intentId, {
+      decision: "APPROVE",
+      risk_score: 40,
+      reason: "All evidence verified",
+    }, "pending_veto");
+
+    // When the governance feed is queried
+    const feed = await fetchJson<{ items: Array<GovernanceFeedItem> }>(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/feed`,
+      { headers: user.headers },
+    );
+
+    // Then find the intent feed item
+    const intentItem = feed.items.find(
+      (item) => item.entityKind === "intent" && item.entityId.includes(intentId),
+    );
+    expect(intentItem).toBeDefined();
+
+    // Then the feed item has evidenceRefs with 2 entries
+    const refs = intentItem!.evidenceRefs;
+    expect(refs).toBeDefined();
+    expect(refs).toBeArrayOfSize(2);
+
+    // Each ref has correct entityKind, title, and verified=true
+    const decisionRef = refs!.find((r) => r.entityKind === "decision");
+    expect(decisionRef).toBeDefined();
+    expect(decisionRef!.entityId).toBe(decision.decisionId);
+    expect(decisionRef!.title).toBe("Adopt just-in-time inventory for European warehouses");
+    expect(decisionRef!.verified).toBe(true);
+
+    const taskRef = refs!.find((r) => r.entityKind === "task");
+    expect(taskRef).toBeDefined();
+    expect(taskRef!.entityId).toBe(task.taskId);
+    expect(taskRef!.title).toBe("Audit current European warehouse stock levels");
+    expect(taskRef!.verified).toBe(true);
+
+    // Then evidenceSummary shows verified 2, total 2
+    const summary = intentItem!.evidenceSummary;
+    expect(summary).toBeDefined();
+    expect(summary!.verified).toBe(2);
+    expect(summary!.total).toBe(2);
+  }, 30_000);
+});

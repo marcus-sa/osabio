@@ -1,5 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
-import type { EvidenceVerificationSummary, GovernanceFeedAction, GovernanceFeedItem } from "../../shared/contracts";
+import type { EvidenceRefDetail, EvidenceSummary, EvidenceVerificationSummary, GovernanceFeedAction, GovernanceFeedItem } from "../../shared/contracts";
 
 // --- Shared types ---
 
@@ -830,6 +830,8 @@ export type PendingIntentRow = {
   veto_expires_at?: string | Date;
   created_at: string | Date;
   evidence_verification?: EvidenceVerificationSummary;
+  evidenceRefs?: EvidenceRefDetail[];
+  evidenceSummary?: EvidenceSummary;
 };
 
 export async function listPendingVetoIntents(
@@ -843,6 +845,7 @@ export async function listPendingVetoIntents(
     evaluation?: { risk_score: number; reason: string };
     veto_expires_at?: string | Date;
     created_at: string | Date;
+    evidence_refs?: RecordId<string, string>[];
     evidence_verification?: {
       verified_count: number;
       total_count: number;
@@ -856,7 +859,7 @@ export async function listPendingVetoIntents(
   const [rows] = await input.surreal
     .query<[IntentQueryRow[]]>(
       [
-        "SELECT id, goal, status, priority, evaluation, veto_expires_at, created_at, evidence_verification",
+        "SELECT id, goal, status, priority, evaluation, veto_expires_at, created_at, evidence_refs, evidence_verification",
         "FROM intent",
         "WHERE status = 'pending_veto'",
         `AND ${WORKSPACE_SCOPE_CLAUSE}`,
@@ -867,25 +870,39 @@ export async function listPendingVetoIntents(
     )
     .collect<[IntentQueryRow[]]>();
 
-  return rows.map((row) => ({
-    id: row.id,
-    goal: row.goal,
-    status: row.status,
-    priority: row.priority,
-    ...(row.evaluation ? { risk_score: row.evaluation.risk_score, reason: row.evaluation.reason } : {}),
-    ...(row.veto_expires_at ? { veto_expires_at: row.veto_expires_at } : {}),
-    created_at: row.created_at,
-    ...(row.evidence_verification ? {
-      evidence_verification: {
-        verifiedCount: row.evidence_verification.verified_count,
-        totalCount: row.evidence_verification.total_count,
-        ...(row.evidence_verification.failed_refs ? { failedRefs: row.evidence_verification.failed_refs } : {}),
-        ...(row.evidence_verification.warnings ? { warnings: row.evidence_verification.warnings } : {}),
-        enforcementMode: row.evidence_verification.enforcement_mode,
-        ...(row.evidence_verification.tier_met !== undefined ? { tierMet: row.evidence_verification.tier_met } : {}),
-      },
-    } : {}),
-  }));
+  const results: PendingIntentRow[] = [];
+
+  for (const row of rows) {
+    const evidenceResult = row.evidence_refs
+      ? await resolveEvidenceRefs(input.surreal, row.evidence_refs, row.evidence_verification?.failed_refs)
+      : undefined;
+
+    results.push({
+      id: row.id,
+      goal: row.goal,
+      status: row.status,
+      priority: row.priority,
+      ...(row.evaluation ? { risk_score: row.evaluation.risk_score, reason: row.evaluation.reason } : {}),
+      ...(row.veto_expires_at ? { veto_expires_at: row.veto_expires_at } : {}),
+      created_at: row.created_at,
+      ...(row.evidence_verification ? {
+        evidence_verification: {
+          verifiedCount: row.evidence_verification.verified_count,
+          totalCount: row.evidence_verification.total_count,
+          ...(row.evidence_verification.failed_refs ? { failedRefs: row.evidence_verification.failed_refs } : {}),
+          ...(row.evidence_verification.warnings ? { warnings: row.evidence_verification.warnings } : {}),
+          enforcementMode: row.evidence_verification.enforcement_mode,
+          ...(row.evidence_verification.tier_met !== undefined ? { tierMet: row.evidence_verification.tier_met } : {}),
+        },
+      } : {}),
+      ...(evidenceResult ? {
+        evidenceRefs: evidenceResult.refs,
+        evidenceSummary: evidenceResult.summary,
+      } : {}),
+    });
+  }
+
+  return results;
 }
 
 export function mapPendingIntentToFeedItem(row: PendingIntentRow): GovernanceFeedItem {
@@ -904,6 +921,8 @@ export function mapPendingIntentToFeedItem(row: PendingIntentRow): GovernanceFee
     createdAt: toIso(row.created_at),
     actions: intentActions(),
     ...(row.evidence_verification ? { evidenceVerification: row.evidence_verification } : {}),
+    ...(row.evidenceRefs ? { evidenceRefs: row.evidenceRefs } : {}),
+    ...(row.evidenceSummary ? { evidenceSummary: row.evidenceSummary } : {}),
   };
 }
 
@@ -996,6 +1015,64 @@ function vetoedIntentActions(): GovernanceFeedAction[] {
   return [{ action: "discuss", label: "Discuss" }];
 }
 
+// --- Evidence refs resolution ---
+
+/**
+ * Parses failed_refs entries (e.g. "decision:abc123:not_found") into a lookup set of "table:id" keys
+ * and a map from "table:id" to failure reason.
+ */
+function parseFailedRefs(failedRefs: string[]): Map<string, string> {
+  const failuresByRef = new Map<string, string>();
+  for (const entry of failedRefs) {
+    // Format: "table:id:reason" — split on first two colons
+    const firstColon = entry.indexOf(":");
+    if (firstColon === -1) continue;
+    const secondColon = entry.indexOf(":", firstColon + 1);
+    if (secondColon === -1) continue;
+    const refKey = entry.substring(0, secondColon);
+    const reason = entry.substring(secondColon + 1);
+    failuresByRef.set(refKey, reason);
+  }
+  return failuresByRef;
+}
+
+async function resolveEvidenceRefs(
+  surreal: Surreal,
+  refs: RecordId<string, string>[],
+  failedRefEntries?: string[],
+): Promise<{ refs: EvidenceRefDetail[]; summary: EvidenceSummary }> {
+  const failuresByRef = failedRefEntries ? parseFailedRefs(failedRefEntries) : new Map<string, string>();
+
+  const resolvedRefs: EvidenceRefDetail[] = [];
+
+  for (const ref of refs) {
+    const entityKind = ref.table.name;
+    const entityId = ref.id as string;
+    const title = await readEntityNameByTable(surreal, ref, entityKind) ?? `Unknown ${entityKind}`;
+    const refKey = `${entityKind}:${entityId}`;
+    const failureReason = failuresByRef.get(refKey);
+    const verified = !failureReason;
+
+    resolvedRefs.push({
+      entityId,
+      entityKind,
+      title,
+      verified,
+      ...(failureReason ? { failureReason } : {}),
+    });
+  }
+
+  const verifiedCount = resolvedRefs.filter((r) => r.verified).length;
+
+  return {
+    refs: resolvedRefs,
+    summary: {
+      verified: verifiedCount,
+      total: resolvedRefs.length,
+    },
+  };
+}
+
 // --- Shared helper ---
 
 async function readEntityNameByTable(
@@ -1031,6 +1108,11 @@ async function readEntityNameByTable(
   if (table === "intent") {
     const row = await surreal.select<{ goal: string }>(record);
     return row?.goal;
+  }
+
+  if (table === "observation") {
+    const row = await surreal.select<{ text: string }>(record);
+    return row?.text;
   }
 
   return undefined;
