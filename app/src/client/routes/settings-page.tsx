@@ -12,7 +12,7 @@ type EnforcementTransition = {
 type WorkspaceSettings = {
   enforcementMode: string;
   thresholds: Record<string, number>;
-  transitions: EnforcementTransition[];
+  transitions?: EnforcementTransition[];
 };
 
 const ENFORCEMENT_MODES = ["bootstrap", "soft", "hard"] as const;
@@ -203,7 +203,7 @@ export function SettingsPage() {
             ) : undefined}
           </div>
 
-          {settings.transitions.length > 0 ? (
+          {settings.transitions && settings.transitions.length > 0 ? (
             <div className="rounded-lg border border-border bg-card p-4">
               <h2 className="mb-3 text-sm font-semibold text-foreground">
                 Enforcement Transition History
