@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "54b4b2961af0",
+  "session_id": "75b95053-adb5-472f-bafd-ee45562b45c4",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T18:13:49.663902Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/src/client/routes/settings-page.test.tsx",
+    "app/src/client/routes/settings-page.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f96d97bf0999",
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 236732,
+    "cache_read_tokens": 1754244,
+    "output_tokens": 13793,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T18:13:49.488982Z",
+    "agent_lines": 107,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 107,
+    "agent_percentage": 100
+  }
+}
