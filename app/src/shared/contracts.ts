@@ -420,6 +420,19 @@ export type EvidenceVerificationSummary = {
   tierMet?: boolean;
 };
 
+export type EvidenceRefDetail = {
+  entityId: string;
+  entityKind: string;
+  title: string;
+  verified: boolean;
+  failureReason?: string;
+};
+
+export type EvidenceSummary = {
+  verified: number;
+  total: number;
+};
+
 export type GovernanceFeedItem = {
   id: string;               // composite: "decision:<uuid>:provisional"
   tier: GovernanceTier;
@@ -440,6 +453,8 @@ export type GovernanceFeedItem = {
     entityName: string;
   };
   evidenceVerification?: EvidenceVerificationSummary;
+  evidenceRefs?: EvidenceRefDetail[];
+  evidenceSummary?: EvidenceSummary;
 };
 
 export type GovernanceFeedResponse = {
