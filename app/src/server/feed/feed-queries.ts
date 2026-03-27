@@ -1115,5 +1115,15 @@ async function readEntityNameByTable(
     return row?.text;
   }
 
+  if (table === "learning") {
+    const row = await surreal.select<{ text: string }>(record);
+    return row?.text;
+  }
+
+  if (table === "git_commit") {
+    const row = await surreal.select<{ message?: string; sha: string }>(record);
+    return row?.message ?? row?.sha;
+  }
+
   return undefined;
 }

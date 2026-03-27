@@ -479,6 +479,47 @@ export async function createTaskDirectly(
 }
 
 // ---------------------------------------------------------------------------
+// Learning
+// ---------------------------------------------------------------------------
+
+export type CreateLearningOpts = {
+  text: string;
+  learningType?: "constraint" | "instruction" | "precedent";
+  source?: "human" | "agent";
+  status?: string;
+  targetAgents?: string[];
+};
+
+/**
+ * Creates a learning record directly in SurrealDB.
+ */
+export async function createLearningDirectly(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: CreateLearningOpts,
+): Promise<{ learningId: string; learningRecord: RecordId<"learning"> }> {
+  const learningId = crypto.randomUUID();
+  const learningRecord = new RecordId("learning", learningId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  await surreal.query(`CREATE $learning CONTENT $content;`, {
+    learning: learningRecord,
+    content: {
+      text: opts.text,
+      learning_type: opts.learningType ?? "instruction",
+      status: opts.status ?? "active",
+      source: opts.source ?? "human",
+      priority: "medium",
+      target_agents: opts.targetAgents ?? ["coding-agent"],
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    },
+  });
+
+  return { learningId, learningRecord };
+}
+
+// ---------------------------------------------------------------------------
 // Proxy Token
 // ---------------------------------------------------------------------------
 

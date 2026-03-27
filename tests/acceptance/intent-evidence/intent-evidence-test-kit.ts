@@ -17,9 +17,13 @@ import {
   createObservationDirectly,
   createIntentDirectly,
   createIdentity,
+  createLearningDirectly,
+  createGitCommitDirectly,
   type CreateDecisionOpts,
   type CreateTaskOpts,
   type CreateObservationOpts,
+  type CreateLearningOpts,
+  type CreateGitCommitOpts,
 } from "../shared-fixtures";
 
 // Re-export everything from intent-test-kit
@@ -144,6 +148,43 @@ export async function createEvidenceObservation(
     text: opts.text,
     sourceAgent: opts.sourceAgent,
     severity: opts.severity ?? "info",
+  });
+}
+
+/**
+ * Creates a learning to use as evidence.
+ * Returns the record ID for use in evidence_refs.
+ */
+export async function createEvidenceLearning(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: {
+    text: string;
+    learningType?: "constraint" | "instruction" | "precedent";
+  },
+): Promise<{ learningId: string; learningRecord: RecordId<"learning"> }> {
+  return createLearningDirectly(surreal, workspaceId, {
+    text: opts.text,
+    learningType: opts.learningType ?? "instruction",
+  });
+}
+
+/**
+ * Creates a git_commit to use as evidence.
+ * Returns the record ID for use in evidence_refs.
+ */
+export async function createEvidenceGitCommit(
+  surreal: Surreal,
+  workspaceId: string,
+  opts: {
+    message: string;
+    sha?: string;
+    repository?: string;
+  },
+): Promise<{ commitId: string; commitRecord: RecordId<"git_commit"> }> {
+  return createGitCommitDirectly(surreal, workspaceId, opts.sha ?? crypto.randomUUID().replace(/-/g, "").slice(0, 40), {
+    message: opts.message,
+    repository: opts.repository,
   });
 }
 
