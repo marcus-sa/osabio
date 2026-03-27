@@ -39,6 +39,12 @@ export function FeedItem({
         <p className="text-xs text-entity-project-fg">{item.project}</p>
       ) : undefined}
 
+      {item.evidenceSummary ? (
+        <Badge variant="outline" className="text-[0.6rem] w-fit">
+          {item.evidenceSummary.verified}/{item.evidenceSummary.total} verified
+        </Badge>
+      ) : undefined}
+
       <div className="flex flex-wrap gap-1.5 pt-1">
         {item.actions.map((action) => (
           <Button

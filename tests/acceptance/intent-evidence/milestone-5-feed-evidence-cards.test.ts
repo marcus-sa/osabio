@@ -224,3 +224,84 @@ describe("M5-2: Feed query joins evidence_refs with entity titles and verificati
     expect(summary!.total).toBe(2);
   }, 30_000);
 });
+
+// =============================================================================
+// M5-3: Evidence summary badge data with verified 2 of 3 total
+// =============================================================================
+describe("M5-3: Feed item evidenceSummary verified 2 total 3 for badge display", () => {
+  it("feed item includes evidenceSummary with verified 2 total 3 when one ref fails verification", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with soft enforcement
+    const user = await createTestUser(baseUrl, "m5-evidence-badge");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "soft");
+    const agentId = await createTestIdentity(surreal, "fulfillment-coordinator", "agent", workspace.workspaceId);
+
+    // And 3 evidence references: confirmed decision, completed task, and an unverified observation
+    const decision = await createEvidenceDecision(surreal, workspace.workspaceId, {
+      summary: "Centralize supplier onboarding across all regions",
+      status: "confirmed",
+    });
+    const task = await createEvidenceTask(surreal, workspace.workspaceId, {
+      title: "Map existing supplier onboarding workflows per region",
+      status: "completed",
+    });
+    const observation = await createEvidenceObservation(surreal, workspace.workspaceId, {
+      text: "Three regions still using legacy onboarding forms",
+      sourceAgent: "observer-agent",
+    });
+
+    // And an intent referencing all 3 as evidence
+    const { intentId } = await createIntentWithEvidence(
+      surreal, workspace.workspaceId, agentId,
+      {
+        goal: "Migrate all regions to centralized supplier onboarding portal",
+        reasoning: "Decision confirmed and workflows mapped, legacy forms observation noted",
+        evidenceRefs: [decision.decisionRecord, task.taskRecord, observation.observationRecord],
+      },
+    );
+
+    // And evidence_verification showing 2 of 3 verified (observation failed)
+    await surreal.query(
+      `UPDATE $intent SET evidence_verification = $ev;`,
+      {
+        intent: new RecordId("intent", intentId),
+        ev: {
+          verified_count: 2,
+          total_count: 3,
+          failed_refs: [`observation:${observation.observationId}:not_acknowledged`],
+          warnings: [],
+          enforcement_mode: "soft",
+          tier_met: true,
+          verification_time_ms: 12,
+        },
+      },
+    );
+
+    // And the intent is in pending_veto status
+    await simulateEvaluation(surreal, intentId, {
+      decision: "APPROVE",
+      risk_score: 45,
+      reason: "Majority of evidence verified",
+    }, "pending_veto");
+
+    // When the governance feed is queried
+    const feed = await fetchJson<{ items: Array<GovernanceFeedItem> }>(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/feed`,
+      { headers: user.headers },
+    );
+
+    // Then find the intent feed item
+    const intentItem = feed.items.find(
+      (item) => item.entityKind === "intent" && item.entityId.includes(intentId),
+    );
+    expect(intentItem).toBeDefined();
+
+    // Then evidenceSummary shows verified 2, total 3
+    const summary = intentItem!.evidenceSummary;
+    expect(summary).toBeDefined();
+    expect(summary!.verified).toBe(2);
+    expect(summary!.total).toBe(3);
+  }, 30_000);
+});
