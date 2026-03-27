@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useWorkspaceState } from "../stores/workspace-state";
 import { Badge } from "../components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 type EnforcementTransition = {
   from: string;
@@ -44,8 +51,8 @@ function useWorkspaceSettings() {
     }
   }, [workspaceId]);
 
-  const updateEnforcementMode = useCallback(
-    async (mode: string) => {
+  const saveSettings = useCallback(
+    async (patch: { enforcementMode?: string; thresholds?: Record<string, number> }) => {
       if (!workspaceId) return;
       setError(undefined);
       try {
@@ -54,16 +61,16 @@ function useWorkspaceSettings() {
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enforcementMode: mode }),
+            body: JSON.stringify(patch),
           },
         );
         if (!response.ok) {
-          setError("Failed to update enforcement mode");
+          setError("Failed to save settings");
           return;
         }
         await fetchSettings();
       } catch {
-        setError("Failed to update enforcement mode");
+        setError("Failed to save settings");
       }
     },
     [workspaceId, fetchSettings],
@@ -73,44 +80,23 @@ function useWorkspaceSettings() {
     void fetchSettings();
   }, [fetchSettings]);
 
-  const updateThresholds = useCallback(
-    async (thresholds: Record<string, number>) => {
-      if (!workspaceId) return;
-      setError(undefined);
-      try {
-        const response = await fetch(
-          `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ thresholds }),
-          },
-        );
-        if (!response.ok) {
-          setError("Failed to update thresholds");
-          return;
-        }
-        await fetchSettings();
-      } catch {
-        setError("Failed to update thresholds");
-      }
-    },
-    [workspaceId, fetchSettings],
-  );
-
-  return { settings, isLoading, error, refresh: fetchSettings, updateEnforcementMode, updateThresholds };
+  return { settings, isLoading, error, refresh: fetchSettings, saveSettings };
 }
 
 export function SettingsPage() {
   const workspaceName = useWorkspaceState((s) => s.workspaceName);
-  const { settings, isLoading, error, updateEnforcementMode, updateThresholds } = useWorkspaceSettings();
+  const { settings, isLoading, error, saveSettings } = useWorkspaceSettings();
+  const [editedMode, setEditedMode] = useState<string | undefined>();
   const [editedThresholds, setEditedThresholds] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    if (settings?.enforcementMode) {
+      setEditedMode(settings.enforcementMode);
+    }
     if (settings?.thresholds) {
       setEditedThresholds({ ...settings.thresholds });
     }
-  }, [settings?.thresholds]);
+  }, [settings?.enforcementMode, settings?.thresholds]);
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
@@ -135,27 +121,22 @@ export function SettingsPage() {
               Evidence Enforcement
             </h2>
             <div className="flex items-center gap-2">
-              <label
-                htmlFor="enforcement-mode-select"
-                className="text-sm text-muted-foreground"
+              <span className="text-sm text-muted-foreground">Mode</span>
+              <Select
+                value={editedMode ?? settings.enforcementMode}
+                onValueChange={(value) => setEditedMode(value as string)}
               >
-                Mode
-              </label>
-              <select
-                id="enforcement-mode-select"
-                aria-label="Enforcement Mode"
-                value={settings.enforcementMode}
-                onChange={(event) => {
-                  void updateEnforcementMode(event.target.value);
-                }}
-                className="rounded-md border border-input bg-transparent px-2 py-1 text-sm text-foreground"
-              >
-                {ENFORCEMENT_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {mode}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-label="Enforcement Mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ENFORCEMENT_MODES.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {mode}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Badge variant="secondary" data-testid="enforcement-mode-badge">
                 {settings.enforcementMode}
               </Badge>
@@ -193,11 +174,14 @@ export function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    void updateThresholds(editedThresholds);
+                    void saveSettings({
+                      enforcementMode: editedMode ?? settings.enforcementMode,
+                      thresholds: editedThresholds,
+                    });
                   }}
                   className="mt-1 w-fit rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90"
                 >
-                  Save Thresholds
+                  Save Settings
                 </button>
               </div>
             ) : undefined}
