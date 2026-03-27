@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "50a88165b59a",
+  "session_id": "ec5aa01d-82b8-450a-830a-f8b5cfd34fe9",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-27T08:07:23.972521Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/client/components/layout/WorkspaceSidebar.tsx",
+    "app/src/client/router.tsx",
+    "app/src/client/routes/settings-page.test.tsx",
+    "app/src/client/routes/settings-page.tsx",
+    "docs/feature/intent-evidence/deliver/.develop-progress.json",
+    "docs/feature/intent-evidence/deliver/execution-log.json",
+    "docs/feature/intent-evidence/deliver/roadmap.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7948cb894529",
+  "token_usage": {
+    "input_tokens": 51,
+    "cache_creation_tokens": 291835,
+    "cache_read_tokens": 3693682,
+    "output_tokens": 29960,
+    "api_call_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-27T08:07:23.679189Z",
+    "agent_lines": 409,
+    "human_added": 357,
+    "human_modified": 19,
+    "human_removed": 0,
+    "total_committed": 785,
+    "agent_percentage": 52.101910828025474
+  }
+}
