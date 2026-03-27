@@ -7,6 +7,8 @@ type WorkspaceSettings = {
   thresholds: Record<string, number>;
 };
 
+const ENFORCEMENT_MODES = ["bootstrap", "soft", "hard"] as const;
+
 function useWorkspaceSettings() {
   const workspaceId = useWorkspaceState((s) => s.workspaceId);
   const [settings, setSettings] = useState<WorkspaceSettings | undefined>();
@@ -34,16 +36,41 @@ function useWorkspaceSettings() {
     }
   }, [workspaceId]);
 
+  const updateEnforcementMode = useCallback(
+    async (mode: string) => {
+      if (!workspaceId) return;
+      setError(undefined);
+      try {
+        const response = await fetch(
+          `/api/workspaces/${encodeURIComponent(workspaceId)}/settings`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enforcementMode: mode }),
+          },
+        );
+        if (!response.ok) {
+          setError("Failed to update enforcement mode");
+          return;
+        }
+        await fetchSettings();
+      } catch {
+        setError("Failed to update enforcement mode");
+      }
+    },
+    [workspaceId, fetchSettings],
+  );
+
   useEffect(() => {
     void fetchSettings();
   }, [fetchSettings]);
 
-  return { settings, isLoading, error, refresh: fetchSettings };
+  return { settings, isLoading, error, refresh: fetchSettings, updateEnforcementMode };
 }
 
 export function SettingsPage() {
   const workspaceName = useWorkspaceState((s) => s.workspaceName);
-  const { settings, isLoading, error } = useWorkspaceSettings();
+  const { settings, isLoading, error, updateEnforcementMode } = useWorkspaceSettings();
 
   return (
     <section className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
@@ -68,8 +95,30 @@ export function SettingsPage() {
               Evidence Enforcement
             </h2>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Mode</span>
-              <Badge variant="secondary">{settings.enforcementMode}</Badge>
+              <label
+                htmlFor="enforcement-mode-select"
+                className="text-sm text-muted-foreground"
+              >
+                Mode
+              </label>
+              <select
+                id="enforcement-mode-select"
+                aria-label="Enforcement Mode"
+                value={settings.enforcementMode}
+                onChange={(event) => {
+                  void updateEnforcementMode(event.target.value);
+                }}
+                className="rounded-md border border-input bg-transparent px-2 py-1 text-sm text-foreground"
+              >
+                {ENFORCEMENT_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
+                  </option>
+                ))}
+              </select>
+              <Badge variant="secondary" data-testid="enforcement-mode-badge">
+                {settings.enforcementMode}
+              </Badge>
             </div>
             {Object.keys(settings.thresholds).length > 0 ? (
               <div className="mt-3 flex flex-col gap-1">

@@ -86,6 +86,53 @@ describe("M7-1: Workspace settings API for evidence enforcement config", () => {
 });
 
 // =============================================================================
+// M7-3: Enforcement mode display and manual override control
+// =============================================================================
+describe("M7-3: Admin manual enforcement mode override", () => {
+  it("displays current mode 'soft' and allows override to 'hard' via PUT", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace in soft enforcement mode
+    const user = await createTestUser(baseUrl, "m7-mode-override");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    await setWorkspaceEnforcementMode(surreal, workspace.workspaceId, "soft");
+
+    // When the admin views the settings page (GET)
+    const getResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+    expect(getResponse.status).toBe(200);
+    const settings = (await getResponse.json()) as { enforcementMode: string };
+    // Then the current mode 'soft' is displayed
+    expect(settings.enforcementMode).toBe("soft");
+
+    // When they select 'hard' from the dropdown (PUT request updates the mode)
+    const putResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      {
+        method: "PUT",
+        headers: {
+          ...user.headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ enforcementMode: "hard" }),
+      },
+    );
+    expect(putResponse.status).toBe(200);
+
+    // Then the badge changes to 'hard' (verified via subsequent GET)
+    const verifyResponse = await fetch(
+      `${baseUrl}/api/workspaces/${workspace.workspaceId}/settings`,
+      { headers: user.headers },
+    );
+    expect(verifyResponse.status).toBe(200);
+    const updatedSettings = (await verifyResponse.json()) as { enforcementMode: string };
+    expect(updatedSettings.enforcementMode).toBe("hard");
+  });
+});
+
+// =============================================================================
 // M7-2: Settings page shell -- API returns workspace name in settings context
 // =============================================================================
 describe("M7-2: Settings route loads with workspace name", () => {

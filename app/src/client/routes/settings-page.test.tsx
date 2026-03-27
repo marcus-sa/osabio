@@ -65,12 +65,68 @@ describe("SettingsPage", () => {
     // Should show heading
     expect(screen.getByText("Settings")).toBeInTheDocument();
 
-    // After fetch completes, should show enforcement mode
+    // After fetch completes, should show enforcement mode badge
     await waitFor(() => {
-      expect(screen.getByText("soft")).toBeInTheDocument();
+      const badge = screen.getByTestId("enforcement-mode-badge");
+      expect(badge).toHaveTextContent("soft");
     });
 
     // Should show workspace name
     expect(screen.getByText(WORKSPACE_NAME)).toBeInTheDocument();
+  });
+
+  it("sends PUT request when enforcement mode is changed via selector", async () => {
+    const { SettingsPage } = await import("./settings-page");
+    const { fireEvent } = await import("@testing-library/react");
+
+    const putCalls: Array<{ url: string; body: string }> = [];
+
+    // Override fetch to capture PUT calls and respond to both GET and PUT
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes(`/api/workspaces/${WS}/settings`)) {
+        if (init?.method === "PUT") {
+          putCalls.push({ url, body: init.body as string });
+          return new Response(
+            JSON.stringify({ enforcementMode: "hard", thresholds: { min_decisions: 3, min_tasks: 5 } }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        // GET -- return current state based on whether PUT has been called
+        const currentMode = putCalls.length > 0 ? "hard" : "soft";
+        return new Response(
+          JSON.stringify({
+            enforcementMode: currentMode,
+            thresholds: { min_decisions: 3, min_tasks: 5 },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return originalFetch(input, init);
+    }) as typeof fetch;
+
+    render(<SettingsPage />);
+
+    // Wait for initial load showing 'soft'
+    await waitFor(() => {
+      const badge = screen.getByTestId("enforcement-mode-badge");
+      expect(badge).toHaveTextContent("soft");
+    });
+
+    // Find the enforcement mode selector and change to 'hard'
+    const modeSelector = screen.getByLabelText("Enforcement Mode");
+    fireEvent.change(modeSelector, { target: { value: "hard" } });
+
+    // Verify PUT was called with the correct payload
+    await waitFor(() => {
+      expect(putCalls.length).toBe(1);
+    });
+    expect(JSON.parse(putCalls[0].body)).toEqual({ enforcementMode: "hard" });
+
+    // After successful PUT, the badge should reflect 'hard'
+    await waitFor(() => {
+      const badge = screen.getByTestId("enforcement-mode-badge");
+      expect(badge).toHaveTextContent("hard");
+    });
   });
 });
