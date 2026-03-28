@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAgentActions, type AuthorityScopeInput } from "../hooks/use-agent-actions";
+import { useAgentActions, type AuthorityScopeInput, type CreateAgentResult } from "../hooks/use-agent-actions";
 import { AuthorityScopeForm, AUTHORITY_ACTIONS } from "../components/agent/authority-scope-form";
+import { ProxyTokenDialog } from "../components/agent/proxy-token-dialog";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -36,6 +37,7 @@ export function AgentCreatePage() {
   const [model, setModel] = useState("");
   const [scopes, setScopes] = useState<AuthorityScopeInput[]>(buildDefaultScopes);
   const [nameError, setNameError] = useState<string | undefined>();
+  const [createdResult, setCreatedResult] = useState<CreateAgentResult | undefined>();
 
   const handleNameBlur = useCallback(async () => {
     if (!name.trim()) {
@@ -64,7 +66,11 @@ export function AgentCreatePage() {
     });
 
     if (result) {
-      void navigate({ to: "/agents" });
+      if (result.proxy_token) {
+        setCreatedResult(result);
+      } else {
+        void navigate({ to: "/agents" });
+      }
     }
   }
 
@@ -165,6 +171,18 @@ export function AgentCreatePage() {
           </Button>
         </div>
       </form>
+
+      {createdResult?.proxy_token ? (
+        <ProxyTokenDialog
+          open={true}
+          token={createdResult.proxy_token}
+          agentName={createdResult.agent.name}
+          onClose={() => {
+            setCreatedResult(undefined);
+            void navigate({ to: "/agents" });
+          }}
+        />
+      ) : undefined}
     </section>
   );
 }

@@ -202,4 +202,102 @@ describe("AgentCreatePage", () => {
       });
     });
   });
+
+  it("shows proxy token dialog when creation response includes proxy_token", async () => {
+    stubFetch({
+      "check-name": () =>
+        new Response(JSON.stringify({ available: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      "/agents": (_url, init) => {
+        if (init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              agent: {
+                id: "new-ext-1",
+                name: "External Bot",
+                runtime: "external",
+                identity_id: "id-ext",
+                created_at: "2026-03-28T00:00:00Z",
+              },
+              proxy_token: "brp_secret_token_123",
+              workspace_id: WS,
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    });
+
+    const { AgentCreatePage } = await import("./agent-create-page");
+    render(<AgentCreatePage />);
+
+    // Select external runtime
+    await userEvent.click(screen.getByText("External"));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    });
+
+    // Fill name and submit
+    await userEvent.type(screen.getByLabelText(/name/i), "External Bot");
+    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+
+    // Proxy token dialog should appear with the token
+    await waitFor(() => {
+      expect(screen.getByTestId("proxy-token-value")).toHaveTextContent("brp_secret_token_123");
+    });
+    expect(screen.getByText(/External Bot/)).toBeInTheDocument();
+    expect(screen.getByText(/shown only once/i)).toBeInTheDocument();
+
+    // Should NOT have navigated yet
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("navigates directly to /agents when creation has no proxy_token (sandbox)", async () => {
+    stubFetch({
+      "check-name": () =>
+        new Response(JSON.stringify({ available: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      "/agents": (_url, init) => {
+        if (init?.method === "POST") {
+          return new Response(
+            JSON.stringify({
+              agent: {
+                id: "new-sand-1",
+                name: "Sandbox Bot",
+                runtime: "sandbox",
+                identity_id: "id-sand",
+                created_at: "2026-03-28T00:00:00Z",
+              },
+              workspace_id: WS,
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response("Not found", { status: 404 });
+      },
+    });
+
+    const { AgentCreatePage } = await import("./agent-create-page");
+    render(<AgentCreatePage />);
+
+    // Select sandbox runtime
+    await userEvent.click(screen.getByText("Sandbox"));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    });
+
+    // Fill name and submit
+    await userEvent.type(screen.getByLabelText(/name/i), "Sandbox Bot");
+    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+
+    // Should navigate to /agents since no proxy_token
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith({ to: "/agents" });
+    });
+  });
 });
