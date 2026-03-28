@@ -3,7 +3,7 @@
   "checkpoint_id": "550f09346680",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-crud-discover",
-  "checkpoints_count": 0,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/client/components/agent/proxy-token-dialog.tsx",
     "docs/feature/agent-creation/deliver/execution-log.json",
@@ -17,13 +17,20 @@
       "context": "/55/0f09346680/0/context.md",
       "content_hash": "/55/0f09346680/0/content_hash.txt",
       "prompt": "/55/0f09346680/0/prompt.txt"
+    },
+    {
+      "metadata": "/55/0f09346680/1/metadata.json",
+      "transcript": "/55/0f09346680/1/full.jsonl",
+      "context": "/55/0f09346680/1/context.md",
+      "content_hash": "/55/0f09346680/1/content_hash.txt",
+      "prompt": "/55/0f09346680/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 7,
-    "cache_creation_tokens": 37027,
-    "cache_read_tokens": 215398,
-    "output_tokens": 850,
-    "api_call_count": 5
+    "input_tokens": 1003,
+    "cache_creation_tokens": 67317,
+    "cache_read_tokens": 6501679,
+    "output_tokens": 12499,
+    "api_call_count": 39
   }
 }
