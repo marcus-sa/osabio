@@ -329,10 +329,20 @@ DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 
 DEFINE TABLE agent SCHEMAFULL;
 DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp'];
+DEFINE FIELD runtime ON agent TYPE string ASSERT $value IN ['brain', 'sandbox', 'external'];
+DEFINE FIELD name ON agent TYPE string;
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
 DEFINE FIELD created_at ON agent TYPE datetime;
+DEFINE FIELD sandbox_config ON agent TYPE option<object>;
+DEFINE FIELD sandbox_config.coding_agents ON agent TYPE option<array<string>>;
+DEFINE FIELD sandbox_config.env_vars ON agent TYPE option<array<object>>;
+DEFINE FIELD sandbox_config.env_vars[*].key ON agent TYPE string;
+DEFINE FIELD sandbox_config.env_vars[*].value ON agent TYPE string;
+DEFINE FIELD sandbox_config.image ON agent TYPE option<string>;
+DEFINE FIELD sandbox_config.snapshot ON agent TYPE option<string>;
+DEFINE FIELD sandbox_config.model ON agent TYPE option<string>;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;

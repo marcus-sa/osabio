@@ -159,6 +159,8 @@ async function ensureSingleAgent(
   // Create agent record with managed_by pointing to owner identity
   await surreal.create(agentRecord).content({
     agent_type: template.agentType,
+    runtime: "brain" as const,
+    name: template.name,
     managed_by: ownerIdentity,
     created_at: now,
   });
