@@ -105,7 +105,7 @@ describe("US-UI-03-01: Authority resolves authorized_to edge then global default
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
       workspaceRecord,
       identityRecord: identity,
@@ -125,7 +125,7 @@ describe("US-UI-03-01: Authority resolves authorized_to edge then global default
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
       workspaceRecord,
       identityRecord: identity,
@@ -141,7 +141,7 @@ describe("US-UI-03-01: Authority resolves authorized_to edge then global default
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "create_task",
       workspaceRecord,
       identityRecord: identity,
@@ -157,7 +157,7 @@ describe("US-UI-03-01: Authority resolves authorized_to edge then global default
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       // @ts-expect-error -- testing unknown action fallback
       action: "unknown_action",
       workspaceRecord,

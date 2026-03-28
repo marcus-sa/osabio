@@ -92,13 +92,9 @@ export async function authenticateMcpRequest(
   const scopeString = claims.scope ?? "";
   const scopes = new Set(scopeString.split(" ").filter(Boolean));
 
-  // Agent name from header (free-form string, no closed-set validation)
-  const agentName = request.headers.get("x-agent-type") ?? "code_agent";
-
   return {
     workspaceRecord,
     workspaceName: workspace.name,
-    agentType: agentName,
     identityRecord,
     scopes,
     humanPresent: false as const,

@@ -1,8 +1,5 @@
 import { RecordId, Surreal } from "surrealdb";
 
-/** Agent identity label — free-form string, no longer a closed enum. */
-export type AgentType = string;
-
 export type ChatToolExecutionContext = {
   actor: "chat_agent" | "mcp" | "pm_agent" | "analytics_agent";
   agentType?: string;

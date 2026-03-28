@@ -46,7 +46,7 @@ describe("checkAuthority", () => {
   it("returns global default for create_task (auto)", async () => {
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "create_task",
     });
     expect(result).toBe("auto");
@@ -55,7 +55,7 @@ describe("checkAuthority", () => {
   it("returns global default for confirm_decision (blocked)", async () => {
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
     });
     expect(result).toBe("blocked");
@@ -64,7 +64,7 @@ describe("checkAuthority", () => {
   it("returns global default for create_decision (provisional)", async () => {
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "create_decision",
     });
     expect(result).toBe("provisional");
@@ -73,7 +73,7 @@ describe("checkAuthority", () => {
   it("returns global default for create_observation (auto)", async () => {
     const result = await checkAuthority({
       surreal,
-      agentType: "observer",
+
       action: "create_observation",
     });
     expect(result).toBe("auto");
@@ -82,7 +82,7 @@ describe("checkAuthority", () => {
   it("returns blocked for unknown action", async () => {
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       // @ts-expect-error — testing unknown action fallback
       action: "nonexistent_action",
     });
@@ -105,7 +105,7 @@ describe("checkAuthority", () => {
     // Global default for confirm_decision is blocked
     const globalResult = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
     });
     expect(globalResult).toBe("blocked");
@@ -134,7 +134,7 @@ describe("checkAuthority", () => {
     // With identity, override should win
     const overrideResult = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
       workspaceRecord,
       identityRecord,

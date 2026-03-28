@@ -1,6 +1,6 @@
 import type { ToolExecutionOptions } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import type { AgentType, ChatToolExecutionContext } from "../tools/types";
+import type { ChatToolExecutionContext } from "../tools/types";
 import { requireToolContext } from "../tools/helpers";
 import { jsonError } from "../http/response";
 
@@ -26,22 +26,21 @@ export class AuthorityError extends Error {
   constructor(
     public readonly permission: "propose" | "blocked",
     public readonly action: AuthorityAction,
-    public readonly agentType: AgentType,
+    public readonly agentLabel: string,
   ) {
     const verb = permission === "blocked" ? "not authorized" : "can only propose";
-    super(`${agentType} is ${verb} for action: ${action}`);
+    super(`${agentLabel} is ${verb} for action: ${action}`);
     this.name = "AuthorityError";
   }
 }
 
-const ACTOR_DEFAULT_AGENT_TYPE: Partial<Record<string, AgentType>> = {
+const ACTOR_DEFAULT_LABEL: Partial<Record<string, string>> = {
   pm_agent: "management",
   analytics_agent: "observer",
 };
 
 export async function checkAuthority(input: {
   surreal: Surreal;
-  agentType: AgentType;
   action: AuthorityAction;
   workspaceRecord?: RecordId<"workspace", string>;
   identityRecord?: RecordId<"identity", string>;
@@ -102,22 +101,21 @@ export async function requireAuthorizedContext(
     return { context, permission: "auto" };
   }
 
-  const agentType: AgentType =
-    context.agentType ?? ACTOR_DEFAULT_AGENT_TYPE[context.actor] ?? "code_agent";
+  const agentLabel =
+    context.agentType ?? ACTOR_DEFAULT_LABEL[context.actor] ?? "agent";
 
   const permission = await checkAuthority({
     surreal: deps.surreal,
-    agentType,
     action,
     workspaceRecord: context.workspaceRecord,
   });
 
   if (permission === "blocked") {
-    throw new AuthorityError("blocked", action, agentType);
+    throw new AuthorityError("blocked", action, agentLabel);
   }
 
   if (permission === "propose") {
-    throw new AuthorityError("propose", action, agentType);
+    throw new AuthorityError("propose", action, agentLabel);
   }
 
   // "auto" or "provisional" — caller proceeds (may mark output as provisional)

@@ -105,9 +105,6 @@ function hasTokenOverlap(a: Set<string>, b: Set<string>): boolean {
 export function createMcpRouteHandlers(deps: ServerDependencies) {
   const { surreal } = deps;
 
-  // ---- Default agent label for authority error messages ----
-  const DEFAULT_AGENT_TYPE = "code_agent";
-
   // ---- DPoP verification deps ----
   const lookupWorkspace: LookupWorkspace = async (workspaceId: string) => {
     const workspaceRecord = new RecordId("workspace", workspaceId);
@@ -622,7 +619,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_decision", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_decision", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_decision", auth.actorType);
     if (denied) return denied;
 
@@ -746,7 +743,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_decision", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_decision", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_decision", auth.actorType);
     if (denied) return denied;
 
@@ -798,7 +795,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_question", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_question", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_question", auth.actorType);
     if (denied) return denied;
 
@@ -863,7 +860,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "complete_task", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "complete_task", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "complete_task", auth.actorType);
     if (denied) return denied;
 
@@ -901,7 +898,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_task", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_task", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_task", auth.actorType);
     if (denied) return denied;
 
@@ -979,7 +976,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_observation", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_observation", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_observation", auth.actorType);
     if (denied) return denied;
 
@@ -1617,7 +1614,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
     const auth = await requireAuth(request);
     if (auth instanceof Response) return auth;
 
-    const perm = await checkAuthority({ surreal, agentType: DEFAULT_AGENT_TYPE, action: "create_task", workspaceRecord: auth.workspaceRecord });
+    const perm = await checkAuthority({ surreal, action: "create_task", workspaceRecord: auth.workspaceRecord });
     const denied = checkAuthorityOrError(perm, "create_task", auth.actorType);
     if (denied) return denied;
 
