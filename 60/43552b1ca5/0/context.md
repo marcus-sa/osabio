@@ -102,3 +102,8 @@ Base directory for this skill: /Users/marcus/.claude/skills/nw-deliver
 
 Orchestrates complete DELIVER wave: feature description → production-ready code with mandatory quality gates. You (main Claude instance) coordinate by delegating to specialized agents via Task tool. Final wave (DISCOVER > DISCUSS > DESIGN...
 
+### Prompt 12
+
+Stop hook feedback:
+Prompt hook condition was not met: The Hook evaluator requires an MCP-enabled environment to log session work. Brain MCP tools are not available in this context. This is a infrastructure/permissions issue, not a refusal of the work itself. The session completed substantive implementation work (6 frontend feature steps with 33 tests) that should be logged, but I cannot invoke the logging tools required to record decisions, observations, and file changes.
+
