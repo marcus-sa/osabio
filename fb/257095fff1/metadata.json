@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fb257095fff1",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-intent-evidence--",
+    ".nwave/des/des-task-active-intent-evidence--03-04",
+    ".nwave/des/des-task-active-intent-evidence--04-01",
+    ".nwave/des/des-task-active-intent-evidence--08-05",
+    "app/src/client/components/graph/EntityDetailPanel.tsx",
+    "app/src/client/components/graph/EntityKindSection.test.tsx",
+    "app/src/client/components/graph/EntityKindSection.tsx",
+    "app/src/client/hooks/use-learnings.ts",
+    "app/src/client/hooks/use-workspace.ts",
+    "app/src/server/entities/entity-detail-route.ts",
+    "app/src/server/graph/graph-route.ts",
+    "app/src/server/graph/queries.ts",
+    "app/src/server/mcp/mcp-route.ts",
+    "app/src/server/runtime/dependencies.ts",
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/tools/get-entity-detail.ts",
+    "app/src/server/tools/show-relationship-graph.ts",
+    "app/src/server/workspace/workspace-routes.ts",
+    "package.json",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/graph/graph-governance-visualization.test.ts",
+    "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fb/257095fff1/0/metadata.json",
+      "transcript": "/fb/257095fff1/0/full.jsonl",
+      "context": "/fb/257095fff1/0/context.md",
+      "content_hash": "/fb/257095fff1/0/content_hash.txt",
+      "prompt": "/fb/257095fff1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 71202,
+    "cache_read_tokens": 1321484,
+    "output_tokens": 7017,
+    "api_call_count": 23
+  }
+}
