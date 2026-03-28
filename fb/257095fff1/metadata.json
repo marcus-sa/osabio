@@ -3,7 +3,7 @@
   "checkpoint_id": "fb257095fff1",
   "strategy": "manual-commit",
   "branch": "marcus-sa/intent-evidence-req",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     ".nwave/des-config.json",
     ".nwave/des/des-task-active",
@@ -54,13 +54,20 @@
       "context": "/fb/257095fff1/2/context.md",
       "content_hash": "/fb/257095fff1/2/content_hash.txt",
       "prompt": "/fb/257095fff1/2/prompt.txt"
+    },
+    {
+      "metadata": "/fb/257095fff1/3/metadata.json",
+      "transcript": "/fb/257095fff1/3/full.jsonl",
+      "context": "/fb/257095fff1/3/context.md",
+      "content_hash": "/fb/257095fff1/3/content_hash.txt",
+      "prompt": "/fb/257095fff1/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 49,
-    "cache_creation_tokens": 167847,
-    "cache_read_tokens": 2154548,
-    "output_tokens": 10524,
-    "api_call_count": 40
+    "input_tokens": 4857,
+    "cache_creation_tokens": 947332,
+    "cache_read_tokens": 27721384,
+    "output_tokens": 125665,
+    "api_call_count": 290
   }
 }
