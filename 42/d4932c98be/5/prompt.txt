@@ -1,0 +1,17 @@
+does bun test support https://cucumber.io/docs/guides/10-minute-tutorial?lang=javascript ?
+
+---
+
+can't we just write our own compatible .feature gherkin parser that works with bun or vitest?
+
+---
+
+[Request interrupted by user]
+
+---
+
+https://github.com/amiceli/vitest-cucumber
+
+---
+
+create github issue for migrating from bun to vitest + cucumber
