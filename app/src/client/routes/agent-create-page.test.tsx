@@ -19,7 +19,9 @@ mock.module("@tanstack/react-router", () => ({
     <a href={to} {...rest}>{children}</a>
   ),
   useNavigate: () => mockNavigate,
+  useParams: () => ({}),
   useSearch: () => ({}),
+  useMatchRoute: () => () => false,
 }));
 
 mock.module("../stores/workspace-state", () => ({

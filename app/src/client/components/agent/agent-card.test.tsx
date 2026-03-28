@@ -24,6 +24,10 @@ mock.module("@tanstack/react-router", () => ({
       {children}
     </a>
   ),
+  useNavigate: () => () => {},
+  useParams: () => ({}),
+  useSearch: () => ({}),
+  useMatchRoute: () => () => false,
 }));
 
 // ---------------------------------------------------------------------------

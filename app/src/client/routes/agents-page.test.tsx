@@ -16,7 +16,9 @@ mock.module("@tanstack/react-router", () => ({
     <a href={params ? to.replace("$agentId", params.agentId ?? "") : to} {...rest}>{children}</a>
   ),
   useNavigate: () => mock(() => {}),
+  useParams: () => ({}),
   useSearch: () => ({}),
+  useMatchRoute: () => () => false,
 }));
 
 mock.module("../stores/workspace-state", () => ({

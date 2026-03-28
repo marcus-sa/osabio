@@ -20,6 +20,8 @@ mock.module("@tanstack/react-router", () => ({
   ),
   useParams: () => ({ agentId: AGENT_ID }),
   useNavigate: () => mockNavigate,
+  useSearch: () => ({}),
+  useMatchRoute: () => () => false,
 }));
 
 mock.module("../stores/workspace-state", () => ({
