@@ -1,6 +1,5 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { jsonError } from "../http/response";
-import type { AgentType } from "../tools/types";
 import { createJwtValidator, type BrainTokenClaims } from "./token-validation";
 import type { McpAuthResult } from "./types";
 
@@ -8,10 +7,6 @@ type WorkspaceRow = {
   id: RecordId<"workspace", string>;
   name: string;
 };
-
-const VALID_AGENT_TYPES = new Set<AgentType>([
-  "code_agent", "architect", "management", "design_partner", "observer",
-]);
 
 const validatorsByIssuer = new Map<string, (token: string) => Promise<BrainTokenClaims>>();
 
@@ -97,17 +92,13 @@ export async function authenticateMcpRequest(
   const scopeString = claims.scope ?? "";
   const scopes = new Set(scopeString.split(" ").filter(Boolean));
 
-  // Agent type from header or from token claim
-  const claimedAgentType = claims["urn:brain:agent_type"];
-  const rawAgentType = request.headers.get("x-agent-type") ?? claimedAgentType ?? "code_agent";
-  if (!VALID_AGENT_TYPES.has(rawAgentType as AgentType)) {
-    return jsonError(`invalid agent type: ${rawAgentType}`, 400);
-  }
+  // Agent name from header (free-form string, no closed-set validation)
+  const agentName = request.headers.get("x-agent-type") ?? "code_agent";
 
   return {
     workspaceRecord,
     workspaceName: workspace.name,
-    agentType: rawAgentType as AgentType,
+    agentType: agentName,
     identityRecord,
     scopes,
     humanPresent: false as const,

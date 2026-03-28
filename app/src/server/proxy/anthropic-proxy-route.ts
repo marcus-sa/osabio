@@ -785,7 +785,7 @@ export function createAnthropicProxyHandler(
       setSpanAttributes({
         "proxy.workspace_id": identitySignals.workspaceId,
         "proxy.task_id": identitySignals.taskId,
-        "proxy.agent_type": identitySignals.agentType,
+        "proxy.agent_name": identitySignals.agentType,
         "proxy.session_header": identitySignals.sessionHeaderId,
       });
 
@@ -1050,7 +1050,7 @@ export function createAnthropicProxyHandler(
         session_id: effectiveSessionId,
         workspace_id: identitySignals.workspaceId,
         task_id: identitySignals.taskId,
-        agent_type: identitySignals.agentType,
+        agent_name: identitySignals.agentType,
         identity_id: identitySignals.proxyTokenIdentityId,
         is_count_tokens: isCountTokens || undefined,
       };

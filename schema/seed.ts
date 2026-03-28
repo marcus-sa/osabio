@@ -223,10 +223,10 @@ async function seedIdentities(ctx: SeedCtx): Promise<void> {
   ctx.human = human;
 
   // Agent identities
-  const agentDefs: Array<{ key: keyof Pick<SeedCtx, "coder" | "architect" | "observer">; name: string; agentType: string }> = [
-    { key: "coder", name: "Coding Agent", agentType: "code_agent" },
-    { key: "architect", name: "Architect Agent", agentType: "architect" },
-    { key: "observer", name: "Observer Agent", agentType: "observer" },
+  const agentDefs: Array<{ key: keyof Pick<SeedCtx, "coder" | "architect" | "observer">; name: string; runtime: string }> = [
+    { key: "coder", name: "Coding Agent", runtime: "external" },
+    { key: "architect", name: "Architect Agent", runtime: "brain" },
+    { key: "observer", name: "Observer Agent", runtime: "brain" },
   ];
 
   for (const def of agentDefs) {
@@ -240,7 +240,8 @@ async function seedIdentities(ctx: SeedCtx): Promise<void> {
     await relate(db, identity.record, "member_of", ws.record, { added_at: ago(10080) });
 
     const agent = await create(db, "agent", {
-      agent_type: def.agentType,
+      runtime: def.runtime,
+      name: def.name,
       description: `${def.name} for Acme Analytics`,
       managed_by: human.record,
       created_at: ago(10080),
@@ -1505,7 +1506,6 @@ async function seedAuthority(ctx: SeedCtx): Promise<void> {
 
   // Workspace-scoped authority overrides
   const scopeOverride = await create(db, "authority_scope", {
-    agent_type: "code_agent",
     action: "confirm_decision",
     permission: "provisional",
     workspace: ws.record,

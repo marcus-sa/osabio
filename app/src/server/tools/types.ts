@@ -1,10 +1,11 @@
 import { RecordId, Surreal } from "surrealdb";
 
-export type AgentType = "code_agent" | "architect" | "management" | "design_partner" | "observer";
+/** Agent identity label — free-form string, no longer a closed enum. */
+export type AgentType = string;
 
 export type ChatToolExecutionContext = {
   actor: "chat_agent" | "mcp" | "pm_agent" | "analytics_agent";
-  agentType?: AgentType;
+  agentType?: string;
   /** True only for interactive web sessions where a human is actively present. Derived from identity.type === 'human'. */
   humanPresent?: boolean;
   identityRecord: RecordId<"identity", string>;

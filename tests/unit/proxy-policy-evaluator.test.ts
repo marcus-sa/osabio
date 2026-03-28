@@ -3,7 +3,7 @@
  *
  * Tests the pure model access evaluation logic extracted from the policy evaluator.
  * No DB, no IO. Validates that model access rules are correctly applied
- * based on agent_type and allowed model lists.
+ * based on agent role and allowed model lists.
  */
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
