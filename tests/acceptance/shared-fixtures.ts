@@ -610,8 +610,7 @@ export async function createAgentSessionDirectly(
 /**
  * Creates a brain agent directly in SurrealDB (for seeding test state).
  * Mirrors the identity bootstrap that creates system agents.
- * Writes both `runtime` and `agent_type` fields — this matches the parallel-write
- * migration strategy (ADR-081) where both fields coexist during the transition period.
+ * Writes `runtime` and `name` fields to match the agent schema.
  */
 export async function seedBrainAgent(
   surreal: Surreal,
@@ -630,7 +629,6 @@ export async function seedBrainAgent(
     content: {
       name,
       runtime: "brain",
-      agent_type: opts?.agentType ?? "chat_agent",
       description: opts?.description ?? `Brain agent: ${name}`,
       managed_by: identityRecord,
       created_at: new Date(),

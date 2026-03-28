@@ -6,18 +6,62 @@ import { log } from "../telemetry/logger";
 
 type IdentityType = "human" | "agent";
 
+type AuthorityPermission = "auto" | "provisional" | "blocked";
+
 type AgentTemplate = {
-  readonly agentType: string;
   readonly role: string;
   readonly name: string;
+  readonly permissions: Record<string, AuthorityPermission>;
 };
 
 // -- Constants --
 
+const MANAGEMENT_PERMISSIONS: Record<string, AuthorityPermission> = {
+  create_decision: "provisional",
+  confirm_decision: "blocked",
+  create_task: "auto",
+  complete_task: "auto",
+  create_observation: "auto",
+  acknowledge_observation: "auto",
+  resolve_observation: "auto",
+  create_question: "auto",
+  create_suggestion: "auto",
+  create_intent: "auto",
+  submit_intent: "auto",
+};
+
+const CODER_PERMISSIONS: Record<string, AuthorityPermission> = {
+  create_decision: "provisional",
+  confirm_decision: "blocked",
+  create_task: "auto",
+  complete_task: "auto",
+  create_observation: "auto",
+  acknowledge_observation: "auto",
+  resolve_observation: "blocked",
+  create_question: "auto",
+  create_suggestion: "auto",
+  create_intent: "auto",
+  submit_intent: "auto",
+};
+
+const OBSERVER_PERMISSIONS: Record<string, AuthorityPermission> = {
+  create_decision: "blocked",
+  confirm_decision: "blocked",
+  create_task: "blocked",
+  complete_task: "blocked",
+  create_observation: "auto",
+  acknowledge_observation: "blocked",
+  resolve_observation: "blocked",
+  create_question: "auto",
+  create_suggestion: "blocked",
+  create_intent: "blocked",
+  submit_intent: "blocked",
+};
+
 const TEMPLATE_AGENTS: readonly AgentTemplate[] = [
-  { agentType: "management", role: "management", name: "Management Agent" },
-  { agentType: "code_agent", role: "coder", name: "Code Agent" },
-  { agentType: "observer", role: "observer", name: "Observer Agent" },
+  { role: "management", name: "Management Agent", permissions: MANAGEMENT_PERMISSIONS },
+  { role: "coder", name: "Code Agent", permissions: CODER_PERMISSIONS },
+  { role: "observer", name: "Observer Agent", permissions: OBSERVER_PERMISSIONS },
 ] as const;
 
 // -- Pure helpers --
@@ -147,7 +191,7 @@ async function ensureSingleAgent(
   if (existing) {
     log.info("identity.bootstrap.agent_exists", "Agent identity already exists, skipping", {
       workspaceId: workspaceRecord.id as string,
-      agentType: template.agentType,
+      role: template.role,
     });
     return;
   }
@@ -158,7 +202,6 @@ async function ensureSingleAgent(
 
   // Create agent record with managed_by pointing to owner identity
   await surreal.create(agentRecord).content({
-    agent_type: template.agentType,
     runtime: "brain" as const,
     name: template.name,
     managed_by: ownerIdentity,
@@ -181,8 +224,45 @@ async function ensureSingleAgent(
     })
     .output("after");
 
+  // Create member_of edge from identity to workspace
+  await surreal
+    .relate(identityRecord, new RecordId("member_of", randomUUID()), workspaceRecord, {
+      role: "agent",
+      added_at: now,
+    })
+    .output("after");
+
+  // Create authorized_to edges for each action
+  await createAuthorityEdges(surreal, identityRecord, template.permissions, now);
+
   log.info("identity.bootstrap.agent_created", "Agent identity created", {
     workspaceId: workspaceRecord.id as string,
-    agentType: template.agentType,
+    role: template.role,
   });
+}
+
+async function createAuthorityEdges(
+  surreal: Surreal,
+  identityRecord: RecordId<"identity", string>,
+  permissions: Record<string, AuthorityPermission>,
+  now: Date,
+): Promise<void> {
+  // Look up all global authority_scope records
+  const [scopeRows] = await surreal.query<[Array<{ id: RecordId<"authority_scope", string>; action: string }>]>(
+    "SELECT id, action FROM authority_scope WHERE workspace IS NONE;",
+  );
+
+  for (const scopeRow of scopeRows) {
+    const permission = permissions[scopeRow.action];
+    if (!permission) continue;
+
+    await surreal
+      .relate(
+        identityRecord,
+        new RecordId("authorized_to", randomUUID()),
+        scopeRow.id,
+        { permission, created_at: now },
+      )
+      .output("after");
+  }
 }

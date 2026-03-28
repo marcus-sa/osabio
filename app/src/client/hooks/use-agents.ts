@@ -27,7 +27,8 @@ export function buildAgentsUrl(workspaceId: string): string {
 export function groupByRuntime(agents: AgentListItem[]): Record<AgentRuntime, AgentListItem[]> {
   const groups: Record<AgentRuntime, AgentListItem[]> = { brain: [], sandbox: [], external: [] };
   for (const agent of agents) {
-    groups[agent.runtime].push(agent);
+    const bucket = groups[agent.runtime];
+    if (bucket) bucket.push(agent);
   }
   return groups;
 }

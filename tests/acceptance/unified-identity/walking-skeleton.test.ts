@@ -144,7 +144,6 @@ describe("Walking Skeleton: identity hub-and-spoke model delivers unified actor 
     await surreal.query("CREATE $record CONTENT $content;", {
       record: agentRecord,
       content: {
-        agent_type: "management",
         runtime: "brain",
         name: "PM Agent",
         model: "claude-sonnet-4-20250514",

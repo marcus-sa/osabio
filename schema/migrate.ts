@@ -182,9 +182,9 @@ async function main() {
       const stream = surreal.query(sql).stream();
       let stmtIndex = 0;
       for await (const frame of stream) {
-        if ((frame as any).status === "ERR") {
+        if (frame.isError()) {
           console.error(`✗ Failed: ${file} (statement ${stmtIndex})`);
-          console.error(`  → ${(frame as any).result}`);
+          console.error(`  → ${frame.error.message}`);
           await surreal.close();
           process.exit(1);
         }

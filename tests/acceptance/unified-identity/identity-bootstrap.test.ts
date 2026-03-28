@@ -89,9 +89,9 @@ describe("US-UI-002: Identity wrapping and agent registration bootstrap", () => 
     // Each agent identity should have a spoke edge to an agent record
     for (const agentIdentity of agentIdentities) {
       const [spokes] = await surreal.query<
-        [Array<{ agent_type: string }>]
+        [Array<{ agent_name: string }>]
       >(
-        "SELECT ->identity_agent->agent.agent_type AS agent_type FROM identity WHERE workspace = $ws AND name = $name;",
+        "SELECT ->identity_agent->agent.name AS agent_name FROM identity WHERE workspace = $ws AND name = $name;",
         { ws: wsRecord, name: agentIdentity.name },
       );
       expect(spokes.length).toBeGreaterThan(0);

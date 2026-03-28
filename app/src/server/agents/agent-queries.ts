@@ -177,14 +177,12 @@ export async function createAgentTransaction(
     wsRecord: workspaceRecord,
     agentName: input.name,
     agentRuntime: input.runtime,
-    agentType: "mcp", // custom agents default to "mcp" agent_type
     now,
   };
 
   // Step 2: CREATE agent
   statements.push(
     `CREATE $agentRecord CONTENT {
-      agent_type: $agentType,
       runtime: $agentRuntime,
       name: $agentName,
       ${input.description ? "description: $agentDescription," : ""}

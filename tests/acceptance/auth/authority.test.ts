@@ -43,7 +43,7 @@ afterAll(async () => {
 });
 
 describe("checkAuthority", () => {
-  it("returns auto for code_agent create_task", async () => {
+  it("returns global default for create_task (auto)", async () => {
     const result = await checkAuthority({
       surreal,
       agentType: "code_agent",
@@ -52,7 +52,7 @@ describe("checkAuthority", () => {
     expect(result).toBe("auto");
   });
 
-  it("returns blocked for code_agent confirm_decision", async () => {
+  it("returns global default for confirm_decision (blocked)", async () => {
     const result = await checkAuthority({
       surreal,
       agentType: "code_agent",
@@ -61,7 +61,7 @@ describe("checkAuthority", () => {
     expect(result).toBe("blocked");
   });
 
-  it("returns provisional for code_agent create_decision", async () => {
+  it("returns global default for create_decision (provisional)", async () => {
     const result = await checkAuthority({
       surreal,
       agentType: "code_agent",
@@ -70,31 +70,13 @@ describe("checkAuthority", () => {
     expect(result).toBe("provisional");
   });
 
-  it("returns blocked for observer create_task", async () => {
-    const result = await checkAuthority({
-      surreal,
-      agentType: "observer",
-      action: "create_task",
-    });
-    expect(result).toBe("blocked");
-  });
-
-  it("returns auto for observer create_observation", async () => {
+  it("returns global default for create_observation (auto)", async () => {
     const result = await checkAuthority({
       surreal,
       agentType: "observer",
       action: "create_observation",
     });
     expect(result).toBe("auto");
-  });
-
-  it("returns provisional for design_partner create_task", async () => {
-    const result = await checkAuthority({
-      surreal,
-      agentType: "design_partner",
-      action: "create_task",
-    });
-    expect(result).toBe("provisional");
   });
 
   it("returns blocked for unknown action", async () => {
@@ -107,7 +89,7 @@ describe("checkAuthority", () => {
     expect(result).toBe("blocked");
   });
 
-  it("workspace-specific override takes precedence", async () => {
+  it("per-identity authorized_to edge overrides global default", async () => {
     const workspaceRecord = new RecordId("workspace", "test-ws-override");
     await surreal.create(workspaceRecord).content({
       name: "test-override",
@@ -120,42 +102,44 @@ describe("checkAuthority", () => {
       onboarding_started_at: new Date(),
     });
 
-    // Global default is auto
+    // Global default for confirm_decision is blocked
     const globalResult = await checkAuthority({
       surreal,
       agentType: "code_agent",
-      action: "create_task",
+      action: "confirm_decision",
     });
-    expect(globalResult).toBe("auto");
+    expect(globalResult).toBe("blocked");
 
-    // Create workspace-specific override to blocked
-    await surreal.query(
-      `CREATE authority_scope CONTENT {
-        agent_type: "code_agent",
-        action: "create_task",
-        permission: "blocked",
-        workspace: $workspace,
-        created_at: time::now()
-      };`,
-      { workspace: workspaceRecord },
+    // Create an agent identity with an authorized_to override granting auto
+    const identityRecord = new RecordId("identity", `test-override-${randomUUID()}`);
+    await surreal.create(identityRecord).content({
+      name: "Override Agent",
+      type: "agent",
+      role: "custom",
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    });
+
+    const [scopeRows] = await surreal.query<[Array<{ id: RecordId }>]>(
+      "SELECT id FROM authority_scope WHERE action = 'confirm_decision' AND workspace IS NONE LIMIT 1;",
     );
 
-    // Workspace-specific should win
-    const wsResult = await checkAuthority({
-      surreal,
-      agentType: "code_agent",
-      action: "create_task",
-      workspaceRecord,
-    });
-    expect(wsResult).toBe("blocked");
+    await surreal.relate(
+      identityRecord,
+      new RecordId("authorized_to", randomUUID()),
+      scopeRows[0].id,
+      { permission: "auto", created_at: new Date() },
+    ).output("after");
 
-    // Without workspace, still global default
-    const stillGlobal = await checkAuthority({
+    // With identity, override should win
+    const overrideResult = await checkAuthority({
       surreal,
       agentType: "code_agent",
-      action: "create_task",
+      action: "confirm_decision",
+      workspaceRecord,
+      identityRecord,
     });
-    expect(stillGlobal).toBe("auto");
+    expect(overrideResult).toBe("auto");
   });
 });
 

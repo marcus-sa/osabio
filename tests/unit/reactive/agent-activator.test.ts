@@ -197,10 +197,10 @@ describe("createAgentActivatorHandler", () => {
       query: async (sql: string, _bindings?: unknown) => {
         queryCallCount++;
         // loadWorkspaceAgents: LET + SELECT agent
-        if (sql.includes("SELECT id, agent_type, description FROM agent")) {
+        if (sql.includes("SELECT id, name, description FROM agent")) {
           return [
             undefined, // LET result
-            [{ id: { id: "agent-1", table: { name: "agent" } }, agent_type: "code_agent", description: "Coding agent" }],
+            [{ id: { id: "agent-1", table: { name: "agent" } }, name: "code_agent", description: "Coding agent" }],
           ];
         }
         // resolveObservationTarget
