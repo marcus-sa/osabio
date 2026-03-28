@@ -61,6 +61,13 @@
       "context": "/fb/257095fff1/3/context.md",
       "content_hash": "/fb/257095fff1/3/content_hash.txt",
       "prompt": "/fb/257095fff1/3/prompt.txt"
+    },
+    {
+      "metadata": "/fb/257095fff1/4/metadata.json",
+      "transcript": "/fb/257095fff1/4/full.jsonl",
+      "context": "/fb/257095fff1/4/context.md",
+      "content_hash": "/fb/257095fff1/4/content_hash.txt",
+      "prompt": "/fb/257095fff1/4/prompt.txt"
     }
   ],
   "token_usage": {

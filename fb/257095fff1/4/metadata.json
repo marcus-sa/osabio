@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "fb257095fff1",
+  "session_id": "47f61b32-a334-4638-b70c-7beac01ed83d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T08:43:22.280685Z",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-intent-evidence--",
+    ".nwave/des/des-task-active-intent-evidence--03-04",
+    ".nwave/des/des-task-active-intent-evidence--04-01",
+    ".nwave/des/des-task-active-intent-evidence--08-05",
+    "package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a7bde1c78909",
+  "checkpoint_transcript_start": 58,
+  "transcript_lines_at_start": 58,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T08:43:22.262979Z",
+    "agent_lines": 2,
+    "human_added": 2253,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2255,
+    "agent_percentage": 0.08869179600886917
+  }
+}
