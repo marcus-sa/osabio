@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7ba5bb6cce03",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/intent-evidence-req",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/architecture/intent-evidence/architecture-design.md",
+    "docs/architecture/intent-evidence/component-boundaries.md",
+    "docs/architecture/intent-evidence/data-models.md",
+    "docs/architecture/intent-evidence/technology-stack.md",
+    "docs/evolution/2026-03-28-intent-evidence.md",
+    "docs/scenarios/intent-evidence/test-scenarios.md",
+    "docs/scenarios/intent-evidence/walking-skeleton.md",
+    "docs/ux/intent-evidence/journey-evidence-lifecycle-visual.md",
+    "docs/ux/intent-evidence/journey-evidence-lifecycle.feature",
+    "docs/ux/intent-evidence/journey-evidence-lifecycle.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7b/a5bb6cce03/0/metadata.json",
+      "transcript": "/7b/a5bb6cce03/0/full.jsonl",
+      "context": "/7b/a5bb6cce03/0/context.md",
+      "content_hash": "/7b/a5bb6cce03/0/content_hash.txt",
+      "prompt": "/7b/a5bb6cce03/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 69898,
+    "cache_read_tokens": 1160861,
+    "output_tokens": 6694,
+    "api_call_count": 21
+  }
+}
