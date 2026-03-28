@@ -7,7 +7,7 @@ function resolveBackground(): string {
   return value;
 }
 import type { GraphResponse, ReagraphEdge } from "../../../shared/contracts";
-import { edgeStyle } from "./graph-theme";
+import { edgeStyle, resolvedEntityColor } from "./graph-theme";
 
 export function KnowledgeGraph({
   workspaceId,
@@ -105,7 +105,7 @@ export function KnowledgeGraph({
       <GraphCanvas
         ref={graphRef}
         theme={graphTheme}
-        nodes={data.nodes as any}
+        nodes={data.nodes.map((n) => ({ ...n, fill: resolvedEntityColor(n.data.kind) })) as any}
         edges={styledEdges as any}
         selections={selectedId ? [selectedId.includes(":") ? selectedId.slice(selectedId.indexOf(":") + 1) : selectedId] : []}
         layoutType="forceDirected2d"

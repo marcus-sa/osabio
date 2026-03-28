@@ -1,21 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { entityColor, transformToReagraph } from "../../app/src/server/graph/transform";
+import { transformToReagraph } from "../../app/src/server/graph/transform";
 import type { GraphViewRawResult } from "../../app/src/server/graph/queries";
-
-describe("entityColor", () => {
-  it("returns hex color for each entity kind", () => {
-    expect(entityColor("project")).toBe("#3b82f6");
-    expect(entityColor("feature")).toBe("#14b8a6");
-    expect(entityColor("task")).toBe("#22c55e");
-    expect(entityColor("decision")).toBe("#eab308");
-    expect(entityColor("question")).toBe("#a855f7");
-    expect(entityColor("observation")).toBe("#ef4444");
-    expect(entityColor("person")).toBe("#f97316");
-    expect(entityColor("workspace")).toBe("#3b82f6");
-    expect(entityColor("objective")).toBe("#10b981");
-    expect(entityColor("behavior")).toBe("#8b5cf6");
-  });
-});
 
 describe("transformToReagraph", () => {
   it("returns empty arrays for empty input", () => {
@@ -40,7 +25,6 @@ describe("transformToReagraph", () => {
     expect(result.nodes[0]).toEqual({
       id: "abc123",
       label: "Build the login page",
-      fill: "#22c55e",
       data: {
         kind: "task",
         connectionCount: 0,
@@ -51,7 +35,6 @@ describe("transformToReagraph", () => {
     expect(result.nodes[1]).toEqual({
       id: "def456",
       label: "Use JWT for auth",
-      fill: "#eab308",
       data: {
         kind: "decision",
         connectionCount: 0,
@@ -136,7 +119,7 @@ describe("transformToReagraph", () => {
     expect(countByNode.get("c")).toBe(2);  // 2 edges + task kindBoost 0
   });
 
-  it("maps objective nodes with emerald color", () => {
+  it("maps objective nodes", () => {
     const raw: GraphViewRawResult = {
       entities: [
         { id: "obj1", kind: "objective", name: "Increase test coverage" },
@@ -148,7 +131,6 @@ describe("transformToReagraph", () => {
     expect(result.nodes[0]).toEqual({
       id: "obj1",
       label: "Increase test coverage",
-      fill: "#10b981",
       data: {
         kind: "objective",
         connectionCount: 0,
@@ -157,7 +139,7 @@ describe("transformToReagraph", () => {
     });
   });
 
-  it("maps behavior nodes with violet color", () => {
+  it("maps behavior nodes", () => {
     const raw: GraphViewRawResult = {
       entities: [
         { id: "beh1", kind: "behavior", name: "TDD_Adherence" },
@@ -169,7 +151,6 @@ describe("transformToReagraph", () => {
     expect(result.nodes[0]).toEqual({
       id: "beh1",
       label: "TDD_Adherence",
-      fill: "#8b5cf6",
       data: {
         kind: "behavior",
         connectionCount: 0,

@@ -333,7 +333,6 @@ export type SearchEntityResponse = {
 export type ReagraphNode = {
   id: string;
   label: string;
-  fill: string;
   data: {
     kind: EntityKind;
     connectionCount: number;
