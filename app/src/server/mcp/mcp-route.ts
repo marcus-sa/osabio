@@ -37,6 +37,7 @@ import {
 } from "../suggestion/queries";
 import { OBSERVATION_TYPES, SUGGESTION_CATEGORIES, type ObservationType, type ObservationSeverity, type SuggestionCategory } from "../../shared/contracts";
 import {
+  ALL_ENTITY_TABLES,
   createDecisionRecord,
   createQuestionRecord,
   getEntityDetail,
@@ -79,7 +80,6 @@ async function parseJsonBody<T>(request: Request): Promise<T | Response> {
   }
 }
 
-const ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "observation", "suggestion"];
 
 function normalizeTokens(value: string): Set<string> {
   return new Set(
@@ -601,7 +601,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
 
     try {
-      const entityRecord = parseRecordIdString(entityId, ENTITY_TABLES);
+      const entityRecord = parseRecordIdString(entityId, ALL_ENTITY_TABLES);
       const detail = await getEntityDetail({
         surreal,
         workspaceRecord: auth.workspaceRecord,
@@ -957,7 +957,7 @@ export function createMcpRouteHandlers(deps: ServerDependencies) {
 
     let entityRecord: RecordId<GraphEntityTable, string>;
     try {
-      entityRecord = parseRecordIdString(body.entity_id, ENTITY_TABLES);
+      entityRecord = parseRecordIdString(body.entity_id, ALL_ENTITY_TABLES);
     } catch {
       return jsonError("entity_id must be a valid table:id reference", 400);
     }

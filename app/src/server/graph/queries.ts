@@ -4,6 +4,8 @@ export { searchEntitiesByBm25 } from "./bm25-search";
 
 export type GraphEntityTable = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "policy" | "intent" | "agent_session" | "objective" | "behavior" | "learning" | "git_commit";
 
+export const ALL_ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "identity", "feature", "task", "decision", "question", "observation", "suggestion", "policy", "intent", "agent_session", "objective", "behavior", "learning", "git_commit"];
+
 export type GraphEntityRecord = RecordId<GraphEntityTable, string>;
 
 export type SearchEntityKind = "project" | "feature" | "task" | "decision" | "question" | "suggestion";
@@ -977,6 +979,22 @@ export async function getEntityDetail(input: {
 
   // Resolve identity attribution for entities with an owner field
   const attribution = await resolveEntityAttribution(input.surreal, input.entityRecord, table);
+
+  // Resolve evidence ref names for intents
+  const rawEvidenceRefs = row.evidence_refs as RecordId[] | undefined;
+  if (table === "intent" && rawEvidenceRefs && rawEvidenceRefs.length > 0) {
+    const resolved = await Promise.all(
+      rawEvidenceRefs.map(async (ref) => {
+        const refName = await readEntityName(input.surreal, ref as GraphEntityRecord);
+        return {
+          table: ref.table.name,
+          id: ref.id as string,
+          name: refName ?? ref.id as string,
+        };
+      }),
+    );
+    row.evidence_refs = resolved;
+  }
 
   return {
     entity: {

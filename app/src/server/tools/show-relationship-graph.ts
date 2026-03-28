@@ -1,9 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
+  ALL_ENTITY_TABLES,
   getFocusedGraphView,
   parseRecordIdString,
-  type GraphEntityTable,
   type GraphViewRawResult,
 } from "../graph/queries";
 import { requireToolContext } from "./helpers";
@@ -32,7 +32,6 @@ function mergeGraphResults(results: GraphViewRawResult[]): GraphViewRawResult {
   };
 }
 
-const ENTITY_TABLES: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question"];
 
 export function createShowRelationshipGraphTool(deps: ChatToolDeps) {
   return tool({
@@ -49,7 +48,7 @@ export function createShowRelationshipGraphTool(deps: ChatToolDeps) {
       const context = requireToolContext(options);
 
       const entityRecords = input.entity_ids.map((id) =>
-        parseRecordIdString(id, ENTITY_TABLES) as ReturnType<typeof parseRecordIdString<GraphEntityTable>>,
+        parseRecordIdString(id, ALL_ENTITY_TABLES),
       );
 
       const rawResults = await Promise.all(

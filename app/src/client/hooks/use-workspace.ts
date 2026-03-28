@@ -52,12 +52,28 @@ export function useWorkspace(): UseWorkspaceReturn {
 
   useEffect(() => {
     const existingWorkspaceId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
-    if (!existingWorkspaceId) {
+    if (existingWorkspaceId) {
+      void bootstrapWorkspace(existingWorkspaceId);
       return;
     }
 
-    void bootstrapWorkspace(existingWorkspaceId);
+    // No cached workspace — try to resolve from the person's identity chain
+    void resolveMyWorkspace();
   }, []);
+
+  async function resolveMyWorkspace() {
+    try {
+      const response = await fetch("/api/workspaces/mine");
+      if (!response.ok) return;
+      const data = (await response.json()) as { workspaceId?: string; workspaceName?: string };
+      if (data.workspaceId) {
+        window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, data.workspaceId);
+        void bootstrapWorkspace(data.workspaceId);
+      }
+    } catch {
+      // No workspace found — user will see create form
+    }
+  }
 
   async function bootstrapWorkspace(workspaceId: string) {
     store.setIsBootstrapping(true);

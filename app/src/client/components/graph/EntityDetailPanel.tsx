@@ -272,7 +272,7 @@ export function EntityDetailPanel({
 
       <DescriptionSection data={detail.entity.data} kind={kind} onEntityClick={onEntityClick} />
 
-      <EntityKindSection kind={kind} data={detail.entity.data} />
+      <EntityKindSection kind={kind} data={detail.entity.data} onEntityClick={onEntityClick} />
 
       {rationale ? (
         <div className="flex flex-col gap-1 px-4">

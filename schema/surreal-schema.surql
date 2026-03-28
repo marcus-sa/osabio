@@ -967,12 +967,15 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
   LET $agent_sessions = (SELECT VALUE out FROM gates WHERE `in` IN $intents);
   LET $objectives = (SELECT VALUE out FROM has_objective WHERE `in` = $ws OR `in` IN $projects);
   LET $behaviors = (SELECT VALUE id FROM behavior WHERE workspace = $ws);
+  LET $learnings = (SELECT VALUE id FROM learning WHERE workspace = $ws);
+  LET $git_commits = (SELECT VALUE id FROM git_commit WHERE workspace = $ws);
   RETURN array::distinct(
     [$ws] + $projects + $features + $feature_tasks + $workspace_tasks +
     $belongs_project + $belongs_feature +
     $identities + $provenance +
     $policies + $intents + $agent_sessions +
-    $objectives + $behaviors
+    $objectives + $behaviors +
+    $learnings + $git_commits
   );
 };
 

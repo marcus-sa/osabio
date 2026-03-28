@@ -22,6 +22,8 @@ import {
   createEvidenceObservation,
   createEvidenceLearning,
   createEvidenceGitCommit,
+  createEvidenceDecision,
+  createEvidenceTask,
   createIntentWithEvidence,
   setWorkspaceEnforcementMode,
   simulateEvaluation,
@@ -281,5 +283,63 @@ describe("M6-4: Entity detail for intent entity kind", () => {
     expect(body.entity.kind).toBe("intent");
     expect(body.entity.data.goal).toBe("Reroute shipments through alternate port due to congestion");
     expect(body.entity.data.status).toBeDefined();
+  });
+});
+
+// =============================================================================
+// M6-5: Entity detail resolves evidence ref names for intents
+// =============================================================================
+describe("M6-5: Entity detail resolves evidence ref names for intents", () => {
+  it("returns evidence_refs as objects with table, id, and resolved name", async () => {
+    const { baseUrl, surreal } = getRuntime();
+
+    // Given a workspace with a decision and a task
+    const user = await createTestUser(baseUrl, "m6-evidence-names");
+    const workspace = await createTestWorkspace(baseUrl, user);
+    const agentId = await createTestIdentity(surreal, "compliance-agent", "agent", workspace.workspaceId);
+
+    const decision = await createEvidenceDecision(surreal, workspace.workspaceId, {
+      summary: "Standardize on event sourcing for audit trail",
+    });
+    const task = await createEvidenceTask(surreal, workspace.workspaceId, {
+      title: "Implement quarterly revenue reconciliation",
+    });
+
+    // And an intent referencing both as evidence
+    const { intentId } = await createIntentWithEvidence(
+      surreal, workspace.workspaceId, agentId,
+      {
+        goal: "Run quarterly compliance audit with full evidence chain",
+        reasoning: "Decision and task provide compliance backing",
+        evidenceRefs: [decision.decisionRecord, task.taskRecord],
+      },
+    );
+
+    // When entity detail is requested for the intent
+    const entityId = `intent:${intentId}`;
+    const response = await fetch(
+      `${baseUrl}/api/entities/${entityId}?workspaceId=${workspace.workspaceId}`,
+      { headers: user.headers },
+    );
+
+    // Then the response is successful
+    expect(response.status).toBe(200);
+
+    const body: EntityDetailResponse = await response.json();
+
+    // And evidence_refs are resolved objects with table, id, and name
+    const refs = body.entity.data.evidence_refs as Array<{ table: string; id: string; name: string }>;
+    expect(refs).toBeDefined();
+    expect(refs.length).toBe(2);
+
+    const decisionRef = refs.find((r) => r.table === "decision");
+    expect(decisionRef).toBeDefined();
+    expect(decisionRef!.id).toBe(decision.decisionId);
+    expect(decisionRef!.name).toBe("Standardize on event sourcing for audit trail");
+
+    const taskRef = refs.find((r) => r.table === "task");
+    expect(taskRef).toBeDefined();
+    expect(taskRef!.id).toBe(task.taskId);
+    expect(taskRef!.name).toBe("Implement quarterly revenue reconciliation");
   });
 });

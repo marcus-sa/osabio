@@ -49,6 +49,10 @@ let failedIntentRecord: RecordId<"intent", string>;
 // Agent session for gates edge
 let agentSessionRecord: RecordId<"agent_session", string>;
 
+// Learning and git_commit records
+let learningRecord: RecordId<"learning", string>;
+let gitCommitRecord: RecordId<"git_commit", string>;
+
 beforeAll(async () => {
   const runId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
   namespace = `smoke_gov_viz_${runId}`;
@@ -187,6 +191,37 @@ beforeAll(async () => {
     policy: testingPolicyRecord,
     workspace: workspaceRecord,
     now,
+  });
+
+  // ── Learning ──
+  learningRecord = new RecordId("learning", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: learningRecord,
+    content: {
+      text: "Customs clearance requires advance filing 72 hours before arrival",
+      learning_type: "constraint",
+      status: "active",
+      source: "human",
+      priority: "medium",
+      target_agents: ["logistics-agent"],
+      workspace: workspaceRecord,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+
+  // ── Git Commit ──
+  gitCommitRecord = new RecordId("git_commit", randomUUID());
+  await surreal.query("CREATE $record CONTENT $content;", {
+    record: gitCommitRecord,
+    content: {
+      sha: "abc123def456789012345678901234567890abcd",
+      message: "fix(logistics): correct duty calculation for cross-border shipments",
+      author_name: "logistics-dev",
+      repository: "supply-chain/logistics-engine",
+      workspace: workspaceRecord,
+      created_at: now,
+    },
   });
 
   // ── Intents (5 statuses) ──
@@ -458,5 +493,63 @@ describe("AC-X.4: Existing graph nodes unaffected by governance additions", () =
 
     const edgeKinds = graph.edges.map((e) => e.kind);
     expect(edgeKinds).toContain("belongs_to");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regression: learnings and git_commits in graph view
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Learnings and git_commits appear in workspace graph overview", () => {
+  it("learning nodes appear in workspace graph overview", async () => {
+    const graph = await getWorkspaceGraphOverview({ surreal, workspaceRecord });
+
+    const learningNodes = graph.entities.filter((e) => e.kind === "learning");
+    expect(learningNodes.length).toBeGreaterThanOrEqual(1);
+    expect(learningNodes.map((n) => n.name)).toContain(
+      "Customs clearance requires advance filing 72 hours before arrival",
+    );
+  });
+
+  it("git_commit nodes appear in workspace graph overview", async () => {
+    const graph = await getWorkspaceGraphOverview({ surreal, workspaceRecord });
+
+    const commitNodes = graph.entities.filter((e) => e.kind === "git_commit");
+    expect(commitNodes.length).toBeGreaterThanOrEqual(1);
+    expect(commitNodes.map((n) => n.name)).toContain(
+      "fix(logistics): correct duty calculation for cross-border shipments",
+    );
+  });
+});
+
+describe("Focused view accepts learning and git_commit as center entity", () => {
+  it("focused view accepts learning as center entity", async () => {
+    const graph = await getFocusedGraphView({
+      surreal,
+      workspaceRecord,
+      centerEntityRecord: learningRecord as GraphEntityRecord,
+      depth: 1,
+    });
+
+    const centerEntity = graph.entities.find(
+      (e) => e.name === "Customs clearance requires advance filing 72 hours before arrival",
+    );
+    expect(centerEntity).toBeDefined();
+    expect(centerEntity!.kind).toBe("learning");
+  });
+
+  it("focused view accepts git_commit as center entity", async () => {
+    const graph = await getFocusedGraphView({
+      surreal,
+      workspaceRecord,
+      centerEntityRecord: gitCommitRecord as GraphEntityRecord,
+      depth: 1,
+    });
+
+    const centerEntity = graph.entities.find(
+      (e) => e.name === "fix(logistics): correct duty calculation for cross-border shipments",
+    );
+    expect(centerEntity).toBeDefined();
+    expect(centerEntity!.kind).toBe("git_commit");
   });
 });

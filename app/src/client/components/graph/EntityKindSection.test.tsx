@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, mock } from "bun:test";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { EntityKindSection } from "./EntityKindSection";
 
 describe("EntityKindSection", () => {
@@ -82,6 +82,50 @@ describe("EntityKindSection", () => {
 
       expect(screen.getByText("Reroute shipments through alternate port due to congestion")).toBeInTheDocument();
       expect(screen.getByText("pending auth")).toBeInTheDocument();
+    });
+
+    it("renders resolved evidence refs with entity names as clickable buttons", () => {
+      const handleEntityClick = mock(() => {});
+      render(
+        <EntityKindSection
+          kind="intent"
+          data={{
+            goal: "Submit quarterly compliance filing",
+            status: "authorized",
+            evidence_refs: [
+              { table: "decision", id: "dec-001", name: "Standardize on tRPC for all internal APIs" },
+              { table: "task", id: "task-002", name: "Migrate billing service to event sourcing" },
+            ],
+          }}
+          onEntityClick={handleEntityClick}
+        />,
+      );
+
+      expect(screen.getByText("Evidence References")).toBeInTheDocument();
+      expect(screen.getByText("Standardize on tRPC for all internal APIs")).toBeInTheDocument();
+      expect(screen.getByText("Migrate billing service to event sourcing")).toBeInTheDocument();
+
+      // Clicking a ref triggers onEntityClick with table:id
+      fireEvent.click(screen.getByText("Standardize on tRPC for all internal APIs"));
+      expect(handleEntityClick).toHaveBeenCalledWith("decision:dec-001");
+
+      fireEvent.click(screen.getByText("Migrate billing service to event sourcing"));
+      expect(handleEntityClick).toHaveBeenCalledWith("task:task-002");
+    });
+
+    it("does not render evidence refs section when refs are empty", () => {
+      render(
+        <EntityKindSection
+          kind="intent"
+          data={{
+            goal: "Review supplier risk assessment",
+            status: "draft",
+            evidence_refs: [],
+          }}
+        />,
+      );
+
+      expect(screen.queryByText("Evidence References")).toBeNull();
     });
   });
 

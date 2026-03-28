@@ -27,12 +27,28 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
   destroySandbox?: () => Promise<void>;
 }> {
   const surreal = new Surreal();
-  await surreal.connect(config.surrealUrl);
+  await surreal.connect(config.surrealUrl, {
+    namespace: config.surrealNamespace,
+    database: config.surrealDatabase,
+    authentication: () => ({
+      username: config.surrealUsername,
+      password: config.surrealPassword,
+    }),
+  });
   await surreal.signin({ username: config.surrealUsername, password: config.surrealPassword });
   await surreal.use({ namespace: config.surrealNamespace, database: config.surrealDatabase });
 
   const analyticsSurreal = new Surreal();
-  await analyticsSurreal.connect(config.surrealUrl);
+  await analyticsSurreal.connect(config.surrealUrl, {
+    namespace: config.surrealNamespace,
+    database: config.surrealDatabase,
+    authentication: () => ({
+      namespace: config.surrealNamespace,
+      database: config.surrealDatabase,
+      username: "analytics",
+      password: "brain-analytics-readonly",
+    }),
+  });
   await analyticsSurreal.signin({
     namespace: config.surrealNamespace,
     database: config.surrealDatabase,

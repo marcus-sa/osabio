@@ -4,11 +4,11 @@ import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
+  ALL_ENTITY_TABLES,
   getProjectGraphView,
   getFocusedGraphView,
   getWorkspaceGraphOverview,
   parseRecordIdString,
-  type GraphEntityTable,
 } from "./queries";
 import { transformToReagraph } from "./transform";
 import { log } from "../telemetry/logger";
@@ -42,8 +42,7 @@ async function handleGraphRoute(
 
   try {
     if (centerParam) {
-      const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "suggestion", "policy", "intent", "objective", "behavior"];
-      const centerRecord = parseRecordIdString(centerParam, entityTables);
+      const centerRecord = parseRecordIdString(centerParam, ALL_ENTITY_TABLES);
       const raw = await getFocusedGraphView({
         surreal: deps.surreal,
         workspaceRecord,

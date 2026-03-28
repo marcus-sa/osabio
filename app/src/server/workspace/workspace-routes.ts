@@ -53,6 +53,7 @@ export function createWorkspaceRouteHandlers(
   shellExec?: ShellExec,
 ): {
   handleCreateWorkspace: (request: Request) => Promise<Response>;
+  handleWorkspaceMine: (request: Request) => Promise<Response>;
   handleWorkspaceBootstrap: (workspaceId: string) => Promise<Response>;
   handleWorkspaceSidebar: (workspaceId: string) => Promise<Response>;
   handleWorkspaceConversation: (workspaceId: string, conversationId: string) => Promise<Response>;
@@ -62,6 +63,7 @@ export function createWorkspaceRouteHandlers(
 } {
   return {
     handleCreateWorkspace: (request: Request) => handleCreateWorkspace(deps, request, shellExec),
+    handleWorkspaceMine: (request: Request) => handleWorkspaceMine(deps, request),
     handleWorkspaceBootstrap: (workspaceId: string) => handleWorkspaceBootstrap(deps, workspaceId),
     handleWorkspaceSidebar: (workspaceId: string) => handleWorkspaceSidebar(deps, workspaceId),
     handleWorkspaceConversation: (workspaceId: string, conversationId: string) =>
@@ -73,6 +75,34 @@ export function createWorkspaceRouteHandlers(
     handlePutSettings: (workspaceId: string, request: Request) =>
       handlePutSettings(deps, workspaceId, request),
   };
+}
+
+async function handleWorkspaceMine(deps: ServerDependencies, request: Request): Promise<Response> {
+  const session = await deps.auth.api.getSession({ headers: request.headers });
+  if (!session?.user?.id) {
+    return jsonError("authentication required", 401);
+  }
+
+  const personRecord = new RecordId("person", session.user.id);
+
+  const [rows] = await deps.surreal.query<
+    [Array<{ workspace_id: RecordId<"workspace", string>; workspace_name: string }>]
+  >(
+    `SELECT out.id AS workspace_id, out.name AS workspace_name
+     FROM member_of
+     WHERE in IN (SELECT VALUE in FROM identity_person WHERE out = $person)
+     LIMIT 1;`,
+    { person: personRecord },
+  );
+
+  if (!rows.length) {
+    return jsonResponse({ workspaceId: undefined }, 200);
+  }
+
+  return jsonResponse({
+    workspaceId: rows[0].workspace_id.id as string,
+    workspaceName: rows[0].workspace_name,
+  }, 200);
 }
 
 async function handleCreateWorkspace(deps: ServerDependencies, request: Request, shellExec?: ShellExec): Promise<Response> {
