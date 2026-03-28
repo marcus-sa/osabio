@@ -1,0 +1,21 @@
+does this render brain obsolete https://surrealdb.com/platform/spectron ?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+we already use surrealdb, but does this render brain obsolete https://surrealdb.com/platform/spectron, or is this something we could theoretically use to for agent memory itself ?
+
+---
+
+create corresponding gh issue
+
+---
+
+[Request interrupted by user]
+
+---
+
+create corresponding follow up gh issue
