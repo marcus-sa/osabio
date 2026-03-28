@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "42d4932c98be",
+  "session_id": "93a489c3-e4e9-4f72-98f0-ee4bac728d98",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T12:59:42.637751Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "AGENTS.md",
+    "OBJECTIVE_BEHAVIOR.md",
+    "app/SMOKE_PHASE1.md",
+    "docker-compose.yml",
+    "docs/linkedin/article-1-agent-activation-and-orchestration.md",
+    "docs/linkedin/article-2-credential-brokerage.md",
+    "docs/research/better-auth-dynamic-oauth-providers.md",
+    "docs/linkedin/article-1-agent-amnesia.md",
+    "docs/linkedin/article-2-mcp-governance-and-tool-registry.md",
+    "docs/research/better-auth-sso-plugin-gap-analysis.md",
+    "issues/1"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d69cadc1dad8",
+  "checkpoint_transcript_start": 78,
+  "transcript_lines_at_start": 78,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T12:59:42.615865Z",
+    "agent_lines": 352,
+    "human_added": 59985,
+    "human_modified": 116,
+    "human_removed": 0,
+    "total_committed": 60453,
+    "agent_percentage": 0.5822705242088896
+  }
+}

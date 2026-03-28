@@ -6,10 +6,17 @@
   "checkpoints_count": 15,
   "files_touched": [
     ".nwave/des-config.json",
+    "AGENTS.md",
+    "OBJECTIVE_BEHAVIOR.md",
+    "app/SMOKE_PHASE1.md",
     "docker-compose.yml",
     "docs/linkedin/article-1-agent-activation-and-orchestration.md",
+    "docs/linkedin/article-1-agent-amnesia.md",
     "docs/linkedin/article-2-credential-brokerage.md",
-    "docs/linkedin/article-2-mcp-governance-and-tool-registry.md"
+    "docs/linkedin/article-2-mcp-governance-and-tool-registry.md",
+    "docs/research/better-auth-dynamic-oauth-providers.md",
+    "docs/research/better-auth-sso-plugin-gap-analysis.md",
+    "issues/1"
   ],
   "sessions": [
     {
@@ -39,6 +46,13 @@
       "context": "/42/d4932c98be/3/context.md",
       "content_hash": "/42/d4932c98be/3/content_hash.txt",
       "prompt": "/42/d4932c98be/3/prompt.txt"
+    },
+    {
+      "metadata": "/42/d4932c98be/4/metadata.json",
+      "transcript": "/42/d4932c98be/4/full.jsonl",
+      "context": "/42/d4932c98be/4/context.md",
+      "content_hash": "/42/d4932c98be/4/content_hash.txt",
+      "prompt": "/42/d4932c98be/4/prompt.txt"
     }
   ],
   "token_usage": {
