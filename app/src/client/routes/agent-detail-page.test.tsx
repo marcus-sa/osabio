@@ -70,7 +70,7 @@ const BRAIN_AGENT_DETAIL = {
   authority_scopes: [
     { action: "create_task", permission: "auto" },
     { action: "create_decision", permission: "propose" },
-    { action: "delete_project", permission: "blocked" },
+    { action: "resolve_observation", permission: "blocked" },
   ],
   sessions: [
     {
@@ -129,7 +129,7 @@ describe("AgentDetailPage", () => {
     expect(screen.getByText("auto")).toBeInTheDocument();
     expect(screen.getByText("create_decision")).toBeInTheDocument();
     expect(screen.getByText("propose")).toBeInTheDocument();
-    expect(screen.getByText("delete_project")).toBeInTheDocument();
+    expect(screen.getByText("resolve_observation")).toBeInTheDocument();
     expect(screen.getByText("blocked")).toBeInTheDocument();
   });
 

@@ -128,17 +128,17 @@ describe("AgentCreatePage", () => {
     });
 
     // All 11 action labels should appear
-    expect(screen.getByText("Create tasks")).toBeInTheDocument();
     expect(screen.getByText("Create decisions")).toBeInTheDocument();
+    expect(screen.getByText("Confirm decisions")).toBeInTheDocument();
+    expect(screen.getByText("Create tasks")).toBeInTheDocument();
+    expect(screen.getByText("Complete tasks")).toBeInTheDocument();
     expect(screen.getByText("Create observations")).toBeInTheDocument();
-    expect(screen.getByText("Create suggestions")).toBeInTheDocument();
+    expect(screen.getByText("Acknowledge observations")).toBeInTheDocument();
+    expect(screen.getByText("Resolve observations")).toBeInTheDocument();
     expect(screen.getByText("Create questions")).toBeInTheDocument();
-    expect(screen.getByText("Edit tasks")).toBeInTheDocument();
-    expect(screen.getByText("Edit decisions")).toBeInTheDocument();
+    expect(screen.getByText("Create suggestions")).toBeInTheDocument();
     expect(screen.getByText("Create intents")).toBeInTheDocument();
     expect(screen.getByText("Submit intents")).toBeInTheDocument();
-    expect(screen.getByText("Create sessions")).toBeInTheDocument();
-    expect(screen.getByText("Create commits")).toBeInTheDocument();
 
     // All radio groups should have "propose" checked by default
     const proposeRadios = screen.getAllByRole("radio", { checked: true });

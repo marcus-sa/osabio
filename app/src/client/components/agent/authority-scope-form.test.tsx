@@ -2,38 +2,14 @@ import { describe, it, expect, mock } from "bun:test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AuthorityScopeInput } from "../../hooks/use-agent-actions";
+import { AUTHORITY_ACTIONS } from "./authority-scope-form";
 
 // ---------------------------------------------------------------------------
-// Constants
+// Derived from the single source of truth (AUTHORITY_ACTIONS export)
 // ---------------------------------------------------------------------------
 
-const ALL_ACTIONS = [
-  "create_task",
-  "create_decision",
-  "create_observation",
-  "create_suggestion",
-  "create_question",
-  "edit_task",
-  "edit_decision",
-  "create_intent",
-  "submit_intent",
-  "create_session",
-  "create_commit",
-] as const;
-
-const ALL_LABELS = [
-  "Create tasks",
-  "Create decisions",
-  "Create observations",
-  "Create suggestions",
-  "Create questions",
-  "Edit tasks",
-  "Edit decisions",
-  "Create intents",
-  "Submit intents",
-  "Create sessions",
-  "Create commits",
-];
+const ALL_ACTIONS = AUTHORITY_ACTIONS.map((a) => a.action);
+const ALL_LABELS = AUTHORITY_ACTIONS.map((a) => a.label);
 
 function defaultScopes(): AuthorityScopeInput[] {
   return ALL_ACTIONS.map((action) => ({ action, permission: "propose" as const }));
