@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "42d4932c98be",
+  "session_id": "8208af3a-e38d-4151-9483-49785da03370",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T12:59:35.011664Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docker-compose.yml",
+    "docs/linkedin/article-2-credential-brokerage.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "876033b70e45",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 55883,
+    "cache_read_tokens": 207613,
+    "output_tokens": 1822,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T12:59:34.969965Z",
+    "agent_lines": 78,
+    "human_added": 790,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 868,
+    "agent_percentage": 8.986175115207374
+  }
+}

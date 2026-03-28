@@ -3,11 +3,12 @@
   "checkpoint_id": "42d4932c98be",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     ".nwave/des-config.json",
     "docker-compose.yml",
     "docs/linkedin/article-1-agent-activation-and-orchestration.md",
+    "docs/linkedin/article-2-credential-brokerage.md",
     "docs/linkedin/article-2-mcp-governance-and-tool-registry.md"
   ],
   "sessions": [
@@ -24,13 +25,20 @@
       "context": "/42/d4932c98be/1/context.md",
       "content_hash": "/42/d4932c98be/1/content_hash.txt",
       "prompt": "/42/d4932c98be/1/prompt.txt"
+    },
+    {
+      "metadata": "/42/d4932c98be/2/metadata.json",
+      "transcript": "/42/d4932c98be/2/full.jsonl",
+      "context": "/42/d4932c98be/2/context.md",
+      "content_hash": "/42/d4932c98be/2/content_hash.txt",
+      "prompt": "/42/d4932c98be/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 72,
-    "cache_creation_tokens": 286261,
-    "cache_read_tokens": 4528494,
-    "output_tokens": 29322,
-    "api_call_count": 48
+    "input_tokens": 78,
+    "cache_creation_tokens": 342144,
+    "cache_read_tokens": 4736107,
+    "output_tokens": 31144,
+    "api_call_count": 52
   }
 }
