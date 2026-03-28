@@ -60,6 +60,8 @@ DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
 DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
+DEFINE FIELD settings.sandbox_provider ON workspace TYPE option<string>
+  ASSERT $value = NONE OR $value IN ['local', 'e2b', 'daytona', 'docker'];
 DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
 DEFINE FIELD evidence_enforcement ON workspace TYPE option<string>
   ASSERT $value = NONE OR $value IN ['bootstrap', 'soft', 'hard'];
