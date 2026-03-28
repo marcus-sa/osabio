@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9b4a987fa965",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/components/agent/authority-scope-form.test.tsx",
+    "app/src/client/routes/agent-create-page.test.tsx",
+    "app/src/client/routes/agent-detail-page.tsx",
+    "app/src/client/routes/agents-page.test.tsx",
+    "app/src/client/routes/agents-page.tsx",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/unified-identity/audit-trail.test.ts",
+    "tests/acceptance/unified-identity/identity-schema.test.ts",
+    "tests/acceptance/unified-identity/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9b/4a987fa965/0/metadata.json",
+      "transcript": "/9b/4a987fa965/0/full.jsonl",
+      "context": "/9b/4a987fa965/0/context.md",
+      "content_hash": "/9b/4a987fa965/0/content_hash.txt",
+      "prompt": "/9b/4a987fa965/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 133,
+    "cache_creation_tokens": 197874,
+    "cache_read_tokens": 3113998,
+    "output_tokens": 11938,
+    "api_call_count": 33
+  }
+}

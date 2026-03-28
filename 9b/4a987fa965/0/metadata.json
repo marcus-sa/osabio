@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9b4a987fa965",
+  "session_id": "83523b6d-4c86-42f0-bf2c-2d4dfa5ba420",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T17:31:44.857576Z",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/routes/agent-create-page.test.tsx",
+    "app/src/client/routes/agent-detail-page.tsx",
+    "app/src/client/routes/agents-page.test.tsx",
+    "app/src/client/routes/agents-page.tsx",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/unified-identity/identity-schema.test.ts",
+    "tests/acceptance/unified-identity/walking-skeleton.test.ts",
+    "app/src/client/components/agent/authority-scope-form.test.tsx",
+    "tests/acceptance/unified-identity/audit-trail.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "36ce86d4b8be",
+  "token_usage": {
+    "input_tokens": 133,
+    "cache_creation_tokens": 197874,
+    "cache_read_tokens": 3113998,
+    "output_tokens": 11938,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T17:31:44.666117Z",
+    "agent_lines": 13,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 13,
+    "agent_percentage": 100
+  }
+}
