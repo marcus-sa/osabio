@@ -26,9 +26,12 @@
     "app/src/server/tools/show-relationship-graph.ts",
     "app/src/server/workspace/workspace-routes.ts",
     "package.json",
+    "schema/migrations/0080_graph_add_learnings_git_commits.surql",
+    "schema/seed.ts",
     "schema/surreal-schema.surql",
     "tests/acceptance/graph/graph-governance-visualization.test.ts",
-    "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts"
+    "tests/acceptance/intent-evidence/milestone-6-evidence-drill-down.test.ts",
+    "tests/acceptance/workspace/workspace-mine.test.ts"
   ],
   "sessions": [
     {
@@ -37,13 +40,20 @@
       "context": "/fb/257095fff1/0/context.md",
       "content_hash": "/fb/257095fff1/0/content_hash.txt",
       "prompt": "/fb/257095fff1/0/prompt.txt"
+    },
+    {
+      "metadata": "/fb/257095fff1/1/metadata.json",
+      "transcript": "/fb/257095fff1/1/full.jsonl",
+      "context": "/fb/257095fff1/1/context.md",
+      "content_hash": "/fb/257095fff1/1/content_hash.txt",
+      "prompt": "/fb/257095fff1/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 28,
-    "cache_creation_tokens": 71202,
-    "cache_read_tokens": 1321484,
-    "output_tokens": 7017,
-    "api_call_count": 23
+    "input_tokens": 35,
+    "cache_creation_tokens": 112698,
+    "cache_read_tokens": 1525801,
+    "output_tokens": 8250,
+    "api_call_count": 28
   }
 }
