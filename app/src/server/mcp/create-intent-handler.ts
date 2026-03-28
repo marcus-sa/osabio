@@ -23,6 +23,7 @@ import {
 } from "../intent/intent-queries";
 import { evaluatePolicyGate } from "../policy/policy-gate";
 import { log } from "../telemetry/logger";
+import { EVIDENCE_TABLE_ALLOWLIST } from "../intent/evidence-constants";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +37,7 @@ export type CreateIntentInput = {
     readonly action: string;
     readonly params?: Record<string, unknown>;
   };
+  readonly evidence_refs?: RecordId[];
 };
 
 export type CreateIntentOutcome =
@@ -99,6 +101,12 @@ function validateInput(
     return { error: "Missing or empty 'action_spec.action'" };
   }
 
+  // Validate evidence_refs if provided
+  const evidenceResult = validateEvidenceRefs(args.evidence_refs);
+  if ("error" in evidenceResult) {
+    return { error: evidenceResult.error };
+  }
+
   return {
     goal: goal.trim(),
     reasoning: reasoning.trim(),
@@ -107,7 +115,60 @@ function validateInput(
       action: actionSpec.action.trim(),
       params: actionSpec.params,
     },
+    ...(evidenceResult.refs.length > 0 ? { evidence_refs: evidenceResult.refs } : {}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Pure: validate evidence_refs input (defense in depth at handler boundary)
+// ---------------------------------------------------------------------------
+
+const SORTED_ALLOWLIST_DISPLAY = [...EVIDENCE_TABLE_ALLOWLIST].sort().join(", ");
+
+/**
+ * Validates evidence_refs from MCP input against the table allowlist.
+ * Returns parsed RecordIds or an error identifying the unsupported type.
+ */
+export function validateEvidenceRefs(
+  refs: unknown,
+): { refs: RecordId[] } | { error: string } {
+  if (refs === undefined || refs === null) {
+    return { refs: [] };
+  }
+
+  if (!Array.isArray(refs)) {
+    return { error: "evidence_refs must be an array of 'table:id' strings" };
+  }
+
+  const parsed: RecordId[] = [];
+
+  for (const ref of refs) {
+    if (typeof ref !== "string") {
+      return { error: "Each evidence_ref must be a 'table:id' string" };
+    }
+
+    const colonIdx = ref.indexOf(":");
+    if (colonIdx === -1) {
+      return { error: `Invalid evidence_ref format: '${ref}'. Expected 'table:id'` };
+    }
+
+    const table = ref.slice(0, colonIdx);
+    const id = ref.slice(colonIdx + 1);
+
+    if (!EVIDENCE_TABLE_ALLOWLIST.has(table)) {
+      return {
+        error: `Unsupported evidence entity type: '${table}'. Allowed types: ${SORTED_ALLOWLIST_DISPLAY}`,
+      };
+    }
+
+    if (id.length === 0) {
+      return { error: `Empty ID in evidence_ref: '${ref}'` };
+    }
+
+    parsed.push(new RecordId(table, id));
+  }
+
+  return { refs: parsed };
 }
 
 // ---------------------------------------------------------------------------
@@ -164,6 +225,7 @@ export async function handleCreateIntent(
     requester: new RecordId("identity", context.identityId),
     workspace: new RecordId("workspace", context.workspaceId),
     authorization_details: authorizationDetails,
+    ...(parsed.evidence_refs ? { evidence_refs: parsed.evidence_refs } : {}),
   });
 
   const intentId = intentRecord.id as string;

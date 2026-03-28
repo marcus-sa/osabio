@@ -414,7 +414,7 @@ export async function seedTool(
     inputSchema?: Record<string, unknown>;
   },
 ): Promise<{ toolId: string }> {
-  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolId = crypto.randomUUID();
   const toolRecord = new RecordId("mcp_tool", toolId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -571,7 +571,7 @@ export async function seedPolicy(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const createdByRecord = new RecordId(
     "identity",
-    options.identityId ?? `id-${crypto.randomUUID()}`,
+    options.identityId ?? crypto.randomUUID(),
   );
 
   // Ensure identity exists for created_by reference
@@ -801,7 +801,7 @@ export async function seedDiscoveredTool(
     inputSchema?: Record<string, unknown>;
   },
 ): Promise<{ toolId: string }> {
-  const toolId = `tool-${crypto.randomUUID()}`;
+  const toolId = crypto.randomUUID();
   const toolRecord = new RecordId("mcp_tool", toolId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const serverRecord = new RecordId("mcp_server", serverId);

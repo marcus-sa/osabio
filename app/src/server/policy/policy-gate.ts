@@ -5,6 +5,7 @@ import type {
   PolicyGateResult,
   PolicyTraceEntry,
   PolicyGateWarning,
+  PolicyEvidenceRequirements,
   IntentEvaluationContext,
 } from "./types";
 import { evaluateCondition } from "./predicate-evaluator";
@@ -103,10 +104,34 @@ export const evaluateRulesAgainstContext = (
   };
 };
 
+/**
+ * Extracts evidence requirements from matched evidence_requirement rules.
+ * Returns the first (highest-priority) matched requirement, since rules
+ * are already sorted by priority DESC.
+ */
+export const extractEvidenceRequirements = (
+  evaluatedRules: EvaluatedRule[],
+): PolicyEvidenceRequirements | undefined => {
+  const matchedRequirement = evaluatedRules.find(
+    (entry) =>
+      entry.matched && entry.rule.effect === "evidence_requirement",
+  );
+
+  if (!matchedRequirement) return undefined;
+
+  return {
+    min_count: matchedRequirement.rule.min_evidence_count ?? 1,
+    ...(matchedRequirement.rule.required_types
+      ? { required_types: matchedRequirement.rule.required_types }
+      : {}),
+  };
+};
+
 export const buildGateResult = (
   evaluatedRules: EvaluatedRule[],
   denyMatched: boolean,
   warnings: PolicyGateWarning[],
+  evidenceRequirements?: PolicyEvidenceRequirements,
 ): PolicyGateResult => {
   const policyTrace: PolicyTraceEntry[] = evaluatedRules.map((entry) => ({
     policy_id: entry.policyId,
@@ -139,6 +164,7 @@ export const buildGateResult = (
     policy_trace: policyTrace,
     human_veto_required: humanVetoRequired,
     warnings,
+    ...(evidenceRequirements ? { evidence_requirements: evidenceRequirements } : {}),
   };
 };
 
@@ -162,6 +188,7 @@ export const evaluatePolicyGate = async (
     sortedRules,
     intentContext,
   );
+  const evidenceRequirements = extractEvidenceRequirements(evaluatedRules);
 
-  return buildGateResult(evaluatedRules, denyMatched, warnings);
+  return buildGateResult(evaluatedRules, denyMatched, warnings, evidenceRequirements);
 };

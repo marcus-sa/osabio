@@ -1,6 +1,7 @@
 import type { RecordId } from "surrealdb";
 import type { BrainAction } from "../oauth/types";
 import type { PolicyTraceEntry } from "../policy/types";
+import type { EvidenceVerificationResult } from "./evidence-types";
 
 export type { PolicyTraceEntry } from "../policy/types";
 
@@ -71,6 +72,8 @@ export type IntentRecord = {
   token_issued_at?: Date;
   token_expires_at?: Date;
   embedding?: number[];
+  evidence_refs?: RecordId[];
+  evidence_verification?: EvidenceVerificationResult;
   trace_id: RecordId<"trace", string>;
   requester: RecordId<"identity", string>;
   workspace: RecordId<"workspace", string>;

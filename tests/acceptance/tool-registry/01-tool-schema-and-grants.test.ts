@@ -43,7 +43,7 @@ describe("Walking Skeleton: Admin grants agent access to a registered tool", () 
     const user = await createTestUserWithMcp(baseUrl, surreal, `ws-us3-${crypto.randomUUID()}`);
 
     // Given admin has registered tool "search_entities" in the workspace
-    const toolId = `tool-${crypto.randomUUID()}`;
+    const toolId = crypto.randomUUID();
     await seedBrainNativeTool(surreal, toolId, {
       name: "search_entities",
       description: "Search workspace entities by text query",

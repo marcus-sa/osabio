@@ -16,6 +16,7 @@ import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
 import { createIntent, createTrace, updateIntentStatus, recordTokenIssuance } from "../intent/intent-queries";
+import { normalizeRecordIdValue } from "../graph/record-id";
 import {
   isLowRiskReadAction,
   deriveActionSpec,
@@ -101,23 +102,23 @@ async function resolveHumanContext(
   const person = new RecordId("person", personId);
 
   // Step 1: person -> identity via identity_person spoke
-  const [identityRows] = await surreal.query<[Array<RecordId<"identity", string>>]>(
-    "SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1;",
+  const [identityRows] = await surreal.query<[string[]]>(
+    "SELECT VALUE in.id FROM identity_person WHERE out = $person LIMIT 1;",
     { person },
   );
   if (!identityRows || identityRows.length === 0) return undefined;
 
-  const identityRecord = identityRows[0];
-  const identityId = identityRecord.id as string;
+  const identityId = normalizeRecordIdValue(identityRows[0]);
+  const identityRecord = new RecordId("identity", identityId);
 
   // Step 2: identity -> workspace via member_of edge
-  const [workspaceRows] = await surreal.query<[Array<{ out: RecordId<"workspace", string> }>]>(
-    "SELECT out FROM member_of WHERE in = $identity LIMIT 1;",
+  const [workspaceRows] = await surreal.query<[string[]]>(
+    "SELECT VALUE out.id FROM member_of WHERE in = $identity LIMIT 1;",
     { identity: identityRecord },
   );
   if (!workspaceRows || workspaceRows.length === 0) return undefined;
 
-  const workspaceId = workspaceRows[0].out.id as string;
+  const workspaceId = normalizeRecordIdValue(workspaceRows[0]);
 
   return { identityId, workspaceId };
 }
@@ -237,23 +238,53 @@ export function createBridgeExchangeHandler(
       // 7. Evaluate intent
       const isLowRisk = isLowRiskReadAction(authorizationDetails);
 
-      const evaluation = await evaluateIntent({
-        intent: {
-          goal: `Bridge exchange: ${authorizationDetails[0].action} ${authorizationDetails[0].resource}`,
-          reasoning: "Human operator bridge exchange",
-          action_spec: actionSpec,
-        },
-        surreal,
-        identityId: requester,
-        workspaceId: workspace,
-        requesterType: "human",
-        llmEvaluator,
-        timeoutMs: 10_000,
-      });
+      let evaluation: Awaited<ReturnType<typeof evaluateIntent>> = {
+        decision: "APPROVE" as const,
+        risk_score: 0,
+        reason: "Low-risk read operation auto-approved",
+        policy_only: true,
+        policy_trace: [],
+        human_veto_required: false,
+      };
 
-      const routing = routeByRisk(evaluation);
+      if (!isLowRisk) {
+        try {
+          evaluation = await evaluateIntent({
+            intent: {
+              goal: `Bridge exchange: ${authorizationDetails[0].action} ${authorizationDetails[0].resource}`,
+              reasoning: "Human operator bridge exchange",
+              action_spec: actionSpec,
+            },
+            surreal,
+            identityId: requester,
+            workspaceId: workspace,
+            requesterType: "human",
+            llmEvaluator,
+            timeoutMs: 10_000,
+          });
+        } catch (error) {
+          log.error("bridge.exchange.evaluation_failed", "Bridge evaluation failed, falling back to veto window", error, {
+            identityId,
+            workspaceId,
+          });
+          evaluation = {
+            decision: "APPROVE",
+            risk_score: 50,
+            reason: "Bridge evaluation failed, requiring veto window",
+            policy_only: true,
+            policy_trace: [],
+            human_veto_required: true,
+          };
+        }
+      }
+
+      const { alignment: _alignment, evidence_verification: evidenceVerification, ...evaluationForDb } = evaluation;
+      const routing = routeByRisk(evaluation, {
+        humanVetoRequired: evaluation.human_veto_required,
+        evidenceVerification,
+      });
       const evaluationRecord = {
-        ...evaluation,
+        ...evaluationForDb,
         evaluated_at: new Date(),
       };
 
@@ -358,4 +389,3 @@ export function createBridgeExchangeHandler(
     }
   };
 }
-

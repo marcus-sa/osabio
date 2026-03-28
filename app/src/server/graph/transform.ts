@@ -23,6 +23,7 @@ export function entityColor(kind: EntityKind): string {
     case "behavior": return "#8b5cf6"; // violet — craftsmanship metrics
     case "mcp_tool": return "#22c55e";
     case "mcp_server": return "#14b8a6";
+    case "git_commit": return "#22c55e";
     default: return kind satisfies never;
   }
 }

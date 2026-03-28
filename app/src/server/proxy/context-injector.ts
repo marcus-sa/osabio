@@ -187,14 +187,25 @@ export function selectWithinBudget(
 // XML Block Construction
 // ---------------------------------------------------------------------------
 
-export function buildBrainContextXml(selected: RankedCandidate[]): string {
-  if (selected.length === 0) return "";
+export type WorkspaceSettings = {
+  readonly enforcementMode?: string;
+};
+
+export function buildBrainContextXml(
+  selected: RankedCandidate[],
+  workspaceSettings?: WorkspaceSettings,
+): string {
+  const sections: string[] = [];
+
+  if (workspaceSettings?.enforcementMode) {
+    sections.push(
+      `<workspace-settings>\n  <evidence-enforcement>${workspaceSettings.enforcementMode}</evidence-enforcement>\n</workspace-settings>`,
+    );
+  }
 
   const decisions = selected.filter((c) => c.type === "decision");
   const learnings = selected.filter((c) => c.type === "learning");
   const observations = selected.filter((c) => c.type === "observation");
-
-  const sections: string[] = [];
 
   if (decisions.length > 0) {
     const items = decisions.map((d) => `  <item>${d.text}</item>`).join("\n");
@@ -210,6 +221,8 @@ export function buildBrainContextXml(selected: RankedCandidate[]): string {
     const items = observations.map((o) => `  <item>${o.text}</item>`).join("\n");
     sections.push(`<observations>\n${items}\n</observations>`);
   }
+
+  if (sections.length === 0) return "";
 
   return `<brain-context>\n${sections.join("\n")}\n</brain-context>`;
 }

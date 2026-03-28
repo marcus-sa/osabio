@@ -49,8 +49,10 @@ export type RuleCondition = RulePredicate | RulePredicate[];
 export type PolicyRule = {
   id: string;
   condition: RuleCondition;
-  effect: "allow" | "deny";
+  effect: "allow" | "deny" | "evidence_requirement";
   priority: number;
+  min_evidence_count?: number;
+  required_types?: string[];
 };
 
 export type PolicySelector = {

@@ -1,3 +1,7 @@
+## Communication
+
+- When making examples (in docs, research, discussions, commit messages), use real-world business domain examples (e.g. supply chain disruption, customer refund, compliance audit), not developer-centric examples (e.g. merge PR, deploy service, fix bug). Brain is a general-purpose coordination system, not a developer tool.
+
 ## Git Commits
 
 - Always use `--no-verify` when committing. The pre-commit hook requires `brain init` which is not available in worktree environments.

@@ -61,6 +61,18 @@ DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
 DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
+DEFINE FIELD evidence_enforcement ON workspace TYPE option<string>
+  ASSERT $value = NONE OR $value IN ['bootstrap', 'soft', 'hard'];
+DEFINE FIELD evidence_enforcement_threshold ON workspace TYPE option<object>;
+DEFINE FIELD evidence_enforcement_threshold.min_decisions ON workspace TYPE option<int>;
+DEFINE FIELD evidence_enforcement_threshold.min_tasks ON workspace TYPE option<int>;
+DEFINE FIELD min_evidence_age_minutes ON workspace TYPE option<int>;
+DEFINE FIELD evidence_enforcement_transitions ON workspace TYPE option<array<object>>;
+DEFINE FIELD evidence_enforcement_transitions[*].from ON workspace TYPE string;
+DEFINE FIELD evidence_enforcement_transitions[*].to ON workspace TYPE string;
+DEFINE FIELD evidence_enforcement_transitions[*].trigger ON workspace TYPE string
+  ASSERT $value IN ['auto', 'manual'];
+DEFINE FIELD evidence_enforcement_transitions[*].timestamp ON workspace TYPE datetime;
 DEFINE INDEX workspace_name ON workspace FIELDS name;
 
 DEFINE TABLE project SCHEMAFULL;
@@ -247,7 +259,7 @@ DEFINE FIELD status ON observation TYPE string ASSERT $value IN ["open", "acknow
 DEFINE FIELD category ON observation TYPE option<string>
   ASSERT $value IN ["engineering", "research", "marketing", "operations", "design", "sales"] OR $value IS NONE;
 DEFINE FIELD observation_type ON observation TYPE option<string>
-  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment"] OR $value IS NONE;
+  ASSERT $value IN ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "alignment", "evidence_anomaly"] OR $value IS NONE;
 DEFINE FIELD verified ON observation TYPE bool DEFAULT false;
 DEFINE FIELD source ON observation TYPE option<string>;
 DEFINE FIELD data ON observation TYPE option<object> FLEXIBLE;
@@ -586,7 +598,7 @@ DEFINE FIELD evaluation.policy_trace ON intent TYPE option<array<object>>;
 DEFINE FIELD evaluation.policy_trace[*].policy_id ON intent TYPE string;
 DEFINE FIELD evaluation.policy_trace[*].policy_version ON intent TYPE int;
 DEFINE FIELD evaluation.policy_trace[*].rule_id ON intent TYPE string;
-DEFINE FIELD evaluation.policy_trace[*].effect ON intent TYPE string ASSERT $value IN ['allow', 'deny'];
+DEFINE FIELD evaluation.policy_trace[*].effect ON intent TYPE string ASSERT $value IN ['allow', 'deny', 'evidence_requirement'];
 DEFINE FIELD evaluation.policy_trace[*].matched ON intent TYPE bool;
 DEFINE FIELD evaluation.policy_trace[*].priority ON intent TYPE int;
 DEFINE FIELD evaluation.human_veto_required ON intent TYPE option<bool>;
@@ -607,6 +619,16 @@ DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> 
 DEFINE FIELD dpop_jwk_thumbprint ON intent TYPE option<string>;
 DEFINE FIELD token_issued_at ON intent TYPE option<datetime>;
 DEFINE FIELD token_expires_at ON intent TYPE option<datetime>;
+DEFINE FIELD evidence_refs ON intent TYPE option<array<record<decision | task | feature | project | observation | policy | objective | learning | git_commit>>>;
+DEFINE FIELD evidence_verification ON intent TYPE option<object>;
+DEFINE FIELD evidence_verification.verified_count ON intent TYPE int;
+DEFINE FIELD evidence_verification.total_count ON intent TYPE int;
+DEFINE FIELD evidence_verification.failed_refs ON intent TYPE option<array<string>>;
+DEFINE FIELD evidence_verification.verification_time_ms ON intent TYPE int;
+DEFINE FIELD evidence_verification.warnings ON intent TYPE option<array<string>>;
+DEFINE FIELD evidence_verification.enforcement_mode ON intent TYPE string;
+DEFINE FIELD evidence_verification.independent_author_count ON intent TYPE option<int>;
+DEFINE FIELD evidence_verification.tier_met ON intent TYPE option<bool>;
 DEFINE INDEX intent_workspace_status ON intent FIELDS workspace, status;
 DEFINE INDEX intent_created_at ON intent FIELDS created_at;
 DEFINE INDEX intent_trace_id ON intent FIELDS trace_id;
@@ -647,7 +669,9 @@ DEFINE FIELD rules[*].id ON policy TYPE string;
 DEFINE FIELD rules[*].condition ON policy TYPE object | array FLEXIBLE;
 DEFINE FIELD rules[*].condition[*].field ON policy TYPE option<string>;
 DEFINE FIELD rules[*].condition[*].operator ON policy TYPE option<string>;
-DEFINE FIELD rules[*].effect ON policy TYPE string ASSERT $value IN ['allow', 'deny'];
+DEFINE FIELD rules[*].effect ON policy TYPE string ASSERT $value IN ['allow', 'deny', 'evidence_requirement'];
+DEFINE FIELD rules[*].min_evidence_count ON policy TYPE option<int>;
+DEFINE FIELD rules[*].required_types ON policy TYPE option<array<string>>;
 DEFINE FIELD rules[*].priority ON policy TYPE int;
 DEFINE FIELD human_veto_required ON policy TYPE bool DEFAULT false;
 DEFINE FIELD max_ttl ON policy TYPE option<string>;
@@ -943,12 +967,15 @@ DEFINE FUNCTION fn::workspace_entity_ids($ws: record<workspace>) {
   LET $agent_sessions = (SELECT VALUE out FROM gates WHERE `in` IN $intents);
   LET $objectives = (SELECT VALUE out FROM has_objective WHERE `in` = $ws OR `in` IN $projects);
   LET $behaviors = (SELECT VALUE id FROM behavior WHERE workspace = $ws);
+  LET $learnings = (SELECT VALUE id FROM learning WHERE workspace = $ws);
+  LET $git_commits = (SELECT VALUE id FROM git_commit WHERE workspace = $ws);
   RETURN array::distinct(
     [$ws] + $projects + $features + $feature_tasks + $workspace_tasks +
     $belongs_project + $belongs_feature +
     $identities + $provenance +
     $policies + $intents + $agent_sessions +
-    $objectives + $behaviors
+    $objectives + $behaviors +
+    $learnings + $git_commits
   );
 };
 

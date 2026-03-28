@@ -53,7 +53,7 @@ describe("Milestone 5: Stale Blocked LLM Evaluation", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-stale-filter");
 
     // Given a task blocked 20 days ago with a title suggesting external dependency
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -90,7 +90,7 @@ describe("Milestone 5: Stale Blocked LLM Evaluation", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "llm-stale-genuine");
 
     // Given a task blocked 30 days with no clear external reason
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -138,7 +138,7 @@ describe("Milestone 5: Stale Blocked LLM Evaluation", () => {
     const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000);
 
     // Genuinely stuck
-    const stuckId = `task-${crypto.randomUUID()}`;
+    const stuckId = crypto.randomUUID();
     await surreal.query(`CREATE $task CONTENT $content;`, {
       task: new RecordId("task", stuckId),
       content: {
@@ -152,7 +152,7 @@ describe("Milestone 5: Stale Blocked LLM Evaluation", () => {
     });
 
     // External wait
-    const waitId = `task-${crypto.randomUUID()}`;
+    const waitId = crypto.randomUUID();
     await surreal.query(`CREATE $task CONTENT $content;`, {
       task: new RecordId("task", waitId),
       content: {

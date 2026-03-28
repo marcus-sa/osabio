@@ -109,7 +109,7 @@ export async function setupBehaviorWorkspace(
   workspaceId: string;
   adminId: string;
 }> {
-  const workspaceId = `ws-${crypto.randomUUID()}`;
+  const workspaceId = crypto.randomUUID();
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
   const user = await createTestUser(baseUrl, suffix);
@@ -127,7 +127,7 @@ export async function setupBehaviorWorkspace(
     },
   });
 
-  const adminId = `id-${crypto.randomUUID()}`;
+  const adminId = crypto.randomUUID();
   const adminRecord = new RecordId("identity", adminId);
 
   await surreal.query(`CREATE $identity CONTENT $content;`, {
@@ -157,7 +157,7 @@ export async function createAgentIdentity(
   workspaceId: string,
   agentName: string,
 ): Promise<{ identityId: string }> {
-  const identityId = `id-${crypto.randomUUID()}`;
+  const identityId = crypto.randomUUID();
   const identityRecord = new RecordId("identity", identityId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 

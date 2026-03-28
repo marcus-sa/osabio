@@ -88,8 +88,8 @@ export async function createTestWorkspace(
   surreal: Surreal,
   suffix: string,
 ): Promise<{ workspaceId: string; identityId: string }> {
-  const workspaceId = `ws-${crypto.randomUUID()}`;
-  const identityId = `id-${crypto.randomUUID()}`;
+  const workspaceId = crypto.randomUUID();
+  const identityId = crypto.randomUUID();
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const identityRecord = new RecordId("identity", identityId);
 
@@ -144,7 +144,7 @@ export async function createObservation(
     targetEntity?: { table: string; id: string };
   },
 ): Promise<{ observationId: string }> {
-  const observationId = `obs-${crypto.randomUUID()}`;
+  const observationId = crypto.randomUUID();
   const observationRecord = new RecordId("observation", observationId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -348,7 +348,7 @@ export async function createTask(
     status?: string;
   },
 ): Promise<{ taskId: string }> {
-  const taskId = `task-${crypto.randomUUID()}`;
+  const taskId = crypto.randomUUID();
   const taskRecord = new RecordId("task", taskId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
@@ -447,7 +447,7 @@ export async function startAgentSession(
     description?: string;
   },
 ): Promise<{ sessionId: string }> {
-  const sessionId = `sess-${crypto.randomUUID()}`;
+  const sessionId = crypto.randomUUID();
   const sessionRecord = new RecordId("agent_session", sessionId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 

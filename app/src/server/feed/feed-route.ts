@@ -337,10 +337,13 @@ async function handleFeed(deps: ServerDependencies, workspaceId: string): Promis
       });
     }
 
+    const items = [...blocking, ...review, ...awareness];
+
     const payload: GovernanceFeedResponse = {
       blocking,
       review,
       awareness,
+      items,
       updatedAt: new Date().toISOString(),
     };
 

@@ -88,7 +88,7 @@ describe("Walking Skeleton: Task completion triggers observer verification", () 
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "skeleton-degrade");
 
     // And a task with no external verification signals (no PR URL, no CI link)
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = await import("surrealdb").then(({ RecordId }) => new RecordId("task", taskId));
     const workspaceRecord = await import("surrealdb").then(({ RecordId }) => new RecordId("workspace", workspaceId));
 

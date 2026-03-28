@@ -16,6 +16,7 @@ import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
 import { X } from "lucide-react";
 import { ReasoningPanel, deriveReasoningSource } from "../reasoning-panel";
+import { EntityKindSection } from "./EntityKindSection";
 
 const CONFIRMABLE_STATUSES = new Set(["extracted", "proposed", "provisional", "inferred"]);
 
@@ -270,6 +271,8 @@ export function EntityDetailPanel({
       ) : undefined}
 
       <DescriptionSection data={detail.entity.data} kind={kind} onEntityClick={onEntityClick} />
+
+      <EntityKindSection kind={kind} data={detail.entity.data} onEntityClick={onEntityClick} />
 
       {rationale ? (
         <div className="flex flex-col gap-1 px-4">

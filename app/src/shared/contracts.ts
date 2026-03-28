@@ -1,4 +1,4 @@
-export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior" | "mcp_tool" | "mcp_server";
+export type EntityKind = "workspace" | "project" | "person" | "identity" | "feature" | "task" | "decision" | "question" | "observation" | "suggestion" | "message" | "agent_session" | "intent" | "policy" | "learning" | "objective" | "behavior" | "mcp_tool" | "mcp_server" | "git_commit";
 
 export type SourceKind = "message" | "document_chunk" | "git_commit";
 
@@ -43,7 +43,7 @@ export type OnboardingAction = "finalize_onboarding" | "continue_onboarding";
 export type ObservationSeverity = "info" | "warning" | "conflict";
 export type ObservationStatus = "open" | "acknowledged" | "resolved";
 
-export const OBSERVATION_TYPES = ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error"] as const;
+export const OBSERVATION_TYPES = ["contradiction", "duplication", "missing", "deprecated", "pattern", "anomaly", "validation", "error", "evidence_anomaly"] as const;
 export type ObservationType = (typeof OBSERVATION_TYPES)[number];
 
 export type ObservationSummary = {
@@ -411,6 +411,28 @@ export type GovernanceFeedAction = {
   label: string;
 };
 
+export type EvidenceVerificationSummary = {
+  verifiedCount: number;
+  totalCount: number;
+  failedRefs?: string[];
+  warnings?: string[];
+  enforcementMode: string;
+  tierMet?: boolean;
+};
+
+export type EvidenceRefDetail = {
+  entityId: string;
+  entityKind: string;
+  title: string;
+  verified: boolean;
+  failureReason?: string;
+};
+
+export type EvidenceSummary = {
+  verified: number;
+  total: number;
+};
+
 export type GovernanceFeedItem = {
   id: string;               // composite: "decision:<uuid>:provisional"
   tier: GovernanceTier;
@@ -430,12 +452,16 @@ export type GovernanceFeedItem = {
     entityKind: EntityKind;
     entityName: string;
   };
+  evidenceVerification?: EvidenceVerificationSummary;
+  evidenceRefs?: EvidenceRefDetail[];
+  evidenceSummary?: EvidenceSummary;
 };
 
 export type GovernanceFeedResponse = {
   blocking: GovernanceFeedItem[];
   review: GovernanceFeedItem[];
   awareness: GovernanceFeedItem[];
+  items: GovernanceFeedItem[];
   updatedAt: string;
 };
 

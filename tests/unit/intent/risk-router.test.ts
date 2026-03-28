@@ -3,6 +3,7 @@ import { routeByRisk } from "../../../app/src/server/intent/risk-router";
 import type {
   EvaluationResult,
 } from "../../../app/src/server/intent/types";
+import type { EvidenceVerificationResult } from "../../../app/src/server/intent/evidence-types";
 
 // --- Risk Router ---
 
@@ -101,6 +102,90 @@ describe("routeByRisk with human_veto_required", () => {
       reason: "Denied",
     };
     const result = routeByRisk(rejectResult, { humanVetoRequired: true });
+    expect(result).toEqual({ route: "reject", reason: "Denied" });
+  });
+});
+
+// --- Evidence Shortfall Penalty ---
+
+describe("routeByRisk with evidence shortfall penalty", () => {
+  const approveResult = (risk_score: number): EvaluationResult => ({
+    decision: "APPROVE",
+    risk_score,
+    reason: "Looks good",
+  });
+
+  const softNoEvidence: EvidenceVerificationResult = {
+    verified_count: 0,
+    total_count: 0,
+    verification_time_ms: 1,
+    enforcement_mode: "soft",
+  };
+
+  const softPartialEvidence: EvidenceVerificationResult = {
+    verified_count: 1,
+    total_count: 2,
+    verification_time_ms: 1,
+    enforcement_mode: "soft",
+  };
+
+  const bootstrapNoEvidence: EvidenceVerificationResult = {
+    verified_count: 0,
+    total_count: 0,
+    verification_time_ms: 1,
+    enforcement_mode: "bootstrap",
+  };
+
+  const softFullEvidence: EvidenceVerificationResult = {
+    verified_count: 2,
+    total_count: 2,
+    verification_time_ms: 1,
+    enforcement_mode: "soft",
+  };
+
+  test("soft enforcement with no evidence elevates risk above auto-approve threshold", () => {
+    // Base risk 20 would auto-approve (below 30), but penalty should push it above
+    const result = routeByRisk(approveResult(20), {
+      evidenceVerification: softNoEvidence,
+    });
+    expect(result.route).toBe("veto_window");
+  });
+
+  test("bootstrap enforcement does not apply penalty even with no evidence", () => {
+    // Base risk 20 stays at 20, auto-approves
+    const result = routeByRisk(approveResult(20), {
+      evidenceVerification: bootstrapNoEvidence,
+    });
+    expect(result).toEqual({ route: "auto_approve" });
+  });
+
+  test("soft enforcement with sufficient evidence does not apply penalty", () => {
+    // Full evidence: no shortfall, risk stays at 20, auto-approves
+    const result = routeByRisk(approveResult(20), {
+      evidenceVerification: softFullEvidence,
+    });
+    expect(result).toEqual({ route: "auto_approve" });
+  });
+
+  test("penalty scales with shortfall: 1 missing ref below minimum adds 1x penalty", () => {
+    // verified_count=0, min required is 1, shortfall=1 -> penalty=20
+    // Base risk 5 + 20 = 25, still auto-approve (<=30)
+    const result = routeByRisk(approveResult(5), {
+      evidenceVerification: softNoEvidence,
+    });
+    // 5 + 20 = 25 <= 30 -> auto_approve
+    expect(result).toEqual({ route: "auto_approve" });
+  });
+
+  test("reject decision is unaffected by evidence shortfall", () => {
+    const rejectResult: EvaluationResult = {
+      decision: "REJECT",
+      risk_score: 10,
+      reason: "Denied",
+    };
+    const result = routeByRisk(rejectResult, {
+      evidenceVerification: softNoEvidence,
+    });
     expect(result).toEqual({ route: "reject", reason: "Denied" });
   });
 });

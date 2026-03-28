@@ -2,8 +2,10 @@ import { generateObject, type LanguageModel } from "ai";
 import { z } from "zod";
 import type { RecordId, Surreal } from "surrealdb";
 import type { ActionSpec, BudgetLimit, EvaluationResult } from "./types";
-import type { PolicyTraceEntry, IntentEvaluationContext } from "../policy/types";
+import type { EvidenceVerificationResult, EvidenceEnforcementMode } from "./evidence-types";
+import type { PolicyTraceEntry, IntentEvaluationContext, PolicyEvidenceRequirements } from "../policy/types";
 import { evaluatePolicyGate } from "../policy/policy-gate";
+import { verifyEvidence } from "./evidence-verification";
 import type { AlignmentResult, AlignmentCandidate, AlignmentMethod } from "../objective/alignment";
 import { selectBestAlignment } from "../objective/alignment";
 import type { EntityReference } from "../objective/alignment-adapter";
@@ -60,6 +62,9 @@ type EvaluationOutput = EvaluationResult & {
   policy_trace: PolicyTraceEntry[];
   human_veto_required: boolean;
   alignment?: AlignmentResult;
+  evidence_verification?: EvidenceVerificationResult;
+  /** When true, intent was rejected by hard enforcement gate before LLM evaluation */
+  hard_enforcement_rejection?: boolean;
 };
 
 export type EvaluateIntentInput = {
@@ -97,7 +102,57 @@ export type EvaluateIntentInput = {
     intentId: RecordId<"intent">,
     bestScore: number,
   ) => Promise<void>;
+  /** Optional: evidence references (RecordIds) attached to the intent */
+  evidenceRefs?: ReadonlyArray<RecordId>;
+  /** Optional: workspace evidence enforcement mode */
+  evidenceEnforcementMode?: EvidenceEnforcementMode;
+  /** Optional: intent created_at for temporal ordering check */
+  intentCreatedAt?: Date;
+  /** Optional: requester agent name for authorship independence check */
+  requesterAgent?: string;
+  /** Optional: minimum evidence age in minutes (from workspace settings) */
+  minEvidenceAgeMinutes?: number;
 };
+
+// --- Policy Evidence Requirements Evaluation ---
+
+type PolicyEvidenceEvaluation = {
+  met: boolean;
+  warnings: string[];
+};
+
+/**
+ * Evaluates whether the provided evidence meets policy-defined requirements.
+ * Pure function -- no IO.
+ */
+export function evaluatePolicyEvidenceRequirements(
+  requirements: PolicyEvidenceRequirements,
+  evidenceCount: number,
+  verifiedTableCounts?: Record<string, number>,
+): PolicyEvidenceEvaluation {
+  const warnings: string[] = [];
+  let met = true;
+
+  if (evidenceCount < requirements.min_count) {
+    warnings.push(
+      `Policy requires at least ${requirements.min_count} evidence references but only ${evidenceCount} were provided`,
+    );
+    met = false;
+  }
+
+  if (requirements.required_types && verifiedTableCounts) {
+    for (const requiredType of requirements.required_types) {
+      if ((verifiedTableCounts[requiredType] ?? 0) === 0) {
+        warnings.push(
+          `Policy requires at least one ${requiredType} evidence reference`,
+        );
+        met = false;
+      }
+    }
+  }
+
+  return { met, warnings };
+}
 
 const DEFAULT_EVAL_TIMEOUT_MS = 30_000;
 
@@ -134,6 +189,78 @@ export async function evaluateIntent(
 
   const humanVetoRequired = gateResult.human_veto_required;
   const policyTrace = gateResult.policy_trace;
+
+  // --- Evidence verification step (after policy gate, before LLM) ---
+  let evidenceVerification: EvidenceVerificationResult | undefined;
+  const enforcementMode = input.evidenceEnforcementMode ?? "bootstrap";
+
+  if (input.evidenceRefs && input.evidenceRefs.length > 0) {
+    evidenceVerification = await verifyEvidence(
+      input.surreal,
+      input.evidenceRefs,
+      input.workspaceId,
+      enforcementMode,
+      input.intentCreatedAt,
+      input.intent.priority,
+      input.requesterAgent,
+      input.minEvidenceAgeMinutes,
+    );
+  } else {
+    // No evidence provided -- record that fact
+    evidenceVerification = {
+      verified_count: 0,
+      total_count: 0,
+      verification_time_ms: 0,
+      enforcement_mode: enforcementMode,
+    };
+  }
+
+  // --- Policy evidence requirements gate (after verification, before LLM) ---
+  const policyEvidenceRequirements = gateResult.evidence_requirements;
+  if (policyEvidenceRequirements && enforcementMode === "hard") {
+    const evidenceCount = input.evidenceRefs?.length ?? 0;
+    const policyEval = evaluatePolicyEvidenceRequirements(
+      policyEvidenceRequirements,
+      evidenceCount,
+    );
+
+    if (!policyEval.met) {
+      // Merge policy warnings into evidence verification
+      const mergedVerification: EvidenceVerificationResult = {
+        ...evidenceVerification!,
+        warnings: [
+          ...(evidenceVerification?.warnings ?? []),
+          ...policyEval.warnings,
+        ],
+      };
+
+      return {
+        decision: "REJECT",
+        risk_score: 0,
+        reason: `Policy evidence requirement not met: ${policyEval.warnings[0]}`,
+        policy_only: false,
+        policy_trace: policyTrace,
+        human_veto_required: false,
+        evidence_verification: mergedVerification,
+        hard_enforcement_rejection: true,
+      };
+    }
+  }
+
+  // --- Hard enforcement gate: reject zero-evidence intents before LLM ---
+  const hasNoEvidence = !input.evidenceRefs || input.evidenceRefs.length === 0;
+  if (enforcementMode === "hard" && hasNoEvidence) {
+    return {
+      decision: "REJECT",
+      risk_score: 0,
+      reason: "Hard enforcement requires evidence references — intent rejected without evaluation",
+      policy_only: false,
+      policy_trace: policyTrace,
+      human_veto_required: false,
+      evidence_verification: evidenceVerification,
+      hard_enforcement_rejection: true,
+    };
+  }
 
   const timeoutMs = input.timeoutMs ?? DEFAULT_EVAL_TIMEOUT_MS;
   const controller = new AbortController();
@@ -236,6 +363,7 @@ export async function evaluateIntent(
       policy_trace: policyTrace,
       human_veto_required: humanVetoRequired,
       alignment: alignmentResult,
+      evidence_verification: evidenceVerification,
     };
   } catch (error) {
     const reason = isAbortError(error)
@@ -249,6 +377,7 @@ export async function evaluateIntent(
       policy_trace: policyTrace,
       human_veto_required: humanVetoRequired,
       alignment: alignmentResult,
+      evidence_verification: evidenceVerification,
     };
   } finally {
     clearTimeout(timer);

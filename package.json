@@ -24,6 +24,7 @@
     "acceptance:graph": "bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/graph/",
     "acceptance:workspace": "bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/workspace/",
     "migrate": "bun run --env-file=.env schema/migrate.ts",
+    "seed": "bun run --env-file=.env schema/seed.ts",
     "build:cli": "bun build cli/brain.ts --compile --bytecode --minify --outfile brain"
   },
   "dependencies": {

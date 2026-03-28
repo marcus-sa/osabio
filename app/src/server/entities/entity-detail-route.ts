@@ -4,9 +4,9 @@ import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
 import {
+  ALL_ENTITY_TABLES,
   getEntityDetail,
   parseRecordIdString,
-  type GraphEntityTable,
 } from "../graph/queries";
 import { buildEntityDetailResponse, type AgentSessionRow } from "./entity-detail-response";
 import { log } from "../telemetry/logger";
@@ -39,8 +39,7 @@ async function handleEntityDetail(
   }
 
   try {
-    const entityTables: GraphEntityTable[] = ["workspace", "project", "person", "feature", "task", "decision", "question", "suggestion", "objective", "behavior"];
-    const entityRecord = parseRecordIdString(entityId, entityTables);
+    const entityRecord = parseRecordIdString(entityId, ALL_ENTITY_TABLES);
     const detail = await getEntityDetail({
       surreal: deps.surreal,
       workspaceRecord,

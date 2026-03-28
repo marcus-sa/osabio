@@ -1,6 +1,8 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { IntentRecord, IntentStatus, ActionSpec, BudgetLimit, EvaluationResult } from "./types";
+import type { EvidenceVerificationResult } from "./evidence-types";
 import type { BrainAction } from "../oauth/types";
+import type { PolicyTraceEntry } from "../policy/types";
 import { transitionStatus } from "./status-machine";
 
 // --- Query Result Types ---
@@ -17,13 +19,20 @@ type CreateIntentParams = {
   expiry?: Date;
   authorization_details?: BrainAction[];
   dpop_jwk_thumbprint?: string;
+  evidence_refs?: RecordId[];
 };
 
 type StatusUpdateFields = {
-  evaluation?: EvaluationResult & { evaluated_at: Date; policy_only: boolean };
+  evaluation?: EvaluationResult & {
+    evaluated_at: Date;
+    policy_only: boolean;
+    policy_trace?: PolicyTraceEntry[];
+    human_veto_required?: boolean;
+  };
   veto_expires_at?: Date;
   veto_reason?: string;
   error_reason?: string;
+  evidence_verification?: EvidenceVerificationResult;
 };
 
 type ListFilters = {
@@ -103,6 +112,9 @@ export async function createIntent(
   if (params.dpop_jwk_thumbprint) {
     content.dpop_jwk_thumbprint = params.dpop_jwk_thumbprint;
   }
+  if (params.evidence_refs) {
+    content.evidence_refs = params.evidence_refs;
+  }
 
   await surreal.query(
     "CREATE $record CONTENT $content;",
@@ -160,6 +172,9 @@ export async function updateIntentStatus(
   if (updates?.error_reason) {
     setFields.error_reason = updates.error_reason;
   }
+  if (updates?.evidence_verification) {
+    setFields.evidence_verification = updates.evidence_verification;
+  }
 
   const [rows] = await surreal.query<[IntentRecord[]]>(
     "UPDATE $record MERGE $fields RETURN AFTER;",
@@ -215,6 +230,60 @@ export async function queryExpiredVetoIntents(
        AND veto_expires_at < time::now();`,
   );
   return rows;
+}
+
+// --- Maturity Threshold Queries ---
+
+export async function countConfirmedDecisions(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<number> {
+  const [rows] = await surreal.query<[Array<{ total: number }>]>(
+    `SELECT count() AS total FROM decision WHERE workspace = $ws AND status = "confirmed" GROUP ALL;`,
+    { ws: workspaceId },
+  );
+  return rows[0]?.total ?? 0;
+}
+
+export async function countCompletedTasks(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<number> {
+  const [rows] = await surreal.query<[Array<{ total: number }>]>(
+    `SELECT count() AS total FROM task WHERE workspace = $ws AND status IN ["done", "completed"] GROUP ALL;`,
+    { ws: workspaceId },
+  );
+  return rows[0]?.total ?? 0;
+}
+
+/**
+ * CAS (Compare-And-Swap) update: transitions workspace enforcement from soft to hard.
+ * Only updates if current mode is still "soft" to prevent race conditions.
+ */
+export async function transitionEnforcementToHard(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<boolean> {
+  const [rows] = await surreal.query<[Array<{ evidence_enforcement: string }>]>(
+    `UPDATE $ws SET evidence_enforcement = "hard" WHERE evidence_enforcement = "soft" RETURN AFTER;`,
+    { ws: workspaceId },
+  );
+  return (rows.length > 0 && rows[0]?.evidence_enforcement === "hard");
+}
+
+/**
+ * CAS (Compare-And-Swap) update: transitions workspace enforcement from bootstrap to soft.
+ * Only updates if current mode is still "bootstrap" to prevent race conditions.
+ */
+export async function transitionEnforcementToSoft(
+  surreal: Surreal,
+  workspaceId: RecordId<"workspace">,
+): Promise<boolean> {
+  const [rows] = await surreal.query<[Array<{ evidence_enforcement: string }>]>(
+    `UPDATE $ws SET evidence_enforcement = "soft" WHERE evidence_enforcement = "bootstrap" RETURN AFTER;`,
+    { ws: workspaceId },
+  );
+  return (rows.length > 0 && rows[0]?.evidence_enforcement === "soft");
 }
 
 export async function listIntentsByWorkspace(

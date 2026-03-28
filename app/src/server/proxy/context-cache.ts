@@ -24,6 +24,7 @@ export type CachedCandidatePool = {
   readonly learnings: CandidateItem[];
   readonly observations: CandidateItem[];
   readonly populatedAt: number;
+  readonly enforcementMode?: string;
 };
 
 export type ContextCache = {

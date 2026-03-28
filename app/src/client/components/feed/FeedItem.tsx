@@ -1,16 +1,51 @@
-import type { GovernanceFeedAction, GovernanceFeedItem } from "../../../shared/contracts";
+import { useState } from "react";
+import type { GovernanceFeedAction, GovernanceFeedItem, EvidenceRefDetail, EntityKind } from "../../../shared/contracts";
 import { EntityBadge } from "../ui/entity-badge";
 import { CategoryBadge } from "../graph/CategoryBadge";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
+function EvidenceRefRow({
+  detail,
+  onClick,
+}: {
+  detail: EvidenceRefDetail;
+  onClick?: (entityId: string) => void;
+}) {
+  const isClickable = onClick !== undefined;
+  return (
+    <div
+      className={`flex items-center gap-1.5 text-xs${isClickable ? " cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1" : ""}`}
+      role={isClickable ? "button" : undefined}
+      onClick={isClickable ? () => onClick(detail.entityId) : undefined}
+    >
+      <EntityBadge kind={detail.entityKind as EntityKind} />
+      <span className="text-foreground">{detail.title}</span>
+      {detail.verified ? (
+        <Badge variant="outline" className="text-[0.55rem] text-green-600">verified</Badge>
+      ) : (
+        <span className="flex items-center gap-1">
+          <Badge variant="destructive" className="text-[0.55rem]">failed</Badge>
+          {detail.failureReason ? (
+            <span className="text-destructive text-[0.6rem]">{detail.failureReason}</span>
+          ) : undefined}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function FeedItem({
   item,
   onAction,
+  onEvidenceClick,
 }: {
   item: GovernanceFeedItem;
   onAction: (action: GovernanceFeedAction) => void;
+  onEvidenceClick?: (entityId: string) => void;
 }) {
+  const [evidenceExpanded, setEvidenceExpanded] = useState(false);
+
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-border bg-background p-2.5">
       <div className="flex items-center justify-between gap-2">
@@ -37,6 +72,31 @@ export function FeedItem({
 
       {item.project ? (
         <p className="text-xs text-entity-project-fg">{item.project}</p>
+      ) : undefined}
+
+      {item.evidenceSummary && item.evidenceSummary.total === 0 && item.evidenceVerification?.enforcementMode === "soft" ? (
+        <div className="flex flex-col gap-0.5 rounded border border-yellow-300 bg-yellow-50 px-2 py-1.5 dark:border-yellow-700 dark:bg-yellow-950">
+          <span className="text-xs font-medium text-yellow-800 dark:text-yellow-300">No evidence provided</span>
+          <span className="text-[0.65rem] text-yellow-700 dark:text-yellow-400">Risk score elevated</span>
+        </div>
+      ) : undefined}
+
+      {item.evidenceSummary ? (
+        <Badge
+          variant="outline"
+          className={`text-[0.6rem] w-fit${item.evidenceRefs?.length ? " cursor-pointer" : ""}`}
+          onClick={item.evidenceRefs?.length ? () => setEvidenceExpanded((prev) => !prev) : undefined}
+        >
+          {item.evidenceSummary.verified}/{item.evidenceSummary.total} verified
+        </Badge>
+      ) : undefined}
+
+      {evidenceExpanded && item.evidenceRefs?.length ? (
+        <div className="flex flex-col gap-1 pl-1">
+          {item.evidenceRefs.map((ref) => (
+            <EvidenceRefRow key={ref.entityId} detail={ref} onClick={onEvidenceClick} />
+          ))}
+        </div>
       ) : undefined}
 
       <div className="flex flex-wrap gap-1.5 pt-1">

@@ -55,7 +55,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-verified");
 
     // When an observation is created without specifying verified
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -90,7 +90,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-source");
 
     // When an observation is created with a source attribution
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -126,7 +126,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "schema-data");
 
     // When an observation is created with raw evidence data
-    const obsId = `obs-${crypto.randomUUID()}`;
+    const obsId = crypto.randomUUID();
     const obsRecord = new RecordId("observation", obsId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -170,7 +170,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     const wsRecord = new RecordId("workspace", workspaceId);
 
     // When an observation is created with type "validation"
-    const validationObsId = `obs-${crypto.randomUUID()}`;
+    const validationObsId = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", validationObsId),
       content: {
@@ -192,7 +192,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     expect(validationRows[0]?.[0]?.observation_type).toBe("validation");
 
     // When an observation is created with type "error"
-    const errorObsId = `obs-${crypto.randomUUID()}`;
+    const errorObsId = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", errorObsId),
       content: {
@@ -238,7 +238,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
     });
 
     // When observations are linked to these extended entity types
-    const obsForIntent = `obs-${crypto.randomUUID()}`;
+    const obsForIntent = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obsForIntent),
       content: {
@@ -255,7 +255,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
       { obs: new RecordId("observation", obsForIntent), target: new RecordId("intent", intentId) },
     );
 
-    const obsForCommit = `obs-${crypto.randomUUID()}`;
+    const obsForCommit = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obsForCommit),
       content: {
@@ -272,7 +272,7 @@ describe("Milestone 1: Schema Extensions (Story 4)", () => {
       { obs: new RecordId("observation", obsForCommit), target: new RecordId("git_commit", commitId) },
     );
 
-    const obsForObs = `obs-${crypto.randomUUID()}`;
+    const obsForObs = crypto.randomUUID();
     await surreal.query(`CREATE $obs CONTENT $content;`, {
       obs: new RecordId("observation", obsForObs),
       content: {
@@ -346,7 +346,7 @@ describe("Milestone 1: SurrealDB EVENT Definitions (Story 6)", () => {
 
     // Given a workspace with a task in open status
     const { workspaceId } = await setupObserverWorkspace(baseUrl, surreal, "event-task-noop");
-    const taskId = `task-${crypto.randomUUID()}`;
+    const taskId = crypto.randomUUID();
     const taskRecord = new RecordId("task", taskId);
     const wsRecord = new RecordId("workspace", workspaceId);
 
@@ -383,7 +383,7 @@ describe("Milestone 1: SurrealDB EVENT Definitions (Story 6)", () => {
     // Given a workspace with an intent in authorized status
     const { workspaceId, identityId } = await setupObserverWorkspace(baseUrl, surreal, "event-intent-done");
 
-    const intentId = `intent-${crypto.randomUUID()}`;
+    const intentId = crypto.randomUUID();
     const intentRecord = new RecordId("intent", intentId);
     const wsRecord = new RecordId("workspace", workspaceId);
     const requesterRecord = new RecordId("identity", identityId);

@@ -290,7 +290,7 @@ describe("Milestone 1: Learning Schema and Queries", () => {
     });
 
     // When evidence is linked to the learning (an observation that prompted it)
-    const observationId = `obs-${crypto.randomUUID()}`;
+    const observationId = crypto.randomUUID();
     const observationRecord = new RecordId("observation", observationId);
     const workspaceRecord = new RecordId("workspace", workspaceId);
 

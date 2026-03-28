@@ -349,6 +349,182 @@ describe("buildGateResult", () => {
 });
 
 // ---------------------------------------------------------------------------
+// extractEvidenceRequirements
+// ---------------------------------------------------------------------------
+
+describe("extractEvidenceRequirements", () => {
+  it("extracts evidence requirements from matched evidence_requirement rules", async () => {
+    const { extractEvidenceRequirements } = await import(
+      "../../app/src/server/policy/policy-gate"
+    );
+
+    const evaluatedRules = [
+      {
+        policyId: "p1",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "financial-evidence-req",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "financial_transaction" },
+          effect: "evidence_requirement" as const,
+          priority: 100,
+          min_evidence_count: 4,
+          required_types: ["decision", "task"],
+        },
+        matched: true,
+        warnings: [],
+      },
+    ];
+
+    const result = extractEvidenceRequirements(evaluatedRules);
+
+    expect(result).toBeDefined();
+    expect(result!.min_count).toBe(4);
+    expect(result!.required_types).toEqual(["decision", "task"]);
+  });
+
+  it("returns undefined when no evidence_requirement rules match", async () => {
+    const { extractEvidenceRequirements } = await import(
+      "../../app/src/server/policy/policy-gate"
+    );
+
+    const evaluatedRules = [
+      {
+        policyId: "p1",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "allow-read",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "read" },
+          effect: "allow" as const,
+          priority: 10,
+        },
+        matched: true,
+        warnings: [],
+      },
+    ];
+
+    const result = extractEvidenceRequirements(evaluatedRules);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("uses the highest-priority matched evidence_requirement rule", async () => {
+    const { extractEvidenceRequirements } = await import(
+      "../../app/src/server/policy/policy-gate"
+    );
+
+    const evaluatedRules = [
+      {
+        policyId: "p1",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "strict-req",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "financial_transaction" },
+          effect: "evidence_requirement" as const,
+          priority: 200,
+          min_evidence_count: 6,
+        },
+        matched: true,
+        warnings: [],
+      },
+      {
+        policyId: "p2",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "relaxed-req",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "financial_transaction" },
+          effect: "evidence_requirement" as const,
+          priority: 50,
+          min_evidence_count: 2,
+        },
+        matched: true,
+        warnings: [],
+      },
+    ];
+
+    // Rules are already sorted by priority DESC, so first match wins
+    const result = extractEvidenceRequirements(evaluatedRules);
+
+    expect(result).toBeDefined();
+    expect(result!.min_count).toBe(6);
+  });
+
+  it("ignores unmatched evidence_requirement rules", async () => {
+    const { extractEvidenceRequirements } = await import(
+      "../../app/src/server/policy/policy-gate"
+    );
+
+    const evaluatedRules = [
+      {
+        policyId: "p1",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "financial-evidence-req",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "financial_transaction" },
+          effect: "evidence_requirement" as const,
+          priority: 100,
+          min_evidence_count: 4,
+        },
+        matched: false,
+        warnings: [],
+      },
+    ];
+
+    const result = extractEvidenceRequirements(evaluatedRules);
+
+    expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildGateResult with evidence requirements
+// ---------------------------------------------------------------------------
+
+describe("buildGateResult with evidence requirements", () => {
+  it("includes evidence_requirements on passed result", () => {
+    const evaluatedRules = [
+      {
+        policyId: "p1",
+        policyVersion: 1,
+        humanVetoRequired: false,
+        rule: {
+          id: "r1",
+          condition: { field: "action_spec.action", operator: "eq" as const, value: "pay" },
+          effect: "allow" as const,
+          priority: 10,
+        },
+        matched: true,
+        warnings: [] as PolicyGateWarning[],
+      },
+    ];
+
+    const evidenceRequirements = { min_count: 4, required_types: ["decision", "task"] };
+    const result = buildGateResult(evaluatedRules, false, [], evidenceRequirements);
+
+    expect(result.passed).toBe(true);
+    if (result.passed) {
+      expect(result.evidence_requirements).toEqual({
+        min_count: 4,
+        required_types: ["decision", "task"],
+      });
+    }
+  });
+
+  it("omits evidence_requirements when none matched", () => {
+    const result = buildGateResult([], false, []);
+
+    expect(result.passed).toBe(true);
+    if (result.passed) {
+      expect(result.evidence_requirements).toBeUndefined();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // evaluatePolicyGate integration (mocked IO boundary)
 // ---------------------------------------------------------------------------
 

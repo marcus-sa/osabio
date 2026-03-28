@@ -386,7 +386,7 @@ export async function createTestIdentity(
     return result.identityId;
   }
   // Legacy: identity without workspace (no member_of edge)
-  const identityId = `id-${crypto.randomUUID()}`;
+  const identityId = crypto.randomUUID();
   const identityRecord = new RecordId("identity", identityId);
   await surreal.query(`CREATE $identity CONTENT $content;`, {
     identity: identityRecord,

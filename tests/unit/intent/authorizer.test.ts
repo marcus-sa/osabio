@@ -153,6 +153,67 @@ describe("evaluateIntent", () => {
     });
   });
 
+  describe("hard enforcement rejects zero-evidence intents before LLM evaluation", () => {
+    test("returns REJECT with evidence-related reason when no evidence refs in hard mode", async () => {
+      let llmCalled = false;
+      const spyEvaluator: LlmEvaluator = async () => {
+        llmCalled = true;
+        return approvedLlmResult;
+      };
+
+      const result = await evaluateIntent(makeInput({
+        llmEvaluator: spyEvaluator,
+        evidenceRefs: [],
+        evidenceEnforcementMode: "hard",
+      }));
+
+      expect(result.decision).toBe("REJECT");
+      expect(result.reason.toLowerCase()).toContain("evidence");
+      expect(result.policy_only).toBe(false);
+      expect(llmCalled).toBe(false);
+    });
+
+    test("returns REJECT with evidence-related reason when evidenceRefs is undefined in hard mode", async () => {
+      let llmCalled = false;
+      const spyEvaluator: LlmEvaluator = async () => {
+        llmCalled = true;
+        return approvedLlmResult;
+      };
+
+      const result = await evaluateIntent(makeInput({
+        llmEvaluator: spyEvaluator,
+        evidenceRefs: undefined,
+        evidenceEnforcementMode: "hard",
+      }));
+
+      expect(result.decision).toBe("REJECT");
+      expect(result.reason.toLowerCase()).toContain("evidence");
+      expect(llmCalled).toBe(false);
+    });
+
+    test("does NOT reject zero-evidence intents in soft enforcement mode", async () => {
+      const result = await evaluateIntent(makeInput({
+        llmEvaluator: makeLlmEvaluator(approvedLlmResult),
+        evidenceRefs: [],
+        evidenceEnforcementMode: "soft",
+      }));
+
+      expect(result.decision).toBe("APPROVE");
+      expect(result.policy_only).toBe(false);
+    });
+
+    test("does NOT reject zero-evidence intents in bootstrap enforcement mode", async () => {
+      const result = await evaluateIntent(makeInput({
+        llmEvaluator: makeLlmEvaluator(approvedLlmResult),
+        evidenceRefs: [],
+        evidenceEnforcementMode: "bootstrap",
+      }));
+
+      expect(result.decision).toBe("APPROVE");
+      expect(result.policy_only).toBe(false);
+    });
+  });
+
   describe("evaluation timeout produces high-risk fallback for human review", () => {
     test("returns APPROVE with risk_score=50 and policy_only=true on timeout", async () => {
       const result = await evaluateIntent(makeInput({

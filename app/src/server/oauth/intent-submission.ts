@@ -15,7 +15,6 @@ import type { ServerDependencies } from "../runtime/types";
 import { jsonError, jsonResponse } from "../http/response";
 import { createIntent, createTrace, updateIntentStatus } from "../intent/intent-queries";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
-import { routeByRisk } from "../intent/risk-router";
 import {
   checkIdentityAllowed,
   type LookupIdentity,
@@ -156,7 +155,7 @@ export type SubmitIntentForAuthorizationDeps = {
 
 export type SubmitIntentForAuthorizationResult = {
   intentId: string;
-  status: "authorized" | "pending_auth";
+  status: "authorized" | "pending_auth" | "failed";
   traceId: string;
 };
 
@@ -246,27 +245,50 @@ export async function submitIntentForAuthorization(
         timeoutMs: 10_000,
       });
 
-      const routing = routeByRisk(evaluation);
-      const evaluationRecord = {
-        ...evaluation,
-        evaluated_at: new Date(),
-      };
-
-      if (routing.route === "auto_approve" || (routing.route === "veto_window")) {
-        await updateIntentStatus(surreal, intentId.id as string, "authorized", {
-          evaluation: evaluationRecord,
+      if (evaluation.decision === "REJECT" && evaluation.policy_only) {
+        const { alignment: _alignment, evidence_verification: _evidenceVerification, ...evaluationForDb } = evaluation;
+        const failed = await updateIntentStatus(surreal, intentId.id as string, "failed", {
+          evaluation: {
+            ...evaluationForDb,
+            evaluated_at: new Date(),
+          },
+          ...(evaluation.reason ? { error_reason: evaluation.reason } : {}),
         });
-
-        log.info("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
-          intentId: intentId.id as string,
-        });
+        if (!failed.ok) {
+          throw new Error(failed.error);
+        }
 
         return {
           intentId: intentId.id as string,
-          status: "authorized",
+          status: "failed",
           traceId: traceRecord.id as string,
         };
       }
+
+      const authorized = await updateIntentStatus(surreal, intentId.id as string, "authorized", {
+        evaluation: {
+          decision: "APPROVE",
+          risk_score: 0,
+          reason: "Low-risk read operation auto-approved",
+          evaluated_at: new Date(),
+          policy_only: true,
+          policy_trace: evaluation.policy_trace,
+          human_veto_required: false,
+        },
+      });
+      if (!authorized.ok) {
+        throw new Error(authorized.error);
+      }
+
+      log.info("intent.submission.auto_approved", "Low-risk read intent auto-approved", {
+        intentId: intentId.id as string,
+      });
+
+      return {
+        intentId: intentId.id as string,
+        status: "authorized",
+        traceId: traceRecord.id as string,
+      };
     } catch (error) {
       log.error(
         "intent.submission.inline_eval_failed",

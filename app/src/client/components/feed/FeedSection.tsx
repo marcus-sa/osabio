@@ -17,10 +17,12 @@ export function FeedSection({
   tier,
   items,
   onAction,
+  onEvidenceClick,
 }: {
   tier: GovernanceTier;
   items: GovernanceFeedItem[];
   onAction: (item: GovernanceFeedItem, action: GovernanceFeedAction) => void;
+  onEvidenceClick?: (entityId: string) => void;
 }) {
   if (items.length === 0) return undefined;
 
@@ -39,6 +41,7 @@ export function FeedSection({
             key={item.id}
             item={item}
             onAction={(action) => onAction(item, action)}
+            onEvidenceClick={onEvidenceClick}
           />
         ))}
       </div>

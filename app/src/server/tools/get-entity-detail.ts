@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import { getEntityDetail, parseRecordIdString, type GraphEntityTable } from "../graph/queries";
+import { ALL_ENTITY_TABLES, getEntityDetail, parseRecordIdString } from "../graph/queries";
 import { getEntityDetailSchema } from "../mcp/brain-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
@@ -11,11 +11,7 @@ export async function executeGetEntityDetail(
   workspaceRecord: RecordId<"workspace", string>,
   entityId: string,
 ) {
-  const entityRecord = parseRecordIdString(
-    entityId,
-    ["workspace", "project", "person", "feature", "task", "decision", "question"],
-  ) as unknown as ReturnType<typeof parseRecordIdString<GraphEntityTable>>;
-
+  const entityRecord = parseRecordIdString(entityId, ALL_ENTITY_TABLES);
   return getEntityDetail({ surreal, workspaceRecord, entityRecord });
 }
 

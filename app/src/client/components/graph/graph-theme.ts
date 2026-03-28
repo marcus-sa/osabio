@@ -21,6 +21,7 @@ export function entityColor(kind: EntityKind): string {
     case "behavior": return "var(--entity-behavior)";
     case "mcp_tool": return "var(--entity-task)";
     case "mcp_server": return "var(--entity-feature)";
+    case "git_commit": return "var(--entity-task)";
     default: return kind satisfies never;
   }
 }
@@ -46,6 +47,7 @@ export function entityMutedColor(kind: EntityKind): string {
     case "behavior": return "var(--entity-behavior-muted)";
     case "mcp_tool": return "var(--entity-task-muted)";
     case "mcp_server": return "var(--entity-feature-muted)";
+    case "git_commit": return "var(--entity-task-muted)";
     default: return kind satisfies never;
   }
 }
