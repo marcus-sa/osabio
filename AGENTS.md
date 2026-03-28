@@ -7,6 +7,10 @@
 - Always use `--no-verify` when committing. The pre-commit hook requires `brain init` which is not available in worktree environments.
 - Always use `-s` (GPG sign) when committing.
 
+## Deferred Work
+
+- Deferred work (out-of-scope items, future enhancements, known limitations) must always be created as GitHub issues. Do NOT leave deferred work only as comments in code, TODOs in docs, or notes in wave-decisions files — create a GitHub issue so it is tracked and discoverable.
+
 ## Data Value Contract
 
 - Never persist, publish, or return `null` for domain data values (Surreal records, API payloads, events, UI state).
