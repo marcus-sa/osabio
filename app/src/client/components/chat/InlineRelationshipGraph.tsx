@@ -1,26 +1,8 @@
 import { GraphCanvas, darkTheme } from "reagraph";
 import type { EntityKind } from "../../../shared/contracts";
 import type { InlineRelationshipGraphProps } from "../../../shared/chat-component-definitions";
-import { edgeStyle } from "../graph/graph-theme";
+import { edgeStyle, resolvedEntityColor } from "../graph/graph-theme";
 import { useViewState } from "../../stores/view-state";
-
-// Resolved hex values for Reagraph/WebGL (same as server transform.ts).
-function nodeColor(kind: string): string {
-  switch (kind) {
-    case "project": return "#3b82f6";
-    case "feature": return "#14b8a6";
-    case "task": return "#22c55e";
-    case "decision": return "#eab308";
-    case "question": return "#a855f7";
-    case "observation": return "#ef4444";
-    case "suggestion": return "#06b6d4";
-    case "person": return "#f97316";
-    case "workspace": return "#3b82f6";
-    case "intent": return "#14b8a6";
-    case "policy": return "#f59e0b";
-    default: return "#9fbfe4";
-  }
-}
 
 export function InlineRelationshipGraph(props: InlineRelationshipGraphProps) {
   const navigateToGraph = useViewState((s) => s.navigateToGraph);
@@ -28,7 +10,7 @@ export function InlineRelationshipGraph(props: InlineRelationshipGraphProps) {
   const nodes = props.nodes.map((node) => ({
     id: node.id,
     label: node.label,
-    fill: nodeColor(node.kind),
+    fill: resolvedEntityColor(node.kind as EntityKind),
     data: {
       kind: node.kind as EntityKind,
       connectionCount: props.edges.filter((e) => e.source === node.id || e.target === node.id).length,

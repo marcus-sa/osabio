@@ -1,33 +1,6 @@
 import type { ReagraphNode, ReagraphEdge, GraphResponse, EntityKind } from "../../shared/contracts";
 import type { GraphViewRawResult } from "./queries";
 
-// Resolved hex values for OKLCH entity colors — Three.js/WebGL cannot parse CSS variables.
-export function entityColor(kind: EntityKind): string {
-  switch (kind) {
-    case "project": return "#3b82f6";   // oklch(0.65 0.15 250)
-    case "feature": return "#14b8a6";   // oklch(0.65 0.15 170)
-    case "task": return "#22c55e";      // oklch(0.70 0.15 145)
-    case "decision": return "#eab308";  // oklch(0.70 0.15 55)
-    case "question": return "#a855f7";  // oklch(0.65 0.15 300)
-    case "observation": return "#ef4444";
-    case "suggestion": return "#06b6d4"; // cyan-500
-    case "person": return "#f97316";    // oklch(0.65 0.15 25)
-    case "workspace": return "#3b82f6";
-    case "message": return "#22c55e";
-    case "identity": return "#f97316";
-    case "agent_session": return "#22c55e";
-    case "intent": return "#14b8a6";
-    case "policy": return "#f59e0b";   // amber-500 — governance gold
-    case "learning": return "#eab308"; // decision-yellow — behavioral rules
-    case "objective": return "#10b981"; // emerald — strategic goals
-    case "behavior": return "#8b5cf6"; // violet — craftsmanship metrics
-    case "mcp_tool": return "#22c55e";
-    case "mcp_server": return "#14b8a6";
-    case "git_commit": return "#22c55e";
-    default: return kind satisfies never;
-  }
-}
-
 function titleCase(s: string): string {
   return s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
@@ -48,7 +21,6 @@ export function transformToReagraph(raw: GraphViewRawResult): GraphResponse {
     return {
       id: entity.id,
       label: entity.name.length > 32 ? entity.name.slice(0, 32) + "\u2026" : entity.name,
-      fill: entityColor(kind),
       data: {
         kind,
         connectionCount: (connectionCounts.get(entity.id) ?? 0) + kindBoost,
