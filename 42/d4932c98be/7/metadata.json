@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "42d4932c98be",
+  "session_id": "bd714175-b0dc-4ece-a8a8-34a941001b66",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T12:59:46.972266Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "AGENTS.md",
+    "docker-compose.yml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "801d25f5f6b7",
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 31813,
+    "cache_read_tokens": 97070,
+    "output_tokens": 1184,
+    "api_call_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T12:59:46.966148Z",
+    "agent_lines": 9,
+    "human_added": 859,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 868,
+    "agent_percentage": 1.0368663594470047
+  }
+}
