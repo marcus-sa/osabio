@@ -1,0 +1,225 @@
+<system_instruction>
+You are working inside Conductor, a Mac app that lets the user run many coding agents in parallel.
+Your work should take place in the /Users/marcus/conductor/workspaces/brain-v1/munich-v2 directory (unless otherwise directed), which has been set up for you to work in.
+Each workspace has a .context directory (gitignored) where you can save files to collaborate with other agents.
+The target branch for this workspace is main. Use this for actions like creating new PRs, bisecting, etc., unless you're told otherwise.
+
+By default, the user will only see the last message that you send before stopping. Include all essential information in the last message. The intermediate messages will be collapsed and accessible by the user but not displayed by default.
+
+If the user asks you to work on several unrelated tasks, you can suggest they start new workspaces.
+Sometimes the user might send you a message they meant to send in a different workspace or a different chat. If something doesn't make sense in the context of your work, just ask. 
+If the user asks for help with Conductor, you can ask them to go to "Help -> Send Feedback" to get in touch with our team.
+</system_instruction>
+
+
+<system-instruction>
+To do immediately:
+
+Rename the branch using `git branch -m` as soon as possible. Do not check the current branch name.
+
+You may read user-provided attachments first if needed to understand the request. Otherwise, do this before using any skills or any other tools.
+
+Choosing a branch name: use concrete, specific language, avoid abstract nouns, and be concise (<30 characters). Use the prefix "marcus-sa/" before the name.
+
+</system-instruction>
+
+/nw-discover we need a way for users of Brain to create new agents. Ideally, from an "agents" page in the UI, that already displays all the available agents in the workspace as cards. There is already an "agents" table in the database.
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-discover
+
+# NW-DISCOVER: Evidence-Based Product Discovery
+
+**Wave**: DISCOVER | **Agent**: Scout (nw-product-discoverer)
+
+## Overview
+
+Execute evidence-based product discovery through assumption testing and market validation. First wave in nWave (DISCOVER > DISCUSS > DESIGN > DEVOPS > DISTILL > DELIVER).
+
+Scout establishes product-market fit through rigorous customer development using Mom Test interviewing principles and continuous discovery practices.
+
+## Context Files Required
+
+- docs/project-brief.md — Initial product vision (if available)
+- docs/market-context.md — Market research and competitive landscape (if available)
+
+## Previous Artifacts
+
+None (DISCOVER is the first wave).
+
+## Wave Decisions Summary
+
+Before completing DISCOVER, produce `docs/feature/{feature-id}/discover/wave-decisions.md`:
+
+```markdown
+# DISCOVER Decisions — {feature-id}
+
+## Key Decisions
+- [D1] {decision}: {rationale} (see: {source-file})
+
+## Constraints Established
+- {constraint from evidence}
+
+## Validated Assumptions
+- {assumption validated by evidence, with confidence level}
+
+## Invalidated Assumptions
+- {assumption disproved, with evidence reference}
+```
+
+This summary enables downstream waves to quickly assess DISCOVER outcomes without reading all artifacts.
+
+## Document Update (Back-Propagation)
+
+Not applicable (DISCOVER is the first wave — no prior documents to update).
+
+## Agent Invocation
+
+@nw-product-discoverer
+
+Execute \*discover for {product-concept-name}.
+
+**Context Files:** docs/project-brief.md (if available) | docs/market-context.md (if available)
+
+**Configuration:**
+- interactive: high | output_format: markdown
+- interview_depth: comprehensive | evidence_standard: past_behavior
+
+## Success Criteria
+
+Refer to Scout's quality gates in ~/.claude/agents/nw/nw-product-discoverer.md.
+
+- [ ] All 4 decision gates passed (G1-G4)
+- [ ] Minimum interview thresholds met per phase
+- [ ] Evidence quality standards met (past behavior, not future intent)
+- [ ] Handoff accepted by product-owner (DISCUSS wave)
+
+## Next Wave
+
+**Handoff To**: nw-product-owner (DISCUSS wave)
+**Deliverables**: See Scout's handoff package specification in agent file
+
+## Examples
+
+### Example 1: New SaaS product discovery
+```
+/nw-discover invoice-automation
+```
+Scout conducts customer development interviews, validates problem-solution fit through Mom Test questioning, and produces a lean canvas with evidence-backed assumptions.
+
+## Expected Outputs
+
+```
+docs/feature/{feature-id}/discover/
+  problem-validation.md
+  opportunity-tree.md
+  solution-testing.md
+  lean-canvas.md
+  interview-log.md
+  wave-decisions.md
+```
+
+
+ARGUMENTS: we need a way for users of Brain to create new agents. Ideally, from an "agents" page in the UI, that already displays all the available agents in the workspace as cards. There is already an "agents" table in the database.
+
+---
+
+agent type should be removed. we should rely on name / id instead.
+the only difference is that some agents are brain managed and some are managed by the user in the workspace.
+so we actually need three types: brain controlled, sandboxed via sandbox agent, and third, agents that are programmatically controlled/written (e.g via vercel ai sdk, langchain, etc
+)
+
+---
+
+if we remove agent_type, what field will we then use to distinguish between brain, sandbox and external
+
+---
+
+"How do programmatic/external agents register with Brain? Currently Brain only knows about internal agents and MCP-connected ones (via brain init). What about a Vercel AI SDK agent or LangChain agent that wants to participate in the graph?"
+it would connect via the llm proxy - but the agent itself would still have to be registered in brain first
+
+---
+
+we have authority_scopes, skills (todo), mcp tools and rar + intent for authorization
+
+---
+
+we have authority_scopes, skills (todo), mcp tools and rar + intent for authorization
+
+it should not be possible to create a brain agent from the ui. they're read only.
+
+we need to ship it al
+
+---
+
+no i dont want to move forward with implementation. i want to continue with the discovery phase
+
+---
+
+Continue from where you left off.
+
+---
+
+we have already discussed this ???
+
+---
+
+1. no, proxy token is fine
+2. lives on the agent record. depending on those values, is what will be passed on to the sandbox agent sdk
+3. agent belongs to identity which belongs to workspace
+4. assign authority scopes at creation time
+
+---
+
+1. no, proxy token is fine
+2. lives on the agent record. depending on those values, is what will be passed on to the sandbox agent sdk
+3. agent will need a corresponding
+ identity which belongs to workspace
+4. assign authority scopes at creation time
+
+---
+
+1. look at the https://sandboxagent.dev/docs deploy section to derive it
+
+2. there should be. check the code and schema
+
+3. yes
+
+---
+
+option a
+
+---
+
+yes, session history and being able to spawn a sandbox session is relevant. 
+session history can be used to view current active sessions, idle sessions (those waiting for input), and completed sessions
+
+---
+
+thats the scope.
+
+yes, session history and being able to spawn a sandbox session is relevant. 
+session history can be used to view current active sessions, idle sessions (those waiting for input), and completed sessions
+
+---
+
+so the sandbox agent deployment mode should be configurable per workspace. only one deployment mode should be supported (local, daytona, etc)
+
+---
+
+we already have workspace settings, so it would live there
+
+"Does this split feel right" yes
+
+---
+
+sounds good. now complete the
+
+---
+
+sounds good. now complete the @docs/feature/agent-creation/discover/problem-validation.md doc
+
+---
+
+commit
