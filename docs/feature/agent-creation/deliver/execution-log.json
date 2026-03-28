@@ -99,6 +99,461 @@
       "s": "EXECUTED",
       "d": "PASS",
       "t": "2026-03-28T16:19:38Z"
+    },
+    {
+      "sid": "01-03",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:20:03Z"
+    },
+    {
+      "sid": "01-04",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:22:43Z"
+    },
+    {
+      "sid": "01-04",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: route handlers validated through acceptance tests in steps 02-01 through 03-02",
+      "t": "2026-03-28T16:22:47Z"
+    },
+    {
+      "sid": "01-04",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: handlers are thin wiring between HTTP and query functions, validated at acceptance level",
+      "t": "2026-03-28T16:22:49Z"
+    },
+    {
+      "sid": "01-04",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:24:35Z"
+    },
+    {
+      "sid": "01-04",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:24:55Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:27:19Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS -- EC-3 already passes: the Phase 01 implementation correctly creates agent+identity+edges+scopes+token atomically",
+      "t": "2026-03-28T16:27:23Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: transaction wiring validated at acceptance level, not unit level",
+      "t": "2026-03-28T16:27:28Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS -- no changes needed, all 23 agent acceptance tests pass (19 in external-agent-crud.test.ts including EC-3), typecheck clean",
+      "t": "2026-03-28T16:27:32Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no code changes needed, Phase 01 implementation already passes EC-3 and all 23 agent acceptance tests",
+      "t": "2026-03-28T16:27:37Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:28:00Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:28:04Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:29:17Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS \u2014 test already passing from Phase 01",
+      "t": "2026-03-28T16:29:26Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: deletion transaction validated at acceptance level",
+      "t": "2026-03-28T16:29:27Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS \u2014 all 5 deletion tests pass, no code changes needed",
+      "t": "2026-03-28T16:29:40Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no code changes required \u2014 deletion flow already working from Phase 01",
+      "t": "2026-03-28T16:29:40Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:30:01Z"
+    },
+    {
+      "sid": "02-02",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:30:02Z"
+    },
+    {
+      "sid": "02-03",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:30:59Z"
+    },
+    {
+      "sid": "02-03",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:31:21Z"
+    },
+    {
+      "sid": "02-03",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: endpoint wiring validated at acceptance level",
+      "t": "2026-03-28T16:31:21Z"
+    },
+    {
+      "sid": "02-03",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:31:21Z"
+    },
+    {
+      "sid": "02-03",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no code changes required, all tests pass",
+      "t": "2026-03-28T16:31:21Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:32:03Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:32:10Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: acceptance test validation step only",
+      "t": "2026-03-28T16:32:12Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:32:13Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no code changes required, all tests already passing",
+      "t": "2026-03-28T16:32:14Z"
+    },
+    {
+      "sid": "03-02",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:32:59Z"
+    },
+    {
+      "sid": "03-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:33:12Z"
+    },
+    {
+      "sid": "03-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: acceptance test validation step, no unit tests required",
+      "t": "2026-03-28T16:33:16Z"
+    },
+    {
+      "sid": "03-02",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-28T16:33:20Z"
+    },
+    {
+      "sid": "03-02",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: all 19 tests passed without code changes",
+      "t": "2026-03-28T16:33:23Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:33:59Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:33:59Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:33:59Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "04-02",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:00Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "05-02",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-01",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-01",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-02",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-02",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-02",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-02",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
+    },
+    {
+      "sid": "06-02",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "APPROVED_SKIP: frontend deferred to separate deliver run per AGENTS.md convention",
+      "t": "2026-03-28T16:34:01Z"
     }
   ]
 }
