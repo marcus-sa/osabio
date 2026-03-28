@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "25425f74546d",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/graph-edge-visibility",
+  "checkpoints_count": 23,
+  "files_touched": [
+    "app/src/client/components/chat/InlineRelationshipGraph.tsx",
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/graph/graph-theme.ts",
+    "app/src/client/styles.css",
+    "app/src/server/graph/transform.ts",
+    "app/src/shared/contracts.ts",
+    "tests/unit/graph-transform.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/425f74546d/0/metadata.json",
+      "transcript": "/25/425f74546d/0/full.jsonl",
+      "context": "/25/425f74546d/0/context.md",
+      "content_hash": "/25/425f74546d/0/content_hash.txt",
+      "prompt": "/25/425f74546d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2066,
+    "cache_creation_tokens": 333876,
+    "cache_read_tokens": 6603248,
+    "output_tokens": 28853,
+    "api_call_count": 126
+  }
+}

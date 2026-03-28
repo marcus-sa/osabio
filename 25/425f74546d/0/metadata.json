@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "25425f74546d",
+  "session_id": "fb993843-33fe-4fe9-a64c-b9a2d6d795f3",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T12:52:25.085146Z",
+  "branch": "marcus-sa/graph-edge-visibility",
+  "checkpoints_count": 23,
+  "files_touched": [
+    "app/src/client/components/chat/InlineRelationshipGraph.tsx",
+    "app/src/client/components/graph/KnowledgeGraph.tsx",
+    "app/src/client/components/graph/graph-theme.ts",
+    "app/src/client/styles.css",
+    "app/src/server/graph/transform.ts",
+    "app/src/shared/contracts.ts",
+    "tests/unit/graph-transform.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "70cf1702df61",
+  "token_usage": {
+    "input_tokens": 2066,
+    "cache_creation_tokens": 333876,
+    "cache_read_tokens": 6603248,
+    "output_tokens": 28853,
+    "api_call_count": 126
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T12:52:24.343178Z",
+    "agent_lines": 58,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 58,
+    "agent_percentage": 100
+  }
+}
