@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "9109f9be5e82",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "app/src/client/hooks/use-agents.ts",
+    "app/src/server/agents/agent-queries.ts",
+    "app/src/server/iam/authority.ts",
+    "app/src/server/reactive/agent-activator.ts",
+    "app/src/server/workspace/identity-bootstrap.ts",
+    "schema/migrate.ts",
+    "schema/migrations/0081_agent_runtime_name_sandbox.surql",
+    "schema/surreal-schema.surql",
+    "tests/acceptance/auth/authority.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/shared-fixtures.ts",
+    "tests/acceptance/unified-identity/audit-trail.test.ts",
+    "tests/acceptance/unified-identity/authority-overrides.test.ts",
+    "tests/acceptance/unified-identity/identity-bootstrap.test.ts",
+    "tests/acceptance/unified-identity/identity-schema.test.ts",
+    "tests/acceptance/unified-identity/walking-skeleton.test.ts",
+    "tests/unit/reactive/agent-activator.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/91/09f9be5e82/0/metadata.json",
+      "transcript": "/91/09f9be5e82/0/full.jsonl",
+      "context": "/91/09f9be5e82/0/context.md",
+      "content_hash": "/91/09f9be5e82/0/content_hash.txt",
+      "prompt": "/91/09f9be5e82/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8324,
+    "cache_creation_tokens": 295315,
+    "cache_read_tokens": 6944214,
+    "output_tokens": 37992,
+    "api_call_count": 106
+  }
+}
