@@ -111,3 +111,28 @@ and then
 use /nw-bugfix skill to remove agent_type as is no longer supported
 "4. Other files that reference `agent_type` (proxy, MCP auth) - these seem to be separate concepts (they reference agent_type in JWT claims and proxy context, not in authority_scope). I should leave those alone."
 
+### Prompt 18
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-bugfix
+
+# NW-BUGFIX: Defect Resolution Workflow
+
+**Wave**: CROSS_WAVE
+**Agents**: Rex (nw-troubleshooter) → selected crafter (OOP or FP per project paradigm)
+
+## Overview
+
+End-to-end bug fix pipeline: diagnose root cause, review findings with user, then deliver regression tests that fail with the bug and pass with the fix. Ensures every defect produces a test that prevents recurrence.
+
+## Flow
+
+```
+INPUT: "{bug-description}"
+  │
+ ...
+
+### Prompt 19
+
+Stop hook feedback:
+Prompt hook condition was not met: This task requires user approval of the RCA findings before Phase 3 (fix implementation) can proceed. The session is awaiting user response to the question: 'Does this root cause match your understanding? Do you approve the fix direction?' - no logging should occur until the user confirms they want to proceed with the proposed fixes.
+
