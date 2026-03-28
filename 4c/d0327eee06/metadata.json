@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4cd0327eee06",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "AGENTS.md",
+    "docs/adrs/ADR-081-parallel-write-agent-type-to-runtime-migration.md",
+    "docs/adrs/ADR-082-surreal-transaction-for-agent-creation-atomicity.md",
+    "docs/adrs/ADR-083-authorized-to-edges-for-custom-agent-authority.md",
+    "docs/feature/agent-creation/design/architecture-design.md",
+    "docs/feature/agent-creation/design/component-boundaries.md",
+    "docs/feature/agent-creation/design/data-models.md",
+    "docs/feature/agent-creation/design/technology-stack.md",
+    "docs/feature/agent-creation/design/wave-decisions.md",
+    "docs/feature/agent-creation/discuss/acceptance-criteria.md",
+    "docs/feature/agent-creation/discuss/dor-checklist.md",
+    "docs/feature/agent-creation/discuss/journey-agent-management-visual.md",
+    "docs/feature/agent-creation/discuss/journey-agent-management.feature",
+    "docs/feature/agent-creation/discuss/journey-agent-management.yaml",
+    "docs/feature/agent-creation/discuss/outcome-kpis.md",
+    "docs/feature/agent-creation/discuss/prioritization.md",
+    "docs/feature/agent-creation/discuss/requirements.md",
+    "docs/feature/agent-creation/discuss/shared-artifacts-registry.md",
+    "docs/feature/agent-creation/discuss/story-map.md",
+    "docs/feature/agent-creation/discuss/user-stories.md",
+    "docs/feature/agent-creation/discuss/wave-decisions.md",
+    "docs/feature/agent-creation/distill/test-scenarios.md",
+    "docs/feature/agent-creation/distill/walking-skeleton.md",
+    "docs/feature/agent-creation/distill/wave-decisions.md",
+    "tests/acceptance/agents/agents-test-kit.ts",
+    "tests/acceptance/agents/external-agent-crud.test.ts",
+    "tests/acceptance/agents/operational-dashboard.test.ts",
+    "tests/acceptance/agents/sandbox-creation.test.ts",
+    "tests/acceptance/agents/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4c/d0327eee06/0/metadata.json",
+      "transcript": "/4c/d0327eee06/0/full.jsonl",
+      "context": "/4c/d0327eee06/0/context.md",
+      "content_hash": "/4c/d0327eee06/0/content_hash.txt",
+      "prompt": "/4c/d0327eee06/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 216741,
+    "cache_read_tokens": 7597012,
+    "output_tokens": 32744,
+    "api_call_count": 55
+  }
+}
