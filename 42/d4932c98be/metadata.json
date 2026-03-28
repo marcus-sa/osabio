@@ -3,7 +3,7 @@
   "checkpoint_id": "42d4932c98be",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 9,
+  "checkpoints_count": 15,
   "files_touched": [
     ".nwave/des-config.json",
     "docker-compose.yml",
@@ -32,13 +32,20 @@
       "context": "/42/d4932c98be/2/context.md",
       "content_hash": "/42/d4932c98be/2/content_hash.txt",
       "prompt": "/42/d4932c98be/2/prompt.txt"
+    },
+    {
+      "metadata": "/42/d4932c98be/3/metadata.json",
+      "transcript": "/42/d4932c98be/3/full.jsonl",
+      "context": "/42/d4932c98be/3/context.md",
+      "content_hash": "/42/d4932c98be/3/content_hash.txt",
+      "prompt": "/42/d4932c98be/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 78,
-    "cache_creation_tokens": 342144,
-    "cache_read_tokens": 4736107,
-    "output_tokens": 31144,
-    "api_call_count": 52
+    "input_tokens": 105,
+    "cache_creation_tokens": 451346,
+    "cache_read_tokens": 5302840,
+    "output_tokens": 34960,
+    "api_call_count": 65
   }
 }
