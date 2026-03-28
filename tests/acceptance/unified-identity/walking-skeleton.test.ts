@@ -145,6 +145,8 @@ describe("Walking Skeleton: identity hub-and-spoke model delivers unified actor 
       record: agentRecord,
       content: {
         agent_type: "management",
+        runtime: "brain",
+        name: "PM Agent",
         model: "claude-sonnet-4-20250514",
         managed_by: humanIdentity,
         created_at: now,

@@ -153,7 +153,7 @@ describe("AgentCreatePage", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
-      "/agents": (url, init) => {
+      "/agents": (_url, init) => {
         if (init?.method === "POST") {
           return new Response(
             JSON.stringify({

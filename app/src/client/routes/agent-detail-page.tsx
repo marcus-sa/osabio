@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
-import { useWorkspaceState } from "../stores/workspace-state";
 import { useAgentActions, type AgentDetailResult } from "../hooks/use-agent-actions";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -48,7 +47,6 @@ function formatShortDate(iso: string): string {
 
 export function AgentDetailPage() {
   const { agentId } = useParams({ strict: false }) as { agentId: string };
-  const workspaceId = useWorkspaceState((s) => s.workspaceId);
   const { fetchDetail, deleteAgent, isSubmitting, error } = useAgentActions();
   const navigate = useNavigate();
 

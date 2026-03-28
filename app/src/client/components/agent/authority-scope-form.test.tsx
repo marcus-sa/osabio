@@ -90,7 +90,7 @@ describe("AuthorityScopeForm", () => {
     await userEvent.click(autoRadio);
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    const updatedScopes = onChange.mock.calls[0][0] as AuthorityScopeInput[];
+    const updatedScopes = (onChange.mock.calls as unknown as AuthorityScopeInput[][][])[0][0];
     const createTaskScope = updatedScopes.find((s) => s.action === "create_task");
     expect(createTaskScope?.permission).toBe("auto");
   });

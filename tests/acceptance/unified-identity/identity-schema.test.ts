@@ -102,7 +102,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { agent_type: "management", managed_by: human, created_at: now },
+      content: { agent_type: "management", runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
     });
     const [rows] = await surreal.query<[Array<{ agent_type: string; managed_by: RecordId }>]>(
       "SELECT agent_type, managed_by FROM $record;", { record: ag },
@@ -141,7 +141,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { agent_type: "management", managed_by: human, created_at: now },
+      content: { agent_type: "management", runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
     });
     const agentId = new RecordId("identity", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {

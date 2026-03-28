@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useAgents, groupByRuntime, type AgentRuntime, type AgentListItem } from "../hooks/use-agents";
 import { useAgentActions } from "../hooks/use-agent-actions";
 import { AgentCard } from "../components/agent/agent-card";
