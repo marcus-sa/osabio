@@ -35,42 +35,42 @@ describe("edgeStyle", () => {
   it("returns dashed style for depends_on", () => {
     const style = edgeStyle("depends_on");
     expect(style.strokeDasharray).toBe("4 2");
-    expect(style.opacity).toBe(0.8);
+    expect(style.opacity).toBe(0.7);
   });
 
   it("returns red style for conflicts_with", () => {
     const style = edgeStyle("conflicts_with");
-    expect(style.stroke).toBe("#d66a8a");
-    expect(style.opacity).toBe(0.9);
+    expect(style.stroke).toBe("#ff6b6b");
+    expect(style.opacity).toBe(0.85);
   });
 
   it("returns subtle style for structural edges", () => {
     for (const type of ["belongs_to", "has_feature", "has_task", "has_project"]) {
       const style = edgeStyle(type);
-      expect(style.opacity).toBe(0.3);
+      expect(style.opacity).toBe(0.45);
       expect(style.strokeDasharray).toBe("none");
     }
   });
 
-  it("returns green style for supports and has_objective edges", () => {
+  it("returns muted teal style for supports and has_objective edges", () => {
     for (const type of ["supports", "has_objective"]) {
       const style = edgeStyle(type);
-      expect(style.stroke).toBe("#10b981");
-      expect(style.opacity).toBe(0.6);
+      expect(style.stroke).toBe("#5cb8a5");
+      expect(style.opacity).toBe(0.7);
       expect(style.strokeDasharray).toBe("none");
     }
   });
 
-  it("returns violet dashed style for exhibits edges", () => {
+  it("returns muted lavender dashed style for exhibits edges", () => {
     const style = edgeStyle("exhibits");
-    expect(style.stroke).toBe("#8b5cf6");
+    expect(style.stroke).toBe("#b0a0d4");
     expect(style.strokeDasharray).toBe("4 2");
-    expect(style.opacity).toBe(0.6);
+    expect(style.opacity).toBe(0.7);
   });
 
   it("returns default style for unknown types", () => {
     const style = edgeStyle("unknown_relation");
-    expect(style.opacity).toBe(0.5);
+    expect(style.opacity).toBe(0.45);
     expect(style.strokeDasharray).toBe("none");
   });
 });
