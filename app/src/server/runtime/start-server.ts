@@ -48,6 +48,7 @@ import { createLoopDampener } from "../reactive/loop-dampener";
 import { createAgentMcpHandler } from "../mcp/agent-mcp-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
+import { createAgentRouteHandlers } from "../agents/agent-route";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { initTelemetry } from "../telemetry/init";
@@ -128,6 +129,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const proxyTokenHandler = createProxyTokenHandler(deps);
   const spendApiHandlers = createSpendApiHandlers(deps);
   const auditApiHandlers = createAuditApiHandlers(deps);
+  const agentCrudHandlers = createAgentRouteHandlers(deps);
 
   // Orchestrator wiring
   const orchestratorHandlers = wireOrchestratorRoutes({
@@ -351,6 +353,46 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => policyHandlers.handleCreateVersion(
             request.params.workspaceId,
             request.params.policyId,
+            request,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/agents": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/agents",
+          "GET",
+          (request) => agentCrudHandlers.handleList(request.params.workspaceId, request),
+        ),
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/agents",
+          "POST",
+          (request) => agentCrudHandlers.handleCreate(request.params.workspaceId, request),
+        ),
+      },
+      // check-name MUST be registered before :agentId to avoid parameter capture
+      "/api/workspaces/:workspaceId/agents/check-name": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/agents/check-name",
+          "GET",
+          (request) => agentCrudHandlers.handleCheckName(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/agents/:agentId": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/agents/:agentId",
+          "GET",
+          (request) => agentCrudHandlers.handleGetDetail(
+            request.params.workspaceId,
+            request.params.agentId,
+            request,
+          ),
+        ),
+        DELETE: withTracing(
+          "DELETE /api/workspaces/:workspaceId/agents/:agentId",
+          "DELETE",
+          (request) => agentCrudHandlers.handleDelete(
+            request.params.workspaceId,
+            request.params.agentId,
             request,
           ),
         ),
