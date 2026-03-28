@@ -3,7 +3,7 @@
   "checkpoint_id": "42d4932c98be",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 21,
+  "checkpoints_count": 36,
   "files_touched": [
     ".nwave/des-config.json",
     "AGENTS.md",
@@ -81,13 +81,20 @@
       "context": "/42/d4932c98be/8/context.md",
       "content_hash": "/42/d4932c98be/8/content_hash.txt",
       "prompt": "/42/d4932c98be/8/prompt.txt"
+    },
+    {
+      "metadata": "/42/d4932c98be/9/metadata.json",
+      "transcript": "/42/d4932c98be/9/full.jsonl",
+      "context": "/42/d4932c98be/9/context.md",
+      "content_hash": "/42/d4932c98be/9/content_hash.txt",
+      "prompt": "/42/d4932c98be/9/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 129,
-    "cache_creation_tokens": 588763,
-    "cache_read_tokens": 5947892,
-    "output_tokens": 39253,
-    "api_call_count": 77
+    "input_tokens": 243,
+    "cache_creation_tokens": 687714,
+    "cache_read_tokens": 11569288,
+    "output_tokens": 67410,
+    "api_call_count": 143
   }
 }

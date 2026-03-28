@@ -1,0 +1,324 @@
+rewrite gh issue MCP tool registry with proxy-based tool injection and credential brokerage #178 - local tools won't be available. instead, it is recommended to use an agent with a runtime, such as openclaw
+
+---
+
+"Registration: When an agent runtime (e.g. OpenClaw) connects, it registers its available local tools via MCP tools/list. Brain stores these as mcp_tool nodes with execution_target: "runtime". - no it does not do that... there is no reason for it to register its own local tools
+
+---
+
+should we require a skill to be created for agents to use mcp_tools ? see gh issue #177
+
+---
+
+"One thing worth considering: should skill_requires automatically grant can_use when a skill is activated for an agent? That way admins don't have to wire both the skill assignment and individual tool 
+  grants. The skill becomes a "tool bundle + expertise" package." yes
+
+---
+
+can we use better auth for mcp server auth?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+can we use better auth for the mcp tools auth_config & connected_account ?
+
+---
+
+yes
+
+---
+
+but better auth oauth providers have to be dynamically created at runtime. this is possible right ?
+
+---
+
+investigate those gaps first
+
+---
+
+Build it ourselves in SurrealDB
+
+---
+
+close #136 as superseded by #178
+
+---
+
+what about mcp tools that does not use oauth, but rather api keys or basic auth?
+
+---
+
+[Request interrupted by user]
+
+---
+
+what about mcp tools that does not use oauth, but rather api keys or basic auth? we completely removed that...
+
+---
+
+option 1
+
+---
+
+shouldnt mcp_tool also have output_schema ?
+
+---
+
+"optional since MCP's tools/list doesn't provide it, so it'd be populated manually or via LLM analysis for Brain-registered
+   tools." - then how do agents know what mcp tools return as results?
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+---
+
+[Request interrupted by user]
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+
+ARGUMENTS: why does https://modelcontextprotocol.io/specification/2025-06-18/server/tools#listing-tools not list output schema?
+
+---
+
+[Request interrupted by user]
+
+---
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Context Files Required
+
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml - Source reputation validation
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Context Files:**
+- ~/.claude/nWave/data/config/trusted-source-domains.yaml
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted-source-domains.yaml
+- [ ] Cross-reference performed (3+ sources per major claim)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+Refer to Nova's quality gates in ~/.claude/agents/nw/nw-researcher.md.
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw:research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw:research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+data/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+
+ARGUMENTS: why does https://modelcontextprotocol.io/specification/2025-06-18/server/tools#listing-tools not have output schema?
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+what are u talking about ? it is literally defined right here in the spec: https://modelcontextprotocol.io/specification/2025-06-18/server/tools#output-schema
