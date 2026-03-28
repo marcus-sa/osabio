@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "550f09346680",
+  "session_id": "3a3fd5e4-51bc-442a-8b88-77cbcc197edc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T17:21:55.330418Z",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/shared-fixtures.ts",
+    "app/src/client/components/agent/proxy-token-dialog.tsx",
+    "docs/feature/agent-creation/deliver/execution-log.json",
+    "tests/acceptance/agents/agents-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "db492b763a12",
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 37027,
+    "cache_read_tokens": 215398,
+    "output_tokens": 850,
+    "api_call_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T17:21:55.299807Z",
+    "agent_lines": 280,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 280,
+    "agent_percentage": 100
+  }
+}
