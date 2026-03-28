@@ -108,6 +108,13 @@
 - The default `bunfig.toml` has no `[test]` preload. Only `bunfig.client.toml` preloads `setup-dom.ts` and `setup-testing-library.ts`.
 - When adding new client component tests, place them under `app/src/client/` and run via `test:client`. Never add DOM preloads to the root `bunfig.toml`.
 
+## Development Paradigm
+
+- Full-stack TypeScript (Bun backend + React frontend).
+- Backend: `app/src/server/` routes and domain modules (for example `*/routes.ts`, plus shared HTTP utilities in `app/src/server/http/`).
+- Frontend: `app/src/client/routes/` + `app/src/client/components/`.
+- When a feature spans both, split into two `/nw-deliver` runs: backend API first, frontend consuming it second.
+
 ## Domain Knowledge
 
 Load these references when working in the relevant domain:

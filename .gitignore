@@ -12,3 +12,4 @@ dist/
 .brain/
 *.log
 /brain
+docs/linkedin/
