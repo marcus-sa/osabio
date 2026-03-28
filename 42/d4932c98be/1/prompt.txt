@@ -1,0 +1,63 @@
+write one or more linkedin articles about what we've been building the last 2 weeks
+
+---
+
+[Request interrupted by user]
+
+---
+
+go through commits
+
+---
+
+[Request interrupted by user]
+
+---
+
+these articles do not encapsulate the specific features that have been built for the past week...
+
+---
+
+[Request interrupted by user]
+
+---
+
+what im interested in here is the agent activation + sandboxagent runtime orchestration (one article) then governance and mcp as a second - you can also use the github issues as references for articles to be written
+
+---
+
+for article 2, include the skills system we're gonna build: gh issue Skills: graph-native behavioral expertise layer #177
+
+---
+
+also please use business domain as examples. it's clearly stated in AGENTS.md: ## Communication
+
+- When making examples (in docs, research, discussions, commit messages), use real-world business domain examples (e.g. supply chain disruption, customer refund, compliance audit), not developer-centric examples (e.g. merge PR, deploy service, fix bug). Brain is a general-purpose coordination system, not a developer tool.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+these are too enterprisey and specific
+
+---
+
+[Request interrupted by user]
+
+---
+
+dont mention extensions as something that is IN progress, incorporate it as something that is already done
+
+---
+
+answer: would article 1 be better if it also included gh issue External event ingestion via webhooks #165 ?
+
+---
+
+yes
+
+---
+
+what about tags for the two articles

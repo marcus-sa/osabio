@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "42d4932c98be",
+  "session_id": "6c049bba-ca1e-45ff-8d40-6a4cb0ad0fbc",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-28T12:59:33.567778Z",
+  "branch": "main",
+  "checkpoints_count": 6,
+  "files_touched": [
+    ".nwave/des-config.json",
+    "docker-compose.yml",
+    "docs/linkedin/article-1-agent-activation-and-orchestration.md",
+    "docs/linkedin/article-2-mcp-governance-and-tool-registry.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "b8fb683a7dfb",
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 216671,
+    "cache_read_tokens": 3942006,
+    "output_tokens": 26596,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-28T12:59:33.346744Z",
+    "agent_lines": 218,
+    "human_added": 642,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 864,
+    "agent_percentage": 25.23148148148148
+  }
+}
