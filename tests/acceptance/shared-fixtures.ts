@@ -604,6 +604,138 @@ export async function createAgentSessionDirectly(
 }
 
 // ---------------------------------------------------------------------------
+// Agent (Brain) Seeding
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a brain agent directly in SurrealDB (for seeding test state).
+ * Mirrors the identity bootstrap that creates system agents.
+ * Writes both `runtime` and `agent_type` fields — this matches the parallel-write
+ * migration strategy (ADR-081) where both fields coexist during the transition period.
+ */
+export async function seedBrainAgent(
+  surreal: Surreal,
+  workspaceId: string,
+  name: string,
+  opts?: { description?: string; agentType?: string },
+): Promise<{ agentId: string; identityId: string }> {
+  const agentId = crypto.randomUUID();
+  const identityId = crypto.randomUUID();
+  const agentRecord = new RecordId("agent", agentId);
+  const identityRecord = new RecordId("identity", identityId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+
+  await surreal.query(`CREATE $agent CONTENT $content;`, {
+    agent: agentRecord,
+    content: {
+      name,
+      runtime: "brain",
+      agent_type: opts?.agentType ?? "chat_agent",
+      description: opts?.description ?? `Brain agent: ${name}`,
+      managed_by: identityRecord,
+      created_at: new Date(),
+    },
+  });
+
+  await surreal.query(`CREATE $identity CONTENT $content;`, {
+    identity: identityRecord,
+    content: {
+      name,
+      type: "agent",
+      role: opts?.agentType ?? "chat_agent",
+      identity_status: "active",
+      workspace: workspaceRecord,
+      created_at: new Date(),
+    },
+  });
+
+  await surreal.query(
+    `RELATE $identity->identity_agent->$agent SET added_at = time::now();`,
+    { identity: identityRecord, agent: agentRecord },
+  );
+
+  await surreal.query(
+    `RELATE $identity->member_of->$workspace SET added_at = time::now(), role = "agent";`,
+    { identity: identityRecord, workspace: workspaceRecord },
+  );
+
+  return { agentId, identityId };
+}
+
+// ---------------------------------------------------------------------------
+// Graph Edge & Identity Verification Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Queries the identity record linked to an agent via identity_agent edge.
+ */
+export async function getIdentityForAgent(
+  surreal: Surreal,
+  agentId: string,
+): Promise<Record<string, unknown> | undefined> {
+  const agentRecord = new RecordId("agent", agentId);
+  const rows = (await surreal.query(
+    `SELECT VALUE in FROM identity_agent WHERE out = $agent LIMIT 1;`,
+    { agent: agentRecord },
+  )) as Array<Array<RecordId>>;
+  const identityRecord = rows[0]?.[0];
+  if (!identityRecord) return undefined;
+
+  const identityRows = (await surreal.query(
+    `SELECT * FROM $identity;`,
+    { identity: identityRecord },
+  )) as Array<Array<Record<string, unknown>>>;
+  return identityRows[0]?.[0];
+}
+
+/**
+ * Queries authorized_to edges for an identity.
+ */
+export async function getAuthorityEdgesForIdentity(
+  surreal: Surreal,
+  identityId: string,
+): Promise<Array<{ action: string; permission: string }>> {
+  const identityRecord = new RecordId("identity", identityId);
+  const rows = (await surreal.query(
+    `SELECT out.action AS action, permission FROM authorized_to WHERE in = $identity;`,
+    { identity: identityRecord },
+  )) as Array<Array<{ action: string; permission: string }>>;
+  return rows[0] ?? [];
+}
+
+/**
+ * Queries the member_of edge between an identity and workspace.
+ */
+export async function hasMemberOfEdge(
+  surreal: Surreal,
+  identityId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const identityRecord = new RecordId("identity", identityId);
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const rows = (await surreal.query(
+    `SELECT id FROM member_of WHERE in = $identity AND out = $ws;`,
+    { identity: identityRecord, ws: workspaceRecord },
+  )) as Array<Array<{ id: RecordId }>>;
+  return (rows[0]?.length ?? 0) > 0;
+}
+
+/**
+ * Queries proxy_token records for an identity.
+ */
+export async function getProxyTokensForIdentity(
+  surreal: Surreal,
+  identityId: string,
+): Promise<Array<Record<string, unknown>>> {
+  const identityRecord = new RecordId("identity", identityId);
+  const rows = (await surreal.query(
+    `SELECT * FROM proxy_token WHERE identity = $identity;`,
+    { identity: identityRecord },
+  )) as Array<Array<Record<string, unknown>>>;
+  return rows[0] ?? [];
+}
+
+// ---------------------------------------------------------------------------
 // MCP Tool
 // ---------------------------------------------------------------------------
 
