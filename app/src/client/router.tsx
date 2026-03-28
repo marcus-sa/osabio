@@ -15,6 +15,7 @@ import { PoliciesPage } from "./components/policy/PoliciesPage";
 import { PolicyDetailPage } from "./components/policy/PolicyDetailPage";
 import { ToolRegistryPage } from "./routes/tool-registry-page";
 import { AgentsPage } from "./routes/agents-page";
+import { AgentCreatePage } from "./routes/agent-create-page";
 import { AgentDetailPage } from "./routes/agent-detail-page";
 import { SettingsPage } from "./routes/settings-page";
 import { SignInPage } from "./routes/sign-in-page";
@@ -206,6 +207,12 @@ const agentsRoute = createRoute({
   component: AgentsPage,
 });
 
+const agentCreateRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/agents/new",
+  component: AgentCreatePage,
+});
+
 const agentDetailRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/agents/$agentId",
@@ -221,7 +228,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute, agentsRoute, agentDetailRoute, settingsRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute, agentsRoute, agentCreateRoute, agentDetailRoute, settingsRoute]),
 ]);
 
 export const router = createRouter({ routeTree });
