@@ -2,14 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { requireConfig } from "./config";
-import { BrainHttpClient } from "./http-client";
+import { OsabioHttpClient } from "./http-client";
 
 export async function runMcpServer(): Promise<void> {
   const config = await requireConfig();
-  const client = new BrainHttpClient(config);
+  const client = new OsabioHttpClient(config);
 
   const server = new McpServer({
-    name: "brain",
+    name: "osabio",
     version: "0.1.0",
   });
 
@@ -134,7 +134,7 @@ export async function runMcpServer(): Promise<void> {
 
   server.tool(
     "list_pending_suggestions",
-    "List pending and deferred suggestions from the brain. Use to see what proactive proposals agents have made for your review.",
+    "List pending and deferred suggestions from the knowledge graph. Use to see what proactive proposals agents have made for your review.",
     {
       status: z.string().optional().describe("Filter by status: pending (default), accepted, dismissed, deferred, converted"),
       category: z.string().optional().describe("Filter by category: optimization, risk, opportunity, conflict, missing, pivot"),

@@ -12,20 +12,20 @@ import type { RecordId } from "surrealdb";
 // Brain Action (RFC 9396 Rich Authorization Request)
 // ---------------------------------------------------------------------------
 
-export type BrainAction = {
-  type: "brain_action";
+export type OsabioAction = {
+  type: "osabio_action";
   action: string;
   resource: string;
   constraints?: Record<string, unknown>;
 };
 
-export function createBrainAction(
+export function createOsabioAction(
   action: string,
   resource: string,
   constraints?: Record<string, unknown>,
-): BrainAction {
+): OsabioAction {
   return {
-    type: "brain_action",
+    type: "osabio_action",
     action,
     resource,
     ...(constraints ? { constraints } : {}),
@@ -54,10 +54,10 @@ export type DPoPBoundTokenClaims = {
   exp: number;
   iat: number;
   cnf: { jkt: string };
-  authorization_details: BrainAction[];
-  "urn:brain:intent_id": string;
-  "urn:brain:workspace": string;
-  "urn:brain:actor_type"?: string;
+  authorization_details: OsabioAction[];
+  "urn:osabio:intent_id": string;
+  "urn:osabio:workspace": string;
+  "urn:osabio:actor_type"?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ export type DPoPAuthResult = {
   workspaceName: string;
   identityRecord: RecordId<"identity", string>;
   actorType: "human" | "agent";
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
   intentId: string;
   dpopThumbprint: string;
 };

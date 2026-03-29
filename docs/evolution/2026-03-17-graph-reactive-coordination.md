@@ -6,13 +6,13 @@
 
 ## Feature Summary
 
-Replaced Brain's poll-based reactivity with push-based coordination powered by SurrealDB LIVE SELECT and DEFINE EVENT webhooks. Three capabilities were delivered:
+Replaced Osabio's poll-based reactivity with push-based coordination powered by SurrealDB LIVE SELECT and DEFINE EVENT webhooks. Three capabilities were delivered:
 
 1. **Live Governance Feed via SSE** -- Workspace admins see governance events (decisions, tasks, observations, questions, suggestions, learnings, agent sessions) in real time without page refresh. LIVE SELECT subscriptions on 7 governance tables push events through a Feed SSE Bridge that transforms them to `GovernanceFeedItem`, assigns display tiers via simple rules, batches within 500ms windows, and delivers via per-workspace SSE streams. Supports reconnection with delta sync (< 10 min gap) and full refresh (>= 10 min gap).
 
 2. **Agent Activator with LLM Classification** -- When an observation is created in the graph, a SurrealDB DEFINE EVENT webhook fires to a POST endpoint. The activator checks loop dampening, verifies the target entity has no active agent coverage (proxy handles running sessions), loads registered agent descriptions, and uses a fast LLM (Haiku) to classify which agents should act. Matched agents get new sessions started with `triggered_by` pointing to the observation. Provisional decisions are recorded for conflict/warning routing choices.
 
-3. **Proxy Context Enrichment via Vector Search** -- On each LLM proxy request, the context injector embeds the current message and runs KNN against recent graph entity embeddings (scoped to workspace, filtered to entities updated since `agent_session.last_request_at`). High-similarity matches (> 0.85) are injected as `<urgent-context>` XML blocks before `<brain-context>`. Moderate matches (0.65--0.85) are injected as `<context-update>` blocks after. The MCP context endpoint also returns `urgent_updates` and `context_updates` arrays using the same vector search logic.
+3. **Proxy Context Enrichment via Vector Search** -- On each LLM proxy request, the context injector embeds the current message and runs KNN against recent graph entity embeddings (scoped to workspace, filtered to entities updated since `agent_session.last_request_at`). High-similarity matches (> 0.85) are injected as `<urgent-context>` XML blocks before `<osabio-context>`. Moderate matches (0.65--0.85) are injected as `<context-update>` blocks after. The MCP context endpoint also returns `urgent_updates` and `context_updates` arrays using the same vector search logic.
 
 ## Architecture Decisions
 

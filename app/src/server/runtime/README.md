@@ -4,7 +4,7 @@ Server bootstrap — environment configuration, dependency injection, SurrealDB 
 
 ## The Problem
 
-The Brain server has many moving parts: SurrealDB connections, multiple LLM model clients, Better Auth, authorization server keys, SSE registries, and 30+ route handlers. All of these need coordinated initialization with proper configuration validation, and every route handler needs access to the same set of dependencies. The runtime module handles this bootstrap sequence.
+The Osabio server has many moving parts: SurrealDB connections, multiple LLM model clients, Better Auth, authorization server keys, SSE registries, and 30+ route handlers. All of these need coordinated initialization with proper configuration validation, and every route handler needs access to the same set of dependencies. The runtime module handles this bootstrap sequence.
 
 ## What It Does
 

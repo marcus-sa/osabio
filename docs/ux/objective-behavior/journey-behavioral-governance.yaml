@@ -29,7 +29,7 @@ steps:
 
   - id: 2
     name: "Define Behavior Metrics"
-    action: "Tomasz defines metric types via chat; Brain creates behavior metric definitions"
+    action: "Tomasz defines metric types via chat; Osabio creates behavior metric definitions"
     emotional_state:
       entry: "Frustrated -- knows what to measure but has no mechanism"
       exit: "Hopeful -- behavioral vocabulary established"

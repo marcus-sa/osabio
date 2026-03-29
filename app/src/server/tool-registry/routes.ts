@@ -224,7 +224,7 @@ export function createAccountRouteHandlers(deps: ServerDependencies) {
       return jsonError("credential provider not found", 404);
     }
 
-    // Resolve identity from session (browser) or X-Brain-Identity header (MCP/CLI)
+    // Resolve identity from session (browser) or X-Osabio-Identity header (MCP/CLI)
     const identityResult = await resolveIdentityFromSession(deps, request);
     if (identityResult instanceof Response) return identityResult;
 

@@ -7,9 +7,9 @@
 
 ## Executive Summary
 
-This research investigates three specific gaps in Better Auth's SSO plugin that affect Brain's planned use as an MCP tool credential broker: (1) whether the SSO plugin supports non-OIDC OAuth 2.0 providers, (2) whether the Organization plugin is a hard dependency, and (3) whether the SSO plugin can coexist with the `oauthProvider` plugin.
+This research investigates three specific gaps in Better Auth's SSO plugin that affect Osabio's planned use as an MCP tool credential broker: (1) whether the SSO plugin supports non-OIDC OAuth 2.0 providers, (2) whether the Organization plugin is a hard dependency, and (3) whether the SSO plugin can coexist with the `oauthProvider` plugin.
 
-**Verdict**: The SSO plugin has significant limitations for Brain's use case. It is designed primarily for OIDC and SAML enterprise identity providers, not for plain OAuth 2.0 API credential brokerage. The OIDC sign-in flow requires `id_token` validation via `jose`, and the discovery mechanism expects `/.well-known/openid-configuration`. The Organization plugin appears to be a soft dependency (the `organizationId` field is likely optional in the database schema), but the plugin's architecture is designed around organization-scoped provider resolution. The SSO and `oauthProvider` plugins register routes under different path prefixes (`/sso/*` vs `/oauth2/*`) and should coexist without route collisions, though this is the finding with the least direct source-code evidence.
+**Verdict**: The SSO plugin has significant limitations for Osabio's use case. It is designed primarily for OIDC and SAML enterprise identity providers, not for plain OAuth 2.0 API credential brokerage. The OIDC sign-in flow requires `id_token` validation via `jose`, and the discovery mechanism expects `/.well-known/openid-configuration`. The Organization plugin appears to be a soft dependency (the `organizationId` field is likely optional in the database schema), but the plugin's architecture is designed around organization-scoped provider resolution. The SSO and `oauthProvider` plugins register routes under different path prefixes (`/sso/*` vs `/oauth2/*`) and should coexist without route collisions, though this is the finding with the least direct source-code evidence.
 
 ---
 
@@ -45,7 +45,7 @@ When registering an OIDC provider, the required fields in `oidcConfig` are `clie
 - [GitHub Issue #3728](https://github.com/better-auth/better-auth/issues/3728) - Reports that discovery URL is not properly used during registration, confirming the discovery mechanism exists but had bugs
 - [Better Auth 1.5 Blog](https://better-auth.com/blog/1-5) - Confirms OIDC ID token `aud` claim validation was added
 
-**Analysis**: This is a critical finding for Brain's use case. GitHub, Slack, and Linear are **not** OIDC providers -- they do not expose `/.well-known/openid-configuration` discovery endpoints, do not issue `id_token`s, and do not have JWKS endpoints. The SSO plugin's OIDC flow fundamentally assumes the provider implements OpenID Connect, not just OAuth 2.0 authorization code flow.
+**Analysis**: This is a critical finding for Osabio's use case. GitHub, Slack, and Linear are **not** OIDC providers -- they do not expose `/.well-known/openid-configuration` discovery endpoints, do not issue `id_token`s, and do not have JWKS endpoints. The SSO plugin's OIDC flow fundamentally assumes the provider implements OpenID Connect, not just OAuth 2.0 authorization code flow.
 
 The documentation does mention "OAuth2 providers" alongside OIDC and SAML in marketing copy, but every concrete code path, configuration example, and API parameter points to OIDC-specific concepts (issuer, discovery, id_token, jwks). No documentation or source code evidence was found for a plain OAuth 2.0 mode that skips discovery and id_token validation.
 
@@ -83,9 +83,9 @@ GitHub Discussion #3721 recommends the SSO plugin for multi-tenant dynamic provi
 - [DeepWiki: Enterprise SSO](https://deepwiki.com/better-auth/better-auth/6.2-enterprise-sso) - Source analysis describes `organizationId` as a linkage field, not a constraint
 - [GitHub Issue #4972](https://github.com/better-auth/better-auth/issues/4972) - Organization membership is discussed as a feature, not a prerequisite
 
-**Analysis**: The Organization plugin is likely a soft dependency -- the SSO plugin probably works without it, and `organizationId` is probably nullable. However, this finding has Medium confidence because no source provides the actual database schema definition (`CREATE TABLE sso_provider`) or the TypeScript type showing `organizationId?: string`. Brain could map its workspace ID into this field, but the provider resolution logic (which resolves by `organizationId` or email domain) may depend on the Organization plugin's query patterns. Direct source code inspection is needed to confirm.
+**Analysis**: The Organization plugin is likely a soft dependency -- the SSO plugin probably works without it, and `organizationId` is probably nullable. However, this finding has Medium confidence because no source provides the actual database schema definition (`CREATE TABLE sso_provider`) or the TypeScript type showing `organizationId?: string`. Osabio could map its workspace ID into this field, but the provider resolution logic (which resolves by `organizationId` or email domain) may depend on the Organization plugin's query patterns. Direct source code inspection is needed to confirm.
 
-**[INTERPRETATION]**: If `organizationId` is indeed optional, Brain could either: (a) store workspace IDs in the `organizationId` field as opaque strings, or (b) use the `domain` field for provider resolution instead. Option (a) requires verifying that the SSO plugin does not validate `organizationId` against Better Auth's `organization` table.
+**[INTERPRETATION]**: If `organizationId` is indeed optional, Osabio could either: (a) store workspace IDs in the `organizationId` field as opaque strings, or (b) use the `domain` field for provider resolution instead. Option (a) requires verifying that the SSO plugin does not validate `organizationId` against Better Auth's `organization` table.
 
 ---
 
@@ -115,7 +115,7 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 - [DeepWiki: OAuth Provider & OIDC Provider](https://deepwiki.com/better-auth/better-auth/6.4-oauth-provider-and-oidc-provider) - Source analysis confirms `/oauth2/*` endpoints
 - [GitHub Issue #6270](https://github.com/better-auth/better-auth/issues/6270) - Documents a known route collision between `mcp` and `oidcProvider` plugins at `/oauth2/consent`, but this is `oidcProvider` (not `oauthProvider`) conflicting with `mcp` (not `sso`)
 
-**Analysis**: The route collision documented in Issue #6270 is between the `mcp` plugin and the `oidcProvider` plugin (both registering `/oauth2/consent`), not between SSO and oauthProvider. Since SSO uses `/sso/*` and oauthProvider uses `/oauth2/*`, no route collision is expected. However, both plugins may interact with the same internal state (user sessions, account linking). Brain already uses `oauthProvider` for MCP/CLI token issuance, so adding SSO alongside it should be safe from a route perspective.
+**Analysis**: The route collision documented in Issue #6270 is between the `mcp` plugin and the `oidcProvider` plugin (both registering `/oauth2/consent`), not between SSO and oauthProvider. Since SSO uses `/sso/*` and oauthProvider uses `/oauth2/*`, no route collision is expected. However, both plugins may interact with the same internal state (user sessions, account linking). Osabio already uses `oauthProvider` for MCP/CLI token issuance, so adding SSO alongside it should be safe from a route perspective.
 
 **[INTERPRETATION]**: The deeper concern is not route collisions but middleware/hook interactions. Both plugins likely hook into Better Auth's session and account-linking middleware. If the SSO plugin modifies session handling or account creation behavior in ways that conflict with oauthProvider's token issuance flow, subtle bugs could emerge. This requires integration testing rather than static analysis.
 
@@ -123,13 +123,13 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 
 ### Finding 5: The Generic OAuth Plugin Handles Plain OAuth 2.0 -- But is Static Only
 
-**Evidence**: The `genericOAuth` plugin accepts explicit `authorizationUrl`, `tokenUrl`, and `userInfoUrl` fields, with `discoveryUrl` as optional. This is exactly the configuration model needed for GitHub, Slack, and Linear. However, as established in the [prior research document](/Users/marcus/Git/brain/docs/research/better-auth-dynamic-oauth-providers.md), the Generic OAuth plugin is static -- configured at `betterAuth()` initialization time with no runtime registration API.
+**Evidence**: The `genericOAuth` plugin accepts explicit `authorizationUrl`, `tokenUrl`, and `userInfoUrl` fields, with `discoveryUrl` as optional. This is exactly the configuration model needed for GitHub, Slack, and Linear. However, as established in the [prior research document](/Users/marcus/Git/osabio/docs/research/better-auth-dynamic-oauth-providers.md), the Generic OAuth plugin is static -- configured at `betterAuth()` initialization time with no runtime registration API.
 
 **Confidence**: High (established in prior research)
 
 **Verification**: Cross-referenced with:
 - [Better Auth Generic OAuth Docs](https://better-auth.com/docs/plugins/generic-oauth) - Shows `authorizationUrl`, `tokenUrl`, `userInfoUrl` fields with optional `discoveryUrl`
-- [Prior Research: Dynamic OAuth Providers](/Users/marcus/Git/brain/docs/research/better-auth-dynamic-oauth-providers.md) - Finding 1 and Finding 2 establish static-only configuration
+- [Prior Research: Dynamic OAuth Providers](/Users/marcus/Git/osabio/docs/research/better-auth-dynamic-oauth-providers.md) - Finding 1 and Finding 2 establish static-only configuration
 - [GitHub Discussion #3721](https://github.com/better-auth/better-auth/discussions/3721) - Confirms genericOAuth is static, SSO is for dynamic
 
 **Analysis**: This creates a fundamental impedance mismatch: the plugin with the right configuration model (Generic OAuth) lacks dynamic registration, and the plugin with dynamic registration (SSO) lacks the right configuration model for plain OAuth 2.0 providers.
@@ -197,7 +197,7 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 - Source: [Better Auth SSO Docs (config section)](https://better-auth.com/docs/plugins/sso), [DeepWiki: Enterprise SSO](https://deepwiki.com/better-auth/better-auth/6.2-enterprise-sso), [GitHub Issue #3728](https://github.com/better-auth/better-auth/issues/3728) - Reputation: High
 - Evidence: All registration examples require `issuer`; `jose` library handles token validation; discovery endpoint is core flow
 
-**Assessment**: Position B has stronger evidence. The "OAuth2" mention in Position A likely refers to the fact that OIDC is built on OAuth 2.0, not that the plugin supports plain OAuth 2.0 authorization code flow without OIDC extensions. The plugin's architecture is fundamentally OIDC-centric. This is the most important finding for Brain's credential brokerage design.
+**Assessment**: Position B has stronger evidence. The "OAuth2" mention in Position A likely refers to the fact that OIDC is built on OAuth 2.0, not that the plugin supports plain OAuth 2.0 authorization code flow without OIDC extensions. The plugin's architecture is fundamentally OIDC-centric. This is the most important finding for Osabio's credential brokerage design.
 
 ---
 
@@ -205,11 +205,11 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 
 1. **Clone and inspect Better Auth source code directly**. The three knowledge gaps (A, B, C) all require reading actual TypeScript source files in `packages/sso/src/`. Specific files to inspect: `routes/sso.ts` (registration/sign-in handlers), `oidc/discovery.ts` (discovery logic), `schema.ts` (database table definitions), and `index.ts` (plugin init and dependency checks).
 
-2. **Evaluate a hybrid architecture**. Given that the SSO plugin does not support plain OAuth 2.0 and the Generic OAuth plugin does not support dynamic registration, Brain may need a custom plugin that combines: (a) the Generic OAuth plugin's configuration model (explicit `authorizationUrl`/`tokenUrl`/`userInfoUrl`) with (b) the SSO plugin's database-backed dynamic registration pattern. This could be implemented as a Better Auth plugin that stores provider configs in SurrealDB and resolves them per-request.
+2. **Evaluate a hybrid architecture**. Given that the SSO plugin does not support plain OAuth 2.0 and the Generic OAuth plugin does not support dynamic registration, Osabio may need a custom plugin that combines: (a) the Generic OAuth plugin's configuration model (explicit `authorizationUrl`/`tokenUrl`/`userInfoUrl`) with (b) the SSO plugin's database-backed dynamic registration pattern. This could be implemented as a Better Auth plugin that stores provider configs in SurrealDB and resolves them per-request.
 
-3. **Test SSO + oauthProvider coexistence**. Set up a minimal Better Auth instance with both `sso()` and `oauthProvider()` plugins enabled. Verify no session, account-linking, or middleware conflicts. Test the full flow: user authenticates via Brain's oauthProvider (MCP client), then the same user connects an external OIDC provider via SSO.
+3. **Test SSO + oauthProvider coexistence**. Set up a minimal Better Auth instance with both `sso()` and `oauthProvider()` plugins enabled. Verify no session, account-linking, or middleware conflicts. Test the full flow: user authenticates via Osabio's oauthProvider (MCP client), then the same user connects an external OIDC provider via SSO.
 
-4. **Consider forking the SSO plugin**. If Brain needs database-backed dynamic OAuth 2.0 provider registration (not just OIDC), forking the SSO plugin and replacing the OIDC-specific flow with a Generic-OAuth-compatible flow may be more maintainable than building from scratch. The SSO plugin's database schema, registration API, and provider resolution logic are valuable; only the OIDC sign-in callback needs replacement.
+4. **Consider forking the SSO plugin**. If Osabio needs database-backed dynamic OAuth 2.0 provider registration (not just OIDC), forking the SSO plugin and replacing the OIDC-specific flow with a Generic-OAuth-compatible flow may be more maintainable than building from scratch. The SSO plugin's database schema, registration API, and provider resolution logic are valuable; only the OIDC sign-in callback needs replacement.
 
 ---
 
@@ -221,7 +221,7 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 
 ### Gap 2: Organization Plugin Dependency
 
-**Soft dependency -- likely optional.** The `organizationId` field on `sso_provider` records appears to be nullable based on documentation language and GitHub issue patterns, but this has not been confirmed via source code. The Organization plugin is not listed as a required dependency in the SSO plugin installation docs. Brain could likely store workspace IDs in the `organizationId` field, but the provider resolution logic at sign-in time may expect Organization plugin query patterns. **Confidence: Medium -- source code inspection needed.**
+**Soft dependency -- likely optional.** The `organizationId` field on `sso_provider` records appears to be nullable based on documentation language and GitHub issue patterns, but this has not been confirmed via source code. The Organization plugin is not listed as a required dependency in the SSO plugin installation docs. Osabio could likely store workspace IDs in the `organizationId` field, but the provider resolution logic at sign-in time may expect Organization plugin query patterns. **Confidence: Medium -- source code inspection needed.**
 
 ### Gap 3: Coexistence with oauthProvider Plugin
 
@@ -244,7 +244,7 @@ These two plugins serve opposite roles (SSO = OAuth client; oauthProvider = OAut
 [11] DeepWiki. "OAuth Provider & OIDC Provider". deepwiki.com. 2026. https://deepwiki.com/better-auth/better-auth/6.4-oauth-provider-and-oidc-provider. Accessed 2026-03-22.
 [12] better-auth/better-auth. "SSO Plugin Documentation Source". GitHub. https://github.com/better-auth/better-auth/blob/main/docs/content/docs/plugins/sso.mdx. Accessed 2026-03-22.
 [13] AnswerOverflow. "Exploring Better Auth SSO Plugin -- Guidance on authClient.sso.register Usage". answeroverflow.com. 2026. https://www.answeroverflow.com/m/1363058816081723502. Accessed 2026-03-22.
-[14] Brain codebase. "Prior Research: Dynamic OAuth Providers". Local file. /Users/marcus/Git/brain/docs/research/better-auth-dynamic-oauth-providers.md. Accessed 2026-03-22.
+[14] Osabio codebase. "Prior Research: Dynamic OAuth Providers". Local file. /Users/marcus/Git/osabio/docs/research/better-auth-dynamic-oauth-providers.md. Accessed 2026-03-22.
 
 ---
 

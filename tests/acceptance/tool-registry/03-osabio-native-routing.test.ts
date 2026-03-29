@@ -22,7 +22,7 @@ import {
   createMockAnthropicServer,
 } from "./tool-registry-test-kit";
 
-const getRuntime = setupAcceptanceSuite("tool_registry_brain_native");
+const getRuntime = setupAcceptanceSuite("tool_registry_osabio_native");
 
 const mockAnthropic = createMockAnthropicServer();
 beforeAll(() => mockAnthropic.listen({ onUnhandledRequest: "bypass" }));
@@ -40,7 +40,7 @@ describe("Walking Skeleton: Proxy intercepts and executes Brain-native tool call
     await seedToolWithGrant(surreal, {
       toolId: `tool-se-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search workspace entities by text query",
       inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
       identityId: user.identityId,
@@ -95,8 +95,8 @@ describe("Brain-native tool execution error returns tool_result error", () => {
     // (e.g., tool with malformed input schema or invalid handler)
     await seedToolWithGrant(surreal, {
       toolId: `tool-bad-${crypto.randomUUID()}`,
-      toolName: "nonexistent_brain_tool",
-      toolkit: "brain",
+      toolName: "nonexistent_osabio_tool",
+      toolkit: "osabio",
       description: "A tool with no handler",
       inputSchema: { type: "object", properties: {} },
       identityId: user.identityId,
@@ -105,7 +105,7 @@ describe("Brain-native tool execution error returns tool_result error", () => {
 
     // When the proxy tries to execute it
     const response = await sendProxyRequestWithIdentity(baseUrl, surreal, user, {
-      messages: [{ role: "user", content: "Use the nonexistent_brain_tool" }],
+      messages: [{ role: "user", content: "Use the nonexistent_osabio_tool" }],
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 

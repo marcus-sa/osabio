@@ -2,7 +2,7 @@
 
 ## Persona
 
-**Marcus** -- Solo developer/operator of the Brain knowledge graph platform. Runs the system locally in development and deploys to production. Needs to debug LLM calls, trace requests, monitor health, and understand costs. Uses terminal, browser-based trace viewers, and dashboards.
+**Marcus** -- Solo developer/operator of the Osabio knowledge graph platform. Runs the system locally in development and deploys to production. Needs to debug LLM calls, trace requests, monitor health, and understand costs. Uses terminal, browser-based trace viewers, and dashboards.
 
 ## Emotional Arc
 
@@ -60,7 +60,7 @@ End: Confident -- "I can diagnose any issue in minutes. I know exactly where cos
 **Shared artifacts**:
 - `TracerProvider` -- single instance, initialized at startup
 - `MeterProvider` -- single instance, initialized at startup
-- Service name `brain` -- used across all spans and metrics
+- Service name `osabio` -- used across all spans and metrics
 
 **Error paths**:
 - OTEL SDK fails to initialize on Bun -> graceful degradation, console fallback
@@ -85,17 +85,17 @@ End: Confident -- "I can diagnose any issue in minutes. I know exactly where cos
 |      model, prompt, schema,                                          |
 |      experimental_telemetry: {                                       |
 |        isEnabled: true,                                              |
-|        functionId: 'brain.extraction.generate',                      |
+|        functionId: 'osabio.extraction.generate',                      |
 |        metadata: { workspaceId, messageId },                         |
 |      },                                                              |
 |    });                                                               |
 |                                                                      |
 |  Spans emitted automatically:                                        |
-|    ai.generateObject  [brain.extraction.generate]                    |
+|    ai.generateObject  [osabio.extraction.generate]                    |
 |    +-- ai.model.id: "anthropic/claude-3.5-haiku"                     |
 |    +-- ai.usage.promptTokens: 1847                                   |
 |    +-- ai.usage.completionTokens: 423                                |
-|    +-- ai.telemetry.functionId: "brain.extraction.generate"          |
+|    +-- ai.telemetry.functionId: "osabio.extraction.generate"          |
 |    +-- duration: 2341ms                                              |
 |                                                                      |
 +----------------------------------------------------------------------+
@@ -103,17 +103,17 @@ End: Confident -- "I can diagnose any issue in minutes. I know exactly where cos
 
 **Function ID taxonomy**:
 ```
-brain.extraction.generate       -- entity extraction from messages
-brain.extraction.dedupe         -- deduplication scoring
-brain.chat.agent                -- chat agent responses
-brain.chat.stream               -- streaming chat responses
-brain.pm.agent                  -- PM subagent work planning
-brain.observer.verify           -- observation verification
-brain.observer.peer-review      -- peer review cross-validation
-brain.behavior.score            -- behavior scoring
-brain.onboarding.generate       -- onboarding responses
-brain.intent.authorize          -- intent authorization
-brain.analytics.agent           -- analytics agent queries
+osabio.extraction.generate       -- entity extraction from messages
+osabio.extraction.dedupe         -- deduplication scoring
+osabio.chat.agent                -- chat agent responses
+osabio.chat.stream               -- streaming chat responses
+osabio.pm.agent                  -- PM subagent work planning
+osabio.observer.verify           -- observation verification
+osabio.observer.peer-review      -- peer review cross-validation
+osabio.behavior.score            -- behavior scoring
+osabio.onboarding.generate       -- onboarding responses
+osabio.intent.authorize          -- intent authorization
+osabio.analytics.agent           -- analytics agent queries
 ```
 
 **Emotional state**: Oriented -> Capable
@@ -134,18 +134,18 @@ brain.analytics.agent           -- analytics agent queries
 |                                                                      |
 |  Trace waterfall for POST /api/chat/messages:                        |
 |                                                                      |
-|  brain.http.request POST /api/chat/messages         [8234ms]         |
-|  +-- brain.chat.ingress                             [ 45ms]          |
-|  |   +-- brain.chat.persist-message                 [ 12ms]          |
-|  +-- brain.chat.process                             [8180ms]         |
-|      +-- brain.extraction.pipeline                  [2100ms]         |
+|  osabio.http.request POST /api/chat/messages         [8234ms]         |
+|  +-- osabio.chat.ingress                             [ 45ms]          |
+|  |   +-- osabio.chat.persist-message                 [ 12ms]          |
+|  +-- osabio.chat.process                             [8180ms]         |
+|      +-- osabio.extraction.pipeline                  [2100ms]         |
 |      |   +-- ai.generateObject [extraction.generate] [1890ms]        |
-|      |   +-- brain.extraction.persist               [ 180ms]         |
-|      +-- brain.chat.agent                           [5200ms]         |
-|          +-- brain.chat.build-context               [ 320ms]         |
+|      |   +-- osabio.extraction.persist               [ 180ms]         |
+|      +-- osabio.chat.agent                           [5200ms]         |
+|          +-- osabio.chat.build-context               [ 320ms]         |
 |          +-- ai.streamText [chat.agent]              [4100ms]        |
-|          +-- brain.chat.tool.search_entities        [ 450ms]         |
-|          +-- brain.chat.tool.invoke_pm_agent        [2800ms]         |
+|          +-- osabio.chat.tool.search_entities        [ 450ms]         |
+|          +-- osabio.chat.tool.invoke_pm_agent        [2800ms]         |
 |              +-- ai.generateObject [pm.agent]        [2400ms]        |
 |                                                                      |
 |  Bottleneck: chat agent LLM call (4100ms = 50% of total)            |
@@ -157,7 +157,7 @@ brain.analytics.agent           -- analytics agent queries
 "I can see exactly where time goes. The chat agent LLM call dominates. PM subagent adds 2.8s. Now I know where to optimize."
 
 **Shared artifacts**:
-- Root span `brain.http.request` -- created by request handler wrapper
+- Root span `osabio.http.request` -- created by request handler wrapper
 - Span context -- propagated via OTEL context API (replaces manual requestId correlation)
 - `requestId` -- carried as span attribute for backward compatibility
 
@@ -181,11 +181,11 @@ brain.analytics.agent           -- analytics agent queries
 |     Search: ai.telemetry.metadata.messageId = "msg-a1b2c3"          |
 |                                                                      |
 |  2. Open the extraction span:                                        |
-|     ai.generateObject [brain.extraction.generate]                    |
+|     ai.generateObject [osabio.extraction.generate]                    |
 |     +-- ai.model.id: "anthropic/claude-3.5-haiku"                    |
 |     +-- ai.usage.promptTokens: 2847                                  |
 |     +-- ai.usage.completionTokens: 523                               |
-|     +-- ai.telemetry.functionId: "brain.extraction.generate"         |
+|     +-- ai.telemetry.functionId: "osabio.extraction.generate"         |
 |     +-- duration: 2341ms                                             |
 |     +-- status: OK                                                   |
 |                                                                      |
@@ -211,13 +211,13 @@ brain.analytics.agent           -- analytics agent queries
 |                                                                      |
 |  Metrics exported (OTEL histograms and counters):                    |
 |                                                                      |
-|  brain.llm.duration        histogram  by functionId, model           |
-|  brain.llm.tokens.prompt   counter    by functionId, model           |
-|  brain.llm.tokens.completion counter  by functionId, model           |
-|  brain.llm.errors          counter    by functionId, model, error    |
-|  brain.http.duration       histogram  by method, route, status       |
-|  brain.http.requests       counter    by method, route, status       |
-|  brain.extraction.entities counter    by entity_type                 |
+|  osabio.llm.duration        histogram  by functionId, model           |
+|  osabio.llm.tokens.prompt   counter    by functionId, model           |
+|  osabio.llm.tokens.completion counter  by functionId, model           |
+|  osabio.llm.errors          counter    by functionId, model, error    |
+|  osabio.http.duration       histogram  by method, route, status       |
+|  osabio.http.requests       counter    by method, route, status       |
+|  osabio.extraction.entities counter    by entity_type                 |
 |                                                                      |
 |  Cost breakdown (example week):                                      |
 |  +---------------------------+--------+--------+-------+             |

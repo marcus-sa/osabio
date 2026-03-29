@@ -2,7 +2,7 @@
 
 ## Feature Overview
 
-Add environment-variable-driven self-hosted deployment configuration to Brain. Four user stories, all brownfield changes to existing components.
+Add environment-variable-driven self-hosted deployment configuration to Osabio. Four user stories, all brownfield changes to existing components.
 
 ## User Story to Component Mapping
 
@@ -19,7 +19,7 @@ Add environment-variable-driven self-hosted deployment configuration to Brain. F
 C4Component
     title Self-Hosted Deployment -- Affected Components
 
-    Container_Boundary(server, "Brain Server") {
+    Container_Boundary(server, "Osabio Server") {
         Component(config, "ServerConfig", "runtime/config.ts", "Parses env vars including SELF_HOSTED, ADMIN_EMAIL, ADMIN_PASSWORD, WORKTREE_MANAGER_ENABLED")
         Component(authConfig, "Auth Config", "auth/config.ts", "Better Auth with argon2id hash/verify via Bun.password, signup guard hook")
         Component(startServer, "Start Server", "runtime/start-server.ts", "Route registration, feature flags endpoint")
@@ -87,7 +87,7 @@ C4Component
 
 ### 4. Registration Disable (US-003)
 
-**Existing**: Better Auth handles all `/api/auth/*` via catch-all route in `start-server.ts` (line 728). Signup goes to Better Auth's built-in `/api/auth/sign-up/email` endpoint. No custom signup route exists in Brain's server code.
+**Existing**: Better Auth handles all `/api/auth/*` via catch-all route in `start-server.ts` (line 728). Signup goes to Better Auth's built-in `/api/auth/sign-up/email` endpoint. No custom signup route exists in Osabio's server code.
 
 **Change -- Server side**: Intercept signup requests at the Better Auth configuration level. When `selfHosted=true`, signup attempts must return HTTP 403 with `"Registration is disabled"` before any user record is created. The crafter decides the exact interception mechanism (Better Auth hooks, middleware, or route guard).
 
@@ -217,6 +217,6 @@ GET /api/config
 - **Why Insufficient**: Fragile -- depends on knowing Better Auth's internal route paths. Better Auth's hook API is the supported extension point and survives version upgrades.
 
 ### Alternative 2: Inline feature flags in HTML template (no API endpoint)
-- **What**: Server-render feature flags into `index.html` as a `<script>` tag with `window.__BRAIN_CONFIG__`
+- **What**: Server-render feature flags into `index.html` as a `<script>` tag with `window.__OSABIO_CONFIG__`
 - **Expected Impact**: 100% of client flag delivery solved
 - **Why Insufficient**: The app serves a static `index.html` (imported as `appHtml` in start-server.ts). Adding server-side templating requires changing the HTML serving pipeline. A simple JSON endpoint is less invasive and more testable.

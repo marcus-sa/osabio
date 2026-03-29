@@ -7,8 +7,8 @@ export type BrainTokenClaims = {
   iss?: string;
   exp?: number;
   iat?: number;
-  "urn:brain:workspace"?: string;
-  "urn:brain:workspace_name"?: string;
+  "urn:osabio:workspace"?: string;
+  "urn:osabio:workspace_name"?: string;
   [key: string]: unknown;
 };
 

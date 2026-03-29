@@ -4,7 +4,7 @@ OAuth 2.1 authentication with scope-based authorization, backed by a custom Surr
 
 ## The Problem
 
-Brain needs to authenticate both human users (via browser sessions) and AI agents (via OAuth tokens). Each actor type needs different authority levels — a human can confirm decisions directly, while a PM agent can only create provisional ones. The auth layer must enforce these scopes consistently at the HTTP boundary, regardless of whether the request comes from a browser or an MCP client.
+Osabio needs to authenticate both human users (via browser sessions) and AI agents (via OAuth tokens). Each actor type needs different authority levels — a human can confirm decisions directly, while a PM agent can only create provisional ones. The auth layer must enforce these scopes consistently at the HTTP boundary, regardless of whether the request comes from a browser or an MCP client.
 
 ## What It Does
 
@@ -25,7 +25,7 @@ Brain needs to authenticate both human users (via browser sessions) and AI agent
 ## How It Works
 
 1. **User login**: Browser redirects to GitHub OAuth → callback creates/updates `user` record via SurrealDB adapter → session cookie set
-2. **Agent auth**: CLI runs `brain init` → OAuth 2.1 PKCE flow → DPoP-bound access token with scopes → stored in `~/.brain/config.json`
+2. **Agent auth**: CLI runs `osabio init` → OAuth 2.1 PKCE flow → DPoP-bound access token with scopes → stored in `~/.osabio/config.json`
 3. **Request authorization**: Route handler extracts session/token → checks `ACTION_SCOPE_MAP` for required scope → allows or rejects
 
 ## Where It Fits

@@ -14,12 +14,12 @@ import {
   MARKER_END,
 } from "../../cli/commands/init";
 import { loadGlobalConfig } from "../../cli/config";
-import { BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS } from "../../cli/commands/init-content";
+import { OSABIO_HOOKS, OSABIO_CLAUDE_MD, OSABIO_COMMANDS } from "../../cli/commands/init-content";
 
 let gitRoot: string;
 
 beforeEach(() => {
-  gitRoot = mkdtempSync(join(tmpdir(), "brain-init-test-"));
+  gitRoot = mkdtempSync(join(tmpdir(), "osabio-init-test-"));
   execSync("git init", { cwd: gitRoot, stdio: "ignore" });
 });
 
@@ -32,11 +32,11 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("setupMcpJson", () => {
-  it("creates .mcp.json with brain server entry", async () => {
+  it("creates .mcp.json with osabio server entry", async () => {
     await setupMcpJson(gitRoot);
 
     const mcp = JSON.parse(readFileSync(join(gitRoot, ".mcp.json"), "utf-8"));
-    expect(mcp.mcpServers.brain).toEqual({ command: "brain", args: ["mcp"] });
+    expect(mcp.mcpServers.osabio).toEqual({ command: "osabio", args: ["mcp"] });
   });
 
   it("preserves existing MCP servers", async () => {
@@ -49,7 +49,7 @@ describe("setupMcpJson", () => {
 
     const mcp = JSON.parse(readFileSync(join(gitRoot, ".mcp.json"), "utf-8"));
     expect(mcp.mcpServers.other).toEqual({ command: "other-tool" });
-    expect(mcp.mcpServers.brain).toEqual({ command: "brain", args: ["mcp"] });
+    expect(mcp.mcpServers.osabio).toEqual({ command: "osabio", args: ["mcp"] });
   });
 
   it("is idempotent on second run", async () => {
@@ -57,7 +57,7 @@ describe("setupMcpJson", () => {
     await setupMcpJson(gitRoot);
 
     const mcp = JSON.parse(readFileSync(join(gitRoot, ".mcp.json"), "utf-8"));
-    expect(Object.keys(mcp.mcpServers)).toEqual(["brain"]);
+    expect(Object.keys(mcp.mcpServers)).toEqual(["osabio"]);
   });
 
   it("recovers from corrupted file", async () => {
@@ -66,7 +66,7 @@ describe("setupMcpJson", () => {
     await setupMcpJson(gitRoot);
 
     const mcp = JSON.parse(readFileSync(join(gitRoot, ".mcp.json"), "utf-8"));
-    expect(mcp.mcpServers.brain).toEqual({ command: "brain", args: ["mcp"] });
+    expect(mcp.mcpServers.osabio).toEqual({ command: "osabio", args: ["mcp"] });
   });
 });
 
@@ -87,7 +87,7 @@ describe("setupClaudeHooks", () => {
     }
   });
 
-  it("preserves existing non-brain hooks", async () => {
+  it("preserves existing non-osabio hooks", async () => {
     mkdirSync(join(gitRoot, ".claude"), { recursive: true });
     writeFileSync(
       join(gitRoot, ".claude", "settings.json"),
@@ -101,12 +101,12 @@ describe("setupClaudeHooks", () => {
 
     const settings = JSON.parse(readFileSync(join(gitRoot, ".claude", "settings.json"), "utf-8"));
     expect(settings.otherSetting).toBe(true);
-    // eslint hook preserved + brain hook added
+    // eslint hook preserved + osabio hook added
     expect(settings.hooks.UserPromptSubmit.length).toBe(2);
     expect(settings.hooks.UserPromptSubmit[0].hooks[0].command).toBe("eslint");
   });
 
-  it("does not duplicate brain hooks on second run", async () => {
+  it("does not duplicate osabio hooks on second run", async () => {
     await setupClaudeHooks(gitRoot);
     await setupClaudeHooks(gitRoot);
 
@@ -130,13 +130,13 @@ describe("setupClaudeHooks", () => {
 // ---------------------------------------------------------------------------
 
 describe("setupClaudeMd", () => {
-  it("creates CLAUDE.md with marker-wrapped brain block", async () => {
+  it("creates CLAUDE.md with marker-wrapped osabio block", async () => {
     await setupClaudeMd(gitRoot);
 
     const content = readFileSync(join(gitRoot, "CLAUDE.md"), "utf-8");
     expect(content).toContain(MARKER_START);
     expect(content).toContain(MARKER_END);
-    expect(content).toContain(BRAIN_CLAUDE_MD);
+    expect(content).toContain(OSABIO_CLAUDE_MD);
   });
 
   it("appends to existing CLAUDE.md", async () => {
@@ -147,7 +147,7 @@ describe("setupClaudeMd", () => {
     const content = readFileSync(join(gitRoot, "CLAUDE.md"), "utf-8");
     expect(content).toStartWith("# My Project\n\nExisting content.");
     expect(content).toContain(MARKER_START);
-    expect(content).toContain(BRAIN_CLAUDE_MD);
+    expect(content).toContain(OSABIO_CLAUDE_MD);
   });
 
   it("updates in-place between markers on second run", async () => {
@@ -162,7 +162,7 @@ describe("setupClaudeMd", () => {
     expect(endCount).toBe(1);
   });
 
-  it("preserves content before and after brain block when updating", async () => {
+  it("preserves content before and after osabio block when updating", async () => {
     const before = "# My Project\n\nBefore content.\n\n";
     const after = "\n\n## After Section\n\nAfter content.";
     writeFileSync(
@@ -175,7 +175,7 @@ describe("setupClaudeMd", () => {
     const content = readFileSync(join(gitRoot, "CLAUDE.md"), "utf-8");
     expect(content).toStartWith(before);
     expect(content).toEndWith(after);
-    expect(content).toContain(BRAIN_CLAUDE_MD);
+    expect(content).toContain(OSABIO_CLAUDE_MD);
   });
 });
 
@@ -187,7 +187,7 @@ describe("setupCommands", () => {
   it("creates all command files", async () => {
     await setupCommands(gitRoot);
 
-    for (const filename of Object.keys(BRAIN_COMMANDS)) {
+    for (const filename of Object.keys(OSABIO_COMMANDS)) {
       expect(existsSync(join(gitRoot, ".claude", "commands", filename))).toBe(true);
     }
   });
@@ -195,7 +195,7 @@ describe("setupCommands", () => {
   it("writes correct content with trailing newline", async () => {
     await setupCommands(gitRoot);
 
-    for (const [filename, expectedContent] of Object.entries(BRAIN_COMMANDS)) {
+    for (const [filename, expectedContent] of Object.entries(OSABIO_COMMANDS)) {
       const actual = readFileSync(join(gitRoot, ".claude", "commands", filename), "utf-8");
       expect(actual).toBe(expectedContent + "\n");
     }
@@ -223,7 +223,7 @@ describe("installGitHooks", () => {
 
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain("#!/bin/sh");
-    expect(content).toContain("brain check-commit");
+    expect(content).toContain("osabio check-commit");
 
     const mode = statSync(hookPath).mode & 0o777;
     expect(mode).toBe(0o755);
@@ -238,23 +238,23 @@ describe("installGitHooks", () => {
 
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain("my-custom-hook");
-    expect(content).not.toContain("brain check-commit");
+    expect(content).not.toContain("osabio check-commit");
   });
 
-  it("replaces legacy Brain post-commit hook with commit-check hook", () => {
+  it("replaces legacy Osabio post-commit hook with commit-check hook", () => {
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     mkdirSync(join(gitRoot, ".git", "hooks"), { recursive: true });
-    writeFileSync(hookPath, "#!/bin/sh\n# Brain post-commit hook\nbrain log-commit\n");
+    writeFileSync(hookPath, "#!/bin/sh\n# Osabio post-commit hook\nosabio log-commit\n");
 
     installGitHooks(gitRoot);
 
     expect(existsSync(hookPath)).toBe(true);
     const content = readFileSync(hookPath, "utf-8");
-    expect(content).toContain("brain commit-check");
-    expect(content).not.toContain("brain log-commit");
+    expect(content).toContain("osabio commit-check");
+    expect(content).not.toContain("osabio log-commit");
   });
 
-  it("preserves non-Brain post-commit hooks", () => {
+  it("preserves non-Osabio post-commit hooks", () => {
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     mkdirSync(join(gitRoot, ".git", "hooks"), { recursive: true });
     writeFileSync(hookPath, "#!/bin/sh\nmy-custom-post-commit\n");
@@ -273,7 +273,7 @@ describe("installGitHooks", () => {
 
 describe("setupAuth", () => {
   let configDir: string;
-  const originalConfigDir = process.env.BRAIN_CONFIG_DIR;
+  const originalConfigDir = process.env.OSABIO_CONFIG_DIR;
   let originalFetch: typeof fetch;
   let originalServe: typeof Bun.serve;
   let callbackHandler: ((request: Request) => Response) | undefined;
@@ -297,20 +297,20 @@ describe("setupAuth", () => {
     Bun.serve = originalServe;
 
     if (originalConfigDir) {
-      process.env.BRAIN_CONFIG_DIR = originalConfigDir;
+      process.env.OSABIO_CONFIG_DIR = originalConfigDir;
     } else {
-      delete process.env.BRAIN_CONFIG_DIR;
+      delete process.env.OSABIO_CONFIG_DIR;
     }
 
     if (configDir) rmSync(configDir, { recursive: true, force: true });
   });
 
   it("registers OAuth client once using the real loopback callback URI", async () => {
-    configDir = mkdtempSync(join(tmpdir(), "brain-init-config-"));
-    process.env.BRAIN_CONFIG_DIR = configDir;
+    configDir = mkdtempSync(join(tmpdir(), "osabio-init-config-"));
+    process.env.OSABIO_CONFIG_DIR = configDir;
 
     const workspaceId = crypto.randomUUID();
-    const baseUrl = "http://brain.local";
+    const baseUrl = "http://osabio.local";
 
     globalThis.fetch = (async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init);
@@ -395,11 +395,11 @@ describe("setupAuth", () => {
   });
 
   it("fails fast when callback is never received", async () => {
-    configDir = mkdtempSync(join(tmpdir(), "brain-init-config-"));
-    process.env.BRAIN_CONFIG_DIR = configDir;
+    configDir = mkdtempSync(join(tmpdir(), "osabio-init-config-"));
+    process.env.OSABIO_CONFIG_DIR = configDir;
 
     const workspaceId = crypto.randomUUID();
-    const baseUrl = "http://brain.local";
+    const baseUrl = "http://osabio.local";
 
     globalThis.fetch = (async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init);

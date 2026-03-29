@@ -36,7 +36,7 @@ function createTestDeps(): ServerDependencies {
 }
 
 describe("createAnthropicProxyHandler auth behavior", () => {
-  it("forwards client x-api-key upstream in brain auth mode when server key is unset", async () => {
+  it("forwards client x-api-key upstream in osabio auth mode when server key is unset", async () => {
     const handler = createAnthropicProxyHandler(createTestDeps());
     const originalFetch = globalThis.fetch;
     let forwardedHeaders: Headers | undefined;
@@ -55,7 +55,7 @@ describe("createAnthropicProxyHandler auth behavior", () => {
         headers: {
           "content-type": "application/json",
           "anthropic-version": "2023-06-01",
-          "x-brain-auth": "brain-proxy-token",
+          "x-osabio-auth": "osabio-proxy-token",
           "x-api-key": "sk-ant-client-key",
         },
         body: JSON.stringify({ model: "claude-opus-4-6", messages: [] }),
@@ -85,7 +85,7 @@ describe("createAnthropicProxyHandler auth behavior", () => {
         headers: {
           "content-type": "application/json",
           "anthropic-version": "2023-06-01",
-          "x-brain-auth": "brain-proxy-token",
+          "x-osabio-auth": "osabio-proxy-token",
         },
         body: JSON.stringify({ model: "claude-opus-4-6", messages: [] }),
       });

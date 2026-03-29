@@ -307,7 +307,7 @@ nomad job dispatch \
 
 #### API-Driven Dispatch
 
-For programmatic dispatch from an application server (e.g., Brain's orchestrator):
+For programmatic dispatch from an application server (e.g., Osabio's orchestrator):
 
 ```typescript
 // POST /v1/job/coding-agent/dispatch
@@ -456,7 +456,7 @@ network {
 
 #### Multi-Tenancy Architecture for Agent Sessions
 
-Each workspace (or tenant) in Brain can map to a Nomad namespace:
+Each workspace (or tenant) in Osabio can map to a Nomad namespace:
 
 ```bash
 # Create namespace per workspace
@@ -556,7 +556,7 @@ timeout ${NOMAD_META_timeout_minutes:-60}m sandbox-agent server ...
 ```
 
 **Approach 2: External monitoring**
-The orchestrator (Brain) monitors the dispatched job via the Nomad API and stops it after the timeout:
+The orchestrator (Osabio) monitors the dispatched job via the Nomad API and stops it after the timeout:
 
 ```typescript
 // Poll job status

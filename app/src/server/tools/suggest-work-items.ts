@@ -2,7 +2,7 @@ import { tool } from "ai";
 import type { EntityCategory } from "../../shared/contracts";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
 import { requireAuthorizedContext } from "../iam/authority";
-import { suggestWorkItemsSchema } from "../mcp/brain-tool-definitions";
+import { suggestWorkItemsSchema } from "../mcp/osabio-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 type SuggestedWorkItem = {

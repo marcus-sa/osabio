@@ -53,11 +53,11 @@ describe("Create External Agent: Success Paths", () => {
       runtime: "external",
     });
 
-    // Then the proxy token starts with "brp_" (proxy token prefix from proxy-token-core.ts)
+    // Then the proxy token starts with "osp_" (proxy token prefix from proxy-token-core.ts)
     expect(response.status).toBe(201);
     const body = (await response.json()) as CreateAgentResponse;
     expect(body.proxy_token).toBeDefined();
-    expect(body.proxy_token!.startsWith("brp_")).toBe(true);
+    expect(body.proxy_token!.startsWith("osp_")).toBe(true);
     // And the token is long enough to be cryptographically secure
     expect(body.proxy_token!.length).toBeGreaterThan(20);
   }, 120_000);
@@ -151,17 +151,17 @@ describe("Create External Agent: Error Paths", () => {
     expect(errorBody.error).toBeDefined();
   }, 120_000);
 
-  it("creating a brain agent via the API is rejected", async () => {
+  it("creating a osabio agent via the API is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "no-brain");
+    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "no-osabio");
 
-    // When the admin attempts to create a brain agent through the API
+    // When the admin attempts to create a osabio agent through the API
     const response = await createAgentViaHttp(baseUrl, user, workspaceId, {
       name: "Fake Brain Agent",
-      runtime: "brain" as "external",
+      runtime: "osabio" as "external",
     });
 
-    // Then the request is rejected -- brain agents are code-deployed only
+    // Then the request is rejected -- osabio agents are code-deployed only
     expect(response.status).toBeGreaterThanOrEqual(400);
   }, 120_000);
 
@@ -239,15 +239,15 @@ describe("View Agent Registry: Focused Scenarios", () => {
     const { agents } = (await response.json()) as { agents: AgentListItem[] };
 
     // And no external or sandbox agents exist
-    const customAgents = agents.filter((a) => a.runtime !== "brain");
+    const customAgents = agents.filter((a) => a.runtime !== "osabio");
     expect(customAgents.length).toBe(0);
   }, 120_000);
 
-  it("brain agents are listed as read-only (no edit/delete actions)", async () => {
+  it("osabio agents are listed as read-only (no edit/delete actions)", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "brain-ro");
+    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "osabio-ro");
 
-    // Given brain agents exist in the workspace
+    // Given osabio agents exist in the workspace
     await seedBrainAgent(surreal, workspaceId, "Observer", { agentType: "observer" });
 
     // When the admin views the agents page
@@ -255,10 +255,10 @@ describe("View Agent Registry: Focused Scenarios", () => {
     expect(response.status).toBe(200);
     const { agents } = (await response.json()) as { agents: AgentListItem[] };
 
-    // Then brain agents appear with runtime "brain"
-    const brainAgents = agents.filter((a) => a.runtime === "brain");
-    expect(brainAgents.length).toBeGreaterThanOrEqual(1);
-    expect(brainAgents.some((a) => a.name === "Observer")).toBe(true);
+    // Then osabio agents appear with runtime "osabio"
+    const osabioAgents = agents.filter((a) => a.runtime === "osabio");
+    expect(osabioAgents.length).toBeGreaterThanOrEqual(1);
+    expect(osabioAgents.some((a) => a.name === "Observer")).toBe(true);
   }, 120_000);
 
   it("listing agents for a nonexistent workspace returns an error", async () => {
@@ -278,24 +278,24 @@ describe("View Agent Registry: Focused Scenarios", () => {
 // =============================================================================
 
 describe("View Agent Detail: Focused Scenarios", () => {
-  it("brain agent detail is read-only with explanatory context", async () => {
+  it("osabio agent detail is read-only with explanatory context", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "brain-detail");
+    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "osabio-detail");
 
-    // Given a brain agent exists
+    // Given a osabio agent exists
     const { agentId } = await seedBrainAgent(surreal, workspaceId, "Architect", {
       agentType: "architect",
       description: "Technical decisions and system design",
     });
 
-    // When the admin views the brain agent detail
+    // When the admin views the osabio agent detail
     const response = await getAgentDetailViaHttp(baseUrl, user, workspaceId, agentId);
 
     // Then the detail page shows the agent information
     expect(response.status).toBe(200);
     const detail = (await response.json()) as AgentDetailResponse;
     expect(detail.agent.name).toBe("Architect");
-    expect(detail.agent.runtime).toBe("brain");
+    expect(detail.agent.runtime).toBe("osabio");
   }, 120_000);
 
   it("requesting detail for a nonexistent agent returns not found", async () => {
@@ -340,24 +340,24 @@ describe("Delete Agent: Focused Scenarios", () => {
     expect(exists).toBe(true);
   }, 120_000);
 
-  it("deleting a brain agent is rejected", async () => {
+  it("deleting a osabio agent is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "del-brain");
+    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "del-osabio");
 
-    // Given a brain agent exists
+    // Given a osabio agent exists
     const { agentId } = await seedBrainAgent(surreal, workspaceId, "PM Agent", {
       agentType: "management",
     });
 
-    // When the admin attempts to delete the brain agent
+    // When the admin attempts to delete the osabio agent
     const response = await deleteAgentViaHttp(
       baseUrl, user, workspaceId, agentId, "PM Agent",
     );
 
-    // Then the deletion is rejected -- brain agents cannot be deleted
+    // Then the deletion is rejected -- osabio agents cannot be deleted
     expect(response.status).toBeGreaterThanOrEqual(400);
 
-    // And the brain agent still exists
+    // And the osabio agent still exists
     const exists = await agentExistsInDb(surreal, agentId);
     expect(exists).toBe(true);
   }, 120_000);

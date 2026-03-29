@@ -2,7 +2,7 @@
 
 ## System Context
 
-Brain is a knowledge graph platform where agents coordinate through shared state in SurrealDB. Today, the governance feed is poll-on-load (14 parallel queries per page load), agents discover context changes only at session start, and conflict detection relies on periodic Observer scans.
+Osabio is a knowledge graph platform where agents coordinate through shared state in SurrealDB. Today, the governance feed is poll-on-load (14 parallel queries per page load), agents discover context changes only at session start, and conflict detection relies on periodic Observer scans.
 
 This feature replaces poll-based reactivity with push-based coordination powered by SurrealDB LIVE SELECT, enabling:
 - Real-time governance feed updates via SSE
@@ -32,13 +32,13 @@ C4Context
   Person(admin, "Workspace Admin", "Monitors agent activity via governance feed")
   Person(coder, "Coding Agent (MCP)", "Works on tasks via LLM proxy")
 
-  System(brain, "Brain Platform", "Knowledge graph + agent coordination")
+  System(osabio, "Osabio Platform", "Knowledge graph + agent coordination")
 
   System_Ext(surrealdb, "SurrealDB", "Graph database with LIVE SELECT")
   System_Ext(anthropic, "Anthropic API", "LLM provider")
 
-  Rel(admin, brain, "Views live feed via SSE")
-  Rel(coder, brain, "Sends LLM requests via proxy")
+  Rel(admin, osabio, "Views live feed via SSE")
+  Rel(coder, osabio, "Sends LLM requests via proxy")
   Rel(brain, surrealdb, "Subscribes to graph changes via LIVE SELECT")
   Rel(brain, surrealdb, "Reads/writes graph state via queries")
   Rel(brain, anthropic, "Forwards LLM requests with injected context")
@@ -53,12 +53,12 @@ C4Container
   Person(admin, "Workspace Admin")
   Person(agent, "Coding Agent")
 
-  Container_Boundary(brain, "Brain Server (Bun)") {
+  Container_Boundary(osabio, "Osabio Server (Bun)") {
     Container(feedRoute, "Feed Route", "GET handler", "Serves initial feed state via 14 parallel queries")
     Container(feedSseBridge, "Feed SSE Bridge", "NEW", "Subscribes LIVE SELECT, transforms to GovernanceFeedItem, pushes via SSE")
     Container(activator, "Agent Activator", "NEW", "DEFINE EVENT webhook endpoint: starts new agents for unhandled observations via LLM classification of agent descriptions")
     Container(proxyRoute, "LLM Proxy Route", "Existing", "Forwards LLM requests with context injection")
-    Container(contextInjector, "Context Injector", "Existing+Extended", "Builds brain-context XML, NEW: vector search for relevant recent graph changes")
+    Container(contextInjector, "Context Injector", "Existing+Extended", "Builds osabio-context XML, NEW: vector search for relevant recent graph changes")
     Container(sseRegistry, "SSE Registry", "Existing+Extended", "Manages SSE streams, NEW: per-workspace feed streams")
     Container(sessionLifecycle, "Session Lifecycle", "Existing", "Agent session management")
   }
@@ -68,7 +68,7 @@ C4Container
   Rel(admin, feedRoute, "Loads initial feed", "GET /api/workspaces/:id/feed")
   Rel(admin, feedSseBridge, "Streams updates", "GET /api/workspaces/:id/feed/stream (SSE)")
   Rel(agent, proxyRoute, "Sends LLM requests", "POST /proxy/llm/anthropic/v1/messages")
-  Rel(proxyRoute, contextInjector, "Injects brain-context + relevant recent changes")
+  Rel(proxyRoute, contextInjector, "Injects osabio-context + relevant recent changes")
   Rel(surreal, feedSseBridge, "Pushes graph changes", "LIVE SELECT")
   Rel(surreal, activator, "DEFINE EVENT webhook on observation CREATE", "HTTP POST")
   Rel(activator, surreal, "Loads agent descriptions, starts new sessions for matches")
@@ -225,8 +225,8 @@ LLM Proxy receives API call for session xyz
   |-- KNN search: message embedding vs recent graph entity embeddings
   |   (scoped to workspace, filtered to entities updated since last_request_at)
   |-- Relevant changes injected as:
-  |     high similarity → <urgent-context> (before <brain-context>)
-  |     moderate similarity → <context-update> (after <brain-context>)
+  |     high similarity → <urgent-context> (before <osabio-context>)
+  |     moderate similarity → <context-update> (after <osabio-context>)
   |-- Updates session's last_request_at timestamp
 ```
 

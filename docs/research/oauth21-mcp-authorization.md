@@ -8,13 +8,13 @@ MCP servers use OAuth 2.1 as their authorization framework, operating as OAuth 2
 
 The flow is designed for public clients (like CLI tools and desktop apps) that cannot securely store long-lived secrets. PKCE is mandatory for all clients in OAuth 2.1, replacing the implicit grant entirely. Dynamic Client Registration allows MCP clients to register with previously unknown authorization servers without manual configuration, returning a `client_id` and optionally a `client_secret` (for confidential clients). Tokens are sent via `Authorization: Bearer <token>` headers. Refresh tokens enable long-lived sessions without re-authorization.
 
-This research is cross-referenced across the MCP specification (modelcontextprotocol.io), OAuth 2.1 draft (draft-ietf-oauth-v2-1), RFC 7591 (DCR), RFC 9728 (Protected Resource Metadata), RFC 8414 (Authorization Server Metadata), RFC 8707 (Resource Indicators), and RFC 6750 (Bearer Token Usage), plus verified against the Brain codebase's existing implementation in `app/src/server/tool-registry/`.
+This research is cross-referenced across the MCP specification (modelcontextprotocol.io), OAuth 2.1 draft (draft-ietf-oauth-v2-1), RFC 7591 (DCR), RFC 9728 (Protected Resource Metadata), RFC 8414 (Authorization Server Metadata), RFC 8707 (Resource Indicators), and RFC 6750 (Bearer Token Usage), plus verified against the Osabio codebase's existing implementation in `app/src/server/tool-registry/`.
 
 Additionally, this research covers two implementation libraries: (1) **oauth4webapi** by panva -- a low-level, zero-dependency OAuth 2.1 / OpenID Connect library for JavaScript runtimes, and (2) the **@modelcontextprotocol/sdk** built-in OAuth client module -- which provides a complete, MCP-specific OAuth orchestration layer with discovery, DCR, PKCE, token exchange, and token refresh built in.
 
 ## Research Methodology
 **Search Strategy**: Direct fetch of MCP spec, OAuth 2.1 draft, and RFC 7591 (blocked by environment hook); substituted with targeted web searches across authoritative domains plus local codebase analysis of existing MCP OAuth implementation. For library research (oauth4webapi, MCP SDK), combined web searches with direct reading of locally-installed npm package type definitions (`node_modules/@modelcontextprotocol/sdk/dist/esm/`).
-**Source Selection**: Types: official specs (IETF RFCs), protocol documentation (MCP spec), library source/type definitions, package registries (npm, JSR), implementation reference (Brain codebase) | Reputation: High minimum | Verification: cross-referencing across specs, library source, and implementation code
+**Source Selection**: Types: official specs (IETF RFCs), protocol documentation (MCP spec), library source/type definitions, package registries (npm, JSR), implementation reference (Osabio codebase) | Reputation: High minimum | Verification: cross-referencing across specs, library source, and implementation code
 **Quality Standards**: Target 3 sources/claim (min 1 authoritative) | All major claims cross-referenced | Avg reputation: 0.99
 
 ## Findings
@@ -78,7 +78,7 @@ Additionally, this research covers two implementation libraries: (1) **oauth4web
 
 **Source**: [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization) - Accessed 2026-03-23
 **Confidence**: High
-**Verification**: [Auth0 MCP Spec Updates](https://auth0.com/blog/mcp-specs-update-all-about-auth/), [Stack Overflow MCP Auth Analysis](https://stackoverflow.blog/2026/01/21/is-that-allowed-authentication-and-authorization-in-model-context-protocol/), Brain codebase `auth-discovery.ts` implementation
+**Verification**: [Auth0 MCP Spec Updates](https://auth0.com/blog/mcp-specs-update-all-about-auth/), [Stack Overflow MCP Auth Analysis](https://stackoverflow.blog/2026/01/21/is-that-allowed-authentication-and-authorization-in-model-context-protocol/), Osabio codebase `auth-discovery.ts` implementation
 **Analysis**: The MCP spec explicitly mandates OAuth 2.1 with PKCE for all clients. The discovery phase uses two RFCs (9728 for resource metadata, 8414 for auth server metadata) to enable zero-configuration client setup. The `resource` parameter (RFC 8707) is critical for token audience restriction -- it prevents a malicious MCP server from using tokens intended for another service.
 
 ---
@@ -93,8 +93,8 @@ The client sends a `POST` to the `registration_endpoint` with `Content-Type: app
 
 ```json
 {
-  "client_name": "Brain",
-  "redirect_uris": ["https://brain.example.com/api/oauth/callback"],
+  "client_name": "Osabio",
+  "redirect_uris": ["https://osabio.example.com/api/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "client_secret_post"
@@ -117,8 +117,8 @@ The auth server responds with `HTTP 201 Created` and `Content-Type: application/
   "client_id": "s6BhdRkqt3",
   "client_secret": "cf136dc3c1fc93f31185e5885805d",
   "client_secret_expires_at": 0,
-  "client_name": "Brain",
-  "redirect_uris": ["https://brain.example.com/api/oauth/callback"],
+  "client_name": "Osabio",
+  "redirect_uris": ["https://osabio.example.com/api/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "client_secret_post"
@@ -138,7 +138,7 @@ Key response fields (RFC 7591 Section 3.2.1):
 - **Confidential clients** (server-side apps that can store secrets securely): receive `client_secret`
 - **Public clients** (native apps, SPAs, CLI tools): do NOT receive `client_secret`; they rely on PKCE alone for security
 
-The MCP spec treats MCP clients as potentially either type. For a server-side MCP client like Brain, the auth server MAY issue a `client_secret`. The `token_endpoint_auth_method` in the registration request signals the client's capability: `"none"` means public client (no secret expected), while `"client_secret_post"` or `"client_secret_basic"` means confidential client (secret expected).
+The MCP spec treats MCP clients as potentially either type. For a server-side MCP client like Osabio, the auth server MAY issue a `client_secret`. The `token_endpoint_auth_method` in the registration request signals the client's capability: `"none"` means public client (no secret expected), while `"client_secret_post"` or `"client_secret_basic"` means confidential client (secret expected).
 
 #### How Must `client_secret` Be Stored?
 
@@ -150,8 +150,8 @@ Per RFC 7591 security considerations and OAuth best practices:
 
 **Source**: [RFC 7591 - OAuth 2.0 Dynamic Client Registration Protocol](https://datatracker.ietf.org/doc/html/rfc7591) - Accessed 2026-03-23
 **Confidence**: High
-**Verification**: [Curity DCR Overview](https://curity.io/resources/learn/openid-connect-understanding-dcr/), [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), Brain codebase `oauth-flow.ts:registerDynamicClient()`
-**Analysis**: The Brain codebase implementation in `oauth-flow.ts` correctly implements DCR with the expected request fields (`client_name`, `redirect_uris`, `grant_types`, `response_types`, `token_endpoint_auth_method`) and handles the optional `client_secret` in the response type (`ClientRegistrationResult`). The codebase stores `client_secret` encrypted via `client_secret_encrypted` field on `CredentialProviderRecord`.
+**Verification**: [Curity DCR Overview](https://curity.io/resources/learn/openid-connect-understanding-dcr/), [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), Osabio codebase `oauth-flow.ts:registerDynamicClient()`
+**Analysis**: The Osabio codebase implementation in `oauth-flow.ts` correctly implements DCR with the expected request fields (`client_name`, `redirect_uris`, `grant_types`, `response_types`, `token_endpoint_auth_method`) and handles the optional `client_secret` in the response type (`ClientRegistrationResult`). The codebase stores `client_secret` encrypted via `client_secret_encrypted` field on `CredentialProviderRecord`.
 
 ---
 
@@ -202,8 +202,8 @@ Response fields (OAuth 2.1 Section 3.2.3):
 
 **Source**: [OAuth 2.1 Draft (draft-ietf-oauth-v2-1)](https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/) - Accessed 2026-03-23
 **Confidence**: High
-**Verification**: [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), [Auth0 PKCE Flow](https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce), Brain codebase `oauth-flow.ts:buildTokenRequest()` and `exchangeCode()`
-**Analysis**: The Brain codebase implements both PKCE-aware (`buildTokenRequest` / `exchangeCode`) and legacy (`exchangeCodeForTokens`) token exchange paths. The PKCE-aware path correctly includes `code_verifier` and conditionally includes `client_secret`. The `TokenResult` type correctly models all response fields including optional `refresh_token` and `scope`.
+**Verification**: [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), [Auth0 PKCE Flow](https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce), Osabio codebase `oauth-flow.ts:buildTokenRequest()` and `exchangeCode()`
+**Analysis**: The Osabio codebase implements both PKCE-aware (`buildTokenRequest` / `exchangeCode`) and legacy (`exchangeCodeForTokens`) token exchange paths. The PKCE-aware path correctly includes `code_verifier` and conditionally includes `client_secret`. The `TokenResult` type correctly models all response fields including optional `refresh_token` and `scope`.
 
 ---
 
@@ -234,8 +234,8 @@ Per OAuth security best practices and RFC 6750:
 
 **Source**: [RFC 6750 - Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750) - Accessed 2026-03-23
 **Confidence**: High
-**Verification**: [RFC 7591 Security Considerations](https://datatracker.ietf.org/doc/html/rfc7591), [IDPro Token Lifetimes Best Practices](https://bok.idpro.org/article/id/108/), Brain codebase `types.ts:ConnectedAccountRecord`
-**Analysis**: The Brain codebase follows these practices precisely. `ConnectedAccountRecord` stores `access_token_encrypted`, `refresh_token_encrypted`, and `token_expires_at`. The `CredentialProviderRecord` stores `client_secret_encrypted`. The OAuth flow state uses an in-memory `Map<string, OAuthStateEntry>` with a 10-minute TTL (`STATE_TTL_MS`). The codebase uses `encryptSecret()`/`decryptSecret()` from `encryption.ts` for all sensitive values.
+**Verification**: [RFC 7591 Security Considerations](https://datatracker.ietf.org/doc/html/rfc7591), [IDPro Token Lifetimes Best Practices](https://bok.idpro.org/article/id/108/), Osabio codebase `types.ts:ConnectedAccountRecord`
+**Analysis**: The Osabio codebase follows these practices precisely. `ConnectedAccountRecord` stores `access_token_encrypted`, `refresh_token_encrypted`, and `token_expires_at`. The `CredentialProviderRecord` stores `client_secret_encrypted`. The OAuth flow state uses an in-memory `Map<string, OAuthStateEntry>` with a 10-minute TTL (`STATE_TTL_MS`). The codebase uses `encryptSecret()`/`decryptSecret()` from `encryption.ts` for all sensitive values.
 
 ---
 
@@ -319,8 +319,8 @@ The client should refresh proactively, not reactively:
 
 **Source**: [OAuth 2.1 Draft (draft-ietf-oauth-v2-1)](https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/) - Accessed 2026-03-23
 **Confidence**: High
-**Verification**: [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), [Connect2id OAuth 2.1 Explained](https://connect2id.com/learn/oauth-2-1), Brain codebase `oauth-flow.ts:refreshAccessToken()`
-**Analysis**: The Brain codebase correctly implements the refresh flow in `refreshAccessToken()`. It sends `grant_type=refresh_token` with the refresh token and optional `client_id`/`client_secret`. The `TokenResult` return type correctly models the possibility of a new `refresh_token` in the response. The codebase stores `token_expires_at` on `ConnectedAccountRecord` to enable proactive refresh.
+**Verification**: [MCP Authorization Specification](https://modelcontextprotocol.io/specification/draft/basic/authorization), [Connect2id OAuth 2.1 Explained](https://connect2id.com/learn/oauth-2-1), Osabio codebase `oauth-flow.ts:refreshAccessToken()`
+**Analysis**: The Osabio codebase correctly implements the refresh flow in `refreshAccessToken()`. It sends `grant_type=refresh_token` with the refresh token and optional `client_id`/`client_secret`. The `TokenResult` return type correctly models the possibility of a new `refresh_token` in the response. The codebase stores `token_expires_at` on `ConnectedAccountRecord` to enable proactive refresh.
 
 ---
 
@@ -396,11 +396,11 @@ const refreshResult = await oauth.processRefreshTokenResponse(as, client, refres
 - **No automatic refresh**: Does not detect expired tokens or auto-refresh. The caller must implement refresh logic.
 - **No session management**: Stateless -- every function call is independent.
 
-#### Assessment for Brain's Use Case
+#### Assessment for Osabio's Use Case
 
-oauth4webapi is a viable low-level alternative IF Brain needs to build a custom OAuth flow outside the MCP SDK. However, the MCP SDK already provides a higher-level orchestration layer (see Finding 8) that handles the full MCP-specific OAuth flow. Using oauth4webapi directly would mean reimplementing the orchestration that the MCP SDK already provides.
+oauth4webapi is a viable low-level alternative IF Osabio needs to build a custom OAuth flow outside the MCP SDK. However, the MCP SDK already provides a higher-level orchestration layer (see Finding 8) that handles the full MCP-specific OAuth flow. Using oauth4webapi directly would mean reimplementing the orchestration that the MCP SDK already provides.
 
-**Best use case for oauth4webapi**: When Brain needs OAuth for non-MCP integrations, or when the MCP SDK's built-in OAuth is insufficient for a specific requirement.
+**Best use case for oauth4webapi**: When Osabio needs OAuth for non-MCP integrations, or when the MCP SDK's built-in OAuth is insufficient for a specific requirement.
 
 **Source**: [oauth4webapi GitHub](https://github.com/panva/oauth4webapi) - Accessed 2026-03-23
 **Confidence**: High
@@ -528,9 +528,9 @@ The SDK exports typed Zod schemas for all OAuth data structures via `@modelconte
 - `OAuthTokenRevocationRequestSchema` (RFC 7009)
 - `OAuthErrorResponseSchema` (OAuth 2.1 error)
 
-#### Assessment for Brain's Use Case
+#### Assessment for Osabio's Use Case
 
-**The MCP SDK's built-in OAuth module is the correct choice for Brain's MCP tool registry OAuth flow.** It provides:
+**The MCP SDK's built-in OAuth module is the correct choice for Osabio's MCP tool registry OAuth flow.** It provides:
 
 1. The exact discovery sequence the MCP spec requires (RFC 9728 -> RFC 8414)
 2. DCR with the correct MCP client metadata
@@ -540,12 +540,12 @@ The SDK exports typed Zod schemas for all OAuth data structures via `@modelconte
 6. Token refresh with refresh token preservation
 7. A clean separation between OAuth logic (SDK) and storage/UI (provider implementation)
 
-Brain's `oauth-flow.ts` currently implements these steps manually. Migrating to the SDK's `auth()` orchestrator would reduce the custom OAuth code while staying aligned with future MCP spec changes.
+Osabio's `oauth-flow.ts` currently implements these steps manually. Migrating to the SDK's `auth()` orchestrator would reduce the custom OAuth code while staying aligned with future MCP spec changes.
 
 **Source**: `@modelcontextprotocol/sdk` v1.27.1, local `node_modules` type definitions - Accessed 2026-03-23
 **Confidence**: High
 **Verification**: [MCP TypeScript SDK GitHub](https://github.com/modelcontextprotocol/typescript-sdk), [MCP SDK npm](https://www.npmjs.com/package/@modelcontextprotocol/sdk), [MCP SDK docs](https://ts.sdk.modelcontextprotocol.io/)
-**Analysis**: The MCP SDK provides a complete, MCP-aware OAuth client that is superior to oauth4webapi for MCP-specific use cases. The SDK's `OAuthClientProvider` interface cleanly separates concerns: the SDK handles all OAuth protocol logic, while the application implements storage and UI. This is exactly the pattern Brain needs. The SDK does not use oauth4webapi internally -- it rolls its own implementation using fetch + Zod, which means there is no transitive dependency benefit from using oauth4webapi alongside the SDK.
+**Analysis**: The MCP SDK provides a complete, MCP-aware OAuth client that is superior to oauth4webapi for MCP-specific use cases. The SDK's `OAuthClientProvider` interface cleanly separates concerns: the SDK handles all OAuth protocol logic, while the application implements storage and UI. This is exactly the pattern Osabio needs. The SDK does not use oauth4webapi internally -- it rolls its own implementation using fetch + Zod, which means there is no transitive dependency benefit from using oauth4webapi alongside the SDK.
 
 ---
 
@@ -561,7 +561,7 @@ Brain's `oauth-flow.ts` currently implements these steps manually. Migrating to 
 | RFC 8707 (Resource Indicators) | datatracker.ietf.org | High (1.0) | IETF RFC | 2026-03-23 | Y |
 | RFC 6750 (Bearer Token Usage) | datatracker.ietf.org | High (1.0) | IETF RFC | 2026-03-23 | Y |
 | Auth0 MCP Spec Updates | auth0.com | Medium-High (0.8) | Industry analysis | 2026-03-23 | Y |
-| Brain Codebase Implementation | local | High (1.0) | Implementation reference | 2026-03-23 | Y |
+| Osabio Codebase Implementation | local | High (1.0) | Implementation reference | 2026-03-23 | Y |
 
 | oauth4webapi GitHub | github.com/panva | High (1.0) | OSS library source | 2026-03-23 | Y |
 | oauth4webapi npm | npmjs.com | High (1.0) | Package registry | 2026-03-23 | Y |
@@ -603,8 +603,8 @@ Reputation: High: 13 (93%) | Medium-High: 1 (7%) | Avg: 0.99
 ### Conflict 1: Public vs Confidential Client Classification
 
 **Position A**: MCP clients are public clients (cannot store secrets securely) and should use `token_endpoint_auth_method: "none"` with PKCE as the sole security mechanism. -- Source: [Aembit MCP OAuth Analysis](https://aembit.io/blog/mcp-oauth-2-1-pkce-and-the-future-of-ai-authorization/), Reputation: 0.8
-**Position B**: MCP clients like Brain (server-side applications) are confidential clients that CAN store secrets and should use `token_endpoint_auth_method: "client_secret_post"`. -- Source: Brain codebase implementation, Reputation: 1.0 (implementation evidence)
-**Assessment**: Both are correct. The MCP spec supports both public and confidential clients. The client type depends on the deployment context: browser-based or CLI MCP clients are public; server-side MCP clients (like Brain) are confidential. The spec mandates PKCE for ALL client types regardless, which is an OAuth 2.1 requirement. Brain correctly implements the confidential client path with `client_secret_post` while also implementing PKCE.
+**Position B**: MCP clients like Osabio (server-side applications) are confidential clients that CAN store secrets and should use `token_endpoint_auth_method: "client_secret_post"`. -- Source: Osabio codebase implementation, Reputation: 1.0 (implementation evidence)
+**Assessment**: Both are correct. The MCP spec supports both public and confidential clients. The client type depends on the deployment context: browser-based or CLI MCP clients are public; server-side MCP clients (like Osabio) are confidential. The spec mandates PKCE for ALL client types regardless, which is an OAuth 2.1 requirement. Osabio correctly implements the confidential client path with `client_secret_post` while also implementing PKCE.
 
 ## Full Citations
 

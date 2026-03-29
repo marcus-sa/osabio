@@ -11,7 +11,7 @@ phases:
   - id: 01-01
     name: 'OAuth shared types and DPoP pure functions'
     description: >
-      Define algebraic data types (BrainAction, DPoPProofClaims, DPoPBoundTokenClaims,
+      Define algebraic data types (OsabioAction, DPoPProofClaims, DPoPBoundTokenClaims,
       discriminated unions for validation/issuance results). Implement pure DPoP proof
       validation (structure, signature, claims) and JWK thumbprint computation (RFC 7638)
       using jose library and Web Crypto API.
@@ -68,7 +68,7 @@ phases:
     description: >
       Generate ES256 key pair on first server start, persist to as_signing_key
       table. Load from DB on subsequent starts. Expose JWKS endpoint
-      (GET /api/auth/brain/.well-known/jwks). Inject into ServerDependencies.
+      (GET /api/auth/osabio/.well-known/jwks). Inject into ServerDependencies.
     time_estimate: 2h
     dependencies: [01-03]
     criteria:
@@ -85,13 +85,13 @@ phases:
     name: 'Token issuer with DPoP binding'
     description: >
       Sign DPoP-bound access tokens with injected AS ES256 key. Token includes
-      sub, cnf.jkt, authorization_details, urn:brain:intent_id, urn:brain:workspace,
+      sub, cnf.jkt, authorization_details, urn:osabio:intent_id, urn:osabio:workspace,
       exp. Default TTL 300s.
     time_estimate: 3h
     dependencies: [01-01, 02-01]
     criteria:
     - 'Issued token contains cnf.jkt matching actor thumbprint'
-    - 'Token embeds authorization_details and urn:brain:intent_id'
+    - 'Token embeds authorization_details and urn:osabio:intent_id'
     - 'Token TTL is at most 300 seconds'
     - 'Token signed with AS ES256 key, verifiable via AS public key'
     implementation_scope:
@@ -101,12 +101,12 @@ phases:
     name: 'Intent submission with DPoP thumbprint binding'
     description: >
       New endpoint POST /api/auth/intents requiring authorization_details with
-      type "brain_action" and dpop_jwk_thumbprint. Validates input, stores in
+      type "osabio_action" and dpop_jwk_thumbprint. Validates input, stores in
       intent record, triggers existing evaluation pipeline.
     time_estimate: 4h
     dependencies: [01-01, 01-03]
     criteria:
-    - 'Intent accepted with brain_action and thumbprint stored in record'
+    - 'Intent accepted with osabio_action and thumbprint stored in record'
     - 'Missing thumbprint rejected with 400'
     - 'Missing or wrong-type authorization_details rejected with 400'
     - 'Low-risk read intents auto-approve'
@@ -120,7 +120,7 @@ phases:
   - id: 02-04
     name: 'Custom AS token endpoint'
     description: >
-      POST /api/auth/token accepting grant_type=urn:brain:intent-authorization.
+      POST /api/auth/token accepting grant_type=urn:osabio:intent-authorization.
       Validates DPoP proof, verifies intent status=authorized, matches proof key
       thumbprint to intent binding, checks authorization_details match. Delegates
       to token issuer. Supports re-issuance for same intent.
@@ -138,12 +138,12 @@ phases:
     - app/src/server/oauth/audit.ts
     - app/src/server/runtime/start-server.ts
 - id: '03'
-  name: 'Brain Resource Server Verification'
+  name: 'Osabio Resource Server Verification'
   steps:
   - id: 03-01
     name: 'DPoP verification middleware'
     description: >
-      Brain resource server pipeline replacing authenticateMcpRequest. Extracts
+      Osabio resource server pipeline replacing authenticateMcpRequest. Extracts
       Authorization: DPoP + DPoP headers. Rejects Bearer tokens, session cookies,
       missing auth with 401 dpop_required. Validates token signature via AS JWKS,
       validates proof, verifies sender binding (cnf.jkt match).
@@ -179,7 +179,7 @@ phases:
   - id: 03-03
     name: 'RAR operation scope verifier and route-action map'
     description: >
-      Map HTTP method+path to brain_action via route-action-map. Match
+      Map HTTP method+path to osabio_action via route-action-map. Match
       requested operation against token authorization_details: type, action,
       resource exact match; constraint bounds enforcement (numeric <=).
     time_estimate: 4h
@@ -223,7 +223,7 @@ phases:
     time_estimate: 5h
     dependencies: [02-02, 02-04, 03-04]
     criteria:
-    - 'Valid session + DPoP proof + brain_action yields DPoP-bound token'
+    - 'Valid session + DPoP proof + osabio_action yields DPoP-bound token'
     - 'Bridge token contains correct cnf.jkt and authorization_details'
     - 'Low-risk reads auto-approve; high-risk triggers evaluation'
     - 'Expired/invalid session rejected with 401'
@@ -235,14 +235,14 @@ phases:
   - id: 04-02
     name: 'Consent renderer for human-readable authorization display'
     description: >
-      Transform brain_action authorization_details into human-readable display.
+      Transform osabio_action authorization_details into human-readable display.
       Map action verbs and resource types to labels. Format provider-specific
       values (amounts in dollars). Support approve/veto/constrain actions on
       pending intents with tighter-bounds-only constraint enforcement.
     time_estimate: 3h
     dependencies: [02-03]
     criteria:
-    - 'brain_action rendered with human-readable labels and formatted values'
+    - 'osabio_action rendered with human-readable labels and formatted values'
     - 'Human can approve, veto (with reason), or constrain pending intents'
     - 'Constrain rejects looser bounds than original authorization'
     - 'Enables: M5-C1, M5-C2, M5-C3, M5-C4, M5-C5'
@@ -255,7 +255,7 @@ phases:
     description: >
       Agent identity records managed_by relationship to human owner.
       Revocation checks at intent submission (reject new intents from
-      revoked agents) and Brain verification (reject tokens for revoked agents).
+      revoked agents) and Osabio verification (reject tokens for revoked agents).
       Inactive managing human blocks managed agent operations.
     time_estimate: 2h
     dependencies: [01-03, 02-03, 03-01]
@@ -263,7 +263,7 @@ phases:
     - 'Agent identity records managed_by relationship'
     - 'Managed agent blocked when managing human inactive'
     - 'Revoked agent cannot submit new intents'
-    - 'Revoked agent tokens rejected at Brain boundary'
+    - 'Revoked agent tokens rejected at Osabio boundary'
     - 'Enables: M5-I1, M5-I2, M5-I3, M5-I4'
     implementation_scope:
     - app/src/server/oauth/intent-submission.ts

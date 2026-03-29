@@ -73,7 +73,7 @@
 | DoR Item | Status | Evidence/Issue |
 |----------|--------|----------------|
 | Problem statement clear | PASS | "17 HNSW indexes, embedding fields on every entity table, dead embeddings.ts module, config clutter" |
-| User/persona identified | PASS | Brain platform engineer maintaining codebase after migration |
+| User/persona identified | PASS | Osabio platform engineer maintaining codebase after migration |
 | 3+ domain examples | PASS | 3 examples: clean schema, server without config, grep zero references |
 | UAT scenarios (3-7) | PASS | 4 scenarios: indexes removed, fields removed, server starts, no code references |
 | AC derived from UAT | PASS | 8 AC items covering index drops, field removal, module deletion, config cleanup |

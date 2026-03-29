@@ -28,7 +28,7 @@ No event-driven invalidation. Cache entries expire naturally. An admin granting 
 ### Alternative 3: Redis/external cache
 - **What**: Use Redis or another external cache for distributed caching.
 - **Expected impact**: Shared cache across multiple server instances.
-- **Why rejected**: Brain runs as a single server instance (ADR-040). No multi-instance deployment exists. Adding Redis as a dependency for a simple TTL cache violates the simplest-solution principle and the OSS-minimalism constraint.
+- **Why rejected**: Osabio runs as a single server instance (ADR-040). No multi-instance deployment exists. Adding Redis as a dependency for a simple TTL cache violates the simplest-solution principle and the OSS-minimalism constraint.
 
 ## Consequences
 - **Positive**: Consistent with existing proxy caching patterns (workspace, token)

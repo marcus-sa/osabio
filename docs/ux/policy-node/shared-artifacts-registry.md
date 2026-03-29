@@ -83,7 +83,7 @@ type IntentEvaluationContext = {
     currency: string;
   };
   authorization_details: Array<{
-    type: "brain_action";
+    type: "osabio_action";
     action: string;
     resource: string;
   }>;

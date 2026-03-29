@@ -8,7 +8,7 @@ Task status lifecycle transitions are currently split between the server (orches
 
 | Capability | Owner | Mechanism |
 |---|---|---|
-| in_progress | Agent | `brain-start-task` slash command calls `update_task_status` MCP tool |
+| in_progress | Agent | `osabio-start-task` slash command calls `update_task_status` MCP tool |
 | done | commit-check CLI (local) / GitHub processor (remote) | Task refs parsed from commit messages |
 | completed | GitHub processor | Merge to main/default branch detected |
 | ready (abort) | Server | `abortOrchestratorSession()` |
@@ -29,13 +29,13 @@ graph TB
     lead[Team Lead]
     claude[Claude Code Agent]
     github[GitHub]
-    brain[Brain Platform]
+    brain[Osabio Platform]
 
-    dev -->|post-commit hook| brain
+    dev -->|post-commit hook| osabio
     dev -->|git push| github
-    claude -->|MCP: in_progress| brain
-    github -->|Webhook: done/completed| brain
-    lead -->|Web UI| brain
+    claude -->|MCP: in_progress| osabio
+    github -->|Webhook: done/completed| osabio
+    lead -->|Web UI| osabio
 ```
 
 ## C4 Container (L2)
@@ -46,9 +46,9 @@ graph TB
     github[GitHub]
     claude[Claude Code Agent]
 
-    subgraph brain [Brain Platform]
+    subgraph osabio [Osabio Platform]
         cli[Brain CLI - Bun binary]
-        server[Brain Server - Bun HTTP]
+        server[Osabio Server - Bun HTTP]
         surreal[(SurrealDB v3)]
     end
 
@@ -73,7 +73,7 @@ graph TB
         mcp_server[MCP Server]
     end
 
-    subgraph server_boundary [Brain Server]
+    subgraph server_boundary [Osabio Server]
         mcp_route[MCP Route]
         session_lifecycle[Session Lifecycle - abort/reject]
         create_session[createAgentSession - NO status change]
@@ -110,7 +110,7 @@ graph TB
 - **Traces to**: US-2, R1
 
 #### 3. `cli/commands/git-hooks.ts` -- NEW: runCommitCheck()
-- **Add**: New `brain commit-check` command — thin client
+- **Add**: New `osabio commit-check` command — thin client
 - **Behavior**: Read latest commit message, POST it to server endpoint, exit 0
 - **Constraint**: Fire-and-forget, exit 0 on any error. No parsing or LLM logic in CLI.
 - **Traces to**: US-3, R3
@@ -125,11 +125,11 @@ graph TB
 - **Traces to**: US-3, R3
 
 #### 4. `cli/commands/init.ts` -- Post-commit hook installation
-- **Add**: Install `brain commit-check` as `.git/hooks/post-commit` alongside existing pre-commit hook
-- **Script**: `#!/bin/sh\nbrain commit-check\n` (fire-and-forget, no error check)
+- **Add**: Install `osabio commit-check` as `.git/hooks/post-commit` alongside existing pre-commit hook
+- **Script**: `#!/bin/sh\nosabio commit-check\n` (fire-and-forget, no error check)
 - **Traces to**: US-4, R4
 
-#### 5. `cli/brain.ts` -- CLI routing
+#### 5. `cli/osabio.ts` -- CLI routing
 - **Add**: `commit-check` case (currently only `check-commit` exists; rename or add alias)
 - **Traces to**: US-3, US-4
 
@@ -178,13 +178,13 @@ No new technology introduced. All changes use existing stack:
 | Server | Bun HTTP | MIT | Existing server runtime |
 | Database | SurrealDB v3 | BSL 1.1 | Existing data store |
 | Task ref parsing | Regex (existing) | N/A | `extractReferencedTaskIds()` already exists |
-| HTTP client | Fetch API (existing) | N/A | `BrainHttpClient.updateTaskStatus()` already exists |
+| HTTP client | Fetch API (existing) | N/A | `OsabioHttpClient.updateTaskStatus()` already exists |
 
 ## Integration Patterns
 
 ### CLI to Server (commit-check)
 - **Protocol**: HTTP POST to `/api/mcp/{workspaceId}/tasks/status`
-- **Auth**: Bearer token from `~/.brain/config.json` (existing OAuth2 flow)
+- **Auth**: Bearer token from `~/.osabio/config.json` (existing OAuth2 flow)
 - **Payload**: `{ task_id: string, status: "done" }`
 - **Error handling**: Fire-and-forget. Log to stderr, exit 0.
 
@@ -197,7 +197,7 @@ No new technology introduced. All changes use existing stack:
 ### Agent to Server (in_progress)
 - **Protocol**: MCP stdio (existing)
 - **Tool**: `update_task_status` (existing, no changes)
-- **Trigger**: `brain-start-task` slash command (existing, no changes)
+- **Trigger**: `osabio-start-task` slash command (existing, no changes)
 
 ## Quality Attribute Strategies
 
@@ -209,7 +209,7 @@ No new technology introduced. All changes use existing stack:
 ### Maintainability
 - **Single ownership per transition**: Each status change has exactly one authoritative source
 - **Shared pure functions**: `extractReferencedTaskIds()` reused without duplication
-- **Existing API reuse**: `BrainHttpClient.updateTaskStatus()` already exists
+- **Existing API reuse**: `OsabioHttpClient.updateTaskStatus()` already exists
 
 ### Observability
 - **Logging**: Each transition logs source (commit-check, webhook, agent) with task ID and commit SHA
@@ -217,9 +217,9 @@ No new technology introduced. All changes use existing stack:
 
 ### Testability
 - **Pure function**: Task ref parsing is already testable in isolation
-- **HTTP boundary**: commit-check tests mock `BrainHttpClient`
+- **HTTP boundary**: commit-check tests mock `OsabioHttpClient`
 - **Webhook tests**: Existing smoke test (`tests/smoke/github-webhook.test.ts`) extended for status transitions
 
 ## Deployment Architecture
 
-No deployment changes. The CLI binary is rebuilt with `bun build` (existing process). Server deploys unchanged. Post-commit hook is installed via `brain init` (existing mechanism, extended).
+No deployment changes. The CLI binary is rebuilt with `bun build` (existing process). Server deploys unchanged. Post-commit hook is installed via `osabio init` (existing mechanism, extended).

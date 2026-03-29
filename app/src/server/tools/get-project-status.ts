@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { getProjectStatus } from "../graph/queries";
-import { getProjectStatusSchema } from "../mcp/brain-tool-definitions";
+import { getProjectStatusSchema } from "../mcp/osabio-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 

@@ -8,7 +8,7 @@ import type {
 } from "../../shared/contracts";
 import { useWorkspaceState, type BootstrapPayload } from "../stores/workspace-state";
 
-const ACTIVE_WORKSPACE_STORAGE_KEY = "brain.activeWorkspaceId";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "osabio.activeWorkspaceId";
 
 type UseWorkspaceReturn = {
   isReady: boolean;

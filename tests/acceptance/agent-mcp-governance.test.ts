@@ -11,7 +11,7 @@
  * Driving ports:
  *   POST /mcp/agent/:sessionName  (tools/list, tools/call, create_intent)
  *
- * Auth: X-Brain-Auth proxy token (no DPoP)
+ * Auth: X-Osabio-Auth proxy token (no DPoP)
  */
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
@@ -97,7 +97,7 @@ function mcpRequest(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Brain-Auth": proxyToken,
+      "X-Osabio-Auth": proxyToken,
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -146,7 +146,7 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, session.sessionId);
@@ -161,7 +161,7 @@ describe("Walking Skeleton: Agent MCP Governance", () => {
     const toolNames = listBody.result!.tools.map((t) => t.name);
     expect(toolNames).toContain("list_repos");
 
-    // And brain-native tools are present
+    // And osabio-native tools are present
     expect(toolNames).toContain("create_intent");
 
     // When the agent calls the authorized tool
@@ -378,7 +378,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:github:create_pr" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:github:create_pr" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, session.sessionId);
@@ -394,9 +394,9 @@ describe("Happy Path: Tool Discovery and Scope", () => {
     expect(prTool!.description).not.toContain("create_intent");
   }, 30_000);
 
-  // HP-2: Fresh session sees only brain-native and gated tools
+  // HP-2: Fresh session sees only osabio-native and gated tools
   // US-01
-  it("fresh session with no intents lists all tools as gated plus brain-native tools", async () => {
+  it("fresh session with no intents lists all tools as gated plus osabio-native tools", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a fresh session with no authorized intents
@@ -415,7 +415,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
     // When the agent sends tools/list
     const response = await mcpRequest(baseUrl, session.sessionId, proxyToken, "tools/list");
 
-    // Then brain-native tools are present
+    // Then osabio-native tools are present
     const body = (await response.json()) as ToolsListResult;
     const toolNames = body.result!.tools.map((t) => t.name);
     expect(toolNames).toContain("create_intent");
@@ -489,7 +489,7 @@ describe("Happy Path: Tool Discovery and Scope", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, session.sessionId);
@@ -531,7 +531,7 @@ describe("Happy Path: Tool Call Forwarding", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:github:create_pr" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:github:create_pr" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, session.sessionId);
@@ -756,8 +756,8 @@ describe("Happy Path: Composite Intents", () => {
       {
         intent: intent.intentRecord,
         details: [
-          { type: "brain_action", action: "execute", resource: "mcp_tool:stripe:list_charges" },
-          { type: "brain_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
+          { type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:list_charges" },
+          { type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
             constraints: { amount: 5000, currency: "usd" } },
         ],
       },
@@ -1018,7 +1018,7 @@ describe("Error Paths: Constraint Enforcement", () => {
       {
         intent: intent.intentRecord,
         details: [{
-          type: "brain_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
+          type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
           constraints: { amount: 5000, currency: "usd" },
         }],
       },
@@ -1064,7 +1064,7 @@ describe("Error Paths: Constraint Enforcement", () => {
       {
         intent: intent.intentRecord,
         details: [{
-          type: "brain_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
+          type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
           constraints: { amount: 5000, currency: "usd" },
         }],
       },
@@ -1109,7 +1109,7 @@ describe("Error Paths: Constraint Enforcement", () => {
       {
         intent: intent.intentRecord,
         details: [{
-          type: "brain_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
+          type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
           constraints: { amount: 5000 },
         }],
       },
@@ -1186,7 +1186,7 @@ describe("Edge Cases: Session and Token Boundaries", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:github:list_repos" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, session.sessionId);

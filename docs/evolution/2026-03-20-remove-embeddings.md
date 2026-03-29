@@ -6,7 +6,7 @@
 
 ## Summary
 
-Removed all embedding infrastructure from the Brain platform. Replaced KNN vector search with BM25 fulltext search, graph traversal, and LLM classification. Eliminated the embedding model dependency from the hot path (every LLM request through the proxy).
+Removed all embedding infrastructure from the Osabio platform. Replaced KNN vector search with BM25 fulltext search, graph traversal, and LLM classification. Eliminated the embedding model dependency from the hot path (every LLM request through the proxy).
 
 ## Motivation
 

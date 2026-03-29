@@ -2,7 +2,7 @@
 
 ## Feature Overview
 
-Agent Learnings is the "Synaptic Plasticity" of Brain -- persistent behavioral modifications that convert short-term agent failures into long-term wisdom. Two sources: human-created (immediately active) and agent-suggested (pending human approval). Injected into agent system prompts at runtime (JIT prompting).
+Agent Learnings is the "Synaptic Plasticity" of Osabio -- persistent behavioral modifications that convert short-term agent failures into long-term wisdom. Two sources: human-created (immediately active) and agent-suggested (pending human approval). Injected into agent system prompts at runtime (JIT prompting).
 
 ---
 
@@ -184,7 +184,7 @@ Agent Learnings is the "Synaptic Plasticity" of Brain -- persistent behavioral m
 
 | Persona | Primary Jobs | Context |
 |---------|-------------|---------|
-| **Tomas Eriksson** (Workspace Owner) | Job 1, Job 4 | Technical lead managing a 3-person team. Uses Brain daily. Has corrected coding agent conventions 12 times this month. Wants agents to remember. |
+| **Tomas Eriksson** (Workspace Owner) | Job 1, Job 4 | Technical lead managing a 3-person team. Uses Osabio daily. Has corrected coding agent conventions 12 times this month. Wants agents to remember. |
 | **Chat Agent** (System Actor) | Job 3 | Loads workspace context at session start. Needs learnings in system prompt. Token budget matters. |
 | **Observer Agent** (System Actor) | Job 2 | Scans graph for patterns. Detects repeated corrections. Suggests learnings for other agents. |
 | **PM Agent** (System Actor) | Job 2, Job 3 | Manages project work. May notice workflow anti-patterns. Consumes learnings about project management conventions. |

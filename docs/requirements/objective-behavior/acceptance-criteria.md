@@ -8,7 +8,7 @@ All acceptance criteria derived from UAT scenarios in user stories. Organized by
 
 ### AC-01.1: Objective creation from chat
 ```gherkin
-Given Elena Vasquez is in a conversation in workspace "BrainOS"
+Given Elena Vasquez is in a conversation in workspace "OsabioOS"
 When Elena sends "Our Q2 objective is to launch the MCP marketplace with 10 listed integrations by June 30"
 Then an objective node is created with:
   | field             | value                        |
@@ -17,7 +17,7 @@ Then an objective node is created with:
   | success_criteria  | ["10 listed integrations"]   |
   | priority          | 90                           |
   | status            | active                       |
-And the objective is scoped to workspace "BrainOS"
+And the objective is scoped to workspace "OsabioOS"
 And an embedding is generated for semantic matching
 ```
 
@@ -31,7 +31,7 @@ And the system prompts Elena: "What is the target date for this objective?"
 
 ### AC-01.3: Duplicate objective detection
 ```gherkin
-Given objective "Launch MCP Marketplace" exists with status "active" in workspace "BrainOS"
+Given objective "Launch MCP Marketplace" exists with status "active" in workspace "OsabioOS"
 When Elena sends "Our goal is to launch the MCP marketplace"
 Then the extraction pipeline computes semantic similarity above 0.95
 And no new objective is created
@@ -40,9 +40,9 @@ And Elena sees: "An active objective 'Launch MCP Marketplace' already exists. Wo
 
 ### AC-01.4: Objective workspace scoping
 ```gherkin
-Given Elena is in workspace "BrainOS"
+Given Elena is in workspace "OsabioOS"
 When an objective is created
-Then the objective has workspace reference to "BrainOS"
+Then the objective has workspace reference to "OsabioOS"
 And the objective is not visible from workspace "OtherCorp"
 ```
 
@@ -80,7 +80,7 @@ And the warning observation status transitions to "resolved"
 
 ### AC-02.4: No objectives in workspace
 ```gherkin
-Given no objectives exist in workspace "BrainOS"
+Given no objectives exist in workspace "OsabioOS"
 When Coder-Alpha submits an intent
 Then a feed card appears: "No objectives defined. Agent work is untracked."
 And the intent proceeds without alignment check
@@ -229,7 +229,7 @@ And a prompt reads "Target date passed. Retire or extend?"
 
 ### AC-06.1: Orphaned decision detection
 ```gherkin
-Given decision "Standardize on tRPC" was created 27 days ago in workspace "BrainOS"
+Given decision "Standardize on tRPC" was created 27 days ago in workspace "OsabioOS"
 And no task references this decision via belongs_to or depends_on edges
 When the coherence auditor runs
 Then an observation is created with severity "warning"
@@ -254,7 +254,7 @@ Then no coherence warning is created for this observation
 
 ### AC-06.4: Coherence score computation
 ```gherkin
-Given workspace "BrainOS" has 100 graph nodes
+Given workspace "OsabioOS" has 100 graph nodes
 And 12 nodes are flagged as disconnected by the auditor
 When the coherence score is computed
 Then the score is 0.88

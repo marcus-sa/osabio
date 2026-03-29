@@ -3,7 +3,7 @@ import { jwt } from "better-auth/plugins";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { RecordId, type Surreal } from "surrealdb";
 import { surrealdbAdapter } from "./adapter";
-import { BRAIN_SCOPES } from "./scopes";
+import { OSABIO_SCOPES } from "./scopes";
 
 export type AuthConfig = {
   betterAuthSecret: string;
@@ -62,7 +62,7 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
     "profile",
     "email",
     "offline_access",
-    ...Object.keys(BRAIN_SCOPES),
+    ...Object.keys(OSABIO_SCOPES),
   ];
 
   const signupGuard = buildSignupGuard(config.selfHosted);
@@ -149,8 +149,8 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
           }
 
           return {
-            "urn:brain:workspace": memberRows[0].workspace_id.id as string,
-            "urn:brain:workspace_name": memberRows[0].workspace_name,
+            "urn:osabio:workspace": memberRows[0].workspace_id.id as string,
+            "urn:osabio:workspace_name": memberRows[0].workspace_name,
           };
         },
       }),

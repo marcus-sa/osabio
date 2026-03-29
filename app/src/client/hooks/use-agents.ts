@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useWorkspaceState } from "../stores/workspace-state";
 
-export type AgentRuntime = "brain" | "sandbox" | "external";
+export type AgentRuntime = "osabio" | "sandbox" | "external";
 
 export type AgentListItem = {
   id: string;
@@ -25,7 +25,7 @@ export function buildAgentsUrl(workspaceId: string): string {
 }
 
 export function groupByRuntime(agents: AgentListItem[]): Record<AgentRuntime, AgentListItem[]> {
-  const groups: Record<AgentRuntime, AgentListItem[]> = { brain: [], sandbox: [], external: [] };
+  const groups: Record<AgentRuntime, AgentListItem[]> = { osabio: [], sandbox: [], external: [] };
   for (const agent of agents) {
     const bucket = groups[agent.runtime];
     if (bucket) bucket.push(agent);

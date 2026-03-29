@@ -6,21 +6,21 @@ import {
 
 describe("telemetry function IDs", () => {
   const expectedFunctionIds = [
-    "brain.chat-agent",
-    "brain.extraction",
-    "brain.pm-agent",
-    "brain.analytics-agent",
-    "brain.observer.verification",
-    "brain.observer.synthesis",
-    "brain.observer.learning-diagnosis",
-    "brain.behavior-scorer",
-    "brain.onboarding",
-    "brain.intent.authorizer",
-    "brain.mcp.context",
-    "brain.descriptions",
-    "brain.orchestrator",
-    "brain.proxy.context-injection",
-    "brain.proxy.contradiction-detection",
+    "osabio.chat-agent",
+    "osabio.extraction",
+    "osabio.pm-agent",
+    "osabio.analytics-agent",
+    "osabio.observer.verification",
+    "osabio.observer.synthesis",
+    "osabio.observer.learning-diagnosis",
+    "osabio.behavior-scorer",
+    "osabio.onboarding",
+    "osabio.intent.authorizer",
+    "osabio.mcp.context",
+    "osabio.descriptions",
+    "osabio.orchestrator",
+    "osabio.proxy.context-injection",
+    "osabio.proxy.contradiction-detection",
   ] as const;
 
   test("exports all 15 function IDs", () => {
@@ -34,9 +34,9 @@ describe("telemetry function IDs", () => {
     }
   });
 
-  test("all values follow the brain.* naming convention", () => {
+  test("all values follow the osabio.* naming convention", () => {
     for (const value of Object.values(FUNCTION_IDS)) {
-      expect(value).toStartWith("brain.");
+      expect(value).toStartWith("osabio.");
     }
   });
 

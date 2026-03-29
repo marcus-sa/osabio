@@ -1,20 +1,20 @@
-# JTBD: Brain CLI Proxy Setup
+# JTBD: Osabio CLI Proxy Setup
 
 ## Primary Job
 
-> "When I set up Brain in a repo, I want Claude Code to automatically route through Brain's LLM proxy, so I can get policy enforcement, tracing, and context injection without changing how I use Claude."
+> "When I set up Osabio in a repo, I want Claude Code to automatically route through Osabio's LLM proxy, so I can get policy enforcement, tracing, and context injection without changing how I use Claude."
 
 ### Dimensions
 
 | Dimension | Description |
 |-----------|------------|
-| **Functional** | Configure Claude Code to route through Brain proxy with correct auth + workspace headers |
+| **Functional** | Configure Claude Code to route through Osabio proxy with correct auth + workspace headers |
 | **Emotional** | "It just works" — no manual config file editing, no guessing header formats |
 | **Social** | Team members onboard the same way — consistent setup across developers |
 
 ## Secondary Job
 
-> "When I start a Claude Code session, I want Brain to already know my workspace and identity, so agents get shared memory from the first message."
+> "When I start a Claude Code session, I want Osabio to already know my workspace and identity, so agents get shared memory from the first message."
 
 ### Dimensions
 

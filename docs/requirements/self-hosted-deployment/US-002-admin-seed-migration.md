@@ -1,7 +1,7 @@
 # US-002: Admin User Seed During Migration
 
 ## Problem
-Marcus is a platform operator who has configured Brain for self-hosted deployment. After running `bun migrate`, he expects to log in immediately, but there is no user in the database because Brain requires browser-based signup. He has to find a way to manually insert a user record into SurrealDB, which is error-prone and undocumented.
+Marcus is a platform operator who has configured Osabio for self-hosted deployment. After running `bun migrate`, he expects to log in immediately, but there is no user in the database because Osabio requires browser-based signup. He has to find a way to manually insert a user record into SurrealDB, which is error-prone and undocumented.
 
 ## Who
 - Platform operator | Running `bun migrate` as part of automated deployment | Wants a ready-to-use admin account after migration completes

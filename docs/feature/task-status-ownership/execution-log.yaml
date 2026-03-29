@@ -43,14 +43,14 @@ events:
   s: EXECUTED
   sid: 01-01
   t: '2026-03-08T15:41:17Z'
-- d: 'BLOCKED_BY_DEPENDENCY: pre-commit hook requires brain server running (brain
-    check-commit fails with ''Brain not configured'')'
+- d: 'BLOCKED_BY_DEPENDENCY: pre-commit hook requires osabio server running (osabio
+    check-commit fails with ''Osabio not configured'')'
   p: COMMIT
   s: SKIPPED
   sid: 01-02
   t: '2026-03-08T15:42:04Z'
-- d: 'BLOCKED_BY_DEPENDENCY: git pre-commit hook fails with ''Brain not configured.
-    Run: brain init'' - brain CLI requires initialization in this worktree. Changes
+- d: 'BLOCKED_BY_DEPENDENCY: git pre-commit hook fails with ''Osabio not configured.
+    Run: osabio init'' - osabio CLI requires initialization in this worktree. Changes
     staged and ready to commit once hook issue resolved.'
   p: COMMIT
   s: SKIPPED

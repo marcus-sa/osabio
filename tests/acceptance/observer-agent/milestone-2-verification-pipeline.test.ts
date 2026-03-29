@@ -73,7 +73,7 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
 
     // Register success response for this commit's SHA
     mockGitHub.addRoute({
-      path: `/repos/org/brain/commits/${sha}/status`,
+      path: `/repos/org/osabio/commits/${sha}/status`,
       status: 200,
       body: { state: "success", statuses: [], total_count: 1 },
     });
@@ -82,7 +82,7 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
       title: "Add rate limiting to API gateway",
       status: "in_progress",
       sha,
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // When the task is marked as completed
@@ -112,7 +112,7 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
 
     // Register failure response for this commit's SHA
     mockGitHub.addRoute({
-      path: `/repos/org/brain/commits/${sha}/status`,
+      path: `/repos/org/osabio/commits/${sha}/status`,
       status: 200,
       body: { state: "failure", statuses: [{ state: "failure" }], total_count: 1 },
     });
@@ -121,7 +121,7 @@ describe("Milestone 2: Task Completion Verification (Story 1)", () => {
       title: "Refactor authentication middleware",
       status: "in_progress",
       sha,
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // When the task is marked as completed despite failing CI
@@ -297,7 +297,7 @@ describe("Milestone 2: Commit Verification (Story 2b)", () => {
     // When a new git commit record is created (fires commit_created EVENT)
     const { commitId } = await createGitCommit(surreal, workspaceId, sha, {
       message: "feat: implement observer agent pipeline",
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // Then the observer creates an observation for the commit
@@ -329,7 +329,7 @@ describe("Milestone 2: Graceful Degradation (Story 3)", () => {
       title: "Integrate third-party payment gateway",
       status: "in_progress",
       sha,
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // And the external CI/GitHub API is unreachable (simulated by no mock server)

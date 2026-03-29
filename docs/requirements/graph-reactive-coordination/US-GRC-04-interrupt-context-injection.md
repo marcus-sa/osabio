@@ -98,8 +98,8 @@ And each update is clearly separated within the block
 
 ## Acceptance Criteria
 - [ ] Proxy uses vector search: message embedding → KNN against recent graph entity embeddings (updated since `last_request_at`)
-- [ ] High similarity matches injected as `<urgent-context>` (before `<brain-context>`)
-- [ ] Moderate similarity matches injected as `<context-update>` (after `<brain-context>`)
+- [ ] High similarity matches injected as `<urgent-context>` (before `<osabio-context>`)
+- [ ] Moderate similarity matches injected as `<context-update>` (after `<osabio-context>`)
 - [ ] Configurable similarity thresholds for urgent vs context-update levels
 - [ ] Current agent generation is NEVER cancelled
 - [ ] Context injected before the next agent turn begins
@@ -124,7 +124,7 @@ And each update is clearly separated within the block
   ORDER BY similarity DESC LIMIT $limit;
   ```
 - **Similarity thresholds**: High similarity (e.g., > 0.85) → `<urgent-context>`. Moderate (e.g., 0.65-0.85) → `<context-update>`. Below threshold → skip.
-- **Injection format**: Urgent items → `<urgent-context>` XML block (before `<brain-context>`). Context updates → `<context-update>` XML block (after `<brain-context>`).
+- **Injection format**: Urgent items → `<urgent-context>` XML block (before `<osabio-context>`). Context updates → `<context-update>` XML block (after `<osabio-context>`).
 - **Timestamp update**: After injection, `UPDATE agent_session SET last_request_at = time::now() WHERE id = $sess` — fire-and-forget via `deps.inflight.track()`.
 - **MCP context endpoint**: Also extend `POST /api/mcp/:workspaceId/context` to include relevant changes as `urgent_updates` and `context_updates` arrays (same query, structured instead of XML).
 - **Feed notification**: When the proxy delivers an urgent context, emit an SSE feed event so Marcus sees "Agent B notified of conflict" in the governance feed.

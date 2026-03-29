@@ -23,7 +23,7 @@ function makeRuntimeTool(name: string): AnthropicTool {
   };
 }
 
-function makeResolvedTool(name: string, toolkit = "brain"): ResolvedTool {
+function makeResolvedTool(name: string, toolkit = "osabio"): ResolvedTool {
   return {
     name,
     description: `Brain ${name}`,

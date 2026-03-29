@@ -12,11 +12,11 @@ The system must support `can_use` relation edges from identity to mcp_tool, enab
 The system must resolve an identity's effective toolset as the union of direct grants (`can_use`) and skill-derived tools (`possesses` -> `skill_requires`), with deduplication.
 
 ### FR-4: Proxy Tool Injection
-The LLM proxy must inject Brain-managed tool definitions into the `tools[]` parameter of forwarded LLM requests, additively alongside runtime-provided tools.
+The LLM proxy must inject Osabio-managed tool definitions into the `tools[]` parameter of forwarded LLM requests, additively alongside runtime-provided tools.
 
 ### FR-5: Proxy Tool Call Interception
 The proxy must intercept `tool_calls` in LLM responses and route them:
-- **Brain-native**: execute graph query directly
+- **Osabio-native**: execute graph query directly
 - **Integration**: resolve credentials, execute, sanitize
 - **Unknown**: pass through to runtime
 
@@ -67,7 +67,7 @@ Every tool call execution (success, failure, denial, rate limit) must produce a 
 ### NFR-3: Compatibility
 - Tool injection must be additive — runtime tools in the request must not be modified or removed
 - Must work with any LLM provider that supports the Anthropic Messages API tool format
-- Must work with any agent runtime routing through Brain's proxy
+- Must work with any agent runtime routing through Osabio's proxy
 
 ### NFR-4: Scalability
 - Tool resolution queries must be efficient for workspaces with 100+ tools and 50+ identities

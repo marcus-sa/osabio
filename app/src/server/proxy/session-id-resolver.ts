@@ -6,7 +6,7 @@
  * No IO, no side effects. Pure selection logic.
  *
  * Priority order:
- * 1. X-Brain-Session header (explicit override)
+ * 1. X-Osabio-Session header (explicit override)
  * 2. metadata.user_id session_{uuid} pattern (Claude Code format)
  * 3. undefined (no session attribution)
  */

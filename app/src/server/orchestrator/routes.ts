@@ -31,38 +31,38 @@ import { pickDefined } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
 import { HttpError } from "../http/errors";
 
-type BrainAction = {
-  type: "brain_action";
+type OsabioAction = {
+  type: "osabio_action";
   action: string;
   resource: string;
 };
 
-const CLI_AUTHORIZATION_DETAILS: BrainAction[] = [
-  { type: "brain_action", action: "read", resource: "workspace" },
-  { type: "brain_action", action: "read", resource: "project" },
-  { type: "brain_action", action: "read", resource: "task" },
-  { type: "brain_action", action: "read", resource: "decision" },
-  { type: "brain_action", action: "read", resource: "constraint" },
-  { type: "brain_action", action: "read", resource: "change_log" },
-  { type: "brain_action", action: "read", resource: "entity" },
-  { type: "brain_action", action: "read", resource: "suggestion" },
-  { type: "brain_action", action: "read", resource: "intent" },
-  { type: "brain_action", action: "reason", resource: "decision" },
-  { type: "brain_action", action: "reason", resource: "constraint" },
-  { type: "brain_action", action: "reason", resource: "commit" },
-  { type: "brain_action", action: "create", resource: "decision" },
-  { type: "brain_action", action: "create", resource: "question" },
-  { type: "brain_action", action: "create", resource: "task" },
-  { type: "brain_action", action: "create", resource: "note" },
-  { type: "brain_action", action: "create", resource: "observation" },
-  { type: "brain_action", action: "create", resource: "suggestion" },
-  { type: "brain_action", action: "create", resource: "session" },
-  { type: "brain_action", action: "create", resource: "commit" },
-  { type: "brain_action", action: "create", resource: "intent" },
-  { type: "brain_action", action: "update", resource: "task" },
-  { type: "brain_action", action: "update", resource: "session" },
-  { type: "brain_action", action: "update", resource: "suggestion" },
-  { type: "brain_action", action: "submit", resource: "intent" },
+const CLI_AUTHORIZATION_DETAILS: OsabioAction[] = [
+  { type: "osabio_action", action: "read", resource: "workspace" },
+  { type: "osabio_action", action: "read", resource: "project" },
+  { type: "osabio_action", action: "read", resource: "task" },
+  { type: "osabio_action", action: "read", resource: "decision" },
+  { type: "osabio_action", action: "read", resource: "constraint" },
+  { type: "osabio_action", action: "read", resource: "change_log" },
+  { type: "osabio_action", action: "read", resource: "entity" },
+  { type: "osabio_action", action: "read", resource: "suggestion" },
+  { type: "osabio_action", action: "read", resource: "intent" },
+  { type: "osabio_action", action: "reason", resource: "decision" },
+  { type: "osabio_action", action: "reason", resource: "constraint" },
+  { type: "osabio_action", action: "reason", resource: "commit" },
+  { type: "osabio_action", action: "create", resource: "decision" },
+  { type: "osabio_action", action: "create", resource: "question" },
+  { type: "osabio_action", action: "create", resource: "task" },
+  { type: "osabio_action", action: "create", resource: "note" },
+  { type: "osabio_action", action: "create", resource: "observation" },
+  { type: "osabio_action", action: "create", resource: "suggestion" },
+  { type: "osabio_action", action: "create", resource: "session" },
+  { type: "osabio_action", action: "create", resource: "commit" },
+  { type: "osabio_action", action: "create", resource: "intent" },
+  { type: "osabio_action", action: "update", resource: "task" },
+  { type: "osabio_action", action: "update", resource: "session" },
+  { type: "osabio_action", action: "update", resource: "suggestion" },
+  { type: "osabio_action", action: "submit", resource: "intent" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -327,7 +327,7 @@ export function createStreamRouteHandler(deps: StreamRouteDeps) {
 export type OrchestratorWiringDeps = {
   surreal: import("surrealdb").Surreal;
   shellExec: import("./worktree-manager").ShellExec;
-  brainBaseUrl: string;
+  osabioBaseUrl: string;
   extractionModel: import("../runtime/types").ServerDependencies["extractionModel"];
   asSigningKey: import("../oauth/as-key-management").AsSigningKey;
   sseRegistry?: SseRegistry;
@@ -483,15 +483,15 @@ export function wireOrchestratorRoutes(
 
     return {
       env: {
-        BRAIN_CLIENT_ID: "orchestrator-session",
-        BRAIN_ACCESS_TOKEN: "orchestrator-session",
-        BRAIN_REFRESH_TOKEN: "orchestrator-session",
-        BRAIN_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
-        BRAIN_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
-        BRAIN_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
-        BRAIN_DPOP_THUMBPRINT: dpopKeys.thumbprint,
-        BRAIN_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
-        BRAIN_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+        OSABIO_CLIENT_ID: "orchestrator-session",
+        OSABIO_ACCESS_TOKEN: "orchestrator-session",
+        OSABIO_REFRESH_TOKEN: "orchestrator-session",
+        OSABIO_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
+        OSABIO_DPOP_PRIVATE_JWK: JSON.stringify(dpopKeys.privateJwk),
+        OSABIO_DPOP_PUBLIC_JWK: JSON.stringify(dpopKeys.publicJwk),
+        OSABIO_DPOP_THUMBPRINT: dpopKeys.thumbprint,
+        OSABIO_DPOP_ACCESS_TOKEN: tokenResult.value.accessToken,
+        OSABIO_DPOP_TOKEN_EXPIRES_AT: String(dpopTokenExpiresAt),
       },
       intentId: intentResult.intentId,
     };
@@ -612,14 +612,14 @@ export function wireOrchestratorRoutes(
       // Build proxy env for the sandbox agent
       const proxyEnv: Record<string, string> = {
         ...mcpAuth.env,
-        ANTHROPIC_BASE_URL: `${wiringDeps.brainBaseUrl}/proxy/llm/anthropic`,
-        ANTHROPIC_CUSTOM_HEADERS: `X-Brain-Auth: ${rawToken}`,
+        ANTHROPIC_BASE_URL: `${wiringDeps.osabioBaseUrl}/proxy/llm/anthropic`,
+        ANTHROPIC_CUSTOM_HEADERS: `X-Osabio-Auth: ${rawToken}`,
       };
 
       const result = await lifecycle.createOrchestratorSession({
         surreal: wiringDeps.surreal,
         shellExec: wiringDeps.shellExec,
-        brainBaseUrl: wiringDeps.brainBaseUrl,
+        osabioBaseUrl: wiringDeps.osabioBaseUrl,
         mcpAuthToken: rawToken,
         workspaceId,
         taskId,
@@ -763,7 +763,7 @@ export function wireOrchestratorRoutes(
         last_event_at: new Date(),
       });
 
-      const initialTaskPrompt = `/brain-start-task ${taskId}`;
+      const initialTaskPrompt = `/osabio-start-task ${taskId}`;
       try {
         await sessionHandle.prompt([{ type: "text", text: initialTaskPrompt }]);
         if (!observedAgentEvent) {

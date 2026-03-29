@@ -50,7 +50,7 @@ type RegisterAgentMcpRoute = (deps: AgentMcpRouteDeps) => RouteHandler;
 
 ## Module 2: agent-mcp-auth.ts
 
-**Responsibility**: Resolve a proxy token from `X-Brain-Auth` header into a fully resolved session context (workspace, identity, session ID, session record). Fail fast on invalid/expired tokens or missing sessions.
+**Responsibility**: Resolve a proxy token from `X-Osabio-Auth` header into a fully resolved session context (workspace, identity, session ID, session record). Fail fast on invalid/expired tokens or missing sessions.
 
 **Dependencies**:
 - `proxy/proxy-auth.ts` (resolveProxyAuth, LookupProxyToken)
@@ -82,12 +82,12 @@ type ResolveAgentSession = (
 
 ## Module 3: scope-engine.ts
 
-**Responsibility**: Compute the effective tool scope for a session. Queries `gates` edges to find all authorized intents, unions their `authorization_details`, and classifies each registered tool as authorized, gated, or ungated (Brain-native).
+**Responsibility**: Compute the effective tool scope for a session. Queries `gates` edges to find all authorized intents, unions their `authorization_details`, and classifies each registered tool as authorized, gated, or ungated (Osabio-native).
 
 **Dependencies**:
 - `proxy/tool-resolver.ts` (resolveToolsForIdentity for can_use grants)
 - `oauth/rar-verifier.ts` (findMatchingAuthorization for scope matching -- pure)
-- `oauth/types.ts` (BrainAction)
+- `oauth/types.ts` (OsabioAction)
 - `intent/types.ts` (IntentRecord, ActionSpec)
 
 **Type signatures**:
@@ -100,17 +100,17 @@ type QuerySessionIntents = (
 
 type AuthorizedIntentSummary = {
   readonly intentId: string;
-  readonly authorizationDetails: BrainAction[];
+  readonly authorizationDetails: OsabioAction[];
 };
 
 // --- Pure types ---
 type ToolClassification =
   | { readonly kind: "authorized"; readonly matchingIntent: AuthorizedIntentSummary }
   | { readonly kind: "gated" }
-  | { readonly kind: "brain_native" };
+  | { readonly kind: "osabio_native" };
 
 type EffectiveScope = {
-  readonly authorizedActions: BrainAction[];
+  readonly authorizedActions: OsabioAction[];
   readonly intents: AuthorizedIntentSummary[];
 };
 
@@ -150,7 +150,7 @@ type ResolveSessionScope = (
 
 ## Module 4: tools-list-handler.ts
 
-**Responsibility**: Build an MCP `ListToolsResult` response from classified tools. Authorized tools get their full definition. Gated tools get enriched descriptions instructing the agent to call `create_intent`. Brain-native tools (create_intent, get_context) are always included.
+**Responsibility**: Build an MCP `ListToolsResult` response from classified tools. Authorized tools get their full definition. Gated tools get enriched descriptions instructing the agent to call `create_intent`. Osabio-native tools (create_intent, get_context) are always included.
 
 **Dependencies**:
 - `scope-engine.ts` (ClassifiedTool)
@@ -237,14 +237,14 @@ type ToolCallDeps = {
 
 ## Module 6: create-intent-handler.ts
 
-**Responsibility**: Handle the `create_intent` Brain-native MCP tool. Creates an intent record, submits it through the policy gate and LLM evaluator, creates a `gates` edge linking the intent to the session, and returns the outcome.
+**Responsibility**: Handle the `create_intent` Osabio-native MCP tool. Creates an intent record, submits it through the policy gate and LLM evaluator, creates a `gates` edge linking the intent to the session, and returns the outcome.
 
 **Dependencies**:
 - `intent/intent-queries.ts` (createIntent, updateIntentStatus)
 - `intent/authorizer.ts` (evaluateIntent)
 - `intent/status-machine.ts` (transitionStatus)
 - `policy/policy-gate.ts` (evaluatePolicyGate)
-- `oauth/types.ts` (BrainAction, createBrainAction)
+- `oauth/types.ts` (OsabioAction, createOsabioAction)
 - SurrealDB (RELATE for gates edge)
 
 **Type signatures**:
@@ -369,9 +369,9 @@ agent-mcp-route
 
 ---
 
-## Brain-Native Tools for Agent MCP
+## Osabio-Native Tools for Agent MCP
 
-The Agent MCP endpoint provides these Brain-native tools to every session:
+The Agent MCP endpoint provides these Osabio-native tools to every session:
 
 | Tool | Description | Always Available |
 |------|-------------|-----------------|

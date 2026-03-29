@@ -38,10 +38,10 @@ steps:
 
     gherkin: |
       Scenario: Active learnings queried for code_agent
-        Given workspace "Brain Development" has 8 active learnings
+        Given workspace "Osabio Development" has 8 active learnings
         And 6 of those learnings target code_agent
         When a new code_agent session starts
-        Then the system queries learnings WHERE workspace = "Brain Development" AND "code_agent" IN target_agents AND status = "active"
+        Then the system queries learnings WHERE workspace = "Osabio Development" AND "code_agent" IN target_agents AND status = "active"
         And returns 6 learning records
 
   - id: 2
@@ -144,14 +144,14 @@ steps:
 
     gherkin: |
       Scenario: Learnings injected into chat agent system prompt
-        Given 5 active learnings for chat_agent in "Brain Development" workspace
+        Given 5 active learnings for chat_agent in "Osabio Development" workspace
         When buildSystemPrompt() is called
         Then the system prompt includes a "Workspace Learnings" section
         And learnings are grouped under Constraints, Instructions, and Precedents
         And the section includes framing text about workspace origin
 
       Scenario: Learnings injected into MCP context packet
-        Given 6 active learnings for code_agent in "Brain Development" workspace
+        Given 6 active learnings for code_agent in "Osabio Development" workspace
         When the MCP context builder prepares the context packet
         Then the packet includes an "Active Learnings" section
         And learnings are formatted with type tags ([constraint], [instruction], [precedent])

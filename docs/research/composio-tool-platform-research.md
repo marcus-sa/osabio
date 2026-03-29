@@ -68,7 +68,7 @@ Key architectural components:
 - [Composio Docs: Authentication](https://docs.composio.dev/docs/authentication) -- auth config blueprints
 - [DEV Community: Secure AI Agent Infrastructure](https://dev.to/composiodev/from-auth-to-action-the-complete-guide-to-secure-scalable-ai-agent-infrastructure-2026-2ieb) -- independent publication confirming pattern
 
-**Analysis**: This is the core innovation relevant to Brain. The flow works as follows:
+**Analysis**: This is the core innovation relevant to Osabio. The flow works as follows:
 
 ```
 Agent (LLM) --> "Call Slack.send_message(channel, text)"
@@ -136,7 +136,7 @@ Local tools also exist: shell commands, file operations, code execution -- these
 3. **State persistence**: Workbench state persists across calls within a session, enabling multi-step workflows.
 4. **Trade-off**: Adds latency and requires internet connectivity. Not suitable for air-gapped or local-only deployments without modification.
 
-For Brain integration, this raises the question of whether a local execution model would be preferable for privacy-sensitive use cases.
+For Osabio integration, this raises the question of whether a local execution model would be preferable for privacy-sensitive use cases.
 
 ---
 
@@ -336,21 +336,21 @@ This is the standard open-core model: SDKs are open, infrastructure is a paid se
 **Position B**: "You can't inspect or modify the code of Composio's tools" -- noted as a limitation
 - Source: [Nango Blog: Composio Alternatives](https://nango.dev/blog/composio-alternatives) - Reputation: Medium-High (competitor, so bias acknowledged)
 
-**Assessment**: Both appear accurate. Composio optimizes for speed-to-production with pre-built tools but trades off customizability. Nango's criticism is valid from a "deep integration" perspective. For Brain, this trade-off is important -- a custom tool platform might need to support both pre-built and custom tools.
+**Assessment**: Both appear accurate. Composio optimizes for speed-to-production with pre-built tools but trades off customizability. Nango's criticism is valid from a "deep integration" perspective. For Osabio, this trade-off is important -- a custom tool platform might need to support both pre-built and custom tools.
 
 ---
 
-## Implications for Brain Platform
+## Implications for Osabio Platform
 
-Based on the research, the key architectural patterns from Composio relevant to building similar capability into Brain:
+Based on the research, the key architectural patterns from Composio relevant to building similar capability into Osabio:
 
-1. **Brokered Credentials are essential**: The pattern of never exposing raw credentials to the LLM is not optional -- it is an OWASP-identified security requirement. Any Brain tool platform must implement credential brokerage.
+1. **Brokered Credentials are essential**: The pattern of never exposing raw credentials to the LLM is not optional -- it is an OWASP-identified security requirement. Any Osabio tool platform must implement credential brokerage.
 
-2. **MCP Gateway as unification layer**: Rather than requiring agents to configure N separate MCP servers, a single gateway endpoint that aggregates tools is a superior UX. Brain could implement its knowledge graph as the tool registry behind such a gateway.
+2. **MCP Gateway as unification layer**: Rather than requiring agents to configure N separate MCP servers, a single gateway endpoint that aggregates tools is a superior UX. Osabio could implement its knowledge graph as the tool registry behind such a gateway.
 
 3. **Auth Config / Connected Account separation**: Separating the "how to authenticate with this service" (auth config) from "this specific user's credentials" (connected account) is a clean multi-tenant pattern.
 
-4. **Sandbox execution for untrusted tools**: Remote sandboxes protect the host environment but add latency. Brain could offer both local (trusted tools) and sandboxed (untrusted tools) execution modes.
+4. **Sandbox execution for untrusted tools**: Remote sandboxes protect the host environment but add latency. Osabio could offer both local (trusted tools) and sandboxed (untrusted tools) execution modes.
 
 5. **Hub-and-spoke SDK pattern**: Core SDK handles auth/communication; thin provider packages adapt to each AI framework. This is maintainable and extensible.
 
@@ -360,9 +360,9 @@ Based on the research, the key architectural patterns from Composio relevant to 
 
 ## Recommendations for Further Research
 
-1. **Self-hosting investigation**: Clone the Composio repo and examine whether server-side components can be self-hosted. This determines whether Brain should build from scratch or fork/extend Composio.
+1. **Self-hosting investigation**: Clone the Composio repo and examine whether server-side components can be self-hosted. This determines whether Osabio should build from scratch or fork/extend Composio.
 
-2. **Nango deep-dive**: Nango's architecture (code-first, open-source tools, data sync + tool calling) may be more aligned with Brain's needs for customizability. Research Nango's architecture in comparable depth.
+2. **Nango deep-dive**: Nango's architecture (code-first, open-source tools, data sync + tool calling) may be more aligned with Osabio's needs for customizability. Research Nango's architecture in comparable depth.
 
 3. **MCP Gateway specification**: Research the emerging MCP Gateway pattern more broadly -- IBM ContextForge, Cloudflare MCP Gateway, and others. This is a rapidly evolving space.
 
@@ -399,4 +399,4 @@ Based on the research, the key architectural patterns from Composio relevant to 
 - **Cross-References Performed**: 8 (one per finding)
 - **Confidence Distribution**: High: 37.5%, Medium-High: 50%, Medium: 12.5%
 - **Tool Limitations**: WebFetch was blocked by local hook; all data sourced via WebSearch summaries
-- **Output File**: /Users/marcus/Git/brain/docs/research/composio-tool-platform-research.md
+- **Output File**: /Users/marcus/Git/osabio/docs/research/composio-tool-platform-research.md

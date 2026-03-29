@@ -525,7 +525,7 @@ export async function createLearningDirectly(
 
 /**
  * Seed a proxy_token record for acceptance tests and return the raw token.
- * The raw token is sent as `X-Brain-Auth` header; the server hashes it with
+ * The raw token is sent as `X-Osabio-Auth` header; the server hashes it with
  * SHA-256 and looks up the hash in the `proxy_token` table.
  *
  * Optional `sessionId` and `intentId` link the token to an agent_session
@@ -537,7 +537,7 @@ export async function seedProxyToken(
   workspaceId: string,
   opts?: { sessionId?: string; intentId?: string },
 ): Promise<string> {
-  const rawToken = `brn_test_${crypto.randomUUID()}`;
+  const rawToken = `osb_test_${crypto.randomUUID()}`;
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const tokenId = crypto.randomUUID();
   const tokenRecord = new RecordId("proxy_token", tokenId);
@@ -608,7 +608,7 @@ export async function createAgentSessionDirectly(
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a brain agent directly in SurrealDB (for seeding test state).
+ * Creates a osabio agent directly in SurrealDB (for seeding test state).
  * Mirrors the identity bootstrap that creates system agents.
  * Writes `runtime` and `name` fields to match the agent schema.
  */
@@ -628,7 +628,7 @@ export async function seedBrainAgent(
     agent: agentRecord,
     content: {
       name,
-      runtime: "brain",
+      runtime: "osabio",
       description: opts?.description ?? `Brain agent: ${name}`,
       managed_by: identityRecord,
       created_at: new Date(),

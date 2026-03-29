@@ -2,7 +2,7 @@
 
 ## Overview
 
-Acceptance tests for MCP server authentication: static headers and MCP-native OAuth 2.1. Tests use the existing acceptance-test-kit (in-process Brain server + isolated SurrealDB) with MSW to simulate external MCP servers and OAuth authorization servers.
+Acceptance tests for MCP server authentication: static headers and MCP-native OAuth 2.1. Tests use the existing acceptance-test-kit (in-process Osabio server + isolated SurrealDB) with MSW to simulate external MCP servers and OAuth authorization servers.
 
 ## Test Structure
 

@@ -55,7 +55,7 @@ describe("Milestone 3: Observer Agent Core (Story 5)", () => {
     const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
       title: "Implement user session expiry",
       status: "in_progress",
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // When the task is completed and the observer agent processes it
@@ -96,7 +96,7 @@ describe("Milestone 3: Observer Agent Core (Story 5)", () => {
     const { taskId } = await createTaskWithCommit(surreal, workspaceId, {
       title: "Remove deprecated API endpoints",
       status: "in_progress",
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // When another task is completed in this workspace

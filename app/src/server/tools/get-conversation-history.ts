@@ -4,7 +4,7 @@ import {
   readEntityName,
   type GraphEntityRecord,
 } from "../graph/queries";
-import { getConversationHistorySchema } from "../mcp/brain-tool-definitions";
+import { getConversationHistorySchema } from "../mcp/osabio-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 import { type RecordId, type Surreal } from "surrealdb";

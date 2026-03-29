@@ -21,7 +21,7 @@ export type RouteRequest = Request & {
 
 export type RouteHandler = (request: RouteRequest) => Response | Promise<Response>;
 
-const tracer = trace.getTracer("brain-server");
+const tracer = trace.getTracer("osabio-server");
 
 function extractRequestId(request: Request): string {
   const headerValue = request.headers.get("x-request-id")?.trim();
@@ -34,7 +34,7 @@ export function withTracing(route: string, method: string, handler: RouteHandler
     const requestId = extractRequestId(request);
     const url = new URL(request.url);
 
-    return tracer.startActiveSpan("brain.http.request", (span) => {
+    return tracer.startActiveSpan("osabio.http.request", (span) => {
       // Base HTTP attributes — always present
       span.setAttribute("http.method", method);
       span.setAttribute("http.route", route);

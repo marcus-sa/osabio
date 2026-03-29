@@ -19,7 +19,7 @@ Replaced Pino structured logging with OpenTelemetry for all three signals (trace
 | 01-03 | OTEL logger wrapper and metric instruments | 15:21 - 15:24 |
 
 - Installed 11 `@opentelemetry/*` packages
-- Created `telemetry/function-ids.ts` with 15 typed function ID constants (`brain.*` taxonomy)
+- Created `telemetry/function-ids.ts` with 15 typed function ID constants (`osabio.*` taxonomy)
 - SDK bootstrap: `TracerProvider`, `MeterProvider`, `LoggerProvider` with `BatchSpanProcessor`
 - Console exporters for dev, OTLP HTTP exporters for prod (selected by `OTEL_EXPORTER_OTLP_ENDPOINT`)
 - Graceful shutdown (`shutdownTelemetry`) wired to SIGTERM/SIGINT
@@ -34,7 +34,7 @@ Replaced Pino structured logging with OpenTelemetry for all three signals (trace
 | 02-02 | AI SDK experimental_telemetry on all LLM calls | 15:27 - 15:36 |
 
 - `withTracing()` higher-order function replaces `withRequestLogging()` in `start-server.ts`
-- Root span `brain.http.request` with method/route/status_code attributes
+- Root span `osabio.http.request` with method/route/status_code attributes
 - `httpDuration` histogram and `httpRequests` counter recorded per request
 - `x-request-id` response header preserved
 - `createTelemetryConfig()` helper with `recordLlmMetrics`/`recordLlmError` callbacks
@@ -98,6 +98,6 @@ Standard OTEL environment variables control exporter behavior:
 | Variable | Effect |
 |----------|--------|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | When set, enables OTLP HTTP exporters for all signals |
-| `OTEL_SERVICE_NAME` | Service name in exported telemetry (default: `brain`) |
+| `OTEL_SERVICE_NAME` | Service name in exported telemetry (default: `osabio`) |
 
-No Brain-specific env vars were introduced. All configuration follows OTEL conventions.
+No Osabio-specific env vars were introduced. All configuration follows OTEL conventions.

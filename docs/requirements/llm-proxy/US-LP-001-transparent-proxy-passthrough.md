@@ -1,10 +1,10 @@
 # US-LP-001: Transparent Proxy Passthrough
 
 ## Problem
-Priya Chandrasekaran is a senior developer who uses Claude Code daily across multiple projects. She needs Brain's observability benefits (tracing, cost tracking) but finds it unacceptable if the proxy adds latency, breaks streaming, or requires workflow changes. Today she points Claude Code directly at `api.anthropic.com` and gets zero visibility into her LLM usage.
+Priya Chandrasekaran is a senior developer who uses Claude Code daily across multiple projects. She needs Osabio's observability benefits (tracing, cost tracking) but finds it unacceptable if the proxy adds latency, breaks streaming, or requires workflow changes. Today she points Claude Code directly at `api.anthropic.com` and gets zero visibility into her LLM usage.
 
 ## Who
-- Developer | Daily Claude Code user, 100-500 API calls/day | Wants Brain observability without any workflow friction
+- Developer | Daily Claude Code user, 100-500 API calls/day | Wants Osabio observability without any workflow friction
 
 ## Job Story Trace
 - JS-2: Zero-Friction Agent Gateway
@@ -15,7 +15,7 @@ A transparent HTTP proxy that forwards Anthropic Messages API requests without t
 ## Domain Examples
 
 ### 1: Happy Path -- Priya uses Claude Code normally through the proxy
-Priya sets `ANTHROPIC_BASE_URL=http://localhost:4100/proxy/llm/anthropic` via `brain init`. She opens Claude Code and asks it to refactor `auth-service/middleware.ts`. Claude Code sends 8 streaming API requests through the proxy over 3 minutes. Each request is forwarded to Anthropic with Priya's own `x-api-key`. She notices zero difference in latency or behavior. All 8 calls produce `trace` nodes in the graph (async).
+Priya sets `ANTHROPIC_BASE_URL=http://localhost:4100/proxy/llm/anthropic` via `osabio init`. She opens Claude Code and asks it to refactor `auth-service/middleware.ts`. Claude Code sends 8 streaming API requests through the proxy over 3 minutes. Each request is forwarded to Anthropic with Priya's own `x-api-key`. She notices zero difference in latency or behavior. All 8 calls produce `trace` nodes in the graph (async).
 
 ### 2: Edge Case -- Extended thinking and tool use work through the proxy
 Priya asks Claude Code to analyze a complex race condition. Claude Code uses extended thinking (thinking blocks in SSE stream) and then calls the Read tool 4 times. The proxy relays all SSE event types: `message_start`, `content_block_start` (type: thinking), `content_block_delta` (thinking_delta and text_delta), `content_block_stop`, `tool_use` blocks, `message_delta`, `message_stop`. Every event passes through unmodified.
@@ -29,7 +29,7 @@ Priya's Claude Code sends a `POST /v1/messages/count_tokens` request (non-stream
 ## UAT Scenarios (BDD)
 
 ### Scenario: Streaming request forwarded transparently
-Given Priya has ANTHROPIC_BASE_URL set to the Brain proxy
+Given Priya has ANTHROPIC_BASE_URL set to the Osabio proxy
 And she sends a streaming request for model "claude-sonnet-4" with her own x-api-key
 When the proxy forwards the request to Anthropic
 Then SSE events are relayed as raw bytes with no transformation

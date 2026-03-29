@@ -20,13 +20,13 @@
 | Intent Queries | `app/src/server/intent/intent-queries.ts` | Write evidence_verification to intent record alongside evaluation | Extend StatusUpdateFields type |
 | Intent Types | `app/src/server/intent/types.ts` | Add evidence_refs and evidence_verification to IntentRecord | Type extension |
 | Intent Routes | `app/src/server/intent/intent-routes.ts` | Accept evidence_refs in intent creation payload | Input parsing extension |
-| MCP Tool Definitions | `app/src/server/mcp/brain-tool-definitions.ts` | Add `evidence_refs` parameter to `createIntentSchema`; update `CREATE_INTENT_TOOL` description to guide agents on evidence submission | Schema + description change |
+| MCP Tool Definitions | `app/src/server/mcp/osabio-tool-definitions.ts` | Add `evidence_refs` parameter to `createIntentSchema`; update `CREATE_INTENT_TOOL` description to guide agents on evidence submission | Schema + description change |
 | MCP Create Intent Handler | `app/src/server/mcp/create-intent-handler.ts` | Add `evidence_refs` to `CreateIntentInput` type and `validateInput`; pass through to `createIntent` query | Type extension + validation + pass-through |
 | Feed Queries | `app/src/server/feed/feed-queries.ts` | Include evidence_verification in pending intent feed items | Query extension + new feed card data |
 | Workspace Routes | `app/src/server/workspace/workspace-routes.ts` | Read/write evidence_enforcement and evidence_enforcement_threshold | New settings endpoint |
 | Observer Graph Scan | `app/src/server/observer/graph-scan.ts` | Add evidence anomaly detection scan pattern | New scan function |
 | Policy Gate | `app/src/server/policy/policy-gate.ts` | Support evidence_requirement rule type in policy evaluation | New predicate type |
-| Proxy Context XML | `app/src/server/proxy/context-injector.ts` (`buildBrainContextXml`) | Add a `<workspace-settings>` section to the `<brain-context>` XML block that includes `evidence_enforcement` mode | Minor: new XML section in `buildBrainContextXml` output |
+| Proxy Context XML | `app/src/server/proxy/context-injector.ts` (`buildOsabioContextXml`) | Add a `<workspace-settings>` section to the `<osabio-context>` XML block that includes `evidence_enforcement` mode | Minor: new XML section in `buildOsabioContextXml` output |
 | Proxy Context Cache | `app/src/server/proxy/context-cache.ts` | Include workspace `evidence_enforcement` in the cached context data fetched for proxy injection | Query extension to include workspace settings |
 | LLM Evaluator | `app/src/server/intent/authorizer.ts` | Append evidence verification summary to evaluator prompt in `createLlmEvaluator` | Prompt template extension |
 | Shared Contracts | `app/src/shared/contracts.ts` | Add evidence fields to `GovernanceFeedItem` type for client feed display | Shared type extension (server + client) |
@@ -36,7 +36,7 @@
 
 The `create_intent` MCP tool is the primary surface through which agents submit evidence. Three files form the MCP integration chain:
 
-### 1. Tool Definition (`brain-tool-definitions.ts`)
+### 1. Tool Definition (`osabio-tool-definitions.ts`)
 
 `createIntentSchema` gains an optional `evidence_refs` parameter — an array of entity ID strings in `table:id` format (e.g. `["decision:abc123", "task:def456"]`). The `CREATE_INTENT_TOOL` description must be updated to:
 - Explain that evidence_refs are graph record references that justify the intent
@@ -54,22 +54,22 @@ This is critical because the tool description is the **only guidance agents rece
 
 `CreateIntentParams` adds `evidence_refs?: RecordId[]`. The `createIntent` function includes `evidence_refs` in the `CREATE` content when present.
 
-### Context Delivery (proxy `<brain-context>` block)
+### Context Delivery (proxy `<osabio-context>` block)
 
-The proxy injects a `<brain-context>` XML block into the agent's system prompt (built by `buildBrainContextXml()` in `context-injector.ts`, orchestrated by `anthropic-proxy-route.ts`). Currently this block contains `<decisions>`, `<learnings>`, and `<observations>` sections.
+The proxy injects a `<osabio-context>` XML block into the agent's system prompt (built by `buildOsabioContextXml()` in `context-injector.ts`, orchestrated by `anthropic-proxy-route.ts`). Currently this block contains `<decisions>`, `<learnings>`, and `<observations>` sections.
 
 A new `<workspace-settings>` section includes the workspace's `evidence_enforcement` mode so agents know whether evidence is required, encouraged, or exempt. The context cache (`context-cache.ts`) fetches workspace enforcement mode alongside existing context candidates.
 
 Example XML output:
 ```xml
-<brain-context>
+<osabio-context>
   <workspace-settings>
     <evidence-enforcement>soft</evidence-enforcement>
   </workspace-settings>
   <decisions>...</decisions>
   <learnings>...</learnings>
   <observations>...</observations>
-</brain-context>
+</osabio-context>
 ```
 
 No new tool needed — this extends the existing proxy context payload.

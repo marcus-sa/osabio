@@ -2,14 +2,14 @@
 
 ## System Overview
 
-The Sovereign Hybrid Model replaces the Brain platform's Bearer+scope authorization with a uniform DPoP-bound RAR authorization layer. Every Brain operation -- reads, writes, integrations -- requires a DPoP-bound access token carrying `brain_action` authorization_details. Better Auth remains the human identity provider (front door); a new Custom Authorization Server issues DPoP-bound tokens for all Brain operations.
+The Sovereign Hybrid Model replaces the Osabio platform's Bearer+scope authorization with a uniform DPoP-bound RAR authorization layer. Every Osabio operation -- reads, writes, integrations -- requires a DPoP-bound access token carrying `osabio_action` authorization_details. Better Auth remains the human identity provider (front door); a new Custom Authorization Server issues DPoP-bound tokens for all Osabio operations.
 
 ### Key Architectural Principles
 
-- **One language of authority**: `brain_action` authorization_details objects. No scopes at the Brain boundary.
+- **One language of authority**: `osabio_action` authorization_details objects. No scopes at the Osabio boundary.
 - **Sender constraining**: DPoP binds tokens to actor key pairs. Stolen tokens are unusable.
-- **Session-Brain separation**: Better Auth sessions cannot access the Brain. The Bridge exchanges sessions for DPoP tokens.
-- **Human parity**: Agent and human tokens are identical at the Brain boundary.
+- **Session-Brain separation**: Better Auth sessions cannot access the Osabio. The Bridge exchanges sessions for DPoP tokens.
+- **Human parity**: Agent and human tokens are identical at the Osabio boundary.
 - **Classification is a vulnerability**: No consequential/non-consequential tiering. Uniform pipeline.
 
 ---
@@ -23,22 +23,22 @@ graph TB
         Human["Human Operator\n(Dashboard Browser)"]
     end
 
-    subgraph Brain Platform
-        BrainServer["Brain Server\n(Bun Process)"]
+    subgraph Osabio Platform
+        OsabioServer["Osabio Server\n(Bun Process)"]
     end
 
     BetterAuth["Better Auth IdP\n(Embedded Plugin)"]
     SurrealDB["SurrealDB\n(Graph Database)"]
     LLM["LLM Provider\n(OpenRouter)"]
 
-    Agent -- "submits intent +\nDPoP proof" --> BrainServer
-    Agent -- "presents DPoP token +\nfresh proof" --> BrainServer
+    Agent -- "submits intent +\nDPoP proof" --> OsabioServer
+    Agent -- "presents DPoP token +\nfresh proof" --> OsabioServer
     Human -- "logs in via\nOAuth/GitHub" --> BetterAuth
-    Human -- "exchanges session +\nDPoP proof\nfor RAR token" --> BrainServer
-    Human -- "presents DPoP token +\nfresh proof" --> BrainServer
-    BrainServer -- "validates sessions" --> BetterAuth
-    BrainServer -- "reads/writes\ngraph data" --> SurrealDB
-    BrainServer -- "evaluates intents\n(Authorizer Agent)" --> LLM
+    Human -- "exchanges session +\nDPoP proof\nfor RAR token" --> OsabioServer
+    Human -- "presents DPoP token +\nfresh proof" --> OsabioServer
+    OsabioServer -- "validates sessions" --> BetterAuth
+    OsabioServer -- "reads/writes\ngraph data" --> SurrealDB
+    OsabioServer -- "evaluates intents\n(Authorizer Agent)" --> LLM
 ```
 
 ---
@@ -47,7 +47,7 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph BrainProcess["Brain Server Process (Bun)"]
+    subgraph OsabioProcess["Osabio Server Process (Bun)"]
         direction TB
 
         subgraph AuthLayer["Custom Authorization Server"]
@@ -75,7 +75,7 @@ graph TB
             BetterAuthPlugin["Better Auth Plugin\n(sessions, OAuth provider)"]
         end
 
-        ConsentRenderer["Consent Renderer\n(brain_action display)"]
+        ConsentRenderer["Consent Renderer\n(osabio_action display)"]
         AuditLog["Audit Logger"]
     end
 
@@ -117,13 +117,13 @@ graph TB
     subgraph CustomAS["Custom Authorization Server"]
         direction TB
 
-        IntentSubmission["Intent Submission\n- Validates brain_action\n- Stores dpop_jwk_thumbprint\n- Triggers evaluation"]
+        IntentSubmission["Intent Submission\n- Validates osabio_action\n- Stores dpop_jwk_thumbprint\n- Triggers evaluation"]
 
         DPoPValidation["DPoP Proof Validation\n- Structure (typ, alg, jwk)\n- Signature verification\n- Claims (htm, htu, iat, jti)\n- Thumbprint computation"]
 
         IntentVerification["Intent Verification\n- Status = authorized\n- Thumbprint matches proof\n- authorization_details matches"]
 
-        TokenIssuance["Token Issuance\n- Signs JWT with AS key\n- Embeds cnf.jkt\n- Embeds authorization_details\n- Embeds urn:brain:intent_id\n- Sets TTL"]
+        TokenIssuance["Token Issuance\n- Signs JWT with AS key\n- Embeds cnf.jkt\n- Embeds authorization_details\n- Embeds urn:osabio:intent_id\n- Sets TTL"]
 
         BridgeExchange["Bridge Exchange\n- Validates Better Auth session\n- Resolves human identity\n- Creates implicit intent\n- Issues DPoP-bound token"]
 
@@ -140,7 +140,7 @@ graph TB
 
 ---
 
-## C4 Component (Level 3) -- Brain Resource Server DPoP Verification
+## C4 Component (Level 3) -- Osabio Resource Server DPoP Verification
 
 ```mermaid
 graph TB
@@ -157,7 +157,7 @@ graph TB
 
         SenderBinding["Sender Binding\n- Compute proof JWK thumbprint\n- Compare against cnf.jkt\n- Log security event on mismatch"]
 
-        OperationScope["Operation Scope Verification\n- Extract requested brain_action\n  from route + body\n- Match type, action, resource\n- Verify constraint bounds"]
+        OperationScope["Operation Scope Verification\n- Extract requested osabio_action\n  from route + body\n- Match type, action, resource\n- Verify constraint bounds"]
     end
 
     Request["Incoming Request"] --> HeaderExtraction
@@ -178,10 +178,10 @@ graph TB
 | Component | Current | After |
 |---|---|---|
 | `mcp/auth.ts` (`authenticateMcpRequest`) | Bearer token extraction, JWKS validation, scope extraction | Replaced by DPoP verification pipeline. Bearer requests rejected with 401 "dpop_required". |
-| `auth/scopes.ts` (`requireScope`, `ACTION_SCOPE_MAP`) | Gates MCP operations by OAuth scope | Removed from Brain boundary. Scopes remain for Better Auth UI only. |
+| `auth/scopes.ts` (`requireScope`, `ACTION_SCOPE_MAP`) | Gates MCP operations by OAuth scope | Removed from Osabio boundary. Scopes remain for Better Auth UI only. |
 | `mcp/mcp-route.ts` | Calls `authenticateMcpRequest` + `requireScope` per handler | Calls new DPoP+RAR verification middleware. Scope checks removed. |
-| `intent/types.ts` (`IntentRecord`) | `action_spec` with provider/action/params | Extended with `authorization_details` (brain_action), `dpop_jwk_thumbprint` |
-| `intent/authorizer.ts` (`evaluateIntent`) | Evaluates action_spec | Evaluates brain_action authorization_details (Rich Intent Objects) |
+| `intent/types.ts` (`IntentRecord`) | `action_spec` with provider/action/params | Extended with `authorization_details` (osabio_action), `dpop_jwk_thumbprint` |
+| `intent/authorizer.ts` (`evaluateIntent`) | Evaluates action_spec | Evaluates osabio_action authorization_details (Rich Intent Objects) |
 | `intent/intent-routes.ts` | Evaluation webhook handler, veto, list pending | Extended with consent rendering data |
 | `mcp/token-validation.ts` | JWKS-based Bearer JWT validation | Repurposed for AS-issued DPoP-bound token validation |
 | `runtime/types.ts` (`ServerDependencies`) | No nonce cache | Adds nonce cache and AS signing key |
@@ -192,15 +192,15 @@ graph TB
 | Component | Responsibility |
 |---|---|
 | `app/src/server/oauth/dpop.ts` | DPoP proof construction/validation, JWK thumbprint computation |
-| `app/src/server/oauth/token-endpoint.ts` | Custom AS token endpoint (grant_type=urn:brain:intent-authorization) |
+| `app/src/server/oauth/token-endpoint.ts` | Custom AS token endpoint (grant_type=urn:osabio:intent-authorization) |
 | `app/src/server/oauth/bridge.ts` | Bridge exchange endpoint (session -> DPoP token) |
-| `app/src/server/oauth/token-issuer.ts` | JWT signing with brain_action claims, cnf.jkt |
+| `app/src/server/oauth/token-issuer.ts` | JWT signing with osabio_action claims, cnf.jkt |
 | `app/src/server/oauth/nonce-cache.ts` | Time-windowed nonce set for replay protection |
-| `app/src/server/oauth/rar-verifier.ts` | brain_action matching (route -> requested action -> authorized action) |
+| `app/src/server/oauth/rar-verifier.ts` | osabio_action matching (route -> requested action -> authorized action) |
 | `app/src/server/oauth/dpop-middleware.ts` | Request verification pipeline (replaces authenticateMcpRequest) |
-| `app/src/server/oauth/consent-renderer.ts` | brain_action to human-readable display |
+| `app/src/server/oauth/consent-renderer.ts` | osabio_action to human-readable display |
 | `app/src/server/oauth/audit.ts` | Authorization event logging |
-| `app/src/server/oauth/types.ts` | Shared types (BrainAction, DPoP claims, token claims) |
+| `app/src/server/oauth/types.ts` | Shared types (OsabioAction, DPoP claims, token claims) |
 
 ### Preserved Components (No Changes)
 
@@ -220,7 +220,7 @@ graph TB
 Single Bun process (modular monolith). The Custom AS is a new module within the existing server, not a separate service.
 
 ```
-Brain Server (Bun process)
+Osabio Server (Bun process)
   |
   +-- Better Auth Plugin (existing, human login)
   |     |-- /api/auth/* routes (sessions, OAuth provider, JWKS)
@@ -229,9 +229,9 @@ Brain Server (Bun process)
   |     |-- POST /api/auth/intents (intent submission with DPoP binding)
   |     |-- POST /api/auth/token (RAR token issuance)
   |     |-- POST /api/auth/bridge/exchange (session-to-token Bridge)
-  |     |-- GET  /api/auth/brain/.well-known/jwks (AS public keys)
+  |     |-- GET  /api/auth/osabio/.well-known/jwks (AS public keys)
   |
-  +-- Brain Resource Server (MODIFIED middleware)
+  +-- Osabio Resource Server (MODIFIED middleware)
   |     |-- DPoP verification pipeline (replaces Bearer auth)
   |     |-- RAR operation scope verification
   |     |-- /api/mcp/* routes (existing, now DPoP-protected)
@@ -239,7 +239,7 @@ Brain Server (Bun process)
   |
   +-- Intent Evaluation Pipeline (existing, extended)
   |     |-- Policy Gate -> Authorizer Agent -> Risk Router
-  |     |-- Now evaluates brain_action (not action_spec)
+  |     |-- Now evaluates osabio_action (not action_spec)
   |
   +-- SurrealDB (graph database)
 ```
@@ -251,7 +251,7 @@ Brain Server (Bun process)
 ```
 1. Agent generates ES256 key pair (Web Crypto API, in-memory)
 2. Agent computes JWK thumbprint (RFC 7638)
-3. Agent constructs brain_action authorization_details
+3. Agent constructs osabio_action authorization_details
 4. Agent submits intent:
      POST /api/auth/intents
      { authorization_details, dpop_jwk_thumbprint, goal, reasoning }
@@ -262,15 +262,15 @@ Brain Server (Bun process)
 7. Agent requests token:
      POST /api/auth/token
      Headers: DPoP: <proof signed with agent's private key>
-     Body: { grant_type: "urn:brain:intent-authorization", intent_id, authorization_details }
+     Body: { grant_type: "urn:osabio:intent-authorization", intent_id, authorization_details }
 8. Custom AS validates:
      - Intent exists, status = authorized
      - DPoP proof valid (structure, signature, freshness)
      - Proof key thumbprint matches intent.dpop_jwk_thumbprint
      - authorization_details matches intent
 9. Custom AS issues DPoP-bound access token:
-     { sub, cnf: { jkt: thumbprint }, authorization_details, urn:brain:intent_id, exp }
-10. Agent presents token to Brain:
+     { sub, cnf: { jkt: thumbprint }, authorization_details, urn:osabio:intent_id, exp }
+10. Agent presents token to Osabio:
       Authorization: DPoP <token>
       DPoP: <fresh proof for this request>
 ```
@@ -280,7 +280,7 @@ Brain Server (Bun process)
 ```
 1. Human logs into dashboard via Better Auth (session cookie)
 2. Dashboard generates ES256 key pair (Web Crypto API, non-extractable)
-3. Dashboard constructs brain_action for the requested operation
+3. Dashboard constructs osabio_action for the requested operation
 4. Dashboard sends Bridge exchange:
      POST /api/auth/bridge/exchange
      Cookie: better-auth session
@@ -290,10 +290,10 @@ Brain Server (Bun process)
      - Better Auth session is active (API call)
      - DPoP proof valid
      - Resolves human identity from session
-     - Authorizer Agent evaluates brain_action
+     - Authorizer Agent evaluates osabio_action
      - Low-risk reads auto-approve; high-risk triggers veto window
 6. Custom AS issues DPoP-bound access token (same format as agent tokens)
-7. Dashboard presents DPoP token to Brain (same verification pipeline)
+7. Dashboard presents DPoP token to Osabio (same verification pipeline)
 ```
 
 ---
@@ -302,11 +302,11 @@ Brain Server (Bun process)
 
 ### Security
 - DPoP sender constraining eliminates stolen token replay
-- Session cookies cannot access Brain (enforced at middleware)
-- Bearer tokens rejected at Brain boundary
+- Session cookies cannot access Osabio (enforced at middleware)
+- Bearer tokens rejected at Osabio boundary
 - Nonce cache prevents DPoP proof replay
 - Short token TTL (300s default)
-- brain_action constraints enforce operation bounds
+- osabio_action constraints enforce operation bounds
 - AS signing key: ES256 key pair generated on first server start, persisted to SurrealDB (`as_signing_key` table), loaded from DB on subsequent starts. Key rotation via new key insertion + old key status = "rotated" (JWKS serves both during transition).
 - Rate limiting on token/Bridge endpoints: deferred (opportunity score 8.0, overserved). The intent evaluation pipeline and DPoP proof validation provide natural rate control. Add per-identity rate limiting if operational data shows abuse.
 
@@ -314,14 +314,14 @@ Brain Server (Bun process)
 - Every intent submission, evaluation, routing, consent, token issuance, and verification logged
 - Audit entries link to intent_id + DPoP thumbprint
 - Security events (mismatch, replay) at elevated severity
-- Uniform brain_action format for all actors
+- Uniform osabio_action format for all actors
 
 ### Testability
 - Evaluation pipeline uses injected LlmEvaluator port (existing pattern)
 - DPoP proof validation is pure function (input: proof JWT, output: validation result)
 - Nonce cache is dependency-injected (not module singleton)
 - Token issuance uses injected signing key
-- Brain_action matching is pure function (requested vs authorized)
+- Osabio_action matching is pure function (requested vs authorized)
 
 ### Maintainability
 - New `oauth/` module with clear boundaries

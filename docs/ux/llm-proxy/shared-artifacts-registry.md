@@ -9,14 +9,14 @@
 
 ### proxy_url
 - **Source of truth**: Workspace settings (persisted in workspace record)
-- **Consumers**: brain init (generates env vars), agent env vars (ANTHROPIC_BASE_URL), dashboard status indicator
+- **Consumers**: osabio init (generates env vars), agent env vars (ANTHROPIC_BASE_URL), dashboard status indicator
 - **Owner**: Workspace settings module
 - **Integration risk**: HIGH -- mismatch breaks all agent routing
-- **Validation**: brain init must read from workspace settings; dashboard must display same URL; health check endpoint must respond at this URL
+- **Validation**: osabio init must read from workspace settings; dashboard must display same URL; health check endpoint must respond at this URL
 
 ### workspace_id
 - **Source of truth**: Workspace record in SurrealDB
-- **Consumers**: X-Brain-Workspace header, authentication step, trace edges (scoped_to), spend counters, dashboard filtering, audit queries
+- **Consumers**: X-Osabio-Workspace header, authentication step, trace edges (scoped_to), spend counters, dashboard filtering, audit queries
 - **Owner**: Workspace module
 - **Integration risk**: HIGH -- wrong workspace means misattributed costs and wrong policy evaluation
 - **Validation**: Header value must resolve to an active workspace; trace edges must reference same workspace; spend counters must be scoped to same workspace
@@ -29,9 +29,9 @@
 - **Validation**: Regex parse must extract valid UUID; trace edges must reference parsed session ID; aggregation queries must group by same ID
 
 ### task_id
-- **Source of truth**: X-Brain-Task header (set by brain start or manually)
+- **Source of truth**: X-Osabio-Task header (set by osabio start or manually)
 - **Consumers**: Trace edges (attributed_to), task cost rollup, project-level cost aggregation
-- **Owner**: brain CLI (brain start command)
+- **Owner**: osabio CLI (osabio start command)
 - **Integration risk**: MEDIUM -- optional, but when present must match a valid task record
 - **Validation**: If present, must resolve to an existing task in the workspace; trace edges must reference validated task ID
 
@@ -57,7 +57,7 @@
 - **Validation**: Pricing table must have entries for all models the proxy forwards to; spot-check computed costs against Anthropic's usage dashboard monthly
 
 ### policy_graph
-- **Source of truth**: Brain policy engine (policy table in SurrealDB)
+- **Source of truth**: Osabio policy engine (policy table in SurrealDB)
 - **Consumers**: Authorization step, audit provenance chain
 - **Owner**: Policy module
 - **Integration risk**: HIGH -- stale or missing policies mean wrong enforcement decisions
@@ -88,8 +88,8 @@
 
 ## Consistency Rules
 
-1. **proxy_url** configured in workspace settings MUST equal what brain init writes to ANTHROPIC_BASE_URL
-2. **workspace_id** in X-Brain-Workspace header MUST match the workspace owning the proxy instance
+1. **proxy_url** configured in workspace settings MUST equal what osabio init writes to ANTHROPIC_BASE_URL
+2. **workspace_id** in X-Osabio-Workspace header MUST match the workspace owning the proxy instance
 3. **session_id** parsed from metadata.user_id MUST be the same value used in trace edges and session aggregation
 4. **model_id** from request body MUST be the same value used for policy check, cost calculation, and trace record
 5. **call_cost** in each trace MUST equal the cost computed from that trace's token counts and the pricing table at time of computation

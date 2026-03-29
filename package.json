@@ -1,11 +1,11 @@
 {
-  "name": "brain",
+  "name": "osabio",
   "private": true,
   "version": "0.1.0",
   "license": "AGPL-3.0-only",
   "type": "module",
   "bin": {
-    "brain": "cli/brain.ts"
+    "osabio": "cli/osabio.ts"
   },
   "scripts": {
     "dev": "bun --watch --env-file=.env app/server.ts",
@@ -25,7 +25,7 @@
     "acceptance:workspace": "bun test --concurrent --timeout=180000 --env-file=.env tests/acceptance/workspace/",
     "migrate": "bun run --env-file=.env schema/migrate.ts",
     "seed": "bun run --env-file=.env schema/seed.ts",
-    "build:cli": "bun build cli/brain.ts --compile --bytecode --minify --outfile brain"
+    "build:cli": "bun build cli/osabio.ts --compile --bytecode --minify --outfile osabio"
   },
   "dependencies": {
     "@ai-sdk/devtools": "^0.0.15",

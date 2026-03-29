@@ -13,7 +13,7 @@ Error/edge ratio: 46% (11/24) -- exceeds 40% target
 | WS-2 | Agent escalates for gated tool and calls after auto-approval | Walking skeleton | US-01, US-02, US-03 | WS |
 | WS-3 | Agent yields on pending veto and resumes after human approval | Walking skeleton | US-03, US-04, US-05 | R1 |
 | HP-1 | Authorized tool appears as callable in tools/list | Happy path | US-01 | WS |
-| HP-2 | Fresh session sees only brain-native and gated tools | Happy path | US-01 | WS |
+| HP-2 | Fresh session sees only osabio-native and gated tools | Happy path | US-01 | WS |
 | HP-3 | Gated tool listing includes escalation instructions | Happy path | US-01 | WS |
 | HP-4 | Authorized tool call is forwarded and traced | Happy path | US-02 | WS |
 | HP-5 | Newly authorized intent reflected in subsequent tools/list | Happy path | US-01, US-03 | WS |

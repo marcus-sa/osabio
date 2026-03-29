@@ -13,7 +13,7 @@ function validInput(): IntentSubmissionInput {
     workspace_id: "ws-001",
     identity_id: "id-001",
     authorization_details: [
-      { type: "brain_action", action: "read", resource: "project:abc" },
+      { type: "osabio_action", action: "read", resource: "project:abc" },
     ],
     dpop_jwk_thumbprint: "thumb-abc123",
     goal: "Read project status",
@@ -31,7 +31,7 @@ describe("validateIntentSubmission", () => {
     expect(result.valid).toBe(true);
     if (result.valid) {
       expect(result.data.workspace_id).toBe("ws-001");
-      expect(result.data.authorization_details[0].type).toBe("brain_action");
+      expect(result.data.authorization_details[0].type).toBe("osabio_action");
       expect(result.data.dpop_jwk_thumbprint).toBe("thumb-abc123");
     }
   });
@@ -75,7 +75,7 @@ describe("validateIntentSubmission", () => {
     const result = validateIntentSubmission(input);
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.error).toContain("brain_action");
+      expect(result.error).toContain("osabio_action");
     }
   });
 
@@ -83,7 +83,7 @@ describe("validateIntentSubmission", () => {
     const input = {
       ...validInput(),
       authorization_details: [
-        { type: "brain_action", resource: "project:abc" },
+        { type: "osabio_action", resource: "project:abc" },
       ],
     };
     const result = validateIntentSubmission(input);
@@ -97,7 +97,7 @@ describe("validateIntentSubmission", () => {
     const input = {
       ...validInput(),
       authorization_details: [
-        { type: "brain_action", action: "read" },
+        { type: "osabio_action", action: "read" },
       ],
     };
     const result = validateIntentSubmission(input);
@@ -183,15 +183,15 @@ describe("deriveActionSpec", () => {
     return mod.deriveActionSpec;
   };
 
-  it("derives action_spec from first brain_action for backward compat", async () => {
+  it("derives action_spec from first osabio_action for backward compat", async () => {
     const derive = await getDerive();
     const actions = [
-      { type: "brain_action" as const, action: "read", resource: "project:abc" },
-      { type: "brain_action" as const, action: "write", resource: "task:xyz" },
+      { type: "osabio_action" as const, action: "read", resource: "project:abc" },
+      { type: "osabio_action" as const, action: "write", resource: "task:xyz" },
     ];
     const spec = derive(actions);
     expect(spec).toEqual({
-      provider: "brain",
+      provider: "osabio",
       action: "read",
       params: { resource: "project:abc" },
     });
@@ -211,7 +211,7 @@ describe("isLowRiskReadAction", () => {
   it("returns true for read actions", async () => {
     const isLowRisk = await getIsLowRisk();
     const actions = [
-      { type: "brain_action" as const, action: "read", resource: "project:abc" },
+      { type: "osabio_action" as const, action: "read", resource: "project:abc" },
     ];
     expect(isLowRisk(actions)).toBe(true);
   });
@@ -219,7 +219,7 @@ describe("isLowRiskReadAction", () => {
   it("returns true for list actions", async () => {
     const isLowRisk = await getIsLowRisk();
     const actions = [
-      { type: "brain_action" as const, action: "list", resource: "task:all" },
+      { type: "osabio_action" as const, action: "list", resource: "task:all" },
     ];
     expect(isLowRisk(actions)).toBe(true);
   });
@@ -227,7 +227,7 @@ describe("isLowRiskReadAction", () => {
   it("returns false for write actions", async () => {
     const isLowRisk = await getIsLowRisk();
     const actions = [
-      { type: "brain_action" as const, action: "write", resource: "task:xyz" },
+      { type: "osabio_action" as const, action: "write", resource: "task:xyz" },
     ];
     expect(isLowRisk(actions)).toBe(false);
   });
@@ -235,8 +235,8 @@ describe("isLowRiskReadAction", () => {
   it("returns false for mixed read+write actions", async () => {
     const isLowRisk = await getIsLowRisk();
     const actions = [
-      { type: "brain_action" as const, action: "read", resource: "project:abc" },
-      { type: "brain_action" as const, action: "delete", resource: "task:xyz" },
+      { type: "osabio_action" as const, action: "read", resource: "project:abc" },
+      { type: "osabio_action" as const, action: "delete", resource: "task:xyz" },
     ];
     expect(isLowRisk(actions)).toBe(false);
   });

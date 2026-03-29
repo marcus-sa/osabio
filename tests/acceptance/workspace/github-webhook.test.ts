@@ -13,16 +13,16 @@ function makePushEvent(overrides: {
   return {
     ref: overrides.ref ?? `refs/heads/${defaultBranch}`,
     repository: {
-      full_name: "acme/brain",
+      full_name: "acme/osabio",
       default_branch: defaultBranch,
-      html_url: "https://github.com/acme/brain",
+      html_url: "https://github.com/acme/osabio",
     },
     commits: overrides.commits ?? [
       {
         id: "abc1234567890def",
         message: "feat(auth): swap bcrypt for argon2id in password hashing\n\nMigrate all password hashing to argon2id. Update user model\nand add migration script for existing hashes.",
         timestamp: new Date().toISOString(),
-        url: "https://github.com/acme/brain/commit/abc1234567890def",
+        url: "https://github.com/acme/osabio/commit/abc1234567890def",
         author: { name: "Marcus", email: "marcus@acme.com", username: "marcus-sa" },
       },
     ],
@@ -157,7 +157,7 @@ describe("github webhook smoke", () => {
           id: sha,
           message: "refactor(api): migrate REST endpoints from Express to Hono\n\nReplace Express router with Hono for all /api/v2 routes.\nAdd request validation middleware and update integration tests.",
           timestamp: new Date().toISOString(),
-          url: `https://github.com/acme/brain/commit/${sha}`,
+          url: `https://github.com/acme/osabio/commit/${sha}`,
           author: { name: "Marcus", email: "marcus@acme.com", username: "marcus-sa" },
         },
       ],
@@ -196,7 +196,7 @@ describe("github webhook smoke", () => {
     const commit = commitRows[0]!;
     expect(commit.sha).toBe(sha);
     expect(commit.message).toContain("migrate REST endpoints from Express to Hono");
-    expect(commit.repository).toBe("acme/brain");
+    expect(commit.repository).toBe("acme/osabio");
 
     // Poll for extraction_relation edges (extraction runs after commit creation)
     const edgeRows = await pollForRecord(
@@ -244,7 +244,7 @@ describe("github webhook smoke", () => {
           id: sha,
           message: "task:task-20260304-123 finalize oauth callback + token refresh edge cases",
           timestamp: new Date().toISOString(),
-          url: `https://github.com/acme/brain/commit/${sha}`,
+          url: `https://github.com/acme/osabio/commit/${sha}`,
           author: { name: "Marcus", email: "marcus@acme.com", username: "marcus-sa" },
         },
       ],

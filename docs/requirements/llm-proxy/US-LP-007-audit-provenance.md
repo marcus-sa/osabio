@@ -16,7 +16,7 @@ Ensure every trace in the graph has edges forming a complete provenance chain: i
 ## Domain Examples
 
 ### 1: Happy Path -- Elena traces a specific LLM call
-Elena queries trace "trace:tr-2026-0315-001" in the audit view. She sees: model=claude-sonnet-4, tokens (in: 12,340, out: 2,100), cache (create: 0, read: 8,200), cost=$0.068, latency=4,200ms, stop_reason=end_turn. The provenance chain shows: intent:deploy-auth -> authorized_by -> policy:model-access-v2 -> executed_in -> agent_session:priya-auth-42 -> invoked -> trace:tr-2026-0315-001 -> attributed_to -> task:implement-oauth -> scoped_to -> workspace:brain-v1. Elena clicks "Export Provenance Chain as JSON" and receives a structured file.
+Elena queries trace "trace:tr-2026-0315-001" in the audit view. She sees: model=claude-sonnet-4, tokens (in: 12,340, out: 2,100), cache (create: 0, read: 8,200), cost=$0.068, latency=4,200ms, stop_reason=end_turn. The provenance chain shows: intent:deploy-auth -> authorized_by -> policy:model-access-v2 -> executed_in -> agent_session:priya-auth-42 -> invoked -> trace:tr-2026-0315-001 -> attributed_to -> task:implement-oauth -> scoped_to -> workspace:osabio-v1. Elena clicks "Export Provenance Chain as JSON" and receives a structured file.
 
 ### 2: Happy Path -- Elena queries all calls for a project in March
 Elena runs a query: "all LLM traces for project auth-service between 2026-03-01 and 2026-03-15". Results return in 1.8 seconds: 1,247 traces, total cost $234.56, across 42 sessions. Each row shows model, tokens, cost, session reference, and policy reference. She exports as CSV for her audit report.
@@ -75,4 +75,4 @@ And the compliance summary shows "4,874 authorized, 17 unverified"
 ## Dependencies
 - US-LP-003 (graph trace capture -- audit reads trace data)
 - US-LP-005 (policy enforcement -- policy edges created during authorization)
-- Brain policy engine (existing -- policies with lifecycle and versioning)
+- Osabio policy engine (existing -- policies with lifecycle and versioning)

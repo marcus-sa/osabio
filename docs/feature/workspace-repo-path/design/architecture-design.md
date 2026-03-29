@@ -81,7 +81,7 @@ C4Container
     Component(agent_ui, "AgentStatusSection", "React", "Shows assign button or repo_path banner")
   }
 
-  Container_Boundary(server, "Brain Server (Bun)") {
+  Container_Boundary(server, "Osabio Server (Bun)") {
     Component(ws_routes, "Workspace Routes", "TypeScript", "Create workspace, validate/update repo_path")
     Component(orch_guard, "Assignment Guard", "TypeScript", "Validates repo_path set before assignment")
     Component(orch_lifecycle, "Session Lifecycle", "TypeScript", "Reads repo_path from workspace for worktree ops")

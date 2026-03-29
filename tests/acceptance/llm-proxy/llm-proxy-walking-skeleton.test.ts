@@ -73,7 +73,7 @@ describe("Skeleton 2: Trace capture", () => {
     const workspaceId = `ws-skel2-${crypto.randomUUID()}`;
     await createProxyTestWorkspace(surreal, workspaceId);
 
-    // Given Priya is working in workspace "brain-v1"
+    // Given Priya is working in workspace "osabio-v1"
     // When she sends a request through the proxy
     const response = await sendProxyRequest(baseUrl, {
       model: TEST_PROXY_MODEL,

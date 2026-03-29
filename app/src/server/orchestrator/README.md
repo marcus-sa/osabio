@@ -10,7 +10,7 @@ When a task needs to be implemented, a coding agent (Claude Agent SDK) must be s
 
 - **Task assignment validation**: Checks task status (ready/todo), workspace membership, and ensures no active session already exists
 - **Git worktree isolation**: Creates a dedicated git worktree per session so agents work on isolated branches
-- **Agent spawning**: Launches Claude Agent SDK with `/brain-start-task` prompt, injecting workspace and Brain context
+- **Agent spawning**: Launches Claude Agent SDK with `/osabio-start-task` prompt, injecting workspace and Osabio context
 - **SSE event streaming**: Bridges agent SDK messages to SSE for real-time UI updates
 - **Stall detection**: Monitors agent activity and auto-aborts sessions that go silent
 - **Human review flow**: Idle agents produce diffs for review → accept (mark done) / reject (resume with feedback) / abort (clean up)
@@ -35,7 +35,7 @@ When a task needs to be implemented, a coding agent (Claude Agent SDK) must be s
 2. Validate: task exists, status is `ready` or `todo`, no active session, workspace matches
 3. Create git worktree: `git worktree add .claude/worktrees/<slug> -b <branch>`
 4. Create `agent_session` record in SurrealDB with `orchestrator_status: "spawning"`
-5. Spawn Claude Agent SDK with `/brain-start-task abc123` in the worktree directory
+5. Spawn Claude Agent SDK with `/osabio-start-task abc123` in the worktree directory
 6. Register SSE stream → event iteration starts
 7. First SDK message → status: `spawning` → `active`
 8. Agent works: tool calls, file edits, decisions logged

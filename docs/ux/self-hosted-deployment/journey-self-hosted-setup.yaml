@@ -1,7 +1,7 @@
 journey:
   name: "Self-Hosted Deployment Setup"
-  goal: "Deploy a locked-down Brain instance with a pre-seeded admin account"
-  persona: "Marcus, a platform operator deploying Brain for a small team"
+  goal: "Deploy a locked-down Osabio instance with a pre-seeded admin account"
+  persona: "Marcus, a platform operator deploying Osabio for a small team"
 
   emotional_arc:
     start: "Methodical -- following a deployment checklist"

@@ -8,7 +8,7 @@ Opportunity = Importance + max(Importance - Satisfaction, 0)
 | Job | Importance | Current Satisfaction | Opportunity Score | Priority |
 |-----|-----------|---------------------|-------------------|----------|
 | J1: Orchestrator spawns agent | 10 | 3 | 17 | **Highest** |
-| J3: Lifecycle hooks sync Brain | 9 | 4 | 14 | **High** |
+| J3: Lifecycle hooks sync Osabio | 9 | 4 | 14 | **High** |
 | J2: Developer init setup | 6 | 5 | 7 | Medium |
 
 ## Analysis
@@ -22,4 +22,4 @@ Opportunity = Importance + max(Importance - Satisfaction, 0)
 ## Recommended Sequencing
 
 1. **J1 + J3 together** — Replace `spawn-opencode.ts` with Agent SDK `query()`, configure hooks inline
-2. **J2 after** — Update `brain init` to remove OpenCode artifacts, add Agent SDK guidance
+2. **J2 after** — Update `osabio init` to remove OpenCode artifacts, add Agent SDK guidance

@@ -29,7 +29,7 @@ workspace graph    nodes connected      intent node in       awareness tier
 ```
 +-- Knowledge Graph ------------------------------------------------+
 |                                                                    |
-|                    [Workspace: Brain]                               |
+|                    [Workspace: Osabio]                               |
 |                    /       |        \                               |
 |                   /        |         \                              |
 |          [Project:       [Project:    [Policy: Agent               |
@@ -62,7 +62,7 @@ workspace graph    nodes connected      intent node in       awareness tier
 |  Connections:                                                      |
 |    governing -> ci-agent (identity)                                |
 |    governing -> dev-agent (identity)                               |
-|    protects  -> Brain (workspace)                                  |
+|    protects  -> Osabio (workspace)                                  |
 |    supersedes -> Agent Budget Guard v2 (policy, deprecated)        |
 |                                                                    |
 +--------------------------------------------------------------------+

@@ -21,7 +21,7 @@ import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
   seedToolWithGrant,
-  seedBrainNativeTool,
+  seedOsabioNativeTool,
   seedCanUseEdge,
   getToolCallTraces,
   sendProxyRequestWithIdentity,
@@ -47,7 +47,7 @@ describe("Walking Skeleton: Brain-native tool call produces trace record", () =>
     await seedToolWithGrant(surreal, {
       toolId: `tool-trace-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search workspace entities",
       inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
       identityId: user.identityId,
@@ -86,7 +86,7 @@ describe("Trace records success outcome with duration", () => {
     await seedToolWithGrant(surreal, {
       toolId: `tool-tsuc-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search workspace entities",
       inputSchema: { type: "object", properties: { query: { type: "string" } } },
       identityId: user.identityId,
@@ -143,7 +143,7 @@ describe("Trace includes identity reference for auditability", () => {
     await seedToolWithGrant(surreal, {
       toolId: `tool-tident-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search entities",
       inputSchema: { type: "object", properties: { query: { type: "string" } } },
       identityId: user.identityId,

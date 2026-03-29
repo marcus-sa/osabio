@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { isEntityInWorkspace, parseRecordIdString } from "../graph/queries";
-import { createSuggestionSchema } from "../mcp/brain-tool-definitions";
+import { createSuggestionSchema } from "../mcp/osabio-tool-definitions";
 import { createSuggestion } from "../suggestion/queries";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";

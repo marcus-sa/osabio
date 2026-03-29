@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-23
 **Sources**: docs.composio.dev, docs.litellm.ai, github.com/ComposioHQ/composio, github.com/BerriAI/litellm (source code)
-**Relevance**: Informs Brain's MCP Tool Registry UI auth architecture (ADR-069, ADR-070)
+**Relevance**: Informs Osabio's MCP Tool Registry UI auth architecture (ADR-069, ADR-070)
 
 ---
 
@@ -284,7 +284,7 @@ Each `_fetch_server_tools` creates a fresh `MCPClient`, connects, lists tools, a
 
 ---
 
-## 4. Relevance to Brain's Tool Registry
+## 4. Relevance to Osabio's Tool Registry
 
 ### Patterns to Consider
 
@@ -295,19 +295,19 @@ Each `_fetch_server_tools` creates a fresh `MCPClient`, connects, lists tools, a
 - **Auth Config as blueprint** separates the "how to auth" (OAuth app credentials, scopes) from "who authenticated" (connected account per user).
 
 **From LiteLLM:**
-- **Gateway/proxy model** is closer to Brain's architecture — Brain aggregates external MCP servers, it doesn't replace them.
+- **Gateway/proxy model** is closer to Osabio's architecture — Osabio aggregates external MCP servers, it doesn't replace them.
 - **OAuth2 PKCE + M2M dual flows** cover both interactive (user-facing) and automated (backend) use cases.
 - **Tool namespacing** (server_name prefix) prevents collisions when aggregating multiple servers.
-- **Permission management by Key/Team/Org** maps well to Brain's workspace-scoped access control.
+- **Permission management by Key/Team/Org** maps well to Osabio's workspace-scoped access control.
 - **Static headers as fallback** handles non-OAuth servers pragmatically.
 
 ### Key Insight
 
-Brain's tool registry sits between these two models:
+Osabio's tool registry sits between these two models:
 - Like LiteLLM, it **aggregates external MCP servers** (not a tool-as-a-service).
 - Like Composio, it needs **per-user credential management** with OAuth flows.
-- The **meta-tool pattern** from Composio could inform how Brain exposes discovered tools to agents without context window explosion.
-- LiteLLM's **PKCE proxy** pattern (LiteLLM mediates OAuth between client and upstream auth server) is directly applicable to Brain's OAuth2 callback architecture.
+- The **meta-tool pattern** from Composio could inform how Osabio exposes discovered tools to agents without context window explosion.
+- LiteLLM's **PKCE proxy** pattern (LiteLLM mediates OAuth between client and upstream auth server) is directly applicable to Osabio's OAuth2 callback architecture.
 
 ---
 

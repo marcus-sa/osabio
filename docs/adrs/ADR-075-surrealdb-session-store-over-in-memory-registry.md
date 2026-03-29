@@ -10,7 +10,7 @@ The orchestrator currently stores active agent session handles in a module-level
 
 1. **Violates project convention**: AGENTS.md explicitly prohibits module-level mutable singletons ("Module-level state is shared across the entire process -- when multiple server instances run concurrently, they silently corrupt each other").
 
-2. **Session loss on restart**: All active sessions are lost when Brain's server restarts. The in-memory Map is the only record of running agent processes. This directly blocks the session restoration requirement (> 95% restoration success rate).
+2. **Session loss on restart**: All active sessions are lost when Osabio's server restarts. The in-memory Map is the only record of running agent processes. This directly blocks the session restoration requirement (> 95% restoration success rate).
 
 3. **Incompatible with SandboxAgent model**: SandboxAgent SDK communicates with SandboxAgent Server via HTTP API. Session operations (prompt, abort) are HTTP calls to the server, not method calls on an in-process handle. There is no in-process handle to store.
 
@@ -20,7 +20,7 @@ Quality attributes: **reliability** (session survival across restarts), **mainta
 
 Eliminate the in-memory `handleRegistry`. Store all session state on the existing `agent_session` table with two new fields (`provider`, `session_type`). Session operations (prompt, resume, destroy) delegate to the SandboxAgent adapter, which communicates with SandboxAgent Server via HTTP. No in-process session handle is held. See ADR-076 for the schema decision.
 
-On server startup, Brain scans for active `agent_session` records with `session_type = "sandbox_agent"` and calls `adapter.resumeSession()` for each, re-establishing the event stream connections.
+On server startup, Osabio scans for active `agent_session` records with `session_type = "sandbox_agent"` and calls `adapter.resumeSession()` for each, re-establishing the event stream connections.
 
 ## Alternatives Considered
 
@@ -37,7 +37,7 @@ Maintain the `handleRegistry` for fast access, periodically sync state to Surrea
 Use Redis or similar for session state with SurrealDB as backing store.
 
 - **Pro**: Sub-millisecond lookups, built-in TTL
-- **Con**: New infrastructure dependency. SurrealDB already provides adequate performance. Brain's architecture principle is to keep the graph as the single source of truth.
+- **Con**: New infrastructure dependency. SurrealDB already provides adequate performance. Osabio's architecture principle is to keep the graph as the single source of truth.
 - **Rejected**: Unnecessary complexity. No evidence that SurrealDB session queries are a bottleneck.
 
 ### 3. In-Memory Map with Dependency Injection (Fix Convention Violation Only)

@@ -8,7 +8,7 @@
  *   POST /api/auth/intents              (intent submission with DPoP binding)
  *   POST /api/auth/token                (Custom AS token endpoint)
  *   POST /api/auth/bridge/exchange      (session-to-token Bridge)
- *   GET  /api/auth/brain/.well-known/jwks (AS public keys)
+ *   GET  /api/auth/osabio/.well-known/jwks (AS public keys)
  *   All /api/mcp/* routes               (DPoP-protected Brain endpoints)
  */
 import { RecordId, type Surreal } from "surrealdb";
@@ -42,8 +42,8 @@ export {
 
 export type DPoPKeyPair = SharedDPoPKeyPair;
 
-export type BrainAction = {
-  type: "brain_action";
+export type OsabioAction = {
+  type: "osabio_action";
   action: string;
   resource: string;
   constraints?: Record<string, unknown>;
@@ -185,7 +185,7 @@ export async function submitIntentWithDPoP(
   baseUrl: string,
   workspaceId: string,
   identityId: string,
-  brainAction: BrainAction,
+  osabioAction: OsabioAction,
   thumbprint: string,
   options?: {
     goal?: string;
@@ -199,7 +199,7 @@ export async function submitIntentWithDPoP(
     body: JSON.stringify({
       workspace_id: workspaceId,
       identity_id: identityId,
-      authorization_details: [brainAction],
+      authorization_details: [osabioAction],
       dpop_jwk_thumbprint: thumbprint,
       goal: options?.goal ?? "Perform authorized operation",
       reasoning: options?.reasoning ?? "Operation required for task completion",
@@ -220,7 +220,7 @@ export async function requestAccessToken(
   baseUrl: string,
   intentId: string,
   keyPair: DPoPKeyPair,
-  authorizationDetails: BrainAction[],
+  authorizationDetails: OsabioAction[],
 ): Promise<Response> {
   const tokenUri = `${baseUrl}/api/auth/token`;
   const dpopProof = await createProofForRequest(keyPair, "POST", tokenUri);
@@ -232,7 +232,7 @@ export async function requestAccessToken(
       DPoP: dpopProof,
     },
     body: JSON.stringify({
-      grant_type: "urn:brain:intent-authorization",
+      grant_type: "urn:osabio:intent-authorization",
       intent_id: intentId,
       authorization_details: authorizationDetails,
     }),
@@ -251,7 +251,7 @@ export async function exchangeSessionForToken(
   baseUrl: string,
   sessionHeaders: Record<string, string>,
   keyPair: DPoPKeyPair,
-  brainAction: BrainAction,
+  osabioAction: OsabioAction,
 ): Promise<Response> {
   const bridgeUri = `${baseUrl}/api/auth/bridge/exchange`;
   const dpopProof = await createProofForRequest(keyPair, "POST", bridgeUri);
@@ -264,7 +264,7 @@ export async function exchangeSessionForToken(
       ...sessionHeaders,
     },
     body: JSON.stringify({
-      authorization_details: [brainAction],
+      authorization_details: [osabioAction],
     }),
   });
 }
@@ -444,7 +444,7 @@ export async function seedAuthorizedIntent(
   surreal: Surreal,
   workspaceId: string,
   identityId: string,
-  brainAction: BrainAction,
+  osabioAction: OsabioAction,
   thumbprint: string,
 ): Promise<string> {
   const intentId = `intent-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -465,12 +465,12 @@ export async function seedAuthorizedIntent(
       reasoning: "Pre-authorized for acceptance testing",
       status: "authorized",
       priority: 50,
-      authorization_details: [brainAction],
+      authorization_details: [osabioAction],
       dpop_jwk_thumbprint: thumbprint,
       action_spec: {
         provider: "test",
-        action: brainAction.action,
-        params: { resource: brainAction.resource },
+        action: osabioAction.action,
+        params: { resource: osabioAction.resource },
       },
       trace_id: traceRecord,
       requester: requesterRecord,
@@ -497,7 +497,7 @@ export async function seedIntentWithStatus(
   surreal: Surreal,
   workspaceId: string,
   identityId: string,
-  brainAction: BrainAction,
+  osabioAction: OsabioAction,
   thumbprint: string,
   status: string,
 ): Promise<string> {
@@ -519,12 +519,12 @@ export async function seedIntentWithStatus(
       reasoning: `Seeded for acceptance testing with status: ${status}`,
       status,
       priority: 50,
-      authorization_details: [brainAction],
+      authorization_details: [osabioAction],
       dpop_jwk_thumbprint: thumbprint,
       action_spec: {
         provider: "test",
-        action: brainAction.action,
-        params: { resource: brainAction.resource },
+        action: osabioAction.action,
+        params: { resource: osabioAction.resource },
       },
       trace_id: traceRecord,
       requester: requesterRecord,
@@ -551,22 +551,22 @@ export async function getIdentityId(surreal: Surreal): Promise<string> {
 }
 
 /**
- * Reads a brain_action for common low-risk workspace read operations.
+ * Reads a osabio_action for common low-risk workspace read operations.
  */
-export function readWorkspaceAction(workspaceId: string): BrainAction {
+export function readWorkspaceAction(workspaceId: string): OsabioAction {
   return {
-    type: "brain_action",
+    type: "osabio_action",
     action: "read",
     resource: "workspace",
   };
 }
 
 /**
- * Creates a brain_action for task status update operations.
+ * Creates a osabio_action for task status update operations.
  */
-export function updateTaskAction(taskId?: string): BrainAction {
+export function updateTaskAction(taskId?: string): OsabioAction {
   return {
-    type: "brain_action",
+    type: "osabio_action",
     action: "update",
     resource: "task",
     constraints: taskId ? { task_id: taskId } : undefined,
@@ -574,11 +574,11 @@ export function updateTaskAction(taskId?: string): BrainAction {
 }
 
 /**
- * Creates a brain_action for creating a new decision.
+ * Creates a osabio_action for creating a new decision.
  */
-export function createDecisionAction(): BrainAction {
+export function createDecisionAction(): OsabioAction {
   return {
-    type: "brain_action",
+    type: "osabio_action",
     action: "create",
     resource: "decision",
   };

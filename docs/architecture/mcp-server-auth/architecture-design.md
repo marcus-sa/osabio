@@ -2,7 +2,7 @@
 
 ## Overview
 
-Adds two auth modes to the MCP server connection lifecycle: **static headers** (encrypted key-value pairs, Brain-specific convenience) and **MCP-native OAuth 2.1** (spec-compliant auto-discovery + PKCE authorization code flow per the [MCP Authorization spec](https://modelcontextprotocol.io/specification/draft/basic/authorization)). Extends the existing tool-registry module within Brain's modular monolith.
+Adds two auth modes to the MCP server connection lifecycle: **static headers** (encrypted key-value pairs, Osabio-specific convenience) and **MCP-native OAuth 2.1** (spec-compliant auto-discovery + PKCE authorization code flow per the [MCP Authorization spec](https://modelcontextprotocol.io/specification/draft/basic/authorization)). Extends the existing tool-registry module within Osabio's modular monolith.
 
 ## Architecture Pattern
 
@@ -18,12 +18,12 @@ C4Context
     title System Context — MCP Server Auth
 
     Person(admin, "Workspace Admin", "Configures MCP servers and credentials")
-    System(brain, "Brain", "Knowledge graph OS with MCP proxy")
+    System(osabio, "Osabio", "Knowledge graph OS with MCP proxy")
     System_Ext(mcp_server, "MCP Server", "Remote MCP server (GitHub, Linear, etc.) — also OAuth 2.1 Protected Resource")
     System_Ext(auth_server, "Authorization Server", "OAuth 2.1 auth server (may be same origin as MCP server)")
     SystemDb(surreal, "SurrealDB", "Stores encrypted credentials and server config")
 
-    Rel(admin, brain, "Configures auth, authorizes")
+    Rel(admin, osabio, "Configures auth, authorizes")
     Rel(brain, mcp_server, "MCP protocol (tools/list, tools/call)", "HTTP + Authorization: Bearer header")
     Rel(brain, auth_server, "OAuth 2.1 discovery, token exchange, client registration", "HTTPS")
     Rel(brain, surreal, "Reads/writes encrypted credentials")
@@ -38,12 +38,12 @@ C4Container
 
     Person(admin, "Admin")
 
-    Container_Boundary(brain, "Brain Server") {
+    Container_Boundary(osabio, "Osabio Server") {
         Container(ui, "React UI", "React + shadcn", "Add MCP Server dialog, auth mode selection, authorize button")
         Container(api, "HTTP API", "Bun.serve", "MCP server CRUD, OAuth callback, discovery trigger")
         Container(discovery, "Auth Discovery", "TypeScript", "RFC 9728 Protected Resource Metadata + RFC 8414 Auth Server Metadata")
         Container(oauth, "OAuth Flow", "TypeScript", "PKCE, token exchange, refresh, client registration")
-        Container(client_meta, "Client ID Metadata", "TypeScript", "Hosts /.well-known/oauth-client-id for Brain as OAuth client")
+        Container(client_meta, "Client ID Metadata", "TypeScript", "Hosts /.well-known/oauth-client-id for Osabio as OAuth client")
         Container(encryption, "Encryption", "TypeScript", "AES-256-GCM encrypt/decrypt for headers and tokens")
         Container(resolver, "Credential Resolver", "TypeScript", "Resolves auth mode → builds HTTP headers for MCP client")
         Container(mcp_client, "MCP Client Factory", "MCP SDK", "Creates authenticated MCP client connections")
@@ -61,7 +61,7 @@ C4Container
     Rel(discovery, mcp_server, "Fetches .well-known/oauth-protected-resource")
     Rel(discovery, auth_server, "Fetches .well-known/oauth-authorization-server + openid-configuration")
     Rel(oauth, auth_server, "Token exchange, dynamic registration")
-    Rel(auth_server, client_meta, "Fetches Brain's client metadata document")
+    Rel(auth_server, client_meta, "Fetches Osabio's client metadata document")
     Rel(resolver, encryption, "Decrypts at execution boundary")
     Rel(resolver, surreal, "Reads encrypted credentials")
     Rel(mcp_client, resolver, "Gets auth headers")
@@ -100,7 +100,7 @@ Implements MCP spec's Authorization Server Discovery (RFC 9728 + RFC 8414).
 
 #### 2. Static Header Manager (`tool-registry/static-headers.ts`)
 
-Brain-specific convenience for servers using API keys/PATs (not part of MCP spec).
+Osabio-specific convenience for servers using API keys/PATs (not part of MCP spec).
 
 **Pure core:**
 - `validateHeaders(headers: HeaderEntry[]) → ValidationResult` — validates:
@@ -136,15 +136,15 @@ MCP spec-compliant OAuth 2.1 implementation.
 
 #### 4. Client ID Metadata Document (`tool-registry/client-metadata.ts`)
 
-Brain hosts its own Client ID Metadata Document (MCP spec's preferred registration approach).
+Osabio hosts its own Client ID Metadata Document (MCP spec's preferred registration approach).
 
 **Pure core:**
 - `buildClientMetadataDocument(brainBaseUrl: string) → ClientMetadataDocument` — returns JSON:
   ```json
   {
-    "client_id": "https://brain.example.com/.well-known/oauth-client-id",
-    "client_name": "Brain",
-    "redirect_uris": ["https://brain.example.com/oauth/callback"],
+    "client_id": "https://osabio.example.com/.well-known/oauth-client-id",
+    "client_name": "Osabio",
+    "redirect_uris": ["https://osabio.example.com/oauth/callback"],
     "grant_types": ["authorization_code"],
     "response_types": ["code"],
     "token_endpoint_auth_method": "none"
@@ -152,7 +152,7 @@ Brain hosts its own Client ID Metadata Document (MCP spec's preferred registrati
   ```
 
 **Route:**
-- `GET /.well-known/oauth-client-id` — serves the metadata document (auth servers fetch this to verify Brain's client identity)
+- `GET /.well-known/oauth-client-id` — serves the metadata document (auth servers fetch this to verify Osabio's client identity)
 
 #### 5. Credential Resolver Extension (`proxy/credential-resolver.ts`)
 
@@ -171,7 +171,7 @@ New/modified endpoints:
 - `PUT /mcp-servers/:id/headers` — update static headers (encrypted at rest)
 - `POST /mcp-servers/:id/discover-auth` — trigger OAuth discovery, auto-create credential_provider, return config
 - `GET /mcp-servers/:id/auth-status` — current auth state (connected, expired, not_authorized, none)
-- `GET /.well-known/oauth-client-id` — Brain's Client ID Metadata Document
+- `GET /.well-known/oauth-client-id` — Osabio's Client ID Metadata Document
 - `GET /oauth/callback` — receives authorization code from auth server redirect
 
 ### Frontend Components
@@ -200,7 +200,7 @@ Server rows gain:
 
 Minimal route: `/oauth/callback`
 - Receives `code` + `state` query params from auth server redirect
-- Calls Brain API to exchange code for tokens
+- Calls Osabio API to exchange code for tokens
 - Shows success/error → auto-redirects to Tool Registry after 2s
 
 ### Data Flow: Static Headers
@@ -218,27 +218,27 @@ Admin enters headers in dialog
 
 ```
 1. Admin enters MCP server URL, selects "OAuth"
-2. Brain fetches /.well-known/oauth-protected-resource from MCP server
+2. Osabio fetches /.well-known/oauth-protected-resource from MCP server
    - If 404: tries connecting → on 401, reads WWW-Authenticate resource_metadata URL
 3. Parses Protected Resource Metadata → extracts authorization_servers[0]
-4. Brain tries auth server well-known endpoints (ordered fallback):
+4. Osabio tries auth server well-known endpoints (ordered fallback):
    a. /.well-known/oauth-authorization-server/{path}
    b. /.well-known/openid-configuration/{path}
    c. {path}/.well-known/openid-configuration
 5. Parses Auth Server Metadata → stores endpoints in auto-created credential_provider
 6. Client registration:
-   a. Primary: Brain's client_id = URL to its Client ID Metadata Document
-      (auth server fetches https://brain.example.com/.well-known/oauth-client-id)
+   a. Primary: Osabio's client_id = URL to its Client ID Metadata Document
+      (auth server fetches https://osabio.example.com/.well-known/oauth-client-id)
    b. Fallback: Dynamic Client Registration (RFC 7591) if registration_endpoint exists
 7. Admin clicks "Authorize"
-8. Brain generates PKCE pair (S256) + state token
+8. Osabio generates PKCE pair (S256) + state token
 9. Browser redirects to authorization_endpoint with:
    - response_type=code, client_id, redirect_uri, code_challenge, state
    - resource=<MCP server canonical URI> (RFC 8707)
    - scope=<from Protected Resource Metadata or auth server>
 10. User authorizes at auth server
 11. Auth server redirects to /oauth/callback?code=...&state=...
-12. Brain exchanges code for tokens at token_endpoint with code_verifier
+12. Osabio exchanges code for tokens at token_endpoint with code_verifier
 13. Encrypts access_token + refresh_token → stores in connected_account
 14. Links connected_account to mcp_server.oauth_account
 15. MCP server status → "connected"

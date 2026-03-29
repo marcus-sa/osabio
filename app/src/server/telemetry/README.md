@@ -1,6 +1,6 @@
 # Telemetry
 
-OpenTelemetry-based observability — traces, metrics, and structured logs for the Brain server.
+OpenTelemetry-based observability — traces, metrics, and structured logs for the Osabio server.
 
 ## The Problem
 
@@ -8,7 +8,7 @@ When an LLM call produces wrong results, you need to see the full request lifecy
 
 ## What It Does
 
-- **Traces**: Root spans for HTTP requests (`brain.http.request`), child spans for LLM calls via AI SDK `experimental_telemetry`, manual spans for pipeline stages
+- **Traces**: Root spans for HTTP requests (`osabio.http.request`), child spans for LLM calls via AI SDK `experimental_telemetry`, manual spans for pipeline stages
 - **Metrics**: Histograms for LLM and HTTP latency, counters for token usage, errors, and extracted entities
 - **Logs**: Structured log records via OTEL Logs API with automatic trace/span ID correlation
 - **AI SDK integration**: `experimental_telemetry` on all `generateObject`/`streamText` calls — emits model ID, token usage, latency, and function ID as span attributes
@@ -18,7 +18,7 @@ When an LLM call produces wrong results, you need to see the full request lifecy
 
 | Term | Definition |
 |------|------------|
-| **Function ID** | A `brain.*` identifier (e.g. `brain.extraction`, `brain.chat-agent`) that tags each LLM call for cost attribution and filtering |
+| **Function ID** | A `osabio.*` identifier (e.g. `osabio.extraction`, `osabio.chat-agent`) that tags each LLM call for cost attribution and filtering |
 | **TracerProvider** | Manages span creation and export. Uses `BasicTracerProvider` with `BatchSpanProcessor` |
 | **MeterProvider** | Manages metric instruments. Uses `PeriodicExportingMetricReader` |
 | **LoggerProvider** | Manages log record emission. Uses `SimpleLogRecordProcessor` |
@@ -29,7 +29,7 @@ When an LLM call produces wrong results, you need to see the full request lifecy
 **Example — tracing a chat request end-to-end:**
 
 1. HTTP request arrives at `POST /api/chat/messages`
-2. `withTracing()` creates root span `brain.http.request` with method, route, requestId
+2. `withTracing()` creates root span `osabio.http.request` with method, route, requestId
 3. Chat handler calls `streamText()` with `experimental_telemetry: createTelemetryConfig(FUNCTION_IDS.CHAT_AGENT)`
 4. AI SDK automatically creates child span with model ID, token usage, latency
 5. Chat agent invokes extraction tool — `generateObject()` with `FUNCTION_IDS.EXTRACTION` creates another child span
@@ -58,7 +58,7 @@ initTelemetry() (server startup)
   v
 withTracing() (HTTP layer)
   |
-  +---> Root span: brain.http.request
+  +---> Root span: osabio.http.request
   |       |
   |       v
   |     Route Handler
@@ -85,5 +85,5 @@ telemetry/
   logger.ts          # log.info/warn/error/debug backed by OTEL Logs API + serializeError
   metrics.ts         # 7 metric instruments: LLM duration/tokens/errors, HTTP duration/requests, extraction entities
   ai-telemetry.ts    # createTelemetryConfig() factory for AI SDK experimental_telemetry + recordLlmMetrics/recordLlmError
-  function-ids.ts    # 15 brain.* function ID constants with FunctionId union type
+  function-ids.ts    # 15 osabio.* function ID constants with FunctionId union type
 ```

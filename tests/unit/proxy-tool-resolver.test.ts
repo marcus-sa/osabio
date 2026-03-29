@@ -17,7 +17,7 @@ import {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeTool(name: string, toolkit = "brain"): ResolvedTool {
+function makeTool(name: string, toolkit = "osabio"): ResolvedTool {
   return {
     name,
     description: `${toolkit} ${name}`,

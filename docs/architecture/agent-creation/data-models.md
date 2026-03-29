@@ -200,7 +200,7 @@ type AuthorityScopeInput = {
 
 type CreateAgentResponse = {
   agent: AgentListItem;
-  proxy_token?: string;  // present only for external agents (brp_ prefix)
+  proxy_token?: string;  // present only for external agents (osp_ prefix)
   workspace_id: string;  // for connection instructions in UI
 };
 

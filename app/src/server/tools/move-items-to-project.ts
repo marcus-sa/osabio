@@ -9,7 +9,7 @@ import {
 } from "../graph/queries";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { requireAuthorizedContext } from "../iam/authority";
-import { moveItemsToProjectSchema } from "../mcp/brain-tool-definitions";
+import { moveItemsToProjectSchema } from "../mcp/osabio-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 type MoveResult = {

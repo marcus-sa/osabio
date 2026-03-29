@@ -19,17 +19,17 @@
 | EC-2 | Authority scopes default to "propose" when not specified | US-02 | happy | enabled |
 | EC-3 | Creation executes atomically (identity + edges + agent) | US-02 | happy | enabled |
 | EC-4 | Duplicate agent name within workspace produces validation error | US-02 | error | enabled |
-| EC-5 | Creating a brain agent via the API is rejected | US-02 | error | enabled |
+| EC-5 | Creating a osabio agent via the API is rejected | US-02 | error | enabled |
 | EC-6 | Transaction failure leaves no partial records | US-02 | error | enabled |
 | EC-7 | Creation without a name is rejected | US-02 | error | enabled |
 | EC-8 | Creation without authentication is rejected | cross | error | enabled |
 | EC-9 | Empty workspace shows no custom agents | US-01 | edge | enabled |
-| EC-10 | Brain agents listed as read-only | US-01 | happy | enabled |
+| EC-10 | Osabio agents listed as read-only | US-01 | happy | enabled |
 | EC-11 | Listing agents for nonexistent workspace returns error | US-01 | error | enabled |
-| EC-12 | Brain agent detail is read-only | US-03 | happy | enabled |
+| EC-12 | Osabio agent detail is read-only | US-03 | happy | enabled |
 | EC-13 | Requesting detail for nonexistent agent returns not found | US-03 | error | enabled |
 | EC-14 | Delete with wrong confirmation name is rejected | US-04 | error | enabled |
-| EC-15 | Deleting a brain agent is rejected | US-04 | error | enabled |
+| EC-15 | Deleting a osabio agent is rejected | US-04 | error | enabled |
 | EC-16 | Deletion removes identity and all graph edges atomically | US-04 | happy | enabled |
 | EC-17 | Deleting a nonexistent agent returns not found | US-04 | error | enabled |
 | EC-18 | Agents in one workspace not visible in another | cross | boundary | enabled |
@@ -54,7 +54,7 @@
 |---|----------|-------|------|--------|
 | OD-1 | Admin updates agent description and authority scopes | US-09 | happy | skipped |
 | OD-2 | Admin renames agent and identity name is synced | US-09 | happy | skipped |
-| OD-3 | Editing a brain agent is rejected | US-09 | error | skipped |
+| OD-3 | Editing a osabio agent is rejected | US-09 | error | skipped |
 | OD-4 | Deleting agent with active sessions aborts them first | US-12 | happy | skipped |
 | OD-5 | Historical session records preserved after deletion | US-12 | boundary | skipped |
 | OD-6 | Newly created external agent shows "never connected" | US-11 | happy | skipped |

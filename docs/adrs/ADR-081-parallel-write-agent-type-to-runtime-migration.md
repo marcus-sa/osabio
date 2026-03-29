@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The `agent_type` field on the `agent` table serves dual purposes: it identifies the agent's runtime execution model (how it runs) and its functional role (what it does). The DISCOVER wave validated through 6 interviews that these concerns should be separated: a `runtime` field (`brain`, `sandbox`, `external`) captures the execution model, while role is captured by `name` and `description`.
+The `agent_type` field on the `agent` table serves dual purposes: it identifies the agent's runtime execution model (how it runs) and its functional role (what it does). The DISCOVER wave validated through 6 interviews that these concerns should be separated: a `runtime` field (`osabio`, `sandbox`, `external`) captures the execution model, while role is captured by `name` and `description`.
 
 8 modules read `agent_type`:
 1. `workspace/identity-bootstrap.ts` -- writes agent_type during workspace creation
@@ -24,7 +24,7 @@ Migrating all 8 simultaneously in a single release is high-risk. Any module miss
 
 Use a parallel-write / incremental-read migration across 3 releases:
 
-**R1**: Add `runtime` and `name` fields. Write both `agent_type` and `runtime` for brain agents. New custom agents write `runtime` only. New code reads `runtime`.
+**R1**: Add `runtime` and `name` fields. Write both `agent_type` and `runtime` for osabio agents. New custom agents write `runtime` only. New code reads `runtime`.
 
 **R2**: Update agent-activator, MCP auth, and proxy modules to read `runtime`/identity role instead of `agent_type`.
 

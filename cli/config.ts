@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 
-function getBrainDir() { return process.env.BRAIN_CONFIG_DIR ?? join(homedir(), ".brain"); }
-function getConfigPath() { return join(getBrainDir(), "config.json"); }
+function getOsabioDir() { return process.env.OSABIO_CONFIG_DIR ?? join(homedir(), ".osabio"); }
+function getConfigPath() { return join(getOsabioDir(), "config.json"); }
 
-/** Resolved config for a single repo — shape consumed by BrainHttpClient and all commands. */
-export type BrainConfig = {
+/** Resolved config for a single repo — shape consumed by OsabioHttpClient and all commands. */
+export type OsabioConfig = {
   server_url: string;
   workspace: string;
   client_id: string;
@@ -25,7 +25,7 @@ export type BrainConfig = {
   proxy_token_expires_at?: string;
 };
 
-/** Per-repo auth entry in ~/.brain/config.json */
+/** Per-repo auth entry in ~/.osabio/config.json */
 export type RepoConfig = {
   workspace: string;
   client_id: string;
@@ -41,8 +41,8 @@ export type RepoConfig = {
   proxy_token_expires_at?: string;
 };
 
-/** Root shape of ~/.brain/config.json */
-export type BrainGlobalConfig = {
+/** Root shape of ~/.osabio/config.json */
+export type OsabioGlobalConfig = {
   server_url: string;
   repos: Record<string, RepoConfig>;
 };
@@ -113,26 +113,26 @@ function resolveWorktreeMainRoot(gitFile: string): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Global config (~/.brain/config.json)
+// Global config (~/.osabio/config.json)
 // ---------------------------------------------------------------------------
 
-function ensureBrainDir(): void {
-  const dir = getBrainDir();
+function ensureOsabioDir(): void {
+  const dir = getOsabioDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-export async function loadGlobalConfig(): Promise<BrainGlobalConfig | undefined> {
+export async function loadGlobalConfig(): Promise<OsabioGlobalConfig | undefined> {
   const file = Bun.file(getConfigPath());
   if (!(await file.exists())) return undefined;
   try {
-    return await file.json() as BrainGlobalConfig;
+    return await file.json() as OsabioGlobalConfig;
   } catch {
     return undefined;
   }
 }
 
-export async function saveGlobalConfig(config: BrainGlobalConfig): Promise<void> {
-  ensureBrainDir();
+export async function saveGlobalConfig(config: OsabioGlobalConfig): Promise<void> {
+  ensureOsabioDir();
   await Bun.write(getConfigPath(), JSON.stringify(config, null, 2) + "\n");
 }
 
@@ -148,15 +148,15 @@ export async function saveRepoConfig(serverUrl: string, gitRoot: string, repo: R
 // Resolved config (what consumers use)
 // ---------------------------------------------------------------------------
 
-/** Resolve BrainConfig for the current repo from ~/.brain/config.json.
- *  The server URL can be overridden via the BRAIN_SERVER_URL env var. */
-export async function loadConfig(): Promise<BrainConfig | undefined> {
+/** Resolve OsabioConfig for the current repo from ~/.osabio/config.json.
+ *  The server URL can be overridden via the OSABIO_SERVER_URL env var. */
+export async function loadConfig(): Promise<OsabioConfig | undefined> {
   const gitRoot = findGitRoot(process.cwd());
   const global = await loadGlobalConfig();
   const repo = global && gitRoot ? global.repos[gitRoot] : undefined;
 
-  const serverUrl = nonEmpty(process.env.BRAIN_SERVER_URL) ?? global?.server_url;
-  const workspaceId = nonEmpty(process.env.BRAIN_WORKSPACE_ID) ?? repo?.workspace;
+  const serverUrl = nonEmpty(process.env.OSABIO_SERVER_URL) ?? global?.server_url;
+  const workspaceId = nonEmpty(process.env.OSABIO_WORKSPACE_ID) ?? repo?.workspace;
   if (!serverUrl || !workspaceId) return undefined;
 
   const defaultTokenExpiresAt = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
@@ -164,24 +164,24 @@ export async function loadConfig(): Promise<BrainConfig | undefined> {
   return {
     server_url: serverUrl,
     workspace: workspaceId,
-    client_id: nonEmpty(process.env.BRAIN_CLIENT_ID) ?? repo?.client_id ?? "brain-env-client",
-    access_token: nonEmpty(process.env.BRAIN_ACCESS_TOKEN) ?? repo?.access_token ?? "brain-env-access-token",
-    refresh_token: nonEmpty(process.env.BRAIN_REFRESH_TOKEN) ?? repo?.refresh_token ?? "brain-env-refresh-token",
-    token_expires_at: parseNumber(process.env.BRAIN_TOKEN_EXPIRES_AT) ?? repo?.token_expires_at ?? defaultTokenExpiresAt,
-    dpop_private_jwk: parseJsonWebKey(process.env.BRAIN_DPOP_PRIVATE_JWK) ?? repo?.dpop_private_jwk,
-    dpop_public_jwk: parseJsonWebKey(process.env.BRAIN_DPOP_PUBLIC_JWK) ?? repo?.dpop_public_jwk,
-    dpop_thumbprint: nonEmpty(process.env.BRAIN_DPOP_THUMBPRINT) ?? repo?.dpop_thumbprint,
-    dpop_access_token: nonEmpty(process.env.BRAIN_DPOP_ACCESS_TOKEN) ?? repo?.dpop_access_token,
-    dpop_token_expires_at: parseNumber(process.env.BRAIN_DPOP_TOKEN_EXPIRES_AT) ?? repo?.dpop_token_expires_at,
-    identity_id: nonEmpty(process.env.BRAIN_IDENTITY_ID) ?? repo?.identity_id,
-    proxy_token_expires_at: nonEmpty(process.env.BRAIN_PROXY_TOKEN_EXPIRES_AT) ?? repo?.proxy_token_expires_at,
+    client_id: nonEmpty(process.env.OSABIO_CLIENT_ID) ?? repo?.client_id ?? "osabio-env-client",
+    access_token: nonEmpty(process.env.OSABIO_ACCESS_TOKEN) ?? repo?.access_token ?? "osabio-env-access-token",
+    refresh_token: nonEmpty(process.env.OSABIO_REFRESH_TOKEN) ?? repo?.refresh_token ?? "osabio-env-refresh-token",
+    token_expires_at: parseNumber(process.env.OSABIO_TOKEN_EXPIRES_AT) ?? repo?.token_expires_at ?? defaultTokenExpiresAt,
+    dpop_private_jwk: parseJsonWebKey(process.env.OSABIO_DPOP_PRIVATE_JWK) ?? repo?.dpop_private_jwk,
+    dpop_public_jwk: parseJsonWebKey(process.env.OSABIO_DPOP_PUBLIC_JWK) ?? repo?.dpop_public_jwk,
+    dpop_thumbprint: nonEmpty(process.env.OSABIO_DPOP_THUMBPRINT) ?? repo?.dpop_thumbprint,
+    dpop_access_token: nonEmpty(process.env.OSABIO_DPOP_ACCESS_TOKEN) ?? repo?.dpop_access_token,
+    dpop_token_expires_at: parseNumber(process.env.OSABIO_DPOP_TOKEN_EXPIRES_AT) ?? repo?.dpop_token_expires_at,
+    identity_id: nonEmpty(process.env.OSABIO_IDENTITY_ID) ?? repo?.identity_id,
+    proxy_token_expires_at: nonEmpty(process.env.OSABIO_PROXY_TOKEN_EXPIRES_AT) ?? repo?.proxy_token_expires_at,
   };
 }
 
-export async function requireConfig(): Promise<BrainConfig> {
+export async function requireConfig(): Promise<OsabioConfig> {
   const config = await loadConfig();
   if (!config) {
-    console.error("Brain not configured. Run: brain init or set BRAIN_SERVER_URL and BRAIN_WORKSPACE_ID.");
+    console.error("Osabio not configured. Run: osabio init or set OSABIO_SERVER_URL and OSABIO_WORKSPACE_ID.");
     process.exit(1);
   }
   return config;

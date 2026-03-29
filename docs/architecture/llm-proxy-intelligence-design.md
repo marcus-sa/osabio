@@ -1,6 +1,6 @@
 # LLM Proxy Intelligence Capabilities
 
-**Feature**: Brain LLM Proxy -- Context Injection, Contradiction Detection, Missing Decision Detection, Secret Scanning, Cross-Trace Pattern Synthesis
+**Feature**: Osabio LLM Proxy -- Context Injection, Contradiction Detection, Missing Decision Detection, Secret Scanning, Cross-Trace Pattern Synthesis
 **Author**: Morgan (solution-architect)
 **Date**: 2026-03-15
 **Status**: Proposed
@@ -35,7 +35,7 @@ Five intelligence capabilities layered onto the existing LLM proxy pipeline. The
 
 **Architecture boundary**: The proxy's role is (1) context injection pre-forward and (2) trace creation post-response. The Observer's role is ALL detection and analysis, triggered by SurrealDB EVENTs on `trace` and `agent_session` tables. The proxy has no analysis modules.
 
-**Prerequisite: Session ID Resolution** -- The proxy extracts session IDs from incoming requests (Claude Code `metadata.user_id` or `X-Brain-Session` header) and links traces to existing sessions. The proxy does NOT manage session lifecycle -- session creation and end-of-session are handled by the CLI (`brain init` hooks) and orchestrator. See [feature design](../feature/llm-proxy/design/architecture-design.md#4-session-id-resolution) and [ADR-049](../adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md).
+**Prerequisite: Session ID Resolution** -- The proxy extracts session IDs from incoming requests (Claude Code `metadata.user_id` or `X-Osabio-Session` header) and links traces to existing sessions. The proxy does NOT manage session lifecycle -- session creation and end-of-session are handled by the CLI (`osabio init` hooks) and orchestrator. See [feature design](../feature/llm-proxy/design/architecture-design.md#4-session-id-resolution) and [ADR-049](../adrs/ADR-049-proxy-session-lifecycle-inactivity-timeout.md).
 
 Contradiction detection and missing decision detection are triggered by trace creation and run in the Observer's Trace Response Analyzer (NEW module). Both use the same two-tier architecture (Tier 1: embedding similarity, Tier 2: Haiku verification). See [ADR-047](../adrs/ADR-047-contradiction-detection-proxy-hybrid-with-observer.md).
 
@@ -114,7 +114,7 @@ Agent Request
   |     |-- MATCH + policy=redact -> redact + forward + observation
   |     |-- MATCH + policy=log    -> forward + observation
   |     |-- NO MATCH -> continue
-  +-> [5] CONTEXT INJECTION (append Brain context system block) <-- NEW
+  +-> [5] CONTEXT INJECTION (append Osabio context system block) <-- NEW
   |     |-- Tiered routing: fast path skips, secure path injects
   |     |-- Cache hit -> use cached context
   |     |-- Cache miss -> KNN query + format + cache
@@ -247,13 +247,13 @@ The Anthropic Messages API `system` field accepts either a string or an array of
 ```json
 {
   "type": "text",
-  "text": "<brain-context workspace=\"acme\" project=\"backend-v2\" session=\"abc-123\" injected_at=\"2026-03-15T10:30:00Z\">\n## Active Decisions\n- [d:7f3a] Standardize on tRPC for all internal APIs (confirmed 2026-03-10)\n- [d:9b2c] PostgreSQL 16 for all persistent storage (confirmed 2026-03-08)\n\n## Constraints\n- [l:4e1f] All new endpoints must include DPoP authentication (high priority)\n\n## Open Observations\n- [o:2d5a] WARNING: billing API still uses REST, contradicts tRPC decision d:7f3a\n</brain-context>",
+  "text": "<osabio-context workspace=\"acme\" project=\"backend-v2\" session=\"abc-123\" injected_at=\"2026-03-15T10:30:00Z\">\n## Active Decisions\n- [d:7f3a] Standardize on tRPC for all internal APIs (confirmed 2026-03-10)\n- [d:9b2c] PostgreSQL 16 for all persistent storage (confirmed 2026-03-08)\n\n## Constraints\n- [l:4e1f] All new endpoints must include DPoP authentication (high priority)\n\n## Open Observations\n- [o:2d5a] WARNING: billing API still uses REST, contradicts tRPC decision d:7f3a\n</osabio-context>",
   "cache_control": { "type": "ephemeral" }
 }
 ```
 
 Design choices:
-- **XML-like wrapper** (`<brain-context>`) with attributes for metadata -- LLMs parse XML structure reliably, and the tag name is distinctive enough to avoid collision with agent prompts
+- **XML-like wrapper** (`<osabio-context>`) with attributes for metadata -- LLMs parse XML structure reliably, and the tag name is distinctive enough to avoid collision with agent prompts
 - **Markdown inside** -- decisions, learnings, observations as bullet lists with short IDs for reference
 - **`cache_control: ephemeral`** -- marks this block for prompt caching so subsequent turns in the same session benefit from cached context (the context is stable per session)
 - **Short IDs** (`d:7f3a`) -- first 4 chars of the record UUID, enough for the LLM to reference back without consuming tokens on full UUIDs
@@ -549,11 +549,11 @@ The `llm_call` trace node (from ADR-042) gains intelligence-related fields in `i
 **`input` FLEXIBLE additions** (written by proxy when context injection runs):
 ```json
 {
-  "brain_context_injected": true,
-  "brain_context_decisions": 3,
-  "brain_context_learnings": 2,
-  "brain_context_observations": 1,
-  "brain_context_tokens_est": 680
+  "osabio_context_injected": true,
+  "osabio_context_decisions": 3,
+  "osabio_context_learnings": 2,
+  "osabio_context_observations": 1,
+  "osabio_context_tokens_est": 680
 }
 ```
 
@@ -581,7 +581,7 @@ The proxy stores the raw `content` array from the Anthropic response (or equival
 Proposed
 
 ### Context
-The proxy needs to inject Brain knowledge graph context into LLM requests. Three approaches were considered for how to deliver the context to the model. The primary constraint is prompt cache compatibility -- Claude Code uses `cache_control: { type: "ephemeral" }` on its system blocks, and modifying those blocks invalidates the cache, increasing cost and latency for every turn.
+The proxy needs to inject Osabio knowledge graph context into LLM requests. Three approaches were considered for how to deliver the context to the model. The primary constraint is prompt cache compatibility -- Claude Code uses `cache_control: { type: "ephemeral" }` on its system blocks, and modifying those blocks invalidates the cache, increasing cost and latency for every turn.
 
 ### Decision
 Append a new system content block AFTER all existing blocks. Normalize the `system` field to array form if it arrives as a string. Mark the appended block with `cache_control: { type: "ephemeral" }`.
@@ -589,20 +589,20 @@ Append a new system content block AFTER all existing blocks. Normalize the `syst
 ### Alternatives Considered
 
 **Alternative 1: Modify existing system blocks (inline injection)**
-- Insert Brain context into the middle or beginning of the existing system prompt
+- Insert Osabio context into the middle or beginning of the existing system prompt
 - **Why rejected**: Invalidates Claude Code's prompt cache on every request. The cache key includes the full system content -- any mutation forces a cache miss. At ~$3.75/MTok for cache creation vs ~$0.30/MTok for cache reads, this could increase per-session cost by 10-12x for the system prompt portion. Additionally, finding a reliable injection point inside an opaque agent prompt is fragile.
 
-**Alternative 2: HTTP header injection (X-Brain-Context)**
+**Alternative 2: HTTP header injection (X-Osabio-Context)**
 - Pass context via custom HTTP headers, rely on the provider to include them
 - **Why rejected**: Anthropic's Messages API does not read custom headers as context. The model only sees `system`, `messages`, and `tools` fields. Headers are invisible to the model. Would require Anthropic to build a custom integration, which is not feasible.
 
 **Alternative 3: Prepend a user message**
-- Insert a synthetic `user` message at the beginning of the conversation with Brain context
+- Insert a synthetic `user` message at the beginning of the conversation with Osabio context
 - **Why rejected**: Mutates the `messages` array, potentially confusing the agent's conversation state management. Some agents track message indices. Also interferes with the model's understanding of conversation flow -- a system-level context appearing as a "user" message could cause the model to treat it as a user instruction rather than background context.
 
 ### Consequences
 - **Positive**: Zero impact on prompt cache -- existing blocks untouched, new block appended
-- **Positive**: Clear separation -- `<brain-context>` wrapper makes the injected block identifiable
+- **Positive**: Clear separation -- `<osabio-context>` wrapper makes the injected block identifiable
 - **Positive**: Compatible with both string and array `system` field formats
 - **Positive**: The appended block itself benefits from ephemeral caching on subsequent turns (context is stable per session)
 - **Negative**: Increases total system prompt size by ~750-1000 tokens per request
@@ -693,20 +693,20 @@ step_10:
   title: "Session ID resolution in proxy pipeline"
   description: "Pure function extracting session ID from request metadata/headers, linked to existing agent_session for trace attribution"
   acceptance_criteria:
-    - "Session ID extracted from Claude Code metadata.user_id or X-Brain-Session header"
+    - "Session ID extracted from Claude Code metadata.user_id or X-Osabio-Session header"
     - "Unknown clients produce no session ID (trace linked to workspace only)"
     - "Session ID resolution never blocks request forwarding"
     - "Trace writer looks up agent_session by external_session_id for linking"
   architectural_constraints:
     - "Session ID resolver is a pure function with no DB calls or side effects"
     - "Proxy never creates, updates, or ends agent_session records"
-    - "Session lifecycle owned by CLI (brain init hooks) and orchestrator"
+    - "Session lifecycle owned by CLI (osabio init hooks) and orchestrator"
 
 step_10b:
   title: "Conversation hash correlation in proxy pipeline"
   description: "Content-derived conversation grouping via UUIDv5 of system prompt + first user message, with idempotent conversation CREATE"
   acceptance_criteria:
-    - "Conversation ID computed as UUIDv5(BRAIN_PROXY_NAMESPACE, system + first_user_message)"
+    - "Conversation ID computed as UUIDv5(OSABIO_PROXY_NAMESPACE, system + first_user_message)"
     - "Conversation record created by deterministic ID (idempotent CREATE, no lookup needed)"
     - "Trace linked to conversation record when ID resolves"
     - "Missing system/user message produces no conversation link (not an error)"
@@ -843,9 +843,9 @@ step_16:
 ## 14. Rejected Simpler Alternatives
 
 ### Alternative: MCP-only context delivery (no proxy injection)
-- **What**: Rely entirely on `brain init` + MCP `get_context` tool for knowledge graph context
-- **Expected impact**: Works for agents with Brain MCP integration already set up
-- **Why insufficient**: The proxy's value proposition is making ANY agent smarter without requiring MCP integration, `brain init`, or any client-side setup. MCP-only means agents without Brain integration get zero knowledge graph benefits. The proxy is the zero-config path.
+- **What**: Rely entirely on `osabio init` + MCP `get_context` tool for knowledge graph context
+- **Expected impact**: Works for agents with Osabio MCP integration already set up
+- **Why insufficient**: The proxy's value proposition is making ANY agent smarter without requiring MCP integration, `osabio init`, or any client-side setup. MCP-only means agents without Osabio integration get zero knowledge graph benefits. The proxy is the zero-config path.
 
 ### Alternative: Full response buffering for contradiction detection
 - **What**: Buffer the entire SSE response, then analyze it before releasing to the agent

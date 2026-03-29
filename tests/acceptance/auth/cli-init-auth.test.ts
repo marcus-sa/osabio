@@ -6,7 +6,7 @@ import { execSync } from "node:child_process";
 import { RecordId } from "surrealdb";
 import { setupAcceptanceSuite } from "../acceptance-test-kit";
 import { setupAuth } from "../../../cli/commands/init";
-import type { BrainGlobalConfig } from "../../../cli/config";
+import type { OsabioGlobalConfig } from "../../../cli/config";
 
 const getRuntime = setupAcceptanceSuite("cli-init-auth");
 
@@ -111,10 +111,10 @@ describe("CLI init setupAuth", () => {
     await fetch(`${baseUrl}/api/auth/jwks`);
 
     // 3. Set up temp git repo and isolated config dir
-    gitRoot = mkdtempSync(join(tmpdir(), "brain-init-auth-"));
+    gitRoot = mkdtempSync(join(tmpdir(), "osabio-init-auth-"));
     execSync("git init", { cwd: gitRoot, stdio: "ignore" });
 
-    configDir = mkdtempSync(join(tmpdir(), "brain-init-config-"));
+    configDir = mkdtempSync(join(tmpdir(), "osabio-init-config-"));
     process.env.BRAIN_CONFIG_DIR = configDir;
 
     // 4. Run setupAuth with injectable openUrl that simulates the browser
@@ -164,7 +164,7 @@ describe("CLI init setupAuth", () => {
 
     // 5. Verify config was saved
     const configPath = join(configDir, "config.json");
-    const config = JSON.parse(readFileSync(configPath, "utf-8")) as BrainGlobalConfig;
+    const config = JSON.parse(readFileSync(configPath, "utf-8")) as OsabioGlobalConfig;
 
     expect(config.server_url).toBe(baseUrl);
     expect(config.repos[gitRoot]).toBeDefined();

@@ -432,7 +432,7 @@ describe("Milestone 1: SurrealDB EVENT Definitions (Story 6)", () => {
     // When a new git_commit record is created (triggers commit_created EVENT)
     const { commitId } = await createGitCommit(surreal, workspaceId, sha, {
       message: "feat: add rate limiting middleware",
-      repository: "org/brain",
+      repository: "org/osabio",
     });
 
     // Then the observer receives the event and creates an observation

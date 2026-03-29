@@ -9,7 +9,7 @@
  * NOT manage session lifecycle — it only reads session IDs from requests.
  *
  * Implementation sequence:
- * 1. Walking skeleton: trace linked to existing agent session via X-Brain-Session header
+ * 1. Walking skeleton: trace linked to existing agent session via X-Osabio-Session header
  * 2. Claude Code metadata.user_id session extraction
  * 3. Unknown client — trace linked to workspace only
  * 4. Nonexistent session ID — trace linked to workspace only
@@ -34,17 +34,17 @@ import {
 const getRuntime = setupAcceptanceSuite("llm_proxy_session_resolution");
 
 // ---------------------------------------------------------------------------
-// Walking Skeleton: Trace linked to agent session via X-Brain-Session header
+// Walking Skeleton: Trace linked to agent session via X-Osabio-Session header
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Trace linked to agent session", () => {
-  it("links the trace to the existing agent session when X-Brain-Session header is present", async () => {
+  it("links the trace to the existing agent session when X-Osabio-Session header is present", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-sess-skel-${crypto.randomUUID()}`;
     const sessionId = crypto.randomUUID();
     await createProxyTestWorkspace(surreal, workspaceId);
 
-    // Given an agent session exists (created by the CLI during brain init)
+    // Given an agent session exists (created by the CLI during osabio init)
     await seedAgentSession(surreal, sessionId, {
       workspaceId,
       agent: "coding-agent",
@@ -52,7 +52,7 @@ describe("Walking Skeleton: Trace linked to agent session", () => {
       externalSessionId: sessionId,
     });
 
-    // When the developer sends a request with the X-Brain-Session header
+    // When the developer sends a request with the X-Osabio-Session header
     const response = await sendProxyRequestWithIntelligence(baseUrl, {
       model: TEST_PROXY_MODEL,
       stream: false,

@@ -52,7 +52,7 @@ Demonstrate to the team that production issues are diagnosable in minutes, not h
 
 ### Job Story
 
-**When** the Brain system is running in production serving real users,
+**When** the Osabio system is running in production serving real users,
 **I want to** see dashboards with LLM latency distributions, token cost trends, error rates by endpoint, and throughput over time,
 **so I can** detect degradation before users notice and make capacity decisions based on data rather than guesswork.
 

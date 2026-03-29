@@ -1,5 +1,5 @@
 /**
- * Create Intent Handler -- Effect boundary for brain-native create_intent tool
+ * Create Intent Handler -- Effect boundary for osabio-native create_intent tool
  *
  * Handles the agent self-escalation flow:
  *   1. Parse and validate input arguments
@@ -15,7 +15,7 @@
  */
 import { RecordId, type Surreal } from "surrealdb";
 import type { ActionSpec } from "../intent/types";
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 import {
   createIntent,
   createTrace,
@@ -58,10 +58,10 @@ export type CreateIntentContext = {
 
 export function deriveAuthorizationDetails(
   actionSpec: CreateIntentInput["action_spec"],
-): BrainAction[] {
+): OsabioAction[] {
   return [
     {
-      type: "brain_action",
+      type: "osabio_action",
       action: "execute",
       resource: `mcp_tool:${actionSpec.provider}:${actionSpec.action}`,
     },
@@ -176,7 +176,7 @@ export function validateEvidenceRefs(
 // ---------------------------------------------------------------------------
 
 /**
- * Handle a create_intent brain-native tool call.
+ * Handle a create_intent osabio-native tool call.
  *
  * Pipeline:
  *   validate input -> derive auth details -> create trace -> create intent (draft)

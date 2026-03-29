@@ -4,7 +4,7 @@
  * Traces: US-004 (Human-Readable RAR Consent), US-008 (Managed Agent Identity)
  *
  * Verifies:
- * - brain_action rendered in human-readable form
+ * - osabio_action rendered in human-readable form
  * - Provider-specific formatting (amounts in dollars not cents)
  * - Approve, Constrain, Veto actions from consent UI
  * - Constrain produces tighter bounds
@@ -35,7 +35,7 @@ import {
   seedAuthorizedIntent,
   readWorkspaceAction,
   fetchRaw,
-  type BrainAction,
+  type OsabioAction,
 } from "./oauth-test-kit";
 
 const getRuntime = setupOAuthSuite("oauth_m5_consent_identity");
@@ -45,7 +45,7 @@ const getRuntime = setupOAuthSuite("oauth_m5_consent_identity");
 // =============================================================================
 
 describe("Consent display for pending intents", () => {
-  it("brain_action is rendered in human-readable form for review", async () => {
+  it("osabio_action is rendered in human-readable form for review", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a high-risk intent waiting in the veto window
@@ -54,8 +54,8 @@ describe("Consent display for pending intents", () => {
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "consent-agent");
     const keyPair = await generateActorKeyPair();
 
-    const brainAction: BrainAction = {
-      type: "brain_action",
+    const osabioAction: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "invoice",
       constraints: {
@@ -66,7 +66,7 @@ describe("Consent display for pending intents", () => {
     };
 
     const intentId = await seedIntentWithStatus(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
       "pending_veto",
     );
 
@@ -124,10 +124,10 @@ describe("Consent actions from human review", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "approve-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedIntentWithStatus(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
       "pending_veto",
     );
 
@@ -158,14 +158,14 @@ describe("Consent actions from human review", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "veto-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction: BrainAction = {
-      type: "brain_action",
+    const osabioAction: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "decision",
     };
 
     const intentId = await seedIntentWithStatus(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
       "pending_veto",
     );
 
@@ -201,8 +201,8 @@ describe("Consent actions from human review", () => {
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "constrain-agent");
     const keyPair = await generateActorKeyPair();
 
-    const originalAction: BrainAction = {
-      type: "brain_action",
+    const originalAction: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 10 },
@@ -221,7 +221,7 @@ describe("Consent actions from human review", () => {
         headers: { "Content-Type": "application/json", ...user.headers },
         body: JSON.stringify({
           constrained_authorization_details: [{
-            type: "brain_action",
+            type: "osabio_action",
             action: "update",
             resource: "task",
             constraints: { max_changes: 3 }, // Tighter than original 10
@@ -251,8 +251,8 @@ describe("Consent actions from human review", () => {
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "wider-agent");
     const keyPair = await generateActorKeyPair();
 
-    const originalAction: BrainAction = {
-      type: "brain_action",
+    const originalAction: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 3 },
@@ -271,7 +271,7 @@ describe("Consent actions from human review", () => {
         headers: { "Content-Type": "application/json", ...user.headers },
         body: JSON.stringify({
           constrained_authorization_details: [{
-            type: "brain_action",
+            type: "osabio_action",
             action: "update",
             resource: "task",
             constraints: { max_changes: 50 }, // Wider than original 3
@@ -327,16 +327,16 @@ describe("Managed agent identity lifecycle", () => {
     // (The identity resolver should check the managing human's status)
 
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     // And an intent is authorized (bypassing the evaluation for this test)
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // When the agent requests a token
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Then the token request is blocked because the managing human is inactive
@@ -361,14 +361,14 @@ describe("Managed agent identity lifecycle", () => {
     );
 
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     // When the revoked agent tries to submit a new intent
     const response = await submitIntentWithDPoP(
       baseUrl,
       workspace.workspaceId,
       agentId,
-      brainAction,
+      osabioAction,
       keyPair.thumbprint,
       { goal: "Attempt operation with revoked identity" },
     );
@@ -389,14 +389,14 @@ describe("Managed agent identity lifecycle", () => {
     );
 
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     const tokenResponse = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Assume token was issued (if endpoint exists)
@@ -410,7 +410,7 @@ describe("Managed agent identity lifecycle", () => {
     );
 
     // And the agent tries to use the previously-issued token
-    const brainResponse = await (await import("./oauth-test-kit")).makeDPoPProtectedRequest(
+    const osabioResponse = await (await import("./oauth-test-kit")).makeDPoPProtectedRequest(
       baseUrl,
       `/api/mcp/${workspace.workspaceId}/workspace-context`,
       access_token,
@@ -418,7 +418,7 @@ describe("Managed agent identity lifecycle", () => {
     );
 
     // Then the Brain rejects the request because the identity is now revoked
-    expect(brainResponse.ok).toBe(false);
-    expect(brainResponse.status).toBe(401);
+    expect(osabioResponse.ok).toBe(false);
+    expect(osabioResponse.status).toBe(401);
   });
 });

@@ -2,21 +2,21 @@
 
 ## Module Structure
 
-All new components live under `app/src/server/oauth/`. This module is the Custom Authorization Server and Brain resource server DPoP verification layer.
+All new components live under `app/src/server/oauth/`. This module is the Custom Authorization Server and Osabio resource server DPoP verification layer.
 
 ```
 app/src/server/oauth/
-  types.ts              -- Shared types (BrainAction, DPoP claims, token claims)
+  types.ts              -- Shared types (OsabioAction, DPoP claims, token claims)
   dpop.ts               -- DPoP proof validation, JWK thumbprint computation
   nonce-cache.ts         -- Time-windowed nonce set (replay protection)
   token-issuer.ts        -- DPoP-bound access token signing
   intent-submission.ts   -- Intent creation with DPoP thumbprint binding
   token-endpoint.ts      -- Custom AS token endpoint handler
   bridge.ts              -- Bridge exchange endpoint handler
-  dpop-middleware.ts     -- Brain resource server DPoP verification pipeline
-  rar-verifier.ts        -- brain_action operation scope verification
-  route-action-map.ts    -- HTTP route -> brain_action mapping
-  consent-renderer.ts    -- brain_action to human-readable display
+  dpop-middleware.ts     -- Osabio resource server DPoP verification pipeline
+  rar-verifier.ts        -- osabio_action operation scope verification
+  route-action-map.ts    -- HTTP route -> osabio_action mapping
+  consent-renderer.ts    -- osabio_action to human-readable display
   audit.ts               -- Authorization audit event logging
 ```
 
@@ -26,9 +26,9 @@ app/src/server/oauth/
 
 **Responsibility**: Algebraic data types for the entire oauth module.
 
-- `BrainAction` -- authorization_details entry: `{ type: "brain_action", action, resource, constraints? }`
+- `OsabioAction` -- authorization_details entry: `{ type: "osabio_action", action, resource, constraints? }`
 - `DPoPProofClaims` -- DPoP JWT payload: `{ jti, htm, htu, iat }`
-- `DPoPBoundTokenClaims` -- issued access token payload with `cnf.jkt`, `authorization_details`, `urn:brain:intent_id`
+- `DPoPBoundTokenClaims` -- issued access token payload with `cnf.jkt`, `authorization_details`, `urn:osabio:intent_id`
 - `TokenIssuanceResult` -- discriminated union: `{ ok: true, token } | { ok: false, error, code }`
 - `DPoPValidationResult` -- discriminated union: `{ valid: true, thumbprint } | { valid: false, error, code }`
 
@@ -64,7 +64,7 @@ app/src/server/oauth/
 **Responsibility**: Sign DPoP-bound access tokens with Custom AS key.
 
 - Accept authorized intent data + DPoP thumbprint
-- Produce signed JWT with: `sub`, `cnf.jkt`, `authorization_details`, `urn:brain:intent_id`, `urn:brain:workspace`, `exp`
+- Produce signed JWT with: `sub`, `cnf.jkt`, `authorization_details`, `urn:osabio:intent_id`, `urn:osabio:workspace`, `exp`
 - Token TTL configurable (default 300s)
 - Uses ES256 signing key (injected)
 
@@ -75,7 +75,7 @@ app/src/server/oauth/
 
 **Responsibility**: Extend existing intent creation with DPoP binding fields.
 
-- Validate `authorization_details` contains type "brain_action"
+- Validate `authorization_details` contains type "osabio_action"
 - Require `dpop_jwk_thumbprint` field
 - Store both in intent record
 - Trigger existing evaluation pipeline
@@ -87,7 +87,7 @@ app/src/server/oauth/
 
 **Responsibility**: Custom AS token issuance endpoint.
 
-- Accept `grant_type=urn:brain:intent-authorization` + `intent_id` + DPoP proof
+- Accept `grant_type=urn:osabio:intent-authorization` + `intent_id` + DPoP proof
 - Validate DPoP proof
 - Verify intent exists, status = "authorized", not expired
 - Verify proof key thumbprint matches intent `dpop_jwk_thumbprint`
@@ -105,7 +105,7 @@ app/src/server/oauth/
 - Accept Better Auth session cookie + DPoP proof + `authorization_details`
 - Validate Better Auth session is active (call Better Auth API)
 - Resolve human identity from session
-- Create implicit intent for the requested brain_action
+- Create implicit intent for the requested osabio_action
 - Run through evaluation pipeline (auto-approve for low-risk reads)
 - Issue DPoP-bound token via token issuer
 - Log audit event
@@ -115,7 +115,7 @@ app/src/server/oauth/
 
 ### 8. DPoP Middleware (`dpop-middleware.ts`)
 
-**Responsibility**: Brain resource server request verification pipeline. Replaces `authenticateMcpRequest`.
+**Responsibility**: Osabio resource server request verification pipeline. Replaces `authenticateMcpRequest`.
 
 - Extract `Authorization: DPoP <token>` and `DPoP: <proof>` headers
 - Reject Bearer tokens, session cookies, missing headers with 401 "dpop_required"
@@ -133,8 +133,8 @@ app/src/server/oauth/
 
 **Responsibility**: Match requested operation against token's authorization_details.
 
-- Extract requested brain_action from API route + request body (via route-action-map)
-- Match type (must be "brain_action"), action, resource
+- Extract requested osabio_action from API route + request body (via route-action-map)
+- Match type (must be "osabio_action"), action, resource
 - Verify constraint bounds (numeric: requested <= authorized)
 - Produce specific error codes: `authorization_details_mismatch`, `authorization_params_exceeded`
 
@@ -143,9 +143,9 @@ app/src/server/oauth/
 
 ### 10. Route-Action Map (`route-action-map.ts`)
 
-**Responsibility**: Map HTTP method + path to brain_action.
+**Responsibility**: Map HTTP method + path to osabio_action.
 
-- Deterministic mapping: same request always produces same brain_action
+- Deterministic mapping: same request always produces same osabio_action
 - Configurable per route (MCP endpoints, entity endpoints, etc.)
 - Extract constraint values from request body where applicable
 
@@ -154,7 +154,7 @@ app/src/server/oauth/
 
 ### 11. Consent Renderer (`consent-renderer.ts`)
 
-**Responsibility**: Transform brain_action authorization_details into human-readable display.
+**Responsibility**: Transform osabio_action authorization_details into human-readable display.
 
 - Map action verbs to human labels ("create" -> "Create")
 - Map resource types to human labels ("invoice" -> "Invoice")
@@ -225,7 +225,7 @@ All dependencies point inward. Effect boundaries are at the endpoint handlers (`
 
 The existing `intent/` module is extended, not replaced:
 
-- `intent/types.ts`: Add `authorization_details` (BrainAction[]) and `dpop_jwk_thumbprint` (string) to `IntentRecord`
+- `intent/types.ts`: Add `authorization_details` (OsabioAction[]) and `dpop_jwk_thumbprint` (string) to `IntentRecord`
 - `intent/authorizer.ts`: `EvaluateIntentInput` updated to accept `authorization_details` alongside `action_spec` (backward compatible during transition)
 - `intent/intent-queries.ts`: Queries updated to read/write new fields
 

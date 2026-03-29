@@ -26,7 +26,7 @@ phases:
         description: "Create agent-options.ts (pure buildAgentOptions) and spawn-agent.ts (query() invocation returning AgentHandle). Add @anthropic-ai/claude-agent-sdk dependency."
         criteria:
           - "buildAgentOptions produces valid SDK options from AgentSpawnConfig"
-          - "Brain MCP server configured as stdio transport in options"
+          - "Osabio MCP server configured as stdio transport in options"
           - "spawnAgent returns AgentHandle with messages AsyncIterable and abort function"
           - "Spawn failure rejects the returned promise (no partial state)"
         files_to_modify:
@@ -103,10 +103,10 @@ phases:
         name: "CLI init OpenCode removal"
         description: "Remove setupOpencode() from init.ts. Remove OPENCODE_PLUGIN_CONTENT, buildOpencodeJsonContent(), and OPENCODE_MD_CONTENT from init-content.ts."
         criteria:
-          - "brain init no longer creates opencode.json or OPENCODE.md"
-          - "brain init still configures auth, MCP, hooks, CLAUDE.md, commands, git hooks"
+          - "osabio init no longer creates opencode.json or OPENCODE.md"
+          - "osabio init still configures auth, MCP, hooks, CLAUDE.md, commands, git hooks"
           - "No OpenCode-specific exports remain in init-content.ts"
-          - "BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS exports preserved (Claude Code integration unchanged)"
+          - "OSABIO_HOOKS, OSABIO_CLAUDE_MD, OSABIO_COMMANDS exports preserved (Claude Code integration unchanged)"
           - "Only OPENCODE_PLUGIN_CONTENT, buildOpencodeJsonContent(), OPENCODE_MD_CONTENT removed"
         files_to_modify:
           - cli/commands/init.ts

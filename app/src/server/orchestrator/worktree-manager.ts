@@ -49,7 +49,7 @@ export type ShellExec = (
 // Pure helpers: path and branch construction
 // ---------------------------------------------------------------------------
 
-const WORKTREE_DIR = ".brain/worktrees";
+const WORKTREE_DIR = ".osabio/worktrees";
 const BRANCH_PREFIX = "agent/";
 const WORKTREE_PREFIX = "agent-";
 

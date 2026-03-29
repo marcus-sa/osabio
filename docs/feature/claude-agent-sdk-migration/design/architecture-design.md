@@ -10,36 +10,36 @@ Replace the OpenCode-based coding agent orchestrator with the Claude Agent SDK. 
 
 ```mermaid
 C4Context
-    title System Context: Brain with Claude Agent SDK
+    title System Context: Osabio with Claude Agent SDK
 
-    Person(user, "Developer", "Uses Brain web UI to manage workspace and dispatch coding tasks")
+    Person(user, "Developer", "Uses Osabio web UI to manage workspace and dispatch coding tasks")
     Person(agent, "Claude Agent", "Autonomous coding agent executing tasks in worktrees")
 
-    System(brain, "Brain Platform", "Knowledge graph + orchestrator for AI-assisted development")
+    System(osabio, "Osabio Platform", "Knowledge graph + orchestrator for AI-assisted development")
 
     System_Ext(anthropic, "Anthropic API", "Claude model inference via Agent SDK")
     System_Ext(surrealdb, "SurrealDB", "Knowledge graph persistence")
     System_Ext(git, "Git", "Worktree isolation for agent branches")
 
-    Rel(user, brain, "Dispatches tasks, reviews output", "HTTPS/SSE")
+    Rel(user, osabio, "Dispatches tasks, reviews output", "HTTPS/SSE")
     Rel(brain, anthropic, "Sends query(), receives AsyncIterable<Message>", "HTTPS")
     Rel(brain, surrealdb, "Reads/writes entities, sessions", "HTTP/WS")
     Rel(brain, git, "Creates/removes worktrees", "CLI")
-    Rel(agent, brain, "Calls Brain MCP tools", "stdio")
+    Rel(agent, osabio, "Calls Osabio MCP tools", "stdio")
 ```
 
 ## C4 Container (L2)
 
 ```mermaid
 C4Container
-    title Container: Brain Platform Orchestrator
+    title Container: Osabio Platform Orchestrator
 
     Person(user, "Developer")
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(web, "Web UI", "React/TanStack Router", "Agent session panel, SSE stream consumer")
-        Container(server, "Brain Server", "Bun/TypeScript", "HTTP API, SSE registry, orchestrator, chat agent")
-        Container(cli, "Brain CLI", "Bun compiled binary", "brain init, brain mcp, brain system hooks")
+        Container(server, "Osabio Server", "Bun/TypeScript", "HTTP API, SSE registry, orchestrator, chat agent")
+        Container(cli, "Brain CLI", "Bun compiled binary", "osabio init, osabio mcp, osabio system hooks")
         ContainerDb(surreal, "SurrealDB", "Document/Graph DB", "Knowledge graph, sessions, entities")
     }
 
@@ -51,8 +51,8 @@ C4Container
     Rel(server, anthropic, "query() -> AsyncIterable<Message>", "HTTPS")
     Rel(server, surreal, "CRUD sessions/entities", "HTTP")
     Rel(server, git, "createWorktree/removeWorktree", "CLI")
-    Rel(server, cli, "Spawns brain mcp as stdio MCP server", "stdio")
-    Rel(cli, server, "Calls Brain HTTP API for tool execution", "HTTP")
+    Rel(server, cli, "Spawns osabio mcp as stdio MCP server", "stdio")
+    Rel(cli, server, "Calls Osabio HTTP API for tool execution", "HTTP")
 ```
 
 ## C4 Component (L3): Orchestrator Module
@@ -65,7 +65,7 @@ C4Component
         Component(routes, "routes.ts", "HTTP handlers", "Request parsing, response building, route wiring")
         Component(lifecycle, "session-lifecycle.ts", "Session state machine", "create/abort/accept/reject/review/prompt + handle registry")
         Component(spawn, "spawn-agent.ts", "Agent spawner [NEW]", "Calls query(), returns AgentHandle with abort + event iterator")
-        Component(options, "agent-options.ts", "Options builder [NEW]", "Pure function: BrainConfig -> AgentSDK Options")
+        Component(options, "agent-options.ts", "Options builder [NEW]", "Pure function: OsabioConfig -> AgentSDK Options")
         Component(bridge, "event-bridge.ts", "Event translator [MODIFIED]", "SDK Message -> StreamEvent transform + bridge handle")
         Component(stall, "stall-detector.ts", "Stall monitor", "Timeout + step limit checks [UNCHANGED]")
         Component(guard, "assignment-guard.ts", "Assignment validator", "Task eligibility checks [UNCHANGED]")
@@ -74,7 +74,7 @@ C4Component
     }
 
     System_Ext(sdk, "Claude Agent SDK", "@anthropic-ai/claude-agent-sdk")
-    System_Ext(mcp, "Brain MCP Server", "brain mcp CLI")
+    System_Ext(mcp, "Osabio MCP Server", "osabio mcp CLI")
     Container(sse, "SSE Registry", "Event delivery to browser")
 
     Rel(routes, lifecycle, "Delegates session operations")
@@ -85,7 +85,7 @@ C4Component
     Rel(lifecycle, worktree, "Creates/removes worktrees")
     Rel(spawn, sdk, "Calls query() with options")
     Rel(spawn, options, "Calls buildAgentOptions()")
-    Rel(options, mcp, "Configures stdio transport for brain mcp")
+    Rel(options, mcp, "Configures stdio transport for osabio mcp")
     Rel(bridge, sse, "Emits transformed StreamEvents")
 ```
 
@@ -96,7 +96,7 @@ C4Component
 | Component | Responsibility | Replaces |
 |-----------|---------------|----------|
 | `spawn-agent.ts` | Invokes `query()`, returns `AgentHandle` | `spawn-opencode.ts` (full replacement) |
-| `agent-options.ts` | Pure function building SDK `Options` from Brain config | `config-builder.ts` (full replacement) |
+| `agent-options.ts` | Pure function building SDK `Options` from Osabio config | `config-builder.ts` (full replacement) |
 
 ### Modified Components
 
@@ -163,9 +163,9 @@ abortOrchestratorSession()
 
 ## Integration Patterns
 
-### Brain MCP Server (stdio transport)
+### Osabio MCP Server (stdio transport)
 
-The Agent SDK supports MCP servers as stdio subprocesses. Brain MCP is configured as:
+The Agent SDK supports MCP servers as stdio subprocesses. Osabio MCP is configured as:
 
 ```
 mcpServers: {
@@ -174,26 +174,26 @@ mcpServers: {
     command: "brain",
     args: ["mcp"],
     env: {
-      BRAIN_SERVER_URL: brainBaseUrl,
-      BRAIN_WORKSPACE_ID: workspaceId
+      OSABIO_SERVER_URL: brainBaseUrl,
+      OSABIO_WORKSPACE_ID: workspaceId
     }
   }
 }
 ```
 
-This eliminates the HTTP-based MCP relay from OpenCode. The SDK spawns `brain mcp` as a child process with stdio IPC -- the same MCP server used by Claude Code, zero duplicate tool definitions.
+This eliminates the HTTP-based MCP relay from OpenCode. The SDK spawns `osabio mcp` as a child process with stdio IPC -- the same MCP server used by Claude Code, zero duplicate tool definitions.
 
 ### Lifecycle Hooks
 
 Hooks are callback functions passed in the `Options` object. They execute at specific agent lifecycle points:
 
-| Hook | When | Brain Action |
+| Hook | When | Osabio Action |
 |------|------|-------------|
-| `SessionStart` | Agent session begins | Load workspace/project context via Brain API |
-| `PreToolUse` | Before each tool call | Inject brain context for subagent dispatches |
+| `SessionStart` | Agent session begins | Load workspace/project context via Osabio API |
+| `PreToolUse` | Before each tool call | Inject osabio context for subagent dispatches |
 | `UserPromptSubmit` | Follow-up prompt sent | Check for workspace-level graph updates |
 | `Stop` | Agent reaches stop point | Catch unlogged decisions/observations |
-| `PreCompact` | Context compaction triggered | Preserve brain context across compaction |
+| `PreCompact` | Context compaction triggered | Preserve osabio context across compaction |
 | `SessionEnd` | Session terminates | Record session summary in knowledge graph |
 
 Hook callbacks MUST NOT block the agent loop. Non-critical hooks (PreToolUse, UserPromptSubmit) use fire-and-forget with error swallowing. Critical hooks (SessionEnd) await with timeout.
@@ -215,7 +215,7 @@ SDK `Message` types map to existing `StreamEvent` contract:
 ### Maintainability
 - Single agent runtime integration (vs. dual OpenCode + plugin)
 - SDK message types are TypeScript-typed (vs. untyped OpenCode SSE events)
-- Hook logic reuses existing `brain system` commands
+- Hook logic reuses existing `osabio system` commands
 
 ### Reliability
 - AbortController-based cancellation (deterministic cleanup)
@@ -239,5 +239,5 @@ SDK `Message` types map to existing `StreamEvent` contract:
 - **New dependency**: `@anthropic-ai/claude-agent-sdk` (bundles Claude Code binary, ~50MB)
 - **New env var**: `ANTHROPIC_API_KEY` (required for SDK authentication)
 - **Removed dependency**: `@opencode-ai/sdk`
-- **Binary size impact**: CLI binary (`brain`) built with `bun build --compile` will increase due to SDK bundle
+- **Binary size impact**: CLI binary (`osabio`) built with `bun build --compile` will increase due to SDK bundle
 - **No schema migration needed**: `agent_session` table unchanged; `opencode_session_id` field becomes unused (can be removed in future cleanup migration)

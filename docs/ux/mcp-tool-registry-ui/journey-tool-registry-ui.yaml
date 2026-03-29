@@ -16,7 +16,7 @@ journey:
       jobs: [J1]
     - id: workspace_member
       name: "Carlos Mendez"
-      role: "Senior developer using Brain-connected coding agents daily"
+      role: "Senior developer using Osabio-connected coding agents daily"
       motivation: "Let agents act on his behalf via OAuth or API keys"
       jobs: [J2]
 

@@ -5,7 +5,7 @@
 
 ## 1. Overview
 
-Workspace admins connect external MCP servers by URL. Brain acts as an MCP **client**, calls `tools/list` to discover available tools, and creates `mcp_tool` records from the response. Re-syncs are on-demand -- the admin clicks "Sync" when they want to check for changes. The same MCP client module is used for tool execution in the proxy pipeline (ADR-071).
+Workspace admins connect external MCP servers by URL. Osabio acts as an MCP **client**, calls `tools/list` to discover available tools, and creates `mcp_tool` records from the response. Re-syncs are on-demand -- the admin clicks "Sync" when they want to check for changes. The same MCP client module is used for tool execution in the proxy pipeline (ADR-071).
 
 ## 2. Scope
 
@@ -19,7 +19,7 @@ Workspace admins connect external MCP servers by URL. Brain acts as an MCP **cli
 - **Credential injection**: resolve credentials from linked credential_provider and inject into MCP transport headers
 
 ### Out of scope
-- Bidirectional MCP -- Brain does not expose its own tools to the connected server during discovery
+- Bidirectional MCP -- Osabio does not expose its own tools to the connected server during discovery
 - Persistent connections or `listChanged` subscriptions (ADR-070)
 - mTLS or custom TLS for MCP connections (standard HTTPS only)
 
@@ -93,7 +93,7 @@ type McpClientFactory = (
 
 1. **User selects transport** in the connection dialog (default: `streamable-http`)
 2. **Auto-detect fallback**: if `streamable-http` fails with 4xx, retry with `sse` and update stored transport field
-3. No stdio transport -- Brain server connects over HTTP only
+3. No stdio transport -- Osabio server connects over HTTP only
 
 ### 4.3 Credential injection
 
@@ -281,9 +281,9 @@ type UseMcpServersReturn = {
 
 1. Admin clicks **"Sync"** on an existing server row
 2. `POST /mcp-servers/:id/discover?dry_run=true` -> review panel shows diff:
-   - **New**: tools on server not in Brain (action: create)
+   - **New**: tools on server not in Osabio (action: create)
    - **Updated**: tools with changed schema (expandable diff view)
-   - **Removed**: tools in Brain not on server (action: disable)
+   - **Removed**: tools in Osabio not on server (action: disable)
    - **Unchanged**: collapsed by default
 3. Admin confirms -> `POST /mcp-servers/:id/sync`
 
@@ -323,7 +323,7 @@ For most MCP servers, server-level credentials are sufficient (the MCP server au
 ## 9. Security Considerations
 
 - **URL validation**: Only allow `http://` and `https://` URLs. No `file://`, `javascript://`, etc.
-- **SSRF protection**: Brain server makes outbound HTTP connections to admin-provided URLs. Consider allowlist or network-level restriction for production.
+- **SSRF protection**: Osabio server makes outbound HTTP connections to admin-provided URLs. Consider allowlist or network-level restriction for production.
 - **Credential isolation**: MCP client headers are injected per-connection, never logged or returned in API responses.
 - **Transport downgrade**: Auto-detect fallback from streamable-http to SSE is safe (both are HTTP). No downgrade to unencrypted if original URL is HTTPS.
 - **Connection lifecycle**: On-demand only -- no persistent connections. Each discover/sync/execute is short-lived.

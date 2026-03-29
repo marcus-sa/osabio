@@ -2,7 +2,7 @@
 
 ## System Context
 
-The agent management feature adds a CRUD interface for workspace agents within the existing Brain monolith. No new containers or external services are introduced. The feature extends the existing identity hub-spoke pattern, authority resolution, proxy token issuance, and SurrealDB graph schema.
+The agent management feature adds a CRUD interface for workspace agents within the existing Osabio monolith. No new containers or external services are introduced. The feature extends the existing identity hub-spoke pattern, authority resolution, proxy token issuance, and SurrealDB graph schema.
 
 ### C4 System Context (L1)
 
@@ -13,13 +13,13 @@ C4Context
   Person(admin, "Workspace Admin", "Manages agent fleet via web dashboard")
   Person(dev, "Developer", "Registers external agents, configures authority")
 
-  System(brain, "Brain", "Knowledge graph operating system for autonomous organizations")
+  System(osabio, "Osabio", "Knowledge graph operating system for autonomous organizations")
 
   System_Ext(ext_agent, "External Agent", "User-managed agent authenticating via proxy token")
   System_Ext(sandbox_env, "Sandbox Environment", "Isolated execution environment: local/e2b/daytona/docker")
 
-  Rel(admin, brain, "Creates, views, deletes agents via")
-  Rel(dev, brain, "Registers external agents, configures authority scopes via")
+  Rel(admin, osabio, "Creates, views, deletes agents via")
+  Rel(dev, osabio, "Registers external agents, configures authority scopes via")
   Rel(brain, ext_agent, "Issues proxy tokens to")
   Rel(brain, sandbox_env, "Spawns sandbox sessions in")
 ```
@@ -72,7 +72,7 @@ All new code lives under `app/src/server/agents/` -- a new domain module followi
 | Identity bootstrap | `workspace/identity-bootstrap.ts` | Set `runtime: "brain"` on template agents |
 | Agent activator | `reactive/agent-activator.ts` | Query `runtime` instead of `agent_type` for agent matching |
 | Authority resolution | `iam/authority.ts` | Resolve via `identity.role` (already works) + query by identity `authorized_to` edges (already works) |
-| MCP auth | `mcp/auth.ts` | Replace `urn:brain:agent_type` claim with `urn:brain:role` or identity-based lookup |
+| MCP auth | `mcp/auth.ts` | Replace `urn:osabio:agent_type` claim with `urn:osabio:role` or identity-based lookup |
 | MCP token validation | `mcp/token-validation.ts` | Update claim type from `agent_type` to `role` |
 | Auth config | `auth/config.ts` | Remove hardcoded `agent_type: "code_agent"` from token claims |
 | Proxy policy evaluator | `proxy/policy-evaluator.ts` | Replace `agent_type` references with identity role lookup |
@@ -128,7 +128,7 @@ Creates agent with atomic transaction. Returns created agent + proxy token (exte
 
 **Response** (201): `{ agent: AgentRecord, proxy_token?: string, workspace_id: string }`
 
-The `proxy_token` field is present only for external agents and contains the raw token (shown once, `brp_` prefix). `workspace_id` is included so the UI can display connection instructions without a separate lookup.
+The `proxy_token` field is present only for external agents and contains the raw token (shown once, `osp_` prefix). `workspace_id` is included so the UI can display connection instructions without a separate lookup.
 
 **Error responses**:
 - `400 { error: "invalid_runtime" }` — runtime is "brain" or invalid
@@ -167,7 +167,7 @@ SurrealDB transactions guarantee atomicity. The creation flow executes in a sing
 
 ### Authority Scope Edge Mechanism
 
-Custom agents do NOT use `authority_scope` seed data (those rows are keyed by `agent_type` for brain agents only — see ADR-083). Instead, the `authorized_to` edges for custom agents store the permission directly on the edge, with `out` pointing to a synthetic scope identifier.
+Custom agents do NOT use `authority_scope` seed data (those rows are keyed by `agent_type` for osabio agents only — see ADR-083). Instead, the `authorized_to` edges for custom agents store the permission directly on the edge, with `out` pointing to a synthetic scope identifier.
 
 The 11 configurable actions (from the `authority_scope` schema ASSERT):
 1. `create_decision` 2. `confirm_decision` 3. `create_task` 4. `complete_task`
@@ -278,7 +278,7 @@ UPDATE agent SET runtime = IF agent_type IN ['code_agent', 'mcp'] THEN 'external
 END;
 
 -- Backfill name from identity (via identity_agent edge)
--- Brain agents get their identity name
+-- Osabio agents get their identity name
 UPDATE agent SET name = (SELECT VALUE in.name FROM identity_agent WHERE out = $parent.id LIMIT 1)[0]
   WHERE name IS NONE OR name = '';
 
@@ -323,7 +323,7 @@ The migration follows a parallel-write / incremental-read pattern across 3 relea
 ### R1 (Walking Skeleton)
 1. Migration 0081 adds `runtime`, `name`, `sandbox_config` fields
 2. Migration 0082 adds workspace sandbox provider setting
-3. Identity bootstrap writes both `agent_type` and `runtime` for brain agents
+3. Identity bootstrap writes both `agent_type` and `runtime` for osabio agents
 4. New agent CRUD writes `runtime` only (no `agent_type` for custom agents)
 5. Agent list endpoint reads `runtime` field
 6. Authority resolution continues using `identity.role` + `authorized_to` edges (no change needed)
@@ -389,7 +389,7 @@ New spans follow the wide-event pattern:
 - Page loads target < 2s for 50 agents
 
 ### Security (NFR-2)
-- Proxy tokens use existing `proxy-token-core.ts` (SHA-256 hashing, `brp_` prefix, 64 hex chars)
+- Proxy tokens use existing `proxy-token-core.ts` (SHA-256 hashing, `osp_` prefix, 64 hex chars)
 - All endpoints require Better Auth session
 - Delete requires name confirmation (destructive action safety)
 
@@ -410,7 +410,7 @@ New spans follow the wide-event pattern:
 
 ## Deployment
 
-No infrastructure changes. The feature deploys as part of the existing Brain monolith. Schema migrations applied via `bun migrate` before server restart.
+No infrastructure changes. The feature deploys as part of the existing Osabio monolith. Schema migrations applied via `bun migrate` before server restart.
 
 ## Architectural Enforcement
 

@@ -21,7 +21,7 @@ Add policy entities as nodes in the Reagraph force-directed graph with `governin
 ### Domain Examples
 
 #### 1: Happy Path -- Policy with multiple governed identities
-Rena Okafor opens the workspace graph for "Brain". Policy "Agent Budget Guard" (active, version 3) appears as a distinctly-colored node. Two `governing` edges connect identities "ci-agent" and "dev-agent" to the policy. A `protects` edge connects the policy to the workspace node.
+Rena Okafor opens the workspace graph for "Osabio". Policy "Agent Budget Guard" (active, version 3) appears as a distinctly-colored node. Two `governing` edges connect identities "ci-agent" and "dev-agent" to the policy. A `protects` edge connects the policy to the workspace node.
 
 #### 2: Edge Case -- Superseded policy chain
 Rena views the graph and sees "Agent Budget Guard v3" (active). She clicks it and the entity detail shows a `supersedes` relationship to "Agent Budget Guard v2" (superseded). The superseded policy does not appear as a node in the overview graph but is visible in the detail panel.
@@ -32,19 +32,19 @@ Rena's workspace has 5 policies: 2 active, 1 testing, 1 deprecated, 1 draft. The
 ### UAT Scenarios (BDD)
 
 #### Scenario: Active policy appears as graph node
-Given Rena Okafor's workspace "Brain" has an active policy "Agent Budget Guard"
+Given Rena Okafor's workspace "Osabio" has an active policy "Agent Budget Guard"
 And identity "ci-agent" is governed by "Agent Budget Guard"
 When Rena opens the workspace graph view
 Then a node with label "Agent Budget Guard" and kind "policy" appears
 And a "governing" edge connects "ci-agent" to "Agent Budget Guard"
 
 #### Scenario: Policy protects workspace edge
-Given policy "Agent Budget Guard" protects workspace "Brain"
+Given policy "Agent Budget Guard" protects workspace "Osabio"
 When Rena opens the workspace graph view
 Then a "protects" edge connects "Agent Budget Guard" to the workspace node
 
 #### Scenario: Deprecated policy excluded from graph
-Given workspace "Brain" has a deprecated policy "Old Budget Rule"
+Given workspace "Osabio" has a deprecated policy "Old Budget Rule"
 When Rena opens the workspace graph view
 Then no node appears for "Old Budget Rule"
 

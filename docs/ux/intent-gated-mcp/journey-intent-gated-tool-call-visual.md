@@ -5,14 +5,14 @@
 | Actor | Type | Interface |
 |-------|------|-----------|
 | Coding Agent (in sandbox) | Machine | MCP protocol (tools/list, tools/call, create_intent) |
-| Human Operator | Human | Brain Feed/UI (approve/veto intents) |
+| Human Operator | Human | Osabio Feed/UI (approve/veto intents) |
 | Observer Agent | Machine | Graph scan + adapter.resumeSession |
-| Workspace Admin | Human | Brain Policy Management UI |
+| Workspace Admin | Human | Osabio Policy Management UI |
 
 ## Flow: Happy Path (Auto-Approve)
 
 ```
-Coding Agent                  Brain Dynamic MCP Endpoint           Brain Intent System
+Coding Agent                  Osabio Dynamic MCP Endpoint           Osabio Intent System
      |                                    |                               |
      |-- tools/list ------------------>   |                               |
      |                                    |-- resolve session intents     |
@@ -32,7 +32,7 @@ Coding Agent                  Brain Dynamic MCP Endpoint           Brain Intent 
 ## Flow: Intent Escalation (Gated Tool, Auto-Approve Policy)
 
 ```
-Coding Agent                  Brain MCP Endpoint        Intent System          Policy Gate
+Coding Agent                  Osabio MCP Endpoint        Intent System          Policy Gate
      |                              |                        |                      |
      |-- tools/call("stripe:       |                        |                      |
      |     create_refund") -------->|                        |                      |
@@ -62,7 +62,7 @@ Coding Agent                  Brain MCP Endpoint        Intent System          P
 ## Flow: Intent Escalation with Human Veto (Yield-and-Resume)
 
 ```
-Coding Agent        Brain MCP          Intent System     Human Operator    Observer
+Coding Agent        Osabio MCP          Intent System     Human Operator    Observer
      |                  |                    |                 |               |
      |-- tools/call --->|                    |                 |               |
      |<-- 403           |                    |                 |               |
@@ -104,7 +104,7 @@ Coding Agent        Brain MCP          Intent System     Human Operator    Obser
 ## Flow: Rejected Intent
 
 ```
-Coding Agent        Brain MCP          Intent System     Policy Gate
+Coding Agent        Osabio MCP          Intent System     Policy Gate
      |                  |                    |                 |
      |-- tools/call --->|                    |                 |
      |<-- 403           |                    |                 |

@@ -1,11 +1,11 @@
 ---
-name: brain-start-task
-description: Start working on a specific task from the Brain knowledge graph
+name: osabio-start-task
+description: Start working on a specific task from the Osabio knowledge graph
 user_invocable: true
 args: task_id
 ---
 
-# /brain-start-task <task_id>
+# /osabio-start-task <task_id>
 
 Start a task-scoped session focused on a specific task.
 
@@ -18,7 +18,7 @@ Start a task-scoped session focused on a specific task.
 5. Show related decisions and constraints
 6. Call `update_task_status` to set the task to "in_progress" if it's currently "todo" or "ready"
 7. If the task has no subtasks, analyze what needs to be done and offer to create subtasks via `create_subtask`
-8. Begin implementation, using Brain MCP tools throughout:
+8. Begin implementation, using Osabio MCP tools throughout:
    - `resolve_decision` when hitting implementation choices
    - `check_constraints` before adding dependencies or changing approaches
    - `create_provisional_decision` when making choices the graph doesn't cover

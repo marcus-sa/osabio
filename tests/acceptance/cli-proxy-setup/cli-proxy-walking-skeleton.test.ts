@@ -8,7 +8,7 @@
  * Each skeleton builds on the previous. Implement in order.
  * Driving ports:
  *   - POST /api/auth/proxy-token
- *   - POST /proxy/llm/anthropic/v1/messages (with X-Brain-Auth)
+ *   - POST /proxy/llm/anthropic/v1/messages (with X-Osabio-Auth)
  */
 import { describe, expect, it } from "bun:test";
 import {
@@ -30,7 +30,7 @@ describe("Skeleton 1: Proxy token issuance", () => {
     // Given Priya has completed OAuth and has a valid session
     const user = await createProxyTestUser(baseUrl, surreal, "skel1");
 
-    // When brain init Step 7 requests a proxy token
+    // When osabio init Step 7 requests a proxy token
     const response = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
 
     // Then the server returns a proxy token with brp_ prefix
@@ -56,17 +56,17 @@ describe("Skeleton 1: Proxy token issuance", () => {
 // Skeleton 2: Proxy request with Brain auth header succeeds
 // ---------------------------------------------------------------------------
 describe("Skeleton 2: Brain-authenticated proxy request", () => {
-  it("forwards a request to Anthropic using server-held API key when X-Brain-Auth is valid", async () => {
+  it("forwards a request to Anthropic using server-held API key when X-Osabio-Auth is valid", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given Priya has a valid proxy token from brain init
+    // Given Priya has a valid proxy token from osabio init
     const user = await createProxyTestUser(baseUrl, surreal, "skel2");
 
     const tokenResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(tokenResponse.status).toBe(200);
     const { proxy_token } = await tokenResponse.json() as { proxy_token: string };
 
-    // When Claude Code sends a request through the proxy with X-Brain-Auth
+    // When Claude Code sends a request through the proxy with X-Osabio-Auth
     // (no x-api-key — the server uses its own Anthropic key)
     const proxyResponse = await sendBrainAuthProxyRequest(baseUrl, proxy_token, {
       model: "claude-sonnet-4-20250514",

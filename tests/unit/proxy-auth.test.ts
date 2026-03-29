@@ -2,7 +2,7 @@
  * Unit Tests: Proxy Auth Middleware (Pure Functions)
  *
  * Tests the proxy authentication pipeline:
- *   - Header extraction (X-Brain-Auth)
+ *   - Header extraction (X-Osabio-Auth)
  *   - Token resolution with cache hit/miss
  *   - Expired/revoked/invalid token rejection
  *   - Cache TTL behavior
@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
-  extractBrainAuthToken,
+  extractOsabioAuthToken,
   resolveProxyAuth,
   getCachedAuth,
   setCachedAuth,
@@ -28,10 +28,10 @@ import { hashProxyToken } from "../../app/src/server/proxy/proxy-token-core";
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeHeaders(brainAuth?: string): Headers {
+function makeHeaders(osabioAuth?: string): Headers {
   const headers = new Headers();
-  if (brainAuth !== undefined) {
-    headers.set("X-Brain-Auth", brainAuth);
+  if (osabioAuth !== undefined) {
+    headers.set("X-Osabio-Auth", osabioAuth);
   }
   return headers;
 }
@@ -65,33 +65,33 @@ const VALID_RECORD: ProxyTokenRecord = {
 };
 
 // ---------------------------------------------------------------------------
-// extractBrainAuthToken
+// extractOsabioAuthToken
 // ---------------------------------------------------------------------------
 
-describe("extractBrainAuthToken", () => {
-  it("returns token when X-Brain-Auth header is present", () => {
+describe("extractOsabioAuthToken", () => {
+  it("returns token when X-Osabio-Auth header is present", () => {
     const headers = makeHeaders(VALID_TOKEN);
-    expect(extractBrainAuthToken(headers)).toBe(VALID_TOKEN);
+    expect(extractOsabioAuthToken(headers)).toBe(VALID_TOKEN);
   });
 
   it("returns undefined when header is missing", () => {
     const headers = makeHeaders();
-    expect(extractBrainAuthToken(headers)).toBeUndefined();
+    expect(extractOsabioAuthToken(headers)).toBeUndefined();
   });
 
   it("returns undefined when header is empty string", () => {
     const headers = makeHeaders("");
-    expect(extractBrainAuthToken(headers)).toBeUndefined();
+    expect(extractOsabioAuthToken(headers)).toBeUndefined();
   });
 
   it("returns undefined when header is whitespace-only", () => {
     const headers = makeHeaders("   ");
-    expect(extractBrainAuthToken(headers)).toBeUndefined();
+    expect(extractOsabioAuthToken(headers)).toBeUndefined();
   });
 
   it("trims whitespace from token value", () => {
     const headers = makeHeaders(`  ${VALID_TOKEN}  `);
-    expect(extractBrainAuthToken(headers)).toBe(VALID_TOKEN);
+    expect(extractOsabioAuthToken(headers)).toBe(VALID_TOKEN);
   });
 });
 
@@ -132,7 +132,7 @@ describe("getCachedAuth", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveProxyAuth", () => {
-  it("returns undefined when no X-Brain-Auth header is present (pass-through)", async () => {
+  it("returns undefined when no X-Osabio-Auth header is present (pass-through)", async () => {
     const headers = makeHeaders();
     const cache = createTokenCache();
     const result = await resolveProxyAuth(
@@ -262,6 +262,6 @@ describe("resolveProxyAuth", () => {
 
     const expectedHash = hashProxyToken(VALID_TOKEN);
     expect(calls[0]).toBe(expectedHash);
-    expect(calls[0]).not.toContain("brp_");
+    expect(calls[0]).not.toContain("osp_");
   });
 });

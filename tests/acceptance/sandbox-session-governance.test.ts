@@ -7,7 +7,7 @@
  * Scenarios:
  *   PW-1: proxy_token record has intent + session fields after spawn
  *   PW-2: session env includes ANTHROPIC_BASE_URL pointing to proxy
- *   PW-3: session env includes X-Brain-Auth via ANTHROPIC_CUSTOM_HEADERS
+ *   PW-3: session env includes X-Osabio-Auth via ANTHROPIC_CUSTOM_HEADERS
  *
  * Driving port: POST /api/orchestrator/:ws/assign
  */
@@ -93,7 +93,7 @@ describe("Proxy Token Wiring: Sandbox Session Governance", () => {
   }, 30_000);
 
   // PW-2: session env includes ANTHROPIC_BASE_URL pointing to proxy
-  it("adapter receives ANTHROPIC_BASE_URL pointing to brain proxy", async () => {
+  it("adapter receives ANTHROPIC_BASE_URL pointing to osabio proxy", async () => {
     const { baseUrl, surreal, sandboxAgentAdapter } = getRuntime();
 
     // Given a developer with a workspace and task
@@ -114,8 +114,8 @@ describe("Proxy Token Wiring: Sandbox Session Governance", () => {
     expect(lastRequest!.env!.ANTHROPIC_BASE_URL).toContain("/proxy/llm/anthropic");
   }, 30_000);
 
-  // PW-3: session env includes X-Brain-Auth via ANTHROPIC_CUSTOM_HEADERS
-  it("adapter receives ANTHROPIC_CUSTOM_HEADERS with X-Brain-Auth header", async () => {
+  // PW-3: session env includes X-Osabio-Auth via ANTHROPIC_CUSTOM_HEADERS
+  it("adapter receives ANTHROPIC_CUSTOM_HEADERS with X-Osabio-Auth header", async () => {
     const { baseUrl, surreal, sandboxAgentAdapter } = getRuntime();
 
     // Given a developer with a workspace and task
@@ -123,19 +123,19 @@ describe("Proxy Token Wiring: Sandbox Session Governance", () => {
     const workspace = await createWorkspaceViaHttp(baseUrl, user, surreal, { repoPath: process.cwd() });
     const task = await createTaskDirectly(surreal, workspace.workspaceId, {
       title: "Verify auth token in env",
-      description: "Check X-Brain-Auth is passed via ANTHROPIC_CUSTOM_HEADERS",
+      description: "Check X-Osabio-Auth is passed via ANTHROPIC_CUSTOM_HEADERS",
     });
 
     // When the developer assigns the task to a sandbox agent
     await assignTask(baseUrl, user, workspace.workspaceId, task.taskId);
 
-    // Then the adapter received env with ANTHROPIC_CUSTOM_HEADERS containing X-Brain-Auth
+    // Then the adapter received env with ANTHROPIC_CUSTOM_HEADERS containing X-Osabio-Auth
     const lastRequest = sandboxAgentAdapter?.lastCreateSessionRequest;
     expect(lastRequest).toBeDefined();
     expect(lastRequest!.env).toBeDefined();
     const customHeaders = lastRequest!.env!.ANTHROPIC_CUSTOM_HEADERS;
     expect(customHeaders).toBeDefined();
-    // Format: "X-Brain-Auth: brp_<token>"
-    expect(customHeaders).toMatch(/^X-Brain-Auth: brp_/);
+    // Format: "X-Osabio-Auth: brp_<token>"
+    expect(customHeaders).toMatch(/^X-Osabio-Auth: brp_/);
   }, 30_000);
 });

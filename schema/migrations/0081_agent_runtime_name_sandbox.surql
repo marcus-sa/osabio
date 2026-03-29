@@ -11,13 +11,13 @@ UPDATE agent SET name = agent_type WHERE name IS NONE OR name = '';
 
 -- Backfill runtime from agent_type
 UPDATE agent SET runtime = IF agent_type IN ['code_agent', 'mcp'] THEN 'external'
-  ELSE 'brain'
+  ELSE 'osabio'
 END
 WHERE runtime IS NONE OR runtime = '';
 
 -- Step 3: Now all records have values — tighten to required with assertions
 DEFINE FIELD OVERWRITE runtime ON agent TYPE string
-  ASSERT $value IN ['brain', 'sandbox', 'external'];
+  ASSERT $value IN ['osabio', 'sandbox', 'external'];
 
 DEFINE FIELD OVERWRITE name ON agent TYPE string;
 

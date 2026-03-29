@@ -1,12 +1,12 @@
 /**
  * Consent Renderer -- pure functions for human-readable authorization display.
  *
- * Transforms brain_action authorization_details into display labels,
+ * Transforms osabio_action authorization_details into display labels,
  * formats provider-specific values, and validates tighter-bounds constraints.
  *
  * Pure domain logic -- no IO imports.
  */
-import type { BrainAction } from "./types";
+import type { OsabioAction } from "./types";
 
 // ---------------------------------------------------------------------------
 // Display types
@@ -80,7 +80,7 @@ function formatCentsToDollars(cents: number): string {
 // Full consent display rendering
 // ---------------------------------------------------------------------------
 
-export function renderConsentDisplay(action: BrainAction): ConsentDisplay {
+export function renderConsentDisplay(action: OsabioAction): ConsentDisplay {
   const display: ConsentDisplay = {
     action_display: renderActionLabel(action.action),
     resource_display: renderResourceLabel(action.resource),
@@ -103,8 +103,8 @@ export function renderConsentDisplay(action: BrainAction): ConsentDisplay {
 // ---------------------------------------------------------------------------
 
 export function validateTighterBounds(
-  original: BrainAction,
-  proposed: BrainAction,
+  original: OsabioAction,
+  proposed: OsabioAction,
 ): BoundsValidationResult {
   const violations: string[] = [];
 

@@ -27,9 +27,9 @@ function makePushEvent(overrides: {
   return {
     ref: overrides.ref ?? `refs/heads/${defaultBranch}`,
     repository: {
-      full_name: "acme/brain",
+      full_name: "acme/osabio",
       default_branch: defaultBranch,
-      html_url: "https://github.com/acme/brain",
+      html_url: "https://github.com/acme/osabio",
     },
     commits: overrides.commits ?? [],
   };
@@ -113,7 +113,7 @@ describe("GitHub push to feature branch sets task to done (US-5)", () => {
         id: sha,
         message: `task:${taskId} implement login flow`,
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com", username: "marcus-sa" },
       }],
     });
@@ -161,7 +161,7 @@ describe("GitHub push to feature branch sets task to done (US-5)", () => {
         id: sha,
         message: `task:${taskId} minor cleanup`,
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com" },
       }],
     });
@@ -209,7 +209,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
         id: sha,
         message: `task:${taskId} finalize login flow`,
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com", username: "marcus-sa" },
       }],
     });
@@ -246,7 +246,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
         id: sha,
         message: `task:${taskId} direct commit to main`,
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com" },
       }],
     });
@@ -281,7 +281,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
         id: sha,
         message: `task:${taskId} already completed`,
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com" },
       }],
     });
@@ -321,7 +321,7 @@ describe("GitHub push to main sets task to completed (US-6)", () => {
       id: sha,
       message: `task:${taskId} implement feature`,
       timestamp: new Date().toISOString(),
-      url: `https://github.com/acme/brain/commit/${sha}`,
+      url: `https://github.com/acme/osabio/commit/${sha}`,
       author: { name: "Marcus", email: "marcus@test.com", username: "marcus-sa" },
     };
 
@@ -386,7 +386,7 @@ describe("push without task refs does not affect task status", () => {
         id: sha,
         message: "refactor: clean up imports",
         timestamp: new Date().toISOString(),
-        url: `https://github.com/acme/brain/commit/${sha}`,
+        url: `https://github.com/acme/osabio/commit/${sha}`,
         author: { name: "Marcus", email: "marcus@test.com" },
       }],
     });

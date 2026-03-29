@@ -1,8 +1,8 @@
-# Brain
+# Osabio
 
 **The operating system for autonomous organizations.**
 
-Your agents have amnesia. They can't talk to each other. You spend 80% of your time as a high-paid secretary, copy-pasting context between them. Brain is the self-correcting knowledge graph that gives your agents shared memory, governed autonomy, and verifiable intent.
+Your agents have amnesia. They can't talk to each other. You spend 80% of your time as a high-paid secretary, copy-pasting context between them. Osabio is the self-correcting knowledge graph that gives your agents shared memory, governed autonomy, and verifiable intent.
 
 ---
 
@@ -18,7 +18,7 @@ You already use AI agents. Your coding agent writes your code. Your chat assista
 - Re-explain project state every time you start a new session
 - Context-switch between tools, losing continuity at every step
 
-Every agent you add makes it worse. Brain fixes this — not by replacing your agents, but by giving them shared memory.
+Every agent you add makes it worse. Osabio fixes this — not by replacing your agents, but by giving them shared memory.
 
 ## Architecture
 
@@ -43,7 +43,7 @@ Integration Layer
   → GitHub / Slack / Git Hooks / MCP Protocol / ERC-8004
 ```
 
-| Approach | Agent swarms / message buses | Knowledge graph (Brain) |
+| Approach | Agent swarms / message buses | Knowledge graph (Osabio) |
 |----------|------------------------------|------------------------|
 | Logic | Scripted workflows (if A, do B) | State-based graph (emergent logic) |
 | Memory | Ephemeral, session-based | Persistent, pruned, versioned |
@@ -62,7 +62,7 @@ Each agent has a role, a domain, and authority scopes. They coordinate through t
 - **Strategist** — Market positioning, pricing, GTM, competitive response. Challenges product decisions against business viability.
 - **Management** — Task tracking, priority management, execution velocity. Flags blocked work, stale decisions, and resource conflicts.
 - **Coding Agents (via MCP)** — Your existing tools (Cursor, Aider, Codex, Claude Code) connected to the graph. Context injected on session start. Decisions, observations, and questions flow back automatically.
-- **Design Partner** — Brainstorms product ideas, asks probing questions, identifies gaps. Shapes vague ideas into structured projects, features, and decisions.
+- **Design Partner** — Osabiostorms product ideas, asks probing questions, identifies gaps. Shapes vague ideas into structured projects, features, and decisions.
 - **Observer** — Continuously scans the graph for contradictions between decisions, stale tasks, status drift, and cross-project conflicts. Findings are verified through LLM reasoning pipelines with confidence scoring and evidence tracking. A peer review layer cross-validates observations to prevent false positives. Synthesizes recurring patterns into actionable suggestions. Proposes learnings from root cause analysis so the system self-corrects.
 
 ## How Coordination Works
@@ -97,13 +97,13 @@ No agent messages another agent. They write structured signals to the knowledge 
 
 Autonomous systems don't fail from lack of intelligence. They fail from drift — slow divergence between what the system believes and what's actually true.
 
-- **Context Drift** — Decisions made in v1.0 become poison for v2.0. Brain uses temporal decay — nodes that aren't referenced lose weight over time. The Observer continuously scans for contradictions between decisions, verifies them with LLM reasoning, and synthesizes patterns into learnings that prevent repeat mistakes.
-- **Authority Drift** — Too autonomous = dangerous. Too locked down = a dashboard. Brain uses tiered authority scopes — from zero-human atomic actions to multi-model consensus for high-stakes moves. Agents operate within risk budgets, not permission checkboxes.
-- **Reality Drift** — If the Brain only reads its own graph, it's a delusion engine. The Observer performs truth audits — verifying claims against actual state through LLM verification pipelines with confidence scoring. Peer review cross-validates findings. When reality diverges from the graph, the system triggers a desync alert.
+- **Context Drift** — Decisions made in v1.0 become poison for v2.0. Osabio uses temporal decay — nodes that aren't referenced lose weight over time. The Observer continuously scans for contradictions between decisions, verifies them with LLM reasoning, and synthesizes patterns into learnings that prevent repeat mistakes.
+- **Authority Drift** — Too autonomous = dangerous. Too locked down = a dashboard. Osabio uses tiered authority scopes — from zero-human atomic actions to multi-model consensus for high-stakes moves. Agents operate within risk budgets, not permission checkboxes.
+- **Reality Drift** — If the Osabio only reads its own graph, it's a delusion engine. The Observer performs truth audits — verifying claims against actual state through LLM verification pipelines with confidence scoring. Peer review cross-validates findings. When reality diverges from the graph, the system triggers a desync alert.
 
 ## Verifiable Autonomy
 
-Most autonomous platforms are black boxes. Brain is a signed logic trace. Every decision, every dollar, every line of code has a provenance chain back to the intent that authorized it.
+Most autonomous platforms are black boxes. Osabio is a signed logic trace. Every decision, every dollar, every line of code has a provenance chain back to the intent that authorized it.
 
 - **Governance telemetry** — Every decision is a node with a UUID, author, timestamp, and reasoning. Auditors can query the graph directly.
 - **Signed intent chains** — When an agent spends money or merges code, the graph records which intent authorized it, which authority scope permitted it, and which human approved it.
@@ -135,12 +135,12 @@ The knowledge graph that coordinates your agents shouldn't be a black box you re
 
 ```bash
 # One-time workspace setup
-$ brain init
+$ osabio init
 # Opens browser → authenticate → approve scopes
 # ✓ Connected to workspace
 
 # Start a task-scoped session
-$ brain start task:implement-rate-limiting
+$ osabio start task:implement-rate-limiting
 # Context: 3 decisions, 2 constraints, 1 open question
 # Task status: todo → in_progress
 
@@ -279,28 +279,28 @@ Build CLI:
 
 ```bash
 bun run build:cli
-# outputs ./brain
+# outputs ./osabio
 ```
 
 Initialize repo integration:
 
 ```bash
-BRAIN_SERVER_URL=http://localhost:3000 \
-BRAIN_WORKSPACE_ID=<workspace-id> \
-brain init
+OSABIO_SERVER_URL=http://localhost:3000 \
+OSABIO_WORKSPACE_ID=<workspace-id> \
+osabio init
 ```
 
-`brain init` sets up:
-- `~/.brain/config.json` auth entry
+`osabio init` sets up:
+- `~/.osabio/config.json` auth entry
 - `.mcp.json` server registration
 - `.claude/settings.json` hooks
 - `CLAUDE.md` integration block
-- Brain slash commands and git hooks
+- Osabio slash commands and git hooks
 
 Run MCP directly:
 
 ```bash
-brain mcp
+osabio mcp
 ```
 
 ## Useful Scripts
@@ -331,7 +331,7 @@ app/
     behavior/                   # behavior telemetry, scorer, definitions, trend analysis
     chat/                       # chat agent, tools, context
     extraction/                 # extraction pipeline
-cli/                            # brain CLI + MCP server
+cli/                            # osabio CLI + MCP server
 schema/
   surreal-schema.surql          # base schema
   migrations/                   # versioned migrations

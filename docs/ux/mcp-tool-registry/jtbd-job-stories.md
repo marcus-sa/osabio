@@ -24,7 +24,7 @@
 
 ## Job 3: Transparent Tool Injection (Agent/Proxy)
 
-**Job Story**: "When an agent routes an LLM request through Brain's proxy, I want the right integration and context tools injected into the request automatically, so agents get a unified toolset without knowing how discovery works."
+**Job Story**: "When an agent routes an LLM request through Osabio's proxy, I want the right integration and context tools injected into the request automatically, so agents get a unified toolset without knowing how discovery works."
 
 **Dimensions**:
 - **Functional**: Resolve identity -> resolve effective toolset (direct grants + skill-derived) -> inject tool definitions alongside runtime tools

@@ -62,12 +62,12 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
 
     // When the agent submits an intent declaring what it wants to do,
     // binding the request to its key pair thumbprint
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const intentResponse = await submitIntentWithDPoP(
       baseUrl,
       workspace.workspaceId,
       agentId,
-      brainAction,
+      osabioAction,
       keyPair.thumbprint,
       {
         goal: "Read workspace context to understand current project state",
@@ -103,7 +103,7 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
       baseUrl,
       intentResult.intent_id,
       keyPair,
-      [brainAction],
+      [osabioAction],
     );
 
     // Then the Custom AS issues a DPoP-bound access token
@@ -114,7 +114,7 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
     expect(tokenResult.expires_in).toBeLessThanOrEqual(300);
 
     // When the agent presents the token with a fresh proof to a Brain endpoint
-    const brainResponse = await makeDPoPProtectedRequest(
+    const osabioResponse = await makeDPoPProtectedRequest(
       baseUrl,
       `/api/mcp/${workspace.workspaceId}/workspace-context`,
       tokenResult.access_token,
@@ -122,7 +122,7 @@ describe("Walking Skeleton: Agent acquires authorization and accesses Brain", ()
     );
 
     // Then the Brain resource server verifies the proof and grants access
-    expect(brainResponse.ok).toBe(true);
+    expect(osabioResponse.ok).toBe(true);
   }, 120_000);
 });
 
@@ -143,12 +143,12 @@ describe("Walking Skeleton: Human exchanges session for token and accesses Brain
 
     // When the dashboard exchanges the session for a DPoP-bound token
     // requesting permission to read workspace data
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const bridgeResponse = await exchangeSessionForToken(
       baseUrl,
       user.headers,
       keyPair,
-      brainAction,
+      osabioAction,
     );
 
     // Then the Bridge issues a DPoP-bound token (same format as agent tokens)
@@ -158,7 +158,7 @@ describe("Walking Skeleton: Human exchanges session for token and accesses Brain
     expect(bridgeResult.token_type).toBe("DPoP");
 
     // When the human presents the token with a fresh proof to a Brain endpoint
-    const brainResponse = await makeDPoPProtectedRequest(
+    const osabioResponse = await makeDPoPProtectedRequest(
       baseUrl,
       `/api/mcp/${workspace.workspaceId}/workspace-context`,
       bridgeResult.access_token,
@@ -166,6 +166,6 @@ describe("Walking Skeleton: Human exchanges session for token and accesses Brain
     );
 
     // Then the Brain resource server verifies identically to agent path
-    expect(brainResponse.ok).toBe(true);
+    expect(osabioResponse.ok).toBe(true);
   }, 120_000);
 });

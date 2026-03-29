@@ -55,7 +55,7 @@ DEFINE FIELD priority ON intent TYPE int;
 DEFINE FIELD action_spec ON intent TYPE object FLEXIBLE;
 -- action_spec fields: provider (string), action (string), params (option<object>)
 DEFINE FIELD authorization_details ON intent TYPE option<array<object>> FLEXIBLE;
--- Each element: { type: "brain_action", action: string, resource: string, constraints?: object }
+-- Each element: { type: "osabio_action", action: string, resource: string, constraints?: object }
 DEFINE FIELD workspace ON intent TYPE record<workspace>;
 DEFINE FIELD requester ON intent TYPE record<identity>;
 -- ... evaluation, veto, trace fields omitted for brevity
@@ -151,7 +151,7 @@ WHERE out = $session
 ```typescript
 type IntentScopeRow = {
   intent_id: RecordId<"intent", string>;
-  authorization_details: BrainAction[] | undefined;
+  authorization_details: OsabioAction[] | undefined;
 };
 ```
 
@@ -232,9 +232,9 @@ WHERE out.orchestrator_status = "idle"
 
 ---
 
-## ActionSpec-to-BrainAction Mapping
+## ActionSpec-to-OsabioAction Mapping
 
-When the agent calls `create_intent`, the `action_spec` is mapped to `authorization_details` (array of `BrainAction`):
+When the agent calls `create_intent`, the `action_spec` is mapped to `authorization_details` (array of `OsabioAction`):
 
 ```typescript
 // Input from agent
@@ -244,9 +244,9 @@ const actionSpec: ActionSpec = {
   params: { amount: 5000, currency: "usd" }
 };
 
-// Derived BrainAction for authorization_details
-const brainAction: BrainAction = {
-  type: "brain_action",
+// Derived OsabioAction for authorization_details
+const brainAction: OsabioAction = {
+  type: "osabio_action",
   action: "execute",
   resource: `mcp_tool:${actionSpec.provider}:${actionSpec.action}`,
   constraints: actionSpec.params  // only policy-relevant params become constraints
@@ -255,12 +255,12 @@ const brainAction: BrainAction = {
 
 The `resource` field uses a composite identifier: `mcp_tool:<provider>:<action>`. This allows policies to match on provider wildcards (`mcp_tool:stripe:*`) or specific tools (`mcp_tool:stripe:create_refund`).
 
-For composite intents, the `authorization_details` array contains multiple `BrainAction` entries:
+For composite intents, the `authorization_details` array contains multiple `OsabioAction` entries:
 
 ```typescript
-const compositeDetails: BrainAction[] = [
-  { type: "brain_action", action: "execute", resource: "mcp_tool:stripe:list_charges" },
-  { type: "brain_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
+const compositeDetails: OsabioAction[] = [
+  { type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:list_charges" },
+  { type: "osabio_action", action: "execute", resource: "mcp_tool:stripe:create_refund",
     constraints: { amount: 5000, currency: "usd" } },
 ];
 ```
@@ -276,7 +276,7 @@ Input: session gates edges, identity can_use grants
 2. Flatten all intents' authorization_details -> EffectiveScope.authorizedActions
 3. Query can_use grants for identity -> granted tools
 4. For each granted tool:
-   a. If tool name is in brainNativeToolNames -> classify as "brain_native"
+   a. If tool name is in brainNativeToolNames -> classify as "osabio_native"
    b. Else, check if any authorizedAction matches the tool (by resource):
       - resource = "mcp_tool:{tool.toolkit}:{tool.name}"
       - If match found -> classify as "authorized" (with matching intent)

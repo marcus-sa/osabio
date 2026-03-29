@@ -37,7 +37,7 @@ steps:
 
     gherkin: |
       Scenario: Navigate to learning library
-        Given Marcus is logged into workspace "brain-v1"
+        Given Marcus is logged into workspace "osabio-v1"
         When Marcus clicks "Learnings" in the sidebar
         Then the learning library page loads
         And the Active tab is selected by default
@@ -68,7 +68,7 @@ steps:
     gherkin: |
       Scenario: Browse active learnings
         Given Marcus is on the learning library page
-        And there are 12 active learnings in workspace "brain-v1"
+        And there are 12 active learnings in workspace "osabio-v1"
         When the Active tab is selected
         Then 12 learning cards are displayed
         And each card shows: text preview, type badge, priority, target agents, source

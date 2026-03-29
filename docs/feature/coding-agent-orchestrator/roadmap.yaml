@@ -45,10 +45,10 @@ phases:
   - id: 01-03
     name: Worktree manager (create)
     description: >
-      Create isolated git worktree per assignment at .brain/worktrees/agent-{taskSlug}
+      Create isolated git worktree per assignment at .osabio/worktrees/agent-{taskSlug}
       with agent/{taskSlug} branch prefix. Pure git CLI adapter with no internal deps.
     criteria: >
-      Worktree created at .brain/worktrees/ with unique agent/ prefixed branch.
+      Worktree created at .osabio/worktrees/ with unique agent/ prefixed branch.
       Separate worktrees for different task assignments do not interfere.
       Worktree directory and branch name returned to caller.
     files_to_modify:
@@ -238,11 +238,11 @@ phases:
       files, opencode.json, and OPENCODE.md.
     criteria: >
       Plugin file exports tool registrations and lifecycle hooks.
-      brain init --opencode generates .opencode/plugins/brain.ts.
+      osabio init --opencode generates .opencode/plugins/osabio.ts.
       Generated opencode.json references Brain plugin.
       Generated OPENCODE.md contains agent instructions.
     files_to_modify:
-    - .opencode/plugins/brain.ts
+    - .opencode/plugins/osabio.ts
     - cli/commands/init.ts
     - cli/commands/init-content.ts
     dependencies:

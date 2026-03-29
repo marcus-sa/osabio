@@ -850,7 +850,7 @@ ws.onmessage = (event) => {
 - [G6 Angular Integration](https://g6.antv.antgroup.com/en/manual/getting-started/integration/angular) - confirms framework-agnostic pattern
 - Prior research: [Svelte Alternatives to Reagraph](docs/research/graph-visualization-svelte-alternatives-to-reagraph.md)
 
-**Analysis**: [Interpretation] G6 has no official Svelte integration, but the vanilla JS API maps cleanly to Svelte's lifecycle hooks. The pattern is straightforward: `onMount` for initialization, `onDestroy` for cleanup, reactive statements for data updates. For The Pulse, SSE events from Brain's streaming API can drive graph mutations via the data operations API. The key consideration is that `graph.draw()` is async -- in rapid-fire update scenarios, updates should be queued and batched before calling `draw()` to avoid excessive re-renders. A debounced draw pattern (collect updates for 16ms, then draw) would be optimal.
+**Analysis**: [Interpretation] G6 has no official Svelte integration, but the vanilla JS API maps cleanly to Svelte's lifecycle hooks. The pattern is straightforward: `onMount` for initialization, `onDestroy` for cleanup, reactive statements for data updates. For The Pulse, SSE events from Osabio's streaming API can drive graph mutations via the data operations API. The key consideration is that `graph.draw()` is async -- in rapid-fire update scenarios, updates should be queued and batched before calling `draw()` to avoid excessive re-renders. A debounced draw pattern (collect updates for 16ms, then draw) would be optimal.
 
 ---
 
@@ -998,9 +998,9 @@ ws.onmessage = (event) => {
 
 4. **Evaluate @antv/g direct API** -- for effects not covered by G6's animation abstraction (particle systems, custom shaders, glow effects), the underlying @antv/g rendering engine provides lower-level WebGL access that may be necessary.
 
-5. **Test WASM layout in browser context** -- the @antv/layout-wasm package requires SharedArrayBuffer, which needs specific CORS headers (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`). Verify compatibility with Brain's server configuration.
+5. **Test WASM layout in browser context** -- the @antv/layout-wasm package requires SharedArrayBuffer, which needs specific CORS headers (`Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp`). Verify compatibility with Osabio's server configuration.
 
-6. **Assess SSE integration pattern** -- Brain uses Server-Sent Events (not WebSocket). Design the update pattern around SSE EventSource with a batched draw queue (collect events for 16ms frame, then call `graph.draw()`).
+6. **Assess SSE integration pattern** -- Osabio uses Server-Sent Events (not WebSocket). Design the update pattern around SSE EventSource with a batched draw queue (collect events for 16ms frame, then call `graph.draw()`).
 
 ---
 
@@ -1059,4 +1059,4 @@ ws.onmessage = (event) => {
 - **Sources Cited**: 22
 - **Cross-References Performed**: 14 (all major findings)
 - **Confidence Distribution**: High: 64%, Medium-High: 22%, Medium: 14%
-- **Output File**: /Users/marcus/Git/brain/docs/research/antv-g6-v5-api-deep-dive.md
+- **Output File**: /Users/marcus/Git/osabio/docs/research/antv-g6-v5-api-deep-dive.md

@@ -10,30 +10,30 @@
 
 import { metrics } from "@opentelemetry/api";
 
-const meter = metrics.getMeter("brain-server");
+const meter = metrics.getMeter("osabio-server");
 
 // ---------------------------------------------------------------------------
 // LLM instruments
 // ---------------------------------------------------------------------------
 
 /** LLM call latency in milliseconds. */
-export const llmDurationHistogram = meter.createHistogram("brain.llm.duration", {
+export const llmDurationHistogram = meter.createHistogram("osabio.llm.duration", {
   description: "LLM call latency",
   unit: "ms",
 });
 
 /** Prompt token usage counter. */
-export const llmPromptTokensCounter = meter.createCounter("brain.llm.prompt_tokens", {
+export const llmPromptTokensCounter = meter.createCounter("osabio.llm.prompt_tokens", {
   description: "Prompt token usage",
 });
 
 /** Completion token usage counter. */
-export const llmCompletionTokensCounter = meter.createCounter("brain.llm.completion_tokens", {
+export const llmCompletionTokensCounter = meter.createCounter("osabio.llm.completion_tokens", {
   description: "Completion token usage",
 });
 
 /** LLM error count. */
-export const llmErrorsCounter = meter.createCounter("brain.llm.errors", {
+export const llmErrorsCounter = meter.createCounter("osabio.llm.errors", {
   description: "LLM error count",
 });
 
@@ -42,13 +42,13 @@ export const llmErrorsCounter = meter.createCounter("brain.llm.errors", {
 // ---------------------------------------------------------------------------
 
 /** HTTP request latency in milliseconds. */
-export const httpDurationHistogram = meter.createHistogram("brain.http.duration", {
+export const httpDurationHistogram = meter.createHistogram("osabio.http.duration", {
   description: "HTTP request latency",
   unit: "ms",
 });
 
 /** HTTP request count. */
-export const httpRequestsCounter = meter.createCounter("brain.http.requests", {
+export const httpRequestsCounter = meter.createCounter("osabio.http.requests", {
   description: "HTTP request count",
 });
 
@@ -57,6 +57,6 @@ export const httpRequestsCounter = meter.createCounter("brain.http.requests", {
 // ---------------------------------------------------------------------------
 
 /** Extracted entity count. */
-export const extractionEntitiesCounter = meter.createCounter("brain.extraction.entities", {
+export const extractionEntitiesCounter = meter.createCounter("osabio.extraction.entities", {
   description: "Extracted entity count",
 });

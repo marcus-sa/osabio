@@ -31,7 +31,7 @@ const getRuntime = setupAcceptanceSuite("llm_proxy_context_injection");
 // Walking Skeleton: Workspace knowledge enriches agent's LLM request
 // ---------------------------------------------------------------------------
 describe("Walking Skeleton: Workspace decisions and learnings injected into request", () => {
-  it("appends a brain-context block with relevant decisions and learnings to the forwarded request", async () => {
+  it("appends a osabio-context block with relevant decisions and learnings to the forwarded request", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-ci-skel-${crypto.randomUUID()}`;
@@ -74,10 +74,10 @@ describe("Walking Skeleton: Workspace decisions and learnings injected into requ
 
     // The trace input metadata shows context injection occurred
     const trace = traces[0] as any;
-    expect(trace.input?.brain_context_injected).toBe(true);
-    expect(trace.input?.brain_context_decisions).toBeGreaterThanOrEqual(1);
-    expect(trace.input?.brain_context_learnings).toBeGreaterThanOrEqual(1);
-    expect(trace.input?.brain_context_tokens_est).toBeGreaterThan(0);
+    expect(trace.input?.osabio_context_injected).toBe(true);
+    expect(trace.input?.osabio_context_decisions).toBeGreaterThanOrEqual(1);
+    expect(trace.input?.osabio_context_learnings).toBeGreaterThanOrEqual(1);
+    expect(trace.input?.osabio_context_tokens_est).toBeGreaterThan(0);
   }, 30_000);
 });
 
@@ -120,13 +120,13 @@ describe("Context injection disabled -- request forwarded without modification",
     const traces = await getTracesForWorkspace(surreal, workspaceId);
     expect(traces.length).toBeGreaterThanOrEqual(1);
     const trace = traces[0] as any;
-    // brain_context_injected should be false or absent
-    expect(trace.input?.brain_context_injected).toBeFalsy();
+    // osabio_context_injected should be false or absent
+    expect(trace.input?.osabio_context_injected).toBeFalsy();
   }, 30_000);
 });
 
 describe("Empty workspace -- no context block appended", () => {
-  it("forwards request without brain-context when workspace has no decisions or learnings", async () => {
+  it("forwards request without osabio-context when workspace has no decisions or learnings", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-ci-empty-${crypto.randomUUID()}`;
@@ -146,7 +146,7 @@ describe("Empty workspace -- no context block appended", () => {
       workspaceHeader: workspaceId,
     });
 
-    // Then the response succeeds without any brain-context block
+    // Then the response succeeds without any osabio-context block
     expect(response.status).toBe(200);
 
     // And the trace shows no context was injected (empty pool)
@@ -154,7 +154,7 @@ describe("Empty workspace -- no context block appended", () => {
     const traces = await getTracesForWorkspace(surreal, workspaceId);
     expect(traces.length).toBeGreaterThanOrEqual(1);
     const trace = traces[0] as any;
-    expect(trace.input?.brain_context_injected).toBeFalsy();
+    expect(trace.input?.osabio_context_injected).toBeFalsy();
   }, 30_000);
 });
 

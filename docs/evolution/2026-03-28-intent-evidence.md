@@ -11,7 +11,7 @@ Added a deterministic evidence verification layer to the intent authorization pi
 
 ### Business Context
 
-Brain's intent authorization system previously relied solely on LLM risk assessment. An agent could fabricate free-text reasoning to justify any action. Evidence-backed authorization grounds decisions in verifiable system state — agents must cite real graph records, and the system validates those citations deterministically before the expensive LLM evaluation.
+Osabio's intent authorization system previously relied solely on LLM risk assessment. An agent could fabricate free-text reasoning to justify any action. Evidence-backed authorization grounds decisions in verifiable system state — agents must cite real graph records, and the system validates those citations deterministically before the expensive LLM evaluation.
 
 ### Capabilities Delivered
 

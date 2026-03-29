@@ -4,7 +4,7 @@ Workspace lifecycle — creation, identity bootstrapping, repo path validation, 
 
 ## The Problem
 
-A workspace is the top-level container for everything in Brain — projects, decisions, tasks, conversations, and agent sessions all belong to a workspace. Creating one requires bootstrapping identity records, validating repo paths, initializing conversations, and setting up onboarding state. The workspace module handles this lifecycle and provides efficient data loading for the UI sidebar.
+A workspace is the top-level container for everything in Osabio — projects, decisions, tasks, conversations, and agent sessions all belong to a workspace. Creating one requires bootstrapping identity records, validating repo paths, initializing conversations, and setting up onboarding state. The workspace module handles this lifecycle and provides efficient data loading for the UI sidebar.
 
 ## What It Does
 

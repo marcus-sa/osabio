@@ -7,7 +7,7 @@ import {
   resolveWorkspaceProjectRecord,
 } from "../graph/queries";
 import { listWorkspaceOpenObservations } from "../observation/queries";
-import { listWorkspaceEntitiesSchema } from "../mcp/brain-tool-definitions";
+import { listWorkspaceEntitiesSchema } from "../mcp/osabio-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 

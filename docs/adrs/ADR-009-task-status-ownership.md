@@ -8,7 +8,7 @@ Proposed
 
 Task status transitions are duplicated between the server (orchestrator) and agents/processors:
 
-- `createAgentSession()` sets `in_progress` when a session is created for a task, but the agent also sets `in_progress` via `brain-start-task` -> `update_task_status`. The server transition is optimistic and fires even if the agent never starts work.
+- `createAgentSession()` sets `in_progress` when a session is created for a task, but the agent also sets `in_progress` via `osabio-start-task` -> `update_task_status`. The server transition is optimistic and fires even if the agent never starts work.
 - `acceptOrchestratorSession()` sets `done` when a session is accepted, but this conflates review approval with code completion. A task can have committed code (done) before session review.
 
 This creates orphaned states on agent crashes (task stuck in `in_progress` with no active session) and semantic confusion (what does "done" mean -- code committed or session reviewed?).
@@ -21,7 +21,7 @@ Forward transitions are owned by the entity doing the work. Backward transitions
 
 | Transition | Owner | Trigger |
 |---|---|---|
-| -> in_progress | Agent | `brain-start-task` calls `update_task_status` |
+| -> in_progress | Agent | `osabio-start-task` calls `update_task_status` |
 | -> done | commit-check (local) / GitHub processor (remote) | Commit with task refs |
 | -> completed | GitHub processor | Merge to default branch |
 | -> ready (abort) | Server | Session aborted |
@@ -61,6 +61,6 @@ Transitions are idempotent and forward-only: setting `done` on an already-`done`
 
 ### Negative
 
-- `in_progress` depends on agent calling `update_task_status` -- if agent skips `brain-start-task`, task stays in previous status
+- `in_progress` depends on agent calling `update_task_status` -- if agent skips `osabio-start-task`, task stays in previous status
 - `done` depends on task refs in commit messages -- commits without `task:id` do not trigger status change
 - Small window where commit-check and GitHub processor may both attempt `done` (resolved by idempotency)

@@ -2,23 +2,23 @@
 
 ## 1. System Context
 
-The coding-session feature adds an interactive supervisory layer between Brain's human operator and spawned OpenCode coding agents. It wires existing infrastructure (spawn, event bridge, stall detector, SSE registry) into a live feedback loop.
+The coding-session feature adds an interactive supervisory layer between Osabio's human operator and spawned OpenCode coding agents. It wires existing infrastructure (spawn, event bridge, stall detector, SSE registry) into a live feedback loop.
 
 ### C4 Level 1: System Context
 
 ```mermaid
 graph TB
     User["Marcus (Solo Operator)"]
-    Brain["Brain Platform"]
+    Osabio["Osabio Platform"]
     OpenCode["OpenCode Agent Process"]
     GitRepo["Git Repository (Worktree)"]
     SurrealDB["SurrealDB"]
 
-    User -- "assigns tasks, sends follow-up prompts,\nreviews diffs, accepts/rejects" --> Brain
-    Brain -- "spawns, sends prompts,\nreceives event stream" --> OpenCode
+    User -- "assigns tasks, sends follow-up prompts,\nreviews diffs, accepts/rejects" --> Osabio
+    Osabio -- "spawns, sends prompts,\nreceives event stream" --> OpenCode
     OpenCode -- "edits files in\nisolated worktree" --> GitRepo
-    Brain -- "persists sessions,\nconversation logs" --> SurrealDB
-    Brain -- "streams agent tokens,\nstatus, file changes via SSE" --> User
+    Osabio -- "persists sessions,\nconversation logs" --> SurrealDB
+    Osabio -- "streams agent tokens,\nstatus, file changes via SSE" --> User
 ```
 
 ### C4 Level 2: Container Diagram

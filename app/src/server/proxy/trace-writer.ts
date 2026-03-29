@@ -41,11 +41,11 @@ export type TraceData = {
   };
   // Intelligence metadata (context injection)
   readonly intelligenceMetadata?: {
-    readonly brain_context_injected: boolean;
-    readonly brain_context_decisions: number;
-    readonly brain_context_learnings: number;
-    readonly brain_context_observations: number;
-    readonly brain_context_tokens_est: number;
+    readonly osabio_context_injected: boolean;
+    readonly osabio_context_decisions: number;
+    readonly osabio_context_learnings: number;
+    readonly osabio_context_observations: number;
+    readonly osabio_context_tokens_est: number;
   };
   // Response content (opaque capture per ADR-051)
   readonly responseContent?: {
@@ -107,11 +107,11 @@ async function createTraceNode(
   // Store intelligence metadata in FLEXIBLE input field
   if (data.intelligenceMetadata) {
     content.input = {
-      brain_context_injected: data.intelligenceMetadata.brain_context_injected,
-      brain_context_decisions: data.intelligenceMetadata.brain_context_decisions,
-      brain_context_learnings: data.intelligenceMetadata.brain_context_learnings,
-      brain_context_observations: data.intelligenceMetadata.brain_context_observations,
-      brain_context_tokens_est: data.intelligenceMetadata.brain_context_tokens_est,
+      osabio_context_injected: data.intelligenceMetadata.osabio_context_injected,
+      osabio_context_decisions: data.intelligenceMetadata.osabio_context_decisions,
+      osabio_context_learnings: data.intelligenceMetadata.osabio_context_learnings,
+      osabio_context_observations: data.intelligenceMetadata.osabio_context_observations,
+      osabio_context_tokens_est: data.intelligenceMetadata.osabio_context_tokens_est,
     };
   }
 

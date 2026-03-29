@@ -5,7 +5,7 @@
  * using UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
  *
  * This enables trace grouping via agent_session when no explicit session
- * signal (X-Brain-Session header or Claude Code metadata) is available.
+ * signal (X-Osabio-Session header or Claude Code metadata) is available.
  *
  * Port: SessionHashInput -> SessionHashResult | undefined
  * Side effects: none (pure function)

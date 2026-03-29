@@ -10,7 +10,7 @@ Full-stack UI and backend implementation for managing MCP integration tools thro
 
 ## Business Context
 
-Brain's proxy pipeline already injected tools into LLM requests and classified tool_use responses, but integration tool calls were silently dropped — there was no executor. Admins had no UI to manage providers, accounts, or tool access. This feature closes the loop: tools configured in the UI are discoverable, grantable, governed, and executable.
+Osabio's proxy pipeline already injected tools into LLM requests and classified tool_use responses, but integration tool calls were silently dropped — there was no executor. Admins had no UI to manage providers, accounts, or tool access. This feature closes the loop: tools configured in the UI are discoverable, grantable, governed, and executable.
 
 ## Phases Completed
 
@@ -64,7 +64,7 @@ Brain's proxy pipeline already injected tools into LLM requests and classified t
 ### DESIGN Wave
 - **MCP Protocol execution replaces direct HTTP** — all integration tools execute via MCP `tools/call`
 - **Connect-per-request with intra-request session reuse** — fresh connection per proxy request, reused within multi-turn loop
-- **Unified tool execution in multi-turn loop** — brain-native and integration tools execute in same loop iteration
+- **Unified tool execution in multi-turn loop** — osabio-native and integration tools execute in same loop iteration
 - **MCP client as injected dependency** — `mcpClientFactory` in `ServerDependencies` enables test mocking
 - **Max tool use iterations: 10** — matches documented requirement for realistic multi-tool workflows
 - **MCP server status lifecycle** — `pending → connected → error → disconnected`
@@ -79,7 +79,7 @@ Brain's proxy pipeline already injected tools into LLM requests and classified t
 ## Lessons Learned
 
 1. **SurrealDB reserved words**: `$session` is protected in SurrealDB v3.0 — renamed query parameter to `$sess` to avoid silent failures after retries.
-2. **X-Brain-Auth format**: The proxy token header is raw (no `Bearer` prefix). `sha256("Bearer brn_...")` ≠ `sha256("brn_...")` — documented in AGENTS.md to prevent recurrence.
+2. **X-Osabio-Auth format**: The proxy token header is raw (no `Bearer` prefix). `sha256("Bearer osb_...")` ≠ `sha256("osb_...")` — documented in AGENTS.md to prevent recurrence.
 3. **MSW for proxy testing**: Mock Service Worker cleanly intercepts the proxy's outbound HTTP to Anthropic API, avoiding the need for a separate mock server process.
 4. **RTL preload configuration**: Moving from per-test `GlobalRegistrator` calls to `bunfig.toml` preload directives eliminated setup race conditions across test files.
 5. **Discovery risk override filtering**: Must track `originalRiskLevel` per tool to distinguish intentional overrides from default inferred values in the sync payload.

@@ -2,7 +2,7 @@
 
 ## System Context
 
-Brain is a single-process Bun server (modular monolith) that coordinates AI agents through a SurrealDB knowledge graph. It currently uses Pino for structured logging with `logInfo`/`logWarn`/`logError`/`logDebug` wrappers (411 call sites across 64 files) and `withRequestLogging` for HTTP request lifecycle tracking. This migration replaces all of that with OpenTelemetry's three signals: traces, metrics, and logs.
+Osabio is a single-process Bun server (modular monolith) that coordinates AI agents through a SurrealDB knowledge graph. It currently uses Pino for structured logging with `logInfo`/`logWarn`/`logError`/`logDebug` wrappers (411 call sites across 64 files) and `withRequestLogging` for HTTP request lifecycle tracking. This migration replaces all of that with OpenTelemetry's three signals: traces, metrics, and logs.
 
 ### Quality Attributes Driving Design
 
@@ -19,17 +19,17 @@ Brain is a single-process Bun server (modular monolith) that coordinates AI agen
 ```mermaid
 graph TB
     operator["Developer/Operator<br/>(Marcus)"]
-    brain["Brain Server<br/>(Bun process)"]
+    brain["Osabio Server<br/>(Bun process)"]
     surreal["SurrealDB<br/>(Graph store)"]
     llm["LLM Providers<br/>(OpenRouter/Ollama)"]
     collector["OTLP Collector<br/>(Jaeger/Grafana/etc)"]
     console["Terminal Console<br/>(dev output)"]
 
-    operator -->|"sends requests"| brain
-    brain -->|"reads/writes graph"| surreal
-    brain -->|"LLM calls"| llm
-    brain -->|"exports traces, metrics, logs (prod)"| collector
-    brain -->|"exports traces, metrics, logs (dev)"| console
+    operator -->|"sends requests"| osabio
+    osabio -->|"reads/writes graph"| surreal
+    osabio -->|"LLM calls"| llm
+    osabio -->|"exports traces, metrics, logs (prod)"| collector
+    osabio -->|"exports traces, metrics, logs (dev)"| console
     operator -->|"views traces/metrics/logs"| collector
     operator -->|"reads console output"| console
 ```
@@ -38,7 +38,7 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph brain["Brain Server (Bun Process)"]
+    subgraph brain["Osabio Server (Bun Process)"]
         direction TB
 
         subgraph telemetry["Telemetry Layer (new)"]
@@ -119,7 +119,7 @@ graph TB
 **Responsibility**: Provide ergonomic `log.info()`/`log.warn()`/`log.error()`/`log.debug()` functions backed by the OTEL Logs API. Replace all `logInfo`/`logWarn`/`logError`/`logDebug` call sites.
 
 **Behavior**:
-- Obtains a `Logger` via `logs.getLogger('brain-server')` from `@opentelemetry/api-logs`
+- Obtains a `Logger` via `logs.getLogger('osabio-server')` from `@opentelemetry/api-logs`
 - Each function calls `logger.emit({ body: eventName, severityText, severityNumber, attributes })` with the OTEL severity mapping (DEBUG=5, INFO=9, WARN=13, ERROR=17)
 - Logs emitted within an active span automatically inherit `trace_id` and `span_id` from the OTEL context (built-in OTEL SDK behavior, no manual correlation)
 - Pre-init fallback: if LoggerProvider is not yet registered (early startup), fall back to `console.log`/`console.warn`/`console.error` with a `[brain]` prefix
@@ -135,13 +135,13 @@ graph TB
 
 | Instrument | Type | Name | Attributes |
 |-----------|------|------|------------|
-| `llmDuration` | Histogram | `brain.llm.duration` | functionId, model |
-| `llmPromptTokens` | Counter | `brain.llm.tokens.prompt` | functionId, model |
-| `llmCompletionTokens` | Counter | `brain.llm.tokens.completion` | functionId, model |
-| `llmErrors` | Counter | `brain.llm.errors` | functionId, model, error_type |
-| `httpDuration` | Histogram | `brain.http.duration` | method, route, status_code |
-| `httpRequests` | Counter | `brain.http.requests` | method, route, status_code |
-| `extractionEntities` | Counter | `brain.extraction.entities` | entity_type |
+| `llmDuration` | Histogram | `osabio.llm.duration` | functionId, model |
+| `llmPromptTokens` | Counter | `osabio.llm.tokens.prompt` | functionId, model |
+| `llmCompletionTokens` | Counter | `osabio.llm.tokens.completion` | functionId, model |
+| `llmErrors` | Counter | `osabio.llm.errors` | functionId, model, error_type |
+| `httpDuration` | Histogram | `osabio.http.duration` | method, route, status_code |
+| `httpRequests` | Counter | `osabio.http.requests` | method, route, status_code |
+| `extractionEntities` | Counter | `osabio.extraction.entities` | entity_type |
 
 **Usage**: LLM metrics recorded by a callback/wrapper around AI SDK calls (see ai-telemetry.ts). HTTP metrics recorded by the request tracing wrapper.
 
@@ -155,21 +155,21 @@ graph TB
 - `recordLlmMetrics(functionId, model, usage, durationMs)` records histogram + counter values on the metric instruments from `metrics.ts`
 - `recordLlmError(functionId, model, errorType)` increments the error counter
 
-**Integration**: Each AI SDK call site adds `experimental_telemetry: createTelemetryConfig('brain.extraction.generate', { workspaceId })` to its options. After the call completes, the caller invokes `recordLlmMetrics()` with the usage/timing data from the AI SDK response.
+**Integration**: Each AI SDK call site adds `experimental_telemetry: createTelemetryConfig('osabio.extraction.generate', { workspaceId })` to its options. After the call completes, the caller invokes `recordLlmMetrics()` with the usage/timing data from the AI SDK response.
 
 ### 5. `app/src/server/telemetry/function-ids.ts` -- Function ID Constants
 
-**Responsibility**: Single source of truth for the `brain.*` function ID taxonomy.
+**Responsibility**: Single source of truth for the `osabio.*` function ID taxonomy.
 
 **Content**: Typed constants matching the taxonomy from the requirements:
-- `brain.extraction.generate`, `brain.extraction.dedupe`
-- `brain.chat.agent`, `brain.chat.stream`
-- `brain.pm.agent`
-- `brain.observer.verify`, `brain.observer.peer-review`
-- `brain.behavior.score`
-- `brain.onboarding.generate`
-- `brain.intent.authorize`
-- `brain.analytics.agent`
+- `osabio.extraction.generate`, `osabio.extraction.dedupe`
+- `osabio.chat.agent`, `osabio.chat.stream`
+- `osabio.pm.agent`
+- `osabio.observer.verify`, `osabio.observer.peer-review`
+- `osabio.behavior.score`
+- `osabio.onboarding.generate`
+- `osabio.intent.authorize`
+- `osabio.analytics.agent`
 
 ### 6. `app/src/server/http/instrumentation.ts` -- HTTP Request Tracing
 
@@ -177,7 +177,7 @@ graph TB
 
 **Behavior**:
 - `withTracing(route, method, handler)` wraps a route handler (same signature as `withRequestLogging`)
-- Creates a root span `brain.http.request` with attributes: `http.method`, `http.route`, `http.target` (path), `requestId`
+- Creates a root span `osabio.http.request` with attributes: `http.method`, `http.route`, `http.target` (path), `requestId`
 - Runs the handler within the span's OTEL context (via `context.with()`)
 - `request-context.ts` is removed — its only consumers (`logging.ts`, `request-logging.ts`) are both replaced by OTEL. Request-scoped context (requestId, method, route) lives on the OTEL span attributes instead
 - On success: sets `http.status_code` on span, records `httpDuration` histogram and `httpRequests` counter
@@ -284,14 +284,14 @@ All packages are Apache-2.0 licensed, maintained by the OpenTelemetry project (C
 
 | Env var | Current use | Post-migration |
 |---------|------------|----------------|
-| `LOG_LEVEL` | Pino log level filter | Removed. OTEL log severity filtering happens at the exporter/collector level. For dev console output, the logger wrapper accepts an optional `BRAIN_LOG_LEVEL` env var (default: `debug`) to filter which severities reach `console.*` fallback. This is not passed to OTEL SDK -- it only controls the pre-init fallback and dev console output. |
+| `LOG_LEVEL` | Pino log level filter | Removed. OTEL log severity filtering happens at the exporter/collector level. For dev console output, the logger wrapper accepts an optional `OSABIO_LOG_LEVEL` env var (default: `debug`) to filter which severities reach `console.*` fallback. This is not passed to OTEL SDK -- it only controls the pre-init fallback and dev console output. |
 | `NODE_ENV` | Pino base metadata (`env` field) | Retained. Used by other parts of the system. Added as `deployment.environment` resource attribute on the OTEL Resource. |
 
 ### New env vars (standard OTEL, not in `config.ts`)
 
 | Env var | Purpose | Default |
 |---------|---------|---------|
-| `OTEL_SERVICE_NAME` | Service name on all telemetry | `brain` |
+| `OTEL_SERVICE_NAME` | Service name on all telemetry | `osabio` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Activates OTLP exporters (traces + metrics + logs) | unset (console exporters) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Auth headers for OTLP endpoint | unset |
 | `OTEL_METRIC_EXPORT_INTERVAL` | Metric export interval in ms | `60000` |

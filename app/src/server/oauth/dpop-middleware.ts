@@ -17,7 +17,7 @@ import { jsonResponse } from "../http/response";
 import { validateDPoPProof } from "./dpop";
 import type { AsSigningKey } from "./as-key-management";
 import type { NonceCache } from "./nonce-cache";
-import type { DPoPAuthResult, BrainAction, DPoPBoundTokenClaims } from "./types";
+import type { DPoPAuthResult, OsabioAction, DPoPBoundTokenClaims } from "./types";
 import {
   checkIdentityAllowed,
   type LookupIdentity,
@@ -163,10 +163,10 @@ async function verifyAccessToken(
       exp: payload.exp ?? 0,
       iat: payload.iat ?? 0,
       cnf: { jkt: cnf.jkt },
-      authorization_details: (payload.authorization_details ?? []) as BrainAction[],
-      "urn:brain:intent_id": (payload["urn:brain:intent_id"] ?? "") as string,
-      "urn:brain:workspace": (payload["urn:brain:workspace"] ?? "") as string,
-      "urn:brain:actor_type": payload["urn:brain:actor_type"] as string | undefined,
+      authorization_details: (payload.authorization_details ?? []) as OsabioAction[],
+      "urn:osabio:intent_id": (payload["urn:osabio:intent_id"] ?? "") as string,
+      "urn:osabio:workspace": (payload["urn:osabio:workspace"] ?? "") as string,
+      "urn:osabio:actor_type": payload["urn:osabio:actor_type"] as string | undefined,
     };
   } catch {
     return dpopError("invalid_token", 401, "Access token signature verification failed");
@@ -226,8 +226,8 @@ function emitSecurityAudit(
   if (!logAudit) return;
 
   const sub = claims.sub;
-  const workspaceId = claims["urn:brain:workspace"];
-  const intentId = claims["urn:brain:intent_id"];
+  const workspaceId = claims["urn:osabio:workspace"];
+  const intentId = claims["urn:osabio:intent_id"];
 
   // Extract identity id from sub (format: "identity:<id>")
   const identityId = sub.startsWith("identity:") ? sub.slice(9) : sub;
@@ -308,7 +308,7 @@ export async function authenticateDPoPRequest(
   }
 
   // Step 7: Lookup workspace
-  const workspaceId = claims["urn:brain:workspace"];
+  const workspaceId = claims["urn:osabio:workspace"];
   if (!workspaceId) {
     return dpopError("invalid_token", 401, "Token missing workspace claim");
   }
@@ -347,7 +347,7 @@ export async function authenticateDPoPRequest(
 
   // Step 9: Build result
   const actorType: "human" | "agent" =
-    claims["urn:brain:actor_type"] === "human" ? "human" : "agent";
+    claims["urn:osabio:actor_type"] === "human" ? "human" : "agent";
 
   return {
     workspaceRecord: new RecordId("workspace", workspaceId),
@@ -355,7 +355,7 @@ export async function authenticateDPoPRequest(
     identityRecord: new RecordId("identity", workspace.identityId),
     actorType,
     authorizationDetails: claims.authorization_details,
-    intentId: claims["urn:brain:intent_id"],
+    intentId: claims["urn:osabio:intent_id"],
     dpopThumbprint: proofThumbprint,
   };
 }

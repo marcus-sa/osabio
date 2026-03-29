@@ -223,7 +223,7 @@ The existing `trace` table already supports `type: "tool_call"` and has `tool_na
 
 **Additional fields for tool call traces** (stored in FLEXIBLE `input`/`output` fields):
 - `input.tool_arguments`: the tool_call arguments (sanitized)
-- `input.tool_kind`: `"brain_native" | "integration"`
+- `input.tool_kind`: `"osabio_native" | "integration"`
 - `input.credential_provider_id`: provider reference (integration calls only)
 - `output.tool_result`: the execution result (sanitized, no credentials)
 - `output.outcome`: `"success" | "error" | "denied" | "rate_limited"`
@@ -281,9 +281,9 @@ Tool Injection: mcp_tool -> Anthropic tool format -> append to tools[]
 [LLM responds with tool_use]
   |
   v
-Tool Routing: tool_name -> mcp_tool lookup -> classify (brain-native | integration | unknown)
+Tool Routing: tool_name -> mcp_tool lookup -> classify (osabio-native | integration | unknown)
   |
-  |-- brain-native: execute graph query directly
+  |-- osabio-native: execute graph query directly
   |-- integration: credential_provider -> connected_account -> decrypt -> inject auth -> HTTP -> sanitize
   '-- unknown: pass through to runtime
   |

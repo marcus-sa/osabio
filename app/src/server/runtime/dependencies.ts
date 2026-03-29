@@ -46,14 +46,14 @@ export async function createRuntimeDependencies(config: ServerConfig): Promise<{
       namespace: config.surrealNamespace,
       database: config.surrealDatabase,
       username: "analytics",
-      password: "brain-analytics-readonly",
+      password: "osabio-analytics-readonly",
     }),
   });
   await analyticsSurreal.signin({
     namespace: config.surrealNamespace,
     database: config.surrealDatabase,
     username: "analytics",
-    password: "brain-analytics-readonly",
+    password: "osabio-analytics-readonly",
   });
   await analyticsSurreal.use({ namespace: config.surrealNamespace, database: config.surrealDatabase });
 

@@ -1,25 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { verifyOperationScope } from "../../../app/src/server/oauth/rar-verifier";
-import { createBrainAction } from "../../../app/src/server/oauth/types";
-import type { BrainAction } from "../../../app/src/server/oauth/types";
+import { createOsabioAction } from "../../../app/src/server/oauth/types";
+import type { OsabioAction } from "../../../app/src/server/oauth/types";
 
 describe("verifyOperationScope", () => {
   // -- Matching action and resource succeeds --
 
   test("authorizes when requested action matches an authorized entry", () => {
-    const requested = createBrainAction("read", "workspace");
-    const authorized = [createBrainAction("read", "workspace")];
+    const requested = createOsabioAction("read", "workspace");
+    const authorized = [createOsabioAction("read", "workspace")];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("authorizes when requested action is one of multiple authorized entries", () => {
-    const requested = createBrainAction("create", "task");
+    const requested = createOsabioAction("create", "task");
     const authorized = [
-      createBrainAction("read", "workspace"),
-      createBrainAction("create", "task"),
-      createBrainAction("update", "session"),
+      createOsabioAction("read", "workspace"),
+      createOsabioAction("create", "task"),
+      createOsabioAction("update", "session"),
     ];
 
     const result = verifyOperationScope(requested, authorized);
@@ -29,8 +29,8 @@ describe("verifyOperationScope", () => {
   // -- Mismatched action returns 403 authorization_details_mismatch --
 
   test("rejects when action does not match any authorized entry", () => {
-    const requested = createBrainAction("create", "decision");
-    const authorized = [createBrainAction("read", "workspace")];
+    const requested = createOsabioAction("create", "decision");
+    const authorized = [createOsabioAction("read", "workspace")];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);
@@ -40,8 +40,8 @@ describe("verifyOperationScope", () => {
   });
 
   test("rejects when resource does not match despite same action", () => {
-    const requested = createBrainAction("read", "task");
-    const authorized = [createBrainAction("read", "workspace")];
+    const requested = createOsabioAction("read", "task");
+    const authorized = [createOsabioAction("read", "workspace")];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);
@@ -51,8 +51,8 @@ describe("verifyOperationScope", () => {
   });
 
   test("rejects when authorized list is empty", () => {
-    const requested = createBrainAction("read", "workspace");
-    const authorized: BrainAction[] = [];
+    const requested = createOsabioAction("read", "workspace");
+    const authorized: OsabioAction[] = [];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);
@@ -62,11 +62,11 @@ describe("verifyOperationScope", () => {
   });
 
   test("rejects when type field does not match", () => {
-    const requested: BrainAction = { type: "brain_action", action: "read", resource: "workspace" };
-    const authorized: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const requested: OsabioAction = { type: "osabio_action", action: "read", resource: "workspace" };
+    const authorized: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
-    // Same type -- this should pass (type is always "brain_action")
+    // Same type -- this should pass (type is always "osabio_action")
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(true);
   });
@@ -74,24 +74,24 @@ describe("verifyOperationScope", () => {
   // -- Constraint bounds enforcement (numeric <=) --
 
   test("authorizes when requested numeric constraint is within authorized bound", () => {
-    const requested = createBrainAction("read", "workspace", { max_results: 10 });
-    const authorized = [createBrainAction("read", "workspace", { max_results: 50 })];
+    const requested = createOsabioAction("read", "workspace", { max_results: 10 });
+    const authorized = [createOsabioAction("read", "workspace", { max_results: 50 })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("authorizes when requested numeric constraint equals authorized bound", () => {
-    const requested = createBrainAction("read", "workspace", { max_results: 50 });
-    const authorized = [createBrainAction("read", "workspace", { max_results: 50 })];
+    const requested = createOsabioAction("read", "workspace", { max_results: 50 });
+    const authorized = [createOsabioAction("read", "workspace", { max_results: 50 })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("rejects when requested numeric constraint exceeds authorized bound", () => {
-    const requested = createBrainAction("read", "workspace", { max_results: 100 });
-    const authorized = [createBrainAction("read", "workspace", { max_results: 50 })];
+    const requested = createOsabioAction("read", "workspace", { max_results: 100 });
+    const authorized = [createOsabioAction("read", "workspace", { max_results: 50 })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);
@@ -101,28 +101,28 @@ describe("verifyOperationScope", () => {
   });
 
   test("authorizes when requested has no constraints but authorized has constraints", () => {
-    const requested = createBrainAction("read", "workspace");
-    const authorized = [createBrainAction("read", "workspace", { max_results: 50 })];
+    const requested = createOsabioAction("read", "workspace");
+    const authorized = [createOsabioAction("read", "workspace", { max_results: 50 })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("authorizes when neither has constraints", () => {
-    const requested = createBrainAction("read", "workspace");
-    const authorized = [createBrainAction("read", "workspace")];
+    const requested = createOsabioAction("read", "workspace");
+    const authorized = [createOsabioAction("read", "workspace")];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("rejects when any numeric constraint exceeds its bound", () => {
-    const requested = createBrainAction("read", "workspace", {
+    const requested = createOsabioAction("read", "workspace", {
       max_results: 10,
       max_depth: 20,
     });
     const authorized = [
-      createBrainAction("read", "workspace", {
+      createOsabioAction("read", "workspace", {
         max_results: 50,
         max_depth: 5,
       }),
@@ -136,12 +136,12 @@ describe("verifyOperationScope", () => {
   });
 
   test("authorizes when all multiple numeric constraints are within bounds", () => {
-    const requested = createBrainAction("read", "workspace", {
+    const requested = createOsabioAction("read", "workspace", {
       max_results: 10,
       max_depth: 3,
     });
     const authorized = [
-      createBrainAction("read", "workspace", {
+      createOsabioAction("read", "workspace", {
         max_results: 50,
         max_depth: 5,
       }),
@@ -152,16 +152,16 @@ describe("verifyOperationScope", () => {
   });
 
   test("ignores non-numeric constraint values during bounds check", () => {
-    const requested = createBrainAction("read", "workspace", { format: "json" });
-    const authorized = [createBrainAction("read", "workspace", { format: "json" })];
+    const requested = createOsabioAction("read", "workspace", { format: "json" });
+    const authorized = [createOsabioAction("read", "workspace", { format: "json" })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result).toEqual({ authorized: true });
   });
 
   test("includes descriptive error message on mismatch", () => {
-    const requested = createBrainAction("create", "decision");
-    const authorized = [createBrainAction("read", "workspace")];
+    const requested = createOsabioAction("create", "decision");
+    const authorized = [createOsabioAction("read", "workspace")];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);
@@ -172,12 +172,12 @@ describe("verifyOperationScope", () => {
   });
 
   test("string constraint mismatch is caught before numeric constraint", () => {
-    const requested = createBrainAction("read", "workspace", {
+    const requested = createOsabioAction("read", "workspace", {
       format: "json",
       max_results: 200,
     });
     const authorized = [
-      createBrainAction("read", "workspace", {
+      createOsabioAction("read", "workspace", {
         format: "csv",
         max_results: 100,
       }),
@@ -192,8 +192,8 @@ describe("verifyOperationScope", () => {
   });
 
   test("includes descriptive error message on constraint exceeded", () => {
-    const requested = createBrainAction("read", "workspace", { max_results: 100 });
-    const authorized = [createBrainAction("read", "workspace", { max_results: 50 })];
+    const requested = createOsabioAction("read", "workspace", { max_results: 100 });
+    const authorized = [createOsabioAction("read", "workspace", { max_results: 50 })];
 
     const result = verifyOperationScope(requested, authorized);
     expect(result.authorized).toBe(false);

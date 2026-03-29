@@ -1,10 +1,10 @@
 /**
- * Context Injector -- Pure functions for brain-context injection
+ * Context Injector -- Pure functions for osabio-context injection
  *
  * Responsible for:
  * 1. Ranking context candidates by weighted cosine similarity
  * 2. Selecting top N within token budget
- * 3. Building <brain-context> XML block
+ * 3. Building <osabio-context> XML block
  * 4. Injecting into system prompt (string or array form)
  *
  * All functions are pure -- no IO, no side effects.
@@ -191,7 +191,7 @@ export type WorkspaceSettings = {
   readonly enforcementMode?: string;
 };
 
-export function buildBrainContextXml(
+export function buildOsabioContextXml(
   selected: RankedCandidate[],
   workspaceSettings?: WorkspaceSettings,
 ): string {
@@ -224,18 +224,18 @@ export function buildBrainContextXml(
 
   if (sections.length === 0) return "";
 
-  return `<brain-context>\n${sections.join("\n")}\n</brain-context>`;
+  return `<osabio-context>\n${sections.join("\n")}\n</osabio-context>`;
 }
 
 // ---------------------------------------------------------------------------
 // System Prompt Injection
 // ---------------------------------------------------------------------------
 
-export function injectBrainContext(
+export function injectOsabioContext(
   originalSystem: SystemPrompt,
-  brainContextXml: string,
+  osabioContextXml: string,
 ): InjectionResult {
-  if (!brainContextXml) {
+  if (!osabioContextXml) {
     return {
       system: originalSystem ?? "",
       injected: false,
@@ -246,20 +246,20 @@ export function injectBrainContext(
     };
   }
 
-  const tokensEstimated = estimateTokenCount(brainContextXml);
+  const tokensEstimated = estimateTokenCount(osabioContextXml);
 
   // Count items in XML (by counting <item> tags per section)
-  const decisionsCount = (brainContextXml.match(/<decisions>[\s\S]*?<\/decisions>/)?.[0]?.match(/<item>/g) ?? []).length;
-  const learningsCount = (brainContextXml.match(/<learnings>[\s\S]*?<\/learnings>/)?.[0]?.match(/<item>/g) ?? []).length;
-  const observationsCount = (brainContextXml.match(/<observations>[\s\S]*?<\/observations>/)?.[0]?.match(/<item>/g) ?? []).length;
+  const decisionsCount = (osabioContextXml.match(/<decisions>[\s\S]*?<\/decisions>/)?.[0]?.match(/<item>/g) ?? []).length;
+  const learningsCount = (osabioContextXml.match(/<learnings>[\s\S]*?<\/learnings>/)?.[0]?.match(/<item>/g) ?? []).length;
+  const observationsCount = (osabioContextXml.match(/<observations>[\s\S]*?<\/observations>/)?.[0]?.match(/<item>/g) ?? []).length;
 
   if (Array.isArray(originalSystem)) {
-    // Array-form: append brain-context as additional text block with cache_control: ephemeral
+    // Array-form: append osabio-context as additional text block with cache_control: ephemeral
     const enriched = [
       ...originalSystem,
       {
         type: "text",
-        text: brainContextXml,
+        text: osabioContextXml,
         cache_control: { type: "ephemeral" },
       },
     ];
@@ -275,9 +275,9 @@ export function injectBrainContext(
   }
 
   if (typeof originalSystem === "string") {
-    // String-form: append brain-context after original text
+    // String-form: append osabio-context after original text
     return {
-      system: `${originalSystem}\n\n${brainContextXml}`,
+      system: `${originalSystem}\n\n${osabioContextXml}`,
       injected: true,
       tokensEstimated,
       decisionsCount,
@@ -286,9 +286,9 @@ export function injectBrainContext(
     };
   }
 
-  // No original system prompt: use brain-context as system prompt
+  // No original system prompt: use osabio-context as system prompt
   return {
-    system: brainContextXml,
+    system: osabioContextXml,
     injected: true,
     tokensEstimated,
     decisionsCount,
@@ -303,8 +303,8 @@ export function injectBrainContext(
 
 /**
  * Injects recent changes XML into a system prompt with correct ordering:
- * - <urgent-context> is injected BEFORE <brain-context>
- * - <context-update> is injected AFTER <brain-context>
+ * - <urgent-context> is injected BEFORE <osabio-context>
+ * - <context-update> is injected AFTER <osabio-context>
  *
  * For array-form system prompts, each block becomes a separate text element
  * with cache_control: ephemeral.
@@ -327,29 +327,29 @@ export function injectRecentChanges(
   if (Array.isArray(system)) {
     const result = [...system];
 
-    // Find the brain-context block index for insertion ordering
-    const brainContextIdx = result.findIndex(
-      (block) => typeof block.text === "string" && block.text.includes("<brain-context>"),
+    // Find the osabio-context block index for insertion ordering
+    const osabioContextIdx = result.findIndex(
+      (block) => typeof block.text === "string" && block.text.includes("<osabio-context>"),
     );
 
-    if (brainContextIdx >= 0) {
-      // Insert urgent BEFORE brain-context, update AFTER
+    if (osabioContextIdx >= 0) {
+      // Insert urgent BEFORE osabio-context, update AFTER
       if (updateBlock) {
-        result.splice(brainContextIdx + 1, 0, {
+        result.splice(osabioContextIdx + 1, 0, {
           type: "text",
           text: updateBlock,
           cache_control: { type: "ephemeral" },
         });
       }
       if (urgentBlock) {
-        result.splice(brainContextIdx, 0, {
+        result.splice(osabioContextIdx, 0, {
           type: "text",
           text: urgentBlock,
           cache_control: { type: "ephemeral" },
         });
       }
     } else {
-      // No brain-context block -- append both at end (urgent first, then update)
+      // No osabio-context block -- append both at end (urgent first, then update)
       if (urgentBlock) {
         result.push({ type: "text", text: urgentBlock, cache_control: { type: "ephemeral" } });
       }
@@ -362,29 +362,29 @@ export function injectRecentChanges(
   }
 
   if (typeof system === "string") {
-    // String-form: find <brain-context> position for ordering
-    const brainContextPos = system.indexOf("<brain-context>");
+    // String-form: find <osabio-context> position for ordering
+    const osabioContextPos = system.indexOf("<osabio-context>");
 
-    if (brainContextPos >= 0) {
-      const brainContextEnd = system.indexOf("</brain-context>");
-      const afterBrainContext = brainContextEnd >= 0
-        ? brainContextEnd + "</brain-context>".length
+    if (osabioContextPos >= 0) {
+      const osabioContextEnd = system.indexOf("</osabio-context>");
+      const afterOsabioContext = osabioContextEnd >= 0
+        ? osabioContextEnd + "</osabio-context>".length
         : system.length;
 
-      const before = system.slice(0, brainContextPos);
-      const brainSection = system.slice(brainContextPos, afterBrainContext);
-      const after = system.slice(afterBrainContext);
+      const before = system.slice(0, osabioContextPos);
+      const osabioSection = system.slice(osabioContextPos, afterOsabioContext);
+      const after = system.slice(afterOsabioContext);
 
       const parts = [before.trimEnd()];
       if (urgentBlock) parts.push(urgentBlock);
-      parts.push(brainSection);
+      parts.push(osabioSection);
       if (updateBlock) parts.push(updateBlock);
       parts.push(after.trimStart());
 
       return parts.filter(Boolean).join("\n\n");
     }
 
-    // No brain-context -- append both
+    // No osabio-context -- append both
     const parts = [system];
     if (urgentBlock) parts.push(urgentBlock);
     if (updateBlock) parts.push(updateBlock);

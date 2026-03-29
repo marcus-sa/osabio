@@ -211,7 +211,7 @@ export type ConnectAccountInput = {
  * For static credentials (api_key, bearer, basic): sends credentials in body.
  * For oauth2: returns redirect_url (no body needed).
  *
- * Route handler reads X-Brain-Identity from headers for identity resolution.
+ * Route handler reads X-Osabio-Identity from headers for identity resolution.
  */
 export async function connectAccount(
   baseUrl: string,
@@ -226,7 +226,7 @@ export async function connectAccount(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Brain-Identity": user.identityId,
+        "X-Osabio-Identity": user.identityId,
         ...user.headers,
       },
       body: JSON.stringify(credentials ?? {}),
@@ -236,7 +236,7 @@ export async function connectAccount(
 
 /**
  * List connected accounts via HTTP endpoint.
- * Route handler reads X-Brain-Identity from headers for identity scoping.
+ * Route handler reads X-Osabio-Identity from headers for identity scoping.
  */
 export async function listAccounts(
   baseUrl: string,
@@ -248,7 +248,7 @@ export async function listAccounts(
     {
       method: "GET",
       headers: {
-        "X-Brain-Identity": user.identityId,
+        "X-Osabio-Identity": user.identityId,
         ...user.headers,
       },
     },
@@ -257,7 +257,7 @@ export async function listAccounts(
 
 /**
  * Revoke a connected account via HTTP endpoint.
- * Route handler reads X-Brain-Identity from headers for ownership verification.
+ * Route handler reads X-Osabio-Identity from headers for ownership verification.
  */
 export async function revokeAccount(
   baseUrl: string,
@@ -270,7 +270,7 @@ export async function revokeAccount(
     {
       method: "DELETE",
       headers: {
-        "X-Brain-Identity": user.identityId,
+        "X-Osabio-Identity": user.identityId,
         ...user.headers,
       },
     },
@@ -896,7 +896,7 @@ export async function sendProxyRequest(
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
       "x-api-key": "test-api-key",
-      "X-Brain-Auth": proxyToken,
+      "X-Osabio-Auth": proxyToken,
     },
     body: JSON.stringify({
       model: options.model ?? "claude-haiku-4-5-20251001",

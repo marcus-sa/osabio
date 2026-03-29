@@ -45,11 +45,11 @@ phases:
   - id: 02-01
     name: 'Proxy auth middleware'
     description: >-
-      Extract X-Brain-Auth header, SHA-256 hash the token, look up proxy_token
+      Extract X-Osabio-Auth header, SHA-256 hash the token, look up proxy_token
       record. Validate not expired, not revoked. Return resolved workspace_id
       and identity_id. 5-min in-memory cache keyed by token hash.
     criteria:
-      - 'Valid X-Brain-Auth header resolves to workspace_id and identity_id'
+      - 'Valid X-Osabio-Auth header resolves to workspace_id and identity_id'
       - 'Expired token returns 401 with descriptive error'
       - 'Revoked token returns 401'
       - 'Repeated lookups within 5 minutes served from cache without DB call'
@@ -61,7 +61,7 @@ phases:
   - id: 02-02
     name: 'Server-side Anthropic API key config'
     description: >-
-      Add optional ANTHROPIC_API_KEY to ServerConfig. When Brain auth mode is
+      Add optional ANTHROPIC_API_KEY to ServerConfig. When Osabio auth mode is
       active, inject as x-api-key to upstream Anthropic. When direct auth,
       forward client headers unchanged.
     criteria:
@@ -77,12 +77,12 @@ phases:
   - id: 02-03
     name: 'Dual-mode proxy handler'
     description: >-
-      Modify anthropic-proxy-route to branch on X-Brain-Auth presence. Brain
+      Modify anthropic-proxy-route to branch on X-Osabio-Auth presence. Osabio
       auth path validates proxy token, resolves identity, injects server API
       key. Absent header falls through to existing direct-auth flow.
     criteria:
-      - 'X-Brain-Auth present: proxy token validated, server API key injected upstream'
-      - 'X-Brain-Auth absent: existing direct-auth flow unchanged'
+      - 'X-Osabio-Auth present: proxy token validated, server API key injected upstream'
+      - 'X-Osabio-Auth absent: existing direct-auth flow unchanged'
       - 'Identity resolved from proxy token attached to request context'
       - 'Invalid proxy token returns 401 before upstream call'
     time_estimate: '1.5h'
@@ -94,14 +94,14 @@ phases:
   name: 'CLI Configuration'
   steps:
   - id: 03-01
-    name: 'CLI setupProxyConfig in brain init'
+    name: 'CLI setupProxyConfig in osabio init'
     description: >-
-      After OAuth completes in brain init, call POST /api/auth/proxy-token.
-      Store proxy_token and expires_at in ~/.brain/config.json. Create or merge
+      After OAuth completes in osabio init, call POST /api/auth/proxy-token.
+      Store proxy_token and expires_at in ~/.osabio/config.json. Create or merge
       .claude/settings.local.json with ANTHROPIC_BASE_URL and ANTHROPIC_CUSTOM_HEADERS
       env block. Warn if .gitignore lacks settings.local.json.
     criteria:
-      - 'brain init stores proxy_token and proxy_token_expires_at in config'
+      - 'osabio init stores proxy_token and proxy_token_expires_at in config'
       - '.claude/settings.local.json created with correct env vars'
       - 'Existing settings.local.json merged without overwriting unrelated keys'
       - 'Warning printed if .gitignore missing settings.local.json entry'
@@ -116,7 +116,7 @@ phases:
       On SessionStart hook, read proxy_token_expires_at from config. If expired
       or expiring within 7 days, print warning with re-init instructions.
     criteria:
-      - 'Expired token prints error-level warning with brain init instructions'
+      - 'Expired token prints error-level warning with osabio init instructions'
       - 'Token expiring within 7 days prints warning with days remaining'
       - 'Valid token with >7 days remaining produces no warning'
     time_estimate: '45m'
@@ -130,7 +130,7 @@ phases:
     name: 'End-to-end acceptance test verification'
     description: >-
       Run all cli-proxy-setup acceptance tests. Verify walking skeleton passes
-      (token issuance through Brain-auth proxy request). Confirm all milestone
+      (token issuance through Osabio-auth proxy request). Confirm all milestone
       test suites green.
     criteria:
       - 'Walking skeleton test passes (token issue + proxy request round-trip)'

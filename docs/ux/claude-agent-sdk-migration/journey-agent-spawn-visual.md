@@ -27,7 +27,7 @@ spawnOpenCode()
   |-- createOpencodeClient({baseUrl})    <-- third-party SDK
   |-- client.session.create()            <-- OpenCode session API
   |-- client.event.subscribe()           <-- OpenCode event stream
-  |-- client.session.command("brain-start-task", taskId)
+  |-- client.session.command("osabio-start-task", taskId)
   v
 OpenCodeHandle { sessionId, sendPrompt, eventStream, abort }
   |

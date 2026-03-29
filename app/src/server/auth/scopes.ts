@@ -1,13 +1,13 @@
 import type { AuthorityAction } from "../iam/authority";
 import { jsonError } from "../http/response";
-import { BRAIN_SCOPES } from "../../shared/scopes";
+import { OSABIO_SCOPES } from "../../shared/scopes";
 
-export { BRAIN_SCOPES };
+export { OSABIO_SCOPES };
 
-export type BrainScope = keyof typeof BRAIN_SCOPES;
+export type OsabioScope = keyof typeof OSABIO_SCOPES;
 
 /** Map each authority action to the OAuth scope that gates it */
-export const ACTION_SCOPE_MAP: Record<AuthorityAction, BrainScope> = {
+export const ACTION_SCOPE_MAP: Record<AuthorityAction, OsabioScope> = {
   create_decision: "decision:write",
   confirm_decision: "decision:write",
   create_task: "task:write",
@@ -19,11 +19,11 @@ export const ACTION_SCOPE_MAP: Record<AuthorityAction, BrainScope> = {
   create_suggestion: "task:write",
 };
 
-/** All scopes requested by default during brain init */
-export const DEFAULT_CLI_SCOPES = Object.keys(BRAIN_SCOPES).join(" ");
+/** All scopes requested by default during osabio init */
+export const DEFAULT_CLI_SCOPES = Object.keys(OSABIO_SCOPES).join(" ");
 
 /** Returns 403 Response if the token lacks the required scope, undefined otherwise */
-export function requireScope(scopes: Set<string>, required: BrainScope): Response | undefined {
+export function requireScope(scopes: Set<string>, required: OsabioScope): Response | undefined {
   if (!scopes.has(required)) {
     return jsonError(`insufficient scope: requires ${required}`, 403);
   }

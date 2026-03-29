@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Task status transitions are duplicated between the server (orchestrator) and agents/processors. The server optimistically sets in_progress on assignment and done on session accept, but these are redundant with the agent's brain-start-task command and the GitHub commit processor. This creates confusion about who owns the truth and causes orphaned states on agent crashes.
+Task status transitions are duplicated between the server (orchestrator) and agents/processors. The server optimistically sets in_progress on assignment and done on session accept, but these are redundant with the agent's osabio-start-task command and the GitHub commit processor. This creates confusion about who owns the truth and causes orphaned states on agent crashes.
 
 ## Design Principle
 
@@ -12,7 +12,7 @@ The entity doing the work owns progress signals. The orchestrator owns recovery.
 
 | Transition | Owner | Trigger |
 |---|---|---|
-| → in_progress | Agent | brain-start-task command |
+| → in_progress | Agent | osabio-start-task command |
 | → done | commit-check hook (local) / GitHub processor (remote) | git commit with task refs |
 | → completed | GitHub processor | merge to main |
 | → ready (abort) | Server | Session aborted |
@@ -28,20 +28,20 @@ Remove the done transition from `acceptOrchestratorSession()` in `session-lifecy
 
 ### R2: Agent owns in_progress
 
-`brain-start-task` already instructs the agent to call `update_task_status` → in_progress. This becomes the sole authority. No changes needed here.
+`osabio-start-task` already instructs the agent to call `update_task_status` → in_progress. This becomes the sole authority. No changes needed here.
 
-### R3: Add `brain commit-check` CLI command
+### R3: Add `osabio commit-check` CLI command
 
 New CLI command that:
 1. Reads the most recent commit message (or accepts a commit SHA)
 2. **Fast path**: parses task refs using existing `extractReferencedTaskIds()` from `commit-task-refs.ts`
 3. **LLM fallback**: if no explicit refs found, uses the same LLM analysis as the GitHub commit processor to infer which task(s) the commit relates to
-4. Calls the Brain API to set each referenced/inferred task's status → done
+4. Calls the Osabio API to set each referenced/inferred task's status → done
 5. Idempotent — setting done on an already-done task is a no-op
 
 ### R4: Wire commit-check as git post-commit hook
 
-Install `brain commit-check` as a git post-commit hook, similar to how Brain already manages pre-commit hooks. The hook calls the Brain HTTP API.
+Install `osabio commit-check` as a git post-commit hook, similar to how Osabio already manages pre-commit hooks. The hook calls the Osabio HTTP API.
 
 ### R5: GitHub commit processor sets done on push
 
@@ -63,8 +63,8 @@ No changes needed here.
 
 | Setup | in_progress | done | completed |
 |---|---|---|---|
-| Solo/local | Agent (brain-start-task) | commit-check post-commit hook | N/A or manual |
-| Team/remote | Agent (brain-start-task) | commit-check + GitHub processor | GitHub processor (merge to main) |
+| Solo/local | Agent (osabio-start-task) | commit-check post-commit hook | N/A or manual |
+| Team/remote | Agent (osabio-start-task) | commit-check + GitHub processor | GitHub processor (merge to main) |
 
 ## Constraints
 

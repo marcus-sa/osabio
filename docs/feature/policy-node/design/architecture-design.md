@@ -13,12 +13,12 @@ C4Context
   Person(human, "Human Operator", "Creates policies, reviews vetoed intents")
   Person(agent, "Agent Identity", "Submits intents, reads policies")
 
-  System(brain, "Brain Server", "Modular monolith: intent auth, policy evaluation, audit trail")
+  System(osabio, "Osabio Server", "Modular monolith: intent auth, policy evaluation, audit trail")
 
   SystemDb(surreal, "SurrealDB", "Graph database: policies, intents, identities, audit events")
 
-  Rel(human, brain, "Creates/activates policies, reviews intents", "HTTP/DPoP")
-  Rel(agent, brain, "Submits intents for authorization", "HTTP/DPoP")
+  Rel(human, osabio, "Creates/activates policies, reviews intents", "HTTP/DPoP")
+  Rel(agent, osabio, "Submits intents for authorization", "HTTP/DPoP")
   Rel(brain, surreal, "Reads/writes policy graph, intents, audit events", "SurrealDB SDK")
 ```
 
@@ -31,7 +31,7 @@ C4Container
   Person(human, "Human Operator")
   Person(agent, "Agent Identity")
 
-  Container_Boundary(server, "Brain Server (Bun)") {
+  Container_Boundary(server, "Osabio Server (Bun)") {
     Component(intent_routes, "Intent Routes", "TypeScript", "Handles intent evaluation lifecycle")
     Component(policy_gate, "Policy Gate", "TypeScript", "Loads policies via graph traversal, evaluates rules")
     Component(predicate_eval, "Predicate Evaluator", "TypeScript", "Pure function: evaluates structured JSON predicates against intent context")

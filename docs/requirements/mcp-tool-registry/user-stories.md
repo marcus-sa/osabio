@@ -22,7 +22,7 @@ Each story traces to at least one JTBD job story.
 ### US-2: Discover Tools from MCP Server [J1]
 
 **As a** workspace admin
-**I want to** connect an MCP server and have Brain discover its tools automatically
+**I want to** connect an MCP server and have Osabio discover its tools automatically
 **So that** I don't have to manually define each tool's schema
 
 **Size**: L
@@ -49,7 +49,7 @@ Each story traces to at least one JTBD job story.
 
 **As a** workspace member
 **I want to** connect my account to a provider — via OAuth flow or by entering credentials directly
-**So that** agents can act with my identity without me sharing credentials outside Brain
+**So that** agents can act with my identity without me sharing credentials outside Osabio
 
 **Size**: L
 **Priority**: Must-have (required for credential brokerage)
@@ -60,8 +60,8 @@ Each story traces to at least one JTBD job story.
 
 ### US-5: Proxy Injects Tools into LLM Request [J3]
 
-**As an** agent routing through Brain's proxy
-**I want** Brain-managed tools injected into my LLM requests automatically
+**As an** agent routing through Osabio's proxy
+**I want** Osabio-managed tools injected into my LLM requests automatically
 **So that** I have integration capabilities without runtime-specific configuration
 
 **Size**: L
@@ -71,16 +71,16 @@ Each story traces to at least one JTBD job story.
 
 ---
 
-### US-6a: Proxy Routes Brain-Native Tool Calls [J3]
+### US-6a: Proxy Routes Osabio-Native Tool Calls [J3]
 
 **As an** agent
-**I want** the proxy to intercept tool calls for Brain-native tools (graph queries, context tools) and execute them directly
-**So that** I get seamless access to Brain's knowledge graph without runtime-specific wiring
+**I want** the proxy to intercept tool calls for Osabio-native tools (graph queries, context tools) and execute them directly
+**So that** I get seamless access to Osabio's knowledge graph without runtime-specific wiring
 
 **Size**: L
 **Priority**: Must-have (Walking Skeleton core)
 
-**Acceptance Criteria**: See AC-6 (Brain-native and pass-through scenarios)
+**Acceptance Criteria**: See AC-6 (Osabio-native and pass-through scenarios)
 
 ---
 
@@ -99,7 +99,7 @@ Each story traces to at least one JTBD job story.
 
 ### US-7: Credential Brokerage at Execution [J4]
 
-**As a** Brain proxy
+**As a** Osabio proxy
 **I want to** resolve and inject credentials by auth method at tool call time
 **So that** agents never see raw tokens/keys and OAuth2 credentials are always fresh
 
@@ -175,7 +175,7 @@ Each story traces to at least one JTBD job story.
 
 1. **US-3** — Grant tool access (schema + can_use)
 2. **US-5** — Proxy tool injection
-3. **US-6a** — Proxy routes Brain-native tool calls
+3. **US-6a** — Proxy routes Osabio-native tool calls
 4. **US-9** — Tool call tracing
 5. **US-1** — Credential provider registration (all auth methods)
 6. **US-4** — Account connection (static credentials first, then OAuth2)

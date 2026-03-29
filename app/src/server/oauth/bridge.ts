@@ -11,7 +11,7 @@
  * Step: 04-01
  */
 import { RecordId, type Surreal } from "surrealdb";
-import type { BrainAction } from "./types";
+import type { OsabioAction } from "./types";
 import type { ServerDependencies } from "../runtime/types";
 import { validateDPoPProof } from "./dpop";
 import { issueAccessToken } from "./token-issuer";
@@ -20,7 +20,7 @@ import { normalizeRecordIdValue } from "../graph/record-id";
 import {
   isLowRiskReadAction,
   deriveActionSpec,
-  validateBrainActionEntry,
+  validateOsabioActionEntry,
 } from "./intent-submission";
 import { evaluateIntent, createLlmEvaluator } from "../intent/authorizer";
 import { routeByRisk } from "../intent/risk-router";
@@ -34,7 +34,7 @@ import { log } from "../telemetry/logger";
 // ---------------------------------------------------------------------------
 
 export type BridgeExchangeInput = {
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
 };
 
 type BridgeValidation =
@@ -68,7 +68,7 @@ export function validateBridgeExchangeRequest(body: unknown): BridgeValidation {
 
   for (let i = 0; i < input.authorization_details.length; i++) {
     const entry = input.authorization_details[i] as Record<string, unknown>;
-    const validationError = validateBrainActionEntry(entry, i);
+    const validationError = validateOsabioActionEntry(entry, i);
     if (validationError) {
       return { valid: false, error: validationError };
     }
@@ -77,7 +77,7 @@ export function validateBridgeExchangeRequest(body: unknown): BridgeValidation {
   return {
     valid: true,
     data: {
-      authorizationDetails: input.authorization_details as BrainAction[],
+      authorizationDetails: input.authorization_details as OsabioAction[],
     },
   };
 }

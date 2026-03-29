@@ -36,4 +36,4 @@ The feature is well-scoped with clear integration points into the existing archi
 
 3. **OpenCode server lifecycle**: The orchestrator needs to manage connection to a running opencode server. For walking skeleton, assume the user has started it separately. Later: auto-start via SDK's `createOpencode()`.
 
-4. **MCP configuration**: The opencode session needs to know the Brain MCP server URL + auth token. This is configured in the opencode session's MCP settings. The Brain platform generates a scoped JWT for the agent session.
+4. **MCP configuration**: The opencode session needs to know the Osabio MCP server URL + auth token. This is configured in the opencode session's MCP settings. The Osabio platform generates a scoped JWT for the agent session.

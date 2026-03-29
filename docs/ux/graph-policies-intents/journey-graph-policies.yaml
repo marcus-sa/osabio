@@ -95,7 +95,7 @@ steps:
         Then the entity detail panel shows title "Agent Budget Guard"
         And the detail shows status "active" and version "3"
         And the relationships list includes "governing -> ci-agent"
-        And the relationships list includes "protects -> Brain workspace"
+        And the relationships list includes "protects -> Osabio workspace"
 
   - id: 3
     name: "Intent nodes show authorization flow"

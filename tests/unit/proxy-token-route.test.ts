@@ -92,7 +92,7 @@ describe("createProxyTokenHandler", () => {
       expires_at: string;
     };
     expect(payload.workspace_id).toBe("ws-123");
-    expect(payload.proxy_token.startsWith("brp_")).toBe(true);
+    expect(payload.proxy_token.startsWith("osp_")).toBe(true);
     expect(resolvePersonId).toBe("person-123");
     expect(createJwtValidatorMock).toHaveBeenCalledWith("http://localhost:3000");
     expect(createJwtValidatorMock).toHaveBeenCalledWith("http://localhost:3000/api/auth");

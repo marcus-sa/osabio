@@ -1,7 +1,7 @@
 journey:
   name: "OpenTelemetry Observability Migration"
   goal: "Replace Pino structured logging with OpenTelemetry traces and metrics, enabling LLM debugging, request tracing, operational monitoring, and cost visibility"
-  persona: "Marcus -- solo developer/operator of Brain platform"
+  persona: "Marcus -- solo developer/operator of Osabio platform"
 
   emotional_arc:
     start: "Uncertain -- will OTEL work on Bun? How much code changes?"
@@ -45,7 +45,7 @@ steps:
         consumers:
           - "All modules that record metrics"
       - name: "ServiceName"
-        value: "brain"
+        value: "osabio"
         source: "OTEL_SERVICE_NAME env var"
         consumers:
           - "All spans and metrics"
@@ -92,17 +92,17 @@ steps:
           - "All AI SDK call sites"
 
     function_id_taxonomy:
-      - "brain.extraction.generate"
-      - "brain.extraction.dedupe"
-      - "brain.chat.agent"
-      - "brain.chat.stream"
-      - "brain.pm.agent"
-      - "brain.observer.verify"
-      - "brain.observer.peer-review"
-      - "brain.behavior.score"
-      - "brain.onboarding.generate"
-      - "brain.intent.authorize"
-      - "brain.analytics.agent"
+      - "osabio.extraction.generate"
+      - "osabio.extraction.dedupe"
+      - "osabio.chat.agent"
+      - "osabio.chat.stream"
+      - "osabio.pm.agent"
+      - "osabio.observer.verify"
+      - "osabio.observer.peer-review"
+      - "osabio.behavior.score"
+      - "osabio.onboarding.generate"
+      - "osabio.intent.authorize"
+      - "osabio.analytics.agent"
 
     emotional_state:
       entry: "Oriented -- SDK is set up, now instrumenting"
@@ -183,27 +183,27 @@ steps:
       - "Attribute token usage to functionId for cost breakdown"
 
     metrics:
-      - name: "brain.llm.duration"
+      - name: "osabio.llm.duration"
         type: "histogram"
         unit: "ms"
         attributes: ["functionId", "model"]
-      - name: "brain.llm.tokens.prompt"
+      - name: "osabio.llm.tokens.prompt"
         type: "counter"
         attributes: ["functionId", "model"]
-      - name: "brain.llm.tokens.completion"
+      - name: "osabio.llm.tokens.completion"
         type: "counter"
         attributes: ["functionId", "model"]
-      - name: "brain.llm.errors"
+      - name: "osabio.llm.errors"
         type: "counter"
         attributes: ["functionId", "model", "error_type"]
-      - name: "brain.http.duration"
+      - name: "osabio.http.duration"
         type: "histogram"
         unit: "ms"
         attributes: ["method", "route", "status_code"]
-      - name: "brain.http.requests"
+      - name: "osabio.http.requests"
         type: "counter"
         attributes: ["method", "route", "status_code"]
-      - name: "brain.extraction.entities"
+      - name: "osabio.extraction.entities"
         type: "counter"
         attributes: ["entity_type"]
 
@@ -236,7 +236,7 @@ integration_validation:
       failure_message: "Function IDs used in telemetry must match those used in metrics aggregation"
     - artifact: "ServiceName"
       must_match_across: [1, 2, 3, 5]
-      failure_message: "All telemetry must use consistent service name 'brain'"
+      failure_message: "All telemetry must use consistent service name 'osabio'"
 
   coexistence_requirements:
     - "OTEL context propagation must not break existing AsyncLocalStorage request context"

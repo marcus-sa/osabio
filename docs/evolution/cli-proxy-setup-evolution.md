@@ -6,7 +6,7 @@
 
 ## Summary
 
-Added Brain-authenticated LLM proxy support with CLI configuration. Developers run `brain init` and Claude Code automatically routes through Brain's proxy with policy enforcement, tracing, and context injection — no manual config needed.
+Added Osabio-authenticated LLM proxy support with CLI configuration. Developers run `osabio init` and Claude Code automatically routes through Osabio's proxy with policy enforcement, tracing, and context injection — no manual config needed.
 
 ## Components Delivered
 
@@ -14,19 +14,19 @@ Added Brain-authenticated LLM proxy support with CLI configuration. Developers r
 - `proxy_token` SCHEMAFULL table (migration 0049) with SHA-256 hash storage, workspace+identity binding, unique index
 
 ### Server
-- **POST /api/auth/proxy-token** — Issues `brp_`-prefixed proxy tokens with 90-day TTL, revokes previous tokens on re-issuance
-- **Proxy auth middleware** (`proxy-auth.ts`) — Validates X-Brain-Auth header, 5-min TTL cache, returns workspace+identity from token record
-- **Dual-mode handler** — X-Brain-Auth present → server-held API key; absent → existing direct auth (backward compatible)
-- **ANTHROPIC_API_KEY** config — Optional server-side key for Brain-auth requests
+- **POST /api/auth/proxy-token** — Issues `osp_`-prefixed proxy tokens with 90-day TTL, revokes previous tokens on re-issuance
+- **Proxy auth middleware** (`proxy-auth.ts`) — Validates X-Osabio-Auth header, 5-min TTL cache, returns workspace+identity from token record
+- **Dual-mode handler** — X-Osabio-Auth present → server-held API key; absent → existing direct auth (backward compatible)
+- **ANTHROPIC_API_KEY** config — Optional server-side key for Osabio-auth requests
 
 ### CLI
-- **brain init Step 7** — Requests proxy token, writes `.claude/settings.local.json` with ANTHROPIC_BASE_URL + ANTHROPIC_CUSTOM_HEADERS, warns if not gitignored
-- **Removed SessionStart/PreToolUse hooks** — Context injection now handled by the Brain LLM proxy itself, eliminating redundant CLI hooks (`brain system load-context`, `brain system pretooluse`)
+- **osabio init Step 7** — Requests proxy token, writes `.claude/settings.local.json` with ANTHROPIC_BASE_URL + ANTHROPIC_CUSTOM_HEADERS, warns if not gitignored
+- **Removed SessionStart/PreToolUse hooks** — Context injection now handled by the Osabio LLM proxy itself, eliminating redundant CLI hooks (`osabio system load-context`, `osabio system pretooluse`)
 
 ## Architecture Decisions
 
-1. **Dual-mode proxy auth** — Backward compatible; X-Brain-Auth presence determines mode
-2. **Opaque tokens with SHA-256 hash** — Simple, revocable, `brp_` prefix for log identification; no JWT complexity
+1. **Dual-mode proxy auth** — Backward compatible; X-Osabio-Auth presence determines mode
+2. **Opaque tokens with SHA-256 hash** — Simple, revocable, `osp_` prefix for log identification; no JWT complexity
 3. **Workspace from token, not headers** — Prevents spoofing; workspace binding is authoritative from DB record
 
 ## Test Coverage
@@ -61,7 +61,7 @@ Added Brain-authenticated LLM proxy support with CLI configuration. Developers r
 - `app/src/server/runtime/start-server.ts` — Route registration
 - `cli/commands/init.ts` — Step 7: setupProxyConfig
 - `cli/commands/system.ts` — Removed runLoadContext + runPreToolUse (proxy handles context injection)
-- `cli/brain.ts` — Removed load-context + pretooluse subcommands
+- `cli/osabio.ts` — Removed load-context + pretooluse subcommands
 - `cli/commands/init-content.ts` — Removed SessionStart + PreToolUse hook entries
 - `cli/config.ts` — proxy_token + proxy_token_expires_at fields
 - `.env.example` — ANTHROPIC_API_KEY documentation

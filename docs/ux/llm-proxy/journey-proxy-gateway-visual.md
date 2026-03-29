@@ -2,7 +2,7 @@
 
 **Epic**: llm-proxy
 **Personas**: Marcus (Admin), Priya (Developer), Observer Agent, Elena (Auditor)
-**Goal**: Every LLM call made by any agent flows through Brain's proxy, producing cost attribution, policy enforcement, and graph-native traces -- all transparently.
+**Goal**: Every LLM call made by any agent flows through Osabio's proxy, producing cost attribution, policy enforcement, and graph-native traces -- all transparently.
 
 ---
 
@@ -16,7 +16,7 @@
        |                    |                    |                      |                    |                 |                  |                  |
    Admin sets up       Developer sets       Proxy identifies      Proxy checks          Proxy relays      Proxy extracts    Admin reviews     Auditor traces
    proxy config +      ANTHROPIC_BASE_URL   who is calling        policies/budget       request to        usage, computes   spend dashboard   provenance
-   policies            via brain init       from headers          before forwarding     Anthropic API     cost, writes      and anomalies     chain
+   policies            via osabio init       from headers          before forwarding     Anthropic API     cost, writes      and anomalies     chain
        |                    |                    |                      |                    |              graph trace           |                  |
    Emotional:          Emotional:           Emotional:             Emotional:           Emotional:        Emotional:         Emotional:        Emotional:
    FOCUSED             EXPECTANT            INVISIBLE              PROTECTED            UNAWARE           INVISIBLE          INFORMED          ASSURED
@@ -61,7 +61,7 @@ Confidence
 ```
 +-- Step 1: Configure Proxy ----------------------------------------+
 |                                                                    |
-|  Brain Dashboard > Settings > LLM Proxy                           |
+|  Osabio Dashboard > Settings > LLM Proxy                           |
 |                                                                    |
 |  Proxy Status: [ACTIVE]  Port: ${PROXY_PORT}                     |
 |                                                                    |
@@ -97,22 +97,22 @@ Confidence
 ```
 +-- Step 2: Connect Agent -------------------------------------------+
 |                                                                    |
-|  $ brain init                                                      |
+|  $ osabio init                                                      |
 |                                                                    |
-|  Brain Workspace: marcus/brain-v1                                  |
+|  Osabio Workspace: marcus/osabio-v1                                  |
 |  LLM Proxy: Detected at ${PROXY_URL}                             |
 |                                                                    |
 |  Configuring Claude Code...                                        |
 |    ANTHROPIC_BASE_URL = ${PROXY_URL}/anthropic                    |
-|    ANTHROPIC_CUSTOM_HEADERS = X-Brain-Workspace: ${WORKSPACE_ID}  |
+|    ANTHROPIC_CUSTOM_HEADERS = X-Osabio-Workspace: ${WORKSPACE_ID}  |
 |                                                                    |
-|  [OK] Claude Code will route through Brain proxy                   |
+|  [OK] Claude Code will route through Osabio proxy                   |
 |  [OK] Cost tracking: enabled                                       |
 |  [OK] Policy enforcement: enabled                                  |
 |                                                                    |
 |  To scope to a task:                                               |
-|    $ brain start task:implement-rate-limiting                      |
-|    (adds X-Brain-Task header for cost attribution)                 |
+|    $ osabio start task:implement-rate-limiting                      |
+|    (adds X-Osabio-Task header for cost attribution)                 |
 |                                                                    |
 +--------------------------------------------------------------------+
 ```
@@ -134,11 +134,11 @@ Confidence
 |    metadata.user_id -> session: ${SESSION_ID}                     |
 |                        account: ${ACCOUNT_ID}                     |
 |                        user_hash: ${USER_HASH}                    |
-|    X-Brain-Workspace -> workspace: ${WORKSPACE_ID}                |
-|    X-Brain-Task -> task: ${TASK_ID} (optional)                    |
+|    X-Osabio-Workspace -> workspace: ${WORKSPACE_ID}                |
+|    X-Osabio-Task -> task: ${TASK_ID} (optional)                    |
 |    x-api-key -> forwarded to upstream (client's own key)          |
 |                                                                    |
-|  Identity resolved: Priya @ workspace:marcus/brain-v1             |
+|  Identity resolved: Priya @ workspace:marcus/osabio-v1             |
 |                                                                    |
 +--------------------------------------------------------------------+
 ```
@@ -173,7 +173,7 @@ Confidence
 |  {                                                                 |
 |    "error": "policy_violation",                                    |
 |    "message": "Model claude-opus-4 not authorized for agent type  |
-|               coding-agent in workspace marcus/brain-v1",          |
+|               coding-agent in workspace marcus/osabio-v1",          |
 |    "policy_ref": "policy:model-access-prod-v2",                   |
 |    "remediation": "Request Opus access from workspace admin or    |
 |                    use claude-sonnet-4 instead"                     |
@@ -273,7 +273,7 @@ Confidence
 ```
 +-- Step 7: Monitor Spend -------------------------------------------+
 |                                                                    |
-|  Brain Dashboard > LLM Proxy > Spend Overview                     |
+|  Osabio Dashboard > LLM Proxy > Spend Overview                     |
 |                                                                    |
 |  Today's Spend: $23.47 / $50.00 daily limit                      |
 |  [==================--------] 47%                                  |
@@ -315,7 +315,7 @@ Confidence
 ```
 +-- Step 8: Audit Provenance ----------------------------------------+
 |                                                                    |
-|  Brain Dashboard > Audit > LLM Trace Detail                       |
+|  Osabio Dashboard > Audit > LLM Trace Detail                       |
 |                                                                    |
 |  Trace: trace:${TRACE_ID}                                    |
 |  +---------------------------------------------+                  |
@@ -337,7 +337,7 @@ Confidence
 |     -> executed_in -> [agent_session:priya-auth-42]               |
 |        -> invoked -> [trace:${TRACE_ID}]                     |
 |           -> attributed_to -> [task:implement-oauth]              |
-|           -> scoped_to -> [workspace:marcus/brain-v1]             |
+|           -> scoped_to -> [workspace:marcus/osabio-v1]             |
 |                                                                    |
 |  [Export Provenance Chain as JSON]                                 |
 |                                                                    |
@@ -354,11 +354,11 @@ Confidence
 
 | Shared Artifact | Source of Truth | Consumers | Risk |
 |----------------|----------------|-----------|------|
-| `${PROXY_URL}` | Workspace settings | brain init, agent env vars, dashboard | HIGH -- mismatch breaks all routing |
+| `${PROXY_URL}` | Workspace settings | osabio init, agent env vars, dashboard | HIGH -- mismatch breaks all routing |
 | `${WORKSPACE_ID}` | Workspace record | Custom headers, trace edges, spend counters | HIGH -- wrong workspace = misattributed costs |
 | `${SESSION_ID}` | metadata.user_id (Claude Code) | Trace edges, session cost aggregation | HIGH -- missing = unattributed calls |
-| `${TASK_ID}` | X-Brain-Task header / brain start | Trace edges, task cost rollup | MEDIUM -- optional but degrades attribution |
+| `${TASK_ID}` | X-Osabio-Task header / osabio start | Trace edges, task cost rollup | MEDIUM -- optional but degrades attribution |
 | `${MODEL_ID}` | Request body .model field | Policy check, cost calculation, trace record | HIGH -- wrong model = wrong cost |
 | `${CALL_COST}` | Computed from usage + pricing table | Spend counters, dashboard, audit | HIGH -- inaccurate = broken trust |
 | Pricing table | Local config (updated periodically) | Cost calculation | MEDIUM -- stale prices = cost drift |
-| Policy graph | Brain policy engine | Authorization decisions | HIGH -- stale policies = wrong enforcement |
+| Policy graph | Osabio policy engine | Authorization decisions | HIGH -- stale policies = wrong enforcement |

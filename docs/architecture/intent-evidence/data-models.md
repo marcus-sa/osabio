@@ -126,7 +126,7 @@ Note: `intent` is excluded from evidence to prevent circular self-referencing.
 
 ### MCP Tool Schema Extension
 
-The `createIntentSchema` in `brain-tool-definitions.ts` gains an optional `evidence_refs` field:
+The `createIntentSchema` in `osabio-tool-definitions.ts` gains an optional `evidence_refs` field:
 
 ```
 createIntentSchema (extended):

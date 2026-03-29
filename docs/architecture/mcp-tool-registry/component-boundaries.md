@@ -9,9 +9,9 @@ app/src/server/
   proxy/
     anthropic-proxy-route.ts   # MODIFIED: steps 7.5 + 8.5 added
     tool-resolver.ts           # NEW: identity -> effective toolset query + cache
-    tool-injector.ts           # NEW: merge Brain tools into request tools[]
+    tool-injector.ts           # NEW: merge Osabio tools into request tools[]
     tool-router.ts             # NEW: classify + dispatch tool_calls
-    tool-executor.ts           # NEW: Brain-native + integration execution
+    tool-executor.ts           # NEW: Osabio-native + integration execution
     credential-resolver.ts     # NEW: provider -> account -> decrypt -> inject auth
     tool-trace-writer.ts       # NEW: tool_call-specific trace creation
     trace-writer.ts            # EXISTING: no change (tool traces use separate writer)
@@ -45,7 +45,7 @@ proxy/anthropic-proxy-route.ts
   |     |     |     '-- tool-registry/encryption.ts
   |     |     |-- proxy/tool-trace-writer.ts
   |     |     |     '-- proxy/trace-writer.ts (reuses retry + edge patterns)
-  |     |     '-- chat/tools/*.ts     (Brain-native tool implementations)
+  |     |     '-- chat/tools/*.ts     (Osabio-native tool implementations)
   |     '-- tool-registry/types.ts
   '-- (existing: proxy-auth, context-injector, policy-evaluator, trace-writer)
 
@@ -78,11 +78,11 @@ SELECT mcp_tool.* FROM can_use WHERE in = $identity AND out.status = 'active' AN
 (Future: `UNION SELECT ... FROM possesses WHERE in = $identity -> skill_requires -> mcp_tool` when #177 ships)
 
 ### proxy/tool-injector.ts
-**Responsibility**: Merge resolved Brain-managed tool definitions into the LLM request `tools[]` parameter. Additive only -- never modify or remove runtime tools.
+**Responsibility**: Merge resolved Osabio-managed tool definitions into the LLM request `tools[]` parameter. Additive only -- never modify or remove runtime tools.
 
 **Pure function**: Takes parsed request body + resolved tools, returns modified body with extended tools array. No side effects.
 
-**Deduplication**: If a runtime tool name collides with a Brain-managed tool name, the runtime tool takes precedence (Brain tool is skipped). This prevents conflicts when an agent runtime already provides a tool that Brain also manages.
+**Deduplication**: If a runtime tool name collides with a Osabio-managed tool name, the runtime tool takes precedence (Osabio tool is skipped). This prevents conflicts when an agent runtime already provides a tool that Osabio also manages.
 
 **Format**: Converts `mcp_tool` records to Anthropic Messages API tool format:
 ```
@@ -90,17 +90,17 @@ SELECT mcp_tool.* FROM can_use WHERE in = $identity AND out.status = 'active' AN
 ```
 
 ### proxy/tool-router.ts
-**Responsibility**: Given tool_use blocks from LLM response, classify each as brain-native, integration, or unknown, and dispatch to the appropriate executor.
+**Responsibility**: Given tool_use blocks from LLM response, classify each as osabio-native, integration, or unknown, and dispatch to the appropriate executor.
 
 **Pure classification function**: Takes tool_call name, looks up in resolved toolset. Returns discriminated union:
-- `{ kind: "brain_native", tool: McpTool }` -- no provider, execute graph query
+- `{ kind: "osabio_native", tool: McpTool }` -- no provider, execute graph query
 - `{ kind: "integration", tool: McpTool, provider: CredentialProvider }` -- has provider, needs credentials
 - `{ kind: "unknown" }` -- not in registry, pass through
 
 ### proxy/tool-executor.ts
-**Responsibility**: Execute tool calls by kind. Orchestrates Brain-native execution (graph queries) and integration execution (credential resolution + HTTP + sanitization).
+**Responsibility**: Execute tool calls by kind. Orchestrates Osabio-native execution (graph queries) and integration execution (credential resolution + HTTP + sanitization).
 
-**Brain-native execution**: Reuses existing chat tool implementations from `chat/tools/*.ts`. The bridge pattern:
+**Osabio-native execution**: Reuses existing chat tool implementations from `chat/tools/*.ts`. The bridge pattern:
 1. `mcp_tool.name` maps to a chat tool handler via a static registry (e.g., `search_entities` -> `searchEntitiesHandler` from `chat/tools/search-entities.ts`)
 2. The executor builds a `ChatToolExecutionContext` from the proxy request's workspace + identity (same context type chat tools already use)
 3. `tool_call.arguments` (JSON from LLM) maps to the tool's Zod `inputSchema` -- parse with the tool's schema, pass to handler
@@ -149,7 +149,7 @@ SELECT mcp_tool.* FROM can_use WHERE in = $identity AND out.status = 'active' AN
 - `{ kind: "revoked" }` -- account revoked
 
 ### proxy/tool-trace-writer.ts
-**Responsibility**: Create `trace` records with `type: "tool_call"` for every Brain-managed tool execution.
+**Responsibility**: Create `trace` records with `type: "tool_call"` for every Osabio-managed tool execution.
 
 **Extends existing pattern**: Follows `trace-writer.ts` conventions (retry, async, inflight tracking). Adds tool-specific fields:
 - `tool_name`: the mcp_tool name
@@ -165,7 +165,7 @@ Key types:
 - `CredentialProvider` -- domain representation of a credential_provider record
 - `ConnectedAccount` -- domain representation (credential fields always encrypted at this layer)
 - `ResolvedTool` -- tool ready for injection (name, description, input_schema)
-- `ToolCallRoute` -- discriminated union for routing (brain_native | integration | unknown)
+- `ToolCallRoute` -- discriminated union for routing (osabio_native | integration | unknown)
 - `CredentialResult` -- discriminated union for credential resolution outcome
 - `ToolExecutionOutcome` -- discriminated union for execution result
 
@@ -220,7 +220,7 @@ Key types:
 |---|---|---|
 | 1. US-3: Schema + grants | `tool-registry/types.ts`, `queries.ts`, `routes.ts` (partial: tool CRUD + grants) | Yes -- schema + API only, no proxy changes |
 | 2. US-5: Tool injection | `proxy/tool-resolver.ts`, `proxy/tool-injector.ts`, proxy route step 7.5 | Yes -- tools injected but not intercepted yet |
-| 3. US-6a: Brain-native routing | `proxy/tool-router.ts`, `proxy/tool-executor.ts` (brain-native path), proxy route step 8.5 | Yes -- brain-native tools work end-to-end |
+| 3. US-6a: Osabio-native routing | `proxy/tool-router.ts`, `proxy/tool-executor.ts` (osabio-native path), proxy route step 8.5 | Yes -- osabio-native tools work end-to-end |
 | 4. US-9: Tracing | `proxy/tool-trace-writer.ts` | Yes -- trace records written for tool executions |
 | 5-8: Credentials + integration | `encryption.ts`, `provider-queries.ts`, `account-queries.ts`, `oauth-flow.ts`, `credential-resolver.ts`, tool-executor integration path | Incremental -- each US adds a path |
 | 9. US-8: Governance | Policy evaluator extension for `governs_tool` | Yes -- layers onto existing policy engine |

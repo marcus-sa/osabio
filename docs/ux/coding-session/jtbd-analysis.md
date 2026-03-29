@@ -15,7 +15,7 @@
 **Demographics**:
 - Technical proficiency: Expert (writes the platform himself)
 - Interaction frequency: Multiple times daily -- assigns 3-5 tasks per session
-- Environment: Web-based Brain UI alongside terminal/IDE
+- Environment: Web-based Osabio UI alongside terminal/IDE
 - Primary motivation: Multiply his output by delegating routine coding to AI agents while retaining quality control
 
 ---

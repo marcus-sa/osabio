@@ -4,7 +4,7 @@
  *
  * Pure core: no IO, no DB, no side effects.
  */
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 import type { ResolvedTool } from "../proxy/tool-injector";
 
 // ---------------------------------------------------------------------------
@@ -13,16 +13,16 @@ import type { ResolvedTool } from "../proxy/tool-injector";
 
 export type AuthorizedIntentSummary = {
   readonly intentId: string;
-  readonly authorizationDetails: readonly BrainAction[];
+  readonly authorizationDetails: readonly OsabioAction[];
 };
 
 export type ToolClassification =
   | { readonly kind: "authorized"; readonly matchingIntent: AuthorizedIntentSummary }
   | { readonly kind: "gated" }
-  | { readonly kind: "brain_native" };
+  | { readonly kind: "osabio_native" };
 
 export type EffectiveScope = {
-  readonly authorizedActions: readonly BrainAction[];
+  readonly authorizedActions: readonly OsabioAction[];
   readonly intents: readonly AuthorizedIntentSummary[];
 };
 
@@ -65,14 +65,14 @@ function findMatchingIntent(
   );
 }
 
-/** Classify a single tool against the effective scope and brain-native set. */
+/** Classify a single tool against the effective scope and osabio-native set. */
 function classifyTool(
   tool: ResolvedTool,
   effectiveScope: EffectiveScope,
-  brainNativeToolNames: ReadonlySet<string>,
+  osabioNativeToolNames: ReadonlySet<string>,
 ): ToolClassification {
-  if (brainNativeToolNames.has(tool.name)) {
-    return { kind: "brain_native" };
+  if (osabioNativeToolNames.has(tool.name)) {
+    return { kind: "osabio_native" };
   }
 
   const toolResource = buildToolResource(tool.toolkit, tool.name);
@@ -86,16 +86,16 @@ function classifyTool(
 }
 
 /**
- * Compute the set of brain write tools that have an approved intent.
- * Checks for resources matching `mcp_tool:brain:{toolName}`.
+ * Compute the set of osabio write tools that have an approved intent.
+ * Checks for resources matching `mcp_tool:osabio:{toolName}`.
  */
 export function computeAuthorizedBrainWriteTools(
   effectiveScope: EffectiveScope,
-  brainWriteToolNames: ReadonlySet<string>,
+  osabioWriteToolNames: ReadonlySet<string>,
 ): ReadonlySet<string> {
   const authorized = new Set<string>();
-  for (const toolName of brainWriteToolNames) {
-    const resource = `mcp_tool:brain:${toolName}`;
+  for (const toolName of osabioWriteToolNames) {
+    const resource = `mcp_tool:osabio:${toolName}`;
     if (effectiveScope.authorizedActions.some((a) => a.resource === resource)) {
       authorized.add(toolName);
     }
@@ -104,27 +104,27 @@ export function computeAuthorizedBrainWriteTools(
 }
 
 /**
- * Find the first intent whose authorization_details match a brain write tool.
+ * Find the first intent whose authorization_details match an osabio write tool.
  * Returns the intent summary or undefined if no match.
  */
 export function findBrainWriteIntent(
   toolName: string,
   effectiveScope: EffectiveScope,
 ): AuthorizedIntentSummary | undefined {
-  const resource = `mcp_tool:brain:${toolName}`;
+  const resource = `mcp_tool:osabio:${toolName}`;
   return effectiveScope.intents.find((intent) =>
     intent.authorizationDetails.some((action) => action.resource === resource),
   );
 }
 
-/** Classifies each granted tool as authorized, gated, or brain_native. */
+/** Classifies each granted tool as authorized, gated, or osabio_native. */
 export function classifyTools(
   grantedTools: readonly ResolvedTool[],
   effectiveScope: EffectiveScope,
-  brainNativeToolNames: ReadonlySet<string>,
+  osabioNativeToolNames: ReadonlySet<string>,
 ): readonly ClassifiedTool[] {
   return grantedTools.map((tool) => ({
     tool,
-    classification: classifyTool(tool, effectiveScope, brainNativeToolNames),
+    classification: classifyTool(tool, effectiveScope, osabioNativeToolNames),
   }));
 }

@@ -2,14 +2,14 @@
  * Intent Submission with DPoP Thumbprint Binding
  *
  * OAuth 2.1 RAR+DPoP intent submission endpoint.
- * Validates authorization_details with type "brain_action" and dpop_jwk_thumbprint,
+ * Validates authorization_details with type "osabio_action" and dpop_jwk_thumbprint,
  * creates intent record, triggers evaluation pipeline.
  *
  * Pure validation functions + HTTP handler factory.
  */
 
 import { RecordId } from "surrealdb";
-import type { BrainAction } from "./types";
+import type { OsabioAction } from "./types";
 import type { ActionSpec } from "../intent/types";
 import type { ServerDependencies } from "../runtime/types";
 import { jsonError, jsonResponse } from "../http/response";
@@ -28,7 +28,7 @@ import {
 export type IntentSubmissionInput = {
   workspace_id: string;
   identity_id: string;
-  authorization_details: BrainAction[];
+  authorization_details: OsabioAction[];
   dpop_jwk_thumbprint: string;
   goal: string;
   reasoning: string;
@@ -76,7 +76,7 @@ export function validateIntentSubmission(input: unknown): ValidationResult {
 
   for (let i = 0; i < body.authorization_details.length; i++) {
     const entry = body.authorization_details[i] as Record<string, unknown>;
-    const validationError = validateBrainActionEntry(entry, i);
+    const validationError = validateOsabioActionEntry(entry, i);
     if (validationError) {
       return { valid: false, error: validationError };
     }
@@ -90,7 +90,7 @@ export function validateIntentSubmission(input: unknown): ValidationResult {
     data: {
       workspace_id: (body.workspace_id as string).trim(),
       identity_id: (body.identity_id as string).trim(),
-      authorization_details: body.authorization_details as BrainAction[],
+      authorization_details: body.authorization_details as OsabioAction[],
       dpop_jwk_thumbprint: (body.dpop_jwk_thumbprint as string).trim(),
       goal: (body.goal as string).trim(),
       reasoning: (body.reasoning as string).trim(),
@@ -99,13 +99,13 @@ export function validateIntentSubmission(input: unknown): ValidationResult {
   };
 }
 
-export function validateBrainActionEntry(entry: Record<string, unknown>, index: number): string | undefined {
+export function validateOsabioActionEntry(entry: Record<string, unknown>, index: number): string | undefined {
   if (!entry || typeof entry !== "object") {
     return `authorization_details[${index}] must be an object`;
   }
 
-  if (entry.type !== "brain_action") {
-    return `authorization_details[${index}].type must be "brain_action"`;
+  if (entry.type !== "osabio_action") {
+    return `authorization_details[${index}].type must be "osabio_action"`;
   }
 
   if (typeof entry.action !== "string" || entry.action.trim().length === 0) {
@@ -123,18 +123,18 @@ export function validateBrainActionEntry(entry: Record<string, unknown>, index: 
 // Pure Transformations
 // ---------------------------------------------------------------------------
 
-/** Derive backward-compatible ActionSpec from first BrainAction */
-export function deriveActionSpec(actions: BrainAction[]): ActionSpec {
+/** Derive backward-compatible ActionSpec from first OsabioAction */
+export function deriveActionSpec(actions: OsabioAction[]): ActionSpec {
   const first = actions[0];
   return {
-    provider: "brain",
+    provider: "osabio",
     action: first.action,
     params: { resource: first.resource },
   };
 }
 
 /** Check if all actions are low-risk read operations */
-export function isLowRiskReadAction(actions: BrainAction[]): boolean {
+export function isLowRiskReadAction(actions: OsabioAction[]): boolean {
   return actions.every((a) => LOW_RISK_ACTIONS.has(a.action.toLowerCase()));
 }
 

@@ -23,8 +23,8 @@ Three actors, one continuous lifecycle: admin registers providers and tools, use
 | Step | Action | System Response | Shared Artifact | Emotion |
 |------|--------|----------------|-----------------|---------|
 | 1. Register Provider | Admin selects auth method (oauth2/api_key/bearer/basic) and enters credentials. For OAuth2: client_id, secret, URLs, scopes. For api_key/bearer/basic: just names the provider. | Creates `credential_provider` record, encrypts secrets at rest | `${credential_provider.id}` | Neutral — routine admin task |
-| 2. Connect MCP Server | Admin provides MCP server connection URL + auth | Brain calls `tools/list`, inventories tools | `${mcp_server_connection}` | Hopeful — seeing what's available |
-| 3. Discover Tools | Brain creates `mcp_tool` records from `tools/list` response | Shows discovered tools with names, descriptions, schemas | `${mcp_tool[].id}` | Excited — tools materialized automatically |
+| 2. Connect MCP Server | Admin provides MCP server connection URL + auth | Osabio calls `tools/list`, inventories tools | `${mcp_server_connection}` | Hopeful — seeing what's available |
+| 3. Discover Tools | Osabio creates `mcp_tool` records from `tools/list` response | Shows discovered tools with names, descriptions, schemas | `${mcp_tool[].id}` | Excited — tools materialized automatically |
 | 4. Configure Governance | Admin sets risk_level per tool, creates `governs_tool` policy edges | Policy rules attached to tools | `${policy.id}`, `${governs_tool}` edges | Thoughtful — balancing access vs safety |
 | 5. Grant Access | Admin creates `can_use` edges or assigns skills (`possesses`) to identities | Agents' effective toolsets updated | `${can_use}` or `${possesses}` edges | Confident — governed access in place |
 
@@ -58,10 +58,10 @@ Two paths based on provider auth method:
 | Step | Action | System Response | Shared Artifact | Emotion |
 |------|--------|----------------|-----------------|---------|
 | 1. Browse Providers | User sees available `credential_provider` records for workspace | List of providers with name, auth method, required scopes | `${credential_provider[]}` | Curious — exploring options |
-| 2a. Connect (OAuth2) | User clicks "Connect" on an OAuth2 provider | Brain builds auth URL from `credential_provider`, redirects | `${authorization_url}` with `state` param | Familiar — standard OAuth pattern |
-| 2b. Connect (Static) | User clicks "Connect" on an api_key/bearer/basic provider | Brain shows credential entry form (API key, or username+password) | Form fields scoped to `auth_method` | Familiar — simple form entry |
-| 3a. Authorize (OAuth2) | User reviews scopes at provider's consent screen, approves | Provider redirects back with authorization code → Brain exchanges for tokens | `${authorization_code}` | Deciding — evaluating scope request |
-| 3b. Submit (Static) | User submits API key or basic credentials | Brain encrypts and stores immediately | Encrypted credential fields | Quick — no redirect needed |
+| 2a. Connect (OAuth2) | User clicks "Connect" on an OAuth2 provider | Osabio builds auth URL from `credential_provider`, redirects | `${authorization_url}` with `state` param | Familiar — standard OAuth pattern |
+| 2b. Connect (Static) | User clicks "Connect" on an api_key/bearer/basic provider | Osabio shows credential entry form (API key, or username+password) | Form fields scoped to `auth_method` | Familiar — simple form entry |
+| 3a. Authorize (OAuth2) | User reviews scopes at provider's consent screen, approves | Provider redirects back with authorization code → Osabio exchanges for tokens | `${authorization_code}` | Deciding — evaluating scope request |
+| 3b. Submit (Static) | User submits API key or basic credentials | Osabio encrypts and stores immediately | Encrypted credential fields | Quick — no redirect needed |
 | 4. Connected | `connected_account` created with encrypted credentials | Confirmation: "Provider connected. Your agents can now use its tools." | `${connected_account.id}` | Relieved — done, agents empowered |
 
 ### Error Paths
@@ -89,9 +89,9 @@ Two paths based on provider auth method:
 
 | Step | Action | System Response | Shared Artifact | Emotion |
 |------|--------|----------------|-----------------|---------|
-| 1. LLM Request | Agent sends request through `ANTHROPIC_BASE_URL` (Brain proxy) | Proxy receives enriched request with runtime tools | `${proxy_request}` | Unaware — agent doesn't know about injection |
+| 1. LLM Request | Agent sends request through `ANTHROPIC_BASE_URL` (Osabio proxy) | Proxy receives enriched request with runtime tools | `${proxy_request}` | Unaware — agent doesn't know about injection |
 | 2. Resolve Identity | Proxy extracts identity from DPoP/proxy-token auth | Identity record loaded | `${identity.id}` | Automatic |
-| 3. Inject Tools | Proxy resolves `can_use ∪ (possesses → skill_requires)`, injects tool defs | Request `tools[]` parameter extended with Brain-managed tools | `${effective_toolset[]}` | Automatic — additive, no conflicts |
+| 3. Inject Tools | Proxy resolves `can_use ∪ (possesses → skill_requires)`, injects tool defs | Request `tools[]` parameter extended with Osabio-managed tools | `${effective_toolset[]}` | Automatic — additive, no conflicts |
 | 4. LLM Uses Tool | LLM returns `tool_calls` including an integration tool | Proxy intercepts tool_calls response | `${tool_call.name}`, `${tool_call.arguments}` | Capable — LLM has the tools it needs |
 | 5. Proxy Executes | Proxy matches tool to `mcp_tool`, resolves credentials by auth method, executes | Credential resolution: `mcp_tool.provider` → `credential_provider` → `connected_account` → inject by auth_method (OAuth2 bearer / API key header / basic auth) → execute → sanitize | `${trace.id}` | Secure — credentials never in LLM context |
 | 6. Result Returned | Proxy sends tool result back to LLM, loop continues | Agent receives result transparently | `${tool_result}` | Seamless — agent never saw the machinery |
@@ -114,7 +114,7 @@ tool_call received
   │   ├─ Strip credentials from response
   │   └─ Write trace → Return sanitized result
   │
-  ├─ name matches Brain-native tool? → Context tool
+  ├─ name matches Osabio-native tool? → Context tool
   │   ├─ Execute graph query directly
   │   └─ Write trace → Return result
   │

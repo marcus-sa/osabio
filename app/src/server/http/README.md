@@ -29,7 +29,7 @@ Every route handler needs the same boilerplate: generate a request ID, trace the
 1. Request arrives at a route
 2. `withTracing()` wrapper:
    - Extracts or generates request ID from headers
-   - Creates root OTEL span `brain.http.request` with method, route, path, requestId attributes
+   - Creates root OTEL span `osabio.http.request` with method, route, path, requestId attributes
    - Runs handler within OTEL context (`context.with()`)
    - On success: sets `http.status_code` on span, records `httpDuration` histogram and `httpRequests` counter, adds `x-request-id` header
    - On failure: sets span status to ERROR, calls `span.recordException()`, records metrics with error status, returns `jsonError()` response
@@ -45,7 +45,7 @@ Incoming Request
 withTracing() (instrumentation.ts)
   |
   +---> Generate/extract request ID
-  +---> Start OTEL span (brain.http.request)
+  +---> Start OTEL span (osabio.http.request)
   +---> context.with(span)
   |       |
   |       v

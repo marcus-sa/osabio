@@ -2,7 +2,7 @@
 
 ## Epic Summary
 
-The coding session feature transforms Brain's task delegation from a "fire-and-forget" model into an interactive supervisory experience. The orchestrator infrastructure (assign, spawn, worktree, review, accept/reject) exists but the interactive layer (live output, follow-up prompts, contextual review) does not.
+The coding session feature transforms Osabio's task delegation from a "fire-and-forget" model into an interactive supervisory experience. The orchestrator infrastructure (assign, spawn, worktree, review, accept/reject) exists but the interactive layer (live output, follow-up prompts, contextual review) does not.
 
 **Core insight**: All the plumbing exists (event bridge, stall detector, spawn handle with sendPrompt + eventStream) but nothing connects them. The primary engineering work is wiring existing components together, plus building the UI components to render the output and accept user input.
 
@@ -94,7 +94,7 @@ The coding session feature transforms Brain's task delegation from a "fire-and-f
 
 ### Existing Codebase (Reference for DESIGN)
 - `app/src/server/orchestrator/spawn-opencode.ts` -- Production spawn with sendPrompt + eventStream
-- `app/src/server/orchestrator/event-bridge.ts` -- Transforms OpenCode events to Brain StreamEvents
+- `app/src/server/orchestrator/event-bridge.ts` -- Transforms OpenCode events to Osabio StreamEvents
 - `app/src/server/orchestrator/stall-detector.ts` -- Monitors for stalled sessions
 - `app/src/server/orchestrator/session-lifecycle.ts` -- Session CRUD, handle registry, status management
 - `app/src/client/components/graph/AgentStatusSection.tsx` -- Current UI (status badge, assign button, review link)

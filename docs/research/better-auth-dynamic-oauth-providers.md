@@ -9,7 +9,7 @@
 
 Better Auth's Generic OAuth plugin (`genericOAuth`) does **not** support dynamic provider registration at runtime. Providers are configured as a static array at initialization time, transformed into `OAuthProvider` objects during the `init(ctx: AuthContext)` phase, and concatenated into `ctx.socialProviders`. There is no callback-based provider resolution, no database-backed provider lookup, and no API to add providers after the `betterAuth()` instance is created.
 
-However, Better Auth offers two viable paths for the Brain use case (workspace admins connecting arbitrary OAuth providers at runtime through a UI):
+However, Better Auth offers two viable paths for the Osabio use case (workspace admins connecting arbitrary OAuth providers at runtime through a UI):
 
 1. **SSO Plugin (recommended path)**: Purpose-built for dynamic, database-backed provider registration at runtime. Supports OIDC and SAML providers linked to organizations via `registerSSOProvider` API. Provider configs are stored in the `sso_provider` database table and resolved per-request. This is the closest match to the stated requirement.
 
@@ -77,7 +77,7 @@ However, Better Auth offers two viable paths for the Brain use case (workspace a
 - [DeepWiki: Enterprise SSO](https://deepwiki.com/better-auth/better-auth/6.2-enterprise-sso) - Source code analysis of database-backed provider resolution
 - [GitHub: SSO docs source](https://github.com/better-auth/better-auth/blob/main/docs/content/docs/plugins/sso.mdx) - Raw documentation confirming schema and API
 
-**Analysis**: This is architecturally what Brain needs. The SSO plugin was designed for the exact pattern: workspace admins register IdP configurations through an API (which a UI can call), configs persist in the database, and provider resolution happens per-request. The `organizationId` field maps naturally to Brain's workspace concept.
+**Analysis**: This is architecturally what Osabio needs. The SSO plugin was designed for the exact pattern: workspace admins register IdP configurations through an API (which a UI can call), configs persist in the database, and provider resolution happens per-request. The `organizationId` field maps naturally to Osabio's workspace concept.
 
 ---
 
@@ -92,19 +92,19 @@ However, Better Auth offers two viable paths for the Brain use case (workspace a
 - [GitHub Discussion #3721](https://github.com/better-auth/better-auth/discussions/3721) - Multi-tenant context mentions this approach
 - [DeepWiki: Basic Usage](https://deepwiki.com/better-auth/better-auth/2.2-basic-usage) - Architecture confirms instances are self-contained
 
-**Analysis**: While technically viable, this approach has significant downsides for Brain: (1) initialization overhead per request, (2) loss of CLI tooling and type inference, (3) need to manage database connections carefully to avoid exhaustion, (4) complexity of loading workspace-specific configs before constructing the auth instance. The SSO plugin is a far cleaner solution.
+**Analysis**: While technically viable, this approach has significant downsides for Osabio: (1) initialization overhead per request, (2) loss of CLI tooling and type inference, (3) need to manage database connections carefully to avoid exhaustion, (4) complexity of loading workspace-specific configs before constructing the auth instance. The SSO plugin is a far cleaner solution.
 
 ---
 
-### Finding 5: Brain's Current Auth Config Uses Static GitHub Provider
+### Finding 5: Osabio's Current Auth Config Uses Static GitHub Provider
 
-**Evidence**: The Brain codebase at `app/src/server/auth/config.ts` uses a single static `socialProviders.github` configuration with `clientId` and `clientSecret` from server config. No `genericOAuth` plugin is currently used. The `oauthProvider` plugin is used (Better Auth acting as an OAuth provider for MCP/CLI clients), which is a different concern.
+**Evidence**: The Osabio codebase at `app/src/server/auth/config.ts` uses a single static `socialProviders.github` configuration with `clientId` and `clientSecret` from server config. No `genericOAuth` plugin is currently used. The `oauthProvider` plugin is used (Better Auth acting as an OAuth provider for MCP/CLI clients), which is a different concern.
 
 **Confidence**: High (direct source code observation)
 
-**Verification**: Direct reading of `/Users/marcus/Git/brain/app/src/server/auth/config.ts`
+**Verification**: Direct reading of `/Users/marcus/Git/osabio/app/src/server/auth/config.ts`
 
-**Analysis**: The current architecture would need modification to support dynamic OAuth providers. Adding the SSO plugin alongside the existing `oauthProvider` plugin is the most natural extension path. The SSO plugin's `organizationId` would map to Brain's workspace ID, and the `registerSSOProvider` API could be exposed through Brain's workspace settings UI.
+**Analysis**: The current architecture would need modification to support dynamic OAuth providers. Adding the SSO plugin alongside the existing `oauthProvider` plugin is the most natural extension path. The SSO plugin's `organizationId` would map to Osabio's workspace ID, and the `registerSSOProvider` API could be exposed through Osabio's workspace settings UI.
 
 ---
 
@@ -120,7 +120,7 @@ However, Better Auth offers two viable paths for the Brain use case (workspace a
 | DeepWiki: Generic OAuth | deepwiki.com | Medium-High | AI source analysis | 2026-03-22 | Cross-verified Y |
 | DeepWiki: Enterprise SSO | deepwiki.com | Medium-High | AI source analysis | 2026-03-22 | Cross-verified Y |
 | GitHub SSO docs source | github.com | High | Primary source | 2026-03-22 | Cross-verified Y |
-| Brain auth/config.ts | local codebase | High | Primary source | 2026-03-22 | Direct observation |
+| Osabio auth/config.ts | local codebase | High | Primary source | 2026-03-22 | Direct observation |
 
 **Reputation Summary**:
 - High reputation sources: 6 (67%)
@@ -133,7 +133,7 @@ However, Better Auth offers two viable paths for the Brain use case (workspace a
 
 ### Gap 1: SSO Plugin Compatibility with Non-OIDC OAuth 2.0 Providers
 
-**Issue**: The SSO plugin documentation focuses on OIDC and SAML. Some OAuth providers Brain might need to connect (e.g., older OAuth 2.0-only services without OIDC discovery) may not be supported by the SSO plugin. The Generic OAuth plugin handles these via explicit `authorizationUrl`/`tokenUrl`/`userInfoUrl` configuration, but the SSO plugin may require OIDC discovery.
+**Issue**: The SSO plugin documentation focuses on OIDC and SAML. Some OAuth providers Osabio might need to connect (e.g., older OAuth 2.0-only services without OIDC discovery) may not be supported by the SSO plugin. The Generic OAuth plugin handles these via explicit `authorizationUrl`/`tokenUrl`/`userInfoUrl` configuration, but the SSO plugin may require OIDC discovery.
 **Attempted Sources**: SSO plugin docs, GitHub issues -- no explicit documentation on non-OIDC OAuth 2.0 support in SSO plugin.
 **Recommendation**: Test registering a plain OAuth 2.0 provider (no discovery URL) via the SSO plugin's `registerSSOProvider` API. If unsupported, a hybrid approach may be needed: SSO plugin for OIDC providers + a custom extension for plain OAuth 2.0.
 
@@ -141,7 +141,7 @@ However, Better Auth offers two viable paths for the Brain use case (workspace a
 
 **Issue**: The SSO plugin documentation shows it working alongside the Organization plugin with `organizationId` linkage. It is unclear whether the SSO plugin can function independently (e.g., with workspace-scoped providers managed by custom logic rather than the organization plugin).
 **Attempted Sources**: SSO docs, DeepWiki analysis -- organization plugin appears to be a dependency.
-**Recommendation**: Review the SSO plugin source code to determine if `organizationId` is required or optional. If required, evaluate whether Brain should adopt the Better Auth Organization plugin or fork/extend the SSO plugin.
+**Recommendation**: Review the SSO plugin source code to determine if `organizationId` is required or optional. If required, evaluate whether Osabio should adopt the Better Auth Organization plugin or fork/extend the SSO plugin.
 
 ### Gap 3: Generic OAuth Plugin Source Code Internals
 
@@ -159,11 +159,11 @@ No significant conflicts found. All sources consistently agree that the Generic 
 
 ## Recommendations for Further Research
 
-1. **Evaluate SSO plugin integration path**: Prototype adding the `sso()` plugin to Brain's auth config alongside the existing `oauthProvider` plugin. Map `organizationId` to workspace ID. Test `registerSSOProvider` and `signInSSO` flows end-to-end.
+1. **Evaluate SSO plugin integration path**: Prototype adding the `sso()` plugin to Osabio's auth config alongside the existing `oauthProvider` plugin. Map `organizationId` to workspace ID. Test `registerSSOProvider` and `signInSSO` flows end-to-end.
 
 2. **Investigate SSO plugin's OAuth 2.0 (non-OIDC) support**: Determine if the SSO plugin can register providers using explicit endpoint URLs (no discovery), or if a custom plugin/extension is needed for plain OAuth 2.0 providers.
 
-3. **Assess Organization plugin dependency**: Determine whether the SSO plugin requires the Organization plugin or can work standalone with Brain's existing workspace model.
+3. **Assess Organization plugin dependency**: Determine whether the SSO plugin requires the Organization plugin or can work standalone with Osabio's existing workspace model.
 
 ---
 
@@ -197,7 +197,7 @@ No significant conflicts found. All sources consistently agree that the Generic 
 [6] DeepWiki. "Generic OAuth & OAuth Proxy". deepwiki.com. 2026. https://deepwiki.com/better-auth/better-auth/4.3-oauth-and-social-providers. Accessed 2026-03-22.
 [7] DeepWiki. "Enterprise SSO". deepwiki.com. 2026. https://deepwiki.com/better-auth/better-auth/6.2-enterprise-sso. Accessed 2026-03-22.
 [8] better-auth/better-auth. "SSO Plugin Documentation Source". GitHub. https://github.com/better-auth/better-auth/blob/main/docs/content/docs/plugins/sso.mdx. Accessed 2026-03-22.
-[9] Brain codebase. "auth/config.ts". Local file. /Users/marcus/Git/brain/app/src/server/auth/config.ts. Accessed 2026-03-22.
+[9] Osabio codebase. "auth/config.ts". Local file. /Users/marcus/Git/osabio/app/src/server/auth/config.ts. Accessed 2026-03-22.
 
 ---
 

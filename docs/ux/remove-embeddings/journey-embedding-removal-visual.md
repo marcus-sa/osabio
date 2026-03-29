@@ -1,4 +1,4 @@
-# Journey: Remove Embeddings from Brain Knowledge Graph
+# Journey: Remove Embeddings from Osabio Knowledge Graph
 
 ## Journey Overview
 

@@ -21,7 +21,7 @@ import type { AsSigningKey } from "../../../app/src/server/oauth/as-key-manageme
 import type { KeyPair } from "../../../app/src/server/oauth/dpop";
 import { createNonceCache } from "../../../app/src/server/oauth/nonce-cache";
 import { authenticateDPoPRequest } from "../../../app/src/server/oauth/dpop-middleware";
-import type { DPoPAuthResult, BrainAction } from "../../../app/src/server/oauth/types";
+import type { DPoPAuthResult, OsabioAction } from "../../../app/src/server/oauth/types";
 import type { LookupIdentity, LookupManager, ResolvedIdentity, ResolvedManager } from "../../../app/src/server/oauth/identity-lifecycle";
 
 // ---------------------------------------------------------------------------
@@ -37,11 +37,11 @@ const TEST_WORKSPACE_NAME = "Test Workspace";
 const TEST_IDENTITY_ID = "id-test-456";
 const TEST_INTENT_ID = "intent-test-789";
 const TEST_SUBJECT = "person:user-001";
-const TEST_URI = "https://brain.local/api/mcp";
+const TEST_URI = "https://osabio.local/api/mcp";
 const TEST_METHOD = "POST";
 
-const TEST_ACTIONS: BrainAction[] = [
-  { type: "brain_action", action: "read", resource: "graph" },
+const TEST_ACTIONS: OsabioAction[] = [
+  { type: "osabio_action", action: "read", resource: "graph" },
 ];
 
 beforeAll(async () => {
@@ -60,7 +60,7 @@ async function issueTestToken(overrides?: {
   thumbprint?: string;
   workspace?: string;
   intentId?: string;
-  actions?: BrainAction[];
+  actions?: OsabioAction[];
   actorType?: string;
 }): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
@@ -68,14 +68,14 @@ async function issueTestToken(overrides?: {
   return await new jose.SignJWT({
     cnf: { jkt: overrides?.thumbprint ?? agentKeyPair.thumbprint },
     authorization_details: overrides?.actions ?? TEST_ACTIONS,
-    "urn:brain:intent_id": overrides?.intentId ?? TEST_INTENT_ID,
-    "urn:brain:workspace": overrides?.workspace ?? TEST_WORKSPACE_ID,
-    "urn:brain:actor_type": overrides?.actorType ?? "agent",
+    "urn:osabio:intent_id": overrides?.intentId ?? TEST_INTENT_ID,
+    "urn:osabio:workspace": overrides?.workspace ?? TEST_WORKSPACE_ID,
+    "urn:osabio:actor_type": overrides?.actorType ?? "agent",
   })
     .setProtectedHeader({ alg: "ES256", typ: "at+jwt", kid: asKey.kid })
     .setSubject(overrides?.sub ?? TEST_SUBJECT)
-    .setIssuer("https://brain.local")
-    .setAudience("https://brain.local")
+    .setIssuer("https://osabio.local")
+    .setAudience("https://osabio.local")
     .setIssuedAt(now)
     .setExpirationTime(now + 300)
     .sign(asKey.privateKey);
@@ -241,13 +241,13 @@ describe("authenticateDPoPRequest", () => {
     const fakeToken = await new jose.SignJWT({
       cnf: { jkt: agentKeyPair.thumbprint },
       authorization_details: TEST_ACTIONS,
-      "urn:brain:intent_id": TEST_INTENT_ID,
-      "urn:brain:workspace": TEST_WORKSPACE_ID,
+      "urn:osabio:intent_id": TEST_INTENT_ID,
+      "urn:osabio:workspace": TEST_WORKSPACE_ID,
     })
       .setProtectedHeader({ alg: "ES256", typ: "at+jwt", kid: fakeAsKey.kid })
       .setSubject(TEST_SUBJECT)
-      .setIssuer("https://brain.local")
-      .setAudience("https://brain.local")
+      .setIssuer("https://osabio.local")
+      .setAudience("https://osabio.local")
       .setIssuedAt()
       .setExpirationTime("5m")
       .sign(fakeAsKey.privateKey);

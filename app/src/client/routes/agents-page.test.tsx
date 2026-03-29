@@ -54,10 +54,10 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 const BRAIN_AGENT = {
-  id: "agent-brain-1",
+  id: "agent-osabio-1",
   name: "Extraction Agent",
   description: "Extracts entities from conversations",
-  runtime: "brain",
+  runtime: "osabio",
   model: "haiku",
   identity_id: "id-1",
   created_at: "2026-01-15T10:00:00Z",
@@ -94,14 +94,14 @@ describe("AgentsPage", () => {
     render(<AgentsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Brain Agents \(1\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Osabio Agents \(1\)/)).toBeInTheDocument();
     });
 
     expect(screen.getByText(/External Agents \(1\)/)).toBeInTheDocument();
     expect(screen.getByText(/Sandbox Agents \(1\)/)).toBeInTheDocument();
   });
 
-  it("shows View button for brain agents, not Edit or Delete", async () => {
+  it("shows View button for osabio agents, not Edit or Delete", async () => {
     stubFetchWithAgents([BRAIN_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
@@ -134,10 +134,10 @@ describe("AgentsPage", () => {
     render(<AgentsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Brain Agents \(0\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Osabio Agents \(0\)/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/No brain agents found/)).toBeInTheDocument();
+    expect(screen.getByText(/No osabio agents found/)).toBeInTheDocument();
     expect(screen.getByText(/No external agents yet/)).toBeInTheDocument();
     expect(screen.getByText(/No sandbox agents yet/)).toBeInTheDocument();
   });
@@ -151,7 +151,7 @@ describe("AgentsPage", () => {
       expect(screen.getByText("Extraction Agent")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Brain")).toBeInTheDocument();
+    expect(screen.getByText("Osabio")).toBeInTheDocument();
     expect(screen.getByText("External")).toBeInTheDocument();
   });
 });

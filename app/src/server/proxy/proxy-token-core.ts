@@ -7,7 +7,7 @@
  */
 import { randomBytes, createHash } from "node:crypto";
 
-const TOKEN_PREFIX = "brp_";
+const TOKEN_PREFIX = "osp_";
 const TOKEN_RANDOM_BYTES = 32; // 32 bytes = 64 hex chars
 
 /**

@@ -6,7 +6,7 @@ Accepted (supersedes ADR-032)
 
 ## Context
 
-Brain uses 1536-dimension vector embeddings across 18 entity types for four use cases: entity search, collision detection, objective-intent alignment, and proxy context ranking. This creates several problems:
+Osabio uses 1536-dimension vector embeddings across 18 entity types for four use cases: entity search, collision detection, objective-intent alignment, and proxy context ranking. This creates several problems:
 
 1. **Reliability**: External embedding API calls timeout at 60s, causing CI test failures and degraded user experience. The HNSW+WHERE bug in SurrealDB v3.0 requires two-step query workarounds everywhere.
 

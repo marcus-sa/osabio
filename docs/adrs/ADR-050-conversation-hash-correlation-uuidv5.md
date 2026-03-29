@@ -14,7 +14,7 @@ The `conversation` table already exists in the schema. The codebase uses UUIDs e
 
 ## Decision
 
-The proxy derives a deterministic conversation ID using `UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + "\x00" + first_user_message)` from LLM request content. This UUID is used directly as the conversation record ID (`conversation:<uuidv5>`). Same conversation content always produces the same ID -- no lookup needed.
+The proxy derives a deterministic conversation ID using `UUIDv5(OSABIO_PROXY_NAMESPACE, system_prompt + "\x00" + first_user_message)` from LLM request content. This UUID is used directly as the conversation record ID (`conversation:<uuidv5>`). Same conversation content always produces the same ID -- no lookup needed.
 
 The null byte separator (`\x00`) prevents collisions between different system_prompt/first_user_message combinations that would otherwise concatenate to the same string.
 

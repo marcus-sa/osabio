@@ -8,7 +8,7 @@ By submitting a contribution (via pull request, patch, or any other mechanism) t
 
 - **"You"** means the individual submitting a contribution.
 - **"Contribution"** means any original work of authorship, including modifications or additions, that you submit to this project.
-- **"Project"** means the Brain software and all associated repositories maintained by the project owner.
+- **"Project"** means the Osabio software and all associated repositories maintained by the project owner.
 
 ## 2. Grant of Copyright License
 

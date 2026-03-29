@@ -1,7 +1,7 @@
 # US-AL-005: Learning Entity Schema
 
 ## Problem
-Brain's knowledge graph has entities for decisions, observations, suggestions, tasks, features, and questions -- but no entity for persistent behavioral rules. When Tomas Eriksson corrects an agent, the correction lives only in conversation history. There is no structured entity to store, query, version, or inject behavioral learnings into agent prompts.
+Osabio's knowledge graph has entities for decisions, observations, suggestions, tasks, features, and questions -- but no entity for persistent behavioral rules. When Tomas Eriksson corrects an agent, the correction lives only in conversation history. There is no structured entity to store, query, version, or inject behavioral learnings into agent prompts.
 
 ## Who
 - System (schema layer) | Database infrastructure | Needs a SCHEMAFULL table to persist learning records with lifecycle, provenance, and vector search

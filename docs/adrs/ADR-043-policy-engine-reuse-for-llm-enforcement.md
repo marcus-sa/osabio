@@ -4,7 +4,7 @@
 Proposed
 
 ## Context
-The proxy must enforce model access restrictions, budget limits, and rate limits before forwarding LLM requests. Brain already has a policy engine (`policy-gate.ts`) with condition evaluation, priority-sorted rules, and policy trace generation. The engine evaluates policies against an `IntentEvaluationContext`.
+The proxy must enforce model access restrictions, budget limits, and rate limits before forwarding LLM requests. Osabio already has a policy engine (`policy-gate.ts`) with condition evaluation, priority-sorted rules, and policy trace generation. The engine evaluates policies against an `IntentEvaluationContext`.
 
 The question is whether to reuse this engine or build a separate enforcement system for the proxy.
 
@@ -21,7 +21,7 @@ Policy evaluation flow:
 ### Alternative 1: Build a dedicated LLM policy engine
 - **What**: New `proxy-policy.ts` with LLM-specific rule evaluation
 - **Expected impact**: Optimized for LLM enforcement, no adaptation needed
-- **Why insufficient**: Duplicates policy evaluation logic. Two policy systems to maintain. Workspace admins would need to configure policies in two different places. Breaks Brain's principle that governance is unified in the policy graph.
+- **Why insufficient**: Duplicates policy evaluation logic. Two policy systems to maintain. Workspace admins would need to configure policies in two different places. Breaks Osabio's principle that governance is unified in the policy graph.
 
 ### Alternative 2: Full intent system integration (create intent per LLM call)
 - **What**: Create an `intent` record for each LLM request, run full authorization pipeline
@@ -29,7 +29,7 @@ Policy evaluation flow:
 - **Why insufficient**: Intent creation requires DB write before forwarding (5-50ms). At 100-500 calls/day this adds significant overhead. The intent system is designed for discrete agent actions, not high-frequency LLM calls. A lightweight policy check (cached policies, in-memory evaluation) is more appropriate.
 
 ## Consequences
-- **Positive**: Single policy graph for all Brain governance (agents + LLM calls); workspace admins configure in one place
+- **Positive**: Single policy graph for all Osabio governance (agents + LLM calls); workspace admins configure in one place
 - **Positive**: Policy trace entries on trace via `governed_by` edge provide audit trail without full intent overhead
 - **Negative**: Policy condition vocabulary needs extension for LLM predicates (model, provider) -- small scope change to predicate-evaluator.ts
 - **Negative**: Budget and rate limiting are not part of the policy gate (they live alongside it as separate pre-request checks)

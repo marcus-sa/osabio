@@ -58,11 +58,11 @@ export function injectTools(
 
   const runtimeNames = new Set(existing.map((tool) => tool.name));
 
-  const brainToolsToInject: AnthropicTool[] = resolvedTools
+  const osabioToolsToInject: AnthropicTool[] = resolvedTools
     .filter((tool) => !runtimeNames.has(tool.name))
     .map(toAnthropicFormat);
 
-  return [...existing, ...brainToolsToInject];
+  return [...existing, ...osabioToolsToInject];
 }
 
 // ---------------------------------------------------------------------------

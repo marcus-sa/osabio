@@ -177,7 +177,7 @@ describe("resolveIntentContext", () => {
       });
 
       const result = await resolveIntentContext(
-        makeInput({ surreal, intent: "help", cwd: "/workspace/brain-platform-services/src" }),
+        makeInput({ surreal, intent: "help", cwd: "/workspace/osabio-platform-services/src" }),
       );
       expect(result.level).toBe("project");
       expect((mockBuildProjectContext.mock.calls[0][0] as any).projectRecord.id).toBe("proj-2");

@@ -7,10 +7,10 @@
 New fields on existing `intent` table:
 
 ```sql
--- brain_action authorization_details (replaces action_spec as authorization source)
+-- osabio_action authorization_details (replaces action_spec as authorization source)
 DEFINE FIELD OVERWRITE authorization_details ON intent TYPE array<object>;
 DEFINE FIELD OVERWRITE authorization_details[*].type ON intent TYPE string
-  ASSERT $value = "brain_action";
+  ASSERT $value = "osabio_action";
 DEFINE FIELD OVERWRITE authorization_details[*].action ON intent TYPE string;
 DEFINE FIELD OVERWRITE authorization_details[*].resource ON intent TYPE string;
 DEFINE FIELD OVERWRITE authorization_details[*].constraints ON intent TYPE option<object> FLEXIBLE;
@@ -87,11 +87,11 @@ DEFINE INDEX as_signing_key_status ON as_signing_key FIELDS status;
 
 ## TypeScript Types
 
-### BrainAction (authorization_details entry)
+### OsabioAction (authorization_details entry)
 
 ```typescript
-type BrainAction = {
-  type: "brain_action";
+type OsabioAction = {
+  type: "osabio_action";
   action: string;
   resource: string;
   constraints?: Record<string, unknown>;
@@ -121,14 +121,14 @@ type DPoPProofPayload = {
 type DPoPBoundTokenClaims = {
   sub: string;                              // identity ID
   iss: string;                              // Custom AS issuer URL
-  aud: string;                              // Brain resource server URL
+  aud: string;                              // Osabio resource server URL
   exp: number;                              // expiry (epoch seconds)
   iat: number;                              // issued at
   cnf: { jkt: string };                     // JWK thumbprint (sender binding)
-  authorization_details: BrainAction[];     // what the token authorizes
-  "urn:brain:intent_id": string;            // link to authorizing intent
-  "urn:brain:workspace": string;            // workspace scope
-  "urn:brain:actor_type"?: string;          // "human" | "agent" (informational only)
+  authorization_details: OsabioAction[];     // what the token authorizes
+  "urn:osabio:intent_id": string;            // link to authorizing intent
+  "urn:osabio:workspace": string;            // workspace scope
+  "urn:osabio:actor_type"?: string;          // "human" | "agent" (informational only)
 };
 ```
 
@@ -138,8 +138,8 @@ type DPoPBoundTokenClaims = {
 type IntentRecord = {
   // ... existing fields (goal, reasoning, status, priority, action_spec, etc.)
 
-  // NEW: brain_action authorization_details
-  authorization_details: BrainAction[];
+  // NEW: osabio_action authorization_details
+  authorization_details: OsabioAction[];
 
   // NEW: DPoP key binding
   dpop_jwk_thumbprint: string;
@@ -188,7 +188,7 @@ type DPoPAuthResult = {
   workspaceName: string;
   identityRecord: RecordId<"identity", string>;
   actorType: "human" | "agent";
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
   intentId: string;
   dpopThumbprint: string;
 };
@@ -218,7 +218,7 @@ type DPoPAuthResult = {
     },
     "authorization_details": [
       {
-        "type": "brain_action",
+        "type": "osabio_action",
         "action": "create",
         "resource": "invoice",
         "constraints": {
@@ -228,8 +228,8 @@ type DPoPAuthResult = {
         }
       }
     ],
-    "urn:brain:intent_id": "abc123",
-    "urn:brain:workspace": "lusaka-ws-001"
+    "urn:osabio:intent_id": "abc123",
+    "urn:osabio:workspace": "lusaka-ws-001"
   }
 }
 ```
@@ -259,11 +259,11 @@ type DPoPAuthResult = {
 
 ---
 
-## Route-to-BrainAction Mapping
+## Route-to-OsabioAction Mapping
 
-The Brain resource server derives a `brain_action` from each incoming HTTP request:
+The Osabio resource server derives a `osabio_action` from each incoming HTTP request:
 
-| HTTP Method + Path Pattern | brain_action.action | brain_action.resource |
+| HTTP Method + Path Pattern | osabio_action.action | osabio_action.resource |
 |---|---|---|
 | `POST /api/mcp/:ws/workspace-context` | read | workspace |
 | `POST /api/mcp/:ws/project-context` | read | project |

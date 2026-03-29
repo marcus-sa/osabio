@@ -4,7 +4,7 @@ All stories trace to JTBD job stories in `docs/ux/observer-llm-reasoning/jtbd-jo
 
 ## Personas
 
-**Marcus Santos** — Founder/CEO. Manages 5 concurrent projects in Brain. Reviews observation feed 2x daily. Needs high signal-to-noise ratio. Primary pain: subtle contradictions between architecture decisions and shipped code go undetected until production issues surface.
+**Marcus Santos** — Founder/CEO. Manages 5 concurrent projects in Osabio. Reviews observation feed 2x daily. Needs high signal-to-noise ratio. Primary pain: subtle contradictions between architecture decisions and shipped code go undetected until production issues surface.
 
 **Jamie Park** — DevOps lead. Configures environment variables and model settings in CI/CD. Needs clear cost/performance controls. Primary pain: no visibility into observer operational costs or latency impact.
 

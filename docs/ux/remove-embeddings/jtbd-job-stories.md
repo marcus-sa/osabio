@@ -1,4 +1,4 @@
-# JTBD Analysis: Remove Embeddings from Brain Knowledge Graph
+# JTBD Analysis: Remove Embeddings from Osabio Knowledge Graph
 
 ## Job Classification
 
@@ -50,7 +50,7 @@ Rank workspace decisions, learnings, and observations by relevance to the curren
 Feel confident that the coding agent has the right context -- not overwhelmed by irrelevant noise, not missing critical decisions.
 
 ### Social Job
-Demonstrate to the developer that Brain adds value by surfacing the right context at the right time.
+Demonstrate to the developer that Osabio adds value by surfacing the right context at the right time.
 
 ### Forces Analysis
 - **Push**: Context injection requires embedding the proxy message (60s timeout, N+1 API call per request). Uses two-step KNN workaround for SurrealDB bug. Recent changes classification uses cosine similarity thresholds (0.4/0.7) on pre-computed embeddings.

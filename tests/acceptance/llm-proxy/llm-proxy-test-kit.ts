@@ -92,13 +92,13 @@ export function buildProxyHeaders(options: ProxyRequestOptions): Record<string, 
     headers["x-api-key"] = options.apiKey;
   }
   if (options.workspaceHeader) {
-    headers["X-Brain-Workspace"] = options.workspaceHeader;
+    headers["X-Osabio-Workspace"] = options.workspaceHeader;
   }
   if (options.taskHeader) {
-    headers["X-Brain-Task"] = options.taskHeader;
+    headers["X-Osabio-Task"] = options.taskHeader;
   }
   if (options.agentTypeHeader) {
-    headers["X-Brain-Agent-Type"] = options.agentTypeHeader;
+    headers["X-Osabio-Agent-Type"] = options.agentTypeHeader;
   }
 
   return headers;
@@ -973,10 +973,10 @@ export async function sendProxyRequestWithIntelligence(
   const headers = buildProxyHeaders(options);
 
   if (options.sessionHeader) {
-    headers["X-Brain-Session"] = options.sessionHeader;
+    headers["X-Osabio-Session"] = options.sessionHeader;
   }
   if (options.sessionEndHeader) {
-    headers["X-Brain-Session-End"] = "true";
+    headers["X-Osabio-Session-End"] = "true";
   }
 
   const url = `${baseUrl}/proxy/llm/anthropic/v1/messages`;

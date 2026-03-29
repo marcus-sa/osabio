@@ -8,7 +8,7 @@ Job Story: When an agent, developer, or frontend consumer needs to inspect the e
 ## US-TM01: Schema -- Define spawns relation and remove embedded trace fields
 
 ### Problem
-The Brain platform stores subagent execution traces in two disconnected systems: embedded `subagent_traces` arrays on `message` records (migration 0013) and a graph-native `trace` table (migration 0023). Elena Vasquez, a developer debugging a PM agent invocation, finds it impossible to correlate message traces with intent traces because embedded arrays are invisible to graph traversal. She has to manually inspect raw message records instead of running a single graph query.
+The Osabio platform stores subagent execution traces in two disconnected systems: embedded `subagent_traces` arrays on `message` records (migration 0013) and a graph-native `trace` table (migration 0023). Elena Vasquez, a developer debugging a PM agent invocation, finds it impossible to correlate message traces with intent traces because embedded arrays are invisible to graph traversal. She has to manually inspect raw message records instead of running a single graph query.
 
 ### Who
 - Developer | Debugging subagent execution | Wants graph-traversable trace data
@@ -161,7 +161,7 @@ And 2 spawns edges connect the assistant message to each root trace
 ## US-TM03: Read Paths -- Reconstruct traces from graph for API and branch inheritance
 
 ### Problem
-Carlos Rodriguez, a developer loading a conversation in the Brain UI, sees no trace data because the workspace-routes and branch-chain code still queries `subagent_traces` from message records -- a field that no longer exists after the migration. The frontend renders empty trace blocks. Similarly, when Priya Sharma branches a conversation, inherited messages lose their trace context because `branch-chain.ts` no longer finds the embedded field.
+Carlos Rodriguez, a developer loading a conversation in the Osabio UI, sees no trace data because the workspace-routes and branch-chain code still queries `subagent_traces` from message records -- a field that no longer exists after the migration. The frontend renders empty trace blocks. Similarly, when Priya Sharma branches a conversation, inherited messages lose their trace context because `branch-chain.ts` no longer finds the embedded field.
 
 ### Who
 - Frontend consumer | Loading conversation via API | Needs subagentTraces in response

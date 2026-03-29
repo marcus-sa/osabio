@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 
-Brain's behavior scoring system uses a hardcoded `KNOWN_METRIC_TYPES` enum with 5 values and an ASSERT constraint on the `behavior.metric_type` field in SurrealDB. Only 2 of the 5 types have implemented scorers (TDD_Adherence, Security_First). Adding a new behavioral metric requires:
+Osabio's behavior scoring system uses a hardcoded `KNOWN_METRIC_TYPES` enum with 5 values and an ASSERT constraint on the `behavior.metric_type` field in SurrealDB. Only 2 of the 5 types have implemented scorers (TDD_Adherence, Security_First). Adding a new behavioral metric requires:
 
 1. Adding the string to `KNOWN_METRIC_TYPES` array in `scorer.ts`
 2. Adding the string to the ASSERT enum in `surreal-schema.surql`

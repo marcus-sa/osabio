@@ -22,7 +22,7 @@ import { createMcpRouteHandlers } from "../mcp/mcp-route";
 import { createIntentRouteHandlers } from "../intent/intent-routes";
 import { wireOrchestratorRoutes } from "../orchestrator/routes";
 import type { ShellExec } from "../orchestrator/worktree-manager";
-import { BRAIN_SCOPES } from "../auth/scopes";
+import { OSABIO_SCOPES } from "../auth/scopes";
 import { createClientInfoHandler } from "../auth/client-info-route";
 import { createVetoManager } from "../intent/veto-manager";
 import { updateIntentStatus, queryExpiredVetoIntents } from "../intent/intent-queries";
@@ -136,7 +136,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   const orchestratorHandlers = wireOrchestratorRoutes({
     surreal: deps.surreal,
     shellExec,
-    brainBaseUrl: config.baseUrl,
+    osabioBaseUrl: config.baseUrl,
     extractionModel: deps.extractionModel,
     asSigningKey: deps.asSigningKey,
     sseRegistry: deps.sse,
@@ -952,8 +952,8 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         ),
       },
       // AS JWKS endpoint — public keys for token verification
-      "/api/auth/brain/.well-known/jwks": {
-        GET: withTracing("GET /api/auth/brain/.well-known/jwks", "GET", async () =>
+      "/api/auth/osabio/.well-known/jwks": {
+        GET: withTracing("GET /api/auth/osabio/.well-known/jwks", "GET", async () =>
           jsonResponse(buildJwksResponse(deps.asSigningKey), 200),
         ),
       },
@@ -965,7 +965,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
         GET: () => jsonResponse({
           resource: config.betterAuthUrl,
           authorization_servers: [config.betterAuthUrl],
-          scopes_supported: Object.keys(BRAIN_SCOPES),
+          scopes_supported: Object.keys(OSABIO_SCOPES),
           bearer_methods_supported: ["header"],
         }, 200),
       },
@@ -1029,7 +1029,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
       "/proxy/llm/anthropic/v1/messages/count_tokens": {
         POST: withTracing("POST /proxy/llm/anthropic/v1/messages/count_tokens", "POST", anthropicProxyHandler),
       },
-      // Proxy token issuance — CLI brain init Step 7
+      // Proxy token issuance — CLI osabio init Step 7
       "/api/auth/proxy-token": {
         POST: withTracing("POST /api/auth/proxy-token", "POST", proxyTokenHandler),
       },

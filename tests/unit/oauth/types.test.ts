@@ -5,30 +5,30 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
-  type BrainAction,
+  type OsabioAction,
   type DPoPErrorCode,
   type DPoPValidationResult,
   type TokenIssuanceResult,
   type RARVerificationResult,
-  createBrainAction,
+  createOsabioAction,
 } from "../../../app/src/server/oauth/types";
 
-describe("BrainAction construction", () => {
-  it("creates a valid brain action with required fields", () => {
-    const action = createBrainAction("read", "workspace");
+describe("OsabioAction construction", () => {
+  it("creates a valid osabio action with required fields", () => {
+    const action = createOsabioAction("read", "workspace");
 
-    expect(action.type).toBe("brain_action");
+    expect(action.type).toBe("osabio_action");
     expect(action.action).toBe("read");
     expect(action.resource).toBe("workspace");
     expect(action.constraints).toBeUndefined();
   });
 
-  it("creates a brain action with constraints", () => {
-    const action = createBrainAction("update", "task", {
+  it("creates an osabio action with constraints", () => {
+    const action = createOsabioAction("update", "task", {
       task_id: "task-123",
     });
 
-    expect(action.type).toBe("brain_action");
+    expect(action.type).toBe("osabio_action");
     expect(action.action).toBe("update");
     expect(action.resource).toBe("task");
     expect(action.constraints).toEqual({ task_id: "task-123" });

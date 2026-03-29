@@ -426,7 +426,7 @@ function toSessionSummary(row: SessionRow): SessionSummary {
  *
  * Validates:
  * - Agent exists in workspace
- * - Agent is not a brain-managed agent
+ * - Agent is not a osabio-managed agent
  * - Confirmation name matches agent name
  *
  * Deletes:
@@ -469,8 +469,8 @@ export async function deleteAgentTransaction(
 
   const agent = agentRows[0];
 
-  if (agent.runtime === "brain") {
-    throw new HttpError(403, "Cannot delete brain-managed agents");
+  if (agent.runtime === "osabio") {
+    throw new HttpError(403, "Cannot delete osabio-managed agents");
   }
 
   if (agent.name !== confirmName) {

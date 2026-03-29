@@ -4,13 +4,13 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 const RUNTIME_LABELS: Record<AgentRuntime, string> = {
-  brain: "Brain",
+  osabio: "Osabio",
   sandbox: "Sandbox",
   external: "External",
 };
 
 const RUNTIME_VARIANTS: Record<AgentRuntime, "default" | "secondary" | "outline"> = {
-  brain: "default",
+  osabio: "default",
   sandbox: "secondary",
   external: "outline",
 };
@@ -29,7 +29,7 @@ type AgentCardProps = {
 };
 
 export function AgentCard({ agent, onDelete }: AgentCardProps) {
-  const isBrain = agent.runtime === "brain";
+  const isBrain = agent.runtime === "osabio";
 
   return (
     <div className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-hover">

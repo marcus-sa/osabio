@@ -45,10 +45,10 @@ phases:
   - id: 01-03
     name: Worktree manager (create)
     description: >
-      Create isolated git worktree per assignment at .brain/worktrees/agent-{taskSlug}
+      Create isolated git worktree per assignment at .osabio/worktrees/agent-{taskSlug}
       with agent/{taskSlug} branch prefix. Pure git CLI adapter with no internal deps.
     criteria: >
-      Worktree created at .brain/worktrees/ with unique agent/ prefixed branch.
+      Worktree created at .osabio/worktrees/ with unique agent/ prefixed branch.
       Separate worktrees for different task assignments do not interfere.
       Worktree directory and branch name returned to caller.
     files_to_modify:
@@ -59,7 +59,7 @@ phases:
     name: OpenCode config builder
     description: >
       Pure function that builds OpenCode config object from server config,
-      workspace ID, Brain base URL, and auth token. Produces config for
+      workspace ID, Osabio base URL, and auth token. Produces config for
       OPENCODE_CONFIG_CONTENT env var injection.
     criteria: >
       Config object contains mcpBaseUrl, authToken, and model settings.
@@ -144,7 +144,7 @@ phases:
   - id: 03-01
     name: Event bridge (SSE forwarding)
     description: >
-      Subscribe to OpenCode SSE events, transform to Brain StreamEvent
+      Subscribe to OpenCode SSE events, transform to Osabio StreamEvent
       variants, forward to SSE registry by streamId. Handle nonexistent
       streams and error event forwarding.
     criteria: >
@@ -230,19 +230,19 @@ phases:
     dependencies:
     - 01-06
   - id: 04-03
-    name: Brain OpenCode plugin and init command extension
+    name: Osabio OpenCode plugin and init command extension
     description: >
-      Plugin file registering Brain tools (task-context, project-context,
+      Plugin file registering Osabio tools (task-context, project-context,
       status-update, observations) and lifecycle hooks (session.created,
       session.idle) for OpenCode. CLI init --opencode generates plugin
       files, opencode.json, and OPENCODE.md.
     criteria: >
       Plugin file exports tool registrations and lifecycle hooks.
-      brain init --opencode generates .opencode/plugins/brain.ts.
-      Generated opencode.json references Brain plugin.
+      osabio init --opencode generates .opencode/plugins/osabio.ts.
+      Generated opencode.json references Osabio plugin.
       Generated OPENCODE.md contains agent instructions.
     files_to_modify:
-    - .opencode/plugins/brain.ts
+    - .opencode/plugins/osabio.ts
     - cli/commands/init.ts
     - cli/commands/init-content.ts
     dependencies:

@@ -45,7 +45,7 @@ describe("Proxy token storage", () => {
     expect(tokens.length).toBeGreaterThanOrEqual(1);
     const stored = tokens[0];
     expect(stored.token_hash).not.toBe(proxy_token);
-    expect(stored.token_hash).not.toContain("brp_");
+    expect(stored.token_hash).not.toContain("osp_");
 
     // And the hash is a 64-char hex string (SHA-256)
     expect(stored.token_hash).toMatch(/^[0-9a-f]{64}$/);
@@ -66,7 +66,7 @@ describe("Proxy token re-issuance", () => {
     expect(firstResponse.status).toBe(200);
     const { proxy_token: firstToken } = await firstResponse.json() as { proxy_token: string };
 
-    // When she runs brain init again and a new token is issued
+    // When she runs osabio init again and a new token is issued
     const secondResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     expect(secondResponse.status).toBe(200);
     const { proxy_token: secondToken } = await secondResponse.json() as { proxy_token: string };

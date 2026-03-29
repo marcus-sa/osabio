@@ -11,7 +11,7 @@ import { seedDescriptionEntry } from "../descriptions/persist";
 import { fireDescriptionUpdates } from "../descriptions/triggers";
 import { ensureProjectFeatureEdge } from "../workspace/workspace-scope";
 import { requireAuthorizedContext } from "../iam/authority";
-import { createWorkItemSchema } from "../mcp/brain-tool-definitions";
+import { createWorkItemSchema } from "../mcp/osabio-tool-definitions";
 import type { ChatToolDeps } from "./types";
 import { log } from "../telemetry/logger";
 

@@ -58,7 +58,7 @@ steps:
     gherkin: |
       Scenario: Marcus assigns an agent to a ready task
         Given Marcus is viewing task "Add pagination to entity search" with status "ready"
-        And workspace "Richmond" has repo path "/Users/marcus/conductor/workspaces/brain/richmond"
+        And workspace "Richmond" has repo path "/Users/marcus/conductor/workspaces/osabio/richmond"
         When Marcus clicks "Assign Agent"
         Then the system creates a worktree branch "agent/add-pagination-to-entity-search"
         And the system spawns an OpenCode agent session
@@ -89,14 +89,14 @@ steps:
     integration_checkpoint: |
       Spawn must complete within 15 seconds (SERVER_START_TIMEOUT_MS).
       Event stream subscription must be established.
-      Initial /brain-start-task command must be sent.
+      Initial /osabio-start-task command must be sent.
       On spawn failure: worktree removed, agent_session deleted, task returned to ready.
 
     gherkin: |
       Scenario: Agent spawns and begins working
         Given Marcus has assigned an agent to task "Add pagination to entity search"
         When the OpenCode server starts and session is created
-        Then the initial command "/brain-start-task" is sent with the task ID
+        Then the initial command "/osabio-start-task" is sent with the task ID
         And the event stream subscription begins
         And the stall detector starts monitoring
         And the status transitions from "spawning" to "active"

@@ -348,7 +348,7 @@ Request 4: [...all above...] -> Response: end_turn (text response)
 
 **What the proxy sees**: MCP tool calls appear as regular `tool_use` content blocks in the API response. The proxy sees the tool name, input, and result -- but cannot distinguish whether it was a built-in or MCP tool without maintaining a list of known built-in tool names.
 
-**Analysis**: For the Brain proxy, MCP tools (including Brain's own MCP server tools) will be visible in the API traffic. The proxy can extract tool call data from the streamed response to build rich traces showing which Brain graph operations the agent performed during its session.
+**Analysis**: For the Osabio proxy, MCP tools (including Osabio's own MCP server tools) will be visible in the API traffic. The proxy can extract tool call data from the streamed response to build rich traces showing which Osabio graph operations the agent performed during its session.
 
 ---
 
@@ -516,7 +516,7 @@ Request 4: [...all above...] -> Response: end_turn (text response)
 
 ## Implications for LLM Proxy Design
 
-Based on this research, the following architectural considerations apply specifically to the Brain LLM proxy:
+Based on this research, the following architectural considerations apply specifically to the Osabio LLM proxy:
 
 1. **Burst-oriented traffic**: The proxy must handle bursts of 5-50 sequential API calls per user interaction, with each request larger than the last. Design for high request throughput, not high concurrency per session.
 

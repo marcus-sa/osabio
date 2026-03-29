@@ -46,7 +46,7 @@ And the agent_session DB record is deleted
 And a SessionError with code "SESSION_ERROR" is returned
 ```
 
-## AC-2: Brain MCP Server
+## AC-2: Osabio MCP Server
 
 ### AC-2.1: Stdio transport configuration
 ```gherkin
@@ -57,18 +57,18 @@ And the server type is "stdio"
 And the command is "brain" with args ["mcp"]
 ```
 
-### AC-2.2: All Brain tools available
+### AC-2.2: All Osabio tools available
 ```gherkin
-Given an active agent session with Brain MCP configured
+Given an active agent session with Osabio MCP configured
 Then the agent can invoke get_context, get_task_context, create_provisional_decision,
-     update_task_status, and all other Brain MCP tools
+     update_task_status, and all other Osabio MCP tools
 And no tools are defined outside the MCP server
 ```
 
 ### AC-2.3: No duplicate tool definitions
 ```gherkin
 Given the new integration
-Then Brain tools are defined only in cli/mcp-server.ts
+Then Osabio tools are defined only in cli/mcp-server.ts
 And no tool definitions exist in hook callbacks or config builders
 ```
 
@@ -79,7 +79,7 @@ And no tool definitions exist in hook callbacks or config builders
 Given the Agent SDK options
 When the agent session starts
 Then the SessionStart hook executes
-And it calls the Brain API to load workspace/project context
+And it calls the Osabio API to load workspace/project context
 And the context is available to the agent
 ```
 
@@ -88,7 +88,7 @@ And the context is available to the agent
 Given an active agent session
 When the agent invokes a tool
 Then the PreToolUse hook receives tool_name and tool_input
-And for subagent dispatch tools, brain context is injected
+And for subagent dispatch tools, osabio context is injected
 ```
 
 ### AC-3.3: UserPromptSubmit hook
@@ -110,7 +110,7 @@ And logs any missing items to the knowledge graph
 ```gherkin
 Given an active agent session
 When context compaction is triggered
-Then the PreCompact hook loads current brain context
+Then the PreCompact hook loads current osabio context
 And the context is preserved across the compaction boundary
 ```
 
@@ -118,7 +118,7 @@ And the context is preserved across the compaction boundary
 ```gherkin
 Given an agent session ending
 When the SessionEnd hook executes
-Then it calls brain system end-session
+Then it calls osabio system end-session
 And the session summary is recorded in the knowledge graph
 ```
 
@@ -151,7 +151,7 @@ Then it produces an "error" StreamEvent with the error details
 
 ### AC-5.1: Pure function
 ```gherkin
-Given Brain config (brainBaseUrl, workspaceId, authToken, taskId)
+Given Osabio config (brainBaseUrl, workspaceId, authToken, taskId)
 When buildAgentOptions() is called
 Then it returns a complete Options object
 And the function has no side effects
@@ -189,8 +189,8 @@ And no imports from @opencode-ai/* exist
 
 ### AC-6.3: Init command updated
 ```gherkin
-Given the brain init command
-Then setupOpencode() no longer generates .opencode/plugins/brain.ts
+Given the osabio init command
+Then setupOpencode() no longer generates .opencode/plugins/osabio.ts
 And opencode.json generation uses MCP-only config (no plugin references)
 And OPENCODE_PLUGIN_CONTENT is removed from init-content.ts
 ```

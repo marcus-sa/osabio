@@ -15,7 +15,7 @@ import { describe, expect, it } from "bun:test";
 import * as jose from "jose";
 import { generateKeyPair } from "../../../app/src/server/oauth/dpop";
 import { generateAsSigningKey } from "../../../app/src/server/oauth/as-key-management";
-import type { BrainAction } from "../../../app/src/server/oauth/types";
+import type { OsabioAction } from "../../../app/src/server/oauth/types";
 import type { IntentRecord } from "../../../app/src/server/intent/types";
 import { RecordId } from "surrealdb";
 import {
@@ -29,8 +29,8 @@ import {
 // Test helpers
 // ---------------------------------------------------------------------------
 
-const TEST_ACTIONS: BrainAction[] = [
-  { type: "brain_action", action: "read", resource: "workspace" },
+const TEST_ACTIONS: OsabioAction[] = [
+  { type: "osabio_action", action: "read", resource: "workspace" },
 ];
 
 function createAuthorizedIntent(overrides?: Partial<IntentRecord>): IntentRecord {
@@ -40,7 +40,7 @@ function createAuthorizedIntent(overrides?: Partial<IntentRecord>): IntentRecord
     reasoning: "Need to access workspace",
     status: "authorized",
     priority: 0,
-    action_spec: { provider: "brain", action: "read", params: { resource: "workspace" } },
+    action_spec: { provider: "osabio", action: "read", params: { resource: "workspace" } },
     trace_id: new RecordId("trace", "trace-abc"),
     requester: new RecordId("identity", "actor-123"),
     workspace: new RecordId("workspace", "ws-456"),
@@ -58,14 +58,14 @@ function createAuthorizedIntent(overrides?: Partial<IntentRecord>): IntentRecord
 describe("validateTokenRequest", () => {
   it("accepts a valid token request body", () => {
     const result = validateTokenRequest({
-      grant_type: "urn:brain:intent-authorization",
+      grant_type: "urn:osabio:intent-authorization",
       intent_id: "test-intent-123",
       authorization_details: TEST_ACTIONS,
     });
 
     expect(result.valid).toBe(true);
     if (!result.valid) return;
-    expect(result.data.grantType).toBe("urn:brain:intent-authorization");
+    expect(result.data.grantType).toBe("urn:osabio:intent-authorization");
     expect(result.data.intentId).toBe("test-intent-123");
     expect(result.data.authorizationDetails).toEqual(TEST_ACTIONS);
   });
@@ -84,7 +84,7 @@ describe("validateTokenRequest", () => {
 
   it("rejects missing intent_id", () => {
     const result = validateTokenRequest({
-      grant_type: "urn:brain:intent-authorization",
+      grant_type: "urn:osabio:intent-authorization",
       authorization_details: TEST_ACTIONS,
     });
 
@@ -95,7 +95,7 @@ describe("validateTokenRequest", () => {
 
   it("rejects missing authorization_details", () => {
     const result = validateTokenRequest({
-      grant_type: "urn:brain:intent-authorization",
+      grant_type: "urn:osabio:intent-authorization",
       intent_id: "test-intent-123",
     });
 
@@ -106,7 +106,7 @@ describe("validateTokenRequest", () => {
 
   it("rejects empty authorization_details array", () => {
     const result = validateTokenRequest({
-      grant_type: "urn:brain:intent-authorization",
+      grant_type: "urn:osabio:intent-authorization",
       intent_id: "test-intent-123",
       authorization_details: [],
     });
@@ -174,11 +174,11 @@ describe("verifyIntentForTokenIssuance", () => {
 
 describe("matchAuthorizationDetails", () => {
   it("matches identical authorization_details", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -186,9 +186,9 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("matches multiple actions in same order", () => {
-    const actions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
-      { type: "brain_action", action: "write", resource: "task" },
+    const actions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
+      { type: "osabio_action", action: "write", resource: "task" },
     ];
 
     const result = matchAuthorizationDetails(actions, actions);
@@ -196,11 +196,11 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("rejects when action differs", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "write", resource: "workspace" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "write", resource: "workspace" },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -211,11 +211,11 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("rejects when resource differs", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "project" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "project" },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -225,12 +225,12 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("rejects when array lengths differ", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
-      { type: "brain_action", action: "write", resource: "task" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
+      { type: "osabio_action", action: "write", resource: "task" },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -240,11 +240,11 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("rejects when requested constraints exceed intent constraints", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace", constraints: { max_results: 200 } },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace", constraints: { max_results: 200 } },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -256,11 +256,11 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("accepts when requested constraints are within intent bounds", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace", constraints: { max_results: 50 } },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace", constraints: { max_results: 50 } },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -268,11 +268,11 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("accepts when requested has no constraints but intent does", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
-    const intentActions: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
+    const intentActions: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace", constraints: { max_results: 100 } },
     ];
 
     const result = matchAuthorizationDetails(requested, intentActions);
@@ -280,8 +280,8 @@ describe("matchAuthorizationDetails", () => {
   });
 
   it("rejects when intent has no authorization_details", () => {
-    const requested: BrainAction[] = [
-      { type: "brain_action", action: "read", resource: "workspace" },
+    const requested: OsabioAction[] = [
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ];
 
     const result = matchAuthorizationDetails(requested, undefined);

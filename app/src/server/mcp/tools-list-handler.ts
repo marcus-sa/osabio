@@ -7,11 +7,11 @@
 import type { ClassifiedTool } from "./scope-engine";
 import {
   type McpToolDefinition,
-  BRAIN_READ_TOOLS,
-  BRAIN_WRITE_TOOLS,
-  BRAIN_INFRASTRUCTURE_TOOLS,
-  ALL_BRAIN_TOOL_NAMES,
-} from "./brain-tool-definitions";
+  OSABIO_READ_TOOLS,
+  OSABIO_WRITE_TOOLS,
+  OSABIO_INFRASTRUCTURE_TOOLS,
+  ALL_OSABIO_TOOL_NAMES,
+} from "./osabio-tool-definitions";
 
 // Re-export for consumers that import from here
 export type { McpToolDefinition };
@@ -25,7 +25,7 @@ export type ListToolsResult = {
 };
 
 /** Tool names that are handled by Brain (not forwarded to external MCP servers). */
-export const BRAIN_NATIVE_TOOL_NAMES: ReadonlySet<string> = ALL_BRAIN_TOOL_NAMES;
+export const BRAIN_NATIVE_TOOL_NAMES: ReadonlySet<string> = ALL_OSABIO_TOOL_NAMES;
 
 // ---------------------------------------------------------------------------
 // Pure function: buildToolsList
@@ -64,9 +64,9 @@ function classifiedToolToDefinition(classified: ClassifiedTool): McpToolDefiniti
         description: buildGatedToolDescription(tool.description, tool.toolkit, tool.name),
         inputSchema: tool.input_schema,
       };
-    case "brain_native":
+    case "osabio_native":
       // Brain-native tools from the classified list are replaced by canonical definitions
-      return BRAIN_INFRASTRUCTURE_TOOLS.find((t) => t.name === tool.name) ?? {
+      return OSABIO_INFRASTRUCTURE_TOOLS.find((t) => t.name === tool.name) ?? {
         name: tool.name,
         description: tool.description,
         inputSchema: tool.input_schema,
@@ -78,38 +78,38 @@ function classifiedToolToDefinition(classified: ClassifiedTool): McpToolDefiniti
  * Build the MCP ListToolsResult from classified tools.
  *
  * Pipeline:
- *   classifiedTools -> filter out brain_native -> map to definitions
- *   -> append brain read tools (always available)
- *   -> append brain write tools (gated or authorized based on intent)
+ *   classifiedTools -> filter out osabio_native -> map to definitions
+ *   -> append osabio read tools (always available)
+ *   -> append osabio write tools (gated or authorized based on intent)
  *   -> append infrastructure tools (get_context, create_intent)
  */
 export function buildToolsList(
   classifiedTools: readonly ClassifiedTool[],
   authorizedBrainWriteTools: ReadonlySet<string> = new Set(),
 ): ListToolsResult {
-  // Convert granted tools (authorized + gated), excluding brain_native from the classified set
-  // because we append canonical brain-native definitions separately
+  // Convert granted tools (authorized + gated), excluding osabio_native from the classified set
+  // because we append canonical osabio-native definitions separately
   const grantedToolDefinitions = classifiedTools
-    .filter((ct) => ct.classification.kind !== "brain_native")
+    .filter((ct) => ct.classification.kind !== "osabio_native")
     .map(classifiedToolToDefinition);
 
   // Brain write tools: gated or authorized based on intent
-  const brainWriteToolDefinitions = BRAIN_WRITE_TOOLS.map((tool) => {
+  const osabioWriteToolDefinitions = OSABIO_WRITE_TOOLS.map((tool) => {
     if (authorizedBrainWriteTools.has(tool.name)) {
       return tool; // authorized — show with clean description
     }
     return {
       ...tool,
-      description: buildGatedToolDescription(tool.description, "brain", tool.name),
+      description: buildGatedToolDescription(tool.description, "osabio", tool.name),
     };
   });
 
   return {
     tools: [
       ...grantedToolDefinitions,
-      ...BRAIN_READ_TOOLS,
-      ...brainWriteToolDefinitions,
-      ...BRAIN_INFRASTRUCTURE_TOOLS,
+      ...OSABIO_READ_TOOLS,
+      ...osabioWriteToolDefinitions,
+      ...OSABIO_INFRASTRUCTURE_TOOLS,
     ],
   };
 }

@@ -7,7 +7,7 @@ phases:
 - id: '01'
   name: 'Spawn enrichment and event subscription'
   description: >
-    Enrich spawnOpenCode to send the initial task prompt via brain CLI
+    Enrich spawnOpenCode to send the initial task prompt via osabio CLI
     slash command, subscribe to OpenCode SSE events, and expose
     sendPrompt + eventStream on the handle.
   steps:
@@ -15,9 +15,9 @@ phases:
     name: 'Enrich OpenCodeHandle with prompt and event stream'
     description: >
       Extend OpenCodeHandle to carry sendPrompt and async-iterable eventStream.
-      Initial prompt is /brain-start-task <taskId> which triggers the brain CLI
+      Initial prompt is /osabio-start-task <taskId> which triggers the osabio CLI
       to load task context and validate CLI installation + authentication.
-      If brain CLI is missing or not authenticated, OpenCode surfaces the error.
+      If osabio CLI is missing or not authenticated, OpenCode surfaces the error.
     criteria:
       - 'Initial prompt delivers task context to agent for parsing and validation'
       - 'OpenCodeHandle exposes sendPrompt to deliver follow-up text to the session'

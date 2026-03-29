@@ -53,7 +53,7 @@
 
 | Package | Role | Impact |
 |---------|------|--------|
-| `@modelcontextprotocol/sdk` | Brain MCP server (`cli/mcp-server.ts`) | None — MCP server code unchanged |
+| `@modelcontextprotocol/sdk` | Osabio MCP server (`cli/mcp-server.ts`) | None — MCP server code unchanged |
 | `surrealdb` | Knowledge graph persistence | None — session queries unchanged |
 | `ai` (Vercel AI SDK) | Chat agent, extraction pipeline | None — separate from orchestrator |
 | `pino` | Logging | None |

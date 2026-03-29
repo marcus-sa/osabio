@@ -3,7 +3,7 @@
  *
  * Verifies that authenticateAndAuthorize:
  * 1. Delegates to authenticateDPoPRequest for token/proof verification
- * 2. Derives BrainAction from HTTP method + path via deriveRequestedAction
+ * 2. Derives OsabioAction from HTTP method + path via deriveRequestedAction
  * 3. Verifies operation scope via verifyOperationScope against token's authorization_details
  * 4. Returns DPoPAuthResult on success
  * 5. Returns error Response on DPoP failure, missing route mapping, or insufficient authorization
@@ -13,7 +13,7 @@
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
 import { authenticateAndAuthorize } from "../../../app/src/server/mcp/mcp-dpop-auth";
-import type { DPoPAuthResult, BrainAction } from "../../../app/src/server/oauth/types";
+import type { DPoPAuthResult, OsabioAction } from "../../../app/src/server/oauth/types";
 import type { DPoPVerificationDeps } from "../../../app/src/server/oauth/dpop-middleware";
 
 // ---------------------------------------------------------------------------
@@ -31,9 +31,9 @@ function makeDPoPAuthResult(overrides?: Partial<DPoPAuthResult>): DPoPAuthResult
     identityRecord: new RecordId("identity", TEST_IDENTITY_ID),
     actorType: "agent",
     authorizationDetails: [
-      { type: "brain_action", action: "read", resource: "workspace" },
-      { type: "brain_action", action: "read", resource: "project" },
-      { type: "brain_action", action: "create", resource: "decision" },
+      { type: "osabio_action", action: "read", resource: "workspace" },
+      { type: "osabio_action", action: "read", resource: "project" },
+      { type: "osabio_action", action: "create", resource: "decision" },
     ],
     intentId: "intent-test",
     dpopThumbprint: "thumb-test",
@@ -42,7 +42,7 @@ function makeDPoPAuthResult(overrides?: Partial<DPoPAuthResult>): DPoPAuthResult
 }
 
 function buildRequest(method: string, path: string): Request {
-  return new Request(`https://brain.local${path}`, { method });
+  return new Request(`https://osabio.local${path}`, { method });
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ describe("authenticateAndAuthorize", () => {
   it("returns DPoPAuthResult when DPoP succeeds and RAR matches", async () => {
     const authResult = makeDPoPAuthResult({
       authorizationDetails: [
-        { type: "brain_action", action: "read", resource: "workspace" },
+        { type: "osabio_action", action: "read", resource: "workspace" },
       ],
     });
     const request = buildRequest("POST", `/api/mcp/${TEST_WORKSPACE_ID}/workspace-context`);
@@ -108,7 +108,7 @@ describe("authenticateAndAuthorize", () => {
     // Token only has "read:workspace", but route requires "create:decision"
     const authResult = makeDPoPAuthResult({
       authorizationDetails: [
-        { type: "brain_action", action: "read", resource: "workspace" },
+        { type: "osabio_action", action: "read", resource: "workspace" },
       ],
     });
     const request = buildRequest("POST", `/api/mcp/${TEST_WORKSPACE_ID}/decisions/provisional`);
@@ -148,7 +148,7 @@ describe("authenticateAndAuthorize", () => {
     const authResult = makeDPoPAuthResult({
       actorType: "human",
       authorizationDetails: [
-        { type: "brain_action", action: "read", resource: "project" },
+        { type: "osabio_action", action: "read", resource: "project" },
       ],
     });
     const request = buildRequest("POST", `/api/mcp/${TEST_WORKSPACE_ID}/project-context`);
@@ -167,7 +167,7 @@ describe("authenticateAndAuthorize", () => {
   it("allows create:task action for subtask route", async () => {
     const authResult = makeDPoPAuthResult({
       authorizationDetails: [
-        { type: "brain_action", action: "create", resource: "task" },
+        { type: "osabio_action", action: "create", resource: "task" },
       ],
     });
     const request = buildRequest("POST", `/api/mcp/${TEST_WORKSPACE_ID}/tasks/subtask`);

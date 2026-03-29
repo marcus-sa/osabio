@@ -16,7 +16,7 @@
 - 30 error/edge path scenarios (54%)
 - Every user story has error coverage
 - Token issuance has 6 rejection scenarios for 3 happy paths
-- Brain verification has 8 rejection scenarios for 2 happy paths
+- Osabio verification has 8 rejection scenarios for 2 happy paths
 - Bridge exchange has 4 rejection scenarios for 4 happy paths
 
 ### Dimension 2: GWT Format Compliance
@@ -51,8 +51,8 @@
 
 ### Dimension 5: Walking Skeleton User-Centricity
 **Result**: PASS
-- Skeleton 1 title: "Agent acquires authorization and accesses Brain" (user goal)
-- Skeleton 2 title: "Human exchanges session for token and accesses Brain" (user goal)
+- Skeleton 1 title: "Agent acquires authorization and accesses Osabio" (user goal)
+- Skeleton 2 title: "Human exchanges session for token and accesses Osabio" (user goal)
 - Then steps: "Brain verifies and grants access" (observable outcome)
 - Not: "middleware returns auth context" (internal side effect)
 - Stakeholder can confirm: "yes, that is the authorization flow"
@@ -72,7 +72,7 @@ All test files invoke through HTTP endpoints (driving ports):
 - `POST /api/auth/intents` -- intent submission
 - `POST /api/auth/token` -- token issuance
 - `POST /api/auth/bridge/exchange` -- Bridge exchange
-- `POST /api/mcp/:ws/*` -- Brain resource endpoints
+- `POST /api/mcp/:ws/*` -- Osabio resource endpoints
 - `GET /api/workspaces/:ws/intents/:id/consent` -- consent display
 - `POST /api/workspaces/:ws/intents/:id/approve|veto|constrain` -- consent actions
 

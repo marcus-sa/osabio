@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
-import { searchEntitiesSchema } from "../mcp/brain-tool-definitions";
+import { searchEntitiesSchema } from "../mcp/osabio-tool-definitions";
 import {
   listEntityNeighbors,
   parseRecordIdString,

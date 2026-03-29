@@ -21,7 +21,7 @@ Over the past week, Priya made 342 LLM calls attributed to project "auth-service
 Priya's session has high cache hit rates (70% of input tokens are cache reads). For a Sonnet 4 call with 12,340 input tokens (8,200 cache read, 4,140 regular) and 2,100 output tokens: cost = (4,140 * $3.00 + 8,200 * $0.30 + 2,100 * $15.00) / 1,000,000 = $0.012 + $0.002 + $0.032 = $0.046. The trace records this exact cost.
 
 ### 3: Edge Case -- Unattributed costs roll up to workspace only
-Some LLM calls lack task or project attribution (no X-Brain-Task header, task not linked to a project). These costs appear in the workspace total but under an "unattributed" category in the project breakdown. Marcus can see how much is unattributed and investigate which sessions need better attribution.
+Some LLM calls lack task or project attribution (no X-Osabio-Task header, task not linked to a project). These costs appear in the workspace total but under an "unattributed" category in the project breakdown. Marcus can see how much is unattributed and investigate which sessions need better attribution.
 
 ### 4: Edge Case -- Model pricing changes mid-month
 Anthropic announces a price reduction effective March 10. Marcus updates the pricing table. Calls before March 10 use old prices; calls after use new prices. The spend dashboard accurately reflects both pricing periods because each trace records the cost computed at the time of the call.
@@ -43,9 +43,9 @@ Then cost_usd = (500 * 0.80 + 100 * 4.00) / 1000000
 And the computed cost is $0.0008
 
 ### Scenario: Spend counters updated at all granularities
-Given a call costs $0.046 attributed to workspace "brain-v1", project "auth-service", task "implement-oauth"
+Given a call costs $0.046 attributed to workspace "osabio-v1", project "auth-service", task "implement-oauth"
 When spend counters are updated
-Then workspace "brain-v1" daily spend increases by $0.046
+Then workspace "osabio-v1" daily spend increases by $0.046
 And project "auth-service" spend increases by $0.046
 And task "implement-oauth" spend increases by $0.046
 
@@ -58,7 +58,7 @@ And the breakdown shows $45.00 attributed across projects
 And $5.00 listed under "unattributed"
 
 ### Scenario: Spend API returns breakdown by project
-Given Marcus queries GET /api/workspaces/brain-v1/proxy/spend?period=today
+Given Marcus queries GET /api/workspaces/osabio-v1/proxy/spend?period=today
 When the API responds
 Then the response includes workspace total spend
 And per-project breakdown with call count

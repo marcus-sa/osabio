@@ -3,7 +3,7 @@ import { KnowledgeGraph } from "../components/graph/KnowledgeGraph";
 import { GraphToolbar } from "../components/graph/GraphToolbar";
 import { EntityDetailPanel } from "../components/graph/EntityDetailPanel";
 
-const ACTIVE_WORKSPACE_STORAGE_KEY = "brain.activeWorkspaceId";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "osabio.activeWorkspaceId";
 
 export function GraphPage() {
   const workspaceId = typeof window !== "undefined"

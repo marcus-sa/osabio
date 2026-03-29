@@ -33,7 +33,7 @@ Standard bearer tokens are vulnerable to token theft — anyone who intercepts t
 3. **Validate proof**: Check proof JWT structure, expiry, and `ath` (access token hash) claim
 4. **Verify binding**: Confirm proof's JWK thumbprint matches token's `cnf.jkt` claim
 5. **Check replay**: Look up proof `jti` in nonce cache — reject if seen before
-6. **Lookup workspace**: Extract `urn:brain:workspace` claim from token, verify membership via `member_of` edge
+6. **Lookup workspace**: Extract `urn:osabio:workspace` claim from token, verify membership via `member_of` edge
 7. **Verify identity lifecycle**: Check identity status is active
 8. **Return auth result**: `{ workspace, identity, scopes, agentType }`
 

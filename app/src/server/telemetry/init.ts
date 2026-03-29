@@ -35,7 +35,7 @@ export interface TelemetryHandle {
 function buildResource(): Resource {
   const serviceVersion = process.env.SERVICE_VERSION ?? "unknown";
   return resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: "brain-server",
+    [ATTR_SERVICE_NAME]: "osabio-server",
     [ATTR_SERVICE_VERSION]: serviceVersion,
   });
 }

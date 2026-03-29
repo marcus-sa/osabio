@@ -2,7 +2,7 @@
 
 ## Overview
 **Goal**: Track and enforce quality standards on how agents work (process quality), not just what they produce (output).
-**Persona**: Tomasz Kowalski, Senior Platform Engineer at a startup using Brain. Responsible for agent quality and reliability. Manages 6 coding agents with different specializations.
+**Persona**: Tomasz Kowalski, Senior Platform Engineer at a startup using Osabio. Responsible for agent quality and reliability. Manages 6 coding agents with different specializations.
 **Jobs Served**: J2 (Behavioral Quality Governance), J3 (Organizational Coherence Auditing)
 
 ## Emotional Arc
@@ -40,7 +40,7 @@ Frustrated   *  *  *  *  *  *
   | test coverage. Checks last 5 PRs -- pattern of declining    |
   | test quality. No way to track this systematically.           |
   |                                                              |
-  | Brain's Observer Agent flagged a contradiction 3 days ago    |
+  | Osabio's Observer Agent flagged a contradiction 3 days ago    |
   | but the observation said "missing test files" -- no          |
   | behavioral context like "TDD adherence trending down."       |
   |                                                              |
@@ -50,12 +50,12 @@ Frustrated   *  *  *  *  *  *
         |
         v
   +-- Step 2: Define Behavior Metrics ----------------------------+
-  | Tomasz tells Brain about the behavioral metrics he wants:    |
+  | Tomasz tells Osabio about the behavioral metrics he wants:    |
   |                                                              |
   | "Track TDD adherence for all coding agents. Also track      |
   |  security-first practices and code review responsiveness."   |
   |                                                              |
-  | Brain creates behavior metric types:                         |
+  | Osabio creates behavior metric types:                         |
   |                                                              |
   | +----------------------------------------------------------+ |
   | | BEHAVIOR METRICS DEFINED                                 | |
@@ -145,7 +145,7 @@ Frustrated   *  *  *  *  *  *
   | "If any coding agent's Security_First score drops below     |
   |  0.8, revoke production deployment scope immediately"        |
   |                                                              |
-  | Brain creates policy node:                                   |
+  | Osabio creates policy node:                                   |
   | +----------------------------------------------------------+ |
   | | POLICY: Security Behavior Gate                           | |
   | |                                                          | |

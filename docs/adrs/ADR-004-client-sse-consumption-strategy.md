@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The coding agent orchestrator emits real-time events (status changes, file edits, stall warnings) via SSE through the Brain SSE Registry. The client needs to consume these events across three UI surfaces: task popup (EntityDetailPanel), governance feed, and agent review view. We need to decide how the client subscribes to and routes these events.
+The coding agent orchestrator emits real-time events (status changes, file edits, stall warnings) via SSE through the Osabio SSE Registry. The client needs to consume these events across three UI surfaces: task popup (EntityDetailPanel), governance feed, and agent review view. We need to decide how the client subscribes to and routes these events.
 
 Key constraints:
 - The existing chat system uses Vercel AI SDK's `useChat` which manages its own SSE transport internally -- there is no reusable SSE hook in the codebase.

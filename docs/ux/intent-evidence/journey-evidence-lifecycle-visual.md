@@ -2,7 +2,7 @@
 
 ## Persona
 
-**Ravi Patel** -- Workspace administrator for a supply chain management organization. Manages 4 autonomous agents (Architect, Strategist, Management, Coding) coordinating across procurement, logistics, and compliance projects. Has been using Brain for 3 months with 30+ confirmed decisions and 50+ completed tasks in the workspace.
+**Ravi Patel** -- Workspace administrator for a supply chain management organization. Manages 4 autonomous agents (Architect, Strategist, Management, Coding) coordinating across procurement, logistics, and compliance projects. Has been using Osabio for 3 months with 30+ confirmed decisions and 50+ completed tasks in the workspace.
 
 **Secondary: Agent "Logistics-Planner"** -- An autonomous coding agent responsible for supply chain optimization. Creates intents when it needs to take high-stakes actions like modifying supplier routing rules or escalating compliance alerts.
 

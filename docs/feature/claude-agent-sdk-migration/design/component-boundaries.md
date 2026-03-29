@@ -47,7 +47,7 @@ The orchestrator follows dependency-inversion with function-signature ports. Dom
 | File | Responsibility | Dependencies (inward only) |
 |------|---------------|---------------------------|
 | `app/src/server/orchestrator/spawn-agent.ts` | Invoke `query()`, return `AgentHandle` | `agent-options.ts`, `@anthropic-ai/claude-agent-sdk` |
-| `app/src/server/orchestrator/agent-options.ts` | Build SDK `Options` from Brain config (pure) | None (leaf module) |
+| `app/src/server/orchestrator/agent-options.ts` | Build SDK `Options` from Osabio config (pure) | None (leaf module) |
 
 ### Modified Files
 
@@ -56,7 +56,7 @@ The orchestrator follows dependency-inversion with function-signature ports. Dom
 | `event-bridge.ts` | `SdkMessage` replaces `OpencodeEvent` as input type; `transformSdkMessage()` replaces `transformOpencodeEvent()` | Bridge handle pattern, stall detector integration, `EventBridgeDeps` port shape |
 | `session-lifecycle.ts` | `AgentHandle` replaces `OpenCodeHandle`; `SpawnAgentFn` replaces `SpawnOpenCodeFn`; `opencode_session_id` field no longer written | All session operations (create/abort/accept/reject/review/prompt), handle registry, event iteration, DB queries |
 | `routes.ts` | `spawnOpenCodeImport` -> `spawnAgentImport`; `ORCHESTRATOR_MOCK_OPENCODE` env var rename | All route handlers, wiring pattern, SSE stream handler |
-| `cli/commands/init-content.ts` | Remove `OPENCODE_PLUGIN_CONTENT`, `buildOpencodeJsonContent()`, `OPENCODE_MD_CONTENT` | `BRAIN_HOOKS`, `BRAIN_CLAUDE_MD`, `BRAIN_COMMANDS` (Claude Code integration unchanged) |
+| `cli/commands/init-content.ts` | Remove `OPENCODE_PLUGIN_CONTENT`, `buildOpencodeJsonContent()`, `OPENCODE_MD_CONTENT` | `OSABIO_HOOKS`, `OSABIO_CLAUDE_MD`, `OSABIO_COMMANDS` (Claude Code integration unchanged) |
 | `cli/commands/init.ts` | Remove or simplify `setupOpencode()` | All other init steps (auth, MCP, hooks, CLAUDE.md, commands, git hooks) |
 
 ### Unchanged Files
@@ -69,7 +69,7 @@ The orchestrator follows dependency-inversion with function-signature ports. Dom
 | `types.ts` | `OrchestratorStatus` enum unchanged; session status machine unchanged |
 | `routes.ts` (route handlers) | Handlers delegate to lifecycle functions -- no direct agent coupling |
 | `app/src/shared/contracts.ts` | `StreamEvent` union unchanged -- UI contract preserved |
-| `cli/mcp-server.ts` | Brain MCP server unchanged -- same tools, same transport |
+| `cli/mcp-server.ts` | Osabio MCP server unchanged -- same tools, same transport |
 
 ## Dependency Inversion: Port Signatures
 

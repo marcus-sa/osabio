@@ -10,7 +10,7 @@ Marcus Olsson is a workspace admin who currently has no way to monitor LLM spend
 - JS-1: Transparent Cost Visibility
 
 ## Solution
-A dashboard view in the Brain web UI showing workspace spend with progress bars against budget limits, per-project breakdown with call counts, per-session breakdown with model and duration, and anomaly alerts for unusual spending patterns.
+A dashboard view in the Osabio web UI showing workspace spend with progress bars against budget limits, per-project breakdown with call counts, per-session breakdown with model and duration, and anomaly alerts for unusual spending patterns.
 
 ## Domain Examples
 
@@ -29,7 +29,7 @@ At 3:15 PM, workspace daily spend crosses the 80% threshold ($40.00 of $50.00). 
 ## UAT Scenarios (BDD)
 
 ### Scenario: Dashboard shows workspace spend with budget progress
-Given Marcus navigates to the LLM Proxy spend overview for workspace "brain-v1"
+Given Marcus navigates to the LLM Proxy spend overview for workspace "osabio-v1"
 And the daily budget is $50.00 and today's spend is $23.47
 When the dashboard loads
 Then Marcus sees a progress bar showing 47% of daily budget consumed
@@ -37,7 +37,7 @@ And the total spend "$23.47" and limit "$50.00" are displayed
 And the dashboard loads within 2 seconds
 
 ### Scenario: Dashboard shows per-project spend breakdown
-Given workspace "brain-v1" has traces attributed to 3 projects
+Given workspace "osabio-v1" has traces attributed to 3 projects
 When the project breakdown table loads
 Then each row shows project name, today's spend, month-to-date spend, and call count
 And projects are sorted by today's spend descending
@@ -78,7 +78,7 @@ And the alert shows current spend, limit, and projected exhaustion time
 - Anomaly detection: compare session call rate and spend rate against rolling 7-day average; threshold: 2x for warning, 3x for alert
 - Budget alerts: check spend against configured thresholds after each trace capture
 - Consider caching aggregated spend data with short TTL (10s) to avoid expensive graph queries on every dashboard load
-- Anomaly alerts integrate with Brain's existing observation system
+- Anomaly alerts integrate with Osabio's existing observation system
 
 ## Dependencies
 - US-LP-003 (graph trace capture -- dashboard reads from trace data)

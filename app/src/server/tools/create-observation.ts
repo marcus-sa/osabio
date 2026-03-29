@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId } from "surrealdb";
 import { isEntityInWorkspace, parseRecordIdString } from "../graph/queries";
-import { createObservationSchema } from "../mcp/brain-tool-definitions";
+import { createObservationSchema } from "../mcp/osabio-tool-definitions";
 import { createObservation } from "../observation/queries";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";

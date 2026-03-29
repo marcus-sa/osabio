@@ -19,7 +19,7 @@ import {
   buildConstraintViolationError,
   enrichGatedDescription,
 } from "../../../app/src/server/mcp/error-response-builder";
-import type { BrainAction } from "../../../app/src/server/oauth/types";
+import type { OsabioAction } from "../../../app/src/server/oauth/types";
 import type { ResolvedTool } from "../../../app/src/server/proxy/tool-injector";
 
 // ---------------------------------------------------------------------------
@@ -30,13 +30,13 @@ function makeAction(
   action: string,
   resource: string,
   constraints?: Record<string, unknown>,
-): BrainAction {
-  return { type: "brain_action", action, resource, ...( constraints ? { constraints } : {}) };
+): OsabioAction {
+  return { type: "osabio_action", action, resource, ...( constraints ? { constraints } : {}) };
 }
 
 function makeIntent(
   intentId: string,
-  actions: BrainAction[],
+  actions: OsabioAction[],
 ): AuthorizedIntentSummary {
   return { intentId, authorizationDetails: actions };
 }
@@ -107,17 +107,17 @@ describe("computeEffectiveScope", () => {
 // ---------------------------------------------------------------------------
 
 describe("classifyTools", () => {
-  const brainNativeToolNames = new Set(["get_context", "create_decision"]);
+  const osabioNativeToolNames = new Set(["get_context", "create_decision"]);
 
-  it("classifies brain-native tools", () => {
-    const tool = makeTool("get_context", "brain");
+  it("classifies osabio-native tools", () => {
+    const tool = makeTool("get_context", "osabio");
     const scope: EffectiveScope = { authorizedActions: [], intents: [] };
 
-    const results = classifyTools([tool], scope, brainNativeToolNames);
+    const results = classifyTools([tool], scope, osabioNativeToolNames);
 
     expect(results).toHaveLength(1);
     expect(results[0].tool).toBe(tool);
-    expect(results[0].classification.kind).toBe("brain_native");
+    expect(results[0].classification.kind).toBe("osabio_native");
   });
 
   it("classifies authorized tools with matching intent", () => {
@@ -126,7 +126,7 @@ describe("classifyTools", () => {
     const intent = makeIntent("intent-1", [action]);
     const scope = computeEffectiveScope([intent]);
 
-    const results = classifyTools([tool], scope, brainNativeToolNames);
+    const results = classifyTools([tool], scope, osabioNativeToolNames);
 
     expect(results).toHaveLength(1);
     expect(results[0].classification.kind).toBe("authorized");
@@ -139,14 +139,14 @@ describe("classifyTools", () => {
     const tool = makeTool("send_message", "slack");
     const scope: EffectiveScope = { authorizedActions: [], intents: [] };
 
-    const results = classifyTools([tool], scope, brainNativeToolNames);
+    const results = classifyTools([tool], scope, osabioNativeToolNames);
 
     expect(results).toHaveLength(1);
     expect(results[0].classification.kind).toBe("gated");
   });
 
   it("classifies a mixed set of tools correctly", () => {
-    const nativeTool = makeTool("get_context", "brain");
+    const nativeTool = makeTool("get_context", "osabio");
     const authorizedTool = makeTool("list_repos", "github");
     const gatedTool = makeTool("send_message", "slack");
 
@@ -157,7 +157,7 @@ describe("classifyTools", () => {
     const results = classifyTools(
       [nativeTool, authorizedTool, gatedTool],
       scope,
-      brainNativeToolNames,
+      osabioNativeToolNames,
     );
 
     expect(results).toHaveLength(3);
@@ -166,21 +166,21 @@ describe("classifyTools", () => {
     const authResult = results.find((r) => r.tool.name === "list_repos");
     const gatedResult = results.find((r) => r.tool.name === "send_message");
 
-    expect(nativeResult?.classification.kind).toBe("brain_native");
+    expect(nativeResult?.classification.kind).toBe("osabio_native");
     expect(authResult?.classification.kind).toBe("authorized");
     expect(gatedResult?.classification.kind).toBe("gated");
   });
 
-  it("brain_native takes priority over authorized match", () => {
-    // Edge case: tool name is in brainNativeToolNames AND has a matching action
-    const tool = makeTool("get_context", "brain");
-    const action = makeAction("execute", "mcp_tool:brain:get_context");
+  it("osabio_native takes priority over authorized match", () => {
+    // Edge case: tool name is in osabioNativeToolNames AND has a matching action
+    const tool = makeTool("get_context", "osabio");
+    const action = makeAction("execute", "mcp_tool:osabio:get_context");
     const intent = makeIntent("intent-1", [action]);
     const scope = computeEffectiveScope([intent]);
 
-    const results = classifyTools([tool], scope, brainNativeToolNames);
+    const results = classifyTools([tool], scope, osabioNativeToolNames);
 
-    expect(results[0].classification.kind).toBe("brain_native");
+    expect(results[0].classification.kind).toBe("osabio_native");
   });
 });
 

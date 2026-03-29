@@ -58,7 +58,7 @@ beforeAll(async () => {
       namespace: runtime.namespace,
       database: runtime.database,
       username: "analytics",
-      password: "brain-analytics-readonly",
+      password: "osabio-analytics-readonly",
     });
     await analyticsSurreal.use({ namespace: runtime.namespace, database: runtime.database });
 

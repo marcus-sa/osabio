@@ -1,4 +1,4 @@
-# Four Forces Analysis: Remove Embeddings from Brain Knowledge Graph
+# Four Forces Analysis: Remove Embeddings from Osabio Knowledge Graph
 
 ## Forces Analysis: Overall Migration
 

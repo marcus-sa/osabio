@@ -1,4 +1,4 @@
-# JTBD Analysis: Brain LLM Proxy
+# JTBD Analysis: Osabio LLM Proxy
 
 **Date**: 2026-03-15
 **Analyst**: Luna (product-owner)
@@ -20,11 +20,11 @@
 
 ### Persona 1: Marcus Olsson (Workspace Admin)
 
-**Who**: Solo founder running a Brain workspace with multiple coding agents, responsible for budgets and governance policies.
+**Who**: Solo founder running a Osabio workspace with multiple coding agents, responsible for budgets and governance policies.
 **Demographics**:
 - Technical proficiency: Expert -- writes code, manages infrastructure, configures policies
-- Frequency: Daily interaction with Brain dashboard; weekly policy review
-- Environment: MacBook Pro, multiple terminal sessions, Brain web UI open alongside
+- Frequency: Daily interaction with Osabio dashboard; weekly policy review
+- Environment: MacBook Pro, multiple terminal sessions, Osabio web UI open alongside
 - Primary motivation: Maintain control over agent spending and behavior without micromanaging every action
 
 **Job Step Table**:
@@ -54,7 +54,7 @@
 
 ### Persona 2: Priya Chandrasekaran (Developer)
 
-**Who**: Senior developer using Claude Code daily through the Brain proxy, working on 2-3 projects simultaneously.
+**Who**: Senior developer using Claude Code daily through the Osabio proxy, working on 2-3 projects simultaneously.
 **Demographics**:
 - Technical proficiency: Expert -- lives in terminal, uses Claude Code for all coding tasks
 - Frequency: 100-500 LLM API calls per day across 5-15 user interactions
@@ -65,7 +65,7 @@
 
 | Job Step | Goal | Desired Outcome |
 |----------|------|-----------------|
-| Connect agent | Point Claude Code at the Brain proxy | Minimize the number of configuration steps to start working |
+| Connect agent | Point Claude Code at the Osabio proxy | Minimize the number of configuration steps to start working |
 | Work uninterrupted | Use Claude Code normally through the proxy | Minimize the latency overhead added by the proxy |
 | Attribute work | Associate LLM calls with the task being worked on | Minimize the effort to tag work to the correct task/project |
 | Review session cost | See how much a coding session cost after completing work | Minimize the time to understand session cost breakdown |
@@ -85,13 +85,13 @@
 
 ---
 
-### Persona 3: Brain Observer Agent (Autonomous Agent)
+### Persona 3: Osabio Observer Agent (Autonomous Agent)
 
-**Who**: Brain's own Observer agent making LLM calls for graph scanning, verification, and pattern synthesis.
+**Who**: Osabio's own Observer agent making LLM calls for graph scanning, verification, and pattern synthesis.
 **Demographics**:
 - Technical proficiency: N/A (autonomous software agent)
 - Frequency: Periodic -- triggered by graph scans, observation verification, learning proposals
-- Environment: Brain server process, uses configured model providers
+- Environment: Osabio server process, uses configured model providers
 - Primary motivation: Complete analytical work within allocated budget and authority scope
 
 **Job Step Table**:
@@ -120,7 +120,7 @@
 **Demographics**:
 - Technical proficiency: Moderate -- comfortable with dashboards, not with raw logs
 - Frequency: Quarterly audit cycles, ad-hoc investigation requests
-- Environment: Brain web UI, exported reports
+- Environment: Osabio web UI, exported reports
 - Primary motivation: Verify that agent actions were authorized and traceable
 
 **Job Step Table**:
@@ -157,7 +157,7 @@
 
 **Forces Analysis**:
 - **Push**: Currently, Anthropic billing shows a single total with no project/task breakdown. Marcus manually estimates allocation by reviewing session timestamps. This takes 30+ minutes per week and is inaccurate.
-- **Pull**: Per-task cost attribution computed automatically from every LLM call, viewable in the Brain dashboard and queryable from the graph.
+- **Pull**: Per-task cost attribution computed automatically from every LLM call, viewable in the Osabio dashboard and queryable from the graph.
 - **Anxiety**: "What if the proxy misattributes costs? What if it misses calls that bypass the proxy?"
 - **Habit**: Checking Anthropic's billing dashboard directly. Rough mental accounting ("that big refactor was probably $20").
 - **Assessment**: Switch likelihood HIGH. Push is strong (manual work, inaccuracy). Pull is concrete (automatic attribution). Key blocker: anxiety about accuracy. Design implication: proxy must capture 100% of calls with verifiable attribution.
@@ -166,16 +166,16 @@
 
 ### JS-2: Zero-Friction Agent Gateway
 
-**When** I start a new coding session with Claude Code and need it routed through the Brain proxy,
+**When** I start a new coding session with Claude Code and need it routed through the Osabio proxy,
 **I want to** have the proxy be completely transparent -- same API, same speed, same features,
-**so I can** get Brain's observability benefits without any change to my development workflow.
+**so I can** get Osabio's observability benefits without any change to my development workflow.
 
 **Functional Job**: Route all LLM API calls through the proxy without modifying agent behavior.
 **Emotional Job**: Feel that the proxy is invisible -- never reminded it exists during productive work.
 **Social Job**: Not be "that person" who slows down the team by adding infrastructure overhead.
 
 **Forces Analysis**:
-- **Push**: Without the proxy, LLM calls are invisible to the Brain graph. Agent sessions cannot be traced. Cost is unattributed.
+- **Push**: Without the proxy, LLM calls are invisible to the Osabio graph. Agent sessions cannot be traced. Cost is unattributed.
 - **Pull**: Set one environment variable and everything works. Zero latency overhead. Full trace capture in the background.
 - **Anxiety**: "What if the proxy adds latency? What if it breaks streaming? What if extended thinking stops working?"
 - **Habit**: Pointing Claude Code directly at `api.anthropic.com`. No configuration needed.
@@ -255,12 +255,12 @@ Outcome statements derived from job stories, scored using team estimates (no ext
 
 ---
 
-## 8-Step Universal Job Map: "Use LLM Through Brain Proxy"
+## 8-Step Universal Job Map: "Use LLM Through Osabio Proxy"
 
 | Step | Description | Missing Requirements Risk |
 |------|-------------|--------------------------|
 | 1. **Define** | Developer decides to use Claude Code for a task | Needs to know proxy is available and how to connect |
-| 2. **Locate** | Developer finds proxy URL and configuration instructions | Needs clear setup docs; `brain init` should handle this |
+| 2. **Locate** | Developer finds proxy URL and configuration instructions | Needs clear setup docs; `osabio init` should handle this |
 | 3. **Prepare** | Developer sets `ANTHROPIC_BASE_URL` and optional attribution headers | Needs to be one command or zero config after initial setup |
 | 4. **Confirm** | Developer verifies proxy is working (first request succeeds) | Needs health check endpoint; clear error if proxy is down |
 | 5. **Execute** | Agent makes LLM calls through proxy; proxy forwards, captures, enforces | Core proxy functionality -- passthrough + async capture |
@@ -277,4 +277,4 @@ Steps 1-4 and 7-8 are where most requirements hide. The walking skeleton covers 
 - Research: `docs/research/llm-proxy-research.md` (proxy architecture, SSE passthrough, cost attribution)
 - Research: `docs/research/coding-agent-internals-research.md` (agent loop patterns, traffic volumes, multi-model strategy)
 - Walking skeleton: `app/src/server/proxy/anthropic-proxy-route.ts`
-- Brain architecture: policy graph, intent system, authority scopes, trace tables, observation system
+- Osabio architecture: policy graph, intent system, authority scopes, trace tables, observation system

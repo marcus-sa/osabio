@@ -10,8 +10,8 @@
 // Runtime classification
 // ---------------------------------------------------------------------------
 
-/** How the agent executes: brain-managed, sandboxed, or external. */
-export type AgentRuntime = "brain" | "sandbox" | "external";
+/** How the agent executes: osabio-managed, sandboxed, or external. */
+export type AgentRuntime = "osabio" | "sandbox" | "external";
 
 // ---------------------------------------------------------------------------
 // Authority actions and permissions
@@ -71,7 +71,7 @@ export type AuthorityScopeInput = {
 export type CreateAgentInput = {
   name: string;
   description?: string;
-  runtime: "sandbox" | "external"; // "brain" not allowed via API
+  runtime: "sandbox" | "external"; // "osabio" not allowed via API
   model?: string;
   sandbox_config?: SandboxConfig;
   authority_scopes?: AuthorityScopeInput[];

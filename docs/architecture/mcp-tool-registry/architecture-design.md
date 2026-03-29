@@ -2,13 +2,13 @@
 
 ## System Context and Capabilities
 
-Brain's MCP Tool Registry extends the existing LLM proxy to become a **tool brokerage layer**. Any agent routing LLM calls through Brain's proxy gets workspace-managed tools injected into requests, tool calls intercepted and executed with brokered credentials, and full forensic traces written -- all transparently.
+Osabio's MCP Tool Registry extends the existing LLM proxy to become a **tool brokerage layer**. Any agent routing LLM calls through Osabio's proxy gets workspace-managed tools injected into requests, tool calls intercepted and executed with brokered credentials, and full forensic traces written -- all transparently.
 
 **Core capabilities:**
 - Graph-native tool registry (`mcp_tool` nodes in SurrealDB)
 - Per-identity tool authorization via `can_use` relation edges
 - Proxy-based tool injection into LLM request `tools[]` parameter
-- Three-way tool call routing: Brain-native | integration | pass-through
+- Three-way tool call routing: Osabio-native | integration | pass-through
 - Credential brokerage with encrypted-at-rest secrets and OAuth2 token refresh
 - Governance via `governs_tool` policy edges
 - Full audit trail via existing trace infrastructure
@@ -27,8 +27,8 @@ C4Context
     Person(admin, "Workspace Admin", "Registers providers, grants tool access, configures governance")
     Person(user, "Workspace Member", "Connects accounts to providers")
 
-    System_Boundary(brain, "Brain") {
-        System(brainServer, "Brain Server", "Knowledge graph OS with LLM proxy, tool registry, and credential brokerage")
+    System_Boundary(osabio, "Osabio") {
+        System(brainServer, "Osabio Server", "Knowledge graph OS with LLM proxy, tool registry, and credential brokerage")
     }
 
     System_Ext(agentRuntime, "Agent Runtime", "Claude Code, Cursor, Codex -- routes LLM calls through proxy")
@@ -52,17 +52,17 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container Diagram -- Brain Server with Tool Registry
+    title Container Diagram -- Osabio Server with Tool Registry
 
     Person(agent, "Agent Runtime")
     Person(admin, "Workspace Admin")
     Person(user, "Workspace Member")
 
-    System_Boundary(brain, "Brain Server (Bun)") {
+    System_Boundary(osabio, "Osabio Server (Bun)") {
         Container(proxy, "LLM Proxy", "TypeScript", "9-step pipeline: auth, policy, context+tool injection, forward, tool interception, trace")
         Container(toolRegistry, "Tool Registry", "TypeScript", "CRUD for mcp_tool, can_use, governs_tool; tool resolution queries")
         Container(credentialManager, "Credential Manager", "TypeScript", "Provider registration, account connection, encryption, OAuth2 flows, token refresh")
-        Container(toolExecutor, "Tool Executor", "TypeScript", "Routes tool calls: Brain-native execution, integration execution with credential injection, pass-through")
+        Container(toolExecutor, "Tool Executor", "TypeScript", "Routes tool calls: Osabio-native execution, integration execution with credential injection, pass-through")
         Container(mcpDiscovery, "MCP Discovery", "TypeScript", "Connects to external MCP servers, calls tools/list, syncs tool definitions")
         Container(apiRoutes, "API Routes", "TypeScript", "REST endpoints for admin/user operations on providers, tools, accounts, grants")
         ContainerDb(surreal, "SurrealDB", "SurrealKV", "mcp_tool, credential_provider, connected_account, can_use, governs_tool, trace")
@@ -79,7 +79,7 @@ C4Container
     Rel(proxy, toolRegistry, "Resolves effective toolset for identity")
     Rel(proxy, toolExecutor, "Routes intercepted tool calls")
     Rel(toolExecutor, credentialManager, "Resolves credentials for integration calls")
-    Rel(toolExecutor, surreal, "Executes Brain-native graph queries")
+    Rel(toolExecutor, surreal, "Executes Osabio-native graph queries")
     Rel(toolExecutor, integrationApi, "Executes integration API calls with injected credentials")
     Rel(credentialManager, surreal, "Reads/writes encrypted credentials")
     Rel(credentialManager, oauthProvider, "Exchanges codes, refreshes tokens")
@@ -100,9 +100,9 @@ C4Component
 
     Container_Boundary(toolLayer, "Tool Registry Subsystem") {
         Component(toolResolver, "Tool Resolver", "Pure function", "Resolves identity -> effective toolset via can_use union skill_requires; caches per identity with TTL")
-        Component(toolInjector, "Tool Injector", "Pure function", "Merges Brain-managed tool definitions into LLM request tools[] parameter; deduplicates")
-        Component(toolRouter, "Tool Call Router", "Pure function", "Classifies tool_calls as brain-native | integration | unknown; dispatches to executor")
-        Component(brainToolExecutor, "Brain-Native Executor", "Effect boundary", "Executes graph queries for Brain-managed context tools (search_entities, etc.)")
+        Component(toolInjector, "Tool Injector", "Pure function", "Merges Osabio-managed tool definitions into LLM request tools[] parameter; deduplicates")
+        Component(toolRouter, "Tool Call Router", "Pure function", "Classifies tool_calls as osabio-native | integration | unknown; dispatches to executor")
+        Component(brainToolExecutor, "Brain-Native Executor", "Effect boundary", "Executes graph queries for Osabio-managed context tools (search_entities, etc.)")
         Component(integrationExecutor, "Integration Executor", "Effect boundary", "Resolves credentials, injects auth headers, executes HTTP call, sanitizes response")
         Component(credentialResolver, "Credential Resolver", "Pure core + effect shell", "Resolves mcp_tool.provider -> credential_provider -> connected_account; handles token refresh")
         Component(toolTraceWriter, "Tool Trace Writer", "Effect boundary", "Extends existing trace-writer with tool_call trace type for tool executions")
@@ -119,7 +119,7 @@ C4Component
     Rel(toolResolver, toolCache, "Reads/writes cached toolsets")
     Rel(proxy, toolInjector, "Passes resolved tools + request body")
     Rel(proxy, toolRouter, "Passes intercepted tool_calls")
-    Rel(toolRouter, brainToolExecutor, "Dispatches Brain-native calls")
+    Rel(toolRouter, brainToolExecutor, "Dispatches Osabio-native calls")
     Rel(toolRouter, integrationExecutor, "Dispatches integration calls")
     Rel(brainToolExecutor, surreal, "Executes graph queries")
     Rel(integrationExecutor, credentialResolver, "Requests credentials for provider")
@@ -138,7 +138,7 @@ The existing 9-step proxy pipeline (ADR-040, ADR-046) is extended with tool inje
 ```
 Existing Pipeline:
   1. Parse request body
-  2. Resolve auth (Brain/direct)
+  2. Resolve auth (Osabio/direct)
   3. Resolve identity
   4. Resolve session
   5. Validate workspace
@@ -166,7 +166,7 @@ Extended Pipeline:
 **Step 8.5 -- Tool Call Interception** (post-response):
 - Parse LLM response for `tool_use` content blocks (non-streaming) or `content_block_start` events (streaming)
 - For each tool_call, classify:
-  - **Brain-native**: `tool_name` matches an `mcp_tool` without `provider` -> execute via brain-native tool registry (reuses `chat/tools/*.ts` handlers)
+  - **Osabio-native**: `tool_name` matches an `mcp_tool` without `provider` -> execute via osabio-native tool registry (reuses `chat/tools/*.ts` handlers)
   - **Integration**: `tool_name` matches an `mcp_tool` with `provider` -> governance check -> credential resolution -> HTTP execution -> sanitization
   - **Unknown**: no matching `mcp_tool` -> pass through to runtime (do not intercept)
 - **Governance ordering** (integration tools): `classify -> check governs_tool policies -> resolve credentials -> execute -> sanitize -> trace`. Policy check happens BEFORE credential resolution -- denied calls never touch credentials.
@@ -184,11 +184,11 @@ Extended Pipeline:
 
 | Integration Point | Existing Code | Extension |
 |---|---|---|
-| Auth resolution | `proxy-auth.ts` | No change -- identity resolved from `X-Brain-Auth` or `x-api-key` |
+| Auth resolution | `proxy-auth.ts` | No change -- identity resolved from `X-Osabio-Auth` or `x-api-key` |
 | Policy evaluation | `policy-evaluator.ts` | Extended to evaluate `governs_tool` edges for tool calls. Governance check runs BEFORE credential resolution in step 8.5 -- denied calls never touch credentials. |
 | Context injection | `context-injector.ts` | No change -- tool injection is a separate step after context |
 | Trace capture | `trace-writer.ts` | Extended with `tool_call` trace type and tool-specific fields |
-| Chat tools | `chat/tools/*.ts` | Brain-native executor reuses these handlers via a static tool registry map built at startup. Adapts `tool_call.arguments` → tool's Zod `inputSchema` → handler → `tool_result`. See component-boundaries.md for bridge pattern. |
+| Chat tools | `chat/tools/*.ts` | Osabio-native executor reuses these handlers via a static tool registry map built at startup. Adapts `tool_call.arguments` → tool's Zod `inputSchema` → handler → `tool_result`. See component-boundaries.md for bridge pattern. |
 | DPoP auth | `mcp-dpop-auth.ts` | API routes for admin/user operations use existing DPoP middleware |
 
 ## Quality Attribute Strategies
@@ -224,11 +224,11 @@ Extended Pipeline:
 - Tool injection is additive -- runtime tools in request preserved exactly
 - Tool format matches Anthropic Messages API `tools[]` schema
 - Unknown tool calls passed through -- agent runtimes continue to handle their own tools
-- Brain-managed tools namespaced with toolkit prefix (e.g., `github.create_issue`) to avoid collisions
+- Osabio-managed tools namespaced with toolkit prefix (e.g., `github.create_issue`) to avoid collisions
 
 ## Deployment Architecture
 
-No new deployment units. Tool registry runs in-process within the existing Brain Bun server (per ADR-040). New modules are registered as routes in `start-server.ts` alongside existing proxy and API routes.
+No new deployment units. Tool registry runs in-process within the existing Osabio Bun server (per ADR-040). New modules are registered as routes in `start-server.ts` alongside existing proxy and API routes.
 
 **New config fields** (added to `ServerConfig`):
 - `toolEncryptionKey`: AES-256-GCM key for credential encryption (required when tool registry is enabled)

@@ -4,7 +4,7 @@
 Proposed
 
 ## Context
-Every LLM call must produce an `trace` graph node with RELATE edges. Graph writes to SurrealDB take 5-50ms. The proxy must not add perceptible latency to the SSE response (< 50ms p95 TTFT overhead). The existing Brain codebase uses `deps.inflight.track()` for async background work, and acceptance tests call `drain()` before assertions.
+Every LLM call must produce an `trace` graph node with RELATE edges. Graph writes to SurrealDB take 5-50ms. The proxy must not add perceptible latency to the SSE response (< 50ms p95 TTFT overhead). The existing Osabio codebase uses `deps.inflight.track()` for async background work, and acceptance tests call `drain()` before assertions.
 
 ## Decision
 All post-response work (trace creation, edge creation, spend counter updates, failure observations) runs asynchronously via `deps.inflight.track()`. The SSE stream completes and the client connection closes before graph writes begin.
@@ -27,7 +27,7 @@ All post-response work (trace creation, edge creation, spend counter updates, fa
 - **Why insufficient**: Introduces new infrastructure dependency (Redis/NATS). Overkill for single-server deployment. `deps.inflight.track()` already provides the async boundary with drain support for tests.
 
 ## Consequences
-- **Positive**: Zero latency impact on SSE relay; consistent with existing Brain async pattern; tests can drain pending work
+- **Positive**: Zero latency impact on SSE relay; consistent with existing Osabio async pattern; tests can drain pending work
 - **Positive**: Retry logic (3x exponential backoff) handles transient SurrealDB failures; stderr JSON fallback prevents data loss
 - **Negative**: Brief window where trace does not exist in graph (between response delivery and async write completion)
 - **Negative**: Spend counters may be slightly stale for budget checks (acceptable: 100ms staleness at worst)

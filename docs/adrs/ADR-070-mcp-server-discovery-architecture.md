@@ -53,7 +53,7 @@ MCP client connections are short-lived: connect → `tools/list` → disconnect.
 
 ### Risk level inference from MCP tool annotations
 
-MCP spec's tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) map directly to Brain's `risk_level` enum. This is a heuristic — admins can override after import.
+MCP spec's tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) map directly to Osabio's `risk_level` enum. This is a heuristic — admins can override after import.
 
 **Why heuristic over manual-only:**
 - Reduces friction for large tool catalogs (a server may expose 50+ tools).
@@ -67,4 +67,4 @@ MCP spec's tool annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`
 - New UI components: `McpServerSection`, `AddMcpServerDialog`, `DiscoveryReviewPanel`
 - The `source_server` field distinguishes manually-created tools from discovered ones — UI shows provenance badge
 - SSRF risk from admin-provided URLs requires URL validation and consideration of network-level restrictions
-- No persistent outbound connections — Brain server resource usage is bounded and predictable
+- No persistent outbound connections — Osabio server resource usage is bounded and predictable

@@ -56,7 +56,7 @@ phases:
         traces: [US-3, R3]
 
       "02-02":
-        title: "Add brain commit-check CLI command"
+        title: "Add osabio commit-check CLI command"
         description: >
           Thin CLI client: reads latest commit message, POSTs it to
           /api/mcp/:workspaceId/commits/check, exits 0 regardless of outcome.
@@ -65,15 +65,15 @@ phases:
           - "CLI sends commit message to server endpoint"
           - "API failures log to stderr and exit 0"
         architectural_constraints:
-          - "Add commit-check case to cli/brain.ts routing"
+          - "Add commit-check case to cli/osabio.ts routing"
           - "CLI is a thin HTTP client only"
         traces: [US-3, R3]
 
       "02-03":
-        title: "Install post-commit hook via brain init"
-        description: "Extend brain init to install .git/hooks/post-commit invoking brain commit-check. Fire-and-forget shell script."
+        title: "Install post-commit hook via osabio init"
+        description: "Extend osabio init to install .git/hooks/post-commit invoking osabio commit-check. Fire-and-forget shell script."
         acceptance_criteria:
-          - "brain init creates post-commit hook that invokes brain commit-check"
+          - "osabio init creates post-commit hook that invokes osabio commit-check"
           - "Git commit in initialized repo triggers commit-check automatically"
           - "Hook script exits 0 regardless of commit-check outcome"
         architectural_constraints:
@@ -138,7 +138,7 @@ implementation_scope:
       change: "Remove done status update from acceptOrchestratorSession()"
     - path: "cli/commands/git-hooks.ts"
       change: "Add runCommitCheck() thin client — POST commit message to server"
-    - path: "cli/brain.ts"
+    - path: "cli/osabio.ts"
       change: "Add commit-check routing case"
     - path: "app/src/server/mcp/mcp-route.ts"
       change: "Add POST /api/mcp/:workspaceId/commits/check endpoint for LLM commit analysis"
@@ -154,7 +154,7 @@ implementation_scope:
       reason: "Pure function reused as-is"
     - path: "cli/http-client.ts"
       reason: "updateTaskStatus() already exists"
-    - path: ".claude/commands/brain-start-task.md"
+    - path: ".claude/commands/osabio-start-task.md"
       reason: "Already instructs agent to call update_task_status"
     - path: "app/src/server/orchestrator/session-lifecycle.ts (abort/reject)"
       reason: "Backward transitions unchanged"

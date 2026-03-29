@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-The coding agent orchestrator enables Brain to assign tasks to an AI coding agent (OpenCode), monitor its progress via SSE, and present diffs for human review. It extends the existing modular monolith with a new `orchestrator/` domain that manages the OpenCode process lifecycle, git worktree isolation, and event bridging.
+The coding agent orchestrator enables Osabio to assign tasks to an AI coding agent (OpenCode), monitor its progress via SSE, and present diffs for human review. It extends the existing modular monolith with a new `orchestrator/` domain that manages the OpenCode process lifecycle, git worktree isolation, and event bridging.
 
-The design also includes a **Brain OpenCode Plugin** that ports the existing Brain CLI / Claude Code integration to OpenCode's plugin system. This gives OpenCode agents the same knowledge graph tools and session lifecycle hooks that Claude Code agents already have, enabling Brain to work with both agent runtimes through a shared backend.
+The design also includes a **Osabio OpenCode Plugin** that ports the existing Osabio CLI / Claude Code integration to OpenCode's plugin system. This gives OpenCode agents the same knowledge graph tools and session lifecycle hooks that Claude Code agents already have, enabling Osabio to work with both agent runtimes through a shared backend.
 
 The design reuses existing infrastructure: `agent_session` table, SSE registry, MCP route handlers, IAM authority framework, and the CLI HTTP client (`cli/http-client.ts`).
 
@@ -16,7 +16,7 @@ The design reuses existing infrastructure: `agent_session` table, SSE registry, 
 |------|-----------|----------|
 | 1 | Maintainability | Extend existing patterns (factory handlers, `ServerDependencies`). No new frameworks. |
 | 2 | Reliability | AbortController-based cleanup. Stall detection via heartbeat timeout. One active agent per task guard. |
-| 3 | Operability | All OpenCode events bridged to Brain SSE. Agent activity queryable from `agent_session`. |
+| 3 | Operability | All OpenCode events bridged to Osabio SSE. Agent activity queryable from `agent_session`. |
 | 4 | Security | Authority scoped to `code_agent`. Worktree paths validated. No arbitrary command execution. |
 | 5 | Performance | Lazy spawn (<5s). SSE forwarding <1s. No hot path changes to existing chat/extraction. |
 
@@ -30,7 +30,7 @@ C4Context
 
     Person(user, "Brain User", "Assigns tasks, reviews diffs, accepts/rejects work")
 
-    System(brain, "Brain App", "AI-native business management platform with knowledge graph, chat, and coding agent orchestration")
+    System(osabio, "Brain App", "AI-native business management platform with knowledge graph, chat, and coding agent orchestration")
 
     System_Ext(opencode, "OpenCode Server", "AI coding agent runtime spawned as child process per assignment")
     System_Ext(claudecode, "Claude Code", "AI coding agent runtime (alternative to OpenCode)")
@@ -38,10 +38,10 @@ C4Context
     System_Ext(openrouter, "OpenRouter", "LLM provider for chat agent, extraction, PM agent")
     System_Ext(git, "Git", "Version control: worktrees for agent isolation, diffs for review")
 
-    Rel(user, brain, "Assigns tasks, monitors agent, reviews diffs", "HTTPS + SSE")
+    Rel(user, osabio, "Assigns tasks, monitors agent, reviews diffs", "HTTPS + SSE")
     Rel(brain, opencode, "Creates sessions, sends messages, receives events", "HTTP API + SSE")
-    Rel(opencode, brain, "Calls Brain tools via plugin or MCP", "HTTP")
-    Rel(claudecode, brain, "Calls Brain tools via MCP server (brain mcp)", "stdio + HTTP")
+    Rel(opencode, osabio, "Calls Osabio tools via plugin or MCP", "HTTP")
+    Rel(claudecode, osabio, "Calls Osabio tools via MCP server (osabio mcp)", "stdio + HTTP")
     Rel(brain, surrealdb, "Reads/writes agent sessions, task status, authority", "HTTP/WS")
     Rel(brain, openrouter, "Chat agent, extraction, PM agent inference", "HTTPS")
     Rel(brain, git, "Creates/removes worktrees, reads diffs", "CLI")
@@ -54,11 +54,11 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container Diagram -- Brain App with Coding Agent Orchestrator
+    title Container Diagram -- Osabio App with Coding Agent Orchestrator
 
     Person(user, "Brain User")
 
-    Container_Boundary(brain, "Brain App (Bun.serve)") {
+    Container_Boundary(osabio, "Brain App (Bun.serve)") {
         Container(ui, "React SPA", "TypeScript, React", "Task board, chat, agent monitor, diff review UI")
         Container(api, "HTTP API", "Bun, TypeScript", "REST routes for chat, entities, MCP, orchestrator")
         Container(sse, "SSE Registry", "In-process", "Manages SSE streams for chat and agent events")
@@ -68,9 +68,9 @@ C4Container
     }
 
     Container_Boundary(cli_boundary, "Brain CLI") {
-        Container(cli_mcp, "Brain MCP Server", "TypeScript, stdio", "MCP server for Claude Code (brain mcp)")
-        Container(cli_plugin, "Brain OpenCode Plugin", "TypeScript, @opencode-ai/plugin", "Plugin with tools + hooks for OpenCode")
-        Container(cli_http, "CLI HTTP Client", "TypeScript", "Shared HTTP client for Brain API with OAuth token management")
+        Container(cli_mcp, "Osabio MCP Server", "TypeScript, stdio", "MCP server for Claude Code (osabio mcp)")
+        Container(cli_plugin, "Osabio OpenCode Plugin", "TypeScript, @opencode-ai/plugin", "Plugin with tools + hooks for OpenCode")
+        Container(cli_http, "CLI HTTP Client", "TypeScript", "Shared HTTP client for Osabio API with OAuth token management")
     }
 
     ContainerDb(surreal, "SurrealDB", "Graph DB", "Entities, agent_session, authority_scope, worktree state")
@@ -90,8 +90,8 @@ C4Container
     Rel(orchestrator, surreal, "Persists agent session state, worktree metadata", "Query")
     Rel(opencode, cli_plugin, "Loads plugin at startup", "Plugin API")
     Rel(cli_plugin, cli_http, "Uses for API calls", "Import")
-    Rel(cli_plugin, api, "Calls Brain API for context and status", "HTTP")
-    Rel(claudecode, cli_mcp, "Calls Brain tools via MCP", "stdio")
+    Rel(cli_plugin, api, "Calls Osabio API for context and status", "HTTP")
+    Rel(claudecode, cli_mcp, "Calls Osabio tools via MCP", "stdio")
     Rel(cli_mcp, cli_http, "Uses for API calls", "Import")
     Rel(cli_http, api, "Authenticated HTTP requests", "HTTP + OAuth")
     Rel(mcp, surreal, "Reads/writes graph entities", "Query")
@@ -110,7 +110,7 @@ C4Component
         Component(routes, "Orchestrator Routes", "TypeScript", "HTTP handlers: assign, status, abort, review, accept, reject")
         Component(lifecycle, "Session Lifecycle", "TypeScript", "Creates OpenCode server+client, manages AbortController, caches active sessions")
         Component(worktree, "Worktree Manager", "TypeScript", "Creates/removes git worktrees, generates diffs, validates paths")
-        Component(bridge, "Event Bridge", "TypeScript", "Subscribes to OpenCode SSE, transforms events, forwards to Brain SSE registry")
+        Component(bridge, "Event Bridge", "TypeScript", "Subscribes to OpenCode SSE, transforms events, forwards to Osabio SSE registry")
         Component(guard, "Assignment Guard", "TypeScript", "Validates task eligibility, enforces one-agent-per-task, checks authority")
         Component(config, "OpenCode Config Builder", "TypeScript", "Builds OPENCODE_CONFIG_CONTENT with MCP server URLs, model config")
     }
@@ -141,7 +141,7 @@ C4Component
 ```mermaid
 sequenceDiagram
     participant U as User (UI)
-    participant API as Brain API
+    participant API as Osabio API
     participant G as Assignment Guard
     participant W as Worktree Manager
     participant L as Session Lifecycle
@@ -192,7 +192,7 @@ sequenceDiagram
 
     loop OpenCode SSE stream
         OC->>EB: EventMessagePartUpdated (token/tool_call/file_edit)
-        EB->>EB: Transform to Brain StreamEvent
+        EB->>EB: Transform to Osabio StreamEvent
         EB->>SSE: emitEvent(streamId, agentEvent)
         SSE->>UI: SSE data frame
     end
@@ -211,7 +211,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User (UI)
-    participant API as Brain API
+    participant API as Osabio API
     participant W as Worktree Manager
     participant L as Session Lifecycle
     participant OC as OpenCode Process
@@ -282,7 +282,7 @@ New routes registered in `start-server.ts` under `/api/orchestrator/` prefix:
 
 ### MCP Configuration for OpenCode
 
-The orchestrator builds an OpenCode config that points the agent's MCP tools at the existing Brain MCP endpoints:
+The orchestrator builds an OpenCode config that points the agent's MCP tools at the existing Osabio MCP endpoints:
 
 - Base URL: `http://127.0.0.1:{PORT}/api/mcp/{workspaceId}/`
 - Auth: JWT token scoped to workspace + `code_agent` agent type
@@ -291,20 +291,20 @@ The orchestrator builds an OpenCode config that points the agent's MCP tools at 
 
 ---
 
-## Brain OpenCode Plugin Architecture
+## Osabio OpenCode Plugin Architecture
 
-The Brain CLI currently integrates with Claude Code via two mechanisms: an MCP stdio server (`brain mcp`) for 30+ tools, and Claude Code hooks for session lifecycle. The OpenCode plugin ports both to OpenCode's native plugin system.
+The Osabio CLI currently integrates with Claude Code via two mechanisms: an MCP stdio server (`osabio mcp`) for 30+ tools, and Claude Code hooks for session lifecycle. The OpenCode plugin ports both to OpenCode's native plugin system.
 
 ### Integration Strategy: Two Paths, Shared Backend
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Brain HTTP API                            │
+│                    Osabio HTTP API                            │
 │  /api/mcp/:workspaceId/* (context, decisions, tasks, etc.)  │
 └────────────────────┬────────────────────┬───────────────────┘
                      │                    │
         ┌────────────┴──────┐   ┌────────┴──────────────┐
-        │  Brain MCP Server │   │  Brain OpenCode Plugin │
+        │  Osabio MCP Server │   │  Osabio OpenCode Plugin │
         │  (cli/mcp-server) │   │  (.opencode/plugins/)  │
         │                   │   │                        │
         │  stdio transport  │   │  Plugin custom tools   │
@@ -325,29 +325,29 @@ Both paths use the **same HTTP client** (`cli/http-client.ts`) and the **same ba
 ```
 .opencode/
 ├── plugins/
-│   └── brain.ts              # Brain plugin (tools + hooks)
+│   └── osabio.ts              # Osabio plugin (tools + hooks)
 ├── package.json              # Dependencies: cli/http-client
-└── (auto-generated by brain init --opencode)
+└── (auto-generated by osabio init --opencode)
 ```
 
 The plugin exports a single `Plugin` function that:
-1. Initializes the Brain HTTP client with stored credentials
+1. Initializes the Osabio HTTP client with stored credentials
 2. Registers **custom tools** (same 30+ tools as MCP, using `tool()` helper)
 3. Registers **lifecycle hooks** (ported from Claude Code hooks)
 
 ### Hook Mapping: Claude Code → OpenCode Plugin
 
-| Claude Code Hook | OpenCode Plugin Event | Brain CLI Command | Plugin Behavior |
+| Claude Code Hook | OpenCode Plugin Event | Osabio CLI Command | Plugin Behavior |
 |-----------------|----------------------|-------------------|-----------------|
-| `SessionStart` | `session.created` | `brain system load-context` | Load workspace context, start agent session via API |
-| `PreToolUse` (Agent dispatch) | `tool.execute.before` | `brain system pretooluse` | Inject Brain context when subagent tools are dispatched |
-| `UserPromptSubmit` | `message.updated` (role=user) | `brain system check-updates` | Check for workspace graph updates since last check |
-| `SessionEnd` / `Stop` | `session.idle` | `brain system end-session` | End agent session, log summary via API |
-| *(not available)* | `experimental.session.compacting` | *(new)* | Inject Brain entity context into compaction prompt |
+| `SessionStart` | `session.created` | `osabio system load-context` | Load workspace context, start agent session via API |
+| `PreToolUse` (Agent dispatch) | `tool.execute.before` | `osabio system pretooluse` | Inject Osabio context when subagent tools are dispatched |
+| `UserPromptSubmit` | `message.updated` (role=user) | `osabio system check-updates` | Check for workspace graph updates since last check |
+| `SessionEnd` / `Stop` | `session.idle` | `osabio system end-session` | End agent session, log summary via API |
+| *(not available)* | `experimental.session.compacting` | *(new)* | Inject Osabio entity context into compaction prompt |
 
 ### Custom Tool Registration
 
-The plugin registers Brain tools as OpenCode native custom tools using `@opencode-ai/plugin`'s `tool()` helper. Each tool wraps an HTTP call to the Brain API:
+The plugin registers Osabio tools as OpenCode native custom tools using `@opencode-ai/plugin`'s `tool()` helper. Each tool wraps an HTTP call to the Osabio API:
 
 ```
 // Conceptual structure (not implementation code)
@@ -364,14 +364,14 @@ plugin tools = {
 
 ### Plugin vs MCP: Why Not Just MCP?
 
-OpenCode supports MCP natively, so the existing `brain mcp` server could work by adding config to `opencode.json`. However, using native plugin tools provides advantages:
+OpenCode supports MCP natively, so the existing `osabio mcp` server could work by adding config to `opencode.json`. However, using native plugin tools provides advantages:
 
 | Aspect | MCP in OpenCode | Native Plugin Tools |
 |--------|----------------|-------------------|
 | **Transport** | Separate stdio process | In-process function calls |
-| **Startup** | Spawns `brain mcp` subprocess | Plugin loaded at init |
+| **Startup** | Spawns `osabio mcp` subprocess | Plugin loaded at init |
 | **Lifecycle hooks** | Not available via MCP | `session.created`, `session.idle`, `tool.execute.before`, `session.compacting` |
-| **Compaction context** | Not possible | Can inject Brain entities into compaction prompt |
+| **Compaction context** | Not possible | Can inject Osabio entities into compaction prompt |
 | **Latency** | stdio IPC + HTTP | Direct HTTP (no IPC layer) |
 | **Error handling** | MCP error protocol | Native plugin error handling |
 
@@ -379,29 +379,29 @@ The plugin approach is strictly superior for OpenCode because it provides lifecy
 
 ### Orchestrator Integration
 
-When the orchestrator spawns an OpenCode server for task assignment, it configures the Brain plugin via `OPENCODE_CONFIG_CONTENT`:
+When the orchestrator spawns an OpenCode server for task assignment, it configures the Osabio plugin via `OPENCODE_CONFIG_CONTENT`:
 
 ```
 {
   "plugin": [],                    // No npm plugins needed
-  // Plugin loaded from .opencode/plugins/brain.ts in the worktree
+  // Plugin loaded from .opencode/plugins/osabio.ts in the worktree
 }
 ```
 
-The worktree inherits the project's `.opencode/plugins/brain.ts` file, so the spawned OpenCode automatically loads the Brain plugin. The orchestrator's Config Builder sets the auth token and workspace ID via environment variables that the plugin reads at init.
+The worktree inherits the project's `.opencode/plugins/osabio.ts` file, so the spawned OpenCode automatically loads the Osabio plugin. The orchestrator's Config Builder sets the auth token and workspace ID via environment variables that the plugin reads at init.
 
-### `brain init` Changes
+### `osabio init` Changes
 
-The `brain init` command gains OpenCode support:
+The `osabio init` command gains OpenCode support:
 
-| Current (`brain init`) | New (`brain init --opencode`) |
+| Current (`osabio init`) | New (`osabio init --opencode`) |
 |------------------------|-------------------------------|
-| Creates `.mcp.json` with Brain MCP server | Creates `opencode.json` with Brain plugin reference |
-| Creates `.claude/settings.json` hooks | Drops `.opencode/plugins/brain.ts` plugin file |
+| Creates `.mcp.json` with Osabio MCP server | Creates `opencode.json` with Osabio plugin reference |
+| Creates `.claude/settings.json` hooks | Drops `.opencode/plugins/osabio.ts` plugin file |
 | Creates `.claude/commands/` slash commands | Creates `.opencode/commands/` if supported |
-| OAuth flow → stores in `~/.brain/config.json` | Same OAuth flow, same credential store |
+| OAuth flow → stores in `~/.osabio/config.json` | Same OAuth flow, same credential store |
 
-Auto-detection: `brain init` can detect whether `.claude/` or `.opencode/` exists and configure the appropriate integration. Both can coexist in the same repository.
+Auto-detection: `osabio init` can detect whether `.claude/` or `.opencode/` exists and configure the appropriate integration. Both can coexist in the same repository.
 
 ---
 
@@ -409,10 +409,10 @@ Auto-detection: `brain init` can detect whether `.claude/` or `.opencode/` exist
 
 The walking skeleton (Feature 0) covers the minimum viable path:
 
-1. **Brain OpenCode Plugin**: Plugin with core tools (get_context, get_task_context, update_task_status, create_observation) + session lifecycle hooks (session.created, session.idle)
-2. **`brain init --opencode`**: Init command generates `opencode.json` config + drops plugin into `.opencode/plugins/`
+1. **Osabio OpenCode Plugin**: Plugin with core tools (get_context, get_task_context, update_task_status, create_observation) + session lifecycle hooks (session.created, session.idle)
+2. **`osabio init --opencode`**: Init command generates `opencode.json` config + drops plugin into `.opencode/plugins/`
 3. **Assign route**: POST handler that creates worktree, spawns OpenCode, creates session, sends initial task message
-4. **MCP integration**: OpenCode agent uses Brain tools via plugin (or MCP fallback)
+4. **MCP integration**: OpenCode agent uses Osabio tools via plugin (or MCP fallback)
 5. **Status polling**: GET session status (no SSE bridging yet -- polling only)
 6. **Accept/abort**: Accept merges worktree branch, abort removes it
 
@@ -429,7 +429,7 @@ Deferred from walking skeleton:
 
 ## Deployment Architecture
 
-No changes to deployment topology. The orchestrator runs in-process within the existing Bun.serve monolith. OpenCode processes are spawned as child processes on the same host. Git worktrees are created in a `.brain/worktrees/` directory relative to the repository root.
+No changes to deployment topology. The orchestrator runs in-process within the existing Bun.serve monolith. OpenCode processes are spawned as child processes on the same host. Git worktrees are created in a `.osabio/worktrees/` directory relative to the repository root.
 
 Resource considerations:
 - Each active agent consumes one OpenCode child process (~100-200MB RSS)

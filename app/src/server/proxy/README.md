@@ -1,14 +1,14 @@
 # Proxy
 
-Transparent LLM proxy with identity resolution, policy enforcement, cost tracking, brain context injection, and full audit trail.
+Transparent LLM proxy with identity resolution, policy enforcement, cost tracking, osabio context injection, and full audit trail.
 
 ## The Problem
 
-Your coding agents call the Anthropic API directly. Brain has no visibility into what they're doing, what they're spending, or whether their requests align with workspace policies. The proxy sits between your agents and the LLM provider, adding identity resolution, budget enforcement, rate limiting, knowledge graph context injection, and forensic-grade audit trails — without changing how your agents work.
+Your coding agents call the Anthropic API directly. Osabio has no visibility into what they're doing, what they're spending, or whether their requests align with workspace policies. The proxy sits between your agents and the LLM provider, adding identity resolution, budget enforcement, rate limiting, knowledge graph context injection, and forensic-grade audit trails — without changing how your agents work.
 
 ## What It Does
 
-- **Transparent forwarding**: Proxies Anthropic Messages API requests — agents don't know they're going through Brain
+- **Transparent forwarding**: Proxies Anthropic Messages API requests — agents don't know they're going through Osabio
 - **9-step pipeline**: Identity resolution → session ID → conversation hashing → policy evaluation → context injection → forward → trace capture
 - **Policy enforcement**: Model allowlists, daily budget limits, per-workspace rate limiting (60 req/min default)
 - **Brain context injection**: Ranks decisions, learnings, and observations by cosine similarity to the request, injects within a token budget
@@ -31,7 +31,7 @@ Your coding agents call the Anthropic API directly. Brain has no visibility into
 
 **9-step proxy pipeline:**
 
-1. **Identity resolution**: Extract identity from Claude Code metadata + `X-Brain-*` headers
+1. **Identity resolution**: Extract identity from Claude Code metadata + `X-Osabio-*` headers
 2. **Session ID**: Resolve from header (priority) or metadata
 3. **Conversation hash**: UUIDv5 from system prompt + first user message for stable trace grouping
 4. **Policy evaluation**: Check model allowlist → check daily budget → check rate limit
@@ -93,7 +93,7 @@ proxy/
   conversation-hash-resolver.ts   # UUIDv5 conversation hashing for trace grouping
   conversation-upserter.ts        # Upsert conversation records from proxy requests
   policy-evaluator.ts             # Model allowlist, budget, rate limit enforcement
-  context-injector.ts             # Pure ranking and selection for brain context injection
+  context-injector.ts             # Pure ranking and selection for osabio context injection
   context-cache.ts                # TTL cache for workspace context (configurable)
   rate-limiter.ts                 # Sliding-window rate limiting per workspace
   cost-calculator.ts              # Token cost computation from pricing table

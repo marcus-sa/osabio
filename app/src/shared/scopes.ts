@@ -1,5 +1,5 @@
 /** OAuth scope name → human-readable description. Shared between server and client. */
-export const BRAIN_SCOPES = {
+export const OSABIO_SCOPES = {
   "graph:read": "Read workspace graph data",
   "graph:reason": "Use reasoning tools (resolve decisions, check constraints)",
   "decision:write": "Create and confirm decisions",
@@ -19,5 +19,5 @@ export const STANDARD_SCOPES: Record<string, string> = {
 
 /** Get a human-readable description for a scope */
 export function getScopeDescription(scope: string): string {
-  return (BRAIN_SCOPES as Record<string, string>)[scope] ?? STANDARD_SCOPES[scope] ?? scope;
+  return (OSABIO_SCOPES as Record<string, string>)[scope] ?? STANDARD_SCOPES[scope] ?? scope;
 }

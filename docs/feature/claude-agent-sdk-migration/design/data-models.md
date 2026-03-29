@@ -27,7 +27,7 @@ SpawnAgentFn = (config: AgentSpawnConfig) -> Promise<AgentHandle>
 AgentSpawnConfig = {
   cwd: string                             // Worktree path
   systemPrompt: string                    // Task-scoped system prompt
-  brainBaseUrl: string                    // Brain server URL for MCP env vars
+  brainBaseUrl: string                    // Osabio server URL for MCP env vars
   workspaceId: string                     // Workspace ID for MCP env vars
   taskId: string                          // Task being worked on
   model?: string                          // Override model (default: claude-sonnet-4)
@@ -48,8 +48,8 @@ AgentOptions = {
       command: "brain"
       args: ["mcp"]
       env: {
-        BRAIN_SERVER_URL: string
-        BRAIN_WORKSPACE_ID: string
+        OSABIO_SERVER_URL: string
+        OSABIO_WORKSPACE_ID: string
       }
     }
   }

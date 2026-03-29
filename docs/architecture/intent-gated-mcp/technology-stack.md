@@ -2,7 +2,7 @@
 
 ## Principle: Reuse Existing
 
-This feature introduces zero new technology dependencies. Every component reuses the existing Brain stack.
+This feature introduces zero new technology dependencies. Every component reuses the existing Osabio stack.
 
 ---
 
@@ -10,11 +10,11 @@ This feature introduces zero new technology dependencies. Every component reuses
 
 | Layer | Technology | License | Rationale |
 |-------|-----------|---------|-----------|
-| Runtime | Bun (`Bun.serve`) | MIT | Existing Brain runtime. New route registered in `start-server.ts`. |
+| Runtime | Bun (`Bun.serve`) | MIT | Existing Osabio runtime. New route registered in `start-server.ts`. |
 | Language | TypeScript (strict) | Apache 2.0 | Existing codebase language. Functional paradigm per CLAUDE.md. |
 | Database | SurrealDB | BSL 1.1 | Existing graph database. No new tables; reuses `proxy_token`, `gates`, `intent`, `mcp_tool`, `mcp_server`, `can_use`. |
 | MCP Client | `@modelcontextprotocol/sdk` | MIT | Existing dependency for upstream MCP server communication via `McpClientFactory`. |
-| Auth | Proxy token (X-Brain-Auth) | N/A (internal) | Existing auth mechanism from `proxy/proxy-auth.ts`. No DPoP for sandbox agents. |
+| Auth | Proxy token (X-Osabio-Auth) | N/A (internal) | Existing auth mechanism from `proxy/proxy-auth.ts`. No DPoP for sandbox agents. |
 | Policy | Policy gate + predicate evaluator | N/A (internal) | Existing policy evaluation pipeline from `policy/policy-gate.ts`. |
 | LLM Eval | Vercel AI SDK (`ai` package) | Apache 2.0 | Existing dependency for intent risk evaluation via `generateObject`. |
 | Tracing | OpenTelemetry | Apache 2.0 | Existing instrumentation via `withTracing` and `captureToolTrace`. |

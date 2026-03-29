@@ -15,7 +15,7 @@ import { refreshConversationTouchedBy, maybeUpgradeConversationTitle } from "../
 import { loadWorkspaceProjects } from "../workspace/workspace-scope";
 import { log } from "../telemetry/logger";
 
-const tracer = trace.getTracer("brain-server");
+const tracer = trace.getTracer("osabio-server");
 
 export async function processChatMessage(input: {
   deps: ServerDependencies;
@@ -31,7 +31,7 @@ export async function processChatMessage(input: {
   const startedAt = performance.now();
   const workspaceId = input.workspaceRecord.id as string;
 
-  return tracer.startActiveSpan("brain.chat.process", async (span) => {
+  return tracer.startActiveSpan("osabio.chat.process", async (span) => {
     // Wide event: seed with all known business context upfront
     span.setAttribute("workspace.id", workspaceId);
     span.setAttribute("conversation.id", input.conversationId);

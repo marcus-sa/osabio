@@ -72,7 +72,7 @@ beforeAll(async () => {
   await surreal.query("CREATE $record CONTENT $content;", {
     record: agentRecord,
     content: {
-      runtime: "brain",
+      runtime: "osabio",
       name: "PM Agent",
       model: "claude-sonnet-4-20250514",
       managed_by: humanIdentity,

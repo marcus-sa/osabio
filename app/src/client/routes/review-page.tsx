@@ -9,7 +9,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
 
-const ACTIVE_WORKSPACE_STORAGE_KEY = "brain.activeWorkspaceId";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "osabio.activeWorkspaceId";
 
 // ---------------------------------------------------------------------------
 // Pure View Model (testable)

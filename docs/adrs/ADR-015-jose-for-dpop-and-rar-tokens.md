@@ -33,7 +33,7 @@ Specific `jose` functions used:
 Dedicated DPoP implementation.
 
 - **Pros**: Purpose-built API for DPoP proof creation and validation.
-- **Cons**: Additional dependency. Internally uses `jose` anyway. Does not cover RAR token signing, JWKS generation, or thumbprint computation. Brain-specific requirements (intent binding, brain_action claims) not covered.
+- **Cons**: Additional dependency. Internally uses `jose` anyway. Does not cover RAR token signing, JWKS generation, or thumbprint computation. Osabio-specific requirements (intent binding, osabio_action claims) not covered.
 - **Rejected because**: Adds an abstraction layer over `jose` without covering the full requirement surface. `jose` alone handles everything.
 
 ### Alternative 2: `oauth4webapi` npm package

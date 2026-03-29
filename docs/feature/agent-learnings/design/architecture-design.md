@@ -2,7 +2,7 @@
 
 ## System Context
 
-Agent Learnings adds persistent behavioral modification to Brain's knowledge graph. Learnings are behavioral rules injected into agent system prompts at runtime (JIT prompting), converting repeated corrections into permanent wisdom.
+Agent Learnings adds persistent behavioral modification to Osabio's knowledge graph. Learnings are behavioral rules injected into agent system prompts at runtime (JIT prompting), converting repeated corrections into permanent wisdom.
 
 Two creation paths:
 - **Human-created**: User records a correction as a permanent rule. Immediately active.
@@ -16,12 +16,12 @@ C4Context
 
     Person(human, "Workspace User", "Creates learnings, approves agent suggestions, curates learning library")
 
-    System(brain, "Brain Platform", "Knowledge graph operating system for autonomous organizations")
+    System(osabio, "Osabio Platform", "Knowledge graph operating system for autonomous organizations")
 
     System_Ext(llm, "LLM Provider", "OpenRouter/Ollama - embedding generation, correction detection, collision analysis")
     System_Ext(surrealdb, "SurrealDB", "Graph + vector + document store")
 
-    Rel(human, brain, "Creates learnings, approves/dismisses suggestions", "HTTP/SSE")
+    Rel(human, osabio, "Creates learnings, approves/dismisses suggestions", "HTTP/SSE")
     Rel(brain, llm, "Generates embeddings, detects patterns, classifies collisions", "HTTP")
     Rel(brain, surrealdb, "Persists learnings, queries active learnings, vector search", "WS/HTTP")
 ```
@@ -34,7 +34,7 @@ C4Container
 
     Person(user, "Workspace User")
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(chatAgent, "Chat Agent", "TypeScript/AI SDK", "Detects correction patterns in conversation, offers Save as Learning card")
         Container(pmAgent, "PM Agent", "TypeScript/AI SDK", "Receives active learnings in system prompt")
         Container(observer, "Observer Agent", "TypeScript/AI SDK", "Scans traces for repeated failures, clusters observations, suggests learnings")

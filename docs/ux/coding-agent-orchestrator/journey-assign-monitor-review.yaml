@@ -5,11 +5,11 @@ journey:
     - id: user
       role: Engineering lead / developer
     - id: platform
-      role: Brain web application
+      role: Osabio web application
     - id: agent
       role: OpenCode coding agent
     - id: mcp
-      role: Brain MCP server
+      role: Osabio MCP server
 
   phases:
     - id: assign
@@ -39,7 +39,7 @@ journey:
           actor: platform
           action: |
             1. Create opencode session via SDK
-            2. Configure MCP server pointing to Brain
+            2. Configure MCP server pointing to Osabio
             3. Inject workspace + project context via noReply prompt
           artifacts_created: [opencode-session, agent-session]
 
@@ -61,7 +61,7 @@ journey:
       steps:
         - id: agent-reads-context
           actor: agent
-          action: Calls Brain MCP get_task_context and get_project_context
+          action: Calls Osabio MCP get_task_context and get_project_context
           artifacts_read: [task, project-context]
 
         - id: agent-implements
@@ -79,7 +79,7 @@ journey:
           actor: platform
           action: |
             Subscribe to opencode event stream.
-            Forward key events (file_change, tool_call, error, complete) to Brain SSE.
+            Forward key events (file_change, tool_call, error, complete) to Osabio SSE.
           artifacts_read: [opencode-session]
 
         - id: user-monitors
@@ -141,7 +141,7 @@ journey:
 
     - id: project-context
       type: mcp-context-packet
-      source: brain-mcp-server
+      source: osabio-mcp-server
 
     - id: file-changes
       type: git-diff
