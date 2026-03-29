@@ -1,0 +1,111 @@
+{
+  "schema_version": "3.0",
+  "feature_id": "agent-task-selection",
+  "events": [
+    {
+      "sid": "01-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:14:18Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:15:03Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: acceptance tests cover all 4 scenarios through the driving port (HTTP assign endpoint) to driven port (agent_session.agent field). Unit tests would duplicate coverage without adding value.",
+      "t": "2026-03-29T09:15:09Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:19:39Z"
+    },
+    {
+      "sid": "01-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:20:18Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:23:19Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: frontend component step with no acceptance test",
+      "t": "2026-03-29T09:23:21Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: frontend component covered by integration steps 01-01 and 03-01",
+      "t": "2026-03-29T09:23:23Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:23:25Z"
+    },
+    {
+      "sid": "02-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:23:44Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-03-29T09:24:30Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: acceptance tests already created and passing from step 01-01",
+      "t": "2026-03-29T09:24:31Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: all scenarios covered by acceptance tests from step 01-01",
+      "t": "2026-03-29T09:24:31Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "GREEN",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: tests already pass from step 01-01 implementation",
+      "t": "2026-03-29T09:24:31Z"
+    },
+    {
+      "sid": "03-01",
+      "p": "COMMIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no new code to commit - tests already committed in step 01-01",
+      "t": "2026-03-29T09:24:31Z"
+    }
+  ]
+}

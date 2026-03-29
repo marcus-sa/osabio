@@ -214,6 +214,73 @@ describe("evaluateIntent", () => {
     });
   });
 
+  describe("human requester satisfies human_veto_required", () => {
+    test("human_veto_required is false when requesterType is 'human' even if policy sets it", async () => {
+      // Policy with human_veto_required: true
+      const vetoPolicy = {
+        id: new RecordId("policy", "veto-policy"),
+        title: "Require Human Veto",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "allow_all",
+          condition: { field: "goal", operator: "exists", value: true },
+          effect: "allow",
+          priority: 1,
+        }],
+        human_veto_required: true,
+        created_by: mockIdentityId,
+        workspace: mockWorkspaceId,
+        created_at: new Date(),
+      };
+      const vetoPolicySurreal = {
+        query: async () => [[{ policies: [vetoPolicy] }]],
+      } as unknown as EvaluateIntentInput["surreal"];
+
+      const result = await evaluateIntent(makeInput({
+        surreal: vetoPolicySurreal,
+        requesterType: "human",
+        llmEvaluator: makeLlmEvaluator(approvedLlmResult),
+      }));
+
+      expect(result.decision).toBe("APPROVE");
+      expect(result.human_veto_required).toBe(false);
+    });
+
+    test("human_veto_required is true when requesterType is 'agent' and policy sets it", async () => {
+      const vetoPolicy = {
+        id: new RecordId("policy", "veto-policy"),
+        title: "Require Human Veto",
+        version: 1,
+        status: "active",
+        selector: {},
+        rules: [{
+          id: "allow_all",
+          condition: { field: "goal", operator: "exists", value: true },
+          effect: "allow",
+          priority: 1,
+        }],
+        human_veto_required: true,
+        created_by: mockIdentityId,
+        workspace: mockWorkspaceId,
+        created_at: new Date(),
+      };
+      const vetoPolicySurreal = {
+        query: async () => [[{ policies: [vetoPolicy] }]],
+      } as unknown as EvaluateIntentInput["surreal"];
+
+      const result = await evaluateIntent(makeInput({
+        surreal: vetoPolicySurreal,
+        requesterType: "agent",
+        llmEvaluator: makeLlmEvaluator(approvedLlmResult),
+      }));
+
+      expect(result.decision).toBe("APPROVE");
+      expect(result.human_veto_required).toBe(true);
+    });
+  });
+
   describe("evaluation timeout produces high-risk fallback for human review", () => {
     test("returns APPROVE with risk_score=50 and policy_only=true on timeout", async () => {
       const result = await evaluateIntent(makeInput({

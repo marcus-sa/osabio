@@ -2,7 +2,7 @@
  * Proxy Policy Evaluator — Pre-request policy enforcement
  *
  * Evaluates three policy dimensions before forwarding LLM requests:
- * 1. Model access — agent_type allowed to use requested model
+ * 1. Model access — agent allowed to use requested model
  * 2. Budget enforcement — workspace daily spend within limit
  * 3. Rate limiting — in-memory sliding window per workspace
  *

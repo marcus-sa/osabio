@@ -295,6 +295,7 @@ type CreateSessionInput = {
   env?: Record<string, string>;
   adapter: SandboxAgentAdapter;
   sandboxAgentType?: string;
+  agentName?: string;
   validateAssignment: (
     surreal: Surreal,
     workspaceId: string,
@@ -443,7 +444,7 @@ async function createSessionViaAdapter(
   // 2. Create agent_session record
   const { session_id: agentSessionId } = await input.createAgentSession({
     surreal: input.surreal,
-    agent: "claude",
+    agent: input.agentName ?? "claude",
     workspaceRecord: validation.workspaceRecord,
     taskId: input.taskId,
   });

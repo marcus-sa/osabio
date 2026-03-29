@@ -102,12 +102,12 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { agent_type: "management", managed_by: human, created_at: now },
+      content: { runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
     });
-    const [rows] = await surreal.query<[Array<{ agent_type: string; managed_by: RecordId }>]>(
-      "SELECT agent_type, managed_by FROM $record;", { record: ag },
+    const [rows] = await surreal.query<[Array<{ name: string; managed_by: RecordId }>]>(
+      "SELECT name, managed_by FROM $record;", { record: ag },
     );
-    expect(rows[0].agent_type).toBe("management");
+    expect(rows[0].name).toBe("PM Agent");
     expect(rows[0].managed_by).toBeDefined();
   }, 60_000);
 
@@ -141,7 +141,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { agent_type: "management", managed_by: human, created_at: now },
+      content: { runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
     });
     const agentId = new RecordId("identity", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
@@ -149,11 +149,11 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
       content: { name: "PM Agent", type: "agent", role: "management", workspace: workspaceRecord, created_at: now },
     });
     await surreal.query("RELATE $identity->identity_agent->$agent SET added_at = $now;", { identity: agentId, agent: ag, now });
-    const [result] = await surreal.query<[Array<{ spoke: Array<{ agent_type: string }> }>]>(
-      "SELECT ->identity_agent->agent.{ agent_type } AS spoke FROM $record;", { record: agentId },
+    const [result] = await surreal.query<[Array<{ spoke: Array<{ name: string }> }>]>(
+      "SELECT ->identity_agent->agent.{ name } AS spoke FROM $record;", { record: agentId },
     );
     expect(result[0].spoke.length).toBe(1);
-    expect(result[0].spoke[0].agent_type).toBe("management");
+    expect(result[0].spoke[0].name).toBe("PM Agent");
   }, 60_000);
 
   it("invalid type bot rejected", async () => {
@@ -183,7 +183,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     let threw = false;
     try {
       await surreal.query("CREATE $record CONTENT $content;", {
-        record: ag, content: { agent_type: "management", created_at: new Date() },
+        record: ag, content: { runtime: "brain", name: "Test Agent", created_at: new Date() },
       });
     } catch { threw = true; }
     expect(threw).toBe(true);

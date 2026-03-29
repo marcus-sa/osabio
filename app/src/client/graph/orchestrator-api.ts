@@ -129,13 +129,16 @@ async function orchestratorFetch<T>(url: string, init?: RequestInit): Promise<T>
 export function assignAgent(
   workspaceId: string,
   taskId: string,
+  agentId?: string,
 ): Promise<AssignAgentResponse> {
+  const payload: Record<string, string> = { taskId };
+  if (agentId !== undefined) payload.agentId = agentId;
   return orchestratorFetch<AssignAgentResponse>(
     buildOrchestratorUrl(workspaceId, "assign"),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId }),
+      body: JSON.stringify(payload),
     },
   );
 }

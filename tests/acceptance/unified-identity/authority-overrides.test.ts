@@ -5,11 +5,10 @@ import { applyTestSchema } from "../acceptance-test-kit";
 import { checkAuthority } from "../../../app/src/server/iam/authority";
 
 /**
- * US-UI-03-01: Role-based authority with per-identity overrides
+ * US-UI-03-01: Authority resolution via authorized_to edges
  *
- * Resolution order: per-identity override -> role default -> agent_type default -> blocked
+ * Resolution order: per-identity authorized_to edge -> global authority_scope default -> blocked
  * Human identities bypass authority checks entirely.
- * Per-identity authorized_to override takes precedence over role-based authority_scope.
  */
 
 const surrealUrl = process.env.SURREAL_URL ?? "ws://127.0.0.1:8000/rpc";
@@ -78,7 +77,26 @@ async function createIdentity(
   return record;
 }
 
-describe("US-UI-03-01: Authority resolves override then role default then blocked", () => {
+async function createAuthorizedToEdge(
+  identityRecord: RecordId<"identity", string>,
+  action: string,
+  permission: string,
+): Promise<void> {
+  const [scopeRows] = await surreal.query<[Array<{ id: RecordId }>]>(
+    "SELECT id FROM authority_scope WHERE action = $action AND workspace IS NONE LIMIT 1;",
+    { action },
+  );
+  if (scopeRows.length === 0) throw new Error(`No authority_scope for action: ${action}`);
+
+  await surreal.relate(
+    identityRecord,
+    new RecordId("authorized_to", randomUUID()),
+    scopeRows[0].id,
+    { permission, created_at: new Date() },
+  ).output("after");
+}
+
+describe("US-UI-03-01: Authority resolves authorized_to edge then global default then blocked", () => {
 
   // -- Human bypass --
 
@@ -87,7 +105,7 @@ describe("US-UI-03-01: Authority resolves override then role default then blocke
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
       workspaceRecord,
       identityRecord: identity,
@@ -96,28 +114,18 @@ describe("US-UI-03-01: Authority resolves override then role default then blocke
     expect(result).toBe("auto");
   }, 30_000);
 
-  // -- Per-identity override takes precedence over role default --
+  // -- Per-identity authorized_to edge overrides global default --
 
-  it("Given an agent identity with role-default blocked for confirm_decision, when an authorized_to override grants auto, then override permission is returned", async () => {
-    const identity = await createIdentity("agent", "code_agent");
+  it("Given an agent identity with authorized_to edge granting auto for confirm_decision, then auto is returned instead of global blocked", async () => {
+    const identity = await createIdentity("agent", "custom");
 
-    // code_agent + confirm_decision = blocked by seed data
+    // Global default for confirm_decision is blocked
     // Create a per-identity override granting auto
-    const [scopeRows] = await surreal.query<[Array<{ id: RecordId }>]>(
-      "SELECT id FROM authority_scope WHERE agent_type = 'code_agent' AND action = 'confirm_decision' AND workspace IS NONE LIMIT 1;",
-    );
-    const scopeRecord = scopeRows[0].id;
-
-    await surreal.relate(
-      identity,
-      new RecordId("authorized_to", randomUUID()),
-      scopeRecord,
-      { permission: "auto", created_at: new Date() },
-    ).output("after");
+    await createAuthorizedToEdge(identity, "confirm_decision", "auto");
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "confirm_decision",
       workspaceRecord,
       identityRecord: identity,
@@ -126,33 +134,14 @@ describe("US-UI-03-01: Authority resolves override then role default then blocke
     expect(result).toBe("auto");
   }, 30_000);
 
-  // -- Role-based resolution (identity.role matches authority_scope.agent_type) --
+  // -- No authorized_to edge -> falls back to global default --
 
-  it("Given an agent identity with role architect, when checkAuthority is called with agentType code_agent for resolve_observation, then role-based permission (auto) is used instead of agent_type default (blocked)", async () => {
-    const identity = await createIdentity("agent", "architect");
-
-    // architect + resolve_observation = auto (seed data)
-    // code_agent + resolve_observation = blocked (seed data)
-    // identity.role = architect should take precedence over agentType param
-    const result = await checkAuthority({
-      surreal,
-      agentType: "code_agent",
-      action: "resolve_observation",
-      workspaceRecord,
-      identityRecord: identity,
-    });
-
-    expect(result).toBe("auto");
-  }, 30_000);
-
-  // -- No role, no override -> falls back to agent_type default --
-
-  it("Given an agent identity with no role and no override, when checkAuthority is called, then agent_type default is used", async () => {
+  it("Given an agent identity with no authorized_to edges, when checkAuthority is called for create_task, then global default (auto) is returned", async () => {
     const identity = await createIdentity("agent");
 
     const result = await checkAuthority({
       surreal,
-      agentType: "code_agent",
+
       action: "create_task",
       workspaceRecord,
       identityRecord: identity,
@@ -163,14 +152,14 @@ describe("US-UI-03-01: Authority resolves override then role default then blocke
 
   // -- Fail-safe: no match at all --
 
-  it("Given an identity with no role, no override, and unknown agent_type, when checkAuthority is called, then blocked is returned", async () => {
+  it("Given an identity with no authorized_to edges, when checkAuthority is called for an unknown action, then blocked is returned", async () => {
     const identity = await createIdentity("agent");
 
     const result = await checkAuthority({
       surreal,
-      // @ts-expect-error -- testing unknown agent type fallback
-      agentType: "unknown_type",
-      action: "create_task",
+
+      // @ts-expect-error -- testing unknown action fallback
+      action: "unknown_action",
       workspaceRecord,
       identityRecord: identity,
     });

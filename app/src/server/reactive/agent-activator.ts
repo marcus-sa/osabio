@@ -207,11 +207,11 @@ async function loadWorkspaceAgents(
   // Two-step: get workspace member identities, then find their agents
   const result = await surreal.query<[unknown, Array<{
     id: RecordId;
-    agent_type: string;
+    name: string;
     description: string;
   }>]>(
     `LET $members = (SELECT VALUE in FROM member_of WHERE out = $ws);
-     SELECT id, agent_type, description FROM agent
+     SELECT id, name, description FROM agent
      WHERE managed_by IN $members
      AND description IS NOT NONE;`,
     { ws: workspaceRecord },
@@ -219,7 +219,7 @@ async function loadWorkspaceAgents(
 
   return (result[1] ?? []).map((a) => ({
     agentId: a.id.id as string,
-    agentType: a.agent_type,
+    agentType: a.name,
     description: a.description,
   }));
 }

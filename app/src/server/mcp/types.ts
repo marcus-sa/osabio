@@ -1,5 +1,4 @@
 import type { RecordId } from "surrealdb";
-import type { AgentType } from "../tools/types";
 
 /** Validated MCP request context after workspace auth */
 export type McpRequestContext = {
@@ -11,7 +10,6 @@ export type McpRequestContext = {
 export type McpAuthResult = {
   workspaceRecord: RecordId<"workspace", string>;
   workspaceName: string;
-  agentType: AgentType;
   identityRecord: RecordId<"identity", string>;
   scopes: Set<string>;
   /** Always false for MCP contexts — autonomous agents never bypass authority checks. */

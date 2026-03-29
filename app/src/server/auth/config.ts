@@ -151,7 +151,6 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
           return {
             "urn:brain:workspace": memberRows[0].workspace_id.id as string,
             "urn:brain:workspace_name": memberRows[0].workspace_name,
-            "urn:brain:agent_type": "code_agent",
           };
         },
       }),

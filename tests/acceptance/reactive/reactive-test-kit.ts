@@ -418,7 +418,8 @@ export async function registerAgent(
   const identityRecord = new RecordId("identity", identityId);
 
   const content: Record<string, unknown> = {
-    agent_type: options.agentType,
+    runtime: "brain",
+    name: options.agentType,
     managed_by: identityRecord,
     created_at: new Date(),
   };

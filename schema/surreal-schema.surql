@@ -60,6 +60,8 @@ DEFINE FIELD updated_at ON workspace TYPE option<datetime>;
 DEFINE FIELD repo_path ON workspace TYPE option<string>;
 DEFINE FIELD settings ON workspace TYPE option<object>;
 DEFINE FIELD settings.observer_skip_deterministic ON workspace TYPE option<bool>;
+DEFINE FIELD settings.sandbox_provider ON workspace TYPE option<string>
+  ASSERT $value = NONE OR $value IN ['local', 'e2b', 'daytona', 'docker'];
 DEFINE FIELD daily_budget_usd ON workspace TYPE option<float>;
 DEFINE FIELD evidence_enforcement ON workspace TYPE option<string>
   ASSERT $value = NONE OR $value IN ['bootstrap', 'soft', 'hard'];
@@ -328,11 +330,20 @@ DEFINE INDEX identity_workspace ON identity FIELDS workspace;
 DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 
 DEFINE TABLE agent SCHEMAFULL;
-DEFINE FIELD agent_type ON agent TYPE string ASSERT $value IN ['code_agent', 'architect', 'management', 'design_partner', 'observer', 'chat_agent', 'mcp'];
+DEFINE FIELD runtime ON agent TYPE string ASSERT $value IN ['brain', 'sandbox', 'external'];
+DEFINE FIELD name ON agent TYPE string;
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
 DEFINE FIELD managed_by ON agent TYPE record<identity>;
 DEFINE FIELD created_at ON agent TYPE datetime;
+DEFINE FIELD sandbox_config ON agent TYPE option<object>;
+DEFINE FIELD sandbox_config.coding_agents ON agent TYPE option<array<string>>;
+DEFINE FIELD sandbox_config.env_vars ON agent TYPE option<array<object>>;
+DEFINE FIELD sandbox_config.env_vars[*].key ON agent TYPE string;
+DEFINE FIELD sandbox_config.env_vars[*].value ON agent TYPE string;
+DEFINE FIELD sandbox_config.image ON agent TYPE option<string>;
+DEFINE FIELD sandbox_config.snapshot ON agent TYPE option<string>;
+DEFINE FIELD sandbox_config.model ON agent TYPE option<string>;
 
 DEFINE TABLE identity_person TYPE RELATION IN identity OUT person SCHEMAFULL;
 DEFINE FIELD added_at ON identity_person TYPE datetime;
@@ -698,8 +709,6 @@ DEFINE INDEX protects_in ON protects FIELDS in;
 
 -- Authority scopes: per-agent-type permission matrix
 DEFINE TABLE authority_scope SCHEMAFULL;
-DEFINE FIELD agent_type ON authority_scope TYPE string
-  ASSERT $value IN ["code_agent", "architect", "management", "design_partner", "observer"];
 DEFINE FIELD action ON authority_scope TYPE string
   ASSERT $value IN [
     "create_decision", "confirm_decision",
@@ -715,70 +724,20 @@ DEFINE FIELD created_at ON authority_scope TYPE datetime;
 -- No UNIQUE: SurrealDB v3.0.4 UNIQUE indexes on option<record<...>> fields
 -- silently return empty results for WHERE queries. Use plain index instead.
 DEFINE INDEX authority_scope_lookup ON authority_scope
-  FIELDS agent_type, action, workspace;
+  FIELDS action, workspace;
 
--- Seed: code_agent defaults
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_decision", permission: "provisional", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "confirm_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_task", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "complete_task", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "acknowledge_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "resolve_observation", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_question", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_suggestion", permission: "auto", created_at: time::now() };
-
--- Seed: architect defaults
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_decision", permission: "provisional", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "confirm_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_task", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "complete_task", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "acknowledge_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "resolve_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_question", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_suggestion", permission: "auto", created_at: time::now() };
-
--- Seed: management defaults
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_decision", permission: "provisional", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "confirm_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_task", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "complete_task", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "acknowledge_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "resolve_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_question", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_suggestion", permission: "auto", created_at: time::now() };
-
--- Seed: intent lifecycle (code_agent, architect, management)
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "create_intent", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "code_agent", action: "submit_intent", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "create_intent", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "architect", action: "submit_intent", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "create_intent", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "management", action: "submit_intent", permission: "auto", created_at: time::now() };
-
--- Seed: design_partner defaults
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "create_decision", permission: "provisional", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "confirm_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "create_task", permission: "provisional", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "complete_task", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "create_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "acknowledge_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "resolve_observation", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "create_question", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "design_partner", action: "create_suggestion", permission: "auto", created_at: time::now() };
-
--- Seed: observer defaults
-CREATE authority_scope CONTENT { agent_type: "observer", action: "create_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "confirm_decision", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "create_task", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "complete_task", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "create_observation", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "acknowledge_observation", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "resolve_observation", permission: "blocked", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "create_question", permission: "auto", created_at: time::now() };
-CREATE authority_scope CONTENT { agent_type: "observer", action: "create_suggestion", permission: "blocked", created_at: time::now() };
+-- Seed: one authority_scope per action with default permission
+CREATE authority_scope CONTENT { action: "create_decision", permission: "provisional", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "confirm_decision", permission: "blocked", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "create_task", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "complete_task", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "create_observation", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "acknowledge_observation", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "resolve_observation", permission: "blocked", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "create_question", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "create_suggestion", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "create_intent", permission: "auto", created_at: time::now() };
+CREATE authority_scope CONTENT { action: "submit_intent", permission: "auto", created_at: time::now() };
 
 -- Per-identity authority overrides (identity -> authority_scope)
 DEFINE TABLE authorized_to TYPE RELATION IN identity OUT authority_scope SCHEMAFULL;

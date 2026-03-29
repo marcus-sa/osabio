@@ -9,7 +9,6 @@ export type BrainTokenClaims = {
   iat?: number;
   "urn:brain:workspace"?: string;
   "urn:brain:workspace_name"?: string;
-  "urn:brain:agent_type"?: string;
   [key: string]: unknown;
 };
 

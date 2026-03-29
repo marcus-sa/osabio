@@ -5,16 +5,24 @@
  * Effect boundary: the component wires useAgentSession for SSE updates and assignAgent for dispatch.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AgentSessionSummary, EntityKind } from "../../../shared/contracts";
 import { useAgentSession, type AgentSessionStatus } from "../../hooks/use-agent-session";
 import { assignAgent, type AssignAgentResponse } from "../../graph/orchestrator-api";
+import { buildAgentsUrl, type AgentListItem } from "../../hooks/use-agents";
 import { useWorkspaceState } from "../../stores/workspace-state";
 import { usePublicConfig } from "../../hooks/use-public-config";
 import { AgentSessionPanel } from "./AgentSessionPanel";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 
 // ---------------------------------------------------------------------------
 // Pure core: view derivation
@@ -106,6 +114,19 @@ function statusLabel(status: AgentSessionStatus): string {
 }
 
 // ---------------------------------------------------------------------------
+// Pure core: assignable agent filtering
+// ---------------------------------------------------------------------------
+
+export function filterAssignableAgents(agents: AgentListItem[]): AgentListItem[] {
+  return agents.filter((agent) => agent.runtime !== "brain");
+}
+
+export function deriveInitialSelectedAgent(assignableAgents: AgentListItem[]): string | undefined {
+  if (assignableAgents.length === 1) return assignableAgents[0].id;
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -131,8 +152,30 @@ export function AgentStatusSection({
   const [repoPathInput, setRepoPathInput] = useState("");
   const [settingRepoPath, setSettingRepoPath] = useState(false);
   const [repoPathError, setRepoPathError] = useState<string | undefined>();
+  const [assignableAgents, setAssignableAgents] = useState<AgentListItem[]>([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
 
   const initialView = deriveAgentStatusView({ entityKind, entityStatus, agentSession });
+
+  useEffect(() => {
+    if (initialView.variant !== "assign") return;
+    let cancelled = false;
+    setAgentsLoading(true);
+    fetch(buildAgentsUrl(workspaceId))
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to fetch agents"))))
+      .then((data: { agents: AgentListItem[] }) => {
+        if (cancelled) return;
+        const filtered = filterAssignableAgents(data.agents);
+        setAssignableAgents(filtered);
+        setSelectedAgentId(deriveInitialSelectedAgent(filtered));
+      })
+      .catch(() => {
+        if (!cancelled) setAssignableAgents([]);
+      })
+      .finally(() => { if (!cancelled) setAgentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [initialView.variant, workspaceId]);
 
   const streamUrl = assignResult?.streamUrl ?? (
     initialView.variant === "active"
@@ -155,7 +198,7 @@ export function AgentStatusSection({
     setAssignError(undefined);
     try {
       const rawTaskId = entityId.includes(":") ? entityId.split(":")[1] : entityId;
-      const result = await assignAgent(workspaceId, rawTaskId);
+      const result = await assignAgent(workspaceId, rawTaskId, selectedAgentId);
       setAssignResult(result);
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : "Failed to assign agent");
@@ -271,11 +314,35 @@ export function AgentStatusSection({
             ) : undefined}
           </div>
         ) : undefined}
+        {agentsLoading ? (
+          <p className="text-xs text-muted-foreground" data-testid="agent-picker-loading">Loading agents...</p>
+        ) : assignableAgents.length === 0 ? (
+          <p className="text-xs text-muted-foreground" data-testid="agent-picker-empty">No agents configured. Create a sandbox or external agent first.</p>
+        ) : (
+          <Select
+            value={selectedAgentId ?? ""}
+            onValueChange={(v) => setSelectedAgentId(v ?? undefined)}
+            items={Object.fromEntries(
+              assignableAgents.map((agent) => [agent.id, `${agent.name} (${agent.runtime})`]),
+            )}
+          >
+            <SelectTrigger className="w-full" data-testid="agent-picker-trigger">
+              <SelectValue placeholder="Select an agent..." />
+            </SelectTrigger>
+            <SelectContent>
+              {assignableAgents.map((agent) => (
+                <SelectItem key={agent.id} value={agent.id} data-testid={`agent-picker-option-${agent.id}`}>
+                  {agent.name} ({agent.runtime})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Button
           variant="outline"
           size="sm"
           data-testid="agent-assign-button"
-          disabled={assigning || missingRepoPath}
+          disabled={assigning || missingRepoPath || (assignableAgents.length === 0 && !agentsLoading)}
           onClick={handleAssign}
         >
           {assigning ? "Assigning..." : "Assign Agent"}

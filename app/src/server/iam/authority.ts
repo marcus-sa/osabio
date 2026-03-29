@@ -1,6 +1,6 @@
 import type { ToolExecutionOptions } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
-import type { AgentType, ChatToolExecutionContext } from "../tools/types";
+import type { ChatToolExecutionContext } from "../tools/types";
 import { requireToolContext } from "../tools/helpers";
 import { jsonError } from "../http/response";
 
@@ -26,30 +26,29 @@ export class AuthorityError extends Error {
   constructor(
     public readonly permission: "propose" | "blocked",
     public readonly action: AuthorityAction,
-    public readonly agentType: AgentType,
+    public readonly agentLabel: string,
   ) {
     const verb = permission === "blocked" ? "not authorized" : "can only propose";
-    super(`${agentType} is ${verb} for action: ${action}`);
+    super(`${agentLabel} is ${verb} for action: ${action}`);
     this.name = "AuthorityError";
   }
 }
 
-const ACTOR_DEFAULT_AGENT_TYPE: Partial<Record<string, AgentType>> = {
+const ACTOR_DEFAULT_LABEL: Partial<Record<string, string>> = {
   pm_agent: "management",
   analytics_agent: "observer",
 };
 
 export async function checkAuthority(input: {
   surreal: Surreal;
-  agentType: AgentType;
   action: AuthorityAction;
   workspaceRecord?: RecordId<"workspace", string>;
   identityRecord?: RecordId<"identity", string>;
 }): Promise<AuthorityPermission> {
   // 0. Human bypass: if identity type is human, always allow
   if (input.identityRecord) {
-    const [identityRows] = await input.surreal.query<[Array<{ type: string; role?: string }>]>(
-      "SELECT type, role FROM $record;",
+    const [identityRows] = await input.surreal.query<[Array<{ type: string }>]>(
+      "SELECT type FROM $record;",
       { record: input.identityRecord },
     );
 
@@ -57,9 +56,7 @@ export async function checkAuthority(input: {
       return "auto";
     }
 
-    const identityRole = identityRows.length > 0 ? identityRows[0].role : undefined;
-
-    // 1. Per-identity override via authorized_to relation
+    // 1. Per-identity permission via authorized_to relation
     const [overrideRows] = await input.surreal.query<[Array<{ permission: string }>]>(
       `SELECT permission FROM authorized_to
        WHERE in = $identity
@@ -71,56 +68,19 @@ export async function checkAuthority(input: {
     if (overrideRows.length > 0) {
       return overrideRows[0].permission as AuthorityPermission;
     }
-
-    // 2. Role-based resolution: use identity.role to match authority_scope.agent_type
-    if (identityRole) {
-      if (input.workspaceRecord) {
-        const [wsRoleRows] = await input.surreal.query<[Array<{ permission: string }>]>(
-          "SELECT permission FROM authority_scope WHERE agent_type = $role AND action = $action AND workspace = $workspace LIMIT 1;",
-          { role: identityRole, action: input.action, workspace: input.workspaceRecord },
-        );
-        if (wsRoleRows.length > 0) {
-          return wsRoleRows[0].permission as AuthorityPermission;
-        }
-      }
-
-      const [globalRoleRows] = await input.surreal.query<[Array<{ permission: string }>]>(
-        "SELECT permission FROM authority_scope WHERE agent_type = $role AND action = $action AND workspace IS NONE LIMIT 1;",
-        { role: identityRole, action: input.action },
-      );
-      if (globalRoleRows.length > 0) {
-        return globalRoleRows[0].permission as AuthorityPermission;
-      }
-    }
   }
 
-  // 3. Agent-type based resolution (existing behavior)
-  if (input.workspaceRecord) {
-    const [wsRows] = await input.surreal.query<[Array<{ permission: string }>]>(
-      "SELECT permission FROM authority_scope WHERE agent_type = $agentType AND action = $action AND workspace = $workspace LIMIT 1;",
-      {
-        agentType: input.agentType,
-        action: input.action,
-        workspace: input.workspaceRecord,
-      },
-    );
-
-    if (wsRows.length > 0) {
-      return wsRows[0].permission as AuthorityPermission;
-    }
-  }
-
-  // 4. Fall back to global default (workspace IS NONE)
+  // 2. Fall back to global default from authority_scope
   const [globalRows] = await input.surreal.query<[Array<{ permission: string }>]>(
-    "SELECT permission FROM authority_scope WHERE agent_type = $agentType AND action = $action AND workspace IS NONE LIMIT 1;",
-    { agentType: input.agentType, action: input.action },
+    "SELECT permission FROM authority_scope WHERE action = $action AND workspace IS NONE LIMIT 1;",
+    { action: input.action },
   );
 
   if (globalRows.length > 0) {
     return globalRows[0].permission as AuthorityPermission;
   }
 
-  // 5. Fail-safe: no row = blocked
+  // 3. Fail-safe: no row = blocked
   return "blocked";
 }
 
@@ -141,22 +101,21 @@ export async function requireAuthorizedContext(
     return { context, permission: "auto" };
   }
 
-  const agentType: AgentType =
-    context.agentType ?? ACTOR_DEFAULT_AGENT_TYPE[context.actor] ?? "code_agent";
+  const agentLabel =
+    context.agentType ?? ACTOR_DEFAULT_LABEL[context.actor] ?? "agent";
 
   const permission = await checkAuthority({
     surreal: deps.surreal,
-    agentType,
     action,
     workspaceRecord: context.workspaceRecord,
   });
 
   if (permission === "blocked") {
-    throw new AuthorityError("blocked", action, agentType);
+    throw new AuthorityError("blocked", action, agentLabel);
   }
 
   if (permission === "propose") {
-    throw new AuthorityError("propose", action, agentType);
+    throw new AuthorityError("propose", action, agentLabel);
   }
 
   // "auto" or "provisional" — caller proceeds (may mark output as provisional)
