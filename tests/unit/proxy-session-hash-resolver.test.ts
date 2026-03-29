@@ -233,7 +233,7 @@ describe("resolveSessionHash with array system prompt", () => {
 // ---------------------------------------------------------------------------
 describe("resolveSessionHash backwards compatibility", () => {
   it("produces the same UUID as the old conversation hash resolver for identical inputs", () => {
-    // The session hash resolver uses the same BRAIN_PROXY_NAMESPACE and UUIDv5
+    // The session hash resolver uses the same OSABIO_PROXY_NAMESPACE and UUIDv5
     // algorithm as the old conversation hash resolver, so identical inputs
     // must produce identical UUIDs. This snapshot locks the contract.
     const result = resolveSessionHash({

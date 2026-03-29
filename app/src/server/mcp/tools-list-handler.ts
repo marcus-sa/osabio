@@ -25,7 +25,7 @@ export type ListToolsResult = {
 };
 
 /** Tool names that are handled by Brain (not forwarded to external MCP servers). */
-export const BRAIN_NATIVE_TOOL_NAMES: ReadonlySet<string> = ALL_OSABIO_TOOL_NAMES;
+export const OSABIO_NATIVE_TOOL_NAMES: ReadonlySet<string> = ALL_OSABIO_TOOL_NAMES;
 
 // ---------------------------------------------------------------------------
 // Pure function: buildToolsList

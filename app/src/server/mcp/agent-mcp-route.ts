@@ -23,7 +23,7 @@ import {
   type ClassifiedTool,
   type EffectiveScope,
 } from "./scope-engine";
-import { buildToolsList, BRAIN_NATIVE_TOOL_NAMES } from "./tools-list-handler";
+import { buildToolsList, OSABIO_NATIVE_TOOL_NAMES } from "./tools-list-handler";
 import { handleToolCall, type ToolCallParams } from "./tools-call-handler";
 import { handleCreateIntent } from "./create-intent-handler";
 import { handleOsabioToolCall } from "./osabio-tools-handler";
@@ -140,7 +140,7 @@ async function resolveClassifiedTools(
     queryTools,
     toolCache,
   );
-  const classifiedTools = classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
+  const classifiedTools = classifyTools(grantedTools, effectiveScope, OSABIO_NATIVE_TOOL_NAMES);
   return { classifiedTools, effectiveScope };
 }
 

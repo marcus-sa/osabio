@@ -34,7 +34,7 @@ mock.module("@tanstack/react-router", () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT = {
+const OSABIO_AGENT = {
   id: "agent-osabio-1",
   name: "Extraction Agent",
   description: "Extracts entities from conversations",
@@ -71,7 +71,7 @@ describe("AgentCard", () => {
   it("renders runtime badge with correct label for each runtime", async () => {
     const { AgentCard } = await import("./agent-card");
 
-    const { unmount } = render(<AgentCard agent={BRAIN_AGENT} />);
+    const { unmount } = render(<AgentCard agent={OSABIO_AGENT} />);
     expect(screen.getByText("Osabio")).toBeInTheDocument();
     unmount();
 
@@ -85,7 +85,7 @@ describe("AgentCard", () => {
 
   it("shows View button for osabio agents without Edit or Delete", async () => {
     const { AgentCard } = await import("./agent-card");
-    render(<AgentCard agent={BRAIN_AGENT} onDelete={mock(() => {})} />);
+    render(<AgentCard agent={OSABIO_AGENT} onDelete={mock(() => {})} />);
 
     expect(screen.getByText("View")).toBeInTheDocument();
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();

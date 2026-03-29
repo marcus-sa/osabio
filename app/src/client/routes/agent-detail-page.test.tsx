@@ -56,7 +56,7 @@ afterEach(() => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT_DETAIL = {
+const OSABIO_AGENT_DETAIL = {
   agent: {
     id: AGENT_ID,
     name: "Extraction Agent",
@@ -106,7 +106,7 @@ const EXTERNAL_AGENT_DETAIL = {
 
 describe("AgentDetailPage", () => {
   it("renders agent name and description after loading", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -118,7 +118,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("shows authority scopes table with action-permission rows", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -134,7 +134,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("shows read-only note for osabio agents", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -159,7 +159,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("shows back link to /agents", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -173,7 +173,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("renders recent workspace sessions", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 

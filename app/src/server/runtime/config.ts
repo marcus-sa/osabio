@@ -104,7 +104,7 @@ export function loadServerConfig(): ServerConfig {
   const sandboxAgentType = optionalEnv("SANDBOX_AGENT_TYPE");
   const internalWebhookSecret = optionalEnv("INTERNAL_WEBHOOK_SECRET");
   const toolEncryptionKey = optionalEnv("TOOL_ENCRYPTION_KEY");
-  const baseUrl = optionalEnv("BRAIN_BASE_URL") ?? `http://localhost:${port}`;
+  const baseUrl = optionalEnv("OSABIO_BASE_URL") ?? `http://localhost:${port}`;
 
   const adminEmail = selfHosted
     ? requireSelfHostedEnv("ADMIN_EMAIL")

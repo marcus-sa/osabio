@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { findGitRoot, loadConfig } from "../../cli/config";
 
 const ENV_KEYS = [
-  "BRAIN_CONFIG_DIR",
+  "OSABIO_CONFIG_DIR",
   "OSABIO_SERVER_URL",
   "OSABIO_WORKSPACE_ID",
   "OSABIO_CLIENT_ID",
@@ -18,7 +18,7 @@ const ENV_KEYS = [
   "OSABIO_DPOP_ACCESS_TOKEN",
   "OSABIO_DPOP_TOKEN_EXPIRES_AT",
   "OSABIO_IDENTITY_ID",
-  "BRAIN_PROXY_TOKEN_EXPIRES_AT",
+  "OSABIO_PROXY_TOKEN_EXPIRES_AT",
 ] as const;
 
 const ORIGINAL_ENV: Record<string, string | undefined> = Object.fromEntries(
@@ -39,7 +39,7 @@ afterEach(() => {
 describe("cli config env overrides", () => {
   test("loads env-only config without ~/.osabio/config.json", async () => {
     const configDir = mkdtempSync(join(tmpdir(), "osabio-config-env-only-"));
-    process.env.BRAIN_CONFIG_DIR = configDir;
+    process.env.OSABIO_CONFIG_DIR = configDir;
     process.env.OSABIO_SERVER_URL = "http://127.0.0.1:1999";
     process.env.OSABIO_WORKSPACE_ID = "ws-env-only";
     process.env.OSABIO_IDENTITY_ID = "identity-env-only";
@@ -78,7 +78,7 @@ describe("cli config env overrides", () => {
       },
     }));
 
-    process.env.BRAIN_CONFIG_DIR = configDir;
+    process.env.OSABIO_CONFIG_DIR = configDir;
     process.env.OSABIO_SERVER_URL = "http://from-env:3000";
     process.env.OSABIO_WORKSPACE_ID = "ws-from-env";
     process.env.OSABIO_ACCESS_TOKEN = "access-from-env";

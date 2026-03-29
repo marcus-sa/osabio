@@ -2,7 +2,7 @@
  * Session Hash Resolver — Pure Function
  *
  * Derives a deterministic agent session identity from request content
- * using UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
+ * using UUIDv5(OSABIO_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
  *
  * This enables trace grouping via agent_session when no explicit session
  * signal (X-Osabio-Session header or Claude Code metadata) is available.
@@ -18,7 +18,7 @@ import { createHash } from "crypto";
 // ---------------------------------------------------------------------------
 
 /** Brain proxy namespace UUID for UUIDv5 generation (randomly generated, fixed). */
-const BRAIN_PROXY_NAMESPACE = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+const OSABIO_PROXY_NAMESPACE = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
 
 /** NUL separator between system prompt and first user message. */
 const NUL_SEPARATOR = "\0";
@@ -122,7 +122,7 @@ function extractFirstUserMessage(
  * is missing -- these are required to compute a stable hash.
  *
  * The session ID is a UUIDv5 derived from:
- *   UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message)
+ *   UUIDv5(OSABIO_PROXY_NAMESPACE, system_prompt + NUL + first_user_message)
  *
  * The title is the first user message, truncated to ~100 characters.
  */
@@ -136,7 +136,7 @@ export function resolveSessionHash(
   if (!firstUserMessage) return undefined;
 
   const hashContent = systemPrompt + NUL_SEPARATOR + firstUserMessage;
-  const sessionId = generateUuidV5(BRAIN_PROXY_NAMESPACE, hashContent);
+  const sessionId = generateUuidV5(OSABIO_PROXY_NAMESPACE, hashContent);
   const title = truncateTitle(firstUserMessage);
 
   return { sessionId, title };

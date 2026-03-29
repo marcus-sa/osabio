@@ -38,14 +38,14 @@ async function signUpAndGetSession(baseUrl: string, email: string, name: string)
 describe("CLI init setupAuth", () => {
   let configDir: string;
   let gitRoot: string;
-  const originalConfigDir = process.env.BRAIN_CONFIG_DIR;
+  const originalConfigDir = process.env.OSABIO_CONFIG_DIR;
 
   afterAll(() => {
     // Restore env so other tests aren't affected
     if (originalConfigDir) {
-      process.env.BRAIN_CONFIG_DIR = originalConfigDir;
+      process.env.OSABIO_CONFIG_DIR = originalConfigDir;
     } else {
-      delete process.env.BRAIN_CONFIG_DIR;
+      delete process.env.OSABIO_CONFIG_DIR;
     }
     if (configDir) rmSync(configDir, { recursive: true, force: true });
     if (gitRoot) rmSync(gitRoot, { recursive: true, force: true });
@@ -115,7 +115,7 @@ describe("CLI init setupAuth", () => {
     execSync("git init", { cwd: gitRoot, stdio: "ignore" });
 
     configDir = mkdtempSync(join(tmpdir(), "osabio-init-config-"));
-    process.env.BRAIN_CONFIG_DIR = configDir;
+    process.env.OSABIO_CONFIG_DIR = configDir;
 
     // 4. Run setupAuth with injectable openUrl that simulates the browser
     await setupAuth(baseUrl, workspaceId, gitRoot, {

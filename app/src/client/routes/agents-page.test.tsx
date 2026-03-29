@@ -53,7 +53,7 @@ afterEach(() => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT = {
+const OSABIO_AGENT = {
   id: "agent-osabio-1",
   name: "Extraction Agent",
   description: "Extracts entities from conversations",
@@ -89,7 +89,7 @@ const SANDBOX_AGENT = {
 
 describe("AgentsPage", () => {
   it("renders runtime-grouped sections with agent counts", async () => {
-    stubFetchWithAgents([BRAIN_AGENT, EXTERNAL_AGENT, SANDBOX_AGENT]);
+    stubFetchWithAgents([OSABIO_AGENT, EXTERNAL_AGENT, SANDBOX_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
@@ -102,7 +102,7 @@ describe("AgentsPage", () => {
   });
 
   it("shows View button for osabio agents, not Edit or Delete", async () => {
-    stubFetchWithAgents([BRAIN_AGENT]);
+    stubFetchWithAgents([OSABIO_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
@@ -143,7 +143,7 @@ describe("AgentsPage", () => {
   });
 
   it("displays runtime badge on each agent card", async () => {
-    stubFetchWithAgents([BRAIN_AGENT, EXTERNAL_AGENT]);
+    stubFetchWithAgents([OSABIO_AGENT, EXTERNAL_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
