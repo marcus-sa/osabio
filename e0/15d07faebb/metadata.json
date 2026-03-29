@@ -3,7 +3,7 @@
   "checkpoint_id": "e015d07faebb",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-crud-discover",
-  "checkpoints_count": 1,
+  "checkpoints_count": 4,
   "files_touched": [
     "app/src/client/AGENTS.md",
     "app/src/client/CLAUDE.md",
@@ -23,13 +23,20 @@
       "context": "/e0/15d07faebb/1/context.md",
       "content_hash": "/e0/15d07faebb/1/content_hash.txt",
       "prompt": "/e0/15d07faebb/1/prompt.txt"
+    },
+    {
+      "metadata": "/e0/15d07faebb/2/metadata.json",
+      "transcript": "/e0/15d07faebb/2/full.jsonl",
+      "context": "/e0/15d07faebb/2/context.md",
+      "content_hash": "/e0/15d07faebb/2/content_hash.txt",
+      "prompt": "/e0/15d07faebb/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 17,
-    "cache_creation_tokens": 50116,
-    "cache_read_tokens": 679996,
-    "output_tokens": 4618,
-    "api_call_count": 13
+    "input_tokens": 101,
+    "cache_creation_tokens": 101066,
+    "cache_read_tokens": 1410795,
+    "output_tokens": 8008,
+    "api_call_count": 26
   }
 }
