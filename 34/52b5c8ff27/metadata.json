@@ -3,7 +3,7 @@
   "checkpoint_id": "3452b5c8ff27",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-crud-discover",
-  "checkpoints_count": 0,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/src/server/intent/authorizer.ts",
     "tests/unit/intent/authorizer.test.ts"
@@ -15,6 +15,20 @@
       "context": "",
       "content_hash": "/34/52b5c8ff27/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/34/52b5c8ff27/1/metadata.json",
+      "transcript": "/34/52b5c8ff27/1/full.jsonl",
+      "context": "/34/52b5c8ff27/1/context.md",
+      "content_hash": "/34/52b5c8ff27/1/content_hash.txt",
+      "prompt": "/34/52b5c8ff27/1/prompt.txt"
     }
-  ]
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 132928,
+    "cache_read_tokens": 2277331,
+    "output_tokens": 11032,
+    "api_call_count": 39
+  }
 }
