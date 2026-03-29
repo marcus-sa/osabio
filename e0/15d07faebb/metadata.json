@@ -1,0 +1,21 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "e015d07faebb",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "app/src/client/AGENTS.md",
+    "app/src/client/CLAUDE.md",
+    "app/src/client/components/graph/AgentStatusSection.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e0/15d07faebb/0/metadata.json",
+      "transcript": "/e0/15d07faebb/0/full.jsonl",
+      "context": "",
+      "content_hash": "/e0/15d07faebb/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
