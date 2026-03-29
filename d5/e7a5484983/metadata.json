@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "d5e7a5484983",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/architecture/agent-creation/architecture-design.md",
+    "docs/architecture/agent-creation/component-boundaries.md",
+    "docs/architecture/agent-creation/data-models.md",
+    "docs/architecture/agent-creation/technology-stack.md",
+    "docs/evolution/2026-03-29-agent-creation.md",
+    "docs/scenarios/agent-creation/test-scenarios.md",
+    "docs/scenarios/agent-creation/walking-skeleton.md",
+    "docs/ux/agent-creation/journey-agent-management-visual.md",
+    "docs/ux/agent-creation/journey-agent-management.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d5/e7a5484983/0/metadata.json",
+      "transcript": "/d5/e7a5484983/0/full.jsonl",
+      "context": "/d5/e7a5484983/0/context.md",
+      "content_hash": "/d5/e7a5484983/0/content_hash.txt",
+      "prompt": "/d5/e7a5484983/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 40332,
+    "cache_read_tokens": 58486,
+    "output_tokens": 315,
+    "api_call_count": 2
+  }
+}
