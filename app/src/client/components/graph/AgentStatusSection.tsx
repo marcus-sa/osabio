@@ -319,7 +319,13 @@ export function AgentStatusSection({
         ) : assignableAgents.length === 0 ? (
           <p className="text-xs text-muted-foreground" data-testid="agent-picker-empty">No agents configured. Create a sandbox or external agent first.</p>
         ) : (
-          <Select value={selectedAgentId ?? ""} onValueChange={(v) => setSelectedAgentId(v ?? undefined)}>
+          <Select
+            value={selectedAgentId ?? ""}
+            onValueChange={(v) => setSelectedAgentId(v ?? undefined)}
+            items={Object.fromEntries(
+              assignableAgents.map((agent) => [agent.id, `${agent.name} (${agent.runtime})`]),
+            )}
+          >
             <SelectTrigger className="w-full" data-testid="agent-picker-trigger">
               <SelectValue placeholder="Select an agent..." />
             </SelectTrigger>
