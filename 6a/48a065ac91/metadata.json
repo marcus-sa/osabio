@@ -3,7 +3,7 @@
   "checkpoint_id": "6a48a065ac91",
   "strategy": "manual-commit",
   "branch": "marcus-sa/agent-crud-discover",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".nwave/des-config.json",
     ".nwave/des/deliver-session.json",
@@ -45,13 +45,20 @@
       "context": "/6a/48a065ac91/1/context.md",
       "content_hash": "/6a/48a065ac91/1/content_hash.txt",
       "prompt": "/6a/48a065ac91/1/prompt.txt"
+    },
+    {
+      "metadata": "/6a/48a065ac91/2/metadata.json",
+      "transcript": "/6a/48a065ac91/2/full.jsonl",
+      "context": "/6a/48a065ac91/2/context.md",
+      "content_hash": "/6a/48a065ac91/2/content_hash.txt",
+      "prompt": "/6a/48a065ac91/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 24,
-    "cache_creation_tokens": 154357,
-    "cache_read_tokens": 1152934,
-    "output_tokens": 5864,
-    "api_call_count": 19
+    "input_tokens": 3466,
+    "cache_creation_tokens": 1009231,
+    "cache_read_tokens": 21383517,
+    "output_tokens": 91247,
+    "api_call_count": 178
   }
 }
