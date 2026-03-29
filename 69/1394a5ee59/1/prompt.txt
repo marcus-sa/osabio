@@ -1,0 +1,348 @@
+how to spawn a process as a different user
+
+---
+
+e.g, i want to spawn claude code under a different user, to prevent it from access directories its not allowed to
+
+---
+
+does this also work for linux
+
+---
+
+how would i use this with https://sandboxagent.dev/docs/deploy/local ?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: Brain MCP tools are not available in this session. Cannot log decisions, questions, observations, or suggestions. This appears to be a research/advisory session about process isolation and Sandbox Agent deployment patterns, which would benefit from logging the architectural decisions discussed (Docker vs local user vs cgroups approaches, trade-offs between isolation strength vs complexity), but the tools to do so are unavailable.
+
+---
+
+i cannot use docker with the local provider ... the whole point of the local provider ,is taht u have claude code installed and logged in so that u can reuse the credentials
+
+---
+
+why wouldnt /home/claude-sandbox/work just have its own repo? lol
+
+---
+
+create a md in docs/research for linux and macos setup
+
+---
+
+Base directory for this skill: /Users/marcus/.claude/skills/nw-research
+
+# NW-RESEARCH: Evidence-Driven Knowledge Research
+
+**Wave**: CROSS_WAVE
+**Agent**: Nova (nw-researcher)
+**Command**: `*research`
+
+## Overview
+
+Systematic evidence-based research with source verification. Cross-wave support providing research-backed insights for any nWave phase using trusted academic|official|industry sources.
+
+Optional `--skill-for={agent-name}` distills research into a practitioner-focused skill file for a specific agent.
+
+## Orchestration: Trusted Source Config
+
+At orchestration time, before invoking the researcher subagent:
+
+1. **Read** `.nwave/trusted-source-domains.yaml` from the project root
+2. **If file missing**, seed it from the defaults in the `## Default Trusted Sources` section below, then notify the user:
+   "Seeded `.nwave/trusted-source-domains.yaml` with defaults (7 categories, 42 trusted domains, 5 excluded). Edit the YAML directly to customize."
+3. **Embed** the YAML content inline in the researcher subagent Task prompt so the agent receives trusted source config via prompt context
+
+## Agent Invocation
+
+@nw-researcher
+
+Execute \*research on {topic} [--skill-for={agent-name}].
+
+**Configuration:**
+- research_depth: detailed # overview/detailed/comprehensive/deep-dive
+- source_preferences: ["academic", "official", "technical_docs"]
+- output_directory: docs/research/
+- skill_for: {agent-name} # Optional: distilled skill for specified agent
+- skill_output_directory: ~/.claude/nWave/skills/{agent-name}/
+
+## Output Management
+
+The researcher MUST create the output file in the FIRST 5 turns with a document skeleton (title, sections, placeholders). All subsequent findings are written DIRECTLY to this file as they are gathered -- never held only in context.
+
+If the agent is interrupted or runs out of turns, the output file contains all work done so far. This is the researcher's equivalent of the crafter's "commit early, commit often."
+
+Progressive write checkpoints:
+- Turn ~5: Output file exists with skeleton
+- Turn ~10: First findings written
+- Turn ~25: All gathered findings written so far
+- Turn ~35: Stop gathering, begin synthesizing
+- Turn ~45+: Polish only
+
+## Success Criteria
+
+**Research:**
+- [ ] All sources from trusted source domains from prompt context
+- [ ] Cross-reference performed (3+ sources per major claim ideal, 2 acceptable, 1 authoritative minimum)
+- [ ] Research file created in docs/research/
+- [ ] Citation coverage > 95%
+- [ ] Average source reputation >= 0.80
+
+**Distillation (if --skill-for specified):**
+- [ ] Skill file created in ~/.claude/nWave/skills/{agent-name}/
+- [ ] 100% essential concepts preserved
+- [ ] Self-contained with no external references
+- [ ] Token budget respected (<5000 tokens per skill)
+
+## Next Wave
+
+**Handoff To**: Invoking workflow
+**Deliverables**: Research document + optional skill file
+
+## Examples
+
+### Example 1: Standalone research
+```
+/nw-research "event sourcing patterns" --research_depth=detailed
+```
+Nova researches event sourcing from trusted sources, cross-references 3+ sources per claim, produces comprehensive research document.
+
+### Example 2: Research with agent skill
+```
+/nw-research "mutation testing methodologies" --skill-for=software-crafter
+```
+Nova researches mutation testing, distills into practitioner-focused skill file at ~/.claude/nWave/skills/software-crafter/.
+
+## Expected Outputs
+
+```
+docs/research/{category}/{topic}-comprehensive-research.md
+~/.claude/nWave/skills/{agent}/{topic}-methodology.md    (if --skill-for)
+```
+
+## Default Trusted Sources
+
+The following YAML is the default content for `.nwave/trusted-source-domains.yaml`. It is seeded automatically when the file does not exist.
+
+```yaml
+# Trusted Source Domains for Evidence-Driven Research
+# Used by knowledge-researcher agent to validate source credibility
+
+# High-reputation academic and research sources
+academic:
+  description: "Peer-reviewed academic and research institutions"
+  domains:
+    - "*.edu"
+    - "*.ac.uk"
+    - "scholar.google.com"
+    - "arxiv.org"
+    - "pubmed.ncbi.nlm.nih.gov"
+    - "researchgate.net"
+    - "ieee.org"
+    - "acm.org"
+    - "springer.com"
+    - "sciencedirect.com"
+    - "jstor.org"
+    - "nature.com"
+    - "science.org"
+  reputation: high
+  verification_requirements:
+    - peer_review_preferred
+    - citation_tracking
+    - author_credentials
+
+# Official standards bodies and government sources
+official:
+  description: "Government, standards organizations, and official documentation"
+  domains:
+    - "*.gov"
+    - "*.gov.uk"
+    - "w3.org"
+    - "ietf.org"
+    - "iso.org"
+    - "nist.gov"
+    - "docs.microsoft.com"
+    - "docs.oracle.com"
+    - "docs.python.org"
+    - "docs.oracle.com/javase"
+    - "kubernetes.io/docs"
+    - "docker.com/docs"
+  reputation: high
+  verification_requirements:
+    - official_publication
+    - version_tracking
+    - standards_compliance
+
+# Industry leaders and recognized experts
+industry_leaders:
+  description: "Established technology companies and recognized industry experts"
+  domains:
+    - "github.com"
+    - "stackoverflow.com"
+    - "martinfowler.com"
+    - "refactoring.guru"
+    - "enterpriseintegrationpatterns.com"
+    - "microservices.io"
+    - "12factor.net"
+    - "reactivemanifesto.org"
+    - "agilemanifesto.org"
+    - "thoughtworks.com/insights"
+    - "infoq.com"
+  reputation: medium-high
+  verification_requirements:
+    - cross_reference_required
+    - author_expertise_validation
+    - community_consensus
+
+# Technical documentation and established platforms
+technical_documentation:
+  description: "Official technical documentation and established platforms"
+  domains:
+    - "developer.mozilla.org"
+    - "developers.google.com"
+    - "aws.amazon.com/documentation"
+    - "cloud.google.com/docs"
+    - "learn.microsoft.com"
+    - "devdocs.io"
+    - "readthedocs.org"
+  reputation: high
+  verification_requirements:
+    - version_accuracy
+    - official_source_confirmation
+
+# Open source foundations and communities
+open_source:
+  description: "Recognized open source foundations and communities"
+  domains:
+    - "apache.org"
+    - "eclipse.org"
+    - "cncf.io"
+    - "opensource.org"
+    - "fsf.org"
+    - "linuxfoundation.org"
+  reputation: high
+  verification_requirements:
+    - community_validation
+    - project_maturity_check
+
+# Medium-trust sources requiring additional verification
+medium_trust:
+  description: "Quality sources requiring cross-referencing"
+  domains:
+    - "medium.com"
+    - "dev.to"
+    - "hashnode.com"
+  reputation: medium
+  verification_requirements:
+    - author_verification_required
+    - minimum_3_source_cross_reference
+    - fact_checking_mandatory
+
+# Excluded sources - unreliable or promotional
+excluded:
+  description: "Sources excluded due to low quality control or bias"
+  domains:
+    - "*.blogspot.com"
+    - "wordpress.com"
+    - "tumblr.com"
+    - "pastebin.com"
+    - "quora.com"
+  reason: "Unverified sources, potential bias, low quality control, no editorial oversight"
+  action: "Reject and log warning"
+
+# Source validation rules
+validation_rules:
+  minimum_sources_per_claim: 3
+  cross_reference_required: true
+
+  reputation_scoring:
+    high: 1.0
+    medium-high: 0.8
+    medium: 0.6
+    low: 0.0
+
+  confidence_thresholds:
+    high_confidence:
+      min_sources: 3
+      min_avg_reputation: 0.8
+    medium_confidence:
+      min_sources: 2
+      min_avg_reputation: 0.6
+    low_confidence:
+      min_sources: 1
+      min_avg_reputation: 0.4
+
+  required_metadata:
+    - source_url
+    - domain
+    - access_date
+    - reputation_score
+    - verification_status
+
+# Research quality guidelines
+quality_guidelines:
+  evidence_standards:
+    - "Direct quotes or data from reputable sources"
+    - "Proper attribution and citation"
+    - "Version information for technical documentation"
+    - "Publication date or last update date"
+    - "Author credentials when available"
+
+  bias_detection:
+    - "Check for commercial interests or sponsorship"
+    - "Identify potential conflicts of interest"
+    - "Verify with independent sources"
+    - "Note any disclaimers or limitations"
+
+  conflicting_information:
+    - "Document all conflicting sources"
+    - "Evaluate source reliability for each claim"
+    - "Present both sides with evidence"
+    - "Note which sources are more authoritative"
+```
+
+
+ARGUMENTS: what would a hashicorp nomad setup look like
+
+---
+
+i was only interested in nomad for local sandbox agent user isolation running processes directly on a single machine. wouldn't nomad still be relevant for ease of deployment?
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP Brain tools unavailable in this session. Cannot log decisions, questions, observations, task progress, or suggestions. Session includes substantive research and documentation work that should be preserved:
+
+**Decisions made:**
+- Choose Nomad `exec2` driver over `exec` and `raw_exec` for modern Linux isolation
+- Frame Nomad value proposition for local single-machine use (ease of deployment via declarative HCL) vs multi-node clusters
+- Nomad dev mode as alternative to manual OS user isolation + iptables + systemd-run scripting
+
+**Observations:**
+- Nomad's `exec2` driver is Linux-only (Landlock LSM); macOS limited to `raw_exec` (no isolation) or Docker
+- No built-in `max_runtime` for batch jobs in Nomad; requires wrapper script or external orchestrator monitoring
+- Nomad's value on single machine is primarily declarative isolation (one HCL file replaces 5-6 manual steps) + automatic cleanup
+
+**Artifacts created:**
+- `docs/research/sandbox-agent-user-isolation.md` — OS-level user isolation setup for Linux and macOS
+- `docs/research/nomad-agent-orchestration.md` — Nomad for agent orchestration (refocused on single-machine use case after user correction)
+
+**Work items identified but not logged:**
+- Test Nomad dev mode locally with Sandbox Agent to validate exec2 driver behavior
+- Evaluate iptables + CNI approach vs Consul Connect for network egress restriction
+- Confirm Nomad max_runtime gap — check if Nomad 1.9+ added native support
+- Benchmark startup latency: manual OS user vs Nomad exec2 vs Docker
+
+---
+
+grrr stop using fucking anthropic api keys. this whole setup is meant to built on the fact that we're using claude code's existing auth + credentials
+
+---
+
+Stop hook feedback:
+Prompt hook condition was not met: MCP Brain tools are not available in this session. Cannot log decisions, questions, observations, task progress, subtasks, or suggestions. The session included substantive work creating two research documents (sandbox-agent-user-isolation.md and nomad-agent-orchestration.md) with multiple design decisions and identified follow-up work that should be preserved but cannot be logged without MCP access.
+
+---
+
+commit both docs
