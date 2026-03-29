@@ -187,7 +187,10 @@ export async function evaluateIntent(
     };
   }
 
-  const humanVetoRequired = gateResult.human_veto_required;
+  // Human veto exists so a person can review agent actions. When the
+  // requester IS a human the veto requirement is inherently satisfied.
+  const humanVetoRequired =
+    gateResult.human_veto_required && input.requesterType !== "human";
   const policyTrace = gateResult.policy_trace;
 
   // --- Evidence verification step (after policy gate, before LLM) ---
