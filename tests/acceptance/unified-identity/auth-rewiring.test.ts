@@ -84,7 +84,7 @@ describe("US-UI-004: Auth resolves identity from person via spoke traversal", ()
     const [members] = await surreal.query<
       [Array<{ in: RecordId; role: string }>]
     >(
-      "SELECT in, role FROM member_of WHERE out = $ws LIMIT 1;",
+      "SELECT in, role FROM member_of WHERE out = $ws AND role = 'owner' LIMIT 1;",
       { ws: wsRecord },
     );
 

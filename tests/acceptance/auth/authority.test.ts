@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
+import { randomUUID } from "node:crypto";
 import { RecordId, Surreal } from "surrealdb";
 import { applyTestSchema } from "../acceptance-test-kit";
 import { checkAuthority } from "../../../app/src/server/iam/authority";

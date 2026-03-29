@@ -41,7 +41,8 @@ describe("extraction quality smoke", () => {
     const workspaceRecord = new RecordId("workspace", create.workspaceId);
 
     const initialPeople = await loadWorkspacePeople(surreal, workspaceRecord);
-    expect(initialPeople.length).toBe(1);
+    // Owner identity + 3 template agent identities (management, coder, observer) from bootstrap
+    expect(initialPeople.length).toBe(4);
 
     const placeholderEvents = await sendChatAndCollectEvents(baseUrl, {
       workspaceId: create.workspaceId,
