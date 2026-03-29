@@ -24,7 +24,7 @@ const getRuntime = setupAcceptanceSuite("cli_proxy_skeleton");
 // Skeleton 1: Server issues a proxy token for a valid identity+workspace
 // ---------------------------------------------------------------------------
 describe("Skeleton 1: Proxy token issuance", () => {
-  it("issues a brp_-prefixed token with 90-day expiry for an authenticated user", async () => {
+  it("issues a osp_-prefixed token with 90-day expiry for an authenticated user", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given Priya has completed OAuth and has a valid session
@@ -33,7 +33,7 @@ describe("Skeleton 1: Proxy token issuance", () => {
     // When osabio init Step 7 requests a proxy token
     const response = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
 
-    // Then the server returns a proxy token with brp_ prefix
+    // Then the server returns a proxy token with osp_ prefix
     expect(response.status).toBe(200);
 
     const body = await response.json() as {
@@ -42,7 +42,7 @@ describe("Skeleton 1: Proxy token issuance", () => {
       workspace_id: string;
     };
 
-    expect(body.proxy_token).toMatch(/^brp_/);
+    expect(body.proxy_token).toMatch(/^osp_/);
     expect(body.workspace_id).toBe(user.workspaceId);
 
     // And the token expires at least 89 days from now (90-day TTL)
