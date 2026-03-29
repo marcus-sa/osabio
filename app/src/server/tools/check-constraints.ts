@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { searchEntitiesByBm25 } from "../graph/bm25-search";
-import { checkConstraintsSchema } from "../mcp/brain-tool-definitions";
+import { checkConstraintsSchema } from "../mcp/osabio-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 

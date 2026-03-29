@@ -49,7 +49,7 @@ async function createSignedProof(
   const payload = {
     jti: overrides?.jti ?? crypto.randomUUID(),
     htm: overrides?.htm ?? "POST",
-    htu: overrides?.htu ?? "https://brain.example.com/api/auth/token",
+    htu: overrides?.htu ?? "https://osabio.example.com/api/auth/token",
     iat: overrides?.iat ?? Math.floor(Date.now() / 1000),
   };
 
@@ -176,7 +176,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(true);
@@ -184,7 +184,7 @@ describe("validateDPoPProof structure checks", () => {
       expect(result.thumbprint).toBe(keyPair.thumbprint);
       expect(result.claims.htm).toBe("POST");
       expect(result.claims.htu).toBe(
-        "https://brain.example.com/api/auth/token",
+        "https://osabio.example.com/api/auth/token",
       );
     }
   });
@@ -196,7 +196,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -212,7 +212,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -228,7 +228,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -246,7 +246,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -259,7 +259,7 @@ describe("validateDPoPProof structure checks", () => {
     const result = await validateDPoPProof(
       "not-a-jwt",
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -293,7 +293,7 @@ describe("validateDPoPProof signature verification", () => {
     const payload = {
       jti: crypto.randomUUID(),
       htm: "POST",
-      htu: "https://brain.example.com/api/auth/token",
+      htu: "https://osabio.example.com/api/auth/token",
       iat: Math.floor(Date.now() / 1000),
     };
 
@@ -309,7 +309,7 @@ describe("validateDPoPProof signature verification", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -332,7 +332,7 @@ describe("validateDPoPProof clock skew", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(true);
@@ -346,7 +346,7 @@ describe("validateDPoPProof clock skew", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -365,7 +365,7 @@ describe("validateDPoPProof clock skew", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(true);
@@ -381,7 +381,7 @@ describe("validateDPoPProof clock skew", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
     );
 
     expect(result.valid).toBe(false);
@@ -399,7 +399,7 @@ describe("validateDPoPProof clock skew", () => {
     const result = await validateDPoPProof(
       proof,
       "POST",
-      "https://brain.example.com/api/auth/token",
+      "https://osabio.example.com/api/auth/token",
       { pastSeconds: 120, futureSeconds: 5 },
     );
 

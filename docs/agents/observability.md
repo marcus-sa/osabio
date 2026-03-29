@@ -6,7 +6,7 @@ This codebase uses OpenTelemetry for observability. The instrumentation follows 
 
 ### How to instrument new routes and handlers
 
-- `withTracing()` in `http/instrumentation.ts` creates a root `brain.http.request` span per request. It auto-seeds `http.method`, `http.route`, `http.target`, `request.id`, `workspace.id`, `conversation.id`, `duration_ms`, and `http.status_code`.
+- `withTracing()` in `http/instrumentation.ts` creates a root `osabio.http.request` span per request. It auto-seeds `http.method`, `http.route`, `http.target`, `request.id`, `workspace.id`, `conversation.id`, `duration_ms`, and `http.status_code`.
 - Inside any handler, call `trace.getActiveSpan()?.setAttribute(key, value)` to enrich the span with business context. OTel propagates the active span via `AsyncLocalStorageContextManager` — no need to pass context objects through function signatures.
 - For background work outside the HTTP span (e.g. `processChatMessage` via `inflight.track()`), create a dedicated span with `tracer.startActiveSpan("brain.<domain>.<operation>", async (span) => { ... })`.
 

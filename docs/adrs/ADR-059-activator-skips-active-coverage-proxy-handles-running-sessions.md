@@ -27,7 +27,7 @@ The activator answers: "Does someone need to look at this?" The proxy answers: "
 
 ## Rationale
 - **No redundant work**: An agent already working on task T-47 will see the conflict observation via the proxy's vector search. Starting a second agent on the same task wastes compute.
-- **Agents don't message agents**: Brain's coordination model is graph-native. Agents read/write the graph independently. The proxy reads from the graph; the activator writes new sessions to the graph. Neither sends messages to the other.
+- **Agents don't message agents**: Osabio's coordination model is graph-native. Agents read/write the graph independently. The proxy reads from the graph; the activator writes new sessions to the graph. Neither sends messages to the other.
 - **Simpler activator logic**: The activator doesn't need to classify urgency levels or manage delivery queues. It just checks: "Is anyone on this?" If yes, skip. If no, find who should be.
 
 ## Consequences

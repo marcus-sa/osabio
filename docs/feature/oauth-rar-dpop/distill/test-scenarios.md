@@ -11,8 +11,8 @@ Error/edge path ratio: 30/56 = 54% (exceeds 40% target)
 
 | ID | Scenario | Traces | File |
 |----|----------|--------|------|
-| WS-1 | Agent generates key pair, submits intent, receives token, and accesses Brain | US-001, US-002, US-003, US-005, US-006 | walking-skeleton.test.ts |
-| WS-2 | Human logs in, exchanges session for DPoP token, and accesses Brain | US-001, US-005, US-006, US-007 | walking-skeleton.test.ts |
+| WS-1 | Agent generates key pair, submits intent, receives token, and accesses Osabio | US-001, US-002, US-003, US-005, US-006 | walking-skeleton.test.ts |
+| WS-2 | Human logs in, exchanges session for DPoP token, and accesses Osabio | US-001, US-005, US-006, US-007 | walking-skeleton.test.ts |
 
 ---
 
@@ -34,7 +34,7 @@ Traces: US-001, US-002
 
 | ID | Scenario | Type | Status |
 |----|----------|------|--------|
-| M1-I1 | Intent with brain_action and thumbprint is accepted | Happy | Skip |
+| M1-I1 | Intent with osabio_action and thumbprint is accepted | Happy | Skip |
 | M1-I2 | Intent without thumbprint is rejected (400) | Error | Skip |
 | M1-I3 | Intent without authorization_details is rejected (400) | Error | Skip |
 | M1-I4 | Intent with wrong authorization_details type is rejected | Error | Skip |
@@ -74,7 +74,7 @@ Traces: US-003
 
 ---
 
-## Milestone 3: Brain Verification (14 scenarios)
+## Milestone 3: Osabio Verification (14 scenarios)
 
 Traces: US-005, US-006
 
@@ -82,17 +82,17 @@ Traces: US-005, US-006
 
 | ID | Scenario | Type | Status |
 |----|----------|------|--------|
-| M3-A1 | Brain rejects Bearer tokens with dpop_required | Error | Skip |
-| M3-A2 | Brain rejects session cookies on DPoP endpoints | Error | Skip |
-| M3-A3 | Brain rejects requests with no authentication | Error | Skip |
+| M3-A1 | Osabio rejects Bearer tokens with dpop_required | Error | Skip |
+| M3-A2 | Osabio rejects session cookies on DPoP endpoints | Error | Skip |
+| M3-A3 | Osabio rejects requests with no authentication | Error | Skip |
 | M3-V1 | Valid DPoP proof grants access | Happy | Skip |
-| M3-V2 | Brain rejects proof with wrong HTTP method | Error | Skip |
-| M3-V3 | Brain rejects proof with wrong target URI | Error | Skip |
-| M3-V4 | Brain rejects proof signed with different key | Error | Skip |
-| M3-V5 | Brain rejects replayed DPoP proof (same jti) | Error | Skip |
-| M3-V6 | Brain rejects proof 120s in the past (beyond 60s tolerance) | Edge | Skip |
-| M3-V7 | Brain rejects proof 30s in the future (beyond 5s tolerance) | Edge | Skip |
-| M3-V8 | Brain rejects proof with missing JWK header | Error | Skip |
+| M3-V2 | Osabio rejects proof with wrong HTTP method | Error | Skip |
+| M3-V3 | Osabio rejects proof with wrong target URI | Error | Skip |
+| M3-V4 | Osabio rejects proof signed with different key | Error | Skip |
+| M3-V5 | Osabio rejects replayed DPoP proof (same jti) | Error | Skip |
+| M3-V6 | Osabio rejects proof 120s in the past (beyond 60s tolerance) | Edge | Skip |
+| M3-V7 | Osabio rejects proof 30s in the future (beyond 5s tolerance) | Edge | Skip |
+| M3-V8 | Osabio rejects proof with missing JWK header | Error | Skip |
 
 ### US-006: RAR Operation Scope Verification (3 scenarios)
 
@@ -121,7 +121,7 @@ Traces: US-007
 | M4-B1 | Human exchanges session for DPoP token (low-risk read) | Happy | Skip |
 | M4-B2 | Bridge token contains correct sender binding | Happy | Skip |
 | M4-B3 | Low-risk read auto-approves without veto window | Happy | Skip |
-| M4-B4 | Bridge token can access Brain endpoints | Happy | Skip |
+| M4-B4 | Bridge token can access Osabio endpoints | Happy | Skip |
 
 ### Veto window (1 scenario)
 
@@ -148,7 +148,7 @@ Traces: US-004, US-008
 
 | ID | Scenario | Type | Status |
 |----|----------|------|--------|
-| M5-C1 | brain_action rendered in human-readable form | Happy | Skip |
+| M5-C1 | osabio_action rendered in human-readable form | Happy | Skip |
 | M5-C2 | Human approves pending intent | Happy | Skip |
 | M5-C3 | Human vetoes pending intent with reason | Happy | Skip |
 | M5-C4 | Human constrains to tighter bounds | Happy | Skip |
@@ -161,7 +161,7 @@ Traces: US-004, US-008
 | M5-I1 | Agent identity records managed_by relationship | Happy | Skip |
 | M5-I2 | Managed agent blocked when managing human inactive | Error | Skip |
 | M5-I3 | Revoked agent cannot submit new intents | Error | Skip |
-| M5-I4 | Revoked agent tokens rejected at Brain boundary | Error | Skip |
+| M5-I4 | Revoked agent tokens rejected at Osabio boundary | Error | Skip |
 
 ---
 

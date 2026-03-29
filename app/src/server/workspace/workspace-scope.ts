@@ -18,7 +18,7 @@ export type ProjectScopeRow = {
 export async function ensureDefaultWorkspaceProjectScope(surreal: Surreal): Promise<void> {
   const now = new Date();
   const workspaceRecord = new RecordId("workspace", "default");
-  const projectRecord = new RecordId("project", "brain");
+  const projectRecord = new RecordId("project", "osabio");
 
   const workspace = await surreal.select<{ id: RecordId<"workspace", string> }>(workspaceRecord);
   if (!workspace) {

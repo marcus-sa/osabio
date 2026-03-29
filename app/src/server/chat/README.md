@@ -4,7 +4,7 @@ Conversational AI orchestrator with 18 tools for entity search, decision managem
 
 ## The Problem
 
-Users interact with Brain through natural language. They ask questions like "What decisions have we made about auth?" or "Create a task to migrate the billing API." The chat layer must understand intent, load relevant graph context, dispatch to specialized subagents when needed, and stream responses in real time — all while writing structured knowledge back to the graph from every conversation.
+Users interact with Osabio through natural language. They ask questions like "What decisions have we made about auth?" or "Create a task to migrate the billing API." The chat layer must understand intent, load relevant graph context, dispatch to specialized subagents when needed, and stream responses in real time — all while writing structured knowledge back to the graph from every conversation.
 
 ## What It Does
 

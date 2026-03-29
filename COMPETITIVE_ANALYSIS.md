@@ -20,9 +20,9 @@ The market for AI-powered business management and knowledge tools is fragmented 
 | **Enterprise Knowledge** | Atlassian Rovo, Glean | AI search across enterprise tools | Cross-tool integration | We're graph-native, not search-bolted-on; built for small teams, not enterprises |
 | **Autonomous AI Operations** | Polsia | Full-autonomy AI that runs your company: codes, markets, handles inbox 24/7 | AI-run business operations, solo founder target | We provide the governance layer autonomous agents need: decision provenance, conflict detection, authority scoping, reviewable feed. Same ambition, opposite trust model. |
 | **Multi-Agent Runtimes** | Strands (AWS), LangGraph, CrewAI, Agent Relay | Agent orchestration frameworks: DAG execution, swarm coordination, message passing | Multi-agent coordination | We're the persistent intelligence layer above runtimes. They execute tasks; we persist, connect, and govern what agents produce across time and projects. Complementary — could use Strands as execution engine underneath. |
-| **Coding Agent Automation** | Cursor Automations, Bugbot | Event-driven agent triggers: launch agents from commits, Slack messages, timers. Auto-review PRs, respond to incidents, generate codebase digests. | Agent automation, human-on-the-loop model, event-driven workflows | They solve *when* to launch an agent. We solve *what the agent knows* when it launches and *how agents share context* across sessions. Cursor Automations are stateless dispatchers — each runs in isolation with no shared memory. Brain is the context and coordination layer underneath: decisions, observations, task state, authority scoping. Complementary — Cursor Automations + Brain = trigger + memory. |
-| **Agent Company Orchestration** | Paperclip | Open-source org chart for AI agents — roles, hierarchies, tickets, cost budgets, heartbeat scheduling, multi-company isolation. | Agent governance, multi-agent coordination, open source, self-hosted | Same vision, different foundation. Paperclip coordinates through hierarchy and tickets (top-down delegation). We coordinate through a knowledge graph (shared state, any agent reads/writes). Our foundation is more production-grade: structured decision provenance, cross-project intelligence, MCP context injection, entity extraction from natural language. Paperclip is the org chart; Brain is the brain. |
-| **Agent Company Orchestration** | Paperclip | Open-source orchestration for "zero-human companies." Org charts, role hierarchies, ticket-based coordination, cost budgets per agent, heartbeat scheduling, multi-company support. | Agent roles, governance, multi-agent coordination, open source, self-hosted | Paperclip coordinates through hierarchy and tickets — CEO delegates to CTO delegates to engineer. Brain coordinates through shared knowledge — any agent reads/writes to the same graph. Paperclip has no knowledge graph, no decision tracking, no observations, no cross-project intelligence, no context injection via MCP. Brain has no cost tracking per agent, no heartbeat scheduling. Paperclip bets on full autonomy ("zero-human"). Brain bets on progressive autonomy (human governs, trust expands). Different trust models, complementary infrastructure. |
+| **Coding Agent Automation** | Cursor Automations, Bugbot | Event-driven agent triggers: launch agents from commits, Slack messages, timers. Auto-review PRs, respond to incidents, generate codebase digests. | Agent automation, human-on-the-loop model, event-driven workflows | They solve *when* to launch an agent. We solve *what the agent knows* when it launches and *how agents share context* across sessions. Cursor Automations are stateless dispatchers — each runs in isolation with no shared memory. Osabio is the context and coordination layer underneath: decisions, observations, task state, authority scoping. Complementary — Cursor Automations + Osabio = trigger + memory. |
+| **Agent Company Orchestration** | Paperclip | Open-source org chart for AI agents — roles, hierarchies, tickets, cost budgets, heartbeat scheduling, multi-company isolation. | Agent governance, multi-agent coordination, open source, self-hosted | Same vision, different foundation. Paperclip coordinates through hierarchy and tickets (top-down delegation). We coordinate through a knowledge graph (shared state, any agent reads/writes). Our foundation is more production-grade: structured decision provenance, cross-project intelligence, MCP context injection, entity extraction from natural language. Paperclip is the org chart; Osabio is the brain. |
+| **Agent Company Orchestration** | Paperclip | Open-source orchestration for "zero-human companies." Org charts, role hierarchies, ticket-based coordination, cost budgets per agent, heartbeat scheduling, multi-company support. | Agent roles, governance, multi-agent coordination, open source, self-hosted | Paperclip coordinates through hierarchy and tickets — CEO delegates to CTO delegates to engineer. Osabio coordinates through shared knowledge — any agent reads/writes to the same graph. Paperclip has no knowledge graph, no decision tracking, no observations, no cross-project intelligence, no context injection via MCP. Osabio has no cost tracking per agent, no heartbeat scheduling. Paperclip bets on full autonomy ("zero-human"). Osabio bets on progressive autonomy (human governs, trust expands). Different trust models, complementary infrastructure. |
 
 ---
 
@@ -255,7 +255,7 @@ Bidirectional sync between Beads and the knowledge graph:
 - **Decision context for Beads tasks:** When an agent claims a Beads task, the `SessionStart` hook injects relevant decisions and constraints from the knowledge graph. The agent knows not just *what* to build but *why* and *what constraints apply*.
 
 **Our Angle vs Beads:**
-Not a competitor — a potential integration target. Beads solves agent task tracking within a repo. We solve everything above that: cross-project intelligence, decision governance, business context, and automated extraction. Our task decomposition model (SUBTASK_OF edges, agents break parent tasks into implementation steps at runtime, status rolls up automatically) mirrors Beads' approach — making bidirectional sync natural since both systems model tasks as graphs with parent-child relationships. For teams already using Beads, our platform becomes the cross-project brain that connects isolated Beads instances across repositories. The Claude Code hooks architecture makes this integration clean — `SessionStart` injects our context, `PostToolUse` syncs their task changes back.
+Not a competitor — a potential integration target. Beads solves agent task tracking within a repo. We solve everything above that: cross-project intelligence, decision governance, business context, and automated extraction. Our task decomposition model (SUBTASK_OF edges, agents break parent tasks into implementation steps at runtime, status rolls up automatically) mirrors Beads' approach — making bidirectional sync natural since both systems model tasks as graphs with parent-child relationships. For teams already using Beads, our platform becomes the cross-project osabio that connects isolated Beads instances across repositories. The Claude Code hooks architecture makes this integration clean — `SessionStart` injects our context, `PostToolUse` syncs their task changes back.
 
 ---
 
@@ -410,9 +410,9 @@ The knowledge graph as shared memory for autonomous agents, with decision status
 10. **Three-layer complementary stack** — Position the platform as the business intelligence layer in a stack: Beads (per-repo task tracking) → Our platform (cross-project decisions, constraints, governance) → Entire (code-level traceability). Each layer is independently valuable; together they provide full-stack agent coordination from business intent to code artifact.
 11. **CTX validates the plugin distribution model** — ActiveMemory/ctx (27 stars, growing) proved that Claude Code plugins are the right distribution path for agent context tools. Their journey from six shell scripts to a two-command plugin install is the exact path to follow. Ship the Claude Code integration as a marketplace plugin from Phase 3, not as hook scripts or CLAUDE.md instructions. CTX provides session-level memory (local, file-based); our plugin provides cross-project intelligence (graph-based, API-backed). Users can run both simultaneously — complementary, not competitive.
 12. **Strands validates the layer above runtimes** — AWS investing in multi-agent orchestration (Graph + Swarm patterns) proves agent coordination is a core infrastructure problem. But Strands is session-scoped — shared context disappears when execution completes. Position our platform as the persistent intelligence layer that makes individual Strands/LangGraph/CrewAI executions aware of everything that came before. Don't compete with runtimes; sit above them. The pitch: "Your agents already coordinate within tasks. We make them coordinate across tasks, projects, and time."
-13. **Cursor Automations validates trigger-driven agents, not coordination** — Cursor's Automations (launched March 2026) prove that event-driven agent dispatch is the next evolution: commit → auto-review, PagerDuty → incident response, timer → weekly digest. But each automation runs in isolation — no shared memory between the Bugbot that reviewed a PR and the responder that handles the incident it caused. Brain is the context layer underneath: when a Cursor automation fires, the agent gets decisions, observations, task state, and cross-project constraints from the graph instead of starting from zero. Don't compete on triggers; provide the memory that makes triggers intelligent. Natural integration target: Cursor's MCP support means a Brain MCP server would slot directly into their automation pipelines.
-14. **Paperclip validates the "AI company OS" category but exposes the ceiling of hierarchy-based coordination** — Paperclip proves there's demand for agent org charts, governance, and cost control. But their ticket-and-hierarchy model hits a ceiling: agents can only know what's in their ticket and what their boss delegated. No shared context, no cross-project intelligence, no decision provenance. Brain should learn from what Paperclip gets right (cost tracking per agent, heartbeat scheduling, company templates as onboarding accelerators) while positioning the knowledge graph as the production-grade foundation. The pitch: "Paperclip tells agents who their boss is. Brain tells agents what was decided, what's been observed, and what matters for the task at hand." Both open source, both self-hosted — the differentiation is architectural depth.
-14. **Paperclip validates "AI company OS" but exposes the knowledge gap** — Paperclip (1.4k stars, MIT, self-hosted) proves there's demand for multi-agent company orchestration. Their org chart + ticket + budget model is clean and immediate. But their coordination is hierarchical delegation, not shared intelligence — agents know who their boss is, not what was decided last week. No decision tracking, no observations, no cross-project conflict detection. This is the gap Brain fills: the knowledge layer that makes agent coordination intelligent, not just organized. Paperclip's cost tracking per agent is a feature Brain should adopt. Their "zero-human" positioning is a different trust bet — Brain's progressive autonomy model ("start restrictive, expand trust") is more defensible for real businesses where bad agent decisions have consequences.
+13. **Cursor Automations validates trigger-driven agents, not coordination** — Cursor's Automations (launched March 2026) prove that event-driven agent dispatch is the next evolution: commit → auto-review, PagerDuty → incident response, timer → weekly digest. But each automation runs in isolation — no shared memory between the Bugbot that reviewed a PR and the responder that handles the incident it caused. Osabio is the context layer underneath: when a Cursor automation fires, the agent gets decisions, observations, task state, and cross-project constraints from the graph instead of starting from zero. Don't compete on triggers; provide the memory that makes triggers intelligent. Natural integration target: Cursor's MCP support means a Osabio MCP server would slot directly into their automation pipelines.
+14. **Paperclip validates the "AI company OS" category but exposes the ceiling of hierarchy-based coordination** — Paperclip proves there's demand for agent org charts, governance, and cost control. But their ticket-and-hierarchy model hits a ceiling: agents can only know what's in their ticket and what their boss delegated. No shared context, no cross-project intelligence, no decision provenance. Osabio should learn from what Paperclip gets right (cost tracking per agent, heartbeat scheduling, company templates as onboarding accelerators) while positioning the knowledge graph as the production-grade foundation. The pitch: "Paperclip tells agents who their boss is. Osabio tells agents what was decided, what's been observed, and what matters for the task at hand." Both open source, both self-hosted — the differentiation is architectural depth.
+14. **Paperclip validates "AI company OS" but exposes the knowledge gap** — Paperclip (1.4k stars, MIT, self-hosted) proves there's demand for multi-agent company orchestration. Their org chart + ticket + budget model is clean and immediate. But their coordination is hierarchical delegation, not shared intelligence — agents know who their boss is, not what was decided last week. No decision tracking, no observations, no cross-project conflict detection. This is the gap Osabio fills: the knowledge layer that makes agent coordination intelligent, not just organized. Paperclip's cost tracking per agent is a feature Osabio should adopt. Their "zero-human" positioning is a different trust bet — Osabio's progressive autonomy model ("start restrictive, expand trust") is more defensible for real businesses where bad agent decisions have consequences.
 
 ---
 
@@ -437,19 +437,19 @@ The knowledge graph as shared memory for autonomous agents, with decision status
 - No authority model. There's no governance layer distinguishing provisional vs confirmed decisions, no human review feed for agent-made choices.
 - No observation layer. Bugbot finds issues, but those findings don't accumulate as structured signals that inform future automations.
 
-**Where Brain fits:**
+**Where Osabio fits:**
 
 Cursor Automations = *when* to launch an agent.
-Brain = *what the agent knows* when it launches.
+Osabio = *what the agent knows* when it launches.
 
 ```
-Without Brain:
+Without Osabio:
   Commit → Cursor Automation fires → agent starts from scratch
   → reviews code with zero project context
   → finds issues but can't check against decisions
   → produces a PR comment that's forgotten by next automation
 
-With Brain:
+With Osabio:
   Commit → Cursor Automation fires → agent calls get_project_context via MCP
   → receives: active decisions, constraints, recent observations, task state
   → reviews code against architectural decisions ("this contradicts Decision X")
@@ -457,12 +457,12 @@ With Brain:
   → next automation (or next human session) sees those observations automatically
 ```
 
-**Integration path:** Cursor already supports MCP. A Brain MCP server would slot directly into Cursor Automations as a context provider. No custom integration needed — standard MCP tool calls. The automation triggers the agent; Brain provides the memory.
+**Integration path:** Cursor already supports MCP. A Osabio MCP server would slot directly into Cursor Automations as a context provider. No custom integration needed — standard MCP tool calls. The automation triggers the agent; Osabio provides the memory.
 
 **Our Angle vs Cursor Automations:**
-Not a competitor. Cursor is the best coding agent runtime. Brain is the coordination and memory layer underneath. Cursor Automations make agents *proactive* (don't wait for a human prompt). Brain makes them *informed* (know what was decided, what's in progress, what to watch for). Together: proactive + informed = agents that actually coordinate.
+Not a competitor. Cursor is the best coding agent runtime. Osabio is the coordination and memory layer underneath. Cursor Automations make agents *proactive* (don't wait for a human prompt). Osabio makes them *informed* (know what was decided, what's in progress, what to watch for). Together: proactive + informed = agents that actually coordinate.
 
-| Capability | Cursor Automations | Brain |
+| Capability | Cursor Automations | Osabio |
 |-----------|-------------------|-------|
 | Agent triggering | ✓ (events, timers, Slack) | ✗ (not our job) |
 | Code review | ✓ (Bugbot) | ✗ (not our job) |
@@ -494,13 +494,13 @@ Not a competitor. Cursor is the best coding agent runtime. Brain is the coordina
 
 **The fundamental difference:**
 
-Paperclip models **companies**. Brain models **knowledge**.
+Paperclip models **companies**. Osabio models **knowledge**.
 
 Paperclip's coordination is hierarchical: CEO delegates to CTO, CTO delegates to engineer. Tasks flow down the org chart. Communication happens through tickets.
 
-Brain's coordination is graph-based: any agent reads from and writes to the same knowledge graph. An observation from a coding agent is visible to the Architect without going through a chain of command. A decision made in a web chat is available to the coding agent without ticket assignment.
+Osabio's coordination is graph-based: any agent reads from and writes to the same knowledge graph. An observation from a coding agent is visible to the Architect without going through a chain of command. A decision made in a web chat is available to the coding agent without ticket assignment.
 
-| Dimension | Paperclip | Brain |
+| Dimension | Paperclip | Osabio |
 |-----------|-----------|-------|
 | Coordination model | Hierarchy + tickets (top-down delegation) | Knowledge graph (shared state, any agent reads/writes) |
 | Agent model | Employees with titles, bosses, job descriptions | Specialized reasoners with domains and authority scopes |
@@ -517,11 +517,11 @@ Brain's coordination is graph-based: any agent reads from and writes to the same
 | MCP integration | ✗ Heartbeat-based, not MCP | ✓ MCP server with context injection |
 | Extraction from chat | ✗ Explicit tickets only | ✓ Automatic entity extraction from conversations |
 
-**What Brain should learn from Paperclip:**
+**What Osabio should learn from Paperclip:**
 
 1. **Cost tracking is table stakes.** Agents burning tokens need budgets. Per-agent, per-task cost tracking with hard limits should be a Phase 3-4 feature. Paperclip's auto-pause at budget limit is the right UX.
-2. **Scheduled execution (heartbeats) complements event-driven.** Brain's Observer agent scans the graph on changes, but periodic sweeps (daily, weekly) are also valuable. Heartbeat scheduling for background agents.
-3. **"Download a business" is a great onboarding accelerator.** Templates for common setups (SaaS startup, agency, content business) lower the barrier to entry. Brain's equivalent: workspace templates with pre-configured agents, authority scopes, and entity schemas.
+2. **Scheduled execution (heartbeats) complements event-driven.** Osabio's Observer agent scans the graph on changes, but periodic sweeps (daily, weekly) are also valuable. Heartbeat scheduling for background agents.
+3. **"Download a business" is a great onboarding accelerator.** Templates for common setups (SaaS startup, agency, content business) lower the barrier to entry. Osabio's equivalent: workspace templates with pre-configured agents, authority scopes, and entity schemas.
 
 **Our Angle vs Paperclip:**
 
@@ -529,19 +529,19 @@ Paperclip is going down the right path — org charts, governance, cost control,
 
 Paperclip coordinates through tickets and hierarchy. Agents get a ticket, do the work, report back up the chain. This works for simple delegation but breaks down when agents need to reason about *why* they're doing something, *what* was decided before, and *how* their work relates to what other agents are doing. A ticket says "implement rate limiting." The knowledge graph says "implement rate limiting, using token bucket (Decision #47, confirmed last Tuesday), which must respect the 100req/s hard constraint (Constraint #12), and be aware that the billing service already has its own rate limiter (Observation #89 from last coding session)."
 
-Brain's foundation is more production-grade because:
+Osabio's foundation is more production-grade because:
 
 1. **Structured knowledge, not ticket threads.** Decisions, observations, questions, and constraints are typed entities with relationships — not free-text in a ticket thread. This means agents can query specific context ("what constraints apply to this feature?") rather than parsing conversation history.
 
-2. **Decision provenance and governance lifecycle.** Paperclip's governance is "approve/reject" at the org chart level. Brain's is per-decision, per-action-type, with status lifecycle (provisional → confirmed → superseded), full provenance, and authority scopes that expand as trust builds. More granular, more auditable.
+2. **Decision provenance and governance lifecycle.** Paperclip's governance is "approve/reject" at the org chart level. Osabio's is per-decision, per-action-type, with status lifecycle (provisional → confirmed → superseded), full provenance, and authority scopes that expand as trust builds. More granular, more auditable.
 
-3. **Cross-project intelligence.** Paperclip isolates companies. Brain connects them. A decision in one project that contradicts another surfaces automatically. This is the difference between "each agent does its job" and "the system catches what no individual agent would notice."
+3. **Cross-project intelligence.** Paperclip isolates companies. Osabio connects them. A decision in one project that contradicts another surfaces automatically. This is the difference between "each agent does its job" and "the system catches what no individual agent would notice."
 
-4. **Context injection via MCP, not just heartbeats.** Paperclip wakes agents on a schedule. Brain injects rich, token-budgeted context into any MCP-compatible agent on session start — decisions, constraints, observations, recent changes. The agent starts informed, not from scratch.
+4. **Context injection via MCP, not just heartbeats.** Paperclip wakes agents on a schedule. Osabio injects rich, token-budgeted context into any MCP-compatible agent on session start — decisions, constraints, observations, recent changes. The agent starts informed, not from scratch.
 
-5. **Extraction from natural language.** Paperclip requires explicit tickets. Brain extracts decisions, tasks, and entities from natural conversation. You chat with the Architect about auth strategy — the decisions land in the graph without you creating tickets.
+5. **Extraction from natural language.** Paperclip requires explicit tickets. Osabio extracts decisions, tasks, and entities from natural conversation. You chat with the Architect about auth strategy — the decisions land in the graph without you creating tickets.
 
-Paperclip is the org chart. Brain is the brain. A company needs both — but the brain is harder to build and more defensible. Our bet: knowledge-graph coordination with progressive autonomy beats hierarchical ticket delegation, because agents produce better work when they have structured context than when they have a ticket title and a boss.
+Paperclip is the org chart. Osabio is the brain. A company needs both — but the osabio is harder to build and more defensible. Our bet: knowledge-graph coordination with progressive autonomy beats hierarchical ticket delegation, because agents produce better work when they have structured context than when they have a ticket title and a boss.
 | **AI Meeting Intelligence** | Granola, tl;dv, Fireflies | Meeting transcription + notes | Meeting extraction pipeline | We connect meeting outputs to project graph, code, and cross-project conflicts |
 | **PM → Engineering Handoff** | Rezonant, ChatPRD, Supernova | PRD generation, ticket creation | PRD flow, task generation | We maintain the full decision chain, not just document-to-ticket conversion |
 | **AI Agent Automation** | Lindy, Relevance AI, CrewAI | No-code agent builders for tasks | Agent coordination vision | We provide the shared memory layer agents need; they provide execution without coordination |
@@ -782,7 +782,7 @@ Bidirectional sync between Beads and the knowledge graph:
 - **Decision context for Beads tasks:** When an agent claims a Beads task, the `SessionStart` hook injects relevant decisions and constraints from the knowledge graph. The agent knows not just *what* to build but *why* and *what constraints apply*.
 
 **Our Angle vs Beads:**
-Not a competitor — a potential integration target. Beads solves agent task tracking within a repo. We solve everything above that: cross-project intelligence, decision governance, business context, and automated extraction. For teams already using Beads, our platform becomes the cross-project brain that connects isolated Beads instances across repositories. The Claude Code hooks architecture makes this integration clean — `SessionStart` injects our context, `PostToolUse` syncs their task changes back.
+Not a competitor — a potential integration target. Beads solves agent task tracking within a repo. We solve everything above that: cross-project intelligence, decision governance, business context, and automated extraction. For teams already using Beads, our platform becomes the cross-project osabio that connects isolated Beads instances across repositories. The Claude Code hooks architecture makes this integration clean — `SessionStart` injects our context, `PostToolUse` syncs their task changes back.
 
 ---
 

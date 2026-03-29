@@ -1,10 +1,10 @@
 # US-004: Worktree Manager Feature Flag
 
 ## Problem
-Marcus is self-hosting Brain for a team that does not use git worktrees. The workspace settings UI shows a "Repository Path" configuration field that confuses his team members -- they don't know what it's for, and entering a wrong path could cause issues. He wants to hide this UI element unless the instance is explicitly configured for worktree management.
+Marcus is self-hosting Osabio for a team that does not use git worktrees. The workspace settings UI shows a "Repository Path" configuration field that confuses his team members -- they don't know what it's for, and entering a wrong path could cause issues. He wants to hide this UI element unless the instance is explicitly configured for worktree management.
 
 ## Who
-- Platform operator | Configuring a Brain instance for a specific team workflow | Wants clean UI without irrelevant features
+- Platform operator | Configuring a Osabio instance for a specific team workflow | Wants clean UI without irrelevant features
 
 ## Solution
 The `WORKTREE_MANAGER_ENABLED` environment variable controls visibility of the repository path configuration in workspace settings. When `false` (default), the repo path UI is hidden. When `true`, it is shown and the admin can configure repo paths per workspace.
@@ -15,10 +15,10 @@ The `WORKTREE_MANAGER_ENABLED` environment variable controls visibility of the r
 ## Domain Examples
 
 ### 1: Worktree UI hidden by default (Happy Path)
-Marcus deploys Brain without setting `WORKTREE_MANAGER_ENABLED`. His team member Ana opens workspace settings and sees standard workspace configuration -- project name, description, etc. No repo path field is visible.
+Marcus deploys Osabio without setting `WORKTREE_MANAGER_ENABLED`. His team member Ana opens workspace settings and sees standard workspace configuration -- project name, description, etc. No repo path field is visible.
 
 ### 2: Worktree UI enabled for coding teams (Happy Path)
-Kai deploys Brain for a coding team and sets `WORKTREE_MANAGER_ENABLED=true`. He opens workspace settings and sees the "Repository Path" field. He enters `/home/kai/projects/brain` and saves. The worktree manager now knows where to find the repo.
+Kai deploys Osabio for a coding team and sets `WORKTREE_MANAGER_ENABLED=true`. He opens workspace settings and sees the "Repository Path" field. He enters `/home/kai/projects/brain` and saves. The worktree manager now knows where to find the repo.
 
 ### 3: Flag does not affect backend (Boundary)
 Marcus has `WORKTREE_MANAGER_ENABLED=false`. The MCP server still accepts worktree-related commands if invoked directly -- the flag only controls UI visibility, not backend capability.

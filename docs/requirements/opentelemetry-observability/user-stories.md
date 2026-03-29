@@ -5,10 +5,10 @@
 ## US-OT01: OTEL SDK Bootstrap
 
 ### Problem
-Marcus is the sole operator of the Brain platform. He wants to add distributed tracing and metrics but currently has no OpenTelemetry infrastructure. He needs the SDK initialized at startup with zero-config dev experience (console exporter) and standard OTLP export for production -- without the SDK failure ever crashing the server.
+Marcus is the sole operator of the Osabio platform. He wants to add distributed tracing and metrics but currently has no OpenTelemetry infrastructure. He needs the SDK initialized at startup with zero-config dev experience (console exporter) and standard OTLP export for production -- without the SDK failure ever crashing the server.
 
 ### Who
-- Developer/Operator | Running Brain locally and in production | Needs observable telemetry from day one of migration
+- Developer/Operator | Running Osabio locally and in production | Needs observable telemetry from day one of migration
 
 ### Solution
 Initialize OpenTelemetry TracerProvider, MeterProvider, and LoggerProvider at server startup, before `Bun.serve()`. Console exporters active by default (traces, metrics, and logs). OTLP exporters activate when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Graceful degradation if SDK fails.
@@ -33,7 +33,7 @@ Marcus upgrades Bun to a version with a breaking change in the async hooks API. 
 
 #### Scenario: Console exporter active in dev
 ```
-Given Marcus starts the Brain server with no OTEL environment variables set
+Given Marcus starts the Osabio server with no OTEL environment variables set
 When the first HTTP request is processed
 Then span data for the request appears in the terminal console output
 And the span includes service.name "brain"
@@ -43,7 +43,7 @@ And the span includes service.name "brain"
 ```
 Given Marcus has set OTEL_EXPORTER_OTLP_ENDPOINT to "http://collector:4318"
 And Marcus has set OTEL_SERVICE_NAME to "brain"
-When the Brain server starts
+When the Osabio server starts
 Then the TracerProvider is configured with OTLPTraceExporter
 And spans are exported to the configured endpoint
 And no spans appear in the console
@@ -52,7 +52,7 @@ And no spans appear in the console
 #### Scenario: Graceful degradation on SDK failure
 ```
 Given the OTEL SDK fails to initialize due to a runtime incompatibility
-When the Brain server starts
+When the Osabio server starts
 Then the server starts successfully without crashing
 And a warning message appears in the console: "OTEL SDK failed to initialize, telemetry disabled"
 And all subsequent tracer calls return no-op spans
@@ -60,7 +60,7 @@ And all subsequent tracer calls return no-op spans
 
 #### Scenario: All three providers initialize (Tracer, Meter, Logger)
 ```
-Given Marcus starts the Brain server with default configuration
+Given Marcus starts the Osabio server with default configuration
 When the server has started
 Then TracerProvider, MeterProvider, and LoggerProvider are all active
 And metric instruments can be created without errors
@@ -93,7 +93,7 @@ Marcus currently has Pino (v10.3.1) as the structured logging library with `logI
 - Developer/Operator | Maintaining the codebase | Needs clean migration without losing startup visibility
 
 ### Solution
-Remove Pino dependency and migrate all `logInfo`/`logWarn`/`logError`/`logDebug` call sites to the OTEL Logs API. A thin wrapper provides ergonomic `log.info()`/`log.warn()`/`log.error()`/`log.debug()` functions that call `logger.emit()` on the OTEL logger (`logs.getLogger('brain-server')`). Logs emitted within an active span automatically inherit `trace_id` and `span_id` for trace correlation. LoggerProvider is configured alongside TracerProvider and MeterProvider: console log exporter in dev, OTLP log exporter in prod. Startup messages emitted before OTEL initialization gracefully fall back to `console.log`.
+Remove Pino dependency and migrate all `logInfo`/`logWarn`/`logError`/`logDebug` call sites to the OTEL Logs API. A thin wrapper provides ergonomic `log.info()`/`log.warn()`/`log.error()`/`log.debug()` functions that call `logger.emit()` on the OTEL logger (`logs.getLogger('osabio-server')`). Logs emitted within an active span automatically inherit `trace_id` and `span_id` for trace correlation. LoggerProvider is configured alongside TracerProvider and MeterProvider: console log exporter in dev, OTLP log exporter in prod. Startup messages emitted before OTEL initialization gracefully fall back to `console.log`.
 
 ### Jobs Served
 - All jobs (migration prerequisite -- removes the old system)
@@ -116,7 +116,7 @@ Remove Pino dependency and migrate all `logInfo`/`logWarn`/`logError`/`logDebug`
 #### Scenario: Startup messages appear without Pino
 ```
 Given Pino has been removed from the project dependencies
-When Marcus starts the Brain server with bun run dev
+When Marcus starts the Osabio server with bun run dev
 Then startup messages (port, database connection, migration status) appear in the console
 And no Pino-formatted JSON lines appear in the output
 ```
@@ -179,7 +179,7 @@ And after OTEL initializes, subsequent log calls emit OTEL log records
 
 ### Technical Notes
 - Migration is mechanical: each `logInfo(event, data)` becomes `log.info(event, data)` using the OTEL wrapper
-- The wrapper uses `@opentelemetry/api-logs`: `logs.getLogger('brain-server').emit({ body, severityText, attributes })`
+- The wrapper uses `@opentelemetry/api-logs`: `logs.getLogger('osabio-server').emit({ body, severityText, attributes })`
 - Logs within an active span automatically inherit trace context -- no manual `trace_id` injection needed
 - The wrapper should check if LoggerProvider is initialized; if not, fall back to `console` methods
 - `elapsedMs()` utility may be retained if useful outside span contexts
@@ -208,13 +208,13 @@ Enable `experimental_telemetry` on every `generateObject`, `streamText`, and `To
 
 ### Domain Examples
 #### 1: Extraction call with telemetry
-The extraction pipeline's `generateObject()` call in `app/src/server/extraction/` gets `experimental_telemetry: { isEnabled: true, functionId: 'brain.extraction.generate', metadata: { workspaceId: 'ws-marcus-dev', messageId: 'msg-a1b2c3' } }`. The resulting span shows model `anthropic/claude-3.5-haiku`, 1847 prompt tokens, 423 completion tokens, 2341ms duration.
+The extraction pipeline's `generateObject()` call in `app/src/server/extraction/` gets `experimental_telemetry: { isEnabled: true, functionId: 'osabio.extraction.generate', metadata: { workspaceId: 'ws-marcus-dev', messageId: 'msg-a1b2c3' } }`. The resulting span shows model `anthropic/claude-3.5-haiku`, 1847 prompt tokens, 423 completion tokens, 2341ms duration.
 
 #### 2: Chat agent streaming with telemetry
-The `streamText()` call in `app/src/server/chat/handler.ts` gets `experimental_telemetry: { isEnabled: true, functionId: 'brain.chat.stream', metadata: { workspaceId: 'ws-marcus-dev', conversationId: 'conv-x7y8z9' } }`. The span captures the full streaming duration, total tokens, and model ID.
+The `streamText()` call in `app/src/server/chat/handler.ts` gets `experimental_telemetry: { isEnabled: true, functionId: 'osabio.chat.stream', metadata: { workspaceId: 'ws-marcus-dev', conversationId: 'conv-x7y8z9' } }`. The span captures the full streaming duration, total tokens, and model ID.
 
 #### 3: PM subagent with telemetry
-The PM agent's `generateObject()` in `app/src/server/agents/pm/agent.ts` gets `functionId: 'brain.pm.agent'`. When Marcus sees high token costs, he can filter spans by `brain.pm.agent` to see exactly how many tokens the PM agent consumes per invocation.
+The PM agent's `generateObject()` in `app/src/server/agents/pm/agent.ts` gets `functionId: 'osabio.pm.agent'`. When Marcus sees high token costs, he can filter spans by `osabio.pm.agent` to see exactly how many tokens the PM agent consumes per invocation.
 
 ### UAT Scenarios (BDD)
 
@@ -222,7 +222,7 @@ The PM agent's `generateObject()` in `app/src/server/agents/pm/agent.ts` gets `f
 ```
 Given a user sends a message containing "We decided to use SurrealDB for the graph layer" to workspace "ws-marcus-dev"
 When the extraction pipeline runs generateObject with experimental_telemetry enabled
-Then a span is emitted with ai.telemetry.functionId "brain.extraction.generate"
+Then a span is emitted with ai.telemetry.functionId "osabio.extraction.generate"
 And the span includes ai.usage.promptTokens > 0
 And the span includes ai.usage.completionTokens > 0
 And the span includes ai.model.id matching the configured extraction model
@@ -254,7 +254,7 @@ And both spans are linked to the same parent HTTP trace
 
 #### Scenario: Telemetry coexists with AI SDK devtools middleware
 ```
-Given the Brain server uses @ai-sdk/devtools middleware on all model configurations
+Given the Osabio server uses @ai-sdk/devtools middleware on all model configurations
 When experimental_telemetry is also enabled on a generateObject call
 Then both devtools middleware and telemetry spans function without conflict
 And the span data is complete (model, tokens, duration)
@@ -295,13 +295,13 @@ Replace `withRequestLogging()` with an OTEL-based request wrapper that creates a
 
 ### Domain Examples
 #### 1: Chat message request trace
-Marcus sends a chat message. The root span `brain.http.request POST /api/chat/messages` shows 8234ms total. Child spans show: `brain.chat.ingress` (45ms), `brain.chat.process` (8180ms) containing `brain.extraction.pipeline` (2100ms) and `brain.chat.agent` (5200ms). The chat agent span further contains `ai.streamText` (4100ms) and `brain.chat.tool.invoke_pm_agent` (2800ms). Bottleneck: chat agent LLM call at 50% of total.
+Marcus sends a chat message. The root span `osabio.http.request POST /api/chat/messages` shows 8234ms total. Child spans show: `osabio.chat.ingress` (45ms), `osabio.chat.process` (8180ms) containing `osabio.extraction.pipeline` (2100ms) and `osabio.chat.agent` (5200ms). The chat agent span further contains `ai.streamText` (4100ms) and `osabio.chat.tool.invoke_pm_agent` (2800ms). Bottleneck: chat agent LLM call at 50% of total.
 
 #### 2: Entity search request trace
-Marcus searches for entities. Root span `brain.http.request GET /api/entities/search` shows 120ms. Child span `brain.entity.fulltext-search` shows 85ms. No LLM calls involved. Fast path confirmed.
+Marcus searches for entities. Root span `osabio.http.request GET /api/entities/search` shows 120ms. Child span `brain.entity.fulltext-search` shows 85ms. No LLM calls involved. Fast path confirmed.
 
 #### 3: Failed request trace
-A chat message fails because SurrealDB is unreachable. Root span `brain.http.request POST /api/chat/messages` shows status ERROR. Child span `brain.chat.persist-message` has `span.recordException(ConnectionUnavailableError)`. Marcus sees exactly which operation failed without reading through log lines.
+A chat message fails because SurrealDB is unreachable. Root span `osabio.http.request POST /api/chat/messages` shows status ERROR. Child span `osabio.chat.persist-message` has `span.recordException(ConnectionUnavailableError)`. Marcus sees exactly which operation failed without reading through log lines.
 
 ### UAT Scenarios (BDD)
 
@@ -309,7 +309,7 @@ A chat message fails because SurrealDB is unreachable. Root span `brain.http.req
 ```
 Given Marcus sends a POST request to /api/chat/messages in workspace "ws-marcus-dev"
 When the request completes
-Then a root span "brain.http.request" exists with attributes method: "POST", route: "/api/chat/messages"
+Then a root span "osabio.http.request" exists with attributes method: "POST", route: "/api/chat/messages"
 And the span duration reflects the total request processing time
 And the span status reflects the HTTP response status
 ```
@@ -363,7 +363,7 @@ And the span duration reflects the time until failure
 ## US-OT05: Operational Metrics
 
 ### Problem
-Marcus has no quantitative health metrics for the Brain platform. He cannot answer "what is the p95 latency of chat responses?" or "how many extraction errors occurred this week?" without manually analyzing log files. There is no alerting -- degradation is discovered when users report issues.
+Marcus has no quantitative health metrics for the Osabio platform. He cannot answer "what is the p95 latency of chat responses?" or "how many extraction errors occurred this week?" without manually analyzing log files. There is no alerting -- degradation is discovered when users report issues.
 
 ### Who
 - Developer/Operator | Monitoring production health | Needs continuous quantitative metrics with alerting capability
@@ -377,13 +377,13 @@ Define OTEL metric instruments (histograms and counters) for LLM call duration, 
 
 ### Domain Examples
 #### 1: LLM latency histogram
-After processing 500 chat messages, Marcus queries the `brain.llm.duration` histogram filtered by `functionId=brain.chat.stream`. He sees p50=3200ms, p95=5800ms, p99=8400ms. The p95 is above his 5000ms target -- he investigates prompt length.
+After processing 500 chat messages, Marcus queries the `osabio.llm.duration` histogram filtered by `functionId=osabio.chat.stream`. He sees p50=3200ms, p95=5800ms, p99=8400ms. The p95 is above his 5000ms target -- he investigates prompt length.
 
 #### 2: Token counter for cost projection
-Marcus queries `brain.llm.tokens.prompt` and `brain.llm.tokens.completion` counters grouped by `functionId` over the past 7 days. Extraction consumed 1.2M prompt tokens and 340K completion tokens. Chat consumed 890K/520K. He calculates weekly cost at $14.95 and projects monthly at $64.
+Marcus queries `osabio.llm.tokens.prompt` and `osabio.llm.tokens.completion` counters grouped by `functionId` over the past 7 days. Extraction consumed 1.2M prompt tokens and 340K completion tokens. Chat consumed 890K/520K. He calculates weekly cost at $14.95 and projects monthly at $64.
 
 #### 3: HTTP error rate detection
-The `brain.http.requests` counter with `status_code=500` shows 15 errors in the past hour, up from a baseline of 0-2. The `brain.http.duration` histogram for the affected route shows p50 jumped from 200ms to 8000ms. SurrealDB connection issue confirmed.
+The `osabio.http.requests` counter with `status_code=500` shows 15 errors in the past hour, up from a baseline of 0-2. The `osabio.http.duration` histogram for the affected route shows p50 jumped from 200ms to 8000ms. SurrealDB connection issue confirmed.
 
 ### UAT Scenarios (BDD)
 
@@ -391,32 +391,32 @@ The `brain.http.requests` counter with `status_code=500` shows 15 errors in the 
 ```
 Given the extraction pipeline processes a message with a generateObject call taking 2341ms
 When the call completes
-Then the brain.llm.duration histogram records a value of 2341
-And the recording includes attributes functionId: "brain.extraction.generate" and model matching the configured extraction model
+Then the osabio.llm.duration histogram records a value of 2341
+And the recording includes attributes functionId: "osabio.extraction.generate" and model matching the configured extraction model
 ```
 
 #### Scenario: Token counters increment on LLM call
 ```
 Given a generateObject call uses 1847 prompt tokens and 423 completion tokens
 When the call completes
-Then brain.llm.tokens.prompt counter increments by 1847 with functionId attribute
-And brain.llm.tokens.completion counter increments by 423 with functionId attribute
+Then osabio.llm.tokens.prompt counter increments by 1847 with functionId attribute
+And osabio.llm.tokens.completion counter increments by 423 with functionId attribute
 ```
 
 #### Scenario: HTTP request metrics recorded
 ```
 Given Marcus sends a GET request to /api/entities/search that returns 200 in 120ms
 When the request completes
-Then brain.http.requests counter increments by 1 with attributes method: "GET", route: "/api/entities/search", status_code: "200"
-And brain.http.duration histogram records 120 with the same attributes
+Then osabio.http.requests counter increments by 1 with attributes method: "GET", route: "/api/entities/search", status_code: "200"
+And osabio.http.duration histogram records 120 with the same attributes
 ```
 
 #### Scenario: Error counter increments on LLM failure
 ```
 Given a generateObject call to the observer verification fails with a model timeout
 When the error is caught
-Then brain.llm.errors counter increments by 1
-And the recording includes attributes functionId: "brain.observer.verify" and error_type: "timeout"
+Then osabio.llm.errors counter increments by 1
+And the recording includes attributes functionId: "osabio.observer.verify" and error_type: "timeout"
 ```
 
 #### Scenario: Metrics export via OTLP
@@ -428,12 +428,12 @@ And the export includes all defined metric instruments
 ```
 
 ### Acceptance Criteria
-- [ ] `brain.llm.duration` histogram records latency for every LLM call with functionId and model attributes
-- [ ] `brain.llm.tokens.prompt` and `brain.llm.tokens.completion` counters record token usage per LLM call
-- [ ] `brain.llm.errors` counter records LLM failures with error_type attribute
-- [ ] `brain.http.duration` histogram records request latency with method, route, status_code
-- [ ] `brain.http.requests` counter records request volume with method, route, status_code
-- [ ] `brain.extraction.entities` counter records entity volume by type
+- [ ] `osabio.llm.duration` histogram records latency for every LLM call with functionId and model attributes
+- [ ] `osabio.llm.tokens.prompt` and `osabio.llm.tokens.completion` counters record token usage per LLM call
+- [ ] `osabio.llm.errors` counter records LLM failures with error_type attribute
+- [ ] `osabio.http.duration` histogram records request latency with method, route, status_code
+- [ ] `osabio.http.requests` counter records request volume with method, route, status_code
+- [ ] `osabio.extraction.entities` counter records entity volume by type
 - [ ] Metrics export to console in dev and OTLP when endpoint is configured
 
 ### Technical Notes

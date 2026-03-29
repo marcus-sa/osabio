@@ -2,7 +2,7 @@
 
 ## System Context
 
-Brain is an AI-native business management platform with a knowledge graph backend (SurrealDB), a React frontend with a graph visualization (reagraph/WebGL), and a governance feed for human-in-the-loop oversight. Policy evaluation is already implemented server-side. This feature extends the **graph view** and **governance feed** to surface policy and intent nodes with their governance edges.
+Osabio is an AI-native business management platform with a knowledge graph backend (SurrealDB), a React frontend with a graph visualization (reagraph/WebGL), and a governance feed for human-in-the-loop oversight. Policy evaluation is already implemented server-side. This feature extends the **graph view** and **governance feed** to surface policy and intent nodes with their governance edges.
 
 ## C4 System Context (L1)
 
@@ -12,10 +12,10 @@ C4Context
 
   Person(human, "Workspace Owner", "Reviews policies, approves/vetoes agent intents")
 
-  System(brain, "Brain Platform", "Knowledge graph workspace with governance feed and graph visualization")
+  System(osabio, "Osabio Platform", "Knowledge graph workspace with governance feed and graph visualization")
   System_Ext(surrealdb, "SurrealDB", "Graph database storing entities, policies, intents, and relation edges")
 
-  Rel(human, brain, "Views graph, reviews feed items")
+  Rel(human, osabio, "Views graph, reviews feed items")
   Rel(brain, surrealdb, "Queries graph entities, policy/intent nodes, governance edges")
 ```
 

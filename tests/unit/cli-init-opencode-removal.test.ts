@@ -5,7 +5,7 @@
  *
  * After removal:
  * - No OpenCode-specific exports remain in init-content.ts
- * - BRAIN_HOOKS, BRAIN_CLAUDE_MD, BRAIN_COMMANDS exports preserved
+ * - OSABIO_HOOKS, OSABIO_CLAUDE_MD, OSABIO_COMMANDS exports preserved
  * - setupOpencode is not exported from init.ts
  */
 import { describe, expect, it } from "bun:test";
@@ -15,22 +15,22 @@ import { describe, expect, it } from "bun:test";
 // ---------------------------------------------------------------------------
 
 describe("init-content exports after OpenCode removal", () => {
-  it("preserves BRAIN_HOOKS export", async () => {
+  it("preserves OSABIO_HOOKS export", async () => {
     const mod = await import("../../cli/commands/init-content");
-    expect(mod.BRAIN_HOOKS).toBeDefined();
-    expect(typeof mod.BRAIN_HOOKS).toBe("object");
+    expect(mod.OSABIO_HOOKS).toBeDefined();
+    expect(typeof mod.OSABIO_HOOKS).toBe("object");
   });
 
-  it("preserves BRAIN_CLAUDE_MD export", async () => {
+  it("preserves OSABIO_CLAUDE_MD export", async () => {
     const mod = await import("../../cli/commands/init-content");
-    expect(mod.BRAIN_CLAUDE_MD).toBeDefined();
-    expect(typeof mod.BRAIN_CLAUDE_MD).toBe("string");
+    expect(mod.OSABIO_CLAUDE_MD).toBeDefined();
+    expect(typeof mod.OSABIO_CLAUDE_MD).toBe("string");
   });
 
-  it("preserves BRAIN_COMMANDS export", async () => {
+  it("preserves OSABIO_COMMANDS export", async () => {
     const mod = await import("../../cli/commands/init-content");
-    expect(mod.BRAIN_COMMANDS).toBeDefined();
-    expect(typeof mod.BRAIN_COMMANDS).toBe("object");
+    expect(mod.OSABIO_COMMANDS).toBeDefined();
+    expect(typeof mod.OSABIO_COMMANDS).toBe("object");
   });
 
   it("does not export OPENCODE_PLUGIN_CONTENT", async () => {

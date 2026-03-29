@@ -137,7 +137,7 @@ async function postContext(
 // ---------------------------------------------------------------------------
 
 describe("intent-context integration", () => {
-  it("agent assigned a task via brain map gets task scope with siblings", async () => {
+  it("agent assigned a task via osabio map gets task scope with siblings", async () => {
     const { baseUrl, surreal } = getRuntime();
     const ws = await createWorkspaceWithOAuth(baseUrl, surreal);
     const project = await seedProject(surreal, ws.workspaceRecord, "Payments Platform");
@@ -146,7 +146,7 @@ describe("intent-context integration", () => {
     await seedDecision(surreal, ws.workspaceRecord, project, "Use Stripe for payments", "confirmed");
     const taskId = targetTask.id as string;
 
-    // Agent says what brain map told it
+    // Agent says what osabio map told it
     const result = await postContext(ws.mcpFetch, ws.workspaceId, {
       intent: `I'm implementing task:${taskId} - adding payment processing`,
     });

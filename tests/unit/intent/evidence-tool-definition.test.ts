@@ -11,7 +11,7 @@ import { describe, expect, it } from "bun:test";
 import {
   createIntentSchema,
   CREATE_INTENT_TOOL,
-} from "../../../app/src/server/mcp/brain-tool-definitions";
+} from "../../../app/src/server/mcp/osabio-tool-definitions";
 
 describe("createIntentSchema evidence_refs field", () => {
   it("accepts intent with evidence_refs as optional array of strings", () => {
@@ -19,7 +19,7 @@ describe("createIntentSchema evidence_refs field", () => {
       goal: "Reroute Southeast Asia orders through regional hub",
       reasoning: "Decision confirmed, audit complete, lead time data supports",
       action_spec: {
-        provider: "brain",
+        provider: "osabio",
         action: "update_routing",
         params: { region: "sea" },
       },
@@ -46,7 +46,7 @@ describe("createIntentSchema evidence_refs field", () => {
       goal: "Read fulfillment metrics",
       reasoning: "Low-risk data read operation",
       action_spec: {
-        provider: "brain",
+        provider: "osabio",
         action: "read_metrics",
         params: {},
       },
@@ -64,7 +64,7 @@ describe("createIntentSchema evidence_refs field", () => {
       goal: "Some goal",
       reasoning: "Some reasoning",
       action_spec: {
-        provider: "brain",
+        provider: "osabio",
         action: "test",
         params: {},
       },

@@ -26,11 +26,11 @@ The 5-step agent creation uses a SurrealDB `BEGIN TRANSACTION; ... COMMIT TRANSA
 
 ### Proxy Token Reuse
 
-External agent tokens reuse the existing `proxy-token-core.ts` module (`brp_` prefix, SHA-256 hash, 90-day TTL). This was chosen over:
+External agent tokens reuse the existing `proxy-token-core.ts` module (`osp_` prefix, SHA-256 hash, 90-day TTL). This was chosen over:
 
 1. **New token format specific to agents**: Rejected. The existing proxy token infrastructure (issuance, validation in `proxy-auth.ts`, hash storage in `proxy_token` table) already handles the exact use case. A new format would duplicate infrastructure.
 
-2. **JWT-based agent tokens**: Rejected. The proxy already validates `brp_` tokens via hash lookup. JWTs add token size, signing key management, and revocation complexity without benefit for this use case.
+2. **JWT-based agent tokens**: Rejected. The proxy already validates `osp_` tokens via hash lookup. JWTs add token size, signing key management, and revocation complexity without benefit for this use case.
 
 ### Agent Name on Agent Table
 

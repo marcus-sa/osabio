@@ -81,7 +81,7 @@ describe("ToolTable view model", () => {
 
     it("puts tools without source_server in Ungrouped", () => {
       const tools = [
-        makeTool({ id: "1", name: "brain-tool" }),
+        makeTool({ id: "1", name: "osabio-tool" }),
         makeTool({ id: "2", name: "github-tool", source_server_id: "srv-1", source_server_name: "GitHub" }),
       ];
 

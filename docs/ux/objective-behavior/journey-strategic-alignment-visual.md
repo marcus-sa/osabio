@@ -33,7 +33,7 @@ Anxious      *
 |  STRATEGIC ALIGNMENT GOVERNANCE JOURNEY                           |
 +------------------------------------------------------------------+
 
-  [Elena opens Brain]
+  [Elena opens Osabio]
         |
         v
   +-- Step 1: Define Strategic Context --------------------------+
@@ -49,7 +49,7 @@ Anxious      *
   | "Our Q2 objective is to launch the MCP marketplace with     |
   |  10 listed integrations by June 30"                          |
   |                                                              |
-  | Brain extracts:                                              |
+  | Osabio extracts:                                              |
   |   title: "Launch MCP Marketplace"                            |
   |   target_date: 2026-06-30                                    |
   |   success_criteria: ["10 listed integrations"]               |

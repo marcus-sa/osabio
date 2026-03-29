@@ -1,12 +1,12 @@
 /**
  * Agent MCP Auth — Resolve proxy token to agent session context
  *
- * Effect boundary module: extracts X-Brain-Auth header, resolves proxy token
+ * Effect boundary module: extracts X-Osabio-Auth header, resolves proxy token
  * via existing lookupProxyToken, loads agent_session record, and returns
  * AgentSessionContext.
  *
  * Pipeline:
- *   1. Extract X-Brain-Auth header (raw token, no "Bearer " prefix)
+ *   1. Extract X-Osabio-Auth header (raw token, no "Bearer " prefix)
  *   2. Hash token and look up via createLookupProxyToken
  *   3. Verify session field exists on proxy token
  *   4. Load agent_session record from SurrealDB
@@ -16,7 +16,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import { HttpError } from "../http/errors";
 import {
-  extractBrainAuthToken,
+  extractOsabioAuthToken,
   createLookupProxyToken,
 } from "../proxy/proxy-auth";
 import { hashProxyToken } from "../proxy/proxy-token-core";
@@ -47,7 +47,7 @@ const ALLOWED_SESSION_STATUSES = new Set(["active", "idle"]);
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a proxy token from X-Brain-Auth header to an AgentSessionContext.
+ * Resolve a proxy token from X-Osabio-Auth header to an AgentSessionContext.
  *
  * @throws HttpError(401) - invalid, expired, or revoked proxy token
  * @throws HttpError(404) - proxy token has no session, or session not found
@@ -58,9 +58,9 @@ export async function resolveAgentSession(
   surreal: Surreal,
 ): Promise<AgentSessionContext> {
   // Step 1: Extract token from header
-  const rawToken = extractBrainAuthToken(request.headers);
+  const rawToken = extractOsabioAuthToken(request.headers);
   if (!rawToken) {
-    throw new HttpError(401, "Missing X-Brain-Auth header");
+    throw new HttpError(401, "Missing X-Osabio-Auth header");
   }
 
   // Step 2: Look up proxy token

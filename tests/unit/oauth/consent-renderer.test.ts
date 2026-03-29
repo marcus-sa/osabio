@@ -1,6 +1,6 @@
 /**
  * Unit tests for consent renderer -- pure functions that transform
- * brain_action authorization_details into human-readable display
+ * osabio_action authorization_details into human-readable display
  * and enforce tighter-bounds-only constraint validation.
  */
 import { describe, expect, it } from "bun:test";
@@ -13,7 +13,7 @@ import {
   type ConsentDisplay,
   type BoundsValidationResult,
 } from "../../../app/src/server/oauth/consent-renderer";
-import type { BrainAction } from "../../../app/src/server/oauth/types";
+import type { OsabioAction } from "../../../app/src/server/oauth/types";
 
 // =============================================================================
 // Action verb rendering
@@ -86,9 +86,9 @@ describe("renderConstraintValue", () => {
 // =============================================================================
 
 describe("renderConsentDisplay", () => {
-  it("renders a brain_action with constraints into consent display", () => {
-    const action: BrainAction = {
-      type: "brain_action",
+  it("renders a osabio_action with constraints into consent display", () => {
+    const action: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "invoice",
       constraints: {
@@ -109,9 +109,9 @@ describe("renderConsentDisplay", () => {
     expect(display.constraints_display!.amount).not.toContain("240000");
   });
 
-  it("renders a brain_action without constraints", () => {
-    const action: BrainAction = {
-      type: "brain_action",
+  it("renders a osabio_action without constraints", () => {
+    const action: OsabioAction = {
+      type: "osabio_action",
       action: "read",
       resource: "workspace",
     };
@@ -130,14 +130,14 @@ describe("renderConsentDisplay", () => {
 
 describe("validateTighterBounds", () => {
   it("accepts constraints that are strictly tighter than original", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 10 },
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 3 },
@@ -149,14 +149,14 @@ describe("validateTighterBounds", () => {
   });
 
   it("rejects constraints that are looser than original", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 3 },
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 50 },
@@ -171,13 +171,13 @@ describe("validateTighterBounds", () => {
   });
 
   it("rejects when action type changes", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "read",
       resource: "task",
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "write",
       resource: "task",
     };
@@ -188,13 +188,13 @@ describe("validateTighterBounds", () => {
   });
 
   it("rejects when resource type changes", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "read",
       resource: "task",
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "read",
       resource: "project",
     };
@@ -205,14 +205,14 @@ describe("validateTighterBounds", () => {
   });
 
   it("accepts equal constraints (same bounds is valid tightening)", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 5 },
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 5 },
@@ -224,13 +224,13 @@ describe("validateTighterBounds", () => {
   });
 
   it("rejects when proposed adds constraints not in original (scope expansion)", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 5 },
@@ -243,14 +243,14 @@ describe("validateTighterBounds", () => {
   });
 
   it("rejects when proposed removes existing constraints (scope widening)", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
       constraints: { max_changes: 5 },
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "update",
       resource: "task",
     };
@@ -261,14 +261,14 @@ describe("validateTighterBounds", () => {
   });
 
   it("handles amount constraints in cents correctly", () => {
-    const original: BrainAction = {
-      type: "brain_action",
+    const original: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "invoice",
       constraints: { amount: 240000 },
     };
-    const proposed: BrainAction = {
-      type: "brain_action",
+    const proposed: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "invoice",
       constraints: { amount: 100000 },

@@ -7,7 +7,7 @@ import {
   readEntityName,
 } from "../graph/queries";
 import { requireAuthorizedContext } from "../iam/authority";
-import { editWorkItemSchema } from "../mcp/brain-tool-definitions";
+import { editWorkItemSchema } from "../mcp/osabio-tool-definitions";
 import { seedDescriptionEntry } from "../descriptions/persist";
 import type { ChatToolDeps } from "./types";
 

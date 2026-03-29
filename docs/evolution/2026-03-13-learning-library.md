@@ -6,7 +6,7 @@
 
 ## Summary
 
-The Learning Library adds a full management UI for agent behavioral rules (learnings) to the Brain platform. Previously, learnings could only be reviewed through the governance feed (push notification layer) with approve/dismiss actions. The library provides a pull-based management layer with full CRUD, filtering, tabbed browsing, and lifecycle management.
+The Learning Library adds a full management UI for agent behavioral rules (learnings) to the Osabio platform. Previously, learnings could only be reviewed through the governance feed (push notification layer) with approve/dismiss actions. The library provides a pull-based management layer with full CRUD, filtering, tabbed browsing, and lifecycle management.
 
 **Why:** Workspace owners needed a dedicated interface to browse, filter, create, edit, and deactivate learnings across all statuses -- not just react to pending items in the feed.
 

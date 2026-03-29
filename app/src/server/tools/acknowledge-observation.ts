@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { parseRecordIdString } from "../graph/queries";
-import { acknowledgeObservationSchema } from "../mcp/brain-tool-definitions";
+import { acknowledgeObservationSchema } from "../mcp/osabio-tool-definitions";
 import { acknowledgeObservation } from "../observation/queries";
 import { requireAuthorizedContext } from "../iam/authority";
 import type { ChatToolDeps } from "./types";

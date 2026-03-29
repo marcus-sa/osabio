@@ -1,4 +1,4 @@
-# Opportunity Scoring: Remove Embeddings from Brain Knowledge Graph
+# Opportunity Scoring: Remove Embeddings from Osabio Knowledge Graph
 
 ## Outcome Statements and Scores
 

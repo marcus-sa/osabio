@@ -1,12 +1,12 @@
 ---
-name: brain-status
-description: Show current Brain knowledge graph context for this project
+name: osabio-status
+description: Show current Osabio knowledge graph context for this project
 user_invocable: true
 ---
 
-# /brain-status
+# /osabio-status
 
-Show the current project context from the Brain knowledge graph.
+Show the current project context from the Osabio knowledge graph.
 
 ## Instructions
 

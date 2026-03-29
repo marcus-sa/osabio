@@ -2,7 +2,7 @@
 
 ## No New Technologies Required
 
-Agent Learnings is implemented entirely within Brain's existing technology stack. No new dependencies, services, or infrastructure components are introduced.
+Agent Learnings is implemented entirely within Osabio's existing technology stack. No new dependencies, services, or infrastructure components are introduced.
 
 | Concern | Technology | License | Rationale |
 |---|---|---|---|

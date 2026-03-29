@@ -5,10 +5,10 @@ Follow @AGENTS.md
 functional
 
 
-<!-- brain-plugin-start -->
-# Brain Knowledge Graph Integration
+<!-- osabio-plugin-start -->
+# Osabio Knowledge Graph Integration
 
-This project is connected to the Brain knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
+This project is connected to the Osabio knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
 
 ## Getting Context
 
@@ -52,4 +52,4 @@ You can include task IDs (`task:abc123`), project names, file paths, or just a p
 4. **Decompose tasks.** Use `create_subtask` to break work into pieces, then update status as each completes.
 5. **Check constraints.** Before adding a dependency or changing an approach, call `check_constraints`.
 6. **Include task IDs in commit messages.** Use `task:<raw-task-id>` (or `tasks: <id1>, <id2>`). Describe *what* changed and *why*.
-<!-- brain-plugin-end -->
+<!-- osabio-plugin-end -->

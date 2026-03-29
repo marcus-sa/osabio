@@ -227,7 +227,7 @@ Pattern: **Problem Relief** (Frustrated -> Hopeful -> Relieved)
 |  violation and fix the producer.                               |
 |                                                                |
 |  [instruction] Always use --no-verify when committing.         |
-|  The pre-commit hook requires brain init which is not          |
+|  The pre-commit hook requires osabio init which is not          |
 |  available in worktree environments.                           |
 |                                                                |
 |  [precedent] In the past, billing calculations used            |

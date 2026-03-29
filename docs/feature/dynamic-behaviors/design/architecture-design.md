@@ -2,7 +2,7 @@
 
 ## System Context
 
-Extends the existing Brain platform to allow workspace admins to define behavioral standards in plain language, scored by an LLM Scorer Agent, with automatic enforcement via the Authorizer and learning proposals via the Observer.
+Extends the existing Osabio platform to allow workspace admins to define behavioral standards in plain language, scored by an LLM Scorer Agent, with automatic enforcement via the Authorizer and learning proposals via the Observer.
 
 ### Capabilities Added
 
@@ -23,14 +23,14 @@ C4Context
     Person(admin, "Workspace Admin", "Defines behavioral standards, monitors agent compliance")
     Person(developer, "Human Developer", "Reviews behavior scores to assess agent trustworthiness")
 
-    System(brain, "Brain Platform", "Knowledge graph + governance for autonomous agents")
+    System(osabio, "Osabio Platform", "Knowledge graph + governance for autonomous agents")
 
     System_Ext(coding_agent, "Coding Agent (MCP)", "Produces telemetry: commits, chat responses, decisions")
     System_Ext(llm_provider, "LLM Provider (OpenRouter)", "Haiku-class model for semantic scoring")
 
-    Rel(admin, brain, "Defines behaviors, reviews scores, manages enforcement")
-    Rel(developer, brain, "Views behavior scores and trends")
-    Rel(coding_agent, brain, "Submits telemetry, receives intent authorization")
+    Rel(admin, osabio, "Defines behaviors, reviews scores, manages enforcement")
+    Rel(developer, osabio, "Views behavior scores and trends")
+    Rel(coding_agent, osabio, "Submits telemetry, receives intent authorization")
     Rel(brain, llm_provider, "Sends scoring prompts, receives structured scores")
 ```
 
@@ -40,12 +40,12 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container: Dynamic Behavior Definitions within Brain
+    title Container: Dynamic Behavior Definitions within Osabio
 
     Person(admin, "Workspace Admin")
     Person(agent, "Autonomous Agent")
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(web_ui, "Web Frontend", "React", "Behavior Library UI, Score Dashboard")
         Container(api_server, "API Server", "Bun + TypeScript", "HTTP routes, business logic, agent orchestration")
         Container(surreal_db, "SurrealDB", "Graph Database", "behavior_definition, behavior, policy, learning tables")

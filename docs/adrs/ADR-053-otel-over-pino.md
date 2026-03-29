@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Brain uses Pino (v10.3.1) for structured logging via `logInfo`/`logWarn`/`logError`/`logDebug` wrappers (411 call sites across 64 files) and `withRequestLogging` for HTTP request lifecycle tracking. The system has 7 model configurations with 16+ `generateObject`/`streamText` call sites across extraction, chat, observer, PM agent, behavior scorer, onboarding, intent authorization, and analytics.
+Osabio uses Pino (v10.3.1) for structured logging via `logInfo`/`logWarn`/`logError`/`logDebug` wrappers (411 call sites across 64 files) and `withRequestLogging` for HTTP request lifecycle tracking. The system has 7 model configurations with 16+ `generateObject`/`streamText` call sites across extraction, chat, observer, PM agent, behavior scorer, onboarding, intent authorization, and analytics.
 
 Current observability gaps:
 

@@ -176,7 +176,7 @@ Pattern: **Confidence Building** (Uncertain -> Focused -> Confident)
 ```
 +-- Learning Library --------------------------------------------+
 |                                                                |
-|  Workspace: Brain Development | 8 active learnings            |
+|  Workspace: Osabio Development | 8 active learnings            |
 |                                                                |
 |  Filter: [All] [Active] [Superseded] [Dismissed]              |
 |  Agent:  [All] [code_agent] [chat_agent] [pm_agent]           |

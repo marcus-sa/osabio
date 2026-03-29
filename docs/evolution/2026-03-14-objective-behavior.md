@@ -6,7 +6,7 @@
 
 ## Summary
 
-Added objective and behavior node types to the Brain knowledge graph. Objectives represent strategic goals with success criteria and target dates. Behavior records capture per-session agent telemetry (e.g., TDD adherence, security-first compliance) as append-only scored records. Together they enable intent-objective alignment (cosine similarity), behavior-based policy enforcement (score thresholds as policy predicates), coherence auditing (orphaned decisions, stale objectives), and a learning loop that proposes learnings from behavior trend analysis.
+Added objective and behavior node types to the Osabio knowledge graph. Objectives represent strategic goals with success criteria and target dates. Behavior records capture per-session agent telemetry (e.g., TDD adherence, security-first compliance) as append-only scored records. Together they enable intent-objective alignment (cosine similarity), behavior-based policy enforcement (score thresholds as policy predicates), coherence auditing (orphaned decisions, stale objectives), and a learning loop that proposes learnings from behavior trend analysis.
 
 ## Architecture Overview
 

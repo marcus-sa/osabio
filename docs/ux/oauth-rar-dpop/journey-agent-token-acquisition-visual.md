@@ -2,13 +2,13 @@
 
 ## Overview
 
-The complete flow from any actor (AI agent or human operator) recognizing it needs authorization for a Brain operation, through the Custom Authorization Server (with optional human consent for high-risk actions), to receiving a DPoP-bound access token with `brain_action` authorization_details. Includes the Bridge path for human operators exchanging Better Auth sessions.
+The complete flow from any actor (AI agent or human operator) recognizing it needs authorization for a Osabio operation, through the Custom Authorization Server (with optional human consent for high-risk actions), to receiving a DPoP-bound access token with `osabio_action` authorization_details. Includes the Bridge path for human operators exchanging Better Auth sessions.
 
 ## Actors
 
 - **Agent Runtime** (e.g., code_agent "Kira" running in E2B sandbox within workspace "Lusaka")
 - **Human Operator** (Marcus Santos, workspace owner -- via dashboard Bridge OR reviewing agent authorizations)
-- **Custom Authorization Server** (Brain platform -- evaluates Rich Intent Objects, issues DPoP-bound RAR tokens)
+- **Custom Authorization Server** (Osabio platform -- evaluates Rich Intent Objects, issues DPoP-bound RAR tokens)
 - **Better Auth IdP** (identity provider for human login -- session/scopes for dashboard UI ONLY)
 
 ## Emotional Arc
@@ -18,7 +18,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
   |                        |                             |
   v                        v                             v
 "I need to act         "I can see what's            "I hold exactly
- on the Brain"          happening and why"           the authority I need"
+ on the Osabio"          happening and why"           the authority I need"
 ```
 
 ## Journey Flow: Agent Path
@@ -30,12 +30,12 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Emotion: Purposeful -- "I know what I need to do"                |
 +------------------------------------------------------------------+
 |                                                                    |
-|  Agent identifies a Brain operation during task execution.         |
-|  Constructs a brain_action intent from the task context.           |
+|  Agent identifies a Osabio operation during task execution.         |
+|  Constructs a osabio_action intent from the task context.           |
 |  ALL operations require this -- reads, writes, integrations.       |
 |                                                                    |
-|  brain_action:                                                     |
-|    type: "brain_action"                                            |
+|  osabio_action:                                                     |
+|    type: "osabio_action"                                            |
 |    action: "create"                                                |
 |    resource: "invoice"                                             |
 |    constraints:                                                    |
@@ -80,7 +80,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |    goal: "Invoice Acme Corp for Q1 consulting"                     |
 |    reasoning: "Task T-4821 requires invoicing upon milestone..."   |
 |    authorization_details: [{                                       |
-|      type: "brain_action",                                         |
+|      type: "osabio_action",                                         |
 |      action: "create",                                             |
 |      resource: "invoice",                                          |
 |      constraints: {                                                |
@@ -129,7 +129,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Notification delivered (in-app / email / push):                   |
 |                                                                    |
 |  +------------------------------------------------------------+   |
-|  | Agent "Kira" requests Brain authorization                 [!] |  |
+|  | Agent "Kira" requests Osabio authorization                 [!] |  |
 |  |------------------------------------------------------------|   |
 |  |                                                            |   |
 |  | Operation: Create Invoice                                  |   |
@@ -166,10 +166,10 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Content-Type: application/x-www-form-urlencoded                   |
 |  DPoP: <signed DPoP proof JWT>                                     |
 |                                                                    |
-|  grant_type=urn:brain:intent-authorization                         |
+|  grant_type=urn:osabio:intent-authorization                         |
 |  &intent_id=intent:abc123                                          |
 |  &authorization_details=[{                                         |
-|      "type": "brain_action",                                       |
+|      "type": "osabio_action",                                       |
 |      "action": "create",                                           |
 |      "resource": "invoice",                                        |
 |      "constraints": {                                              |
@@ -198,7 +198,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Custom AS validates:                                              |
 |    1. Intent exists and status = authorized                        |
 |    2. Intent requester matches token requestor identity             |
-|    3. authorization_details matches intent brain_action             |
+|    3. authorization_details matches intent osabio_action             |
 |    4. DPoP proof is valid (signature, jti unique, iat fresh)       |
 |    5. DPoP JWK thumbprint matches intent dpop_jwk_thumbprint       |
 |                                                                    |
@@ -215,25 +215,25 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |    aud: "https://brain.example"                                    |
 |    iss: "https://brain.example/api/auth"                           |
 |    cnf: { jkt: "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs" }   |
-|    authorization_details: [{ type: "brain_action", ... }]          |
-|    urn:brain:workspace: "lusaka-ws-001"                             |
-|    urn:brain:intent_id: "abc123"                                   |
+|    authorization_details: [{ type: "osabio_action", ... }]          |
+|    urn:osabio:workspace: "lusaka-ws-001"                             |
+|    urn:osabio:intent_id: "abc123"                                   |
 |    exp: <now + 300s>                                               |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
                                v
 +------------------------------------------------------------------+
-|  STEP 7: Brain Operation Execution                                |
-|  Actor: Agent Runtime (Kira) -> Brain Resource Server             |
+|  STEP 7: Osabio Operation Execution                                |
+|  Actor: Agent Runtime (Kira) -> Osabio Resource Server             |
 |  Emotion: Confident -- "I hold exactly the authority I need"       |
 +------------------------------------------------------------------+
 |                                                                    |
-|  POST /api/brain/integrations/stripe/invoices                      |
+|  POST /api/osabio/integrations/stripe/invoices                      |
 |  Authorization: DPoP <access_token>                                |
 |  DPoP: <fresh DPoP proof JWT for this request>                     |
 |                                                                    |
-|  The Brain resource server validates (SAME pipeline for ALL        |
+|  The Osabio resource server validates (SAME pipeline for ALL        |
 |  actors -- agent or human):                                        |
 |    1. Access token signature (JWKS)                                |
 |    2. DPoP proof signature and freshness                           |
@@ -261,21 +261,21 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Standard Better Auth login (email/password, OAuth, SSO)           |
 |  Receives session cookie with scopes (e.g., "dashboard:access")    |
 |  Scopes mean: "I am a logged-in human." Nothing more.              |
-|  This session CANNOT directly access the Brain.                    |
+|  This session CANNOT directly access the Osabio.                    |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
                                v
 +------------------------------------------------------------------+
-|  BRIDGE STEP 2: Dashboard Requests Brain Operation                |
+|  BRIDGE STEP 2: Dashboard Requests Osabio Operation                |
 |  Actor: Dashboard Client (browser)                                |
 |  Emotion: Transparent -- handled by client library                 |
 +------------------------------------------------------------------+
 |                                                                    |
 |  User clicks "View Project Lusaka" in the dashboard.               |
 |  Dashboard client library:                                         |
-|    1. Constructs brain_action:                                     |
-|       { type: "brain_action", action: "read",                      |
+|    1. Constructs osabio_action:                                     |
+|       { type: "osabio_action", action: "read",                      |
 |         resource: "knowledge_graph",                               |
 |         constraints: { project: "lusaka", depth: 2 } }            |
 |    2. Generates/reuses DPoP key pair (browser session-scoped)      |
@@ -286,7 +286,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  DPoP: <signed DPoP proof JWT>                                     |
 |  {                                                                 |
 |    authorization_details: [{                                       |
-|      type: "brain_action",                                         |
+|      type: "osabio_action",                                         |
 |      action: "read",                                               |
 |      resource: "knowledge_graph",                                  |
 |      constraints: { project: "lusaka", depth: 2 }                  |
@@ -306,7 +306,7 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |    1. Better Auth session is still active (API call to Better Auth)|
 |    2. Human identity resolved from session (userId -> identity)    |
 |    3. Identity has workspace membership                            |
-|    4. brain_action is consistent with workspace state              |
+|    4. osabio_action is consistent with workspace state              |
 |       (Authorizer Agent evaluates the Rich Intent Object)          |
 |    5. DPoP proof is valid                                          |
 |                                                                    |
@@ -316,27 +316,27 @@ Start: Purposeful     Middle: Transparent/Waiting     End: Confident
 |  Issues DPoP-bound access token (same format as agent tokens):     |
 |    sub: "identity:marcus-human-001"                                |
 |    cnf: { jkt: "<browser_key_thumbprint>" }                        |
-|    authorization_details: [{ type: "brain_action", ... }]          |
-|    urn:brain:workspace: "lusaka-ws-001"                             |
+|    authorization_details: [{ type: "osabio_action", ... }]          |
+|    urn:osabio:workspace: "lusaka-ws-001"                             |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
                                v
 +------------------------------------------------------------------+
-|  BRIDGE STEP 4: Dashboard Accesses Brain                          |
-|  Actor: Dashboard Client -> Brain Resource Server                 |
+|  BRIDGE STEP 4: Dashboard Accesses Osabio                          |
+|  Actor: Dashboard Client -> Osabio Resource Server                 |
 |  Emotion: Seamless -- "the dashboard just works"                   |
 +------------------------------------------------------------------+
 |                                                                    |
-|  GET /api/brain/projects/lusaka/graph                              |
+|  GET /api/osabio/projects/lusaka/graph                              |
 |  Authorization: DPoP <access_token>                                |
 |  DPoP: <fresh DPoP proof JWT>                                      |
 |                                                                    |
-|  Brain resource server runs the SAME verification pipeline:        |
+|  Osabio resource server runs the SAME verification pipeline:        |
 |    DPoP proof + cnf.jkt + authorization_details matching           |
 |                                                                    |
 |  Marcus's request is indistinguishable from Kira's at the          |
-|  Brain boundary. Human parity achieved.                            |
+|  Osabio boundary. Human parity achieved.                            |
 |                                                                    |
 +------------------------------------------------------------------+
 ```
@@ -372,7 +372,7 @@ Token request -> DPoP proof JWK thumbprint does not match
 ### E4: Token Expired Before Use
 ```
 Actor obtains token (5-min TTL) but operation execution is delayed
--> Brain resource server rejects: 401 { error: "token_expired" }
+-> Osabio resource server rejects: 401 { error: "token_expired" }
 -> Actor must: request a new token (intent still authorized,
    re-issuance allowed within intent expiry window)
 ```
@@ -396,11 +396,11 @@ Human dashboard requests Bridge token exchange
 -> Dashboard redirects to Better Auth login page
 ```
 
-### E7: Session Cookie Rejected at Brain Boundary
+### E7: Session Cookie Rejected at Osabio Boundary
 ```
-Dashboard code sends request with session cookie directly to Brain
--> Brain resource server: no Authorization: DPoP header found
+Dashboard code sends request with session cookie directly to Osabio
+-> Osabio resource server: no Authorization: DPoP header found
 -> 401: { error: "dpop_required", detail: "Brain operations require
    DPoP-bound RAR tokens. Use the Bridge to exchange your session." }
--> No scope fallback. No Bearer path. Brain is DPoP+RAR only.
+-> No scope fallback. No Bearer path. Osabio is DPoP+RAR only.
 ```

@@ -1,5 +1,5 @@
 /**
- * Embedded plugin content for `brain init`.
+ * Embedded plugin content for `osabio init`.
  *
  * The compiled binary can't read plugin/ files at runtime,
  * so we embed hooks, CLAUDE.md, and commands as constants.
@@ -9,14 +9,14 @@
 // Hooks (from plugin/hooks/hooks.json)
 // ---------------------------------------------------------------------------
 
-export const BRAIN_HOOKS: Record<string, Array<{ type: string; command?: string; prompt?: string }>> = {
+export const OSABIO_HOOKS: Record<string, Array<{ type: string; command?: string; prompt?: string }>> = {
   UserPromptSubmit: [
-    { type: "command", command: "brain system check-updates" },
+    { type: "command", command: "osabio system check-updates" },
   ],
   Stop: [
     {
       type: "prompt",
-      prompt: `Review this conversation for items that were discussed but NOT logged via the Brain MCP tools. Check each category:
+      prompt: `Review this conversation for items that were discussed but NOT logged via the Osabio MCP tools. Check each category:
 
 1. **Decisions**: Architecture or design choices where alternatives existed (e.g. choosing a pattern, library, data model, or trade-off). Do NOT log mechanical bugfixes, typo corrections, or changes with only one correct approach. Call create_provisional_decision for each genuine decision.
 2. **Questions**: Unresolved questions raised but not logged. Call ask_question for each.
@@ -33,7 +33,7 @@ If you cannot log required items (for example MCP unavailable), respond with:
     },
   ],
   SessionEnd: [
-    { type: "command", command: "brain system end-session" },
+    { type: "command", command: "osabio system end-session" },
   ],
 };
 
@@ -41,9 +41,9 @@ If you cannot log required items (for example MCP unavailable), respond with:
 // CLAUDE.md (from plugin/CLAUDE.md)
 // ---------------------------------------------------------------------------
 
-export const BRAIN_CLAUDE_MD = `# Brain Knowledge Graph Integration
+export const OSABIO_CLAUDE_MD = `# Osabio Knowledge Graph Integration
 
-This project is connected to the Brain knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
+This project is connected to the Osabio knowledge graph via MCP tools. The graph contains decisions, constraints, tasks, questions, and observations from all agents and humans working on this workspace.
 
 ## Getting Context
 
@@ -92,15 +92,15 @@ You can include task IDs (\`task:abc123\`), project names, file paths, or just a
 // Commands (slash commands installed to .claude/commands/)
 // ---------------------------------------------------------------------------
 
-export const BRAIN_COMMANDS: Record<string, string> = {
-  "brain-start-task.md": `---
-name: brain-start-task
-description: Start working on a specific task from the Brain knowledge graph
+export const OSABIO_COMMANDS: Record<string, string> = {
+  "osabio-start-task.md": `---
+name: osabio-start-task
+description: Start working on a specific task from the Osabio knowledge graph
 user_invocable: true
 args: task_id
 ---
 
-# /brain-start-task <task_id>
+# /osabio-start-task <task_id>
 
 Start a task-scoped session focused on a specific task.
 
@@ -113,22 +113,22 @@ Start a task-scoped session focused on a specific task.
 5. Show related decisions and constraints
 6. Call \`update_task_status\` to set the task to "in_progress" if it's currently "todo" or "ready"
 7. If the task has no subtasks, analyze what needs to be done and offer to create subtasks via \`create_subtask\`
-8. Begin implementation, using Brain MCP tools throughout:
+8. Begin implementation, using Osabio MCP tools throughout:
    - \`resolve_decision\` when hitting implementation choices
    - \`check_constraints\` before adding dependencies or changing approaches
    - \`create_provisional_decision\` when making choices the graph doesn't cover
    - \`ask_question\` when genuinely uncertain
    - \`update_task_status\` as subtasks complete`,
 
-  "brain-status.md": `---
-name: brain-status
-description: Show current Brain knowledge graph context for this project
+  "osabio-status.md": `---
+name: osabio-status
+description: Show current Osabio knowledge graph context for this project
 user_invocable: true
 ---
 
-# /brain-status
+# /osabio-status
 
-Show the current project context from the Brain knowledge graph.
+Show the current project context from the Osabio knowledge graph.
 
 ## Instructions
 

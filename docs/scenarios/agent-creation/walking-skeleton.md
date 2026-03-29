@@ -46,7 +46,7 @@ Each skeleton is implemented one at a time. The crafter enables one, writes inne
 ## Focused Scenario Design
 
 After the walking skeleton passes, focused scenarios cover:
-- **Error paths**: duplicate name, missing auth, wrong confirmation, brain agent restrictions
+- **Error paths**: duplicate name, missing auth, wrong confirmation, osabio agent restrictions
 - **Boundary conditions**: workspace isolation, cross-workspace name uniqueness
 - **Transaction atomicity**: no partial records on failure, full edge cleanup on deletion
 - **Authority model**: default "propose" permissions, scope persistence

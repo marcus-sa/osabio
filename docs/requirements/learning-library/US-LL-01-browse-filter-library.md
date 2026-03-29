@@ -35,7 +35,7 @@ Priya, a new workspace owner for workspace "design-studio", navigates to the Lea
 ### Scenario: Navigate to learning library
 
 ```gherkin
-Given Marcus is logged into workspace "brain-v1"
+Given Marcus is logged into workspace "osabio-v1"
 When Marcus clicks "Learnings" in the sidebar
 Then the learning library page loads at route "/learnings"
 And the Active tab is selected by default
@@ -46,7 +46,7 @@ And each tab shows its item count
 
 ```gherkin
 Given Marcus is on the learning library page
-And there are 12 active learnings in workspace "brain-v1"
+And there are 12 active learnings in workspace "osabio-v1"
 When the Active tab is displayed
 Then 12 learning cards are shown
 And each card displays: text preview, type badge, priority, target agent chips, source

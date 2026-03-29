@@ -1,17 +1,17 @@
 /**
  * RAR Operation Scope Verifier
  *
- * Matches a requested BrainAction against an array of authorized
- * BrainActions from a token's authorization_details claim.
+ * Matches a requested OsabioAction against an array of authorized
+ * OsabioActions from a token's authorization_details claim.
  *
  * Pure function. No IO imports.
  */
-import type { BrainAction, RARVerificationResult } from "./types";
+import type { OsabioAction, RARVerificationResult } from "./types";
 
 function findMatchingAuthorization(
-  requested: BrainAction,
-  authorized: BrainAction[],
-): BrainAction | undefined {
+  requested: OsabioAction,
+  authorized: OsabioAction[],
+): OsabioAction | undefined {
   return authorized.find(
     (auth) =>
       auth.type === requested.type &&
@@ -48,8 +48,8 @@ export function findExceededConstraint(
 }
 
 export function verifyOperationScope(
-  requested: BrainAction,
-  authorized: BrainAction[],
+  requested: OsabioAction,
+  authorized: OsabioAction[],
 ): RARVerificationResult {
   const match = findMatchingAuthorization(requested, authorized);
 

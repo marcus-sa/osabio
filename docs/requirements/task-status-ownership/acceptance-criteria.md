@@ -36,36 +36,36 @@ Feature: Session accept does not change task status
     And the task status remains "done"
 ```
 
-## US-3: Add brain commit-check CLI command
+## US-3: Add osabio commit-check CLI command
 
 ```gherkin
-Feature: brain commit-check parses task refs and sets done
+Feature: osabio commit-check parses task refs and sets done
 
   Scenario: Commit message with single task ref
     Given a commit with message "Implement login flow\n\ntask:abc123"
-    When brain commit-check runs
+    When osabio commit-check runs
     Then task "abc123" status is set to "done"
 
   Scenario: Commit message with multiple task refs
     Given a commit with message "Batch update\n\ntasks: abc123, def456"
-    When brain commit-check runs
+    When osabio commit-check runs
     Then task "abc123" status is set to "done"
     And task "def456" status is set to "done"
 
   Scenario: Commit message with no task refs
     Given a commit with message "Fix typo in README"
-    When brain commit-check runs
+    When osabio commit-check runs
     Then no task status changes occur
 
   Scenario: Task already done (idempotent)
     Given a commit referencing task "abc123"
     And task "abc123" already has status "done"
-    When brain commit-check runs
+    When osabio commit-check runs
     Then task "abc123" status remains "done"
     And no error is raised
 
   Scenario: Commit check does not block the git workflow
-    When brain commit-check runs as a post-commit hook
+    When osabio commit-check runs as a post-commit hook
     Then it completes without blocking subsequent git operations
     And API failures are logged but do not cause a non-zero exit code
 ```
@@ -76,9 +76,9 @@ Feature: brain commit-check parses task refs and sets done
 Feature: commit-check runs as post-commit hook
 
   Scenario: Git commit triggers commit-check
-    Given a Brain-managed repository with post-commit hook installed
+    Given a Osabio-managed repository with post-commit hook installed
     When a developer makes a git commit with message containing "task:abc123"
-    Then brain commit-check runs automatically after the commit
+    Then osabio commit-check runs automatically after the commit
     And task "abc123" status is set to "done"
 ```
 

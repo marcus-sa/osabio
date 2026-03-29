@@ -17,10 +17,10 @@ After each LLM call completes, asynchronously create an `trace` node in SurrealD
 ## Domain Examples
 
 ### 1: Happy Path -- Full trace with all edges
-Priya's Claude Code completes a streaming request for "claude-sonnet-4" with 12,340 input tokens (8,200 cache read) and 2,100 output tokens. Cost: $0.068. The proxy creates `trace:tr-001` with all usage fields, then creates edges: `agent_session:6ba7b810 -> invoked -> trace:tr-001`, `trace:tr-001 -> attributed_to -> task:implement-oauth`, `trace:tr-001 -> scoped_to -> workspace:brain-v1`. Marcus later queries `SELECT ->invoked->trace FROM agent_session:6ba7b810` and sees all 8 traces from Priya's session.
+Priya's Claude Code completes a streaming request for "claude-sonnet-4" with 12,340 input tokens (8,200 cache read) and 2,100 output tokens. Cost: $0.068. The proxy creates `trace:tr-001` with all usage fields, then creates edges: `agent_session:6ba7b810 -> invoked -> trace:tr-001`, `trace:tr-001 -> attributed_to -> task:implement-oauth`, `trace:tr-001 -> scoped_to -> workspace:osabio-v1`. Marcus later queries `SELECT ->invoked->trace FROM agent_session:6ba7b810` and sees all 8 traces from Priya's session.
 
 ### 2: Edge Case -- Trace without task attribution
-Priya's request had no X-Brain-Task header. The trace is created with workspace and session edges but no `attributed_to` edge. The trace still appears in workspace-level cost queries but not in task-level queries.
+Priya's request had no X-Osabio-Task header. The trace is created with workspace and session edges but no `attributed_to` edge. The trace still appears in workspace-level cost queries but not in task-level queries.
 
 ### 3: Error Path -- Graph write fails (SurrealDB temporarily unavailable)
 The LLM call succeeds and the response is delivered to Priya. The async trace write fails because SurrealDB is briefly unreachable. The proxy retries the write 3 times with exponential backoff. If all retries fail, the trace data is logged to stderr as structured JSON (recovery fallback) and a warning observation is created when SurrealDB reconnects.
@@ -40,16 +40,16 @@ And latency_ms records the total request duration
 And stop_reason records the value from message_delta
 
 ### Scenario: Trace edges link to session, workspace, and task
-Given the identity resolution produced session="6ba7b810", workspace="brain-v1", task="implement-oauth"
+Given the identity resolution produced session="6ba7b810", workspace="osabio-v1", task="implement-oauth"
 When the trace is captured
 Then edge "agent_session:6ba7b810 -> invoked -> trace:{id}" exists
 And edge "trace:{id} -> attributed_to -> task:implement-oauth" exists
-And edge "trace:{id} -> scoped_to -> workspace:brain-v1" exists
+And edge "trace:{id} -> scoped_to -> workspace:osabio-v1" exists
 
 ### Scenario: Trace without task has workspace and session edges only
-Given no X-Brain-Task header was present
+Given no X-Osabio-Task header was present
 When the trace is captured
-Then edge "trace:{id} -> scoped_to -> workspace:brain-v1" exists
+Then edge "trace:{id} -> scoped_to -> workspace:osabio-v1" exists
 And edge "agent_session:{id} -> invoked -> trace:{id}" exists
 And no attributed_to edge is created
 
@@ -77,7 +77,7 @@ And a warning observation is created when SurrealDB reconnects
 ## Technical Notes
 - trace table must be SCHEMAFULL with all fields defined
 - RELATE edges: `invoked` (TYPE RELATION IN agent_session OUT trace), `attributed_to` (TYPE RELATION IN trace OUT task|feature|project), `scoped_to` (TYPE RELATION IN trace OUT workspace)
-- Use `deps.inflight.track()` for async trace writes (consistent with Brain's existing pattern)
+- Use `deps.inflight.track()` for async trace writes (consistent with Osabio's existing pattern)
 - Cost calculation uses local pricing table (model -> input/output/cache_write/cache_read rates per million tokens)
 - Schema migration required: new tables `trace`, `invoked`, `attributed_to` (reuse existing if compatible), `scoped_to`
 

@@ -10,16 +10,16 @@
 | **Assignment Guard** | Pre-assignment validation: task eligibility, one-agent-per-task, authority check | Validation rules, error messages | Task status transitions, session creation |
 | **Session Lifecycle** | OpenCode process spawn/kill, client caching, session creation, AbortController management | Active session registry (in-memory Map), process cleanup | Git operations, event forwarding |
 | **Worktree Manager** | Git worktree CRUD, branch management, diff generation | Worktree paths, git CLI commands | Database persistence, process management |
-| **Event Bridge** | Subscribe to OpenCode SSE, transform events, forward to Brain SSE, stall detection | Event transformation rules, heartbeat timers | SSE transport (delegated to SseRegistry) |
+| **Event Bridge** | Subscribe to OpenCode SSE, transform events, forward to Osabio SSE, stall detection | Event transformation rules, heartbeat timers | SSE transport (delegated to SseRegistry) |
 | **OpenCode Config Builder** | Build config object with MCP URLs, auth tokens, model settings | Config schema mapping | JWT creation (delegated to auth module), MCP route definitions |
 
 ### CLI-Side (cli/ + .opencode/plugins/)
 
 | Component | Responsibility | Owns | Does NOT Own |
 |-----------|---------------|------|-------------|
-| **Brain OpenCode Plugin** | Register custom tools + lifecycle hooks for OpenCode | Tool definitions, hook handlers, plugin init | HTTP transport (delegated to CLI HTTP Client), auth flow |
-| **CLI HTTP Client** (existing) | Authenticated HTTP calls to Brain API, OAuth token refresh | Token storage, request construction, auto-refresh | Tool definitions, MCP protocol, plugin API |
-| **Init Command** (existing, extended) | Generate agent-specific config files and plugin installation | Config file templates, detection of agent runtime | OAuth flow (delegated to existing init), Brain API |
+| **Osabio OpenCode Plugin** | Register custom tools + lifecycle hooks for OpenCode | Tool definitions, hook handlers, plugin init | HTTP transport (delegated to CLI HTTP Client), auth flow |
+| **CLI HTTP Client** (existing) | Authenticated HTTP calls to Osabio API, OAuth token refresh | Token storage, request construction, auto-refresh | Tool definitions, MCP protocol, plugin API |
+| **Init Command** (existing, extended) | Generate agent-specific config files and plugin installation | Config file templates, detection of agent runtime | OAuth flow (delegated to existing init), Osabio API |
 
 ## Dependency Direction
 
@@ -45,12 +45,12 @@ Orchestrator Routes
 ### CLI-Side
 
 ```
-Brain OpenCode Plugin (.opencode/plugins/brain.ts)
+Osabio OpenCode Plugin (.opencode/plugins/osabio.ts)
     |-- CLI HTTP Client (cli/http-client.ts)
     |       |-- Config Manager (cli/config.ts)
     |-- @opencode-ai/plugin (type imports only)
 
-Brain MCP Server (cli/mcp-server.ts)  [existing, unchanged]
+Osabio MCP Server (cli/mcp-server.ts)  [existing, unchanged]
     |-- CLI HTTP Client (cli/http-client.ts)
 
 Init Command (cli/commands/init.ts)  [extended]
@@ -135,7 +135,7 @@ createWorktree(input: {
   repoRoot: string
   taskSlug: string
 }) -> Promise<{
-  worktreePath: string   // e.g. ".brain/worktrees/agent-{taskSlug}"
+  worktreePath: string   // e.g. ".osabio/worktrees/agent-{taskSlug}"
   branchName: string     // e.g. "agent/{taskSlug}"
 }>
 
@@ -174,11 +174,11 @@ startBridge(input: {
 }) -> { stop: () => void }
 
 Event transformation:
-  OpenCode EventMessagePartUpdated  ->  Brain {type: "agent_token", ...}
-  OpenCode EventFileEdited          ->  Brain {type: "agent_file_change", ...}
-  OpenCode session completed        ->  Brain {type: "agent_done", ...}
-  OpenCode session error             ->  Brain {type: "agent_error", ...}
-  No events for stall threshold     ->  Brain {type: "agent_stall_warning", ...}
+  OpenCode EventMessagePartUpdated  ->  Osabio {type: "agent_token", ...}
+  OpenCode EventFileEdited          ->  Osabio {type: "agent_file_change", ...}
+  OpenCode session completed        ->  Osabio {type: "agent_done", ...}
+  OpenCode session error             ->  Osabio {type: "agent_error", ...}
+  No events for stall threshold     ->  Osabio {type: "agent_stall_warning", ...}
 ```
 
 ### Session Lifecycle -> Config Builder
@@ -193,15 +193,15 @@ buildOpencodeConfig(input: {
   // Pure function, no side effects
 ```
 
-### Brain OpenCode Plugin -> CLI HTTP Client
+### Osabio OpenCode Plugin -> CLI HTTP Client
 
 ```
 Plugin initialization:
-  loadConfig(repoRoot) -> BrainConfig
-    // Reads ~/.brain/config.json, resolves worktree to main repo root
+  loadConfig(repoRoot) -> OsabioConfig
+    // Reads ~/.osabio/config.json, resolves worktree to main repo root
     // Returns: { server_url, workspace, client_id, access_token, refresh_token, token_expires_at }
 
-  createHttpClient(config) -> BrainHttpClient
+  createHttpClient(config) -> OsabioHttpClient
     // Existing class from cli/http-client.ts
     // Handles token refresh automatically
 
@@ -227,16 +227,16 @@ Plugin lifecycle hooks:
 ### Init Command -> Plugin Installation
 
 ```
-initOpenCode(repoRoot: string, config: BrainConfig) -> void
+initOpenCode(repoRoot: string, config: OsabioConfig) -> void
   // 1. Create .opencode/plugins/ directory
-  // 2. Write .opencode/plugins/brain.ts (embedded template from init-content.ts)
+  // 2. Write .opencode/plugins/osabio.ts (embedded template from init-content.ts)
   // 3. Write .opencode/package.json with @opencode-ai/plugin dependency
   // 4. Create/update opencode.json with plugin reference (if npm approach used)
   // 5. Write OPENCODE.md instructions file (equivalent to CLAUDE.md block)
 
   Errors:
     - .opencode/ directory not writable
-    - Config missing (run brain init first)
+    - Config missing (run osabio init first)
 ```
 
 ---
@@ -271,7 +271,7 @@ These are added to the `StreamEvent` union in `shared/contracts.ts`.
 
 ### MCP Session Auto-Wiring
 
-When OpenCode starts, it calls the Brain MCP `sessions/start` endpoint. The existing `handleSessionStart` in `mcp-route.ts` creates an `agent_session` record. However, the orchestrator has already created one during assignment.
+When OpenCode starts, it calls the Osabio MCP `sessions/start` endpoint. The existing `handleSessionStart` in `mcp-route.ts` creates an `agent_session` record. However, the orchestrator has already created one during assignment.
 
 Resolution: The orchestrator passes the `agent_session` ID to OpenCode via the task prompt or MCP config, so the MCP session start can link to the existing session rather than creating a duplicate. Alternatively, the orchestrator creates the session via `createAgentSession()` before OpenCode starts, and OpenCode's MCP session start becomes a no-op update.
 

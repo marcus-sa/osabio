@@ -4,7 +4,7 @@ Model Context Protocol server — authenticates coding agents via DPoP, provides
 
 ## The Problem
 
-External coding agents (Claude Code, Cursor, Aider) need access to the knowledge graph. They need to know what decisions have been made, what tasks are assigned, what constraints exist — and they need to write back observations, suggestions, and intent requests. The MCP module is the authenticated API surface that bridges coding agents to the Brain graph.
+External coding agents (Claude Code, Cursor, Aider) need access to the knowledge graph. They need to know what decisions have been made, what tasks are assigned, what constraints exist — and they need to write back observations, suggestions, and intent requests. The MCP module is the authenticated API surface that bridges coding agents to the Osabio graph.
 
 ## What It Does
 
@@ -21,7 +21,7 @@ External coding agents (Claude Code, Cursor, Aider) need access to the knowledge
 |------|------------|
 | **DPoP Token** | OAuth 2.0 access token bound to a specific key pair — proof JWT sent with each request |
 | **Context Packet** | Bundle of decisions (confirmed/provisional/contested), tasks, questions, observations, suggestions |
-| **Workspace Binding** | DPoP token contains `urn:brain:workspace` claim — middleware extracts workspace from JWT, not URL path |
+| **Workspace Binding** | DPoP token contains `urn:osabio:workspace` claim — middleware extracts workspace from JWT, not URL path |
 | **mcpFetch** | Client-side helper that creates a fresh DPoP proof per request (proofs are single-use) |
 | **Commit Check** | Regex extraction of `task:abc123` or `tasks: abc, def` from commit messages |
 
@@ -29,7 +29,7 @@ External coding agents (Claude Code, Cursor, Aider) need access to the knowledge
 
 **Example — coding agent loads project context:**
 
-1. Agent starts session → `brain init` acquired DPoP-bound token with workspace claim
+1. Agent starts session → `osabio init` acquired DPoP-bound token with workspace claim
 2. Agent calls `POST /api/mcp/:workspaceId/context` with `{ project: "rate-limiting" }`
 3. DPoP middleware: extract token → verify signature → validate proof → check replay → lookup workspace
 4. `context-builder.ts` builds packet:
@@ -60,7 +60,7 @@ External coding agents (Claude Code, Cursor, Aider) need access to the knowledge
 ```text
 Coding Agent (Claude Code, Cursor, Aider)
   |
-  +---> brain init (OAuth 2.1 + PKCE + DPoP)
+  +---> osabio init (OAuth 2.1 + PKCE + DPoP)
   |
   v
 POST /api/mcp/:workspaceId/context

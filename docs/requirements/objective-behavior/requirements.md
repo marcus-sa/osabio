@@ -2,7 +2,7 @@
 
 ## Business Context
 
-The Brain platform currently governs **what** agents do (OAuth/RAR authorization, intent evaluation, policy enforcement). This feature adds governance for **why** agents work (Objectives) and **how well** they work (Behaviors), transforming Brain from a technical sandbox into a Strategic Operating System.
+The Osabio platform currently governs **what** agents do (OAuth/RAR authorization, intent evaluation, policy enforcement). This feature adds governance for **why** agents work (Objectives) and **how well** they work (Behaviors), transforming Osabio from a technical sandbox into a Strategic Operating System.
 
 ### Business Objectives
 1. **Strategic Alignment**: Every agent intent traceable to a business objective, preventing organizational waste
@@ -164,7 +164,7 @@ Observer Agent extended to consume behavior records as input signals for its exi
 - Policy evaluation extension for behavior metric conditions
 
 ### External Dependencies
-- None (all telemetry sources are internal to Brain -- agent session data, trace records)
+- None (all telemetry sources are internal to Osabio -- agent session data, trace records)
 - Future: GitHub API integration for richer source telemetry (PR data, CI results) -- out of scope for initial release
 
 ---

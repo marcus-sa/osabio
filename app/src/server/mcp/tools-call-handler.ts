@@ -174,7 +174,7 @@ function findClassifiedTool(
  *
  * Pipeline:
  *   1. Look up tool in classified list
- *   2. Branch on classification: authorized -> forward, gated -> 403, brain_native -> 501
+ *   2. Branch on classification: authorized -> forward, gated -> 403, osabio_native -> 501
  *   3. Record trace for ALL outcomes
  *   4. Return result or error
  */
@@ -270,7 +270,7 @@ export async function handleToolCall(
       };
     }
 
-    case "brain_native": {
+    case "osabio_native": {
       if (toolName === "create_intent") {
         const outcome = await handleCreateIntent(toolArgs, context, deps.surreal);
         const durationMs = performance.now() - startTime;
@@ -328,7 +328,7 @@ export async function handleToolCall(
         };
       }
 
-      // Other brain-native tools (get_context, etc.) not yet implemented
+      // Other osabio-native tools (get_context, etc.) not yet implemented
       const durationMs = performance.now() - startTime;
       deps.inflight.track(
         recordToolTrace(deps.surreal, context, toolName, "error", durationMs),
@@ -336,7 +336,7 @@ export async function handleToolCall(
       return {
         kind: "error",
         code: -32601,
-        message: `Not implemented: brain-native tool '${toolName}'`,
+        message: `Not implemented: osabio-native tool '${toolName}'`,
       };
     }
   }

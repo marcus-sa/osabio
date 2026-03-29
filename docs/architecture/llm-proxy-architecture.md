@@ -1,6 +1,6 @@
 # LLM Proxy Architecture
 
-**Feature**: Brain LLM Proxy
+**Feature**: Osabio LLM Proxy
 **Author**: Morgan (solution-architect)
 **Date**: 2026-03-15
 **Status**: Proposed
@@ -27,13 +27,13 @@ The LLM Proxy is the transparent intermediary between coding agents (Claude Code
 
 ```mermaid
 C4Context
-    title System Context: Brain LLM Proxy
+    title System Context: Osabio LLM Proxy
 
     Person(developer, "Developer", "Uses Claude Code daily, 100-500 API calls/day")
     Person(admin, "Workspace Admin", "Monitors costs, manages policies")
     Person(auditor, "Compliance Auditor", "Quarterly audit, provenance verification")
 
-    System(brain, "Brain Platform", "Knowledge graph OS for autonomous organizations")
+    System(osabio, "Osabio Platform", "Knowledge graph OS for autonomous organizations")
 
     System_Ext(anthropic, "Anthropic API", "Claude model inference via Messages API")
     System_Ext(openrouter, "OpenRouter / Ollama", "Multi-provider model inference")
@@ -42,12 +42,12 @@ C4Context
 
     Rel(developer, claude_code, "Uses")
     Rel(developer, cursor, "Uses")
-    Rel(claude_code, brain, "Sends LLM requests via proxy")
-    Rel(cursor, brain, "Sends LLM requests via proxy")
+    Rel(claude_code, osabio, "Sends LLM requests via proxy")
+    Rel(cursor, osabio, "Sends LLM requests via proxy")
     Rel(brain, anthropic, "Forwards authenticated requests")
     Rel(brain, openrouter, "Forwards authenticated requests")
-    Rel(admin, brain, "Views spend dashboard, manages policies")
-    Rel(auditor, brain, "Queries provenance chains, runs compliance checks")
+    Rel(admin, osabio, "Views spend dashboard, manages policies")
+    Rel(auditor, osabio, "Queries provenance chains, runs compliance checks")
 ```
 
 ---
@@ -56,11 +56,11 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container Diagram: Brain LLM Proxy
+    title Container Diagram: Osabio LLM Proxy
 
     Person(agent, "Coding Agent", "Claude Code / Cursor / Custom")
 
-    System_Boundary(brain, "Brain Platform") {
+    System_Boundary(osabio, "Osabio Platform") {
         Container(proxy, "LLM Proxy Module", "Bun/TypeScript", "Transparent proxy with policy enforcement, trace capture, cost attribution")
         Container(web_app, "Brain Web App", "React", "Chat, feed, graph view, spend dashboard, audit view")
         Container(api_server, "Brain API Server", "Bun/TypeScript", "REST API, SSE streaming, route handlers")
@@ -80,7 +80,7 @@ C4Container
     Rel(api_server, surreal, "Reads traces, policies, spend aggregations", "SurrealDB SDK")
 ```
 
-**Key architectural decision**: The proxy is a module within the existing Brain Bun server, not a separate process. It shares `ServerDependencies` (SurrealDB connection, inflight tracker, config) with the rest of the API server. This eliminates inter-process communication overhead and reuses existing infrastructure (auth, policy engine, observation system).
+**Key architectural decision**: The proxy is a module within the existing Osabio Bun server, not a separate process. It shares `ServerDependencies` (SurrealDB connection, inflight tracker, config) with the rest of the API server. This eliminates inter-process communication overhead and reuses existing infrastructure (auth, policy engine, observation system).
 
 ---
 
@@ -93,7 +93,7 @@ C4Component
     Container_Boundary(proxy, "LLM Proxy Module") {
         Component(anthropic_route, "Anthropic Route Handler", "TypeScript", "Receives POST /proxy/llm/anthropic/v1/messages, orchestrates pipeline")
         Component(openai_route, "OpenAI Route Handler", "TypeScript", "Receives POST /proxy/llm/openai/v1/chat/completions, orchestrates pipeline")
-        Component(identity, "Identity Resolver", "TypeScript", "Parses metadata.user_id + X-Brain-* headers into workspace/session/task")
+        Component(identity, "Identity Resolver", "TypeScript", "Parses metadata.user_id + X-Osabio-* headers into workspace/session/task")
         Component(policy_check, "Policy Evaluator", "TypeScript", "Checks model access, budget, rate limit against policy graph")
         Component(forwarder, "Request Forwarder", "TypeScript", "Raw byte SSE relay via TransformStream, non-streaming JSON forwarding")
         Component(sse_parser, "SSE Usage Extractor", "TypeScript", "Parses message_start + message_delta for token counts from SSE buffer")
@@ -140,7 +140,7 @@ C4Component
 Agent Request
   |
   +-> [1] Parse request body (extract model, stream flag, metadata)
-  +-> [2] Identity Resolution (parse metadata.user_id + X-Brain-* headers)
+  +-> [2] Identity Resolution (parse metadata.user_id + X-Osabio-* headers)
   +-> [3] Policy Evaluation (model access + budget + rate limit)
   |     |-- DENY -> Return 403/429 with policy_ref + remediation
   |     |-- ALLOW -> continue
@@ -162,7 +162,7 @@ Stream Complete / Response Received
   +-> [10] On write failure: retry 3x exponential backoff -> stderr JSON fallback
 ```
 
-All post-response work runs via `deps.inflight.track()` consistent with Brain's existing async pattern.
+All post-response work runs via `deps.inflight.track()` consistent with Osabio's existing async pattern.
 
 ### 5.3 Component Boundaries
 
@@ -256,13 +256,13 @@ ORDER BY created_at ASC;
 
 | Component | Technology | License | Rationale |
 |-----------|-----------|---------|-----------|
-| Runtime | Bun 1.3+ | MIT | Existing Brain runtime; native fetch + TransformStream for SSE relay |
-| Database | SurrealDB | BSL 1.1 | Existing Brain graph DB; RELATE edges for provenance chains |
-| Language | TypeScript | Apache 2.0 | Existing Brain language; functional paradigm per CLAUDE.md |
-| HTTP Framework | Bun.serve routes | MIT | Existing Brain routing; no new framework dependency |
+| Runtime | Bun 1.3+ | MIT | Existing Osabio runtime; native fetch + TransformStream for SSE relay |
+| Database | SurrealDB | BSL 1.1 | Existing Osabio graph DB; RELATE edges for provenance chains |
+| Language | TypeScript | Apache 2.0 | Existing Osabio language; functional paradigm per CLAUDE.md |
+| HTTP Framework | Bun.serve routes | MIT | Existing Osabio routing; no new framework dependency |
 | SSE Relay | TransformStream (Web API) | N/A (Web Standard) | Zero-dependency streaming; already used in walking skeleton |
 
-No new dependencies introduced. All components use existing Brain infrastructure.
+No new dependencies introduced. All components use existing Osabio infrastructure.
 
 ---
 
@@ -276,7 +276,7 @@ The proxy reuses `evaluatePolicyGate()` from `policy-gate.ts` with an adapted co
 |-------------|-------------|
 | `action` | `"llm_call"` |
 | `resource` | Model ID (e.g., `"claude-sonnet-4"`) |
-| `agent_role` | Agent type from `X-Brain-Agent-Type` header or inferred |
+| `agent_role` | Agent type from `X-Osabio-Agent-Type` header or inferred |
 
 Budget and rate limit checks are separate from the policy gate:
 - **Budget**: Read spend counter from cached spend aggregation (updated on every trace write via inflight tracker callback, TTL 10s fallback). Cache miss triggers live trace aggregation query. Compare against workspace-configured limit.
@@ -342,11 +342,11 @@ Both routes share: identity resolver, policy evaluator, cost calculator, trace w
 
 ## 10. Deployment Architecture
 
-The proxy runs as part of the existing Brain Bun server process. No separate deployment, no additional infrastructure.
+The proxy runs as part of the existing Osabio Bun server process. No separate deployment, no additional infrastructure.
 
 ```
-brain-server (Bun.serve)
-  |-- /api/*          -- existing Brain API routes
+osabio-server (Bun.serve)
+  |-- /api/*          -- existing Osabio API routes
   |-- /proxy/llm/*    -- LLM proxy routes (new)
   |-- SurrealDB conn  -- shared connection pool
   |-- InflightTracker  -- shared async work tracker
@@ -367,7 +367,7 @@ Configuration via existing `.env`:
 | Header forwarding (anthropic-*) | Anthropic Route | US-LP-001 |
 | Upstream failure -> 502 | Request Forwarder | US-LP-001 |
 | metadata.user_id parsing | Identity Resolver | US-LP-002 |
-| X-Brain-Workspace/Task resolution | Identity Resolver | US-LP-002 |
+| X-Osabio-Workspace/Task resolution | Identity Resolver | US-LP-002 |
 | Graceful identity degradation | Identity Resolver | US-LP-002 |
 | llm_call trace node creation | Trace Writer | US-LP-003 |
 | RELATE edges (invoked, scoped_to, attributed_to) | Trace Writer | US-LP-003 |
@@ -413,7 +413,7 @@ step_02:
   acceptance_criteria:
     - "SSE events relayed as raw bytes with < 50ms p95 TTFT overhead"
     - "Upstream failure returns 502 with source:proxy distinction"
-    - "Identity resolved from metadata.user_id + X-Brain-Workspace + X-Brain-Task"
+    - "Identity resolved from metadata.user_id + X-Osabio-Workspace + X-Osabio-Task"
     - "Missing identity signals degrade gracefully (workspace-only or no attribution)"
     - "Invalid workspace triggers warning observation but does not block request"
   architectural_constraints:

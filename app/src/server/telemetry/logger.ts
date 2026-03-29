@@ -75,7 +75,7 @@ function emitLogRecord(
   meta?: Record<string, unknown>,
   error?: unknown,
 ): void {
-  const logger = logs.getLogger("brain-server");
+  const logger = logs.getLogger("osabio-server");
 
   const attributes: Record<string, unknown> = { event, ...meta };
 

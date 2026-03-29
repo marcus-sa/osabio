@@ -1,15 +1,15 @@
 import { execSync } from "node:child_process";
 import { requireConfig } from "../config";
-import { BrainHttpClient } from "../http-client";
+import { OsabioHttpClient } from "../http-client";
 
 /**
- * brain check-commit
+ * osabio check-commit
  * Called by pre-commit git hook.
  * Reads staged diff and checks for task completion, unlogged decisions, constraint violations.
  */
 export async function runCheckCommit(): Promise<void> {
   const config = await requireConfig();
-  const client = new BrainHttpClient(config);
+  const client = new OsabioHttpClient(config);
   const cwd = process.cwd();
 
   let diff: string;
@@ -54,7 +54,7 @@ export async function runCheckCommit(): Promise<void> {
 }
 
 /**
- * brain log-commit
+ * osabio log-commit
  * Deprecated. Commit ingestion is handled by GitHub webhook processing only.
  * Kept as a no-op for backward compatibility with existing post-commit hooks.
  */

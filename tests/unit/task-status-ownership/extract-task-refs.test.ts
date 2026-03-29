@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { extractReferencedTaskIds } from "../../../app/src/server/webhook/commit-task-refs";
 
 /**
- * US-3: brain commit-check parses task refs from commit messages.
+ * US-3: osabio commit-check parses task refs from commit messages.
  *
  * These tests validate the pure function that extracts task references
  * from commit messages. This is the "fast path" regex parser used by

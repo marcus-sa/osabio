@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Brain requires a user account to function after deployment. In cloud-hosted mode, users self-register via the signup page. In self-hosted mode (`SELF_HOSTED=true`), registration is disabled for security -- the operator needs a pre-seeded admin account created during `bun migrate`.
+Osabio requires a user account to function after deployment. In cloud-hosted mode, users self-register via the signup page. In self-hosted mode (`SELF_HOSTED=true`), registration is disabled for security -- the operator needs a pre-seeded admin account created during `bun migrate`.
 
 The seeded password hash must be compatible with Better Auth's login verification. Better Auth defaults to bcrypt but supports custom hash/verify functions.
 
@@ -59,4 +59,4 @@ The seed must run in `schema/migrate.ts` (the migration runner) because:
 - `migrate.ts` must know Better Auth's user schema (`person` + `account` tables) -- couples migration runner to auth schema
 
 ### Risks
-- If Better Auth changes its `account` table schema in a future version, the seed may create incompatible records. Mitigated: Brain does not maintain backwards compatibility; schema changes are breaking anyway.
+- If Better Auth changes its `account` table schema in a future version, the seed may create incompatible records. Mitigated: Osabio does not maintain backwards compatibility; schema changes are breaking anyway.

@@ -4,7 +4,7 @@
 
 ### Job 1: Automated Admin Seeding
 
-**When** I'm deploying Brain for my team via Docker Compose or a CI pipeline,
+**When** I'm deploying Osabio for my team via Docker Compose or a CI pipeline,
 **I want to** set up an admin account via environment variables,
 **so I can** automate the deployment without manual signup steps.
 
@@ -16,7 +16,7 @@
 
 ### Job 2: Closed Registration
 
-**When** I'm running a self-hosted Brain instance for my organization,
+**When** I'm running a self-hosted Osabio instance for my organization,
 **I want to** registration disabled so only the seeded admin exists,
 **so I can** control access and avoid unauthorized signups on my internal network.
 
@@ -28,7 +28,7 @@
 
 ### Job 3: Worktree Manager Feature Flag
 
-**When** I'm self-hosting Brain with coding agents that use git worktrees,
+**When** I'm self-hosting Osabio with coding agents that use git worktrees,
 **I want to** enable the repo path configuration UI per-instance,
 **so I can** control whether worktree management is exposed to users.
 

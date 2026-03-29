@@ -76,7 +76,7 @@ function parseMetadataUserId(userId?: string): {
  * Derive the agent name from identity signals.
  *
  * Priority:
- * 1. X-Brain-Agent-Type header (explicit)
+ * 1. X-Osabio-Agent-Type header (explicit)
  * 2. User-Agent containing "claude-cli" → "claude-cli"
  * 3. "proxy" (unknown caller)
  */

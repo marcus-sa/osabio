@@ -19,7 +19,7 @@ import type { SandboxAgentAdapter, SessionHandle } from "./sandbox-adapter";
 export type SessionDeps = {
   surreal: Surreal;
   shellExec: ShellExec;
-  brainBaseUrl: string;
+  osabioBaseUrl: string;
 };
 
 export type SessionErrorCode =
@@ -286,7 +286,7 @@ function generateStreamId(sessionId: string): string {
 type CreateSessionInput = {
   surreal: Surreal;
   shellExec: ShellExec;
-  brainBaseUrl: string;
+  osabioBaseUrl: string;
   mcpAuthToken: string;
   workspaceId: string;
   taskId: string;
@@ -454,10 +454,10 @@ async function createSessionViaAdapter(
   // 3. Create session via adapter — agent works in worktree, not main repo
   let handle: SessionHandle;
   try {
-    await adapter.setMcpConfig(worktreePath, "brain", {
+    await adapter.setMcpConfig(worktreePath, "osabio", {
       type: "remote",
-      url: `${input.brainBaseUrl}/mcp/agent/${agentSessionId}`,
-      headers: { "X-Brain-Auth": input.mcpAuthToken },
+      url: `${input.osabioBaseUrl}/mcp/agent/${agentSessionId}`,
+      headers: { "X-Osabio-Auth": input.mcpAuthToken },
     });
 
     handle = await adapter.createSession({

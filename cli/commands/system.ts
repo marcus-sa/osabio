@@ -1,13 +1,13 @@
 import { requireConfig } from "../config";
-import { BrainHttpClient } from "../http-client";
+import { OsabioHttpClient } from "../http-client";
 
 /**
- * brain system check-updates
+ * osabio system check-updates
  * Called by UserPromptSubmit hook. Workspace-level change alerts.
  */
 export async function runCheckUpdates(): Promise<void> {
   const config = await requireConfig();
-  const client = new BrainHttpClient(config);
+  const client = new OsabioHttpClient(config);
 
   try {
     const since = new Date(Date.now() - 5 * 60_000).toISOString();
@@ -57,13 +57,13 @@ export async function runCheckUpdates(): Promise<void> {
 }
 
 /**
- * brain system end-session
+ * osabio system end-session
  * Called by SessionEnd hook. Reads the Stop hook JSON from stdin which includes
  * project_id (set by the agent) and session summary.
  */
 export async function runEndSession(): Promise<void> {
   const config = await requireConfig();
-  const client = new BrainHttpClient(config);
+  const client = new OsabioHttpClient(config);
 
   try {
     // Read stdin (Claude Code pipes Stop hook JSON)

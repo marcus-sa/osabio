@@ -4,7 +4,7 @@
 
 | Force | Description |
 |-------|-------------|
-| **Push** (frustration) | Server sets in_progress on assignment AND agent sets it again via brain-start-task — redundant. Server sets done on session accept, but commit is the real completion event. Status doesn't reflect reality. |
+| **Push** (frustration) | Server sets in_progress on assignment AND agent sets it again via osabio-start-task — redundant. Server sets done on session accept, but commit is the real completion event. Status doesn't reflect reality. |
 | **Pull** (desired future) | Task status updates driven by real events: agent actually starting work, code actually being committed. Single source of truth per transition. |
 | **Anxiety** (adoption concern) | What if agent crashes before setting in_progress? Task stays in ready — but that's actually correct (no work started). |
 | **Habit** (current behavior) | Relying on server to optimistically set status. Must trust that agents and hooks will do their job instead. |

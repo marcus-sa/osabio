@@ -1,7 +1,7 @@
 # US-AL-001: Human Creates Persistent Learning
 
 ## Problem
-Tomas Eriksson is a workspace owner who manages a team of 3 engineers using Brain daily. He finds it exhausting to repeat the same corrections to coding agents every session -- "don't use null, use optional properties" -- because agents forget between sessions and he wastes 2-3 minutes per correction, multiple times per week.
+Tomas Eriksson is a workspace owner who manages a team of 3 engineers using Osabio daily. He finds it exhausting to repeat the same corrections to coding agents every session -- "don't use null, use optional properties" -- because agents forget between sessions and he wastes 2-3 minutes per correction, multiple times per week.
 
 ## Who
 - Workspace owner | Correcting agent behavior in chat | Wants corrections to persist permanently
@@ -27,7 +27,7 @@ Tomas tries to save "Do not use null in domain data" but the system detects an e
 ## UAT Scenarios (BDD)
 
 ### Scenario: Save learning from chat correction
-Given Tomas Eriksson is chatting with the coding agent in workspace "Brain Development"
+Given Tomas Eriksson is chatting with the coding agent in workspace "Osabio Development"
 And Tomas has corrected "null vs undefined" usage 3 times in the past 7 days
 When Tomas types "Don't use null. Use optional properties."
 Then the chat agent applies the correction
@@ -51,7 +51,7 @@ And no approval step is required
 And a confirmation card appears in chat
 
 ### Scenario: Duplicate learning detection
-Given an active learning "Never persist null for domain data values" exists in workspace "Brain Development"
+Given an active learning "Never persist null for domain data values" exists in workspace "Osabio Development"
 When Tomas saves a new learning "Do not use null in domain data"
 Then the system detects semantic similarity above 0.85
 And shows the existing learning alongside the new one

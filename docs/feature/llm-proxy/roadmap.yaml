@@ -91,9 +91,9 @@ phases:
           Refactor the walking skeleton anthropic-proxy-route to accept
           ServerDependencies (surreal, inflight tracker, config). Extract identity
           resolution into a pure function that parses metadata.user_id (Claude Code
-          format) + X-Brain-Workspace + X-Brain-Task + X-Brain-Agent-Type headers.
+          format) + X-Osabio-Workspace + X-Osabio-Task + X-Osabio-Agent-Type headers.
           Extract session ID resolution into a pure function that reads session ID
-          from metadata.user_id (session_{uuid} pattern) or X-Brain-Session header.
+          from metadata.user_id (session_{uuid} pattern) or X-Osabio-Session header.
           Add workspace validation (verify workspace exists in DB, cached). Ensure
           full header forwarding (anthropic-version, anthropic-beta, x-api-key,
           authorization, content-type). Upstream failure returns 502 with
@@ -101,8 +101,8 @@ phases:
         criteria: see acceptance_criteria
         acceptance_criteria:
           - "Proxy handler receives ServerDependencies for SurrealDB and inflight access"
-          - "Identity resolved from metadata.user_id + X-Brain-Workspace + X-Brain-Task + X-Brain-Agent-Type"
-          - "Session ID extracted from metadata.user_id session_{uuid} pattern OR X-Brain-Session header"
+          - "Identity resolved from metadata.user_id + X-Osabio-Workspace + X-Osabio-Task + X-Osabio-Agent-Type"
+          - "Session ID extracted from metadata.user_id session_{uuid} pattern OR X-Osabio-Session header"
           - "Missing identity signals degrade gracefully (workspace-only or no attribution)"
           - "Invalid workspace logged as warning but does not block request forwarding"
           - "Upstream failure returns 502 with {error: 'upstream_unreachable', source: 'proxy'}"
@@ -270,7 +270,7 @@ phases:
         title: "Conversation hash correlation via UUIDv5"
         description: >
           Per ADR-050: derive deterministic conversation ID from request content
-          using UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
+          using UUIDv5(OSABIO_PROXY_NAMESPACE, system_prompt + NUL + first_user_message).
           Conversation hash resolver is a pure function (no DB, no side effects).
           Conversation upserter performs idempotent CREATE conversation:<uuidv5>
           with workspace, title (truncated first user message), and source="proxy".
@@ -307,23 +307,23 @@ phases:
           conflict/warning observations with embeddings). Per-turn ranking: embed
           last user message, compute weighted cosine similarity (decisions 1.0,
           learnings 0.8, observations 0.7), select top N within token budget.
-          Inject as <brain-context> XML block appended to system field (normalize
+          Inject as <osabio-context> XML block appended to system field (normalize
           string|array, preserve existing blocks + cache_control). Fail-open on
           any error. Trace writer extended to capture response content in FLEXIBLE
           output field and intelligence metadata in input field.
         criteria: see acceptance_criteria
         acceptance_criteria:
-          - "Workspace decisions, learnings, and observations injected into system prompt as <brain-context> XML block"
-          - "Original system prompt content preserved — brain-context appended at end"
-          - "Array-form system prompt preserved with brain-context as additional text block with cache_control: ephemeral"
+          - "Workspace decisions, learnings, and observations injected into system prompt as <osabio-context> XML block"
+          - "Original system prompt content preserved — osabio-context appended at end"
+          - "Array-form system prompt preserved with osabio-context as additional text block with cache_control: ephemeral"
           - "Last user message embedded using existing EMBEDDING_MODEL from config (same model used for entity embeddings)"
           - "Token budget respected — candidates ranked by weighted cosine similarity, top N selected within budget"
           - "Context candidate pool cached in-memory per workspace; populated via: SELECT id, summary, embedding FROM decision WHERE workspace=$ws AND status='confirmed' LIMIT 50; SELECT id, text, embedding FROM learning WHERE workspace=$ws AND status='active' LIMIT 30; SELECT id, text, embedding FROM observation WHERE workspace=$ws AND status='open' AND severity IN ['conflict','warning'] LIMIT 20; refreshed on TTL expiry"
           - "Context injection disabled via config — request forwarded without modification"
           - "Context injection failure — request forwarded without modification (fail-open), warning logged"
           - "Session cache hit — no DB query on repeated request within TTL"
-          - "Empty workspace (no decisions/learnings/observations) — no brain-context block appended"
-          - "Trace input FLEXIBLE field contains brain_context_injected, brain_context_decisions, brain_context_learnings, brain_context_observations, brain_context_tokens_est"
+          - "Empty workspace (no decisions/learnings/observations) — no osabio-context block appended"
+          - "Trace input FLEXIBLE field contains osabio_context_injected, osabio_context_decisions, osabio_context_learnings, osabio_context_observations, osabio_context_tokens_est"
           - "Trace output FLEXIBLE field stores opaque response content as {content_blocks: Array<{type: 'text', text: string} | {type: 'tool_use', id: string, name: string, input: object}>, stop_reason: string, usage: {input_tokens, output_tokens, cache_creation_tokens?, cache_read_tokens?}} — proxy captures verbatim, performs NO analysis per ADR-051"
         files_to_modify:
           - "app/src/server/proxy/intelligence-config.ts"

@@ -1,9 +1,9 @@
-# Research: Native OpenClaw Gateway in Brain
+# Research: Native OpenClaw Gateway in Osabio
 
 **Date**: 2026-03-21
-**Research Question**: Should Brain implement the OpenClaw Gateway Protocol natively rather than connecting to external gateways as a client?
+**Research Question**: Should Osabio implement the OpenClaw Gateway Protocol natively rather than connecting to external gateways as a client?
 
-**Conclusion**: Yes. Brain should become a Gateway Protocol-compatible server. This eliminates an entire process from the architecture, reuses 80% of existing Brain infrastructure, and makes the entire OpenClaw ecosystem (300k+ GitHub stars) a distribution channel for Brain.
+**Conclusion**: Yes. Osabio should become a Gateway Protocol-compatible server. This eliminates an entire process from the architecture, reuses 80% of existing Osabio infrastructure, and makes the entire OpenClaw ecosystem (300k+ GitHub stars) a distribution channel for Osabio.
 
 ---
 
@@ -18,20 +18,20 @@ Paperclip manages OpenClaw as an external execution environment via an adapter p
 - **Join flow**: Invite creation → agent join request → board approval → one-time API key claim → wakeup callback
 - **Wake payload**: Comprehensive instruction packet with `PAPERCLIP_RUN_ID`, `PAPERCLIP_TASK_ID`, `PAPERCLIP_WAKE_REASON` env vars
 
-Paperclip treats OpenClaw as a black box — it sends work in and gets results back. Brain can do better by becoming the gateway itself.
+Paperclip treats OpenClaw as a black box — it sends work in and gets results back. Osabio can do better by becoming the gateway itself.
 
 ---
 
-## 2. Architecture Decision: Brain as Gateway vs. Brain as Client
+## 2. Architecture Decision: Osabio as Gateway vs. Osabio as Client
 
-### Option A: Brain as Gateway Protocol Client (rejected)
+### Option A: Osabio as Gateway Protocol Client (rejected)
 
-Brain connects to one or more external OpenClaw gateways as an `operator` role WebSocket client, monitors sessions, extracts decisions from chat, and proxies LLM calls.
+Osabio connects to one or more external OpenClaw gateways as an `operator` role WebSocket client, monitors sessions, extracts decisions from chat, and proxies LLM calls.
 
 ```
 OpenClaw Agent → OpenClaw Gateway → LLM Provider
                       ↑
-                Brain (WS client, operator.read + operator.write)
+                Osabio (WS client, operator.read + operator.write)
                       ├─ Extract from chat
                       ├─ Proxy LLM calls
                       └─ Evaluate exec approvals
@@ -39,15 +39,15 @@ OpenClaw Agent → OpenClaw Gateway → LLM Provider
 
 **Problems:**
 - Three moving parts (client + gateway + provider) instead of two
-- Two auth systems to bridge (Ed25519 device auth + Brain DPoP)
+- Two auth systems to bridge (Ed25519 device auth + Osabio DPoP)
 - Context injection requires LLM proxy interception — extra hop, extra latency
 - Trace recording is reconstruction from proxy logs, not native
-- Protocol coupling — Brain must track OpenClaw's protocol evolution as a client
-- Requires an OpenAI-compatible proxy endpoint (Brain's proxy currently speaks Anthropic format)
+- Protocol coupling — Osabio must track OpenClaw's protocol evolution as a client
+- Requires an OpenAI-compatible proxy endpoint (Osabio's proxy currently speaks Anthropic format)
 
-### Option B: Brain as Gateway Protocol Server (recommended)
+### Option B: Osabio as Gateway Protocol Server (recommended)
 
-Brain implements the server side of the Gateway Protocol. OpenClaw clients (CLI, web UI, macOS app, iOS/Android, Mission Control) connect directly to Brain.
+Osabio implements the server side of the Gateway Protocol. OpenClaw clients (CLI, web UI, macOS app, iOS/Android, Mission Control) connect directly to Osabio.
 
 ```
 OpenClaw CLI / Web UI / Mobile / Mission Control
@@ -55,8 +55,8 @@ OpenClaw CLI / Web UI / Mobile / Mission Control
   └─ WebSocket (Gateway Protocol v3)
        │
        ▼
-  Brain Gateway Endpoint (/api/gateway)
-  ├─ Device auth → Brain identity
+  Osabio Gateway Endpoint (/api/gateway)
+  ├─ Device auth → Osabio identity
   ├─ connect     → workspace resolution
   ├─ agent       → orchestrator.assign + run
   ├─ agent.wait  → session status poll
@@ -66,18 +66,18 @@ OpenClaw CLI / Web UI / Mobile / Mission Control
 ```
 
 **Advantages:**
-- Two moving parts (client + Brain)
-- One auth system (Brain's, with device auth bridge)
-- Context injection is native — Brain builds the prompt
-- Trace recording is native — Brain runs the agent
-- Policy enforcement is native — Brain evaluates before execution
-- Brain defines the contract as server, not tracking it as client
+- Two moving parts (client + Osabio)
+- One auth system (Osabio's, with device auth bridge)
+- Context injection is native — Osabio builds the prompt
+- Trace recording is native — Osabio runs the agent
+- Policy enforcement is native — Osabio evaluates before execution
+- Osabio defines the contract as server, not tracking it as client
 - Zero additional latency
-- Entire OpenClaw ecosystem becomes Brain clients
+- Entire OpenClaw ecosystem becomes Osabio clients
 
 ---
 
-## 3. Gateway Protocol v3 — Method Mapping to Brain
+## 3. Gateway Protocol v3 — Method Mapping to Osabio
 
 The Gateway Protocol is WebSocket-based with JSON text frames. Three frame types:
 
@@ -87,9 +87,9 @@ The Gateway Protocol is WebSocket-based with JSON text frames. Three frame types
 | Response | `{ type: "res", id: string, ok: boolean, payload?: object, error?: { code, message, details } }` |
 | Event | `{ type: "event", event: string, payload?: object, seq?: number }` |
 
-### Method → Brain System Mapping
+### Method → Osabio System Mapping
 
-| Gateway Method | Brain System | Exists | Work |
+| Gateway Method | Osabio System | Exists | Work |
 |---------------|--------------|--------|------|
 | `connect` | Auth + workspace resolution | Yes | Wire device auth → identity |
 | `agent` (submit work) | Orchestrator `assignTask()` | Yes | Gateway event bridge |
@@ -103,7 +103,7 @@ The Gateway Protocol is WebSocket-based with JSON text frames. Three frame types
 | `presence` | SSE registry (online/offline) | Yes | Broadcast connection state |
 | `model.list` | Provider config | Yes | Return configured models |
 
-Brain already has ~80% of the business logic. The missing piece is WebSocket transport and protocol framing.
+Osabio already has ~80% of the business logic. The missing piece is WebSocket transport and protocol framing.
 
 ---
 
@@ -115,7 +115,7 @@ gateway/
   gateway-route.ts         # WebSocket upgrade handler (Bun native)
   connection.ts            # Per-connection state machine + auth context
   device-auth.ts           # Ed25519 challenge-response verification
-  event-emitter.ts         # Brain events → Gateway Protocol events
+  event-emitter.ts         # Osabio events → Gateway Protocol events
   method-handlers/
     connect.ts             # → workspace resolution + identity creation
     agent.ts               # → orchestrator.assign()
@@ -161,7 +161,7 @@ Bun.serve({
 
 ### Method Handler Pattern
 
-Each handler is a thin delegate to existing Brain systems:
+Each handler is a thin delegate to existing Osabio systems:
 
 ```typescript
 // method-handlers/agent.ts
@@ -209,9 +209,9 @@ Stream types:
 - **error**: Execution errors
 - **lifecycle**: Phase changes (error, failed, cancelled)
 
-Brain's orchestrator Event Bridge (`orchestrator/event-bridge.ts`) already transforms Claude Agent SDK messages to `StreamEvent` variants. The gateway event emitter maps these to protocol events:
+Osabio's orchestrator Event Bridge (`orchestrator/event-bridge.ts`) already transforms Claude Agent SDK messages to `StreamEvent` variants. The gateway event emitter maps these to protocol events:
 
-| Brain StreamEvent | Gateway Event |
+| Osabio StreamEvent | Gateway Event |
 |-------------------|---------------|
 | `agent_token` | `{ stream: "assistant", data: { delta: token } }` |
 | `agent_file_change` | `{ stream: "lifecycle", data: { phase: "file_change", ... } }` |
@@ -223,27 +223,27 @@ Brain's orchestrator Event Bridge (`orchestrator/event-bridge.ts`) already trans
 
 ### The Auth Problem
 
-Two directions of auth collapse into one when Brain is the gateway:
+Two directions of auth collapse into one when Osabio is the gateway:
 
-| Direction | Old (Brain as client) | New (Brain as gateway) |
+| Direction | Old (Osabio as client) | New (Osabio as gateway) |
 |-----------|----------------------|----------------------|
-| Client → Gateway | Ed25519 device auth (OpenClaw) | Ed25519 device auth → Brain identity |
-| Client → Brain | DPoP-bound tokens (separate) | Same connection, same identity |
+| Client → Gateway | Ed25519 device auth (OpenClaw) | Ed25519 device auth → Osabio identity |
+| Client → Osabio | DPoP-bound tokens (separate) | Same connection, same identity |
 
 ### Device Auth → DPoP Identity Bridge
 
 When an OpenClaw client connects:
 
 1. Client sends `connect` frame with device public key
-2. Brain sends `connect.challenge` event with nonce
+2. Osabio sends `connect.challenge` event with nonce
 3. Client signs nonce with Ed25519 private key
-4. Brain verifies signature
+4. Osabio verifies signature
 
 Then:
 
 ```
 Known device?
-  → Resolve existing Brain identity from device fingerprint
+  → Resolve existing Osabio identity from device fingerprint
   → Load workspace membership, authority scopes
 
 New device?
@@ -256,7 +256,7 @@ New device?
       "software_id": "openclaw-gateway:<device-id>",
       "dpop_bound_access_tokens": true
     }
-  → Create Brain identity linked to device
+  → Create Osabio identity linked to device
   → Create workspace membership (member_of edge)
   → Issue DPoP-bound token internally
   → Return hello-ok with workspace context
@@ -266,7 +266,7 @@ After connect, the WebSocket connection carries the DPoP-equivalent auth for the
 
 ### Key Reuse: Ed25519 → DPoP
 
-OpenClaw already has per-device Ed25519 keys. Brain can accept the same key for DPoP binding:
+OpenClaw already has per-device Ed25519 keys. Osabio can accept the same key for DPoP binding:
 
 - Device auth: Ed25519 sign challenge nonce → prove device identity
 - DPoP binding: Same Ed25519 key → JWK thumbprint in `cnf.jkt` claim
@@ -274,7 +274,7 @@ OpenClaw already has per-device Ed25519 keys. Brain can accept the same key for 
 
 ### DCR: Automatic Agent Registration
 
-When Brain discovers agents via a gateway connection, it can auto-register each as an OAuth client:
+When Osabio discovers agents via a gateway connection, it can auto-register each as an OAuth client:
 
 ```json
 {
@@ -287,7 +287,7 @@ When Brain discovers agents via a gateway connection, it can auto-register each 
 }
 ```
 
-Each agent gets a `client_id` + DPoP key pair. No manual `brain init` per agent.
+Each agent gets a `client_id` + DPoP key pair. No manual `osabio init` per agent.
 
 ### RAR: Fine-Grained Authorization
 
@@ -312,7 +312,7 @@ RAR (RFC 9396) carries permissions in `authorization_details`:
 }
 ```
 
-Maps directly to Brain's existing authority scope model. The gateway registration UI configures what each device/agent tier can do, RAR carries it into the token.
+Maps directly to Osabio's existing authority scope model. The gateway registration UI configures what each device/agent tier can do, RAR carries it into the token.
 
 ### Token Claims
 
@@ -320,65 +320,65 @@ DPoP-bound tokens for gateway connections carry:
 
 | Claim | Purpose |
 |-------|---------|
-| `urn:brain:workspace` | Workspace scope (existing) |
-| `urn:brain:gateway` | Gateway device fingerprint |
-| `urn:brain:agent` | Agent name within gateway |
+| `urn:osabio:workspace` | Workspace scope (existing) |
+| `urn:osabio:gateway` | Gateway device fingerprint |
+| `urn:osabio:agent` | Agent name within gateway |
 | `cnf.jkt` | DPoP key binding (Ed25519 thumbprint) |
 
 ---
 
 ## 6. LLM Proxy: Native, Not Intercepted
 
-When Brain is the gateway, there is no LLM proxy hop. Brain directly calls the provider:
+When Osabio is the gateway, there is no LLM proxy hop. Osabio directly calls the provider:
 
 ```
 OpenClaw Agent submits work via gateway protocol
   │
   ▼
-Brain orchestrator runs the agent
+Osabio orchestrator runs the agent
   │
   ├─ 1. Load graph context (BM25 + recency ranking)
   ├─ 2. Inject active learnings for agent type
   ├─ 3. Evaluate policies (intent → policy graph)
   ├─ 4. Check budget (token salary enforcement)
   ├─ 5. Build prompt with enriched context
-  ├─ 6. Call LLM provider directly (Brain holds API keys)
+  ├─ 6. Call LLM provider directly (Osabio holds API keys)
   ├─ 7. Stream response tokens → gateway protocol events
   ├─ 8. Record trace in graph (native, not reconstructed)
   ├─ 9. Update spend tracking
   └─ 10. Feed extraction pipeline (decisions, observations)
 ```
 
-### What Brain Sees
+### What Osabio Sees
 
 | Signal | Without gateway | With native gateway |
 |--------|----------------|-------------------|
 | What agents are thinking | Nothing | Full prompt + completion |
 | Token spend per agent | Nothing | Exact counts, per-model |
 | Policy violations | Nothing | Caught before execution |
-| Context coherence | Nothing | Brain injects graph state |
+| Context coherence | Nothing | Osabio injects graph state |
 | Cross-agent contradictions | Nothing | Observer scans extracted decisions |
 | Execution traces | Nothing | Graph-native call trees |
 | Budget enforcement | Nothing | Hard limits per agent salary |
 
-### Brain Auth Mode ("brain" mode)
+### Osabio Auth Mode ("brain" mode)
 
-Brain holds the upstream API keys. Agents authenticate to Brain via device auth / DPoP, Brain authenticates to providers with its own credentials:
+Osabio holds the upstream API keys. Agents authenticate to Osabio via device auth / DPoP, Osabio authenticates to providers with its own credentials:
 
 - Agents never see provider API keys (Judge pattern)
-- Brain controls which models agents can use (policy-enforced)
-- Brain can revoke access instantly by revoking the DPoP token
+- Osabio controls which models agents can use (policy-enforced)
+- Osabio can revoke access instantly by revoking the DPoP token
 - Spend is tracked and enforced centrally
 - One API key relationship to manage, not N per agent
 
 ### Multi-Provider Routing
 
-Brain's provider-agnostic backend supports routing:
+Osabio's provider-agnostic backend supports routing:
 
 ```
 OpenClaw Agent requests "openai/gpt-5.2"
-  → Brain policy says "use claude-sonnet for this workspace"
-  → Brain transparently routes to Anthropic
+  → Osabio policy says "use claude-sonnet for this workspace"
+  → Osabio transparently routes to Anthropic
   → Agent gets response in OpenAI-compatible format
 ```
 
@@ -386,11 +386,11 @@ OpenClaw Agent requests "openai/gpt-5.2"
 
 ## 7. SurrealDB Schema: Mapping to Existing Tables
 
-The core gateway flow requires **zero new tables** — it maps directly to Brain's existing `identity`, `agent`, and `agent_session` tables. Only one enum extension is needed.
+The core gateway flow requires **zero new tables** — it maps directly to Osabio's existing `identity`, `agent`, and `agent_session` tables. Only one enum extension is needed.
 
 ### `identity` (type: `'agent'`) — OpenClaw Device
 
-An OpenClaw device connecting to Brain creates an `identity` record. The existing schema handles this without modification:
+An OpenClaw device connecting to Osabio creates an `identity` record. The existing schema handles this without modification:
 
 ```
 identity
@@ -491,7 +491,7 @@ agent_session
 
 ### Session Key → Task Resolution
 
-OpenClaw sends session keys in various formats. Brain resolves these to task records:
+OpenClaw sends session keys in various formats. Osabio resolves these to task records:
 
 | Session Key Pattern | Resolution |
 |--------------------|------------|
@@ -533,7 +533,7 @@ The `trace.actor` field points to `identity:device-xxx`.
 ### First Connection (New Device)
 
 ```
-1. User runs: openclaw connect ws://brain.local:3000/api/gateway
+1. User runs: openclaw connect ws://osabio.local:3000/api/gateway
 
 2. WebSocket upgrade succeeds
 
@@ -544,17 +544,17 @@ The `trace.actor` field points to `identity:device-xxx`.
      minProtocol: 3, maxProtocol: 3
    }}
 
-4. Brain sends challenge:
+4. Osabio sends challenge:
    { type: "event", event: "connect.challenge", payload: { nonce: "<random>" } }
 
 5. Client signs nonce, sends response
 
-6. Brain verifies signature
+6. Osabio verifies signature
    → New device: DCR auto-registration
    → Creates identity + workspace membership
    → Issues internal DPoP-bound token
 
-7. Brain sends hello-ok:
+7. Osabio sends hello-ok:
    { type: "res", id: "...", ok: true, payload: {
      protocol: 3, tickIntervalMs: 15000,
      workspace: { id: "...", name: "..." },
@@ -572,7 +572,7 @@ The `trace.actor` field points to `identity:device-xxx`.
      message: "Implement rate limiting for the API"
    }}
 
-2. Brain orchestrator:
+2. Osabio orchestrator:
    → Resolves task from sessionKey
    → Loads graph context (decisions, constraints, observations)
    → Injects active learnings
@@ -580,10 +580,10 @@ The `trace.actor` field points to `identity:device-xxx`.
    → Checks budget
    → Spawns agent execution
 
-3. Brain sends accepted:
+3. Osabio sends accepted:
    { type: "res", id: "...", ok: true, payload: { status: "accepted" } }
 
-4. Brain streams events:
+4. Osabio streams events:
    { type: "event", event: "agent", payload: { stream: "assistant", data: { delta: "I'll start by..." } } }
    { type: "event", event: "agent", payload: { stream: "assistant", data: { delta: "adding the rate..." } } }
    ...
@@ -591,7 +591,7 @@ The `trace.actor` field points to `identity:device-xxx`.
 5. Client polls or waits for completion:
    { type: "req", id: "...", method: "agent.wait", params: { runId: "<run-id>" } }
 
-6. Brain responds with result:
+6. Osabio responds with result:
    { type: "res", id: "...", ok: true, payload: {
      runId: "...", status: "completed",
      meta: { tokensUsed: 4521, tracesRecorded: 3, decisionsExtracted: 1 }
@@ -602,13 +602,13 @@ The `trace.actor` field points to `identity:device-xxx`.
 
 ```
 1. Agent needs to run a destructive command
-   → Brain creates intent:
+   → Osabio creates intent:
      { action: "shell:rm -rf /tmp/build", requester: "openclaw:architect", riskLevel: "medium" }
 
-2. Brain evaluates against policy graph
+2. Osabio evaluates against policy graph
    → Policy requires human approval for medium+ risk
 
-3. Brain sends exec approval event to connected operator clients:
+3. Osabio sends exec approval event to connected operator clients:
    { type: "event", event: "exec.approval.request", payload: {
      approvalId: "...", command: "rm -rf /tmp/build", riskLevel: "medium",
      policyRef: "policy:no-destructive-without-approval"
@@ -617,7 +617,7 @@ The `trace.actor` field points to `identity:device-xxx`.
 4. Operator approves via CLI/UI:
    { type: "req", method: "exec.approve", params: { approvalId: "..." } }
 
-5. Brain records approval in intent graph
+5. Osabio records approval in intent graph
    → Intent status: pending_auth → authorized
    → Agent execution continues
 ```
@@ -628,9 +628,9 @@ The `trace.actor` field points to `identity:device-xxx`.
 
 ### The Three Layers of Agent Competency
 
-Brain currently has two of three layers. Skills are the missing middle:
+Osabio currently has two of three layers. Skills are the missing middle:
 
-| Layer | What | Example | Brain Status |
+| Layer | What | Example | Osabio Status |
 |-------|------|---------|-------------|
 | **Tool** (MCP) | Functional capability — a stateless endpoint | `git push`, `search_entities`, `create_observation` | Exists (MCP server) |
 | **Skill** | Domain expertise — behavioral instructions for *how* to approach a class of work | "how to do a security audit", "how to triage issues", "how to deploy React" | **Missing** |
@@ -664,9 +664,9 @@ tools_required: ["grep", "read", "bash"]
 
 NVIDIA OpenShell (March 2026) confirms this model at the infrastructure level — it treats skills as behavioral units that can be scanned, verified, and restricted independently of the tools they use.
 
-### Skills in Brain: Graph-Native, Governed, Evolving
+### Skills in Osabio: Graph-Native, Governed, Evolving
 
-In Brain, a skill becomes a first-class graph node — discoverable, versionable, governed by policies, and evolved by the Observer.
+In Osabio, a skill becomes a first-class graph node — discoverable, versionable, governed by policies, and evolved by the Observer.
 
 #### Schema
 
@@ -755,15 +755,15 @@ Both use JIT injection into agent prompts. The difference is *when* and *how muc
 
 #### Integration with OpenClaw via Proxy
 
-When OpenClaw agents route LLM calls through Brain's proxy, skills and tools are injected transparently. OpenClaw runs its own agent loop — Brain doesn't replace it. Brain enriches every LLM call passing through:
+When OpenClaw agents route LLM calls through Osabio's proxy, skills and tools are injected transparently. OpenClaw runs its own agent loop — Osabio doesn't replace it. Osabio enriches every LLM call passing through:
 
 ```
-OpenClaw agent sends LLM request through Brain proxy:
+OpenClaw agent sends LLM request through Osabio proxy:
   POST /api/proxy/openai/v1/chat/completions
   (bare request — no tools, no skills, no credentials)
   │
   ▼
-Brain Proxy:
+Osabio Proxy:
   ├─ 1. Identify agent (DPoP identity)
   ├─ 2. Discover matching skills for current task
   ├─ 3. Resolve tools: can_use ∩ skill_requires = this agent's toolset
@@ -784,15 +784,15 @@ Brain Proxy:
   └─ 12. Return response to OpenClaw agent
 ```
 
-The OpenClaw agent doesn't know about skills, tools, or credentials. It sends a bare LLM request. Brain adds everything. This means:
+The OpenClaw agent doesn't know about skills, tools, or credentials. It sends a bare LLM request. Osabio adds everything. This means:
 
 - **OpenClaw keeps its agent loop** — no replacement needed
 - **Brain controls tools** — per-agent resolution via `can_use` + `skill_requires`
 - **Credentials never exposed** — brokered at the proxy, sanitized before return
 - **Policy enforcement** — every tool call through the intent system
-- **Works without Gateway Protocol** — any OpenClaw agent that routes LLM calls through Brain's proxy gets the full stack
+- **Works without Gateway Protocol** — any OpenClaw agent that routes LLM calls through Osabio's proxy gets the full stack
 
-This is an alternative to (or complement of) the Gateway Protocol approach. The Gateway Protocol gives Brain control over session lifecycle and WebSocket streaming. The proxy approach gives Brain control over tool injection and credential brokerage. Both can coexist:
+This is an alternative to (or complement of) the Gateway Protocol approach. The Gateway Protocol gives Osabio control over session lifecycle and WebSocket streaming. The proxy approach gives Osabio control over tool injection and credential brokerage. Both can coexist:
 
 | Capability | Gateway Protocol | Proxy |
 |-----------|-----------------|-------|
@@ -803,9 +803,9 @@ This is an alternative to (or complement of) the Gateway Protocol approach. The 
 | Works without gateway | No | Yes |
 | Works with any agent | Only Gateway Protocol clients | Any agent routing LLM calls |
 
-#### Import Path: skills.sh → Brain
+#### Import Path: skills.sh → Osabio
 
-The 80k+ skills in the `skills.sh` ecosystem are SKILL.md files. Brain can import them:
+The 80k+ skills in the `skills.sh` ecosystem are SKILL.md files. Osabio can import them:
 
 ```
 SKILL.md (YAML frontmatter + Markdown)
@@ -816,17 +816,17 @@ SKILL.md (YAML frontmatter + Markdown)
   → Set status = "draft" (human reviews before activation)
 ```
 
-This makes Brain compatible with the existing skill ecosystem while adding governance, versioning, and evolution that static files lack.
+This makes Osabio compatible with the existing skill ecosystem while adding governance, versioning, and evolution that static files lack.
 
 #### Why This Matters for the Gateway
 
-Without skills, Brain can only inject *corrections* (learnings) and *context* (decisions, observations) into agent sessions. Skills add *expertise* — the third pillar. An OpenClaw agent connecting to Brain gets:
+Without skills, Osabio can only inject *corrections* (learnings) and *context* (decisions, observations) into agent sessions. Skills add *expertise* — the third pillar. An OpenClaw agent connecting to Osabio gets:
 
 1. **Context** — what's been decided, what's blocked, what's changed (graph state)
 2. **Corrections** — what to avoid, what worked before (learnings)
 3. **Expertise** — how to approach this class of work (skills)
 
-No other gateway provides this. A standalone OpenClaw gateway gives agents tools and a sandbox. Brain gives them organizational wisdom.
+No other gateway provides this. A standalone OpenClaw gateway gives agents tools and a sandbox. Osabio gives them organizational wisdom.
 
 ---
 
@@ -863,9 +863,9 @@ No other gateway provides this. A standalone OpenClaw gateway gives agents tools
 | 27 | Gateway management UI | Frontend | L |
 | 28 | Compatibility testing (OpenClaw CLI + web UI) | All above | L |
 
-**MVP (phases 1-6)**: An OpenClaw CLI connects to Brain gateway, submits work, gets streamed responses.
+**MVP (phases 1-6)**: An OpenClaw CLI connects to Osabio gateway, submits work, gets streamed responses.
 
-**Proxy-as-tool-layer (phases 14-19)**: Any agent (including OpenClaw) routing LLM calls through Brain's proxy gets per-agent tool injection, brokered credentials, and policy enforcement. Works without the Gateway Protocol.
+**Proxy-as-tool-layer (phases 14-19)**: Any agent (including OpenClaw) routing LLM calls through Osabio's proxy gets per-agent tool injection, brokered credentials, and policy enforcement. Works without the Gateway Protocol.
 
 **Skills (phases 20-26)**: Full skill system — discovery, co-injection of skills + tools in proxy, governance, import from skills.sh.
 
@@ -875,19 +875,19 @@ No other gateway provides this. A standalone OpenClaw gateway gives agents tools
 
 ## 11. What This Unlocks
 
-**For OpenClaw users**: Point your CLI at Brain instead of a standalone gateway. Shared memory, policy governance, and spend tracking for free. Everything else works the same.
+**For OpenClaw users**: Point your CLI at Osabio instead of a standalone gateway. Shared memory, policy governance, and spend tracking for free. Everything else works the same.
 
 ```bash
 # Before
 openclaw gateway --port 18789
 
-# After — Brain IS the gateway
-openclaw connect ws://brain.local:3000/api/gateway
+# After — Osabio IS the gateway
+openclaw connect ws://osabio.local:3000/api/gateway
 ```
 
-**For Brain**: The entire OpenClaw ecosystem becomes the distribution channel. 300k+ GitHub stars worth of users can connect without changing their tools. Mission Control (2.4k stars) works out of the box.
+**For Osabio**: The entire OpenClaw ecosystem becomes the distribution channel. 300k+ GitHub stars worth of users can connect without changing their tools. Mission Control (2.4k stars) works out of the box.
 
-**For the architecture**: Two complementary integration paths. The Gateway Protocol gives Brain full session lifecycle control. The proxy gives Brain tool injection and credential brokerage for any agent — even those that don't speak the Gateway Protocol. Both paths lead to the same graph.
+**For the architecture**: Two complementary integration paths. The Gateway Protocol gives Osabio full session lifecycle control. The proxy gives Osabio tool injection and credential brokerage for any agent — even those that don't speak the Gateway Protocol. Both paths lead to the same graph.
 
 ---
 
@@ -902,10 +902,10 @@ openclaw connect ws://brain.local:3000/api/gateway
 - [skills.sh ecosystem](https://skills.sh) — 80k+ SKILL.md behavioral instruction sets
 - HiClaw Manager-Worker architecture — containerized OpenClaw-compatible agents with Matrix coordination, Higress gateway, MinIO state
 - Paperclip OpenClaw adapter: `packages/adapters/openclaw-gateway/src/server/execute.ts`
-- Brain orchestrator: `app/src/server/orchestrator/`
-- Brain intent authorizer: `app/src/server/intent/authorizer.ts`
-- Brain DPoP middleware: `app/src/server/auth/dpop-middleware.ts`
-- Brain proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
-- Brain native runtime research: `docs/research/brain-native-agent-runtime.md`
-- Brain SSE registry: `app/src/server/streaming/sse-registry.ts`
-- Brain learning system: `app/src/server/learning/` + `schema/surreal-schema.surql` (learning table)
+- Osabio orchestrator: `app/src/server/orchestrator/`
+- Osabio intent authorizer: `app/src/server/intent/authorizer.ts`
+- Osabio DPoP middleware: `app/src/server/auth/dpop-middleware.ts`
+- Osabio proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
+- Osabio native runtime research: `docs/research/osabio-native-agent-runtime.md`
+- Osabio SSE registry: `app/src/server/streaming/sse-registry.ts`
+- Osabio learning system: `app/src/server/learning/` + `schema/surreal-schema.surql` (learning table)

@@ -225,8 +225,8 @@ async function seedIdentities(ctx: SeedCtx): Promise<void> {
   // Agent identities
   const agentDefs: Array<{ key: keyof Pick<SeedCtx, "coder" | "architect" | "observer">; name: string; runtime: string }> = [
     { key: "coder", name: "Coding Agent", runtime: "external" },
-    { key: "architect", name: "Architect Agent", runtime: "brain" },
-    { key: "observer", name: "Observer Agent", runtime: "brain" },
+    { key: "architect", name: "Architect Agent", runtime: "osabio" },
+    { key: "observer", name: "Observer Agent", runtime: "osabio" },
   ];
 
   for (const def of agentDefs) {
@@ -1519,7 +1519,7 @@ async function seedAuthority(ctx: SeedCtx): Promise<void> {
 
   // Proxy tokens for agent identities
   for (const agent of [ctx.coder, ctx.architect, ctx.observer]) {
-    const rawToken = `brn_seed_${crypto.randomUUID()}`;
+    const rawToken = `osb_seed_${crypto.randomUUID()}`;
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     await create(db, "proxy_token", {
       token_hash: tokenHash,

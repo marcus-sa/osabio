@@ -2,7 +2,7 @@
 
 ## System Context
 
-The Learning Library is a new UI page within the existing Brain web application. It provides a management interface for agent behavioral rules (learnings). The backend API is 100% complete -- this feature is purely frontend with one backend gap (PUT endpoint for editing active learnings).
+The Learning Library is a new UI page within the existing Osabio web application. It provides a management interface for agent behavioral rules (learnings). The backend API is 100% complete -- this feature is purely frontend with one backend gap (PUT endpoint for editing active learnings).
 
 ### Relationship to Existing System
 
@@ -15,11 +15,11 @@ The Learning Library is a new UI page within the existing Brain web application.
 ```mermaid
 graph TB
     User["Workspace Owner<br/>(Person)"]
-    Brain["Brain Platform<br/>(Software System)"]
+    Osabio["Osabio Platform<br/>(Software System)"]
     LLM["LLM Provider<br/>(External System)"]
 
-    User -->|"manages learnings via<br/>web browser"| Brain
-    Brain -->|"generates embeddings for<br/>collision detection"| LLM
+    User -->|"manages learnings via<br/>web browser"| Osabio
+    Osabio -->|"generates embeddings for<br/>collision detection"| LLM
 ```
 
 ## C4 Container (L2)
@@ -30,7 +30,7 @@ graph TB
         SPA["React SPA<br/>(TanStack Router + Zustand)"]
     end
 
-    subgraph Server["Brain Server (Bun)"]
+    subgraph Server["Osabio Server (Bun)"]
         API["Learning API<br/>(HTTP Routes)"]
         Collision["Collision Detector<br/>(LLM Embedding)"]
     end

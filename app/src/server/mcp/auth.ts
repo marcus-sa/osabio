@@ -54,7 +54,7 @@ export async function authenticateMcpRequest(
   }
 
   // Extract workspace from custom claim or verify against requested workspace
-  const claimedWorkspace = claims["urn:brain:workspace"];
+  const claimedWorkspace = claims["urn:osabio:workspace"];
   if (claimedWorkspace && claimedWorkspace !== workspaceId) {
     return jsonError("token workspace does not match requested workspace", 403);
   }

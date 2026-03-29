@@ -25,11 +25,11 @@ The Intent Node introduces an authorization gate between task assignment and age
 
 ```mermaid
 C4Context
-  title System Context: Brain Platform with Intent Authorization
+  title System Context: Osabio Platform with Intent Authorization
 
   Person(operator, "Workspace Owner", "Vetoes high-risk intents via governance feed")
 
-  System(brain, "Brain Platform", "AI-native business management with knowledge graph and intent authorization")
+  System(osabio, "Osabio Platform", "AI-native business management with knowledge graph and intent authorization")
 
   Boundary(agents, "AI Agents") {
     System_Ext(worker, "Worker Agent", "Declares intents before consequential actions")
@@ -38,8 +38,8 @@ C4Context
   System_Ext(llm, "LLM Provider", "Authorizer evaluation (Haiku), chat (Sonnet)")
   System_Ext(surreal, "SurrealDB", "Graph storage, event handler triggers")
 
-  Rel(operator, brain, "Reviews intents in feed, vetoes high-risk")
-  Rel(worker, brain, "Creates intents via MCP, receives authorization decisions")
+  Rel(operator, osabio, "Reviews intents in feed, vetoes high-risk")
+  Rel(worker, osabio, "Creates intents via MCP, receives authorization decisions")
   Rel(brain, llm, "Evaluates intent payloads")
   Rel(brain, surreal, "Stores intent graph, fires status-change events")
 ```

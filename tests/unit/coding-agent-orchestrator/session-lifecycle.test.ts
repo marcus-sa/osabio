@@ -240,8 +240,8 @@ describe("createOrchestratorSession", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      mcpAuthToken: "brn_test_token",
+      osabioBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "osb_test_token",
       workspaceId: "ws-1",
       taskId: "task-abc",
       adapter: mockAdapterStub(),
@@ -264,8 +264,8 @@ describe("createOrchestratorSession", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      mcpAuthToken: "brn_test_token",
+      osabioBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "osb_test_token",
       workspaceId: "ws-1",
       taskId: "task-missing",
       adapter: mockAdapterStub(),
@@ -291,7 +291,7 @@ describe("getOrchestratorSessionStatus", () => {
         id: new RecordId("agent_session", "sess-1"),
         orchestrator_status: "active",
         worktree_branch: "agent/fix-bug",
-        worktree_path: "/repo/.brain/worktrees/agent-fix-bug",
+        worktree_path: "/repo/.osabio/worktrees/agent-fix-bug",
         started_at: "2026-03-07T08:00:00Z",
         last_event_at: "2026-03-07T08:05:00Z",
       },
@@ -359,7 +359,7 @@ describe("abortOrchestratorSession", () => {
         id: new RecordId("agent_session", "sess-1"),
         orchestrator_status: "active",
         worktree_branch: "agent/fix-bug",
-        worktree_path: "/repo/.brain/worktrees/agent-fix-bug",
+        worktree_path: "/repo/.osabio/worktrees/agent-fix-bug",
         task_id: new RecordId("task", "task-abc"),
         workspace: new RecordId("workspace", "ws-1"),
       },
@@ -517,7 +517,7 @@ describe("getOrchestratorReview", () => {
         id: new RecordId("agent_session", "sess-1"),
         orchestrator_status: "idle",
         worktree_branch: "agent/fix-bug",
-        worktree_path: "/repo/.brain/worktrees/agent-fix-bug",
+        worktree_path: "/repo/.osabio/worktrees/agent-fix-bug",
         started_at: "2026-03-07T08:00:00Z",
         last_event_at: "2026-03-07T08:05:00Z",
         task_id: new RecordId("task", "task-abc"),
@@ -840,8 +840,8 @@ describe("regression: session lifecycle cleanup", () => {
     const result = await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      mcpAuthToken: "brn_test_token",
+      osabioBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "osb_test_token",
       workspaceId: "ws-1",
       taskId: "task-wt",
       adapter,
@@ -851,12 +851,12 @@ describe("regression: session lifecycle cleanup", () => {
 
     expect(result.ok).toBe(true);
     expect(adapter.createCalls).toHaveLength(1);
-    // Worktree path is under .brain/worktrees, NOT the repo root
-    expect(adapter.createCalls[0].cwd).toContain(".brain/worktrees");
+    // Worktree path is under .osabio/worktrees, NOT the repo root
+    expect(adapter.createCalls[0].cwd).toContain(".osabio/worktrees");
     expect(adapter.createCalls[0].cwd).not.toBe("/repo");
     expect(adapter.mcpConfigCalls).toHaveLength(1);
     expect(adapter.mcpConfigCalls[0].directory).toBe(adapter.createCalls[0].cwd);
-    expect(adapter.mcpConfigCalls[0].name).toBe("brain");
+    expect(adapter.mcpConfigCalls[0].name).toBe("osabio");
     expect(adapter.mcpConfigCalls[0].config.url).toBe("http://localhost:3000/mcp/agent/agent-sess-wt");
   });
 
@@ -872,8 +872,8 @@ describe("regression: session lifecycle cleanup", () => {
     await createOrchestratorSession({
       surreal: surrealSpy.stub as any,
       shellExec: successShellExec(),
-      brainBaseUrl: "http://localhost:3000",
-      mcpAuthToken: "brn_test_token",
+      osabioBaseUrl: "http://localhost:3000",
+      mcpAuthToken: "osb_test_token",
       workspaceId: "ws-1",
       taskId: "task-fc",
       adapter,
@@ -887,7 +887,7 @@ describe("regression: session lifecycle cleanup", () => {
     expect(sessionUpdate).toBeDefined();
     const merge = sessionUpdate!.merge as Record<string, unknown>;
     expect(merge.worktree_branch).toMatch(/^agent\//);
-    expect(merge.worktree_path).toContain(".brain/worktrees");
+    expect(merge.worktree_path).toContain(".osabio/worktrees");
     expect(merge.external_session_id).toBeDefined();
     expect(merge.session_type).toBe("sandbox_agent");
   });

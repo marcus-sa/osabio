@@ -6,7 +6,7 @@ Three walking skeletons prove the thinnest vertical slices delivering observable
 
 ### Skeleton 1: Non-Streaming Passthrough (US-LP-001)
 
-**User goal**: "I use Claude Code through Brain's proxy and it works identically."
+**User goal**: "I use Claude Code through Osabio's proxy and it works identically."
 
 **Why this is the first skeleton**: This is the most fundamental capability. If the proxy cannot transparently forward a request and return the response, nothing else matters. The walking skeleton already exists in `anthropic-proxy-route.ts` -- this test validates it.
 

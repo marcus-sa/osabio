@@ -1,7 +1,7 @@
 journey:
-  name: "Remove Embeddings from Brain Knowledge Graph"
+  name: "Remove Embeddings from Osabio Knowledge Graph"
   goal: "Eliminate vector embedding infrastructure across 4 use cases, replacing with BM25 fulltext search and graph traversal"
-  persona: "Brain platform engineer maintaining the knowledge graph"
+  persona: "Osabio platform engineer maintaining the knowledge graph"
 
   emotional_arc:
     start: "Determined but cautious -- large cross-cutting refactoring"

@@ -41,11 +41,11 @@ C4Context
     Person(dev, "Developer", "Inspects subagent execution traces")
     Person(user, "Business User", "Sends chat messages triggering subagent invocations")
 
-    System(brain, "Brain Platform", "AI-native business management with knowledge graph")
+    System(osabio, "Osabio Platform", "AI-native business management with knowledge graph")
     SystemDb(surreal, "SurrealDB", "Graph database storing entities, traces, relations")
 
-    Rel(user, brain, "Sends messages via chat UI")
-    Rel(dev, brain, "Queries traces via API / direct DB")
+    Rel(user, osabio, "Sends messages via chat UI")
+    Rel(dev, osabio, "Queries traces via API / direct DB")
     Rel(brain, surreal, "Reads/writes trace records and spawns edges")
 ```
 
@@ -57,7 +57,7 @@ C4Container
 
     Person(user, "User")
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(chatUI, "Chat UI", "React", "Renders messages with trace blocks")
         Container(chatRoute, "Chat Route", "Bun/Hono", "Handles chat ingress, streams responses")
         Container(pmAgent, "PM Agent", "AI SDK", "Subagent returning SubagentTrace")

@@ -25,13 +25,13 @@ C4Context
   Person(admin, "Workspace Admin", "Reviews intents, configures enforcement")
   Person(agent, "Autonomous Agent", "Submits intents with evidence references")
 
-  System(brain, "Brain", "Knowledge graph coordination system with evidence-backed intent authorization")
+  System(osabio, "Osabio", "Knowledge graph coordination system with evidence-backed intent authorization")
 
   System_Ext(llm, "LLM Provider", "Evaluates intent risk via structured output")
   System_Ext(surrealdb, "SurrealDB", "Stores graph entities, intents, evidence verification results")
 
-  Rel(agent, brain, "Submits intent with evidence_refs via")
-  Rel(admin, brain, "Reviews evidence chains and configures enforcement via")
+  Rel(agent, osabio, "Submits intent with evidence_refs via")
+  Rel(admin, osabio, "Reviews evidence chains and configures enforcement via")
   Rel(brain, llm, "Sends enriched evaluation context to")
   Rel(brain, surrealdb, "Reads and writes graph records via")
 ```
@@ -45,7 +45,7 @@ C4Container
   Person(agent, "Autonomous Agent")
   Person(admin, "Workspace Admin")
 
-  Container_Boundary(server, "Brain Server (Bun.serve)") {
+  Container_Boundary(server, "Osabio Server (Bun.serve)") {
     Container(intent_api, "Intent Routes", "TypeScript", "Receives intent creation and evaluation requests")
     Container(evidence_verifier, "Evidence Verification Pipeline", "TypeScript", "Pure pipeline: validates refs for existence, scope, temporal, liveness, authorship")
     Container(policy_gate, "Policy Gate", "TypeScript", "Evaluates policy rules including evidence requirements")
@@ -209,7 +209,7 @@ If `evidence_refs` is empty or omitted, the pipeline returns immediately with `v
 
 ## MCP Tool Surface: Agent-Facing Evidence Contract
 
-The `create_intent` MCP tool (`brain-tool-definitions.ts`) is the sole entry point through which agents submit evidence. The tool definition serves dual purposes:
+The `create_intent` MCP tool (`osabio-tool-definitions.ts`) is the sole entry point through which agents submit evidence. The tool definition serves dual purposes:
 
 1. **Input schema** (`createIntentSchema`): Adds optional `evidence_refs` parameter — an array of `table:id` strings referencing graph entities that justify the intent.
 2. **Tool description** (`CREATE_INTENT_TOOL`): The description is the **only guidance agents receive** about evidence submission. It must explain what evidence_refs are, which entity types are valid, and that evidence quality affects authorization routing.
@@ -218,9 +218,9 @@ The `create_intent` MCP tool (`brain-tool-definitions.ts`) is the sole entry poi
 
 Without updated tool descriptions, agents will never provide `evidence_refs` — making the entire evidence verification pipeline dead code. The tool description is a critical integration point, not documentation.
 
-### Context delivery via proxy `<brain-context>` block
+### Context delivery via proxy `<osabio-context>` block
 
-The proxy injects a `<brain-context>` XML block into the agent's system prompt via `buildBrainContextXml()` in `context-injector.ts`, orchestrated by `anthropic-proxy-route.ts`. Currently this block contains `<decisions>`, `<learnings>`, and `<observations>` sections. A new `<workspace-settings>` section should include the workspace's current `evidence_enforcement` mode (`bootstrap`, `soft`, `hard`). The context cache (`context-cache.ts`) needs to fetch and cache the workspace enforcement mode alongside existing context candidates. This enables agents to:
+The proxy injects a `<osabio-context>` XML block into the agent's system prompt via `buildOsabioContextXml()` in `context-injector.ts`, orchestrated by `anthropic-proxy-route.ts`. Currently this block contains `<decisions>`, `<learnings>`, and `<observations>` sections. A new `<workspace-settings>` section should include the workspace's current `evidence_enforcement` mode (`bootstrap`, `soft`, `hard`). The context cache (`context-cache.ts`) needs to fetch and cache the workspace enforcement mode alongside existing context candidates. This enables agents to:
 - Know whether evidence is required, encouraged, or exempt
 - Proactively gather evidence refs before submitting intents
 - Adapt their evidence-gathering behavior as workspace enforcement mode transitions
@@ -229,13 +229,13 @@ The proxy injects a `<brain-context>` XML block into the agent's system prompt v
 
 ```
 Agent calls create_intent with evidence_refs
-  → brain-tool-definitions.ts (Zod schema validates input)
+  → osabio-tool-definitions.ts (Zod schema validates input)
   → create-intent-handler.ts (parses table:id refs, converts to RecordId[])
   → intent-queries.ts (persists evidence_refs on intent record)
   → evaluateIntent (evidence verification pipeline runs)
 ```
 
-All three files (`brain-tool-definitions.ts`, `create-intent-handler.ts`, `intent-queries.ts`) must be updated in the same release as the schema migration (US-01).
+All three files (`osabio-tool-definitions.ts`, `create-intent-handler.ts`, `intent-queries.ts`) must be updated in the same release as the schema migration (US-01).
 
 ## Implementation Notes
 
@@ -268,6 +268,6 @@ The `createLlmEvaluator` in `authorizer.ts` builds the evaluator prompt from int
 
 ## External Integrations
 
-No new external integrations are introduced. Evidence verification is entirely internal to Brain's graph layer. The LLM provider integration is pre-existing and unchanged.
+No new external integrations are introduced. Evidence verification is entirely internal to Osabio's graph layer. The LLM provider integration is pre-existing and unchanged.
 
 **Note for platform-architect**: No new contract tests needed for this feature. The existing LLM provider contract tests remain sufficient.

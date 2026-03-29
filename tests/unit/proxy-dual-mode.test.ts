@@ -6,9 +6,9 @@
  *
  * Behaviors:
  *   1. buildUpstreamHeaders in direct mode: forwards client x-api-key/authorization
- *   2. buildUpstreamHeaders in brain auth mode: injects server API key, omits client auth
- *   3. resolveBrainAuth returns ProxyAuthResult when X-Brain-Auth is valid
- *   4. resolveBrainAuth returns undefined when X-Brain-Auth is absent (pass-through)
+ *   2. buildUpstreamHeaders in osabio auth mode: injects server API key, omits client auth
+ *   3. resolveBrainAuth returns ProxyAuthResult when X-Osabio-Auth is valid
+ *   4. resolveBrainAuth returns undefined when X-Osabio-Auth is absent (pass-through)
  *   5. Brain auth mode without server API key forwards client auth headers
  */
 import { describe, expect, it } from "bun:test";
@@ -71,9 +71,9 @@ describe("buildUpstreamHeaders", () => {
   });
 
   // --- Brain auth mode ---
-  describe("brain auth mode", () => {
-    const brainAuth: AuthMode = {
-      mode: "brain",
+  describe("osabio auth mode", () => {
+    const osabioAuth: AuthMode = {
+      mode: "osabio",
       serverApiKey: "sk-ant-server-key-456",
     };
 
@@ -86,7 +86,7 @@ describe("buildUpstreamHeaders", () => {
         },
       });
 
-      const headers = buildUpstreamHeaders(request, brainAuth);
+      const headers = buildUpstreamHeaders(request, osabioAuth);
 
       expect(headers.get("x-api-key")).toBe("sk-ant-server-key-456");
     });
@@ -102,10 +102,10 @@ describe("buildUpstreamHeaders", () => {
         },
       });
 
-      const headers = buildUpstreamHeaders(request, brainAuth);
+      const headers = buildUpstreamHeaders(request, osabioAuth);
 
       expect(headers.get("x-api-key")).toBe("sk-ant-server-key-456");
-      // authorization should NOT be forwarded in brain auth mode
+      // authorization should NOT be forwarded in osabio auth mode
       expect(headers.get("authorization")).toBeNull();
     });
 
@@ -119,7 +119,7 @@ describe("buildUpstreamHeaders", () => {
         },
       });
 
-      const headers = buildUpstreamHeaders(request, brainAuth);
+      const headers = buildUpstreamHeaders(request, osabioAuth);
 
       expect(headers.get("anthropic-version")).toBe("2023-06-01");
       expect(headers.get("anthropic-beta")).toBe("messages-2024-12-19");
@@ -128,8 +128,8 @@ describe("buildUpstreamHeaders", () => {
   });
 
   // --- Brain auth mode without server API key (client provides own key) ---
-  describe("brain auth mode without server API key", () => {
-    const brainAuthNoKey: AuthMode = { mode: "brain" };
+  describe("osabio auth mode without server API key", () => {
+    const osabioAuthNoKey: AuthMode = { mode: "osabio" };
 
     it("forwards client x-api-key when no server key configured", () => {
       const request = new Request("http://localhost/proxy/llm/anthropic/v1/messages", {
@@ -141,7 +141,7 @@ describe("buildUpstreamHeaders", () => {
         },
       });
 
-      const headers = buildUpstreamHeaders(request, brainAuthNoKey);
+      const headers = buildUpstreamHeaders(request, osabioAuthNoKey);
 
       expect(headers.get("x-api-key")).toBe("sk-ant-client-key-789");
       expect(headers.get("anthropic-version")).toBe("2023-06-01");
@@ -156,7 +156,7 @@ describe("buildUpstreamHeaders", () => {
         },
       });
 
-      const headers = buildUpstreamHeaders(request, brainAuthNoKey);
+      const headers = buildUpstreamHeaders(request, osabioAuthNoKey);
 
       expect(headers.get("authorization")).toBe("Bearer sk-ant-client-bearer-passthrough");
     });

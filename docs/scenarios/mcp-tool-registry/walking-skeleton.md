@@ -8,7 +8,7 @@ Each phase builds on the previous. Tests are independently runnable per file.
 |-------|------|-----------|-----------------|---------|-------------|
 | 1 | `01-tool-schema-and-grants.test.ts` | US-3 | 1 (ENABLED) | 5 | Schema migration 0065 |
 | 2 | `02-proxy-tool-injection.test.ts` | US-5 | 1 | 3 | Phase 1 + proxy step 7.5 |
-| 3 | `03-brain-native-routing.test.ts` | US-6a | 1 | 2 | Phase 2 + proxy step 8.5 |
+| 3 | `03-osabio-native-routing.test.ts` | US-6a | 1 | 2 | Phase 2 + proxy step 8.5 |
 | 4 | `04-tool-call-tracing.test.ts` | US-9 | 1 | 3 | Phase 3 + tool-trace-writer |
 | 5 | `05-credential-provider.test.ts` | US-1 | 1 | 5 | Phase 1 + encryption adapter |
 | 6 | `06-account-connection.test.ts` | US-4 | 1 | 5 | Phase 5 + oauth-flow |
@@ -43,9 +43,9 @@ After each phase implementation:
 - `proxy/tool-injector.ts` (merge tools into request)
 - `proxy/anthropic-proxy-route.ts` (step 7.5)
 
-### Phase 3: Brain-Native Routing
+### Phase 3: Osabio-Native Routing
 - `proxy/tool-router.ts` (classify tool calls)
-- `proxy/tool-executor.ts` (brain-native path)
+- `proxy/tool-executor.ts` (osabio-native path)
 - `proxy/anthropic-proxy-route.ts` (step 8.5)
 
 ### Phase 4: Tracing

@@ -1,7 +1,7 @@
 # US-CS-003: Wire Event Stream into Session Lifecycle
 
 ## Problem
-Marcus Oliveira is a solo technical founder who delegates coding tasks to AI agents. The orchestrator can spawn an agent and the event bridge can transform OpenCode events into Brain stream events, but these two pieces are not connected. After assignment, no events flow to the browser because `createOrchestratorSession` does not iterate the spawn handle's `eventStream` or pipe events through the event bridge. Marcus sees only a status badge with no live feedback.
+Marcus Oliveira is a solo technical founder who delegates coding tasks to AI agents. The orchestrator can spawn an agent and the event bridge can transform OpenCode events into Osabio stream events, but these two pieces are not connected. After assignment, no events flow to the browser because `createOrchestratorSession` does not iterate the spawn handle's `eventStream` or pipe events through the event bridge. Marcus sees only a status badge with no live feedback.
 
 ## Who
 - Solo technical founder | Assigns tasks to AI agents | Infrastructure gap prevents him from seeing any live agent activity despite all components existing

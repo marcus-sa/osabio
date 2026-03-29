@@ -330,7 +330,7 @@ DEFINE INDEX identity_workspace ON identity FIELDS workspace;
 DEFINE INDEX identity_type_workspace ON identity FIELDS type, workspace;
 
 DEFINE TABLE agent SCHEMAFULL;
-DEFINE FIELD runtime ON agent TYPE string ASSERT $value IN ['brain', 'sandbox', 'external'];
+DEFINE FIELD runtime ON agent TYPE string ASSERT $value IN ['osabio', 'sandbox', 'external'];
 DEFINE FIELD name ON agent TYPE string;
 DEFINE FIELD model ON agent TYPE option<string>;
 DEFINE FIELD description ON agent TYPE option<string>;
@@ -623,7 +623,7 @@ DEFINE FIELD created_at ON intent TYPE datetime;
 DEFINE FIELD updated_at ON intent TYPE option<datetime>;
 DEFINE FIELD expiry ON intent TYPE option<datetime>;
 DEFINE FIELD authorization_details ON intent TYPE option<array<object>>;
-DEFINE FIELD authorization_details[*].type ON intent TYPE string ASSERT $value = "brain_action";
+DEFINE FIELD authorization_details[*].type ON intent TYPE string ASSERT $value = "osabio_action";
 DEFINE FIELD authorization_details[*].action ON intent TYPE string;
 DEFINE FIELD authorization_details[*].resource ON intent TYPE string;
 DEFINE FIELD authorization_details[*].constraints ON intent TYPE option<object> FLEXIBLE;
@@ -1453,4 +1453,4 @@ DEFINE INDEX governs_tool_policy ON governs_tool FIELDS in;
 DEFINE INDEX governs_tool_tool ON governs_tool FIELDS out;
 
 -- Analytics agent: read-only database user
-DEFINE USER analytics ON DATABASE PASSWORD 'brain-analytics-readonly' ROLES VIEWER;
+DEFINE USER analytics ON DATABASE PASSWORD 'osabio-analytics-readonly' ROLES VIEWER;

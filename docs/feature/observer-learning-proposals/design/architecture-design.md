@@ -45,7 +45,7 @@ Unchanged from agent-learnings architecture. The Observer is already shown as a 
 C4Container
     title Observer Learning Proposals - Container View
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(observerAgent, "Observer Agent", "TypeScript", "Verification pipeline + graph scan")
         Container(graphScan, "Graph Scan", "TypeScript", "Periodic workspace analysis: contradictions, anomalies, patterns")
         Container(diagnosticReasoner, "Diagnostic Reasoner", "TypeScript", "NEW: Root Cause Trace — classifies why gap exists, proposes categorized fix")

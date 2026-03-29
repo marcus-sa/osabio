@@ -1,7 +1,7 @@
 /**
  * Tool Router -- Pure Function
  *
- * Classifies tool_use blocks from Anthropic responses as brain-native, integration,
+ * Classifies tool_use blocks from Anthropic responses as osabio-native, integration,
  * or unknown based on the resolved toolset from step 7.5.
  *
  * Pure: no side effects, no IO imports. Takes data in, returns classification out.
@@ -24,14 +24,14 @@ export type ToolUseBlock = {
 
 /** Classification result for a single tool_use block. */
 export type ClassifiedToolCall =
-  | { classification: "brain-native"; toolUse: ToolUseBlock; resolvedTool: ResolvedTool }
+  | { classification: "osabio-native"; toolUse: ToolUseBlock; resolvedTool: ResolvedTool }
   | { classification: "integration"; toolUse: ToolUseBlock; resolvedTool: ResolvedTool }
   | { classification: "unknown"; toolUse: ToolUseBlock };
 
 /** Classification summary for all tool_use blocks in a response. */
 export type ToolRoutingResult = {
   readonly classified: ClassifiedToolCall[];
-  readonly hasBrainNative: boolean;
+  readonly hasOsabioNative: boolean;
   readonly allUnknown: boolean;
 };
 
@@ -42,8 +42,8 @@ export type ToolRoutingResult = {
 /**
  * Classify an array of tool_use blocks against the resolved toolset.
  *
- * - toolkit === "brain" -> brain-native (executed locally via graph queries)
- * - toolkit present but not "brain" -> integration (needs credential brokerage)
+ * - toolkit === "osabio" -> osabio-native (executed locally via graph queries)
+ * - toolkit present but not "osabio" -> integration (needs credential brokerage)
  * - not found in resolvedTools -> unknown (pass through to runtime)
  */
 export function classifyToolCalls(
@@ -59,17 +59,17 @@ export function classifyToolCalls(
       return { classification: "unknown" as const, toolUse };
     }
 
-    if (resolved.toolkit === "brain") {
-      return { classification: "brain-native" as const, toolUse, resolvedTool: resolved };
+    if (resolved.toolkit === "osabio") {
+      return { classification: "osabio-native" as const, toolUse, resolvedTool: resolved };
     }
 
     return { classification: "integration" as const, toolUse, resolvedTool: resolved };
   });
 
-  const hasBrainNative = classified.some((c) => c.classification === "brain-native");
+  const hasOsabioNative = classified.some((c) => c.classification === "osabio-native");
   const allUnknown = classified.every((c) => c.classification === "unknown");
 
-  return { classified, hasBrainNative, allUnknown };
+  return { classified, hasOsabioNative, allUnknown };
 }
 
 // ---------------------------------------------------------------------------

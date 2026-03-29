@@ -4,7 +4,7 @@
 
 | DoR Item | Status | Evidence |
 |----------|--------|---------|
-| Problem statement clear | PASS | "Marcus finds it impossible to automate deployment because Brain requires manual browser-based signup" |
+| Problem statement clear | PASS | "Marcus finds it impossible to automate deployment because Osabio requires manual browser-based signup" |
 | User/persona identified | PASS | Platform operator deploying via Docker Compose/CI pipeline |
 | 3+ domain examples | PASS | 3 examples: standard deploy, missing credentials, non-self-hosted default |
 | UAT scenarios (3-7) | PASS | 5 scenarios covering happy path, validation errors, defaults |
@@ -21,7 +21,7 @@
 
 | DoR Item | Status | Evidence |
 |----------|--------|---------|
-| Problem statement clear | PASS | "No user in the database because Brain requires browser-based signup" |
+| Problem statement clear | PASS | "No user in the database because Osabio requires browser-based signup" |
 | User/persona identified | PASS | Platform operator running bun migrate as part of automated deployment |
 | 3+ domain examples | PASS | 3 examples: fresh seed, idempotent re-run, non-self-hosted skip |
 | UAT scenarios (3-7) | PASS | 5 scenarios covering seed, idempotency, skip, password safety, auth verification |

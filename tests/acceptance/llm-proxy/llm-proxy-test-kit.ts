@@ -92,13 +92,13 @@ export function buildProxyHeaders(options: ProxyRequestOptions): Record<string, 
     headers["x-api-key"] = options.apiKey;
   }
   if (options.workspaceHeader) {
-    headers["X-Brain-Workspace"] = options.workspaceHeader;
+    headers["X-Osabio-Workspace"] = options.workspaceHeader;
   }
   if (options.taskHeader) {
-    headers["X-Brain-Task"] = options.taskHeader;
+    headers["X-Osabio-Task"] = options.taskHeader;
   }
   if (options.agentTypeHeader) {
-    headers["X-Brain-Agent-Type"] = options.agentTypeHeader;
+    headers["X-Osabio-Agent-Type"] = options.agentTypeHeader;
   }
 
   return headers;
@@ -110,18 +110,25 @@ export function buildProxyHeaders(options: ProxyRequestOptions): Record<string, 
  */
 async function withUpstreamRetry(
   fn: () => Promise<Response>,
+  options?: { retryUnauthorized?: boolean },
   maxRetries = 2,
 ): Promise<Response> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const response = await fn();
+    const canRetryUnauthorized = options?.retryUnauthorized ?? false;
     const isTransient = response.status === 429
-      || (response.status === 401 && attempt < maxRetries);
+      || (canRetryUnauthorized && response.status === 401 && attempt < maxRetries);
     if (!isTransient) return response;
     // Consume body before retry to avoid resource leaks
     await response.text().catch(() => undefined);
     await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
   }
   return fn();
+}
+
+function shouldRetryUnauthorized(apiKey?: string): boolean {
+  if (!apiKey) return false;
+  return !apiKey.startsWith("sk-test-") && !apiKey.startsWith("sk-invalid-");
 }
 
 /**
@@ -138,6 +145,7 @@ export async function sendProxyRequest(
 
   return withUpstreamRetry(() =>
     fetch(url, { method: "POST", headers, body }),
+    { retryUnauthorized: shouldRetryUnauthorized(options.apiKey) },
   );
 }
 
@@ -154,6 +162,7 @@ export async function sendCountTokensRequest(
 
   return withUpstreamRetry(() =>
     fetch(url, { method: "POST", headers, body }),
+    { retryUnauthorized: shouldRetryUnauthorized(options.apiKey) },
   );
 }
 
@@ -973,10 +982,10 @@ export async function sendProxyRequestWithIntelligence(
   const headers = buildProxyHeaders(options);
 
   if (options.sessionHeader) {
-    headers["X-Brain-Session"] = options.sessionHeader;
+    headers["X-Osabio-Session"] = options.sessionHeader;
   }
   if (options.sessionEndHeader) {
-    headers["X-Brain-Session-End"] = "true";
+    headers["X-Osabio-Session-End"] = "true";
   }
 
   const url = `${baseUrl}/proxy/llm/anthropic/v1/messages`;

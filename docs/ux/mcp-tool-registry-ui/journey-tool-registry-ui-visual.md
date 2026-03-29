@@ -6,7 +6,7 @@
 Role: DevOps lead managing a 6-person engineering team. Responsible for setting up integrations (GitHub, Slack, Linear) and governing which agents can use which tools.
 
 ### Actor 2: Workspace Member (Carlos Mendez)
-Role: Senior developer who uses Brain-connected coding agents daily. Wants agents to create GitHub issues and query Linear on his behalf.
+Role: Senior developer who uses Osabio-connected coding agents daily. Wants agents to create GitHub issues and query Linear on his behalf.
 
 ---
 
@@ -24,7 +24,7 @@ Role: Senior developer who uses Brain-connected coding agents daily. Wants agent
 
 ### Step 1: Navigate to Tool Registry
 ```
-+-- Brain -- Workspace: Acme Engineering --------------------------+
++-- Osabio -- Workspace: Acme Engineering --------------------------+
 |                                                                   |
 |  [Sidebar]              [Main Content]                           |
 |  ----------              --------------------------------------- |
@@ -182,13 +182,13 @@ Emotion: Curious -> Oriented (clear status per provider)
 ```
 +-- Connect to Slack ----------------------------------------------+
 |                                                                   |
-|  You will be redirected to Slack to authorize Brain.             |
+|  You will be redirected to Slack to authorize Osabio.             |
 |                                                                   |
 |  Requested scopes:                                               |
 |    - channels:read                                               |
 |    - chat:write                                                  |
 |                                                                   |
-|  Brain will store tokens securely and use them only for          |
+|  Osabio will store tokens securely and use them only for          |
 |  authorized tool calls. You can revoke access anytime.           |
 |                                                                   |
 |                     [ Cancel ]  [ Continue to Slack ]            |
@@ -207,7 +207,7 @@ Emotion: Curious -> Oriented (clear status per provider)
 |                                                                   |
 |  API Key:  [ *************************************** ]           |
 |                                                                   |
-|  Brain will use this key only for authorized tool calls.         |
+|  Osabio will use this key only for authorized tool calls.         |
 |  You can revoke access anytime.                                  |
 |                                                                   |
 |                     [ Cancel ]  [ Connect ]                      |

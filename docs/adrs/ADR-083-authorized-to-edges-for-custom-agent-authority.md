@@ -28,7 +28,7 @@ Create seed rows in `authority_scope` for agent_type="custom" with "propose" def
 
 ### Map custom agent roles to existing agent_type values
 
-Let users select a "role template" (code_agent, architect, etc.) during creation, which sets `identity.role` to that agent_type and inherits its seed permissions. Rejected: this couples custom agents to brain agent role semantics. A custom "Compliance Bot" has no meaningful mapping to "code_agent" or "management". The DISCOVER wave confirmed (D3) that per-agent authority without template inheritance is the correct model.
+Let users select a "role template" (code_agent, architect, etc.) during creation, which sets `identity.role` to that agent_type and inherits its seed permissions. Rejected: this couples custom agents to osabio agent role semantics. A custom "Compliance Bot" has no meaningful mapping to "code_agent" or "management". The DISCOVER wave confirmed (D3) that per-agent authority without template inheritance is the correct model.
 
 ## Consequences
 

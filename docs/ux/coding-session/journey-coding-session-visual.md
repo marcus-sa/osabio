@@ -89,7 +89,7 @@ Clicks "Assign Agent" button in the AgentStatusSection.
 ## Step 2: Spawn Progress
 
 ### Context
-After clicking Assign, the system creates a worktree, spawns OpenCode, creates a session, and sends the initial `/brain-start-task` command. This takes 5-15 seconds.
+After clicking Assign, the system creates a worktree, spawns OpenCode, creates a session, and sends the initial `/osabio-start-task` command. This takes 5-15 seconds.
 
 ### UI Mockup
 

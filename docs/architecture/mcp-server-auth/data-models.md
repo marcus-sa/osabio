@@ -5,7 +5,7 @@
 ### `mcp_server` — New Fields
 
 ```sql
--- Auth mode: determines how Brain authenticates with this server
+-- Auth mode: determines how Osabio authenticates with this server
 DEFINE FIELD OVERWRITE auth_mode ON mcp_server TYPE string
   DEFAULT "none"
   ASSERT $value IN ["none", "static_headers", "oauth", "provider"];
@@ -117,7 +117,7 @@ type PkceChallenge = {
 
 type AuthorizationParams = {
   authorizationEndpoint: string;
-  clientId: string;       // URL to Brain's Client ID Metadata Document
+  clientId: string;       // URL to Osabio's Client ID Metadata Document
   redirectUri: string;
   codeChallenge: string;
   state: string;
@@ -145,7 +145,7 @@ type TokenResult = {
 ### Client ID Metadata Document (MCP spec preferred registration)
 
 ```typescript
-// Brain serves this at GET /.well-known/oauth-client-id
+// Osabio serves this at GET /.well-known/oauth-client-id
 type ClientMetadataDocument = {
   client_id: string;           // MUST equal the document URL
   client_name: string;

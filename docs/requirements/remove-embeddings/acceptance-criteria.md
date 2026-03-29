@@ -1,4 +1,4 @@
-# Acceptance Criteria: Remove Embeddings from Brain Knowledge Graph
+# Acceptance Criteria: Remove Embeddings from Osabio Knowledge Graph
 
 ## Traceability Matrix
 

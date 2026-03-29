@@ -1,4 +1,4 @@
-import { type BrainConfig, findGitRoot, loadGlobalConfig, saveGlobalConfig } from "./config";
+import { type OsabioConfig, findGitRoot, loadGlobalConfig, saveGlobalConfig } from "./config";
 import { createDPoPProof, generateDPoPKeyMaterial } from "./dpop";
 
 /**
@@ -6,34 +6,34 @@ import { createDPoPProof, generateDPoPKeyMaterial } from "./dpop";
  * Broad scope: the CLI acts as a privileged workspace client.
  */
 const CLI_AUTHORIZATION_DETAILS = [
-  { type: "brain_action", action: "read", resource: "workspace" },
-  { type: "brain_action", action: "read", resource: "project" },
-  { type: "brain_action", action: "read", resource: "task" },
-  { type: "brain_action", action: "read", resource: "decision" },
-  { type: "brain_action", action: "read", resource: "constraint" },
-  { type: "brain_action", action: "read", resource: "change_log" },
-  { type: "brain_action", action: "read", resource: "entity" },
-  { type: "brain_action", action: "read", resource: "suggestion" },
-  { type: "brain_action", action: "read", resource: "intent" },
-  { type: "brain_action", action: "reason", resource: "decision" },
-  { type: "brain_action", action: "reason", resource: "constraint" },
-  { type: "brain_action", action: "reason", resource: "commit" },
-  { type: "brain_action", action: "create", resource: "decision" },
-  { type: "brain_action", action: "create", resource: "question" },
-  { type: "brain_action", action: "create", resource: "task" },
-  { type: "brain_action", action: "create", resource: "note" },
-  { type: "brain_action", action: "create", resource: "observation" },
-  { type: "brain_action", action: "create", resource: "suggestion" },
-  { type: "brain_action", action: "create", resource: "session" },
-  { type: "brain_action", action: "create", resource: "commit" },
-  { type: "brain_action", action: "create", resource: "intent" },
-  { type: "brain_action", action: "update", resource: "task" },
-  { type: "brain_action", action: "update", resource: "session" },
-  { type: "brain_action", action: "update", resource: "suggestion" },
-  { type: "brain_action", action: "submit", resource: "intent" },
+  { type: "osabio_action", action: "read", resource: "workspace" },
+  { type: "osabio_action", action: "read", resource: "project" },
+  { type: "osabio_action", action: "read", resource: "task" },
+  { type: "osabio_action", action: "read", resource: "decision" },
+  { type: "osabio_action", action: "read", resource: "constraint" },
+  { type: "osabio_action", action: "read", resource: "change_log" },
+  { type: "osabio_action", action: "read", resource: "entity" },
+  { type: "osabio_action", action: "read", resource: "suggestion" },
+  { type: "osabio_action", action: "read", resource: "intent" },
+  { type: "osabio_action", action: "reason", resource: "decision" },
+  { type: "osabio_action", action: "reason", resource: "constraint" },
+  { type: "osabio_action", action: "reason", resource: "commit" },
+  { type: "osabio_action", action: "create", resource: "decision" },
+  { type: "osabio_action", action: "create", resource: "question" },
+  { type: "osabio_action", action: "create", resource: "task" },
+  { type: "osabio_action", action: "create", resource: "note" },
+  { type: "osabio_action", action: "create", resource: "observation" },
+  { type: "osabio_action", action: "create", resource: "suggestion" },
+  { type: "osabio_action", action: "create", resource: "session" },
+  { type: "osabio_action", action: "create", resource: "commit" },
+  { type: "osabio_action", action: "create", resource: "intent" },
+  { type: "osabio_action", action: "update", resource: "task" },
+  { type: "osabio_action", action: "update", resource: "session" },
+  { type: "osabio_action", action: "update", resource: "suggestion" },
+  { type: "osabio_action", action: "submit", resource: "intent" },
 ];
 
-export class BrainHttpClient {
+export class OsabioHttpClient {
   private baseUrl: string;
   private workspaceId: string;
   private accessToken: string;
@@ -48,7 +48,7 @@ export class BrainHttpClient {
   private dpopTokenExpiresAt?: number;
   private identityId?: string;
 
-  constructor(config: BrainConfig) {
+  constructor(config: OsabioConfig) {
     this.baseUrl = config.server_url.replace(/\/$/, "");
     this.workspaceId = config.workspace;
     this.accessToken = config.access_token;
@@ -86,7 +86,7 @@ export class BrainHttpClient {
 
     const res = await fetch(`${this.baseUrl}/api/auth/identity/${this.workspaceId}`);
     if (!res.ok) {
-      throw new Error(`Identity discovery failed: ${res.status}. Run 'brain init' to re-authenticate.`);
+      throw new Error(`Identity discovery failed: ${res.status}. Run 'osabio init' to re-authenticate.`);
     }
     const data = await res.json() as { identity_id: string };
     this.identityId = data.identity_id;
@@ -126,7 +126,7 @@ export class BrainHttpClient {
 
     if (!intentRes.ok) {
       const text = await intentRes.text();
-      throw new Error(`Intent submission failed: ${intentRes.status} ${text}. Run 'brain init' to re-authenticate.`);
+      throw new Error(`Intent submission failed: ${intentRes.status} ${text}. Run 'osabio init' to re-authenticate.`);
     }
 
     const intentData = await intentRes.json() as {
@@ -157,7 +157,7 @@ export class BrainHttpClient {
         DPoP: dpopProof,
       },
       body: JSON.stringify({
-        grant_type: "urn:brain:intent-authorization",
+        grant_type: "urn:osabio:intent-authorization",
         intent_id: intentData.intent_id,
         authorization_details: CLI_AUTHORIZATION_DETAILS,
       }),
@@ -220,7 +220,7 @@ export class BrainHttpClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Token refresh failed: ${res.status}. Run 'brain init' to re-authenticate.`);
+      throw new Error(`Token refresh failed: ${res.status}. Run 'osabio init' to re-authenticate.`);
     }
 
     const data = await res.json() as {

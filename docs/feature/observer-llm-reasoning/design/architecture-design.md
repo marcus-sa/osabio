@@ -74,14 +74,14 @@ C4Context
     Person(user, "Workspace Owner", "Reviews observation feed, acts on contradictions")
     Person(devops, "DevOps Lead", "Configures OBSERVER_MODEL env var")
 
-    System(brain, "Brain Platform", "Knowledge graph for coordinating autonomous agents")
+    System(osabio, "Osabio Platform", "Knowledge graph for coordinating autonomous agents")
 
     System_Ext(github, "GitHub API", "Provides CI status for commits")
     System_Ext(llm_provider, "LLM Provider", "OpenRouter or Ollama — Haiku-class model")
 
-    Rel(user, brain, "Reviews observations in feed")
-    Rel(devops, brain, "Configures OBSERVER_MODEL env var")
-    Rel(user, brain, "Configures workspace settings (skip optimization)")
+    Rel(user, osabio, "Reviews observations in feed")
+    Rel(devops, osabio, "Configures OBSERVER_MODEL env var")
+    Rel(user, osabio, "Configures workspace settings (skip optimization)")
     Rel(brain, github, "Fetches CI status")
     Rel(brain, llm_provider, "Sends structured reasoning requests")
 ```
@@ -90,11 +90,11 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container: Brain Platform with Observer LLM Reasoning
+    title Container: Osabio Platform with Observer LLM Reasoning
 
     Person(user, "Workspace Owner")
 
-    Container_Boundary(brain, "Brain Server (Bun)") {
+    Container_Boundary(osabio, "Osabio Server (Bun)") {
         Container(web_ui, "Web UI", "React", "Feed, chat, graph views")
         Container(api, "API Server", "Bun.serve + TypeScript", "HTTP routes, SSE streaming")
         Container(observer, "Observer Module", "TypeScript", "Verification pipeline + graph scan + LLM reasoning")
@@ -288,7 +288,7 @@ Observation Writer (effect boundary)
 
 ## Error Handling Strategy
 
-All error handling follows Brain's fail-fast principle with one exception: LLM failures degrade gracefully to deterministic behavior (per R3).
+All error handling follows Osabio's fail-fast principle with one exception: LLM failures degrade gracefully to deterministic behavior (per R3).
 
 | Error | Behavior | Rationale |
 |-------|----------|-----------|

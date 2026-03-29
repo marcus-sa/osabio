@@ -5,7 +5,7 @@ import { evaluatePendingIntent } from "./intent-evaluation";
 import { renderConsentDisplay, validateTighterBounds } from "../oauth/consent-renderer";
 import type { ServerDependencies } from "../runtime/types";
 import type { IntentRecord } from "./types";
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 import { log } from "../telemetry/logger";
 
 // --- Route Handler Types ---
@@ -221,9 +221,9 @@ export function createIntentRouteHandlers(deps: ServerDependencies): IntentRoute
     intentId: string,
     request: Request,
   ): Promise<Response> => {
-    let body: { constrained_authorization_details: BrainAction[] };
+    let body: { constrained_authorization_details: OsabioAction[] };
     try {
-      body = await request.json() as { constrained_authorization_details: BrainAction[] };
+      body = await request.json() as { constrained_authorization_details: OsabioAction[] };
     } catch {
       return jsonError("Invalid JSON body", 400);
     }

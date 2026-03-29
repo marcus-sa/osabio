@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implemented a dynamic per-agent MCP endpoint (`POST /mcp/agent/:sessionName`) that gates external tool calls behind intent authorization and policy evaluation. Sandbox coding agents (Claude Code, Codex) interact with Brain through this endpoint, which computes an effective tool scope from the agent's session-linked intents and either forwards authorized calls to upstream MCP servers or guides the agent through intent-based escalation.
+Implemented a dynamic per-agent MCP endpoint (`POST /mcp/agent/:sessionName`) that gates external tool calls behind intent authorization and policy evaluation. Sandbox coding agents (Claude Code, Codex) interact with Osabio through this endpoint, which computes an effective tool scope from the agent's session-linked intents and either forwards authorized calls to upstream MCP servers or guides the agent through intent-based escalation.
 
 ## Business Context
 
@@ -56,7 +56,7 @@ All 11 steps passed through PREPARE -> RED_ACCEPTANCE -> GREEN -> COMMIT phases 
 
 ## Key Design Decisions
 
-1. **No DPoP for sandbox agents** (D1): Sandbox agents authenticate via `X-Brain-Auth` proxy token only. They cannot generate DPoP proofs. The proxy token binds to session and workspace.
+1. **No DPoP for sandbox agents** (D1): Sandbox agents authenticate via `X-Osabio-Auth` proxy token only. They cannot generate DPoP proofs. The proxy token binds to session and workspace.
 
 2. **Agent-driven escalation via create_intent tool** (D3): Two mechanisms -- proactive (tools/list enriches gated descriptions with instructions) and reactive (tools/call returns structured 403 with action_spec_template).
 

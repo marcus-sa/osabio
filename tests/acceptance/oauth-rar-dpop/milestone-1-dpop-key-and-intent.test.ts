@@ -8,7 +8,7 @@
  * - JWK thumbprint computation per RFC 7638
  * - Key pair reuse across operations in same session
  * - Intent submission requires dpop_jwk_thumbprint for all Brain operations
- * - Intent submission requires authorization_details with type "brain_action"
+ * - Intent submission requires authorization_details with type "osabio_action"
  * - Missing thumbprint is rejected
  * - Missing authorization_details is rejected
  * - Low-risk reads auto-approve
@@ -125,7 +125,7 @@ describe("DPoP key pair lifecycle", () => {
 // =============================================================================
 
 describe("Intent submission with DPoP thumbprint binding", () => {
-  it("intent submitted with brain_action and thumbprint is accepted", async () => {
+  it("intent submitted with osabio_action and thumbprint is accepted", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with a registered agent
@@ -135,12 +135,12 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the agent submits an intent with authorization_details and DPoP binding
-    const brainAction = updateTaskAction();
+    const osabioAction = updateTaskAction();
     const response = await submitIntentWithDPoP(
       baseUrl,
       workspace.workspaceId,
       agentId,
-      brainAction,
+      osabioAction,
       keyPair.thumbprint,
       {
         goal: "Update task status to in_progress",
@@ -160,7 +160,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     )) as Array<Array<{ dpop_jwk_thumbprint: string; authorization_details: Array<{ type: string }> }>>;
 
     expect(rows[0]?.[0]?.dpop_jwk_thumbprint).toBe(keyPair.thumbprint);
-    expect(rows[0]?.[0]?.authorization_details[0]?.type).toBe("brain_action");
+    expect(rows[0]?.[0]?.authorization_details[0]?.type).toBe("osabio_action");
   });
 
   it("intent submission without thumbprint is rejected", async () => {
@@ -218,7 +218,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     expect(response.status).toBe(400);
   });
 
-  it("intent with authorization_details type other than brain_action is rejected", async () => {
+  it("intent with authorization_details type other than osabio_action is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace and agent
@@ -241,7 +241,7 @@ describe("Intent submission with DPoP thumbprint binding", () => {
       }),
     });
 
-    // Then the submission is rejected because only brain_action is accepted
+    // Then the submission is rejected because only osabio_action is accepted
     expect(response.status).toBe(400);
   });
 
@@ -255,12 +255,12 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the agent submits a workspace read intent
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const response = await submitIntentWithDPoP(
       baseUrl,
       workspace.workspaceId,
       agentId,
-      brainAction,
+      osabioAction,
       keyPair.thumbprint,
       {
         goal: "Read workspace context for orientation",
@@ -291,12 +291,12 @@ describe("Intent submission with DPoP thumbprint binding", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the intent includes constraints on the operation
-    const brainAction = updateTaskAction("task-123");
+    const osabioAction = updateTaskAction("task-123");
     const response = await submitIntentWithDPoP(
       baseUrl,
       workspace.workspaceId,
       agentId,
-      brainAction,
+      osabioAction,
       keyPair.thumbprint,
       { goal: "Update specific task status" },
     );

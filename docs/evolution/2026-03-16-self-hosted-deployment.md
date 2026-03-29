@@ -6,7 +6,7 @@
 
 ## Feature Summary
 
-Environment-variable-driven self-hosted deployment configuration for Brain. Enables single-operator deployments where registration is disabled, an admin account is pre-seeded during migration, and UI elements are gated behind feature flags.
+Environment-variable-driven self-hosted deployment configuration for Osabio. Enables single-operator deployments where registration is disabled, an admin account is pre-seeded during migration, and UI elements are gated behind feature flags.
 
 In self-hosted mode (`SELF_HOSTED=true`), a single `bun migrate` command produces a ready-to-use instance with a pre-seeded admin account. No separate provisioning step required.
 
@@ -60,7 +60,7 @@ In self-hosted mode (`SELF_HOSTED=true`), a single `bun migrate` command produce
 
 ### Single Feature Flags Endpoint
 - `GET /api/config` serves both signup and worktree flag consumers
-- Rejected server-rendered `window.__BRAIN_CONFIG__` approach as more invasive to the static HTML serving pipeline
+- Rejected server-rendered `window.__OSABIO_CONFIG__` approach as more invasive to the static HTML serving pipeline
 
 ## Execution Stats
 

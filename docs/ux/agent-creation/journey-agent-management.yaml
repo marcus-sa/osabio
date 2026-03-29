@@ -1,6 +1,6 @@
 journey:
   name: "Agent Management"
-  goal: "View, create, configure, and monitor agents within a Brain workspace"
+  goal: "View, create, configure, and monitor agents within a Osabio workspace"
   personas:
     - id: elena_vasquez
       role: "Workspace Admin"
@@ -51,15 +51,15 @@ steps:
       Agent list populated from identity graph traversal:
       workspace <- member_of <- identity <- identity_agent -> agent
       Each agent card shows correct runtime badge and action buttons.
-      Brain agents show view-only. Sandbox/external show edit/delete.
+      Osabio agents show view-only. Sandbox/external show edit/delete.
 
     gherkin: |
       Scenario: View agent registry
         Given Elena Vasquez navigates to the Agents page
-        And her workspace "Acme Manufacturing" has 6 brain agents, 3 sandbox agents, and 3 external agents
+        And her workspace "Acme Manufacturing" has 6 osabio agents, 3 sandbox agents, and 3 external agents
         When the page loads
         Then she sees 12 agent cards grouped by runtime type
-        And brain agents display a "View" action only
+        And osabio agents display a "View" action only
         And sandbox agents display "Spawn", "Edit" actions
         And external agents display "Edit" actions
         And each card shows the agent name, description, runtime badge, and connection status
@@ -84,7 +84,7 @@ steps:
       Runtime selection determines form fields:
       - sandbox: shows sandbox_config fields + authority scopes
       - external: shows authority scopes only
-      Brain option is not available (read-only system agents).
+      Osabio option is not available (read-only system agents).
 
     gherkin: |
       Scenario: Select sandbox runtime
@@ -92,7 +92,7 @@ steps:
         When the creation dialog opens
         Then she sees two options: Sandbox Agent and External Agent
         And each option includes a description and "best for" examples
-        And brain agents are explained as system-managed (not creatable)
+        And osabio agents are explained as system-managed (not creatable)
 
       Scenario: Select external runtime
         Given Rafael clicks "Create Agent"
@@ -188,7 +188,7 @@ steps:
         displayed_as: "${token}"
         consumers:
           - "Confirmation dialog (shown once)"
-          - "External agent X-Brain-Auth header"
+          - "External agent X-Osabio-Auth header"
 
     emotional_state:
       entry: "Expectant -- submitting the creation"
@@ -315,10 +315,10 @@ steps:
         Then the authorized_to edge for create_decision is updated
         And the agent detail page reflects the new permission level
 
-      Scenario: Cannot edit brain agent
-        Given Elena views the detail page for brain agent "Observer"
+      Scenario: Cannot edit osabio agent
+        Given Elena views the detail page for osabio agent "Observer"
         Then no "Edit" or "Delete" actions are available
-        And a note explains that brain agents are managed by the system
+        And a note explains that osabio agents are managed by the system
 
   - id: 7
     name: "Delete Agent"

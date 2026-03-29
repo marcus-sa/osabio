@@ -48,8 +48,8 @@ import {
 import {
   selectWithinBudget,
   rankByBm25WithRecency,
-  buildBrainContextXml,
-  injectBrainContext,
+  buildOsabioContextXml,
+  injectOsabioContext,
   injectRecentChanges,
   classifyByAge,
   buildRecentChangesXml,
@@ -138,7 +138,7 @@ async function validateWorkspace(
 
 export type AuthMode =
   | { mode: "direct" }
-  | { mode: "brain"; serverApiKey?: string };
+  | { mode: "osabio"; serverApiKey?: string };
 
 // ---------------------------------------------------------------------------
 // Header Forwarding
@@ -152,7 +152,7 @@ export function buildUpstreamHeaders(request: Request, authMode: AuthMode): Head
     if (value) headers.set(name, value);
   }
 
-  if (authMode.mode === "brain" && authMode.serverApiKey) {
+  if (authMode.mode === "osabio" && authMode.serverApiKey) {
     // Brain auth with server-held API key: inject it, do not forward client auth
     headers.set("x-api-key", authMode.serverApiKey);
   } else {
@@ -470,10 +470,10 @@ async function runContextInjection(
   }
 
   // 3. Build XML block
-  const brainContextXml = buildBrainContextXml(selectedCandidates);
+  const osabioContextXml = buildOsabioContextXml(selectedCandidates);
 
   // 4. Inject into system prompt
-  const injectionResult = injectBrainContext(parsedBody.system, brainContextXml);
+  const injectionResult = injectOsabioContext(parsedBody.system, osabioContextXml);
 
   // 5. Fetch and inject recent changes by time window (no embeddings, no BM25)
   let enrichedSystem = injectionResult.system;
@@ -544,11 +544,11 @@ async function loadFallbackPool(
 
 function buildIntelligenceMetadata(injectionResult: InjectionResult) {
   return {
-    brain_context_injected: injectionResult.injected,
-    brain_context_decisions: injectionResult.decisionsCount,
-    brain_context_learnings: injectionResult.learningsCount,
-    brain_context_observations: injectionResult.observationsCount,
-    brain_context_tokens_est: injectionResult.tokensEstimated,
+    osabio_context_injected: injectionResult.injected,
+    osabio_context_decisions: injectionResult.decisionsCount,
+    osabio_context_learnings: injectionResult.learningsCount,
+    osabio_context_observations: injectionResult.observationsCount,
+    osabio_context_tokens_est: injectionResult.tokensEstimated,
   };
 }
 
@@ -687,7 +687,7 @@ export function createAnthropicProxyHandler(
     const isCountTokens = isCountTokensRequest(url.pathname);
     const span = trace.getActiveSpan();
     const traceId = span?.spanContext().traceId;
-    const requestMode = request.headers.get("X-Brain-Auth") ? "brain" : "direct";
+    const requestMode = request.headers.get("X-Osabio-Auth") ? "osabio" : "direct";
 
     const setSpanAttributes = (attributes: Record<string, string | number | boolean | undefined>) => {
       if (!span) return;
@@ -733,11 +733,11 @@ export function createAnthropicProxyHandler(
 
       // --- Step 1.5: Brain auth resolution (dual-mode) ---
       setStage("resolve_auth");
-      let brainAuthResult: ProxyAuthResult | undefined;
+      let osabioAuthResult: ProxyAuthResult | undefined;
       let authMode: AuthMode = { mode: "direct" };
 
       try {
-        brainAuthResult = await resolveProxyAuth(
+        osabioAuthResult = await resolveProxyAuth(
           request.headers,
           lookupProxyToken,
           proxyTokenCache,
@@ -764,9 +764,9 @@ export function createAnthropicProxyHandler(
         throw error;
       }
 
-      if (brainAuthResult) {
+      if (osabioAuthResult) {
         // Brain auth mode: use server API key if available, otherwise forward client auth headers
-        authMode = { mode: "brain", serverApiKey: deps.config.anthropicApiKey };
+        authMode = { mode: "osabio", serverApiKey: deps.config.anthropicApiKey };
       }
       setSpanAttributes({ "proxy.auth_mode": authMode.mode });
 
@@ -775,11 +775,11 @@ export function createAnthropicProxyHandler(
       // In Brain auth mode, workspace comes from the token (not from headers)
       identitySignals = resolveIdentity({
         metadataUserId: parsed?.metadata?.user_id,
-        workspaceHeader: brainAuthResult?.workspaceId ?? (request.headers.get("X-Brain-Workspace") ?? undefined),
-        taskHeader: request.headers.get("X-Brain-Task") ?? undefined,
-        agentTypeHeader: request.headers.get("X-Brain-Agent-Type") ?? undefined,
-        sessionHeader: request.headers.get("X-Brain-Session") ?? undefined,
-        proxyTokenIdentityId: brainAuthResult?.identityId,
+        workspaceHeader: osabioAuthResult?.workspaceId ?? (request.headers.get("X-Osabio-Workspace") ?? undefined),
+        taskHeader: request.headers.get("X-Osabio-Task") ?? undefined,
+        agentTypeHeader: request.headers.get("X-Osabio-Agent-Type") ?? undefined,
+        sessionHeader: request.headers.get("X-Osabio-Session") ?? undefined,
+        proxyTokenIdentityId: osabioAuthResult?.identityId,
         userAgent: request.headers.get("User-Agent") ?? undefined,
       });
       setSpanAttributes({
@@ -963,14 +963,14 @@ export function createAnthropicProxyHandler(
                 "proxy.tools_injected_count": resolvedTools.length - (runtimeTools?.length ?? 0) + mergedTools.length - (resolvedTools.length),
                 "proxy.tools_total_count": mergedTools.length,
                 "proxy.tools_runtime_count": runtimeTools?.length ?? 0,
-                "proxy.tools_brain_count": mergedTools.length - (runtimeTools?.length ?? 0),
+                "proxy.tools_osabio_count": mergedTools.length - (runtimeTools?.length ?? 0),
               });
 
               log.info("proxy.tool_injection.result", "Tool injection completed", {
                 workspace_id: identitySignals.workspaceId,
                 identity_id: identitySignals.proxyTokenIdentityId,
                 runtime_tools: runtimeTools?.length ?? 0,
-                brain_tools: mergedTools.length - (runtimeTools?.length ?? 0),
+                osabio_tools: mergedTools.length - (runtimeTools?.length ?? 0),
                 total_tools: mergedTools.length,
               });
             }
@@ -1005,13 +1005,13 @@ export function createAnthropicProxyHandler(
       const hasApiKey = request.headers.has("x-api-key");
       const hasAuthHeader = request.headers.has("authorization");
       const hasClientAuth = hasApiKey || hasAuthHeader;
-      const hasServerAuth = authMode.mode === "brain" && authMode.serverApiKey !== undefined;
+      const hasServerAuth = authMode.mode === "osabio" && authMode.serverApiKey !== undefined;
 
       if (hasServerAuth) {
         setSpanAttributes({ "proxy.upstream_auth_source": "server" });
       } else if (hasClientAuth) {
         setSpanAttributes({ "proxy.upstream_auth_source": "client" });
-      } else if (authMode.mode === "brain") {
+      } else if (authMode.mode === "osabio") {
         // Brain auth succeeded but server has no ANTHROPIC_API_KEY configured —
         // this is a server misconfiguration, not a client auth error.
         setSpanAttributes({
@@ -1184,7 +1184,7 @@ export function createAnthropicProxyHandler(
                 break;
               }
 
-              // Execute ALL classified tool calls (brain-native + MCP + HTTP) concurrently
+              // Execute ALL classified tool calls (osabio-native + MCP + HTTP) concurrently
               const executionResults = await executeAllToolCalls(
                 routingResult.classified,
                 executorDeps,

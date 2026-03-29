@@ -68,4 +68,4 @@
 - Switch likelihood: **High** -- cost visibility is a direct business concern that grows with usage
 - Key blocker: Anxiety about attribution accuracy in nested agent calls
 - Key enabler: AI SDK's `functionId` metadata on telemetry spans provides the attribution key out of the box
-- Design implication: Must define a clear `functionId` taxonomy (e.g., `brain.extraction.generate`, `brain.chat.agent`, `brain.pm.agent`, `brain.observer.verify`) that maps to business-meaningful cost categories. Nested calls should attribute tokens to the innermost function, not the parent.
+- Design implication: Must define a clear `functionId` taxonomy (e.g., `osabio.extraction.generate`, `osabio.chat.agent`, `osabio.pm.agent`, `osabio.observer.verify`) that maps to business-meaningful cost categories. Nested calls should attribute tokens to the innermost function, not the parent.

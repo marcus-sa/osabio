@@ -56,7 +56,7 @@ Extract detection logic into a shared library. Both the proxy (for real-time per
 ### Positive
 
 - Clean separation: proxy = passthrough + trace creation, Observer = all detection and analysis
-- Single detection authority -- no split brain between proxy and Observer
+- Single detection authority -- no split osabio between proxy and Observer
 - Observer enhanced independently of proxy (new detection types are Observer modules, not proxy changes)
 - Proxy stays simple: forward request, create trace, done
 - Reuses existing Observer infrastructure: verification pipeline, peer review, observation creation, LLM reasoning

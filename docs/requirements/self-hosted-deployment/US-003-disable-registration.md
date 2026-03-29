@@ -1,10 +1,10 @@
 # US-003: Disable Registration in Self-Hosted Mode
 
 ## Problem
-Marcus has deployed Brain for his team with a pre-seeded admin account. However, the signup endpoint is still open, meaning anyone on the internal network can create accounts without authorization. He needs registration locked down so that only the seeded admin (and future invited users) can access the instance.
+Marcus has deployed Osabio for his team with a pre-seeded admin account. However, the signup endpoint is still open, meaning anyone on the internal network can create accounts without authorization. He needs registration locked down so that only the seeded admin (and future invited users) can access the instance.
 
 ## Who
-- Platform operator | Running a self-hosted Brain instance on an internal network | Wants to prevent unauthorized account creation
+- Platform operator | Running a self-hosted Osabio instance on an internal network | Wants to prevent unauthorized account creation
 
 ## Solution
 When `SELF_HOSTED=true`, the signup endpoint returns HTTP 403 with a clear message. The login endpoint continues to work normally against the seeded admin account. The signup UI element (link/button) is hidden.
@@ -15,7 +15,7 @@ When `SELF_HOSTED=true`, the signup endpoint returns HTTP 403 with a clear messa
 ## Domain Examples
 
 ### 1: Unauthorized signup blocked (Happy Path)
-An employee named Dmitri discovers the Brain URL on the internal network and tries to sign up at `/auth/signup`. The endpoint returns 403 with body `{"error": "Registration is disabled"}`. Dmitri cannot create an account.
+An employee named Dmitri discovers the Osabio URL on the internal network and tries to sign up at `/auth/signup`. The endpoint returns 403 with body `{"error": "Registration is disabled"}`. Dmitri cannot create an account.
 
 ### 2: Admin login works normally (Happy Path)
 Marcus navigates to the login page, enters `marcus@nwave.io` and his password. Authentication succeeds via the standard Better Auth flow. He reaches the dashboard.

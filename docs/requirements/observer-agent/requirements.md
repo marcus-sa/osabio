@@ -14,7 +14,7 @@ The system MUST fire SurrealDB ASYNC EVENTs when key graph state changes occur, 
 - R1.6: `DEFINE EVENT decision_confirmed ON decision ASYNC RETRY 3` fires when `$after.status IN ["confirmed", "superseded"] AND $before.status != $after.status` — verify implementations align with confirmed decisions, flag stale implementations when superseded
 - R1.7: `DEFINE EVENT observation_peer_review ON observation ASYNC RETRY 3` fires on CREATE when `$after.source_agent != "observer_agent"` — Observer cross-checks claims made by other agents
 - R1.3: EVENT webhook POSTs to `POST /api/observe/:table/:id` with the full `$after` record
-- R1.4: ~~Observer endpoint is idempotent~~ — deferred, tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
+- R1.4: ~~Observer endpoint is idempotent~~ — deferred, tracked in [#134](https://github.com/marcus-sa/osabio/issues/134)
 
 ## R2: External Signal Gathering
 

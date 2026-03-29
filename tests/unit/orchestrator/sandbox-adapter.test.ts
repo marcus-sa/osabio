@@ -126,8 +126,8 @@ describe("SandboxAgentAdapter (mock)", () => {
   it("createSession passes env record through to the adapter", async () => {
     // Given environment variables for the sandbox session
     const env: Record<string, string> = {
-      ANTHROPIC_BASE_URL: "https://brain.example.com/proxy",
-      "X-Brain-Auth": "brn_test_token_abc123",
+      ANTHROPIC_BASE_URL: "https://osabio.example.com/proxy",
+      "X-Osabio-Auth": "osb_test_token_abc123",
     };
 
     // When a session is created with env

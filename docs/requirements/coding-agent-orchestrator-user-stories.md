@@ -17,7 +17,7 @@ All stories trace to JTBD job stories in `docs/ux/coding-agent-orchestrator/jtbd
 ```gherkin
 Given a task with status "ready" and a description in workspace W
 When POST /api/workspaces/W/tasks/T/assign-agent is called
-Then an opencode session is created with Brain MCP configured
+Then an opencode session is created with Osabio MCP configured
 And the task description + project context is sent as the initial prompt
 And the task status changes to "in_progress"
 And an agent_session record is created with agent_type "code_agent"
@@ -25,14 +25,14 @@ And an agent_session record is created with agent_type "code_agent"
 
 ### US-0.2: Agent Reads Context via MCP
 **As** a coding agent assigned to a task
-**I want** to read task and project context from Brain MCP
+**I want** to read task and project context from Osabio MCP
 **So that** I understand what to build and how it fits the codebase
 
 **Job trace:** Job 1 (Assign) — context handoff
 
 **Acceptance Criteria:**
 ```gherkin
-Given an opencode session with Brain MCP configured
+Given an opencode session with Osabio MCP configured
 When the agent calls get_task_context for task T
 Then the agent receives task title, description, status, dependencies, and related entities
 When the agent calls get_project_context for the task's project
@@ -41,7 +41,7 @@ Then the agent receives project structure, decisions, conventions, and open obse
 
 ### US-0.3: Agent Updates Task Status via MCP
 **As** a coding agent working on a task
-**I want** to update the task status in Brain
+**I want** to update the task status in Osabio
 **So that** the user knows my progress without checking manually
 
 **Job trace:** Job 2 (Monitor)
@@ -50,10 +50,10 @@ Then the agent receives project structure, decisions, conventions, and open obse
 ```gherkin
 Given an agent working on task T
 When the agent calls update_task_status with status "blocked"
-Then the task status in Brain changes to "blocked"
+Then the task status in Osabio changes to "blocked"
 And an observation is created explaining the blocker
 When the agent calls update_task_status with status "done"
-Then the task status in Brain changes to "done"
+Then the task status in Osabio changes to "done"
 ```
 
 ### US-0.4: Assign Button in Task Popup (EntityDetailPanel)

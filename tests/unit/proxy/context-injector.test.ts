@@ -1,24 +1,24 @@
 /**
- * Unit tests for brain-context XML building with workspace settings.
+ * Unit tests for osabio-context XML building with workspace settings.
  *
  * Step 03-02: Proxy context injects workspace enforcement mode for agent awareness.
  *
- * Tests the pure buildBrainContextXml function:
+ * Tests the pure buildOsabioContextXml function:
  * - With workspace settings: produces <workspace-settings> section BEFORE decisions
  * - Without workspace settings: backwards compatible (no <workspace-settings> section)
  * - With workspace settings but no candidates: produces workspace-settings-only XML
  */
 import { describe, expect, it } from "bun:test";
 import {
-  buildBrainContextXml,
+  buildOsabioContextXml,
   type RankedCandidate,
 } from "../../../app/src/server/proxy/context-injector";
 
 // ---------------------------------------------------------------------------
-// buildBrainContextXml with workspace settings
+// buildOsabioContextXml with workspace settings
 // ---------------------------------------------------------------------------
 
-describe("buildBrainContextXml with workspace settings", () => {
+describe("buildOsabioContextXml with workspace settings", () => {
   const decision: RankedCandidate = {
     id: "d-1",
     type: "decision",
@@ -34,7 +34,7 @@ describe("buildBrainContextXml with workspace settings", () => {
   };
 
   it("includes workspace-settings section with enforcement mode when provided", () => {
-    const xml = buildBrainContextXml([decision], {
+    const xml = buildOsabioContextXml([decision], {
       enforcementMode: "hard",
     });
 
@@ -44,7 +44,7 @@ describe("buildBrainContextXml with workspace settings", () => {
   });
 
   it("places workspace-settings BEFORE decisions section", () => {
-    const xml = buildBrainContextXml([decision], {
+    const xml = buildOsabioContextXml([decision], {
       enforcementMode: "soft",
     });
 
@@ -57,7 +57,7 @@ describe("buildBrainContextXml with workspace settings", () => {
 
   it("supports all enforcement mode values", () => {
     for (const mode of ["bootstrap", "soft", "hard"] as const) {
-      const xml = buildBrainContextXml([decision], {
+      const xml = buildOsabioContextXml([decision], {
         enforcementMode: mode,
       });
       expect(xml).toContain(`<evidence-enforcement>${mode}</evidence-enforcement>`);
@@ -65,7 +65,7 @@ describe("buildBrainContextXml with workspace settings", () => {
   });
 
   it("omits workspace-settings section when no settings provided", () => {
-    const xml = buildBrainContextXml([decision]);
+    const xml = buildOsabioContextXml([decision]);
 
     expect(xml).not.toContain("<workspace-settings>");
     expect(xml).not.toContain("<evidence-enforcement>");
@@ -73,23 +73,23 @@ describe("buildBrainContextXml with workspace settings", () => {
   });
 
   it("omits workspace-settings section when settings object has no enforcementMode", () => {
-    const xml = buildBrainContextXml([decision], {});
+    const xml = buildOsabioContextXml([decision], {});
 
     expect(xml).not.toContain("<workspace-settings>");
     expect(xml).not.toContain("<evidence-enforcement>");
   });
 
   it("returns empty string when no candidates and no settings", () => {
-    const xml = buildBrainContextXml([]);
+    const xml = buildOsabioContextXml([]);
     expect(xml).toBe("");
   });
 
   it("produces workspace-settings-only XML when settings present but no candidates", () => {
-    const xml = buildBrainContextXml([], {
+    const xml = buildOsabioContextXml([], {
       enforcementMode: "hard",
     });
 
-    expect(xml).toContain("<brain-context>");
+    expect(xml).toContain("<osabio-context>");
     expect(xml).toContain("<workspace-settings>");
     expect(xml).toContain("<evidence-enforcement>hard</evidence-enforcement>");
     expect(xml).not.toContain("<decisions>");
@@ -105,17 +105,17 @@ describe("buildBrainContextXml with workspace settings", () => {
       score: 0.7,
     };
 
-    const xml = buildBrainContextXml([decision, learning, observation], {
+    const xml = buildOsabioContextXml([decision, learning, observation], {
       enforcementMode: "soft",
     });
 
-    expect(xml).toContain("<brain-context>");
+    expect(xml).toContain("<osabio-context>");
     expect(xml).toContain("<workspace-settings>");
     expect(xml).toContain("<evidence-enforcement>soft</evidence-enforcement>");
     expect(xml).toContain("<decisions>");
     expect(xml).toContain("<learnings>");
     expect(xml).toContain("<observations>");
-    expect(xml).toContain("</brain-context>");
+    expect(xml).toContain("</osabio-context>");
   });
 });
 

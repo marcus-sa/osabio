@@ -1,6 +1,6 @@
 journey:
   name: "LLM Proxy Gateway"
-  goal: "Every LLM call made by any agent flows through Brain's proxy, producing cost attribution, policy enforcement, and graph-native traces transparently"
+  goal: "Every LLM call made by any agent flows through Osabio's proxy, producing cost attribution, policy enforcement, and graph-native traces transparently"
   personas:
     - ref: "Marcus Olsson"
       role: "Workspace Admin"
@@ -8,7 +8,7 @@ journey:
     - ref: "Priya Chandrasekaran"
       role: "Developer"
       steps: [2, 5]
-    - ref: "Brain Observer Agent"
+    - ref: "Osabio Observer Agent"
       role: "Autonomous Agent"
       steps: [3, 4, 5, 6]
     - ref: "Elena Vasquez"
@@ -24,12 +24,12 @@ steps:
   - id: 1
     name: "Configure Proxy + Policies"
     actor: "Marcus (Admin)"
-    action: "Set budget limits, model access policies, and proxy configuration in Brain dashboard"
+    action: "Set budget limits, model access policies, and proxy configuration in Osabio dashboard"
     shared_artifacts:
       - name: "proxy_url"
         source: "workspace settings"
         displayed_as: "${PROXY_URL}"
-        consumers: ["brain init", "agent env vars", "dashboard status"]
+        consumers: ["osabio init", "agent env vars", "dashboard status"]
       - name: "budget_thresholds"
         source: "workspace settings"
         displayed_as: "daily/monthly limits per scope"
@@ -49,7 +49,7 @@ steps:
   - id: 2
     name: "Connect Agent"
     actor: "Priya (Developer)"
-    action: "Run brain init or manually set ANTHROPIC_BASE_URL to route Claude Code through proxy"
+    action: "Run osabio init or manually set ANTHROPIC_BASE_URL to route Claude Code through proxy"
     shared_artifacts:
       - name: "anthropic_base_url"
         source: "derived from proxy_url"
@@ -57,11 +57,11 @@ steps:
         consumers: ["Claude Code config", "ANTHROPIC_BASE_URL env var"]
       - name: "workspace_id"
         source: "workspace record"
-        displayed_as: "X-Brain-Workspace header"
+        displayed_as: "X-Osabio-Workspace header"
         consumers: ["authentication step", "trace edges", "spend counters"]
       - name: "task_id"
-        source: "brain start command (optional)"
-        displayed_as: "X-Brain-Task header"
+        source: "osabio start command (optional)"
+        displayed_as: "X-Osabio-Task header"
         consumers: ["trace edges", "task cost rollup"]
     emotional_state:
       entry: "Expectant -- will this break my workflow?"
@@ -223,7 +223,7 @@ integration_validation:
   shared_artifact_consistency:
     - artifact: "proxy_url"
       must_match_across: [1, 2]
-      failure_message: "Proxy URL in workspace settings must match what brain init configures for the agent"
+      failure_message: "Proxy URL in workspace settings must match what osabio init configures for the agent"
     - artifact: "workspace_id"
       must_match_across: [2, 3, 6, 7, 8]
       failure_message: "Workspace ID from headers must match trace edges and spend counter scope"

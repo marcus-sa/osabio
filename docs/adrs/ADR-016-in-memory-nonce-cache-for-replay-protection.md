@@ -6,10 +6,10 @@ Proposed
 
 ## Context
 
-DPoP replay protection requires tracking seen `jti` (nonce) values from DPoP proofs. Each Brain API request carries a DPoP proof with a unique `jti`. The nonce cache must:
+DPoP replay protection requires tracking seen `jti` (nonce) values from DPoP proofs. Each Osabio API request carries a DPoP proof with a unique `jti`. The nonce cache must:
 
 1. Check `jti` uniqueness in < 1ms (NFR-1)
-2. Handle ALL request volume (no tiering -- every Brain operation uses DPoP)
+2. Handle ALL request volume (no tiering -- every Osabio operation uses DPoP)
 3. Auto-expire entries (no unbounded memory growth)
 4. Be dependency-injected, not a module-level singleton (project convention: BR-5, AGENTS.md)
 5. Support concurrent access within a single Bun process

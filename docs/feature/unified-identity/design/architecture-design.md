@@ -13,10 +13,10 @@ The unified identity feature introduces a hub-and-spoke identity model where bot
 
 ```mermaid
 C4Context
-  title System Context: Brain Platform with Unified Identity
+  title System Context: Osabio Platform with Unified Identity
 
   Person(marcus, "Workspace Owner", "Authenticates via GitHub OAuth, manages workspace")
-  System(brain, "Brain Platform", "AI-native business management with knowledge graph")
+  System(osabio, "Osabio Platform", "AI-native business management with knowledge graph")
 
   System_Ext(github, "GitHub", "OAuth provider, code hosting")
   System_Ext(openai, "OpenAI API", "Embeddings (text-embedding-3-small)")
@@ -26,8 +26,8 @@ C4Context
     System_Ext(code_agent, "Code Agent", "Connects via MCP protocol")
   }
 
-  Rel(marcus, brain, "Chats, creates workspaces, reviews agent suggestions")
-  Rel(code_agent, brain, "Authenticates as agent identity, writes decisions/tasks")
+  Rel(marcus, osabio, "Chats, creates workspaces, reviews agent suggestions")
+  Rel(code_agent, osabio, "Authenticates as agent identity, writes decisions/tasks")
   Rel(brain, github, "OAuth login, PR/commit data")
   Rel(brain, openai, "Generates embeddings for entities")
   Rel(brain, llm, "Chat responses, entity extraction")

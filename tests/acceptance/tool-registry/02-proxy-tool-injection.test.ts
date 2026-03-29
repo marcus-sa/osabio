@@ -18,7 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
-  seedBrainNativeTool,
+  seedOsabioNativeTool,
   seedMcpTool,
   seedCanUseEdge,
   seedToolWithGrant,
@@ -45,7 +45,7 @@ describe("Walking Skeleton: Proxy injects granted tools into LLM request", () =>
     await seedToolWithGrant(surreal, {
       toolId: `tool-se-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search workspace entities by text query",
       inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
       identityId: user.identityId,
@@ -91,9 +91,9 @@ describe("Runtime tools preserved alongside injected tools", () => {
 
     // Given agent has one Brain-managed tool grant
     await seedToolWithGrant(surreal, {
-      toolId: `tool-brain-${crypto.randomUUID()}`,
+      toolId: `tool-osabio-${crypto.randomUUID()}`,
       toolName: "search_entities",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Search entities",
       inputSchema: { type: "object", properties: { query: { type: "string" } } },
       identityId: user.identityId,
@@ -144,7 +144,7 @@ describe("Runtime tool takes precedence over Brain tool with same name", () => {
     await seedToolWithGrant(surreal, {
       toolId: `tool-dup-${crypto.randomUUID()}`,
       toolName: "read_file",
-      toolkit: "brain",
+      toolkit: "osabio",
       description: "Brain version of read_file",
       inputSchema: { type: "object", properties: { path: { type: "string" } } },
       identityId: user.identityId,

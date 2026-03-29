@@ -6,14 +6,14 @@
 
 ### Persona 1: Elena Vasquez (Workspace Admin)
 
-- **Who**: Operations lead at a logistics company using Brain to coordinate autonomous agents across supply chain monitoring, compliance auditing, and demand forecasting
+- **Who**: Operations lead at a logistics company using Osabio to coordinate autonomous agents across supply chain monitoring, compliance auditing, and demand forecasting
 - **Context**: Manages a fleet of 12 agents -- 6 brain-controlled (system), 3 sandbox (custom workflows), 3 external (partner integrations)
 - **Technical proficiency**: Comfortable with web dashboards, understands authority/governance concepts, does not write code
 - **Motivation**: Ensure agents operate within defined boundaries while giving her team autonomy to extend capabilities
 
 ### Persona 2: Rafael Oliveira (Developer)
 
-- **Who**: Senior engineer building custom agents for a manufacturing quality control system that connects to Brain via the LLM proxy
+- **Who**: Senior engineer building custom agents for a manufacturing quality control system that connects to Osabio via the LLM proxy
 - **Context**: Builds Vercel AI SDK agents that connect as external agents, and sandbox agents for automated code review
 - **Technical proficiency**: Writes TypeScript, understands MCP protocol, comfortable with API tokens
 - **Motivation**: Register agents quickly without database manipulation, configure authority scopes precisely
@@ -50,23 +50,23 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 
 ```
 +------------------------------------------------------------------+
-| Brain  [Chat] [Feed] [Graph] [Agents*] [Settings]                |
+| Osabio  [Chat] [Feed] [Graph] [Agents*] [Settings]                |
 +------------------------------------------------------------------+
 |                                                                   |
 |  Agents (12)                                    [+ Create Agent]  |
 |                                                                   |
 |  [All] [Brain (6)] [Sandbox (3)] [External (3)]                  |
 |                                                                   |
-|  +-- Brain Agents (read-only) --------------------------------+  |
+|  +-- Osabio Agents (read-only) --------------------------------+  |
 |  |                                                             |  |
 |  | [Architect]         [Observer]         [PM Agent]           |  |
 |  |  System agent        System agent       System agent        |  |
-|  |  brain | active      brain | active     brain | active      |  |
+|  |  osabio | active      osabio | active     osabio | active      |  |
 |  |  [View]              [View]             [View]              |  |
 |  |                                                             |  |
 |  | [Chat Agent]        [Strategist]       [Design Partner]     |  |
 |  |  System agent        System agent       System agent        |  |
-|  |  brain | active      brain | active     brain | active      |  |
+|  |  osabio | active      osabio | active     osabio | active      |  |
 |  |  [View]              [View]             [View]              |  |
 |  +-------------------------------------------------------------+  |
 |                                                                   |
@@ -91,7 +91,7 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 ### Design Notes
 
 - Runtime badge uses color coding paired with text label (accessibility): brain=blue, sandbox=green, external=purple
-- Brain agents section marked "read-only" with lock icon
+- Osabio agents section marked "read-only" with lock icon
 - Filter tabs allow quick focus by runtime type
 - Card actions differ by runtime (brain: View only; sandbox: Spawn/Edit/Delete; external: Edit/Delete)
 - Empty state for each section guides first-time creation
@@ -116,8 +116,8 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 |  | [*] Sandbox Agent         |  | [ ] External Agent        |     |
 |  |                           |  |                           |     |
 |  | Runs in an isolated       |  | Pre-existing agent that   |     |
-|  | environment managed by    |  | connects to Brain via     |     |
-|  | Brain. You configure the  |  | the LLM proxy. You       |     |
+|  | environment managed by    |  | connects to Osabio via     |     |
+|  | Osabio. You configure the  |  | the LLM proxy. You       |     |
 |  | coding agents, env vars,  |  | provide name and          |     |
 |  | and coding agents.        |  | authority scopes.         |     |
 |  |                           |  |                           |     |
@@ -127,7 +127,7 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 |  |                           |  | services                  |     |
 |  +---------------------------+  +---------------------------+     |
 |                                                                   |
-|  Brain agents are managed by the system and cannot be created     |
+|  Osabio agents are managed by the system and cannot be created     |
 |  through this interface.                                          |
 |                                                                   |
 |                                          [Cancel]  [Continue ->]  |
@@ -136,10 +136,10 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 
 ### Design Notes
 
-- Two-option selection (not three -- brain is excluded from creation)
+- Two-option selection (not three -- osabio is excluded from creation)
 - Each card explains the runtime model in domain language
 - "Best for" examples use real-world scenarios, not technical jargon
-- Informational note about brain agents prevents confusion
+- Informational note about osabio agents prevents confusion
 - Progressive disclosure: details appear only after runtime selection
 
 ## Step 3: Configure Agent -- Sandbox Path
@@ -285,10 +285,10 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 |                                                                   |
 |  +-- Proxy Token (shown once) ---------------------------+        |
 |  |                                                       |        |
-|  |  brp_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9      |        |
+|  |  osp_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9      |        |
 |  |                                    [Copy to Clipboard] |        |
 |  |                                                       |        |
-|  |  Use this token in your agent's X-Brain-Auth header.  |        |
+|  |  Use this token in your agent's X-Osabio-Auth header.  |        |
 |  |  This token cannot be retrieved after closing this    |        |
 |  |  dialog.                                              |        |
 |  +-------------------------------------------------------+        |
@@ -297,9 +297,9 @@ Pattern: **Confidence Building** -- complex multi-step operations where each mic
 |  |                                                       |        |
 |  |  Set the following in your agent's environment:       |        |
 |  |                                                       |        |
-|  |  BRAIN_SERVER_URL=https://brain.acme-mfg.com          |        |
-|  |  BRAIN_AUTH_TOKEN=brp_a1b2c3d4e5f6...              |        |
-|  |  BRAIN_WORKSPACE_ID=acme-manufacturing                |        |
+|  |  OSABIO_SERVER_URL=https://brain.acme-mfg.com          |        |
+|  |  OSABIO_AUTH_TOKEN=osp_a1b2c3d4e5f6...              |        |
+|  |  OSABIO_WORKSPACE_ID=acme-manufacturing                |        |
 |  |                                                       |        |
 |  +-------------------------------------------------------+        |
 |                                                                   |

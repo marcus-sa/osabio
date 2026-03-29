@@ -1,9 +1,9 @@
-# Research: Brain as Native Agent Runtime
+# Research: Osabio as Native Agent Runtime
 
 **Date**: 2026-03-21
-**Research Question**: Does Brain need OpenClaw (or any external agent framework) at all, or should it run agents natively via AI SDK with graph-governed tools?
+**Research Question**: Does Osabio need OpenClaw (or any external agent framework) at all, or should it run agents natively via AI SDK with graph-governed tools?
 
-**Conclusion**: Brain should run agents natively. OpenClaw's value decomposes into an agent loop (AI SDK), tools (filesystem, shell, git), and sandboxing (Docker/WASM). Brain already has the agent loop via its orchestrator. The remaining pieces are tools and infrastructure — not a framework dependency.
+**Conclusion**: Osabio should run agents natively. OpenClaw's value decomposes into an agent loop (AI SDK), tools (filesystem, shell, git), and sandboxing (Docker/WASM). Osabio already has the agent loop via its orchestrator. The remaining pieces are tools and infrastructure — not a framework dependency.
 
 ---
 
@@ -35,13 +35,13 @@ That's the agent loop. Everything else is tools and context management.
 | "Memory" | Persistent state injected into prompts |
 | "Approval gates" | Policy check before tool execution |
 
-None of these require a framework. They require an agent loop (AI SDK), tools (functions), and governance (Brain).
+None of these require a framework. They require an agent loop (AI SDK), tools (functions), and governance (Osabio).
 
 ---
 
-## 2. What Brain Already Has
+## 2. What Osabio Already Has
 
-Brain's orchestrator (`app/src/server/orchestrator/`) already runs agents:
+Osabio's orchestrator (`app/src/server/orchestrator/`) already runs agents:
 
 | Component | Status | Location |
 |-----------|--------|----------|
@@ -62,7 +62,7 @@ What's missing: **general-purpose tools** (filesystem, shell, git) and **skills*
 
 ## 3. The Three Layers of Agent Competency
 
-Brain needs three layers to fully replace external agent frameworks:
+Osabio needs three layers to fully replace external agent frameworks:
 
 | Layer | What | Example | Status |
 |-------|------|---------|--------|
@@ -109,7 +109,7 @@ The tools that make an agent useful for software engineering are simple function
 | `git_log` | Recent commits | `(limit?, path?) → Commit[]` |
 | `git_commit` | Create commit | `(message, files?) → string` |
 
-### Context Tools (Brain-specific)
+### Context Tools (Osabio-specific)
 
 | Tool | Purpose | Signature |
 |------|---------|-----------|
@@ -124,12 +124,12 @@ These context tools already exist as MCP tools. The filesystem/shell/git tools a
 
 ### Tool Governance
 
-Every tool invocation passes through Brain's intent system:
+Every tool invocation passes through Osabio's intent system:
 
 ```
 Agent calls shell_exec("rm -rf /tmp/build")
   │
-  ├─ Brain creates intent:
+  ├─ Osabio creates intent:
   │   { action: "shell:rm -rf /tmp/build", riskLevel: "medium" }
   │
   ├─ Policy evaluation:
@@ -142,13 +142,13 @@ Agent calls shell_exec("rm -rf /tmp/build")
   └─ Tool executes, result returned to agent
 ```
 
-This is what OpenClaw's exec approval does — but Brain's version is richer because it evaluates against a policy graph with versioning, authority scopes, and audit trails.
+This is what OpenClaw's exec approval does — but Osabio's version is richer because it evaluates against a policy graph with versioning, authority scopes, and audit trails.
 
 ---
 
 ## 5. The Proxy as Tool Layer
 
-All LLM requests are routed through Brain's proxy. The proxy already intercepts requests and injects context. The insight: **the proxy can also inject tools and intercept tool calls**. No separate MCP gateway needed — the proxy IS the tool layer.
+All LLM requests are routed through Osabio's proxy. The proxy already intercepts requests and injects context. The insight: **the proxy can also inject tools and intercept tool calls**. No separate MCP gateway needed — the proxy IS the tool layer.
 
 ### How It Works
 
@@ -158,7 +158,7 @@ Any agent (OpenClaw, Cursor, Claude Code, curl, anything)
   POST /v1/chat/completions  (bare request, no tools, no credentials)
   │
   ▼
-Brain Proxy
+Osabio Proxy
   │
   ├─ 1. Identify agent (DPoP-bound identity)
   ├─ 2. Resolve active skills for this agent + current task
@@ -188,17 +188,17 @@ The agent sends a bare LLM request. It doesn't know about tools, skills, or cred
 
 | MCP Gateway approach | Proxy approach |
 |---------------------|---------------|
-| Agents must discover and configure tools | Agents send bare requests — Brain decides what they get |
+| Agents must discover and configure tools | Agents send bare requests — Osabio decides what they get |
 | Separate protocol (MCP) for tool delivery | Same HTTP path the agent already uses |
-| Agent chooses which tools to call | LLM chooses from tools Brain injected — agent never sees the list |
+| Agent chooses which tools to call | LLM chooses from tools Osabio injected — agent never sees the list |
 | Credentials could leak via MCP response | Credentials never leave the proxy — agent sees sanitized results |
-| Works only for MCP-aware agents | Works for **any** agent that routes LLM calls through Brain |
+| Works only for MCP-aware agents | Works for **any** agent that routes LLM calls through Osabio |
 
 The proxy approach is strictly more powerful: it works for every agent type (OpenClaw, Cursor, Claude Code, raw API calls) without requiring MCP support. The agent doesn't even need to know tools exist.
 
 ### Per-Agent Tool Resolution
 
-Not all tools and skills are available to all agents. Brain resolves the toolset per-request based on the agent's identity:
+Not all tools and skills are available to all agents. Osabio resolves the toolset per-request based on the agent's identity:
 
 ```sql
 -- Tools this identity is authorized to use
@@ -242,12 +242,12 @@ The agent never sees the GitHub token. It never even knows a token exists.
 ```
 1. Admin configures auth_config for "github" toolkit:
    → OAuth2 client_id, client_secret, scopes
-   → Stored encrypted in Brain's database
+   → Stored encrypted in Osabio's database
 
 2. Identity connects their GitHub account:
-   → Brain initiates OAuth2 flow
+   → Osabio initiates OAuth2 flow
    → User authorizes in browser
-   → Brain receives access_token + refresh_token
+   → Osabio receives access_token + refresh_token
    → Stored in connected_account (encrypted)
    → Status: "active"
 
@@ -259,10 +259,10 @@ The agent never sees the GitHub token. It never even knows a token exists.
 
 4. Token revoked externally:
    → Next API call fails with 401
-   → Brain marks connected_account status: "expired"
+   → Osabio marks connected_account status: "expired"
    → LLM receives tool error: "GitHub connection expired"
    → Agent surfaces this to user
-   → User re-authorizes via Brain UI
+   → User re-authorizes via Osabio UI
 ```
 
 ### Tool Categories
@@ -282,7 +282,7 @@ Three categories, all injected by the proxy:
 | `git_commit` | medium | Auto-approve |
 | `git_push` | high | Require approval |
 
-#### Context Tools (Brain-native)
+#### Context Tools (Osabio-native)
 
 | Tool | Risk Level |
 |------|-----------|
@@ -306,19 +306,19 @@ Three categories, all injected by the proxy:
 
 ### How It Differs from Composio
 
-| Aspect | Composio | Brain |
+| Aspect | Composio | Osabio |
 |--------|----------|-------|
 | **Delivery** | MCP gateway (agents must be MCP-aware) | LLM proxy (works for any agent) |
-| **Tool selection** | Agent requests tools by name | Brain injects tools based on identity + skills |
+| **Tool selection** | Agent requests tools by name | Osabio injects tools based on identity + skills |
 | **Credential storage** | Proprietary vault (cloud) | `connected_account` table (self-hosted, encrypted) |
 | **Authorization** | External policy engine | Intent system + policy graph (existing, versioned) |
 | **Audit trail** | Gateway logs | Graph-native traces (hierarchical, queryable) |
 | **Governance** | Rate limits + HITL | Rate limits + HITL + policy graph + authority scopes + RAR |
-| **Deployment** | Cloud (Composio hosts execution) | Self-hosted (Brain hosts everything) |
+| **Deployment** | Cloud (Composio hosts execution) | Self-hosted (Osabio hosts everything) |
 
 ### The MCP Server Still Exists (For External Agents)
 
-The proxy approach handles agents whose LLM calls route through Brain. For external agents that want to call Brain tools directly (e.g., a script, a CI pipeline), the existing MCP server still works:
+The proxy approach handles agents whose LLM calls route through Osabio. For external agents that want to call Osabio tools directly (e.g., a script, a CI pipeline), the existing MCP server still works:
 
 ```json
 {
@@ -406,7 +406,7 @@ DEFINE INDEX skill_status ON skill FIELDS status;
 
 ### Import from skills.sh
 
-The 80k+ skills in the `skills.sh` ecosystem are SKILL.md files (YAML frontmatter + Markdown body). Brain can import them:
+The 80k+ skills in the `skills.sh` ecosystem are SKILL.md files (YAML frontmatter + Markdown body). Osabio can import them:
 
 ```
 SKILL.md → parse triggers from frontmatter
@@ -431,14 +431,14 @@ The one legitimate infrastructure concern from agent frameworks: isolation. An a
 | **WASM** | Memory-level | ~10ms startup | High (tool porting) |
 | **Firecracker/microVM** | Kernel-level | ~125ms startup | High (infra) |
 
-Brain already uses git worktrees for agent isolation. For higher-risk operations, tools can execute inside a Docker container:
+Osabio already uses git worktrees for agent isolation. For higher-risk operations, tools can execute inside a Docker container:
 
 ```
 Agent calls shell_exec("npm install && npm test")
   │
   ├─ Policy says: "shell commands in project X require container isolation"
   │
-  ├─ Brain spawns Docker container:
+  ├─ Osabio spawns Docker container:
   │   → Mount worktree as volume
   │   → Network restricted to localhost
   │   → Resource limits (CPU, memory, timeout)
@@ -448,13 +448,13 @@ Agent calls shell_exec("npm install && npm test")
   └─ Result returned to agent
 ```
 
-This is not an agent framework feature. It's a tool execution policy. Brain's policy graph decides *whether* to sandbox, and the tool executor handles *how*.
+This is not an agent framework feature. It's a tool execution policy. Osabio's policy graph decides *whether* to sandbox, and the tool executor handles *how*.
 
 ### NVIDIA OpenShell
 
-NVIDIA OpenShell (March 2026) provides kernel-level sandboxing for agent tool execution. It treats skills as behavioral units that can be scanned and restricted. Brain's architecture aligns with this — skills are governed graph nodes, tools execute inside policy-controlled sandboxes.
+NVIDIA OpenShell (March 2026) provides kernel-level sandboxing for agent tool execution. It treats skills as behavioral units that can be scanned and restricted. Osabio's architecture aligns with this — skills are governed graph nodes, tools execute inside policy-controlled sandboxes.
 
-If OpenShell matures, Brain can use it as the sandbox backend instead of Docker. The tool interface doesn't change — only the executor.
+If OpenShell matures, Osabio can use it as the sandbox backend instead of Docker. The tool interface doesn't change — only the executor.
 
 ---
 
@@ -463,12 +463,12 @@ If OpenShell matures, Brain can use it as the sandbox backend instead of Docker.
 ```
 Humans
   │
-  ├─ Brain UI (chat, feed, graph view, skill library, policy management)
-  ├─ Brain CLI
+  ├─ Osabio UI (chat, feed, graph view, skill library, policy management)
+  ├─ Osabio CLI
   └─ MCP (coding agents: Cursor, Claude Code, etc.)
        │
        ▼
-  Brain Server
+  Osabio Server
   ├─ Identity & Auth (OAuth 2.1, DPoP, RAR)
   ├─ Orchestrator (session lifecycle, task assignment)
   ├─ LLM Proxy (the universal control point)
@@ -491,18 +491,18 @@ Humans
   └─ WASM / OpenShell (memory/kernel isolation — future)
 ```
 
-No external agent framework in this stack. Brain owns every layer from human interaction to tool execution.
+No external agent framework in this stack. Osabio owns every layer from human interaction to tool execution.
 
 ---
 
 ## 9. What About OpenClaw Compatibility?
 
-Brain does not need to implement the OpenClaw Gateway Protocol. The Gateway Protocol was designed for OpenClaw clients talking to an OpenClaw gateway. If Brain is the runtime, there is no gateway.
+Osabio does not need to implement the OpenClaw Gateway Protocol. The Gateway Protocol was designed for OpenClaw clients talking to an OpenClaw gateway. If Osabio is the runtime, there is no gateway.
 
-However, Brain can still serve OpenClaw's existing user base through the path that already works: **MCP**.
+However, Osabio can still serve OpenClaw's existing user base through the path that already works: **MCP**.
 
 ```
-OpenClaw CLI → spawns agent → agent connects to Brain MCP server
+OpenClaw CLI → spawns agent → agent connects to Osabio MCP server
   │
   ├─ get_context (loads graph state)
   ├─ create_observation (logs signals)
@@ -510,9 +510,9 @@ OpenClaw CLI → spawns agent → agent connects to Brain MCP server
   └─ ...all existing MCP tools
 ```
 
-This requires zero new code. OpenClaw agents call Brain's MCP server for context and governance. They run their own agent loop and tools. Brain doesn't need to replace OpenClaw for users who want to keep using it — it just governs them.
+This requires zero new code. OpenClaw agents call Osabio's MCP server for context and governance. They run their own agent loop and tools. Osabio doesn't need to replace OpenClaw for users who want to keep using it — it just governs them.
 
-The native runtime (Brain running agents directly via AI SDK) is for users who want Brain to be the whole stack. MCP compatibility is for users who want Brain as a sidecar to their existing tools.
+The native runtime (Osabio running agents directly via AI SDK) is for users who want Osabio to be the whole stack. MCP compatibility is for users who want Osabio as a sidecar to their existing tools.
 
 Both paths coexist. No Gateway Protocol needed for either.
 
@@ -520,20 +520,20 @@ Both paths coexist. No Gateway Protocol needed for either.
 
 ## 10. Comparison: External Framework vs. Native Runtime
 
-| Aspect | OpenClaw through Brain (Gateway Protocol) | Brain native (AI SDK + tools) |
+| Aspect | OpenClaw through Osabio (Gateway Protocol) | Osabio native (AI SDK + tools) |
 |--------|-------------------------------------------|-------------------------------|
-| Moving parts | 3 (client + Brain + OpenClaw runtime) | 1 (Brain) |
-| Protocol coupling | Must track Gateway Protocol v3+ evolution | None — Brain defines its own tool interface |
+| Moving parts | 3 (client + Osabio + OpenClaw runtime) | 1 (Osabio) |
+| Protocol coupling | Must track Gateway Protocol v3+ evolution | None — Osabio defines its own tool interface |
 | Auth | Two systems bridged (Ed25519 + DPoP) | One system (DPoP) |
-| Context injection | Intercept or proxy | Native — Brain builds the prompt |
+| Context injection | Intercept or proxy | Native — Osabio builds the prompt |
 | Tool governance | Bridged via exec approval protocol | Native — policy graph evaluates directly |
 | Skill injection | Must push skills into external runtime | Native — skills are part of prompt construction |
-| Trace recording | Reconstruct from gateway events | Native — Brain records as it executes |
-| Latency | Extra hop (Brain ↔ OpenClaw) | Direct (Brain → LLM) |
+| Trace recording | Reconstruct from gateway events | Native — Osabio records as it executes |
+| Latency | Extra hop (Osabio ↔ OpenClaw) | Direct (Osabio → LLM) |
 | Complexity | ~2000 lines of gateway protocol code | ~500 lines of tools |
-| Ecosystem access | OpenClaw CLI, web UI, mobile, Mission Control | Brain UI, Brain CLI, MCP |
+| Ecosystem access | OpenClaw CLI, web UI, mobile, Mission Control | Osabio UI, Osabio CLI, MCP |
 
-The native runtime is simpler, faster, and more capable. The only trade-off is ecosystem access — but Brain's MCP server already covers the integration case.
+The native runtime is simpler, faster, and more capable. The only trade-off is ecosystem access — but Osabio's MCP server already covers the integration case.
 
 ---
 
@@ -718,9 +718,9 @@ The authorizer walks all three edges: does the identity have access (`can_use`/`
 | 16 | Skill evolution (Observer → skill updates) | Observer + skills | L |
 | 17 | Connected accounts UI (OAuth connect flow) | Frontend | L |
 | 18 | Tool registry + skill library UI | Frontend | L |
-| 19 | Brain CLI (task-scoped agent sessions) | Proxy + tools | L |
+| 19 | Osabio CLI (task-scoped agent sessions) | Proxy + tools | L |
 
-**MVP (phases 1-5)**: Any agent routing through Brain's proxy gets tools injected per-identity, governed by policies. No MCP gateway, no external framework.
+**MVP (phases 1-5)**: Any agent routing through Osabio's proxy gets tools injected per-identity, governed by policies. No MCP gateway, no external framework.
 
 **Integrations (phases 6-9)**: Brokered credentials for third-party tools. Agents call GitHub, Slack, etc. without seeing API keys. Proxy executes with vault-stored credentials.
 
@@ -732,13 +732,13 @@ The authorizer walks all three edges: does the identity have access (`can_use`/`
 
 ## Sources
 
-- Brain orchestrator: `app/src/server/orchestrator/`
-- Brain intent authorizer: `app/src/server/intent/authorizer.ts`
-- Brain learning system: `app/src/server/learning/`
-- Brain context builder: `app/src/server/chat/context.ts`
-- Brain proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
-- Brain SSE registry: `app/src/server/streaming/sse-registry.ts`
-- Brain MCP server: `cli/mcp-server.ts`
+- Osabio orchestrator: `app/src/server/orchestrator/`
+- Osabio intent authorizer: `app/src/server/intent/authorizer.ts`
+- Osabio learning system: `app/src/server/learning/`
+- Osabio context builder: `app/src/server/chat/context.ts`
+- Osabio proxy: `app/src/server/proxy/anthropic-proxy-route.ts`
+- Osabio SSE registry: `app/src/server/streaming/sse-registry.ts`
+- Osabio MCP server: `cli/mcp-server.ts`
 - [Composio](https://composio.dev) — MCP gateway, brokered credentials pattern, tool catalog
 - [Composio architecture research](docs/research/composio-tool-platform-research.md)
 - [Vercel AI SDK](https://sdk.vercel.ai/) — agent loop, tool use, streaming

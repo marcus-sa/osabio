@@ -175,7 +175,7 @@ Applied to the primary job: "Coordinate autonomous agents through reactive graph
 **Demographics**:
 - High technical proficiency (full-stack developer, reads code)
 - Checks feed 10-15 times per day in 2-5 minute sessions
-- Uses Chrome on MacBook, often with multiple Brain workspaces
+- Uses Chrome on MacBook, often with multiple Osabio workspaces
 - Primary motivation: maintain oversight without micromanaging agents
 
 **Job Steps**:
@@ -263,7 +263,7 @@ Applied to the primary job: "Coordinate autonomous agents through reactive graph
 
 **Who**: Developer using Claude Code via MCP, receives context packets at session start
 **Demographics**:
-- Starts 5-10 coding sessions per day via `brain start task:...`
+- Starts 5-10 coding sessions per day via `osabio start task:...`
 - Expects context to be accurate at session start
 - Does not monitor the web UI during coding sessions
 - Primary motivation: start coding with correct, complete context

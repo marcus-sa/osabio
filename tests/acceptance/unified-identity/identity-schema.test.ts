@@ -102,7 +102,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
+      content: { runtime: "osabio", name: "PM Agent", managed_by: human, created_at: now },
     });
     const [rows] = await surreal.query<[Array<{ name: string; managed_by: RecordId }>]>(
       "SELECT name, managed_by FROM $record;", { record: ag },
@@ -141,7 +141,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     const ag = new RecordId("agent", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
       record: ag,
-      content: { runtime: "brain", name: "PM Agent", managed_by: human, created_at: now },
+      content: { runtime: "osabio", name: "PM Agent", managed_by: human, created_at: now },
     });
     const agentId = new RecordId("identity", randomUUID());
     await surreal.query("CREATE $record CONTENT $content;", {
@@ -183,7 +183,7 @@ describe("US-UI-001: Identity hub-spoke schema", () => {
     let threw = false;
     try {
       await surreal.query("CREATE $record CONTENT $content;", {
-        record: ag, content: { runtime: "brain", name: "Test Agent", created_at: new Date() },
+        record: ag, content: { runtime: "osabio", name: "Test Agent", created_at: new Date() },
       });
     } catch { threw = true; }
     expect(threw).toBe(true);

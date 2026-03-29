@@ -8,13 +8,13 @@ Supersedes: ADR-001, ADR-003
 
 ## Context
 
-The Brain orchestrator spawns autonomous coding agents to work on tasks from the knowledge graph. The current implementation uses `@opencode-ai/sdk` which requires:
+The Osabio orchestrator spawns autonomous coding agents to work on tasks from the knowledge graph. The current implementation uses `@opencode-ai/sdk` which requires:
 
 1. Spawning an OpenCode server process (`child_process.spawn`)
 2. Allocating a free network port and waiting for the server to start
 3. Parsing stdout for readiness signals
 4. Creating a client, session, and subscribing to a proprietary SSE event stream
-5. Translating OpenCode-specific event types to Brain's StreamEvent contract
+5. Translating OpenCode-specific event types to Osabio's StreamEvent contract
 
 This multi-step process introduces failure modes at each stage: port allocation races, startup timeouts, stdout parsing fragility, and process orphaning on crashes.
 
@@ -24,7 +24,7 @@ Anthropic has released the Claude Agent SDK (`@anthropic-ai/claude-agent-sdk`) w
 
 ## Decision
 
-Replace `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk`. Use the SDK's `query()` function as the sole agent spawn mechanism. Configure Brain MCP as a stdio transport in the SDK options. Implement all 6 lifecycle hooks as TypeScript callbacks.
+Replace `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk`. Use the SDK's `query()` function as the sole agent spawn mechanism. Configure Osabio MCP as a stdio transport in the SDK options. Implement all 6 lifecycle hooks as TypeScript callbacks.
 
 ## Rationale
 
@@ -50,7 +50,7 @@ Replace `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk`. Use the SDK's 
 | Client creation | `createOpencodeClient({ baseUrl })` | Not needed |
 | Session creation | `client.session.create()` | Not needed |
 | Event subscription | `client.event.subscribe()` | `query()` returns AsyncIterable |
-| MCP configuration | HTTP relay to Brain server | stdio transport (direct) |
+| MCP configuration | HTTP relay to Osabio server | stdio transport (direct) |
 | Abort | `client.session.abort()` + `proc.kill()` | `AbortController.abort()` |
 | **Total steps** | **8** | **1** (`query()`) |
 
@@ -58,10 +58,10 @@ Replace `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk`. Use the SDK's 
 
 | Aspect | OpenCode (current) | Agent SDK |
 |--------|-------------------|-----------|
-| Transport | HTTP (Brain server -> OpenCode server -> tool call -> response) | stdio (SDK spawns `brain mcp` subprocess) |
+| Transport | HTTP (Osabio server -> OpenCode server -> tool call -> response) | stdio (SDK spawns `osabio mcp` subprocess) |
 | Tool definitions | Duplicated in plugin + MCP server | Single source: `cli/mcp-server.ts` |
 | Latency | HTTP round-trip per tool call | stdio IPC (lower latency) |
-| Process count | OpenCode server + brain mcp (if configured) | brain mcp only |
+| Process count | OpenCode server + osabio mcp (if configured) | osabio mcp only |
 
 ## Alternatives Considered
 
@@ -89,7 +89,7 @@ Replace `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk`. Use the SDK's 
 
 - All 6 lifecycle hooks available as typed TypeScript callbacks
 - Single `query()` call replaces 8-step spawn sequence
-- Brain MCP tools defined in one place (`cli/mcp-server.ts`), no duplication
+- Osabio MCP tools defined in one place (`cli/mcp-server.ts`), no duplication
 - Typed `AsyncIterable<Message>` replaces untyped OpenCode SSE events
 - AbortController-based cancellation eliminates process orphaning risk
 - No port allocation, no stdout parsing, no process management

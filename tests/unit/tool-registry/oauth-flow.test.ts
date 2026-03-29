@@ -22,12 +22,12 @@ describe("buildAuthorizationUrl (legacy provider)", () => {
   };
 
   it("includes client_id, redirect_uri, response_type, state", () => {
-    const urlString = buildAuthorizationUrl(provider, "https://brain.local/callback", "state-abc");
+    const urlString = buildAuthorizationUrl(provider, "https://osabio.local/callback", "state-abc");
     const url = new URL(urlString);
 
     expect(url.origin + url.pathname).toBe("https://auth.example.com/authorize");
     expect(url.searchParams.get("client_id")).toBe("test-client-123");
-    expect(url.searchParams.get("redirect_uri")).toBe("https://brain.local/callback");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://osabio.local/callback");
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("state")).toBe("state-abc");
     expect(url.searchParams.get("scope")).toBe("read write");
@@ -35,7 +35,7 @@ describe("buildAuthorizationUrl (legacy provider)", () => {
 
   it("omits scope when provider has no scopes", () => {
     const noScopes = { ...provider, scopes: undefined };
-    const urlString = buildAuthorizationUrl(noScopes, "https://brain.local/callback", "s");
+    const urlString = buildAuthorizationUrl(noScopes, "https://osabio.local/callback", "s");
     const url = new URL(urlString);
 
     expect(url.searchParams.has("scope")).toBe(false);
@@ -43,13 +43,13 @@ describe("buildAuthorizationUrl (legacy provider)", () => {
 
   it("throws when authorization_url is missing", () => {
     const noAuthUrl = { ...provider, authorization_url: undefined };
-    expect(() => buildAuthorizationUrl(noAuthUrl, "https://brain.local/callback", "s"))
+    expect(() => buildAuthorizationUrl(noAuthUrl, "https://osabio.local/callback", "s"))
       .toThrow("Provider missing authorization_url");
   });
 
   it("throws when client_id is missing", () => {
     const noClientId = { ...provider, client_id: undefined };
-    expect(() => buildAuthorizationUrl(noClientId, "https://brain.local/callback", "s"))
+    expect(() => buildAuthorizationUrl(noClientId, "https://osabio.local/callback", "s"))
       .toThrow("Provider missing client_id");
   });
 });

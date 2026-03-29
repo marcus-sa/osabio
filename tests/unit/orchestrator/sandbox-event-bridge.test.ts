@@ -130,7 +130,7 @@ describe("Sandbox Event Bridge Translation", () => {
   // ─── UB-1: tool_call event translates to agent_token StreamEvent ───
   it("translates tool_call event to agent_token with tool name and duration", () => {
     // Given a SandboxAgent tool_call event (ACP envelope)
-    const event = toolCallEvent(sessionId, "brain-search");
+    const event = toolCallEvent(sessionId, "osabio-search");
 
     // When the event is translated
     const result = translateSessionEvent(event);
@@ -139,7 +139,7 @@ describe("Sandbox Event Bridge Translation", () => {
     expect(result).toBeDefined();
     expect(result!.type).toBe("agent_token");
     expect(result!.sessionId).toBe(sessionId);
-    expect((result as { token: string }).token).toContain("brain-search");
+    expect((result as { token: string }).token).toContain("osabio-search");
   });
 
   // ─── UB-2: file_edit event — SDK doesn't have a separate file_edit update type.

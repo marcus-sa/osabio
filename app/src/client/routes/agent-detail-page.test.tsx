@@ -56,17 +56,17 @@ afterEach(() => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT_DETAIL = {
+const OSABIO_AGENT_DETAIL = {
   agent: {
     id: AGENT_ID,
     name: "Extraction Agent",
     description: "Extracts entities from conversations",
-    runtime: "brain",
+    runtime: "osabio",
     model: "haiku",
-    identity_id: "id-brain-1",
+    identity_id: "id-osabio-1",
     created_at: "2026-01-15T10:00:00Z",
   },
-  identity: { id: "id-brain-1", name: "Extraction Agent", type: "agent", role: "system" },
+  identity: { id: "id-osabio-1", name: "Extraction Agent", type: "agent", role: "system" },
   authority_scopes: [
     { action: "create_task", permission: "auto" },
     { action: "create_decision", permission: "propose" },
@@ -106,7 +106,7 @@ const EXTERNAL_AGENT_DETAIL = {
 
 describe("AgentDetailPage", () => {
   it("renders agent name and description after loading", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -118,7 +118,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("shows authority scopes table with action-permission rows", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -133,8 +133,8 @@ describe("AgentDetailPage", () => {
     expect(screen.getByText("blocked")).toBeInTheDocument();
   });
 
-  it("shows read-only note for brain agents", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+  it("shows read-only note for osabio agents", async () => {
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -159,7 +159,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("shows back link to /agents", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 
@@ -173,7 +173,7 @@ describe("AgentDetailPage", () => {
   });
 
   it("renders recent workspace sessions", async () => {
-    stubFetchWithDetail(BRAIN_AGENT_DETAIL);
+    stubFetchWithDetail(OSABIO_AGENT_DETAIL);
     const { AgentDetailPage } = await import("./agent-detail-page");
     render(<AgentDetailPage />);
 

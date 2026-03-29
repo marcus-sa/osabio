@@ -6,11 +6,11 @@
 
 ## Summary
 
-Added a tool registry subsystem to the Brain proxy that lets workspace admins register tools (both Brain-native graph tools and external integration tools), grant identity-level access, broker credentials at execution time, and enforce governance policies. The proxy now resolves an identity's effective toolset, injects tool definitions into LLM requests, intercepts tool calls from LLM responses, and routes them to the appropriate executor with full forensic tracing.
+Added a tool registry subsystem to the Osabio proxy that lets workspace admins register tools (both Osabio-native graph tools and external integration tools), grant identity-level access, broker credentials at execution time, and enforce governance policies. The proxy now resolves an identity's effective toolset, injects tool definitions into LLM requests, intercepts tool calls from LLM responses, and routes them to the appropriate executor with full forensic tracing.
 
 ## Motivation
 
-Coding agents connected via the Brain proxy had no mechanism to use tools beyond what the runtime provided. Brain-native graph tools (search_entities, get_entity_detail, etc.) and external integration tools (GitHub, Jira, Slack APIs) needed to be discoverable, authorized, and executed without agents ever seeing raw credentials. The proxy was the natural interception point since it already handles context injection and tracing.
+Coding agents connected via the Osabio proxy had no mechanism to use tools beyond what the runtime provided. Osabio-native graph tools (search_entities, get_entity_detail, etc.) and external integration tools (GitHub, Jira, Slack APIs) needed to be discoverable, authorized, and executed without agents ever seeing raw credentials. The proxy was the natural interception point since it already handles context injection and tracing.
 
 ## What Changed
 
@@ -20,18 +20,18 @@ Coding agents connected via the Brain proxy had no mechanism to use tools beyond
 - `can_use` relation edges grant identity access with optional `max_calls_per_hour` rate limit
 
 ### Phase 2: Proxy Tool Injection (02-01)
-- Added step 7.5 to proxy pipeline: resolves identity's effective toolset via `can_use` edges, merges Brain-managed tool definitions into LLM request `tools[]`
-- Runtime tool names take precedence over Brain tool names on collision
+- Added step 7.5 to proxy pipeline: resolves identity's effective toolset via `can_use` edges, merges Osabio-managed tool definitions into LLM request `tools[]`
+- Runtime tool names take precedence over Osabio tool names on collision
 - Tool resolution uses 60s TTL cache per identity (ADR-065)
 
-### Phase 3: Brain-Native Tool Call Routing (03-01)
-- Added step 8.5: intercepts tool_use blocks from LLM responses, classifies as brain-native/integration/unknown
-- Brain-native tools execute directly via graph query handlers (reusing shared `tools/` execute functions)
+### Phase 3: Osabio-Native Tool Call Routing (03-01)
+- Added step 8.5: intercepts tool_use blocks from LLM responses, classifies as osabio-native/integration/unknown
+- Osabio-native tools execute directly via graph query handlers (reusing shared `tools/` execute functions)
 - Unknown tools pass through to runtime unmodified
 
 ### Phase 4: Tool Call Tracing (04-01)
 - Extended `tool-trace-writer.ts` with `tool_call` trace type
-- Every Brain-managed tool execution produces a trace record with tool_name, identity, workspace, duration_ms, and outcome
+- Every Osabio-managed tool execution produces a trace record with tool_name, identity, workspace, duration_ms, and outcome
 
 ### Phase 5: Credential Provider Registration (05-01)
 - Admin CRUD routes for credential providers with auth method variants: `oauth2`, `api_key`, `bearer`, `basic`
@@ -88,8 +88,8 @@ Coding agents connected via the Brain proxy had no mechanism to use tools beyond
 728d624a docs: add MCP tool registry DISCUSS, DESIGN, and DISTILL wave artifacts (#178)
 aa668395 feat: add MCP tool registry schema migration (0065)
 8e7d091a feat(proxy): add tool injection step 5.7 to proxy pipeline
-24a25f6e feat(proxy): add brain-native tool call routing at step 8.5
-1f2a7da0 feat(proxy): add tool call tracing for Brain-native tool executions
+24a25f6e feat(proxy): add osabio-native tool call routing at step 8.5
+1f2a7da0 feat(proxy): add tool call tracing for Osabio-native tool executions
 23725e99 feat(tool-registry): add credential provider CRUD with AES-256-GCM encryption
 e0b06a05 feat(tool-registry): add account connection routes with encrypted credential storage
 cd699fc2 feat(tool-registry): add credential resolver for integration tool auth headers

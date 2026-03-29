@@ -28,7 +28,7 @@ BEGIN TRANSACTION;
 
 -- Sandbox provider: "local", "docker", "e2b", "daytona"
 -- Needed on restart restoration to determine isolation strategy
--- (local = Brain manages worktree, cloud = sandbox handles isolation)
+-- (local = Osabio manages worktree, cloud = sandbox handles isolation)
 DEFINE FIELD OVERWRITE provider ON agent_session TYPE option<string>;
 
 -- Session type discriminator: "claude_agent_sdk" (current) or "sandbox_agent" (new)
@@ -52,9 +52,9 @@ COMMIT TRANSACTION;
 
 ## 2. Session Event Persistence (Deferred)
 
-For R1 (local provider), the SDK's built-in `InMemorySessionPersistDriver` handles event storage for session restoration. Brain and the agent process share the same host — if Brain restarts, the local agent process dies too, so persisted events have no consumer.
+For R1 (local provider), the SDK's built-in `InMemorySessionPersistDriver` handles event storage for session restoration. Osabio and the agent process share the same host — if Osabio restarts, the local agent process dies too, so persisted events have no consumer.
 
-A custom SurrealDB `SessionPersistDriver` with a `sandbox_event` table and write buffering (ADR-077) is deferred until cloud provider support where sandboxes outlive Brain restarts. See GitHub issue for tracking.
+A custom SurrealDB `SessionPersistDriver` with a `sandbox_event` table and write buffering (ADR-077) is deferred until cloud provider support where sandboxes outlive Osabio restarts. See GitHub issue for tracking.
 
 ## 3. Permission Decision Storage
 
@@ -119,7 +119,7 @@ destroy:
 
 ```
 SandboxAgent emits UniversalEvent (session.onEvent())
-  -> Event bridge translates to Brain StreamEvent
+  -> Event bridge translates to Osabio StreamEvent
   -> SSE registry delivers to connected clients
   -> No DB write (in-memory driver handles SDK-internal replay)
 ```

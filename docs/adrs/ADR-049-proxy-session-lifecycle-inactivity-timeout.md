@@ -9,8 +9,8 @@ Superseded by ADR-052
 The LLM proxy intercepts API traffic from external coding agents (Claude Code, custom agents via Vercel AI SDK, etc.). Post-session analysis -- Observer trace scanning for missing decisions and contradictions (ADR-048) -- requires traces to be linked to agent sessions.
 
 Session lifecycle management already exists at the correct layers:
-- **CLI (`brain init` hooks)**: Installs SessionStart/SessionEnd hooks for Claude Code. These call `createAgentSession()` and `endAgentSession()` respectively.
-- **Orchestrator**: Manages sessions for Brain-managed agents via the same `createAgentSession()`/`endAgentSession()` API.
+- **CLI (`osabio init` hooks)**: Installs SessionStart/SessionEnd hooks for Claude Code. These call `createAgentSession()` and `endAgentSession()` respectively.
+- **Orchestrator**: Manages sessions for Osabio-managed agents via the same `createAgentSession()`/`endAgentSession()` API.
 
 The proxy sees every LLM request and can extract session identifiers from request metadata/headers. The question is whether the proxy should also manage session lifecycle (create, update activity, end via timeout) or simply read session IDs and link traces to existing sessions.
 
@@ -34,7 +34,7 @@ The proxy extracts a session ID from incoming requests via two sources:
 | Source | Extraction | Example |
 |--------|-----------|---------|
 | Claude Code | `metadata.user_id` field in request body | `session_abc-123-def` |
-| Brain-managed agents | `X-Brain-Session` header | `agent_session:7f3a...` |
+| Osabio-managed agents | `X-Osabio-Session` header | `agent_session:7f3a...` |
 | Unknown client | No extraction possible | Trace linked to workspace only |
 
 This is a pure function with no DB calls or side effects. The extracted session ID is passed to the trace writer, which looks up the corresponding `agent_session` record via `external_session_id` to link the trace.
@@ -57,7 +57,7 @@ The SurrealDB EVENT on `agent_session.ended_at` fires whenever `ended_at` transi
 
 The proxy upserts `agent_session` records on every request, tracks `last_activity_at`, and runs a `setInterval` background sweep to end sessions after N minutes of inactivity.
 
-**Rejected because**: Duplicates responsibility. The CLI already manages session lifecycle for Claude Code via `brain init` hooks. The orchestrator manages sessions for Brain-managed agents. Adding a third session manager in the proxy creates:
+**Rejected because**: Duplicates responsibility. The CLI already manages session lifecycle for Claude Code via `osabio init` hooks. The orchestrator manages sessions for Osabio-managed agents. Adding a third session manager in the proxy creates:
 - Double-end races (CLI ends session, then sweep also tries to end it)
 - Activity tracking conflicts (`last_activity_at` updated by proxy, but session state managed by CLI/orchestrator)
 - Unnecessary DB writes on every proxied request (upsert `last_activity_at`)
@@ -82,12 +82,12 @@ The proxy creates a session if none exists, but does not manage lifecycle (no ti
 ### Negative
 
 - Agents not managed by CLI or orchestrator will have no session -- their traces are linked to workspace only
-- No automatic session creation for unknown clients (requires explicit `brain init` or orchestrator integration)
+- No automatic session creation for unknown clients (requires explicit `osabio init` or orchestrator integration)
 
 ### Mitigations
 
 - Unknown-client traces are still captured and linked to workspace, enabling workspace-level analysis
-- As Brain adoption grows, more agents will use `brain init` or orchestrator integration
+- As Osabio adoption grows, more agents will use `osabio init` or orchestrator integration
 
 ## References
 

@@ -19,7 +19,7 @@
 
 Extraction sources (checked in order):
 - **Claude Code**: `metadata.user_id` field in the request body, pattern `session_{uuid}` (already implemented in walking skeleton)
-- **Brain-managed agents**: `X-Brain-Session` header value (set by orchestrator or CLI `brain init` hooks)
+- **Brain-managed agents**: `X-Osabio-Session` header value (set by orchestrator or CLI `osabio init` hooks)
 - **Unknown client**: No session ID -- returns undefined. Trace linked to workspace only.
 
 ### 1.2 Conversation Hash Resolver
@@ -35,7 +35,7 @@ Algorithm:
 - Extract system prompt content (string or concatenated text blocks from array)
 - Extract first user message content from messages array
 - If either is missing, return undefined
-- `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` → deterministic UUID
+- `UUIDv5(OSABIO_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` → deterministic UUID
 - The null byte separator prevents collisions between different system/user splits that concatenate to the same string
 
 ### 1.3 Conversation Upserter
@@ -48,7 +48,7 @@ Algorithm:
 - **Error contract**: Returns undefined on any failure (never throws, never blocks request forwarding)
 
 Functions (behavioral contracts):
-- **Compute conversation ID**: `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` — pure function, no DB.
+- **Compute conversation ID**: `UUIDv5(OSABIO_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` — pure function, no DB.
 - **Create conversation**: `CREATE conversation:⟨$conv_id⟩ CONTENT { ... }` — idempotent, no lookup needed.
 - **Title derivation**: First user message truncated to ~100 chars, same pattern as existing `deriveMessageTitle()`.
 
@@ -57,14 +57,14 @@ Functions (behavioral contracts):
 - **Location**: `app/src/server/proxy/context-injector.ts`
 - **Responsibility**: Build context packet from knowledge graph, inject as system block
 - **Input**: Parsed request body, workspace identity, session ID, intelligence config
-- **Output**: Mutated request body with appended `<brain-context>` system block (or original body on failure)
+- **Output**: Mutated request body with appended `<osabio-context>` system block (or original body on failure)
 - **Dependencies**: Embedding Pipeline (`createEmbeddingVector`, `cosineSimilarity`), Context Cache, SurrealDB
 - **Error contract**: Returns original body on any failure (fail-open)
 
 Functions (behavioral contracts, not signatures):
 - **Build candidate pool**: Fetch confirmed decisions, active learnings, open conflict/warning observations for workspace. Return with embeddings for in-memory ranking.
 - **Rank candidates**: Given candidate pool and user message embedding, compute weighted cosine similarity, return top N within token budget.
-- **Inject system block**: Normalize system field to array, append `<brain-context>` block at end, return mutated body string.
+- **Inject system block**: Normalize system field to array, append `<osabio-context>` block at end, return mutated body string.
 
 ### 1.5 Context Cache
 

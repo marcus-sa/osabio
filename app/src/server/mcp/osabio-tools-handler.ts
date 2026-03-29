@@ -32,13 +32,13 @@ import type { EntityCategory, SuggestionCategory } from "../../shared/contracts"
 // Types
 // ---------------------------------------------------------------------------
 
-export type BrainToolCallContext = {
+export type OsabioToolCallContext = {
   readonly workspaceId: string;
   readonly identityId: string;
   readonly sessionId: string;
 };
 
-export type BrainToolCallDeps = {
+export type OsabioToolCallDeps = {
   readonly surreal: Surreal;
 };
 
@@ -90,7 +90,7 @@ async function dispatchReadTool(
       });
 
     default:
-      throw new Error(`Unknown brain read tool: ${toolName}`);
+      throw new Error(`Unknown osabio read tool: ${toolName}`);
   }
 }
 
@@ -103,7 +103,7 @@ async function dispatchWriteTool(
   args: Record<string, unknown>,
   surreal: Surreal,
   ws: RecordId<"workspace", string>,
-  context: BrainToolCallContext,
+  context: OsabioToolCallContext,
 ): Promise<unknown> {
   const now = new Date();
   const sessionRecord = new RecordId("agent_session", context.sessionId);
@@ -280,7 +280,7 @@ async function dispatchWriteTool(
       return dispatchSuggestWorkItems(args, surreal, ws);
 
     default:
-      throw new Error(`Unknown brain write tool: ${toolName}`);
+      throw new Error(`Unknown osabio write tool: ${toolName}`);
   }
 }
 
@@ -583,12 +583,12 @@ async function dispatchSuggestWorkItems(
  * Read tools are dispatched directly. Write tools assume authorization
  * has already been verified by the caller.
  */
-export async function handleBrainToolCall(
+export async function handleOsabioToolCall(
   toolName: string,
   args: Record<string, unknown>,
   isReadTool: boolean,
-  context: BrainToolCallContext,
-  deps: BrainToolCallDeps,
+  context: OsabioToolCallContext,
+  deps: OsabioToolCallDeps,
 ): Promise<ToolCallResult> {
   const ws = new RecordId("workspace", context.workspaceId);
 

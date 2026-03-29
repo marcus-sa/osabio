@@ -1,6 +1,6 @@
 journey:
   name: "Actor Token Acquisition (Sovereign Hybrid Model)"
-  goal: "Any actor (agent or human) obtains a DPoP-bound access token with brain_action authorization_details for ANY Brain operation"
+  goal: "Any actor (agent or human) obtains a DPoP-bound access token with osabio_action authorization_details for ANY Osabio operation"
   personas:
     - id: agent-kira
       type: agent
@@ -8,7 +8,7 @@ journey:
       agent_type: code_agent
     - id: human-marcus
       type: human
-      description: "Marcus Santos, workspace owner, reviews high-risk authorizations and accesses Brain via Bridge"
+      description: "Marcus Santos, workspace owner, reviews high-risk authorizations and accesses Osabio via Bridge"
     - id: custom-as
       type: system
       description: "Custom Authorization Server -- evaluates Rich Intent Objects, issues DPoP-bound RAR tokens"
@@ -17,18 +17,18 @@ journey:
       description: "Better Auth IdP -- human login only, session/scopes for dashboard UI authentication"
 
   emotional_arc:
-    start: "Purposeful -- actor knows it needs authorization before touching the Brain"
+    start: "Purposeful -- actor knows it needs authorization before touching the Osabio"
     middle: "Transparent/Waiting -- evaluation pipeline is visible, human review when needed"
     end: "Confident -- actor holds exactly the authority it needs, cryptographically bound"
 
   triggers:
-    - "Agent encounters ANY Brain operation during task execution (read, write, integration -- no exceptions)"
-    - "Human dashboard initiates ANY Brain operation (view, create, update -- Bridge exchange required)"
+    - "Agent encounters ANY Osabio operation during task execution (read, write, integration -- no exceptions)"
+    - "Human dashboard initiates ANY Osabio operation (view, create, update -- Bridge exchange required)"
 
   architectural_principles:
     - "Classification is a vulnerability -- no tier boundary, no 'is this consequential?' classifier"
     - "One language of authority -- Authorizer Agent only evaluates Rich Intent Objects, never scopes"
-    - "Uniform token format -- agent sandbox or dashboard, Brain checks authorization_details array"
+    - "Uniform token format -- agent sandbox or dashboard, Osabio checks authorization_details array"
     - "Human parity -- Marcus generates DPoP-signed intent just like agent Kira"
     - "Scopes are for the front door only -- Better Auth scopes = authentication proof, RAR = authorization proof"
 
@@ -36,25 +36,25 @@ steps:
   - id: 1
     name: "Intent Formation"
     actor: agent-kira
-    description: "Actor constructs brain_action intent from task context. ALL Brain operations require this."
+    description: "Actor constructs osabio_action intent from task context. ALL Osabio operations require this."
 
     shared_artifacts:
-      - name: brain_action
+      - name: osabio_action
         source: "Actor task context / tool invocation parameters / dashboard UI action"
-        displayed_as: "${brain_action}"
+        displayed_as: "${osabio_action}"
         consumers:
           - "Step 3: authorization_details in intent submission"
           - "Step 5: authorization_details in token request"
           - "Step 6: Token claims"
-          - "Step 7: Brain resource server operation matching"
+          - "Step 7: Osabio resource server operation matching"
 
     emotional_state:
-      entry: "Purposeful -- actor has identified a Brain operation to perform"
-      exit: "Prepared -- brain_action is well-formed and ready for submission"
+      entry: "Purposeful -- actor has identified a Osabio operation to perform"
+      exit: "Prepared -- osabio_action is well-formed and ready for submission"
 
     integration_checkpoint: |
-      brain_action must be a valid BrainAction: { type: "brain_action", action: string, resource: string, constraints?: Record<string, unknown> }
-      Every Brain operation -- read, write, integration -- requires a brain_action. No scope-only path.
+      osabio_action must be a valid OsabioAction: { type: "osabio_action", action: string, resource: string, constraints?: Record<string, unknown> }
+      Every Osabio operation -- read, write, integration -- requires a osabio_action. No scope-only path.
 
   - id: 2
     name: "DPoP Key Pair Generation"
@@ -68,7 +68,7 @@ steps:
         consumers:
           - "Step 3: dpop_jwk_thumbprint in intent submission"
           - "Step 5: DPoP proof signing"
-          - "Step 7: DPoP proof signing for Brain resource server"
+          - "Step 7: DPoP proof signing for Osabio resource server"
       - name: jwk_thumbprint
         source: "Derived from dpop_private_key public component via RFC 7638"
         displayed_as: "${jwk_thumbprint}"
@@ -89,7 +89,7 @@ steps:
   - id: 3
     name: "Intent Submission"
     actor: agent-kira
-    description: "Submit intent with brain_action and DPoP thumbprint to Custom AS evaluation pipeline"
+    description: "Submit intent with osabio_action and DPoP thumbprint to Custom AS evaluation pipeline"
 
     shared_artifacts:
       - name: intent_id
@@ -98,7 +98,7 @@ steps:
         consumers:
           - "Step 4: Human consent notification"
           - "Step 5: Token request intent_id parameter"
-          - "Step 6: urn:brain:intent_id claim in access token"
+          - "Step 6: urn:osabio:intent_id claim in access token"
       - name: risk_score
         source: "Authorizer Agent output via evaluation pipeline"
         displayed_as: "${risk_score}"
@@ -119,8 +119,8 @@ steps:
     integration_checkpoint: |
       Intent must include dpop_jwk_thumbprint binding the token to the actor's key
       Evaluation pipeline: Policy Gate -> Authorizer Agent (Rich Intent Objects only) -> Risk Router -> Status Update
-      brain_action in intent MUST be identical to authorization_details in subsequent token request
-      The Authorizer Agent evaluates brain_action objects, NEVER scopes
+      osabio_action in intent MUST be identical to authorization_details in subsequent token request
+      The Authorizer Agent evaluates osabio_action objects, NEVER scopes
 
   - id: 4
     name: "Human Consent (veto_window path)"
@@ -153,7 +153,7 @@ steps:
   - id: 5
     name: "RAR Token Request"
     actor: agent-kira
-    description: "Actor requests DPoP-bound access token with brain_action authorization_details"
+    description: "Actor requests DPoP-bound access token with osabio_action authorization_details"
 
     shared_artifacts:
       - name: dpop_proof
@@ -161,15 +161,15 @@ steps:
         displayed_as: "${dpop_proof}"
         consumers:
           - "Step 5: DPoP header on token request"
-          - "Step 7: Fresh DPoP proof for Brain resource server"
+          - "Step 7: Fresh DPoP proof for Osabio resource server"
 
     emotional_state:
       entry: "Expectant -- intent is authorized, requesting the token"
       exit: "Proceeding -- token received, ready to act"
 
     integration_checkpoint: |
-      grant_type must be custom: urn:brain:intent-authorization
-      authorization_details must match the (possibly constrained) brain_action from the intent
+      grant_type must be custom: urn:osabio:intent-authorization
+      authorization_details must match the (possibly constrained) osabio_action from the intent
       DPoP proof must be signed with the same key whose thumbprint was registered in the intent
 
   - id: 6
@@ -182,12 +182,12 @@ steps:
         source: "Custom AS token endpoint response"
         displayed_as: "${access_token}"
         consumers:
-          - "Step 7: Authorization header to Brain resource server"
+          - "Step 7: Authorization header to Osabio resource server"
       - name: cnf_jkt
         source: "Derived from DPoP proof JWK in token request"
         displayed_as: "${cnf_jkt}"
         consumers:
-          - "Step 7: Brain resource server matches cnf.jkt against DPoP proof key"
+          - "Step 7: Osabio resource server matches cnf.jkt against DPoP proof key"
 
     emotional_state:
       entry: "N/A (system step)"
@@ -195,14 +195,14 @@ steps:
 
     integration_checkpoint: |
       Token MUST include cnf.jkt claim matching the DPoP proof key thumbprint
-      Token MUST include authorization_details matching the approved intent brain_action
-      Token MUST include urn:brain:intent_id linking to the authorizing intent
+      Token MUST include authorization_details matching the approved intent osabio_action
+      Token MUST include urn:osabio:intent_id linking to the authorizing intent
       Token TTL: 300 seconds for write operations, configurable for reads
 
   - id: 7
-    name: "Brain Operation Execution"
+    name: "Osabio Operation Execution"
     actor: agent-kira
-    description: "Actor presents DPoP-bound token to Brain resource server for the authorized operation"
+    description: "Actor presents DPoP-bound token to Osabio resource server for the authorized operation"
 
     shared_artifacts: []
 
@@ -211,15 +211,15 @@ steps:
       exit: "Accomplished -- operation completed, intent status updated to completed"
 
     integration_checkpoint: |
-      Brain resource server MUST verify DPoP proof AND cnf.jkt binding
-      Brain resource server MUST verify authorization_details covers the requested operation
+      Osabio resource server MUST verify DPoP proof AND cnf.jkt binding
+      Osabio resource server MUST verify authorization_details covers the requested operation
       NO scope check. NO Bearer fallback. DPoP + RAR only.
       Same verification pipeline for agents AND humans (via Bridge)
       Intent status must transition: authorized -> executing -> completed (or failed)
 
 bridge_path:
   name: "Human Bridge Token Exchange"
-  description: "When a human needs to access the Brain, they exchange their Better Auth session for a DPoP-bound RAR token"
+  description: "When a human needs to access the Osabio, they exchange their Better Auth session for a DPoP-bound RAR token"
 
   steps:
     - id: B1
@@ -228,37 +228,37 @@ bridge_path:
       description: "Standard login, receives session cookie with scopes for dashboard UI only"
       integration_checkpoint: |
         Better Auth session/scopes = authentication proof ("I am Marcus")
-        Session cookie CANNOT directly access Brain resources
+        Session cookie CANNOT directly access Osabio resources
         Scopes are for the front door only
 
     - id: B2
       name: "Bridge Token Exchange"
       actor: dashboard-client
-      description: "Dashboard client exchanges session + DPoP proof + brain_action for RAR token"
+      description: "Dashboard client exchanges session + DPoP proof + osabio_action for RAR token"
       integration_checkpoint: |
         POST /api/auth/bridge/exchange with session cookie + DPoP proof + authorization_details
         Custom AS validates Better Auth session is active
         Custom AS resolves human identity from session
-        Authorizer Agent evaluates the brain_action (same as agent path)
+        Authorizer Agent evaluates the osabio_action (same as agent path)
         Low-risk reads: auto-approve. High-risk writes: veto_window.
 
     - id: B3
-      name: "Brain Access with DPoP Token"
+      name: "Osabio Access with DPoP Token"
       actor: dashboard-client
-      description: "Dashboard uses DPoP-bound token to access Brain -- same verification as agents"
+      description: "Dashboard uses DPoP-bound token to access Osabio -- same verification as agents"
       integration_checkpoint: |
-        Brain resource server runs SAME verification pipeline
-        Human request is indistinguishable from agent request at Brain boundary
+        Osabio resource server runs SAME verification pipeline
+        Human request is indistinguishable from agent request at Osabio boundary
 
 integration_validation:
   shared_artifact_consistency:
-    - artifact: brain_action
+    - artifact: osabio_action
       must_match_across: [1, 3, 5, 6, 7]
-      failure_message: "brain_action in intent submission, token request authorization_details, token claims, and Brain resource server request must be identical (or validly constrained)"
+      failure_message: "osabio_action in intent submission, token request authorization_details, token claims, and Osabio resource server request must be identical (or validly constrained)"
 
     - artifact: jwk_thumbprint
       must_match_across: [2, 3, 6, 7]
-      failure_message: "DPoP JWK thumbprint must be consistent from key generation through intent submission, token cnf.jkt claim, and Brain resource server DPoP proof verification"
+      failure_message: "DPoP JWK thumbprint must be consistent from key generation through intent submission, token cnf.jkt claim, and Osabio resource server DPoP proof verification"
 
     - artifact: intent_id
       must_match_across: [3, 5, 6]
@@ -302,7 +302,7 @@ error_paths:
     recovery: "Dashboard redirects to Better Auth login page"
 
   - id: E7
-    name: "Session Cookie at Brain Boundary"
-    trigger: "Client sends session cookie directly to Brain resource server without DPoP token"
+    name: "Session Cookie at Osabio Boundary"
+    trigger: "Client sends session cookie directly to Osabio resource server without DPoP token"
     step: 7
     recovery: "401 dpop_required -- must use Bridge to exchange session for RAR token"

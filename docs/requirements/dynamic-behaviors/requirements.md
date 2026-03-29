@@ -2,7 +2,7 @@
 
 ## Business Context
 
-Brain's current behavior scoring system uses a hardcoded `KNOWN_METRIC_TYPES` enum with two deterministic ratio-based scorers (TDD_Adherence, Security_First) and three unimplemented types (Conciseness, Review_Responsiveness, Documentation_Quality). This ceiling prevents workspace admins from measuring the soft skills and cultural values that matter most for autonomous agent governance: honesty, evidence-based reasoning, collaboration, thoroughness.
+Osabio's current behavior scoring system uses a hardcoded `KNOWN_METRIC_TYPES` enum with two deterministic ratio-based scorers (TDD_Adherence, Security_First) and three unimplemented types (Conciseness, Review_Responsiveness, Documentation_Quality). This ceiling prevents workspace admins from measuring the soft skills and cultural values that matter most for autonomous agent governance: honesty, evidence-based reasoning, collaboration, thoroughness.
 
 This feature replaces the hardcoded enum with user-defined Behavior Definitions scored by a specialized LLM "Scorer Agent," and closes the governance loop by integrating behavior scores into the Authorizer's policy evaluation and the Observer's learning proposal pipeline.
 
@@ -19,7 +19,7 @@ This feature replaces the hardcoded enum with user-defined Behavior Definitions 
 ### Elena Vasquez -- Workspace Admin
 - **Who**: Product manager leading a 4-person AI-augmented team with 3 coding agents and 1 design agent
 - **Technical proficiency**: Comfortable with web UIs, does not write code
-- **Frequency**: Daily interaction with Brain dashboard; weekly behavior review
+- **Frequency**: Daily interaction with Osabio dashboard; weekly behavior review
 - **Primary motivation**: Shape agent culture through explicit, measurable standards
 - **Pain points**: Cannot measure honesty, collaboration, or evidence-grounding with current hardcoded metrics. Has no visibility into agent behavioral trends beyond TDD and Security.
 

@@ -1,7 +1,7 @@
 ## DPoP Acceptance Test Infrastructure
 
 - All MCP endpoints require DPoP (Demonstration of Proof-of-Possession) authentication. Use `createTestUserWithMcp()` from `acceptance-test-kit.ts` — it generates a key pair, creates identity + workspace + intent records, acquires a DPoP-bound token, and returns `mcpFetch` for authenticated requests.
-- **Workspace binding**: The DPoP token contains a `urn:brain:workspace` claim. The middleware (`dpop-middleware.ts:311`) extracts the workspace from the JWT claim, NOT the URL path parameter. All MCP endpoint authorization is scoped to this claim.
+- **Workspace binding**: The DPoP token contains a `urn:osabio:workspace` claim. The middleware (`dpop-middleware.ts:311`) extracts the workspace from the JWT claim, NOT the URL path parameter. All MCP endpoint authorization is scoped to this claim.
 - **`member_of` edge required**: The DPoP middleware calls `lookupWorkspace()` which queries `SELECT in FROM member_of WHERE out = $ws LIMIT 1`. Without a `member_of` relation edge between identity and workspace, all MCP requests return 401 "Workspace not found". `createTestUserWithMcp()` creates this edge automatically.
 - **Workspace mismatch pitfall**: If a test creates a workspace via the API (`POST /api/workspaces`) and then acquires a DPoP token via `createTestUserWithMcp()`, the token is bound to a *different* workspace. MCP endpoints will return 404 for resources in the API-created workspace. Fix: pass `{ workspaceId }` to `createTestUserWithMcp()` to bind the token to the pre-existing workspace, or use `user.workspaceId` for all resource creation.
 - **Pattern**: Create test user first (`createTestUserWithMcp`), then create tasks/projects in `user.workspaceId`. Do NOT create a separate workspace via API unless you pass its ID to `createTestUserWithMcp`.
@@ -41,7 +41,7 @@
 
 ### Acceptance Test Isolation
 
-- Acceptance tests boot an in-process Brain server with an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
+- Acceptance tests boot an in-process Osabio server with an isolated Surreal namespace/database, apply `schema/surreal-schema.surql`, run assertions, then remove the test DB/namespace.
 - Acceptance tests require a reachable SurrealDB server at `SURREAL_URL` with credentials from env.
 - All test suites share `tests/acceptance/acceptance-test-kit.ts` for server boot and DB isolation; domain-specific kits (orchestrator, intent, coding-session) extend it with business-language helpers.
 

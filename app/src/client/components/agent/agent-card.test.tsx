@@ -34,11 +34,11 @@ mock.module("@tanstack/react-router", () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT = {
-  id: "agent-brain-1",
+const OSABIO_AGENT = {
+  id: "agent-osabio-1",
   name: "Extraction Agent",
   description: "Extracts entities from conversations",
-  runtime: "brain" as const,
+  runtime: "osabio" as const,
   model: "haiku",
   identity_id: "id-1",
   created_at: "2026-01-15T10:00:00Z",
@@ -71,8 +71,8 @@ describe("AgentCard", () => {
   it("renders runtime badge with correct label for each runtime", async () => {
     const { AgentCard } = await import("./agent-card");
 
-    const { unmount } = render(<AgentCard agent={BRAIN_AGENT} />);
-    expect(screen.getByText("Brain")).toBeInTheDocument();
+    const { unmount } = render(<AgentCard agent={OSABIO_AGENT} />);
+    expect(screen.getByText("Osabio")).toBeInTheDocument();
     unmount();
 
     const { unmount: unmount2 } = render(<AgentCard agent={EXTERNAL_AGENT} />);
@@ -83,9 +83,9 @@ describe("AgentCard", () => {
     expect(screen.getByText("Sandbox")).toBeInTheDocument();
   });
 
-  it("shows View button for brain agents without Edit or Delete", async () => {
+  it("shows View button for osabio agents without Edit or Delete", async () => {
     const { AgentCard } = await import("./agent-card");
-    render(<AgentCard agent={BRAIN_AGENT} onDelete={mock(() => {})} />);
+    render(<AgentCard agent={OSABIO_AGENT} onDelete={mock(() => {})} />);
 
     expect(screen.getByText("View")).toBeInTheDocument();
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();

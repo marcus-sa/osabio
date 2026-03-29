@@ -8,7 +8,7 @@
 
 Built the Observer agent -- an autonomous verification layer that watches the knowledge graph for state transitions and validates claims against reality. The Observer detects contradictions between what agents claim and what actually happened, performs cross-agent peer review of observations, and scans the workspace graph for drift patterns (stale blocked tasks, status inconsistencies, decision-implementation misalignment).
 
-The Observer closes the "reality drift" gap described in the Brain architecture: without continuous verification, the knowledge graph becomes a delusion engine where agents trust each other's outputs without cross-checking.
+The Observer closes the "reality drift" gap described in the Osabio architecture: without continuous verification, the knowledge graph becomes a delusion engine where agents trust each other's outputs without cross-checking.
 
 ## Implementation Stats
 

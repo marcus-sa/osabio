@@ -23,13 +23,13 @@ steps:
         source: "workspace settings (SurrealDB workspace record)"
         displayed_as: "${default_agent_type}"
         consumers: ["orchestrator session creation"]
-      - name: "brain_proxy_url"
+      - name: "osabio_proxy_url"
         source: "server config (runtime/config.ts)"
-        displayed_as: "${brain_proxy_url}"
+        displayed_as: "${osabio_proxy_url}"
         consumers: ["agent env ANTHROPIC_BASE_URL", "session config"]
-      - name: "brain_mcp_base_url"
+      - name: "osabio_mcp_base_url"
         source: "server config (runtime/config.ts)"
-        displayed_as: "${brain_mcp_base_url}"
+        displayed_as: "${osabio_mcp_base_url}"
         consumers: ["setMcpConfig remote URL", "dynamic MCP endpoint registration"]
 
     emotional_state:
@@ -38,7 +38,7 @@ steps:
 
     integration_checkpoint: |
       Workspace record in SurrealDB has sandbox_provider and default_agent_type fields.
-      Server config provides brain_proxy_url and brain_mcp_base_url.
+      Server config provides osabio_proxy_url and osabio_mcp_base_url.
 
     gherkin: |
       Scenario: Workspace admin configures sandbox provider
@@ -49,7 +49,7 @@ steps:
 
   - id: 2
     name: "Spawn Agent Session"
-    actor: "Brain Orchestrator"
+    actor: "Osabio Orchestrator"
     action: "Resolve grants, register MCP endpoint, create sandbox session"
 
     shared_artifacts:
@@ -60,13 +60,13 @@ steps:
       - name: "agent_token"
         source: "DPoP token mint (orchestrator)"
         displayed_as: "${agent_token}"
-        consumers: ["MCP endpoint X-Brain-Auth header", "proxy X-Brain-Auth header"]
+        consumers: ["MCP endpoint X-Osabio-Auth header", "proxy X-Osabio-Auth header"]
       - name: "effective_toolset"
         source: "grant resolution (can_use + possesses->skill_requires)"
         displayed_as: "${effective_toolset}"
         consumers: ["dynamic MCP endpoint tools/list filter"]
       - name: "mcp_endpoint_url"
-        source: "brain_mcp_base_url + agent name"
+        source: "osabio_mcp_base_url + agent name"
         displayed_as: "${mcp_endpoint_url}"
         consumers: ["setMcpConfig remote URL", "governance feed"]
 
@@ -82,17 +82,17 @@ steps:
     gherkin: |
       Scenario: Orchestrator spawns governed agent session
         Given workspace "acme-engineering" uses Docker sandbox provider
-        And agent "claude-rate-limiter" has grants for [github, slack, brain-search]
+        And agent "claude-rate-limiter" has grants for [github, slack, osabio-search]
         When the orchestrator receives task "implement-rate-limiting"
         Then a sandbox session is created with Docker isolation
         And a dynamic MCP endpoint is registered at /mcp/agent/claude-rate-limiter-a1b2
-        And the endpoint serves only [github, slack, brain-search] tools
+        And the endpoint serves only [github, slack, osabio-search] tools
         And the session record is persisted to SurrealDB
 
   - id: 3
     name: "First Prompt"
     actor: "Developer (Rafael Torres)"
-    action: "Send initial prompt to coding agent via Brain chat"
+    action: "Send initial prompt to coding agent via Osabio chat"
 
     shared_artifacts:
       - name: "prompt_text"
@@ -115,7 +115,7 @@ steps:
         When he sends "Implement rate limiting for /api/chat/messages"
         Then the prompt is delivered to the Claude Code agent in the sandbox
         And events begin streaming to the governance feed
-        And LLM requests are routed through Brain's proxy
+        And LLM requests are routed through Osabio's proxy
 
   - id: 4
     name: "Monitor Agent Activity"
@@ -143,11 +143,11 @@ steps:
 
     gherkin: |
       Scenario: Tool calls appear in governance feed with policy status
-        Given Claude Code agent calls github:create-branch via Brain MCP endpoint
+        Given Claude Code agent calls github:create-branch via Osabio MCP endpoint
         When the policy evaluation completes
         Then the governance feed shows the tool call with "APPROVED" status
         And the trace graph records the call with 340ms duration
-        And OAuth credentials were injected by Brain's credential broker
+        And OAuth credentials were injected by Osabio's credential broker
 
   - id: 5
     name: "Iterate with Follow-Up Prompts"
@@ -179,7 +179,7 @@ steps:
 
   - id: 6
     name: "Session Restoration"
-    actor: "Brain Orchestrator (automatic)"
+    actor: "Osabio Orchestrator (automatic)"
     action: "Auto-restore session after connection loss using persisted events"
 
     shared_artifacts:
@@ -208,7 +208,7 @@ steps:
 
   - id: 7
     name: "Conclude Session"
-    actor: "Developer (Rafael Torres) + Brain Orchestrator"
+    actor: "Developer (Rafael Torres) + Osabio Orchestrator"
     action: "End session, persist all data, update agent_session status"
 
     shared_artifacts:
@@ -247,7 +247,7 @@ integration_validation:
     - artifact: "effective_toolset"
       must_match_across: [2, 4]
       failure_message: "Tools served by MCP endpoint must match resolved grants from spawn"
-    - artifact: "brain_proxy_url"
+    - artifact: "osabio_proxy_url"
       must_match_across: [1, 2, 3]
       failure_message: "Proxy URL in workspace config must match env var passed to sandbox"
     - artifact: "mcp_endpoint_url"

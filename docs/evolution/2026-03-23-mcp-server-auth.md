@@ -7,11 +7,11 @@
 
 ## Summary
 
-Added two authentication modes to the MCP server connection lifecycle: **static headers** (encrypted key-value pairs for API keys/PATs) and **MCP-native OAuth 2.1** (spec-compliant auto-discovery + PKCE authorization code flow). Extended the existing tool-registry and proxy modules within Brain's modular monolith.
+Added two authentication modes to the MCP server connection lifecycle: **static headers** (encrypted key-value pairs for API keys/PATs) and **MCP-native OAuth 2.1** (spec-compliant auto-discovery + PKCE authorization code flow). Extended the existing tool-registry and proxy modules within Osabio's modular monolith.
 
 ## Business Context
 
-Brain connects to external MCP servers (GitHub, Linear, etc.) but had no mechanism for authenticated connections. Static headers cover ~90% of current MCP servers that use API keys or PATs. OAuth 2.1 support follows the MCP Authorization specification for servers that require browser-based authorization flows.
+Osabio connects to external MCP servers (GitHub, Linear, etc.) but had no mechanism for authenticated connections. Static headers cover ~90% of current MCP servers that use API keys or PATs. OAuth 2.1 support follows the MCP Authorization specification for servers that require browser-based authorization flows.
 
 ## Key Decisions
 
@@ -19,7 +19,7 @@ Brain connects to external MCP servers (GitHub, Linear, etc.) but had no mechani
 |----|----------|-----------|
 | D1 | Static headers stored directly on `mcp_server` (no provider indirection) | Simplest path for API key auth; avoids unnecessary abstraction |
 | D2 | OAuth discovery follows MCP spec exactly: RFC 9728 → RFC 8414 with multi-endpoint fallback | Spec compliance ensures interoperability with any MCP-compliant auth server |
-| D3 | Dynamic Client Registration (RFC 7591) as registration approach | Auth servers can verify Brain's identity without preregistration |
+| D3 | Dynamic Client Registration (RFC 7591) as registration approach | Auth servers can verify Osabio's identity without preregistration |
 | D4 | `resource` parameter (RFC 8707) in all authorization requests | Binds tokens to specific MCP server, preventing token reuse across servers |
 | D5 | Token refresh is transparent — resolver refreshes before MCP connect | Admin never sees token expiry unless refresh_token itself expires |
 | D6 | No new top-level modules — extends `tool-registry` and `proxy` | Maintains modular monolith boundaries |
@@ -112,7 +112,7 @@ Brain connects to external MCP servers (GitHub, Linear, etc.) but had no mechani
 
 1. **Test infrastructure conflict (01-02)**: Better Auth + happy-dom Response type mismatch caused `HPE_UNEXPECTED_CONTENT_LENGTH` in acceptance tests. Resolved by splitting test config so happy-dom only loads for client tests (`bunfig.client.toml`).
 2. **OAuth token expiry buffer**: Initially set to 60 seconds, increased to 5 minutes for reliability — ensures tokens are refreshed well before they expire, reducing risk of in-flight requests using soon-to-expire tokens.
-3. **Hardcoded localhost URLs**: OAuth redirect URIs were constructed with hardcoded `http://127.0.0.1:${port}`. Refactored to use configurable `BRAIN_BASE_URL` environment variable for deployment flexibility.
+3. **Hardcoded localhost URLs**: OAuth redirect URIs were constructed with hardcoded `http://127.0.0.1:${port}`. Refactored to use configurable `OSABIO_BASE_URL` environment variable for deployment flexibility.
 
 ## Migrated Artifacts
 

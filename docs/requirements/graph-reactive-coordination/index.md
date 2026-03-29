@@ -2,7 +2,7 @@
 
 ## Feature Overview
 
-Replace Brain's poll-based reactivity with a reactive layer powered by SurrealDB LIVE SELECT, enabling real-time governance feed updates, automatic agent context injection, and immediate conflict detection.
+Replace Osabio's poll-based reactivity with a reactive layer powered by SurrealDB LIVE SELECT, enabling real-time governance feed updates, automatic agent context injection, and immediate conflict detection.
 
 ## Phasing
 

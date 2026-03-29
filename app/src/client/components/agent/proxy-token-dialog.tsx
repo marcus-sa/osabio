@@ -26,7 +26,7 @@ export function ProxyTokenDialog({ open, token, agentName, onClose }: ProxyToken
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <p className="text-xs text-muted-foreground">
-            This token is shown only once. Copy it now and store it securely. It will be used as the <code className="rounded bg-muted px-1">X-Brain-Auth</code> header value for this agent's API requests.
+            This token is shown only once. Copy it now and store it securely. It will be used as the <code className="rounded bg-muted px-1">X-Osabio-Auth</code> header value for this agent's API requests.
           </p>
           <div className="flex items-center gap-2">
             <code

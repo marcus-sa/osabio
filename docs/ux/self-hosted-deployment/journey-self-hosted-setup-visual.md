@@ -34,12 +34,12 @@ ADMIN_EMAIL=marcus@nwave.io
 ADMIN_PASSWORD=<strong-password>
 WORKTREE_MANAGER_ENABLED=false
 
-# --- Standard Brain config ---
+# --- Standard Osabio config ---
 SURREAL_URL=ws://127.0.0.1:8000/rpc
 ...
 ```
 
-Operator adds 3-4 new env vars alongside existing Brain config. No new files, no new tools.
+Operator adds 3-4 new env vars alongside existing Osabio config. No new files, no new tools.
 
 ### Step 2: Run Migration (Admin Seed)
 
@@ -62,7 +62,7 @@ Migration detects `SELF_HOSTED=true`, reads `ADMIN_EMAIL` and `ADMIN_PASSWORD`, 
 ```
 $ bun run start
 
-Brain v0.x.x
+Osabio v0.x.x
 Mode: self-hosted (registration disabled)
 Listening on http://0.0.0.0:3000
 ```

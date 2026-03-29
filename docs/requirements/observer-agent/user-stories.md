@@ -249,4 +249,4 @@ Then no peer-review EVENT fires (prevents infinite loops)
 
 ## Deferred
 
-- **Story 8: Observer Endpoint Idempotency** — tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
+- **Story 8: Observer Endpoint Idempotency** — tracked in [#134](https://github.com/marcus-sa/osabio/issues/134)

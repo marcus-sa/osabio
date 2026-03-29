@@ -3,7 +3,7 @@
  *
  * Executes Brain-native tool calls via graph queries. This is the adapter/effect
  * boundary -- it performs IO (SurrealDB queries) to fulfill tool calls that the
- * pure tool-router classified as "brain-native".
+ * pure tool-router classified as "osabio-native".
  *
  * Each Brain-native tool handler is a function: (input, deps) -> ToolExecutionResult.
  * Unknown tool names produce an error result (not an exception).
@@ -141,7 +141,7 @@ export function evaluateRateLimit(
 }
 
 /** Handler for a single Brain-native tool. */
-type BrainToolHandler = (
+type OsabioToolHandler = (
   input: Record<string, unknown>,
   deps: ToolExecutorDeps,
 ) => Promise<ToolExecutionResult>;
@@ -169,7 +169,7 @@ function fail(toolUseId: string, message: string): ToolExecutionResult {
 // execute* functions from tools/. No business logic lives here.
 // ---------------------------------------------------------------------------
 
-const searchEntitiesHandler: BrainToolHandler = async (input, deps) => {
+const searchEntitiesHandler: OsabioToolHandler = async (input, deps) => {
   const query = typeof input.query === "string" ? input.query : "";
   if (!query.trim()) return ok("", { results: [], message: "Empty search query" });
   const kinds = Array.isArray(input.kinds) ? (input.kinds as SearchEntityKind[]) : undefined;
@@ -178,21 +178,21 @@ const searchEntitiesHandler: BrainToolHandler = async (input, deps) => {
   return ok("", result);
 };
 
-const getEntityDetailHandler: BrainToolHandler = async (input, deps) => {
+const getEntityDetailHandler: OsabioToolHandler = async (input, deps) => {
   const entityId = typeof input.entityId === "string" ? input.entityId : "";
   if (!entityId.trim()) return fail("", "entityId is required");
   const result = await executeGetEntityDetail(deps.surreal, wsRecord(deps), entityId);
   return ok("", result);
 };
 
-const getProjectStatusHandler: BrainToolHandler = async (input, deps) => {
+const getProjectStatusHandler: OsabioToolHandler = async (input, deps) => {
   const projectId = typeof input.projectId === "string" ? input.projectId : "";
   if (!projectId.trim()) return fail("", "projectId is required");
   const result = await executeGetProjectStatus(deps.surreal, wsRecord(deps), projectId);
   return ok("", result);
 };
 
-const listWorkspaceEntitiesHandler: BrainToolHandler = async (input, deps) => {
+const listWorkspaceEntitiesHandler: OsabioToolHandler = async (input, deps) => {
   const kind = typeof input.kind === "string" ? input.kind : "";
   if (!kind) return fail("", "kind is required");
   const limit = typeof input.limit === "number" ? Math.min(input.limit, 50) : 25;
@@ -202,7 +202,7 @@ const listWorkspaceEntitiesHandler: BrainToolHandler = async (input, deps) => {
   return ok("", result);
 };
 
-const checkConstraintsHandler: BrainToolHandler = async (input, deps) => {
+const checkConstraintsHandler: OsabioToolHandler = async (input, deps) => {
   const proposedAction = typeof input.proposed_action === "string" ? input.proposed_action : "";
   if (!proposedAction.trim()) return fail("", "proposed_action is required");
   const result = await executeCheckConstraints(deps.surreal, wsRecord(deps), proposedAction);
@@ -210,7 +210,7 @@ const checkConstraintsHandler: BrainToolHandler = async (input, deps) => {
 };
 
 /** Registry of Brain-native tool handlers, keyed by tool name. */
-const brainToolHandlers: ReadonlyMap<string, BrainToolHandler> = new Map([
+const osabioToolHandlers: ReadonlyMap<string, OsabioToolHandler> = new Map([
   ["search_entities", searchEntitiesHandler],
   ["get_entity_detail", getEntityDetailHandler],
   ["get_project_status", getProjectStatusHandler],
@@ -219,35 +219,35 @@ const brainToolHandlers: ReadonlyMap<string, BrainToolHandler> = new Map([
 ]);
 
 // ---------------------------------------------------------------------------
-// Effect Boundary: executeBrainNativeTools
+// Effect Boundary: executeOsabioNativeTools
 // ---------------------------------------------------------------------------
 
 /**
- * Execute all brain-native tool calls and return tool_result messages.
+ * Execute all osabio-native tool calls and return tool_result messages.
  *
- * - Each classified brain-native call is dispatched to its handler.
+ * - Each classified osabio-native call is dispatched to its handler.
  * - Unknown handlers produce an error result (graceful, not HTTP 500).
  * - All errors are caught and returned as is_error tool_results.
  */
-export async function executeBrainNativeTools(
+export async function executeOsabioNativeTools(
   classifiedCalls: ClassifiedToolCall[],
   deps: ToolExecutorDeps,
 ): Promise<ToolExecutionResult[]> {
-  const brainNativeCalls = classifiedCalls.filter(
-    (c): c is Extract<ClassifiedToolCall, { classification: "brain-native" }> =>
-      c.classification === "brain-native",
+  const osabioNativeCalls = classifiedCalls.filter(
+    (c): c is Extract<ClassifiedToolCall, { classification: "osabio-native" }> =>
+      c.classification === "osabio-native",
   );
 
   const results: ToolExecutionResult[] = [];
 
-  for (const call of brainNativeCalls) {
-    const handler = brainToolHandlers.get(call.toolUse.name);
+  for (const call of osabioNativeCalls) {
+    const handler = osabioToolHandlers.get(call.toolUse.name);
 
     if (!handler) {
       results.push({
         toolUseId: call.toolUse.id,
         content: JSON.stringify({
-          error: `No handler registered for brain-native tool: ${call.toolUse.name}`,
+          error: `No handler registered for osabio-native tool: ${call.toolUse.name}`,
         }),
         isError: true,
       });
@@ -325,10 +325,10 @@ export async function executeBrainNativeTools(
 // ---------------------------------------------------------------------------
 
 /**
- * Execute all classified tool calls: brain-native, MCP integration, HTTP integration, unknown.
+ * Execute all classified tool calls: osabio-native, MCP integration, HTTP integration, unknown.
  *
  * Partitions calls and dispatches to the appropriate executor:
- *   - brain-native -> executeBrainNativeTools
+ *   - osabio-native -> executeOsabioNativeTools
  *   - integration with source_server_id -> executeIntegrationToolsViaMcp
  *   - integration without source_server_id -> executeIntegrationTools (HTTP)
  *   - unknown -> pass-through (not executed by Brain)
@@ -340,8 +340,8 @@ export async function executeAllToolCalls(
   deps: McpExecutorDeps,
   connectionMap?: Map<string, Awaited<ReturnType<McpClientFactory["connect"]>>>,
 ): Promise<ToolExecutionResult[]> {
-  const brainNativeCalls = classifiedCalls.filter(
-    (c) => c.classification === "brain-native",
+  const osabioNativeCalls = classifiedCalls.filter(
+    (c) => c.classification === "osabio-native",
   );
   const mcpIntegrationCalls = classifiedCalls.filter(
     (c) => c.classification === "integration" && !!c.resolvedTool.source_server_id,
@@ -351,9 +351,9 @@ export async function executeAllToolCalls(
   );
 
   // Execute all partitions concurrently
-  const [brainResults, mcpResults, httpResults] = await Promise.all([
-    brainNativeCalls.length > 0
-      ? executeBrainNativeTools(brainNativeCalls, deps)
+  const [osabioResults, mcpResults, httpResults] = await Promise.all([
+    osabioNativeCalls.length > 0
+      ? executeOsabioNativeTools(osabioNativeCalls, deps)
       : Promise.resolve([]),
     mcpIntegrationCalls.length > 0
       ? executeIntegrationToolsViaMcp(mcpIntegrationCalls, deps, connectionMap)
@@ -363,7 +363,7 @@ export async function executeAllToolCalls(
       : Promise.resolve([]),
   ]);
 
-  return [...brainResults, ...mcpResults, ...httpResults];
+  return [...osabioResults, ...mcpResults, ...httpResults];
 }
 
 // ---------------------------------------------------------------------------

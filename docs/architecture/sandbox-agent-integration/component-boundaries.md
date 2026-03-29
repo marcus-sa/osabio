@@ -2,7 +2,7 @@
 
 ## 1. Adapter Interface Design
 
-The adapter interface is a narrow port wrapping only the SandboxAgent SDK methods Brain calls. It serves as the testability seam and dependency isolation boundary per D-07.
+The adapter interface is a narrow port wrapping only the SandboxAgent SDK methods Osabio calls. It serves as the testability seam and dependency isolation boundary per D-07.
 
 ### Why an Adapter (Not Direct SDK Usage)
 
@@ -12,7 +12,7 @@ The adapter interface is a narrow port wrapping only the SandboxAgent SDK method
 
 ### Adapter Port Type
 
-The adapter exposes exactly the methods Brain's orchestrator needs. Nothing more.
+The adapter exposes exactly the methods Osabio's orchestrator needs. Nothing more.
 
 ```
 SandboxAgentAdapter = {
@@ -31,7 +31,7 @@ SessionHandle = {
 }
 ```
 
-**Answer to Q-04**: The adapter abstracts at the **SDK level** (wrapping the SDK instance), not at the session level. Rationale: session handles are SDK-specific objects with SDK-specific event types. The adapter creates session handles through `createSession`/`resumeSession` and returns Brain-owned `SessionHandle` types that the orchestrator can work with. This keeps the SDK boundary at a single point (the adapter factory).
+**Answer to Q-04**: The adapter abstracts at the **SDK level** (wrapping the SDK instance), not at the session level. Rationale: session handles are SDK-specific objects with SDK-specific event types. The adapter creates session handles through `createSession`/`resumeSession` and returns Osabio-owned `SessionHandle` types that the orchestrator can work with. This keeps the SDK boundary at a single point (the adapter factory).
 
 ### Adapter Factory
 
@@ -100,7 +100,7 @@ routes.ts
 
 | Component | Location | Why |
 |-----------|----------|-----|
-| Brain-native agents | `chat/`, `agents/pm/`, `observer/`, `agents/analytics/` | Not sandbox-executed; run in-process with AI SDK (D-06) |
+| Osabio-native agents | `chat/`, `agents/pm/`, `observer/`, `agents/analytics/` | Not sandbox-executed; run in-process with AI SDK (D-06) |
 | LLM Proxy | `proxy/` | Unchanged -- agents still route LLM traffic through same proxy URL |
 | Tool Registry | `tool-registry/` | Unchanged -- dynamic MCP endpoint (R2) builds on existing grant resolution |
 | SSE Registry | `streaming/sse-registry.ts` | Unchanged -- event bridge pushes to existing SSE infrastructure |

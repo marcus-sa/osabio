@@ -1,13 +1,13 @@
-# Journey: Brain Resource Server Verification (Sovereign Hybrid Model)
+# Journey: Osabio Resource Server Verification (Sovereign Hybrid Model)
 
 ## Overview
 
-The complete flow when the Brain resource server receives ANY request -- from an agent sandbox or a human dashboard client -- bearing a DPoP-bound access token. The Brain has ONE verification pipeline: DPoP proof-of-possession + RAR brain_action scope. No scope fallback. No Bearer path. No distinction between human and agent at the Brain boundary.
+The complete flow when the Osabio resource server receives ANY request -- from an agent sandbox or a human dashboard client -- bearing a DPoP-bound access token. The Osabio has ONE verification pipeline: DPoP proof-of-possession + RAR osabio_action scope. No scope fallback. No Bearer path. No distinction between human and agent at the Osabio boundary.
 
 ## Actors
 
 - **Any Actor** (agent "Kira" or human "Marcus" via Bridge -- the token presenter)
-- **Brain Resource Server** (the single verification pipeline for ALL Brain operations)
+- **Brain Resource Server** (the single verification pipeline for ALL Osabio operations)
 - **Nonce Cache** (time-windowed set for DPoP replay protection)
 
 ## Emotional Arc
@@ -26,15 +26,15 @@ Start: Vigilant          Middle: Methodical           End: Assured
 +------------------------------------------------------------------+
 |  INCOMING REQUEST (from ANY actor -- agent or human)              |
 |                                                                    |
-|  POST /api/brain/integrations/stripe/invoices                      |
+|  POST /api/osabio/integrations/stripe/invoices                      |
 |  Authorization: DPoP eyJhbGciOiJFUzI1NiIs...  (access token)      |
 |  DPoP: eyJ0eXAiOiJkcG9wK2p3dCIs...            (proof JWT)         |
 |  Content-Type: application/json                                    |
 |  { customer: "cus_acme_corp", amount: 240000, currency: "usd" }   |
 |                                                                    |
-|  NOTE: No "Authorization: Bearer" path exists to the Brain.        |
-|  NOTE: No session cookie path exists to the Brain.                 |
-|  NOTE: No scope-based authorization exists at the Brain.           |
+|  NOTE: No "Authorization: Bearer" path exists to the Osabio.        |
+|  NOTE: No session cookie path exists to the Osabio.                 |
+|  NOTE: No scope-based authorization exists at the Osabio.           |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
@@ -71,16 +71,16 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |    3. Audience: "https://brain.example"                            |
 |    4. Expiration: exp > now (with clock tolerance)                 |
 |    5. Required claims present: sub, cnf.jkt,                       |
-|       authorization_details, urn:brain:workspace                   |
+|       authorization_details, urn:osabio:workspace                   |
 |                                                                    |
 |  Extract for downstream checks:                                    |
 |    ${cnf_jkt} = token.cnf.jkt                                      |
 |    ${authorization_details} = token.authorization_details           |
-|    ${workspace_id} = token["urn:brain:workspace"]                   |
-|    ${intent_id} = token["urn:brain:intent_id"]                     |
+|    ${workspace_id} = token["urn:osabio:workspace"]                   |
+|    ${intent_id} = token["urn:osabio:intent_id"]                     |
 |                                                                    |
 |  Tokens MUST contain authorization_details with type               |
-|  "brain_action". Tokens without authorization_details are          |
+|  "osabio_action". Tokens without authorization_details are          |
 |  rejected -- no scope fallback.                                    |
 |                                                                    |
 +------------------------------|-------------------------------------+
@@ -148,20 +148,20 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |  |              (stolen/intercepted token) -> 401              |   |
 |  +------------------------------------------------------------+   |
 |                                                                    |
-|  This check is identical for agents and humans. The Brain          |
+|  This check is identical for agents and humans. The Osabio          |
 |  does not know or care whether the presenter is human or agent.    |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
                                v
 +------------------------------------------------------------------+
-|  STEP 5: Operation Scope Verification (RAR brain_action)          |
+|  STEP 5: Operation Scope Verification (RAR osabio_action)          |
 |  Emotion: Precise -- "does this token cover this exact operation?" |
 +------------------------------------------------------------------+
 |                                                                    |
 |  Extract the requested operation from the API route + body:        |
 |    requested_action = {                                            |
-|      type: "brain_action",                                         |
+|      type: "osabio_action",                                         |
 |      action: "create",                                             |
 |      resource: "invoice",                                          |
 |      constraints: {                                                |
@@ -173,7 +173,7 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |                                                                    |
 |  Match against ${authorization_details} from the access token:     |
 |                                                                    |
-|  5a. Type match: authorization_details[].type == "brain_action"    |
+|  5a. Type match: authorization_details[].type == "osabio_action"    |
 |  5b. Action match: authorization_details[].action == "create"      |
 |  5c. Resource match: authorization_details[].resource == "invoice" |
 |  5d. Constraints match: requested constraints are within the       |
@@ -184,7 +184,7 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |  +------------------------------------------------------------+   |
 |  | Scope Matching Rules:                                       |   |
 |  |                                                             |   |
-|  | TYPE: must be "brain_action" (always)                       |   |
+|  | TYPE: must be "osabio_action" (always)                       |   |
 |  | ACTION: must match exactly (read, create, update, delete)   |   |
 |  | RESOURCE: must match exactly (knowledge_graph, invoice, ...) |   |
 |  | CONSTRAINTS: requested values must be within authorized      |   |
@@ -209,8 +209,8 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |       (existing flow using member_of relation)                     |
 |    3. Extract actor_type from identity record                      |
 |                                                                    |
-|  The Brain does not differentiate verification logic based on      |
-|  actor type. All actors are equal at the Brain boundary.           |
+|  The Osabio does not differentiate verification logic based on      |
+|  actor type. All actors are equal at the Osabio boundary.           |
 |                                                                    |
 +------------------------------|-------------------------------------+
                                |
@@ -222,16 +222,16 @@ Start: Vigilant          Middle: Methodical           End: Assured
 |                                                                    |
 |  All verification steps passed:                                    |
 |    [x] Access token valid (signature, expiry, claims)              |
-|    [x] authorization_details contains brain_action (not scopes)    |
+|    [x] authorization_details contains osabio_action (not scopes)    |
 |    [x] DPoP proof valid (structure, signature, freshness)          |
 |    [x] Sender binding verified (thumbprint match)                  |
 |    [x] Replay protection checked (jti unique)                      |
-|    [x] Operation scope verified (brain_action match)               |
+|    [x] Operation scope verified (osabio_action match)               |
 |    [x] Identity and workspace resolved                             |
 |                                                                    |
 |  Execute the requested operation with the verified context:        |
 |    - Forward to integration (Stripe, deployment, etc.)             |
-|    - Or execute Brain graph operation directly                     |
+|    - Or execute Osabio graph operation directly                     |
 |    - Log the operation with intent_id for audit trail              |
 |    - Update intent status: executing -> completed (or failed)      |
 |                                                                    |
@@ -248,8 +248,8 @@ Start: Vigilant          Middle: Methodical           End: Assured
 Request has no Authorization header (or only a session cookie)
 -> 401 { error: "dpop_required",
          detail: "Brain operations require DPoP-bound RAR tokens.
-                  Session cookies cannot access the Brain.
-                  Use the Bridge to exchange your session for a Brain token." }
+                  Session cookies cannot access the Osabio.
+                  Use the Bridge to exchange your session for a Osabio token." }
 ```
 
 ### E2: Bearer Scheme Rejected
@@ -258,9 +258,9 @@ Request has Authorization: Bearer <any-token>
 -> 401 { error: "dpop_required",
          detail: "Brain does not accept Bearer tokens.
                   All operations require DPoP-bound tokens with
-                  brain_action authorization_details." }
+                  osabio_action authorization_details." }
 No distinction between DPoP-bound tokens sent as Bearer vs plain Bearer.
-The Brain only speaks DPoP.
+The Osabio only speaks DPoP.
 ```
 
 ### E3: Missing DPoP Proof Header
@@ -299,7 +299,7 @@ Access token cnf.jkt is "thumb-AAA"
 ### E7: Operation Scope Mismatch
 ```
 Token authorization_details: action=create, resource=invoice
-Request: DELETE /api/brain/integrations/stripe/invoices/inv_123
+Request: DELETE /api/osabio/integrations/stripe/invoices/inv_123
 -> 403 { error: "authorization_details_mismatch",
          detail: "Token authorizes 'create invoice'
                   but request is 'delete invoice'" }
@@ -316,8 +316,8 @@ Request body: amount = 240000
 ### E9: Missing authorization_details
 ```
 Token does not contain authorization_details claim
-(e.g., a token without brain_action authorization_details)
+(e.g., a token without osabio_action authorization_details)
 -> 401 { error: "missing_authorization_details",
-         detail: "Brain tokens must contain brain_action
+         detail: "Brain tokens must contain osabio_action
                   authorization_details. No scope fallback." }
 ```

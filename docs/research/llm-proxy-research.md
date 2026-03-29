@@ -1,4 +1,4 @@
-# Research: Brain LLM Proxy -- Transparent Proxy for Agent Trace Capture, Policy Enforcement, and Cost Attribution
+# Research: Osabio LLM Proxy -- Transparent Proxy for Agent Trace Capture, Policy Enforcement, and Cost Attribution
 
 **Date**: 2026-03-15
 **Researcher**: nw-researcher (Nova)
@@ -7,17 +7,17 @@
 
 ## Executive Summary
 
-This research investigates the technical feasibility and implementation patterns for building a Brain LLM proxy -- a transparent intermediary between Claude Code (and other coding agents) and Anthropic's API. The proxy would capture full request/response traces as graph nodes, enforce policies before forwarding requests, attribute costs to workspaces/projects/tasks, and handle streaming SSE responses.
+This research investigates the technical feasibility and implementation patterns for building a Osabio LLM proxy -- a transparent intermediary between Claude Code (and other coding agents) and Anthropic's API. The proxy would capture full request/response traces as graph nodes, enforce policies before forwarding requests, attribute costs to workspaces/projects/tasks, and handle streaming SSE responses.
 
 The research establishes three key findings: (1) Claude Code natively supports proxy routing via `ANTHROPIC_BASE_URL` and related environment variables, making transparent interception straightforward with no client modifications; (2) the LLM proxy pattern is well-established in production, with LiteLLM, Helicone, and others proving the architecture at scale for cost tracking, policy enforcement, and observability; (3) SSE streaming passthrough is technically feasible using standard HTTP pipe/forward patterns, with the proxy acting as a transparent relay that can inspect events without buffering the full response.
 
-The proposed Brain LLM proxy would differentiate from generic LLM gateways by writing traces directly into the Brain knowledge graph as first-class entities -- linking LLM calls to tasks, decisions, and agent sessions rather than isolated log entries.
+The proposed Osabio LLM proxy would differentiate from generic LLM gateways by writing traces directly into the Osabio knowledge graph as first-class entities -- linking LLM calls to tasks, decisions, and agent sessions rather than isolated log entries.
 
 ---
 
 ## Research Methodology
 
-**Search Strategy**: Web searches across official documentation (Anthropic, LiteLLM, OpenTelemetry), GitHub repositories (claude-code, litellm, llm-interceptor, llm-proxy), and industry sources. Local codebase analysis for Brain architecture context.
+**Search Strategy**: Web searches across official documentation (Anthropic, LiteLLM, OpenTelemetry), GitHub repositories (claude-code, litellm, llm-interceptor, llm-proxy), and industry sources. Local codebase analysis for Osabio architecture context.
 
 **Source Selection Criteria**:
 - Source types: official documentation, open-source repositories, industry technical blogs
@@ -67,7 +67,7 @@ The proposed Brain LLM proxy would differentiate from generic LLM gateways by wr
 
 **Known Limitation**: When using `ANTHROPIC_BASE_URL`, Claude Code's fast mode availability check is hardcoded to `https://api.anthropic.com` and does not respect the custom base URL, causing fast mode to be forcibly disabled [GitHub Issue #29015].
 
-**Analysis**: This is the most critical finding for feasibility. Claude Code already expects to talk to a proxy -- the Brain proxy simply needs to implement the Anthropic Messages API contract. No client-side patches or forks required.
+**Analysis**: This is the most critical finding for feasibility. Claude Code already expects to talk to a proxy -- the Osabio proxy simply needs to implement the Anthropic Messages API contract. No client-side patches or forks required.
 
 ---
 
@@ -199,7 +199,7 @@ async function proxyMessages(req: Request): Promise<Response> {
 
 ### Finding 4: LiteLLM Proves the Cost Tracking and Attribution Architecture at Scale
 
-**Evidence**: LiteLLM is the most widely deployed open-source LLM proxy, handling cost tracking, budget enforcement, and attribution across 100+ model providers. Its architecture provides a proven reference for Brain's proxy design.
+**Evidence**: LiteLLM is the most widely deployed open-source LLM proxy, handling cost tracking, budget enforcement, and attribution across 100+ model providers. Its architecture provides a proven reference for Osabio's proxy design.
 
 **Confidence**: High
 
@@ -233,7 +233,7 @@ Organization
 
 **Key Design Decision -- Async Spend Logging**: Spend logs are written asynchronously via `DBSpendUpdateWriter` with batched database writes. This prevents cost tracking from adding latency to the LLM response path.
 
-**Analysis**: Brain's proxy can adopt this pattern but map it to the knowledge graph instead of PostgreSQL. The attribution hierarchy maps cleanly: Organization -> Workspace, Team -> Project, Virtual Key -> Agent Session, Tags -> Task/Feature IDs. The async logging pattern is critical -- the proxy must not block SSE relay for graph writes.
+**Analysis**: Osabio's proxy can adopt this pattern but map it to the knowledge graph instead of PostgreSQL. The attribution hierarchy maps cleanly: Organization -> Workspace, Team -> Project, Virtual Key -> Agent Session, Tags -> Task/Feature IDs. The async logging pattern is critical -- the proxy must not block SSE relay for graph writes.
 
 ---
 
@@ -262,15 +262,15 @@ Organization
 | Post-response | Trace capture | Store request/response as graph node |
 | Post-response | Anomaly detection | Flag unusual token consumption patterns |
 
-**Brain-Specific Policy Integration**: Brain already has a policy engine (`policy/` module) with typed rules, scopes, and lifecycle management. The proxy can evaluate intents against the policy graph before forwarding requests -- consistent with the existing "Judge" pattern where high-stakes actions go through an Authorizer Agent.
+**Brain-Specific Policy Integration**: Osabio already has a policy engine (`policy/` module) with typed rules, scopes, and lifecycle management. The proxy can evaluate intents against the policy graph before forwarding requests -- consistent with the existing "Judge" pattern where high-stakes actions go through an Authorizer Agent.
 
-**Analysis**: The proxy becomes a natural enforcement point for Brain's existing governance model. Rather than building a new policy system, the proxy queries the same policy graph that governs other agent actions.
+**Analysis**: The proxy becomes a natural enforcement point for Osabio's existing governance model. Rather than building a new policy system, the proxy queries the same policy graph that governs other agent actions.
 
 ---
 
-### Finding 6: Graph-Native Trace Storage Differentiates Brain from Generic Proxies
+### Finding 6: Graph-Native Trace Storage Differentiates Osabio from Generic Proxies
 
-**Evidence**: Current LLM observability tools (Langfuse, Datadog LLM Observability, OpenTelemetry GenAI conventions) store traces as flat logs or span trees. Brain's knowledge graph enables richer trace relationships.
+**Evidence**: Current LLM observability tools (Langfuse, Datadog LLM Observability, OpenTelemetry GenAI conventions) store traces as flat logs or span trees. Osabio's knowledge graph enables richer trace relationships.
 
 **Confidence**: Medium
 
@@ -289,7 +289,7 @@ Organization
 
 **Brain Graph Trace Model** (proposed):
 
-Unlike flat span trees, Brain traces would be graph nodes with edges to related entities:
+Unlike flat span trees, Osabio traces would be graph nodes with edges to related entities:
 
 ```
 trace (SCHEMAFULL)
@@ -317,7 +317,7 @@ This enables queries like:
 - "Show all LLM calls that were governed by policy Y"
 - "Trace the full execution path from intent to LLM call to code change"
 
-**Analysis**: This is Brain's key differentiator. Generic proxies treat LLM calls as logs; Brain treats them as first-class knowledge graph entities with semantic relationships to the work they support. INTERPRETATION: This integration would close the observability gap where coding agent LLM usage is currently invisible to the Brain graph.
+**Analysis**: This is Osabio's key differentiator. Generic proxies treat LLM calls as logs; Osabio treats them as first-class knowledge graph entities with semantic relationships to the work they support. INTERPRETATION: This integration would close the observability gap where coding agent LLM usage is currently invisible to the Osabio graph.
 
 ---
 
@@ -343,7 +343,7 @@ This enables queries like:
 | LiteLLM | Python | Yes | Yes | Yes | Full gateway, 100+ providers |
 | nazdridoy/llm-proxy | Go | Yes | No | No | Profile-based, logging |
 
-**Analysis**: No existing proxy provides Brain-style graph integration. The closest is LiteLLM for cost/policy features, but it uses PostgreSQL, not a knowledge graph. Building on Bun (Brain's existing runtime) with SurrealDB graph storage is the right approach -- it avoids introducing a Python dependency and keeps the proxy architecturally consistent with Brain.
+**Analysis**: No existing proxy provides Osabio-style graph integration. The closest is LiteLLM for cost/policy features, but it uses PostgreSQL, not a knowledge graph. Building on Bun (Osabio's existing runtime) with SurrealDB graph storage is the right approach -- it avoids introducing a Python dependency and keeps the proxy architecturally consistent with Osabio.
 
 ---
 
@@ -385,7 +385,7 @@ cost = (input_tokens * input_rate / 1_000_000)
 
 ## Proposed Architecture
 
-Based on the research findings, the Brain LLM proxy would follow this architecture:
+Based on the research findings, the Osabio LLM proxy would follow this architecture:
 
 ```
 Claude Code / MCP Agent
@@ -393,12 +393,12 @@ Claude Code / MCP Agent
   | ANTHROPIC_BASE_URL=http://localhost:{PORT}/anthropic
   |
   v
-Brain LLM Proxy (Bun server)
+Osabio LLM Proxy (Bun server)
   |
   |-- [Pre-Request Pipeline]
   |   |-- Authenticate (workspace token / agent session)
   |   |-- Resolve attribution (workspace -> project -> task)
-  |   |-- Evaluate policies (query Brain policy graph)
+  |   |-- Evaluate policies (query Osabio policy graph)
   |   |-- Rate limit check
   |   |-- Budget check (workspace/project spend limits)
   |   |-- Create trace node (graph: trace, status: pending)
@@ -425,11 +425,11 @@ Anthropic API (api.anthropic.com)
 
 2. **Async post-processing**: Graph writes and cost updates happen asynchronously after the response is relayed. The proxy adds zero perceptible latency to the LLM call.
 
-3. **Attribution via headers**: Claude Code's `ANTHROPIC_CUSTOM_HEADERS` can carry `X-Brain-Workspace`, `X-Brain-Task`, `X-Brain-Session` headers for attribution without modifying the Anthropic API payload.
+3. **Attribution via headers**: Claude Code's `ANTHROPIC_CUSTOM_HEADERS` can carry `X-Osabio-Workspace`, `X-Osabio-Task`, `X-Osabio-Session` headers for attribution without modifying the Anthropic API payload.
 
-4. **SurrealDB graph storage**: Traces stored as `trace` nodes with `RELATE` edges to agent sessions, tasks, and workspaces. Consistent with Brain's existing graph model.
+4. **SurrealDB graph storage**: Traces stored as `trace` nodes with `RELATE` edges to agent sessions, tasks, and workspaces. Consistent with Osabio's existing graph model.
 
-5. **Policy graph integration**: Pre-request policy checks query the same policy engine used by Brain's Authorizer. No separate policy system.
+5. **Policy graph integration**: Pre-request policy checks query the same policy engine used by Osabio's Authorizer. No separate policy system.
 
 ---
 
@@ -484,9 +484,9 @@ Anthropic API (api.anthropic.com)
 
 **Recommendation**: Retrieve the issue content using `gh issue view 127 --comments` from within the repository directory. The issue likely contains the original feature request and discussion context that motivated this research. Its contents should be appended to this document once retrieved.
 
-### Gap 2: Brain's Existing Agent Session Tracing Model
+### Gap 2: Osabio's Existing Agent Session Tracing Model
 
-**Issue**: The research does not fully map how Brain's existing `agent_session` and hierarchical trace model (described in README) would integrate with LLM-level traces. The exact schema for agent sessions and trace nodes was not examined in detail.
+**Issue**: The research does not fully map how Osabio's existing `agent_session` and hierarchical trace model (described in README) would integrate with LLM-level traces. The exact schema for agent sessions and trace nodes was not examined in detail.
 
 **Attempted Sources**: Codebase README (reviewed for architecture overview), `schema/surreal-schema.surql` (not read in detail).
 
@@ -506,7 +506,7 @@ Anthropic API (api.anthropic.com)
 
 **Attempted Sources**: Claude Code environment variable documentation, `ANTHROPIC_CUSTOM_HEADERS` behavior.
 
-**Recommendation**: Test whether `ANTHROPIC_CUSTOM_HEADERS` can be set per-process (e.g., via `brain start task:X` injecting session-specific headers), or whether an alternative attribution mechanism (e.g., per-session API keys / virtual keys) is needed.
+**Recommendation**: Test whether `ANTHROPIC_CUSTOM_HEADERS` can be set per-process (e.g., via `osabio start task:X` injecting session-specific headers), or whether an alternative attribution mechanism (e.g., per-session API keys / virtual keys) is needed.
 
 ---
 
@@ -520,7 +520,7 @@ Anthropic API (api.anthropic.com)
 **Position B**: Fast mode is forcibly disabled when using `ANTHROPIC_BASE_URL` because the availability check is hardcoded to `api.anthropic.com`.
 - Source: [GitHub Issue #29015](https://github.com/anthropics/claude-code/issues/29015) - Reputation: High
 
-**Assessment**: Both are correct -- gateways are supported, but with reduced functionality. This is a known limitation. For Brain's proxy, this means agents using the proxy will not have access to fast mode (which uses batched/cheaper inference). This may be acceptable if the proxy provides compensating value (tracing, policy enforcement, cost tracking). The issue may be resolved in future Claude Code releases.
+**Assessment**: Both are correct -- gateways are supported, but with reduced functionality. This is a known limitation. For Osabio's proxy, this means agents using the proxy will not have access to fast mode (which uses batched/cheaper inference). This may be acceptable if the proxy provides compensating value (tracing, policy enforcement, cost tracking). The issue may be resolved in future Claude Code releases.
 
 ---
 
@@ -532,11 +532,11 @@ Anthropic API (api.anthropic.com)
 
 3. **Design the `trace` schema** in SurrealDB, extending the existing agent session/trace model. Define the `RELATE` edges and test with `INFO FOR TABLE`.
 
-4. **Investigate `brain start` integration** -- how the CLI can inject `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS` (with session/task attribution), and `ANTHROPIC_AUTH_TOKEN` into the agent's environment when starting a task-scoped session.
+4. **Investigate `osabio start` integration** -- how the CLI can inject `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS` (with session/task attribution), and `ANTHROPIC_AUTH_TOKEN` into the agent's environment when starting a task-scoped session.
 
 5. **Test extended thinking token accounting** by making actual API calls with `thinking.type: "enabled"` and capturing the full SSE event stream to document token breakdown behavior.
 
-6. **Evaluate whether to build or integrate** -- LiteLLM's Anthropic passthrough mode could serve as the forwarding layer, with Brain adding graph storage and policy enforcement on top. Compare build-from-scratch vs. LiteLLM integration complexity.
+6. **Evaluate whether to build or integrate** -- LiteLLM's Anthropic passthrough mode could serve as the forwarding layer, with Osabio adding graph storage and policy enforcement on top. Compare build-from-scratch vs. LiteLLM integration complexity.
 
 ---
 

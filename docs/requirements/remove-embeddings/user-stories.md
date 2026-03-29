@@ -1,9 +1,9 @@
-# User Stories: Remove Embeddings from Brain Knowledge Graph
+# User Stories: Remove Embeddings from Osabio Knowledge Graph
 
 ## US-EMB-001: Chat Agent BM25 Entity Search
 
 ### Problem
-The chat agent (operated by Brain's AI orchestration layer) needs to find entities matching a user's natural language query. Currently it calls an external embedding API (60s timeout), loads 120+ candidates with full 1536-dimension embedding arrays into JS memory, and computes cosine similarity in-process. This causes CI test failures from embedding timeouts, adds seconds of latency to every search, and creates a hard dependency on an external API for a core operation.
+The chat agent (operated by Osabio's AI orchestration layer) needs to find entities matching a user's natural language query. Currently it calls an external embedding API (60s timeout), loads 120+ candidates with full 1536-dimension embedding arrays into JS memory, and computes cosine similarity in-process. This causes CI test failures from embedding timeouts, adds seconds of latency to every search, and creates a hard dependency on an external API for a core operation.
 
 ### Who
 - Chat agent | Handling a user query about workspace entities | Needs fast, reliable search to provide contextual answers
@@ -235,7 +235,7 @@ And a warning observation is created
 ## US-EMB-004: Proxy Context Injection Without Embeddings
 
 ### Problem
-When a coding agent sends a message through the proxy, Brain injects relevant decisions, learnings, and observations into the system prompt. Currently this requires an embedding API call (60s timeout) to embed the message, then computes weighted cosine similarity against all candidate embeddings in JS memory. Recent changes detection uses three parallel two-step KNN queries with similarity thresholds (0.4/0.7). This creates latency on every proxied message and a hard dependency on the embedding API for the proxy's core value proposition.
+When a coding agent sends a message through the proxy, Osabio injects relevant decisions, learnings, and observations into the system prompt. Currently this requires an embedding API call (60s timeout) to embed the message, then computes weighted cosine similarity against all candidate embeddings in JS memory. Recent changes detection uses three parallel two-step KNN queries with similarity thresholds (0.4/0.7). This creates latency on every proxied message and a hard dependency on the embedding API for the proxy's core value proposition.
 
 ### Who
 - Proxy context injector | Processing a proxied coding agent message | Needs to rank context by relevance within token budget without external API dependency
@@ -246,13 +246,13 @@ Replace cosine-based ranking with BM25 fulltext search combined with recency wei
 ### Domain Examples
 
 #### 1: Happy Path -- Recent project decision injected
-Carlos Rivera's coding agent sends a message about "implementing OAuth flow." Brain resolves to project "Auth Service." BM25 search finds decision "Use OAuth 2.1 for all external APIs" (updated 2 hours ago, high BM25 score, same project). Decision is ranked first and injected into system prompt.
+Carlos Rivera's coding agent sends a message about "implementing OAuth flow." Osabio resolves to project "Auth Service." BM25 search finds decision "Use OAuth 2.1 for all external APIs" (updated 2 hours ago, high BM25 score, same project). Decision is ranked first and injected into system prompt.
 
 #### 2: Edge Case -- Cross-project context via BM25
 Priya Sharma works on "API Gateway" project but a relevant decision "Deprecate REST in favor of tRPC" exists in "Platform Standards" project. BM25 matches "API" and scores the decision. It's included in context but ranked lower than same-project items.
 
 #### 3: Error/Boundary -- No relevant context found
-A message about "writing unit tests for the CSS parser" finds no BM25 matches in decisions, learnings, or observations. The system prompt is injected without brain-context. Coding agent works with its built-in context only.
+A message about "writing unit tests for the CSS parser" finds no BM25 matches in decisions, learnings, or observations. The system prompt is injected without osabio-context. Coding agent works with its built-in context only.
 
 ### UAT Scenarios (BDD)
 
@@ -275,7 +275,7 @@ And "Migrate billing API" is classified as context-update
 #### Scenario: No context found results in clean injection
 Given no decisions, learnings, or observations match the proxy message text
 When the proxy processes the message
-Then no brain-context block is injected
+Then no osabio-context block is injected
 And the original system prompt is passed through unchanged
 
 ### Acceptance Criteria
@@ -289,7 +289,7 @@ And the original system prompt is passed through unchanged
 
 ### Technical Notes
 - Phase 2 story -- depends on Phase 1 completion for confidence
-- `context-injector.ts` pure functions (buildBrainContextXml, injectBrainContext, selectWithinBudget) are unaffected -- only ranking and classification change
+- `context-injector.ts` pure functions (buildOsabioContextXml, injectOsabioContext, selectWithinBudget) are unaffected -- only ranking and classification change
 - Recency weighting: multiply BM25 score by decay factor based on time since last update
 - Graph proximity: boost items in the same project as the resolved context
 - The `SearchRecentChanges` port signature changes: no longer requires `messageEmbedding` parameter
@@ -307,7 +307,7 @@ And the original system prompt is passed through unchanged
 After Phases 1 and 2 are complete, the codebase retains 17 HNSW indexes, embedding fields on every entity table, the `embeddings.ts` module, `EMBEDDING_MODEL`/`EMBEDDING_DIMENSION` config, and `embeddingModel`/`embeddingDimension` dependency threading. This dead infrastructure consumes storage, slows writes (HNSW index updates), and creates confusion about what's still used.
 
 ### Who
-- Brain platform engineer | Maintaining the codebase after migration | Needs clean infrastructure with no dead code
+- Osabio platform engineer | Maintaining the codebase after migration | Needs clean infrastructure with no dead code
 
 ### Solution
 Single migration to drop all HNSW indexes and embedding fields. Remove `embeddings.ts` module. Remove embedding config from `runtime/config.ts`. Remove embedding dependency from `ServerDependencies`.
@@ -340,7 +340,7 @@ And existing records have no embedding data
 #### Scenario: Server starts without embedding configuration
 Given EMBEDDING_MODEL is not in the environment
 And EMBEDDING_DIMENSION is not in the environment
-When the Brain server starts
+When the Osabio server starts
 Then startup completes successfully
 And no embedding-related warnings or errors appear
 

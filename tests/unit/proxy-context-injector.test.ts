@@ -4,7 +4,7 @@
  * Pure function tests for context injection logic:
  * - Ranking candidates by weighted cosine similarity
  * - Selecting top N within token budget
- * - Building <brain-context> XML block
+ * - Building <osabio-context> XML block
  * - Injecting into system prompt (string and array forms)
  * - Estimating token count
  */
@@ -12,8 +12,8 @@ import { describe, expect, it } from "bun:test";
 import {
   rankCandidates,
   selectWithinBudget,
-  buildBrainContextXml,
-  injectBrainContext,
+  buildOsabioContextXml,
+  injectOsabioContext,
   estimateTokenCount,
   type ContextCandidate,
   type RankedCandidate,
@@ -134,9 +134,9 @@ describe("selectWithinBudget", () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildBrainContextXml: XML block construction
+// buildOsabioContextXml: XML block construction
 // ---------------------------------------------------------------------------
-describe("buildBrainContextXml", () => {
+describe("buildOsabioContextXml", () => {
   it("builds XML with decisions, learnings, and observations sections", () => {
     const selected: RankedCandidate[] = [
       { id: "d1", type: "decision", text: "Use tRPC", score: 0.9 },
@@ -144,10 +144,10 @@ describe("buildBrainContextXml", () => {
       { id: "o1", type: "observation", text: "Auth drift detected", score: 0.7 },
     ];
 
-    const xml = buildBrainContextXml(selected);
+    const xml = buildOsabioContextXml(selected);
 
-    expect(xml).toContain("<brain-context>");
-    expect(xml).toContain("</brain-context>");
+    expect(xml).toContain("<osabio-context>");
+    expect(xml).toContain("</osabio-context>");
     expect(xml).toContain("<decisions>");
     expect(xml).toContain("Use tRPC");
     expect(xml).toContain("<learnings>");
@@ -161,7 +161,7 @@ describe("buildBrainContextXml", () => {
       { id: "d1", type: "decision", text: "Use tRPC", score: 0.9 },
     ];
 
-    const xml = buildBrainContextXml(selected);
+    const xml = buildOsabioContextXml(selected);
 
     expect(xml).toContain("<decisions>");
     expect(xml).not.toContain("<learnings>");
@@ -169,38 +169,38 @@ describe("buildBrainContextXml", () => {
   });
 
   it("returns empty string for no candidates", () => {
-    const xml = buildBrainContextXml([]);
+    const xml = buildOsabioContextXml([]);
     expect(xml).toBe("");
   });
 });
 
 // ---------------------------------------------------------------------------
-// injectBrainContext: system prompt modification
+// injectOsabioContext: system prompt modification
 // ---------------------------------------------------------------------------
-describe("injectBrainContext", () => {
-  it("appends brain-context to string system prompt", () => {
+describe("injectOsabioContext", () => {
+  it("appends osabio-context to string system prompt", () => {
     const original = "You are a helpful assistant.";
-    const brainContext = "<brain-context><decisions><item>Use tRPC</item></decisions></brain-context>";
+    const osabioContext = "<osabio-context><decisions><item>Use tRPC</item></decisions></osabio-context>";
 
-    const result = injectBrainContext(original, brainContext);
+    const result = injectOsabioContext(original, osabioContext);
 
     expect(result.system).toContain("You are a helpful assistant.");
-    expect(result.system).toContain(brainContext);
+    expect(result.system).toContain(osabioContext);
     // Original text comes first
     const systemStr = result.system as string;
     expect(systemStr.indexOf("You are a helpful assistant.")).toBeLessThan(
-      systemStr.indexOf("<brain-context>"),
+      systemStr.indexOf("<osabio-context>"),
     );
   });
 
-  it("appends brain-context as additional text block to array system prompt", () => {
+  it("appends osabio-context as additional text block to array system prompt", () => {
     const original = [
       { type: "text", text: "You are an expert.", cache_control: { type: "ephemeral" } },
       { type: "text", text: "Follow clean code." },
     ];
-    const brainContext = "<brain-context><decisions><item>Use tRPC</item></decisions></brain-context>";
+    const osabioContext = "<osabio-context><decisions><item>Use tRPC</item></decisions></osabio-context>";
 
-    const result = injectBrainContext(original, brainContext);
+    const result = injectOsabioContext(original, osabioContext);
 
     const systemArr = result.system as Array<{ type: string; text: string; cache_control?: { type: string } }>;
     expect(Array.isArray(systemArr)).toBe(true);
@@ -210,23 +210,23 @@ describe("injectBrainContext", () => {
     expect(systemArr[1].text).toBe("Follow clean code.");
     // Brain context appended as last block with cache_control: ephemeral
     const lastBlock = systemArr[systemArr.length - 1];
-    expect(lastBlock.text).toContain("<brain-context>");
+    expect(lastBlock.text).toContain("<osabio-context>");
     expect(lastBlock.cache_control).toEqual({ type: "ephemeral" });
   });
 
   it("creates string system prompt when original is undefined", () => {
-    const brainContext = "<brain-context><decisions><item>Use tRPC</item></decisions></brain-context>";
+    const osabioContext = "<osabio-context><decisions><item>Use tRPC</item></decisions></osabio-context>";
 
-    const result = injectBrainContext(undefined, brainContext);
+    const result = injectOsabioContext(undefined, osabioContext);
 
     expect(typeof result.system).toBe("string");
-    expect(result.system).toBe(brainContext);
+    expect(result.system).toBe(osabioContext);
   });
 
-  it("returns original unchanged when brain-context is empty", () => {
+  it("returns original unchanged when osabio-context is empty", () => {
     const original = "You are a helpful assistant.";
 
-    const result = injectBrainContext(original, "");
+    const result = injectOsabioContext(original, "");
 
     expect(result.system).toBe(original);
     expect(result.injected).toBe(false);

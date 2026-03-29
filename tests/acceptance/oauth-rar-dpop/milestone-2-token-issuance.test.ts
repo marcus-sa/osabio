@@ -4,7 +4,7 @@
  * Traces: US-003 (RAR Token Issuance with DPoP Binding)
  *
  * Verifies:
- * - Custom AS accepts grant_type=urn:brain:intent-authorization
+ * - Custom AS accepts grant_type=urn:osabio:intent-authorization
  * - Token includes cnf.jkt, authorization_details, intent_id
  * - Token TTL is 300 seconds
  * - Rejected if intent not in "authorized" status
@@ -45,15 +45,15 @@ describe("Token issuance for authorized intents", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "token-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // When the agent requests a token with a valid DPoP proof
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Then the Custom AS issues a DPoP-bound access token
@@ -73,15 +73,15 @@ describe("Token issuance for authorized intents", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "claims-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // When the agent receives a token
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
     expect(response.ok).toBe(true);
     const { access_token } = (await response.json()) as { access_token: string };
@@ -91,15 +91,15 @@ describe("Token issuance for authorized intents", () => {
     const cnf = decoded.cnf as { jkt: string } | undefined;
     expect(cnf?.jkt).toBe(keyPair.thumbprint);
 
-    // And the token contains the authorized brain_action
+    // And the token contains the authorized osabio_action
     const authDetails = decoded.authorization_details as Array<{ type: string; action: string; resource: string }>;
     expect(authDetails).toBeArray();
-    expect(authDetails[0]?.type).toBe("brain_action");
+    expect(authDetails[0]?.type).toBe("osabio_action");
     expect(authDetails[0]?.action).toBe("read");
     expect(authDetails[0]?.resource).toBe("workspace");
 
     // And the token links to the authorizing intent
-    const intentClaim = decoded["urn:brain:intent_id"] as string;
+    const intentClaim = decoded["urn:osabio:intent_id"] as string;
     expect(intentClaim).toBe(intentId);
   });
 
@@ -111,15 +111,15 @@ describe("Token issuance for authorized intents", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "ttl-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // When the token is issued
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
     expect(response.ok).toBe(true);
     const { access_token } = (await response.json()) as { access_token: string };
@@ -141,16 +141,16 @@ describe("Token issuance rejection for invalid requests", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "pending-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedIntentWithStatus(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
       "pending_auth",
     );
 
     // When the agent requests a token before authorization completes
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Then the token request is rejected
@@ -167,16 +167,16 @@ describe("Token issuance rejection for invalid requests", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "vetoed-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = createDecisionAction();
+    const osabioAction = createDecisionAction();
 
     const intentId = await seedIntentWithStatus(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
       "vetoed",
     );
 
     // When the agent requests a token for the vetoed intent
     const response = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Then the request is rejected
@@ -191,16 +191,16 @@ describe("Token issuance rejection for invalid requests", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "mismatch-agent");
     const originalKeyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, originalKeyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, originalKeyPair.thumbprint,
     );
 
     // When a different key pair is used to request the token (stolen intent ID)
     const attackerKeyPair = await generateActorKeyPair();
     const response = await requestAccessToken(
-      baseUrl, intentId, attackerKeyPair, [brainAction],
+      baseUrl, intentId, attackerKeyPair, [osabioAction],
     );
 
     // Then the request is rejected because the proof key doesn't match
@@ -238,11 +238,11 @@ describe("Token issuance rejection for invalid requests", () => {
 
     // Given a fabricated intent ID that does not exist
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction("fake-workspace");
+    const osabioAction = readWorkspaceAction("fake-workspace");
 
     // When the agent requests a token for the non-existent intent
     const response = await requestAccessToken(
-      baseUrl, "non-existent-intent-id", keyPair, [brainAction],
+      baseUrl, "non-existent-intent-id", keyPair, [osabioAction],
     );
 
     // Then the request is rejected
@@ -257,10 +257,10 @@ describe("Token issuance rejection for invalid requests", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "no-proof-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // When requesting a token without a DPoP proof header
@@ -268,9 +268,9 @@ describe("Token issuance rejection for invalid requests", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        grant_type: "urn:brain:intent-authorization",
+        grant_type: "urn:osabio:intent-authorization",
         intent_id: intentId,
-        authorization_details: [brainAction],
+        authorization_details: [osabioAction],
       }),
     });
 
@@ -288,21 +288,21 @@ describe("Token re-issuance", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "reissue-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
 
     // And a first token was issued successfully
     const firstResponse = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
     expect(firstResponse.ok).toBe(true);
 
     // When the agent requests a new token (e.g., after the first expired)
     const secondResponse = await requestAccessToken(
-      baseUrl, intentId, keyPair, [brainAction],
+      baseUrl, intentId, keyPair, [osabioAction],
     );
 
     // Then a new token is issued successfully

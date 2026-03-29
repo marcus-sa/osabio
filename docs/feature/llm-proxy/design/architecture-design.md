@@ -19,12 +19,12 @@ C4Context
     title System Context: LLM Proxy Intelligence
 
     Person(agent, "Coding Agent", "Claude Code, Cursor, etc.")
-    System(brain, "Brain Server", "LLM proxy with intelligence layer, knowledge graph, observation system")
+    System(osabio, "Osabio Server", "LLM proxy with intelligence layer, knowledge graph, observation system")
     System_Ext(anthropic, "Anthropic API", "Claude model inference")
 
-    Rel(agent, brain, "Sends LLM requests via proxy", "HTTP/SSE")
+    Rel(agent, osabio, "Sends LLM requests via proxy", "HTTP/SSE")
     Rel(brain, anthropic, "Forwards enriched requests", "HTTP/SSE")
-    Rel(brain, brain, "Reads graph context, writes observations", "Internal")
+    Rel(brain, osabio, "Reads graph context, writes observations", "Internal")
 ```
 
 ---
@@ -33,12 +33,12 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container Diagram: Brain Server with Proxy Intelligence
+    title Container Diagram: Osabio Server with Proxy Intelligence
 
     Person(agent, "Coding Agent")
     System_Ext(anthropic, "Anthropic API")
 
-    Container_Boundary(brain, "Brain Server (Bun)") {
+    Container_Boundary(osabio, "Osabio Server (Bun)") {
         Container(proxy, "LLM Proxy Module", "TypeScript", "Request pipeline: identity, policy, context injection, forwarding, trace creation")
         Container(observer, "Observer System", "TypeScript", "Event-driven trace analysis: contradiction + missing decision detection (NEW capabilities)")
         Container(graph, "Knowledge Graph Queries", "TypeScript", "Decisions, learnings, observations reads")
@@ -132,7 +132,7 @@ C4Component
 
 ## 4. Session ID Resolution
 
-The proxy does NOT manage session lifecycle. It reads session IDs from incoming requests and links traces to existing sessions. Session creation, updates, and end-of-session handling are the responsibility of the CLI (`brain init` hooks) and the orchestrator (`endAgentSession()`).
+The proxy does NOT manage session lifecycle. It reads session IDs from incoming requests and links traces to existing sessions. Session creation, updates, and end-of-session handling are the responsibility of the CLI (`osabio init` hooks) and the orchestrator (`endAgentSession()`).
 
 ### 4.1 Session ID Extraction
 
@@ -142,7 +142,7 @@ The proxy extracts a session ID from one of two sources. This is a pure function
 Proxy request arrives
   -> Parse session ID from one of two sources:
        Claude Code:     metadata.user_id field -> "session_{uuid}" (already implemented in walking skeleton)
-       Brain-managed:   X-Brain-Session header value (set by orchestrator/CLI)
+       Osabio-managed:   X-Osabio-Session header value (set by orchestrator/CLI)
   -> No match from either source:
        -> No session ID -> trace linked to workspace only (session field omitted)
   -> Session ID resolved:
@@ -153,9 +153,9 @@ Proxy request arrives
 
 | Concern | Owner | Mechanism |
 |---|---|---|
-| Session creation | CLI (`brain init` hooks) / Orchestrator | `createAgentSession()` on agent start |
+| Session creation | CLI (`osabio init` hooks) / Orchestrator | `createAgentSession()` on agent start |
 | Session activity tracking | CLI / Orchestrator | Updates via existing agent session API |
-| Session end | CLI (`brain init` SessionEnd hook) / Orchestrator | `endAgentSession()` sets `ended_at` |
+| Session end | CLI (`osabio init` SessionEnd hook) / Orchestrator | `endAgentSession()` sets `ended_at` |
 | Observer trace analysis | SurrealDB EVENT | `session_ended` EVENT fires on `ended_at` transition (ADR-048) |
 
 The SurrealDB EVENT on `ended_at` fires regardless of who sets it -- CLI, orchestrator, or any future mechanism. The Observer trace analysis pipeline (ADR-048) is triggered by this EVENT.
@@ -173,7 +173,7 @@ The SurrealDB EVENT on `ended_at` fires regardless of who sets it -- CLI, orches
 
 ## 5. Conversation Hash Correlation
 
-The proxy derives a conversation identity from request content by hashing the system prompt + first user message. This groups traces into conversations without requiring Brain integration -- any client using the proxy gets conversation grouping for free.
+The proxy derives a conversation identity from request content by hashing the system prompt + first user message. This groups traces into conversations without requiring Osabio integration -- any client using the proxy gets conversation grouping for free.
 
 ### 5.1 How It Works
 
@@ -189,12 +189,12 @@ Request 3: [system, user_msg_1, assistant, tool_result, ...] -> hash(system + us
 
 Conversation hash resolution runs after session ID resolution, before context injection. It is a two-phase operation:
 
-1. **ID computation** (pure function, no DB): Extract system prompt content + first user message content from request body. `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` produces a deterministic UUID.
+1. **ID computation** (pure function, no DB): Extract system prompt content + first user message content from request body. `UUIDv5(OSABIO_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` produces a deterministic UUID.
 2. **Conversation create** (single DB write, idempotent): `CREATE conversation:⟨$conv_id⟩` — if the record already exists, SurrealDB returns the existing record. No lookup query needed.
 
 ### 5.3 What This Enables
 
-- **Unknown clients get conversation grouping for free** -- no `brain init` needed, no session lifecycle
+- **Unknown clients get conversation grouping for free** -- no `osabio init` needed, no session lifecycle
 - **Observer can query all traces in a conversation**: `SELECT * FROM trace WHERE conversation = $conv`
 - **Cost attribution per conversation** across all requests
 - **Observer session-end analysis fallback**: When no agent_session exists, conversation grouping provides an alternative correlation boundary
@@ -205,7 +205,7 @@ Conversation hash resolution runs after session ID resolution, before context in
 | Concern | Session ID | Conversation Hash |
 |---|---|---|
 | Source | Request metadata/headers | Request body content |
-| Requires integration | Yes (`brain init` or X-Brain-Session) | No (content-derived) |
+| Requires integration | Yes (`osabio init` or X-Osabio-Session) | No (content-derived) |
 | Lifecycle | Managed by CLI/orchestrator | None (idempotent upsert) |
 | Scope | Agent session (may span conversations) | Single conversation thread |
 | Client coverage | Integrated clients only | All clients |
@@ -315,7 +315,7 @@ Last user message -> createEmbeddingVector()
   |     * priorityWeight (decisions: 1.0, learnings: 0.8, observations: 0.7)
   |-> Sort by weighted score DESC
   |-> Take top N within token budget (default 1000 tokens)
-  |-> Format as <brain-context> XML block
+  |-> Format as <osabio-context> XML block
 ```
 
 ### Phase 3: Request Mutation
@@ -323,7 +323,7 @@ Last user message -> createEmbeddingVector()
 ```
 Original system field (string | ContentBlock[])
   |-> Normalize to array form
-  |-> Append <brain-context> block at END
+  |-> Append <osabio-context> block at END
   |-> Preserve all existing blocks + cache_control markers
   |-> Re-serialize body for forwarding
 ```

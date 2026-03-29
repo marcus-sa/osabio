@@ -29,28 +29,28 @@
 | Version | Match SDK version |
 | License | Apache 2.0 |
 | Deployment | Local binary for development; containerized for production |
-| Role | Manages agent processes in sandboxes; Brain communicates via SDK |
+| Role | Manages agent processes in sandboxes; Osabio communicates via SDK |
 
 ## Existing Infrastructure (No Changes)
 
-These components are already in Brain and require no new dependencies:
+These components are already in Osabio and require no new dependencies:
 
 | Component | Technology | Role in Integration |
 |-----------|-----------|-------------------|
 | SurrealDB | SurrealDB 3.0 (Docker) | Session persistence, event storage, trace records |
-| LLM Proxy | Brain in-process module | LLM traffic routing, spend tracking |
-| Tool Registry | Brain server module (#183) | Grant resolution, credential brokerage |
-| SSE Registry | Brain server module | Real-time event delivery to UI |
-| DPoP/RAR Auth | jose + Brain auth module | Token issuance for agent sessions |
-| Worktree Manager | Brain orchestrator module | Git worktree isolation for local provider |
+| LLM Proxy | Osabio in-process module | LLM traffic routing, spend tracking |
+| Tool Registry | Osabio server module (#183) | Grant resolution, credential brokerage |
+| SSE Registry | Osabio server module | Real-time event delivery to UI |
+| DPoP/RAR Auth | jose + Osabio auth module | Token issuance for agent sessions |
+| Worktree Manager | Osabio orchestrator module | Git worktree isolation for local provider |
 
 ## Event Schema Mapping Strategy
 
-SandboxAgent emits a universal event schema across all supported agent types. Brain must translate these events into its existing `StreamEvent` union type and trace graph entities.
+SandboxAgent emits a universal event schema across all supported agent types. Osabio must translate these events into its existing `StreamEvent` union type and trace graph entities.
 
 ### Event Type Mapping
 
-| SandboxAgent Event | Brain StreamEvent | Trace Record | Notes |
+| SandboxAgent Event | Osabio StreamEvent | Trace Record | Notes |
 |-------------------|-------------------|--------------|-------|
 | `tool_call` | `agent_token` (tool name + args) | `trace` with tool call details | Includes tool name, arguments, result, duration |
 | `file_edit` | `agent_file_change` | `trace` with file path + change type | Maps directly to existing file change event |
@@ -97,7 +97,7 @@ type AgentRestorationEvent = {
 
 R1 uses the SDK's built-in `InMemorySessionPersistDriver` for event replay during session restoration. Session lifecycle state (`agent_session` table) is persisted in SurrealDB via the session store module.
 
-Brain's session store operations (not the SDK persistence driver):
+Osabio's session store operations (not the SDK persistence driver):
 
 | Operation | SurrealDB Query | Notes |
 |-----------|----------------|-------|
@@ -108,7 +108,7 @@ Brain's session store operations (not the SDK persistence driver):
 
 ### Deferred: SurrealDB Persistence Driver (Cloud Providers)
 
-A custom SurrealDB `SessionPersistDriver` with `sandbox_event` table and 100ms write buffering is deferred until cloud provider support where sandboxes outlive Brain restarts. See ADR-077 and [#187](https://github.com/marcus-sa/brain/issues/187).
+A custom SurrealDB `SessionPersistDriver` with `sandbox_event` table and 100ms write buffering is deferred until cloud provider support where sandboxes outlive Osabio restarts. See ADR-077 and [#187](https://github.com/marcus-sa/osabio/issues/187).
 
 ## Development Paradigm Alignment
 

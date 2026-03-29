@@ -26,7 +26,7 @@ import {
   setupAcceptanceSuite,
   createTestUserWithMcp,
   seedMcpTool,
-  seedBrainNativeTool,
+  seedOsabioNativeTool,
   seedCanUseEdge,
   getToolsForWorkspace,
   getCanUseEdgesForIdentity,
@@ -44,7 +44,7 @@ describe("Walking Skeleton: Admin grants agent access to a registered tool", () 
 
     // Given admin has registered tool "search_entities" in the workspace
     const toolId = crypto.randomUUID();
-    await seedBrainNativeTool(surreal, toolId, {
+    await seedOsabioNativeTool(surreal, toolId, {
       name: "search_entities",
       description: "Search workspace entities by text query",
       inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
@@ -94,7 +94,7 @@ describe("Tool listing returns all tools in workspace", () => {
       workspaceId: user.workspaceId,
     });
 
-    await seedBrainNativeTool(surreal, `tool-brain-${crypto.randomUUID()}`, {
+    await seedOsabioNativeTool(surreal, `tool-osabio-${crypto.randomUUID()}`, {
       name: "search_entities",
       description: "Search workspace entities",
       inputSchema: { type: "object", properties: { query: { type: "string" } } },
@@ -186,7 +186,7 @@ describe("Multiple grants for one identity", () => {
       const toolId = `tool-multi-${crypto.randomUUID()}`;
       await seedMcpTool(surreal, toolId, {
         name,
-        toolkit: name.startsWith("github") ? "github" : "brain",
+        toolkit: name.startsWith("github") ? "github" : "osabio",
         description: `Tool: ${name}`,
         inputSchema: { type: "object", properties: {} },
         workspaceId: user.workspaceId,

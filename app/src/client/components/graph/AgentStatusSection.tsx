@@ -118,7 +118,7 @@ function statusLabel(status: AgentSessionStatus): string {
 // ---------------------------------------------------------------------------
 
 export function filterAssignableAgents(agents: AgentListItem[]): AgentListItem[] {
-  return agents.filter((agent) => agent.runtime !== "brain");
+  return agents.filter((agent) => agent.runtime !== "osabio");
 }
 
 export function deriveInitialSelectedAgent(assignableAgents: AgentListItem[]): string | undefined {

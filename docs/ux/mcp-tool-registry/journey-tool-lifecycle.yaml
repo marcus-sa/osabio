@@ -16,7 +16,7 @@ actors:
     role: User or agent identity
     jobs: [J2]
   - id: proxy
-    role: Brain LLM proxy
+    role: Osabio LLM proxy
     jobs: [J3, J4]
 
 phases:
@@ -35,7 +35,7 @@ phases:
 
       - id: connect_mcp_server
         action: Provide MCP server connection URL
-        system: Brain calls tools/list, inventories tools
+        system: Osabio calls tools/list, inventories tools
         artifacts_produced: ["mcp_server_connection"]
         artifacts_consumed: ["credential_provider.id"]
         emotion: hopeful
@@ -100,7 +100,7 @@ phases:
             response: Redirect back, show cancellation, no partial state
 
       - id: connected
-        action: "OAuth2: Brain exchanges code for tokens. Static: Brain stores submitted credentials."
+        action: "OAuth2: Osabio exchanges code for tokens. Static: Osabio stores submitted credentials."
         system: Creates connected_account with encrypted credentials (tokens or static keys)
         artifacts_produced: ["connected_account.id"]
         artifacts_consumed: ["authorization_code (oauth2)", "credential_provider.id", "identity.id"]
@@ -146,7 +146,7 @@ phases:
         action: Route tool call by category
         system: >
           Integration: mcp_tool.provider -> credential_provider -> connected_account -> inject by auth_method -> execute -> sanitize.
-          Brain-native: execute graph query directly.
+          Osabio-native: execute graph query directly.
           Unknown: pass through to runtime.
         artifacts_produced: ["trace.id", "tool_result"]
         artifacts_consumed: ["mcp_tool.provider", "credential_provider.auth_method", "connected_account credentials"]

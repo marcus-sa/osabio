@@ -24,7 +24,7 @@ Analysis of the existing `agent_session` schema shows most SandboxAgent concepts
 - `ended_at` = session destruction time
 - `last_event_at` = last activity timestamp
 
-Only 5 new fields are needed: `provider`, `session_type`, `replay_max_events`, `replay_max_chars`, `last_event_seq`. All are optional — Brain-native agent sessions simply don't set them.
+Only 5 new fields are needed: `provider`, `session_type`, `replay_max_events`, `replay_max_chars`, `last_event_seq`. All are optional — Osabio-native agent sessions simply don't set them.
 
 A separate table would have required joins on every session operation, transaction coordination on creation, and a second table to maintain — all for fields that naturally belong on the session record.
 
@@ -47,5 +47,5 @@ A separate table would have required joins on every session operation, transacti
 
 ### Negative
 
-- `agent_session` gains 5 optional fields unused by Brain-native agents
+- `agent_session` gains 5 optional fields unused by Osabio-native agents
 - Session type branching in queries (`WHERE session_type = "sandbox_agent"`)

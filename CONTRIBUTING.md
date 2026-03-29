@@ -1,6 +1,6 @@
-# Contributing to Brain
+# Contributing to Osabio
 
-Thank you for your interest in contributing. Brain is an early-stage project and contributions are welcome.
+Thank you for your interest in contributing. Osabio is an early-stage project and contributions are welcome.
 
 ## Contributor License Agreement
 

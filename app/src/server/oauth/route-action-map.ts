@@ -1,10 +1,10 @@
 /**
- * Route-Action Map: Deterministic HTTP route to BrainAction mapping
+ * Route-Action Map: Deterministic HTTP route to OsabioAction mapping
  *
  * Pure data + pure function. No IO imports.
  */
-import type { BrainAction } from "./types";
-import { createBrainAction } from "./types";
+import type { OsabioAction } from "./types";
+import { createOsabioAction } from "./types";
 
 type RouteActionMapping = {
   method: string;
@@ -59,12 +59,12 @@ const ROUTE_ACTION_MAPPINGS: RouteActionMapping[] = [
 export function deriveRequestedAction(
   method: string,
   path: string,
-): BrainAction | undefined {
+): OsabioAction | undefined {
   const mapping = ROUTE_ACTION_MAPPINGS.find(
     (m) => m.method === method && m.pathPattern.test(path),
   );
 
   if (!mapping) return undefined;
 
-  return createBrainAction(mapping.action, mapping.resource);
+  return createOsabioAction(mapping.action, mapping.resource);
 }

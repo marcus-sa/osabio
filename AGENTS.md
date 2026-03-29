@@ -1,10 +1,10 @@
 ## Communication
 
-- When making examples (in docs, research, discussions, commit messages), use real-world business domain examples (e.g. supply chain disruption, customer refund, compliance audit), not developer-centric examples (e.g. merge PR, deploy service, fix bug). Brain is a general-purpose coordination system, not a developer tool.
+- When making examples (in docs, research, discussions, commit messages), use real-world business domain examples (e.g. supply chain disruption, customer refund, compliance audit), not developer-centric examples (e.g. merge PR, deploy service, fix bug). Osabio is a general-purpose coordination system, not a developer tool.
 
 ## Git Commits
 
-- Always use `--no-verify` when committing. The pre-commit hook requires `brain init` which is not available in worktree environments.
+- Always use `--no-verify` when committing. The pre-commit hook requires `osabio init` which is not available in worktree environments.
 - Always use `-s` (GPG sign) when committing.
 
 ## Deferred Work
@@ -31,7 +31,7 @@
 
 ## Browser-Facing Route Authentication
 
-- Browser-facing routes (UI pages, client-side fetches) must resolve identity from the Better Auth session, NOT from `X-Brain-Identity` headers. The header-based pattern is for MCP/CLI clients only.
+- Browser-facing routes (UI pages, client-side fetches) must resolve identity from the Better Auth session, NOT from `X-Osabio-Identity` headers. The header-based pattern is for MCP/CLI clients only.
 - Use `deps.auth.api.getSession({ headers: request.headers })` to get the session, then resolve identity via `identity_person` edge: `SELECT VALUE in FROM identity_person WHERE out = $person LIMIT 1`.
 - Return 401 if no session or identity is found.
 - See `tool-registry/routes.ts:resolveIdentityFromSession()` or `policy/policy-route.ts:resolveIdentityFromSession()` for reference implementations.
@@ -98,12 +98,12 @@
 - The proxy must forward `output_schema` when injecting tools into LLM requests and handle `structuredContent` in `CallToolResult` responses from upstream MCP servers.
 - Reference: https://modelcontextprotocol.io/specification/draft/server/tools#output-schema
 
-## Proxy Auth: X-Brain-Auth Header Format
+## Proxy Auth: X-Osabio-Auth Header Format
 
-- The `X-Brain-Auth` header value is the **raw proxy token** — no `Bearer ` prefix. The value is passed directly to `hashProxyToken()` (SHA-256) and matched against `proxy_token.token_hash` in SurrealDB.
-- Sending `Bearer <token>` corrupts the hash: `sha256("Bearer brn_...")` ≠ `sha256("brn_...")`.
-- CLI sets it as `X-Brain-Auth: ${proxyToken}`, not `X-Brain-Auth: Bearer ${proxyToken}`.
-- `extractBrainAuthToken()` in `proxy-auth.ts` returns the raw header value (trim only, no prefix stripping).
+- The `X-Osabio-Auth` header value is the **raw proxy token** — no `Bearer ` prefix. The value is passed directly to `hashProxyToken()` (SHA-256) and matched against `proxy_token.token_hash` in SurrealDB.
+- Sending `Bearer <token>` corrupts the hash: `sha256("Bearer osb_...")` ≠ `sha256("osb_...")`.
+- CLI sets it as `X-Osabio-Auth: ${proxyToken}`, not `X-Osabio-Auth: Bearer ${proxyToken}`.
+- `extractOsabioAuthToken()` in `proxy-auth.ts` returns the raw header value (trim only, no prefix stripping).
 
 ## Test Environment Split
 

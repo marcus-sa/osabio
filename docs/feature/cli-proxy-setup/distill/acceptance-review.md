@@ -6,13 +6,13 @@
 
 | User Story | Covered | Tests |
 |------------|---------|-------|
-| US-1: Proxy setup via `brain init` | Yes | Walking skeleton (S1, S2), M1.1–M1.4, M3.1–M3.6 |
+| US-1: Proxy setup via `osabio init` | Yes | Walking skeleton (S1, S2), M1.1–M1.4, M3.1–M3.6 |
 | AC: Fresh setup | Yes | M3.1 |
 | AC: Merge existing settings | Yes | M3.2 |
 | AC: Re-run refreshes token | Yes | M1.2, M3.3 |
 | AC: Long-lived token (90d) | Yes | S1, M4.2 |
 | AC: SessionStart expired token warning | Yes | M4.3–M4.5 |
-| AC: Proxy validates Brain auth | Yes | S2, M2.1–M2.6 |
+| AC: Proxy validates Osabio auth | Yes | S2, M2.1–M2.6 |
 | AC: Proxy rejects unauthenticated | Yes | M2.1 |
 | AC: .gitignore verification | Yes | M3.4 |
 | AC: No fallback to direct Anthropic | Yes | M3.6 |
@@ -27,7 +27,7 @@
 | CLI Step 7: settings.local.json | Yes | M3.1–M3.3, M3.6 |
 | SurrealDB proxy_token table | Yes | M1.1 (hash verification), M1.2 (revocation) |
 | SessionStart hook enhancement | Partial | M4.3–M4.5 (logic only, not full hook integration) |
-| Dual-mode proxy auth | Yes | M2.5 (backward compat), S2 (Brain auth) |
+| Dual-mode proxy auth | Yes | M2.5 (backward compat), S2 (Osabio auth) |
 | Workspace derivation from token | Yes | M2.6 |
 
 ### Hexagonal Boundary Compliance
@@ -35,7 +35,7 @@
 All acceptance tests exercise **driving ports**, not internal components:
 
 - **HTTP endpoints**: `POST /api/auth/proxy-token`, `POST /proxy/llm/anthropic/v1/messages`
-- **Filesystem**: `.claude/settings.local.json`, `~/.brain/config.json`
+- **Filesystem**: `.claude/settings.local.json`, `~/.osabio/config.json`
 - **No mocks at acceptance level**: Real server, real DB, real (or skipped) Anthropic calls
 
 ### One-at-a-Time Implementation Strategy

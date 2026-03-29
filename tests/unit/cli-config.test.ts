@@ -5,20 +5,20 @@ import { tmpdir } from "node:os";
 import { findGitRoot, loadConfig } from "../../cli/config";
 
 const ENV_KEYS = [
-  "BRAIN_CONFIG_DIR",
-  "BRAIN_SERVER_URL",
-  "BRAIN_WORKSPACE_ID",
-  "BRAIN_CLIENT_ID",
-  "BRAIN_ACCESS_TOKEN",
-  "BRAIN_REFRESH_TOKEN",
-  "BRAIN_TOKEN_EXPIRES_AT",
-  "BRAIN_DPOP_PRIVATE_JWK",
-  "BRAIN_DPOP_PUBLIC_JWK",
-  "BRAIN_DPOP_THUMBPRINT",
-  "BRAIN_DPOP_ACCESS_TOKEN",
-  "BRAIN_DPOP_TOKEN_EXPIRES_AT",
-  "BRAIN_IDENTITY_ID",
-  "BRAIN_PROXY_TOKEN_EXPIRES_AT",
+  "OSABIO_CONFIG_DIR",
+  "OSABIO_SERVER_URL",
+  "OSABIO_WORKSPACE_ID",
+  "OSABIO_CLIENT_ID",
+  "OSABIO_ACCESS_TOKEN",
+  "OSABIO_REFRESH_TOKEN",
+  "OSABIO_TOKEN_EXPIRES_AT",
+  "OSABIO_DPOP_PRIVATE_JWK",
+  "OSABIO_DPOP_PUBLIC_JWK",
+  "OSABIO_DPOP_THUMBPRINT",
+  "OSABIO_DPOP_ACCESS_TOKEN",
+  "OSABIO_DPOP_TOKEN_EXPIRES_AT",
+  "OSABIO_IDENTITY_ID",
+  "OSABIO_PROXY_TOKEN_EXPIRES_AT",
 ] as const;
 
 const ORIGINAL_ENV: Record<string, string | undefined> = Object.fromEntries(
@@ -37,12 +37,12 @@ afterEach(() => {
 });
 
 describe("cli config env overrides", () => {
-  test("loads env-only config without ~/.brain/config.json", async () => {
-    const configDir = mkdtempSync(join(tmpdir(), "brain-config-env-only-"));
-    process.env.BRAIN_CONFIG_DIR = configDir;
-    process.env.BRAIN_SERVER_URL = "http://127.0.0.1:1999";
-    process.env.BRAIN_WORKSPACE_ID = "ws-env-only";
-    process.env.BRAIN_IDENTITY_ID = "identity-env-only";
+  test("loads env-only config without ~/.osabio/config.json", async () => {
+    const configDir = mkdtempSync(join(tmpdir(), "osabio-config-env-only-"));
+    process.env.OSABIO_CONFIG_DIR = configDir;
+    process.env.OSABIO_SERVER_URL = "http://127.0.0.1:1999";
+    process.env.OSABIO_WORKSPACE_ID = "ws-env-only";
+    process.env.OSABIO_IDENTITY_ID = "identity-env-only";
 
     const config = await loadConfig();
 
@@ -50,8 +50,8 @@ describe("cli config env overrides", () => {
     expect(config?.server_url).toBe("http://127.0.0.1:1999");
     expect(config?.workspace).toBe("ws-env-only");
     expect(config?.identity_id).toBe("identity-env-only");
-    expect(config?.client_id).toBe("brain-env-client");
-    expect(config?.access_token).toBe("brain-env-access-token");
+    expect(config?.client_id).toBe("osabio-env-client");
+    expect(config?.access_token).toBe("osabio-env-access-token");
 
     rmSync(configDir, { recursive: true, force: true });
   });
@@ -61,7 +61,7 @@ describe("cli config env overrides", () => {
     expect(gitRoot).toBeDefined();
     if (!gitRoot) return;
 
-    const configDir = mkdtempSync(join(tmpdir(), "brain-config-override-"));
+    const configDir = mkdtempSync(join(tmpdir(), "osabio-config-override-"));
     mkdirSync(configDir, { recursive: true });
 
     const configPath = join(configDir, "config.json");
@@ -78,12 +78,12 @@ describe("cli config env overrides", () => {
       },
     }));
 
-    process.env.BRAIN_CONFIG_DIR = configDir;
-    process.env.BRAIN_SERVER_URL = "http://from-env:3000";
-    process.env.BRAIN_WORKSPACE_ID = "ws-from-env";
-    process.env.BRAIN_ACCESS_TOKEN = "access-from-env";
-    process.env.BRAIN_REFRESH_TOKEN = "refresh-from-env";
-    process.env.BRAIN_TOKEN_EXPIRES_AT = "2222222222";
+    process.env.OSABIO_CONFIG_DIR = configDir;
+    process.env.OSABIO_SERVER_URL = "http://from-env:3000";
+    process.env.OSABIO_WORKSPACE_ID = "ws-from-env";
+    process.env.OSABIO_ACCESS_TOKEN = "access-from-env";
+    process.env.OSABIO_REFRESH_TOKEN = "refresh-from-env";
+    process.env.OSABIO_TOKEN_EXPIRES_AT = "2222222222";
 
     const config = await loadConfig();
 

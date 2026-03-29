@@ -2,7 +2,7 @@
 
 ## System Context
 
-This feature extends the Brain knowledge graph with two new node types -- **Objective** (strategic goals) and **Behavior** (agent craftsmanship metrics) -- plus the relations and evaluation pipelines that connect them to existing intent authorization, policy enforcement, observer analysis, and learning systems.
+This feature extends the Osabio knowledge graph with two new node types -- **Objective** (strategic goals) and **Behavior** (agent craftsmanship metrics) -- plus the relations and evaluation pipelines that connect them to existing intent authorization, policy enforcement, observer analysis, and learning systems.
 
 ### C4 System Context (L1)
 
@@ -11,12 +11,12 @@ C4Context
     title System Context: Objective & Behavior Nodes
 
     Person(human, "Human Operator", "Creates objectives, reviews behavior, approves learnings")
-    System(brain, "Brain Platform", "Knowledge graph with objective alignment, behavior telemetry, and policy enforcement")
+    System(osabio, "Osabio Platform", "Knowledge graph with objective alignment, behavior telemetry, and policy enforcement")
     System_Ext(coding_agents, "Coding Agents", "MCP-connected agents submitting intents")
     System_Ext(llm, "LLM Provider", "OpenRouter/Ollama for extraction, evaluation, observer reasoning")
 
-    Rel(human, brain, "Creates objectives, reviews behavior, approves learnings")
-    Rel(coding_agents, brain, "Submits intents, reports session data")
+    Rel(human, osabio, "Creates objectives, reviews behavior, approves learnings")
+    Rel(coding_agents, osabio, "Submits intents, reports session data")
     Rel(brain, llm, "Extraction, alignment evaluation, behavior classification")
     Rel(brain, coding_agents, "Injects learnings via JIT prompt, authorization decisions")
 ```
@@ -30,7 +30,7 @@ C4Container
     Person(human, "Human Operator")
     System_Ext(agents, "Coding Agents")
 
-    Container_Boundary(brain, "Brain Platform") {
+    Container_Boundary(osabio, "Osabio Platform") {
         Container(web, "Web UI", "React", "Objective progress view, behavior dashboard")
         Container(api, "Bun Server", "TypeScript/Bun", "HTTP API, SSE streaming, agent orchestration")
         ContainerDb(surreal, "SurrealDB", "Graph DB", "Objectives, behaviors, supports/exhibits edges, policies")

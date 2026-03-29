@@ -9,7 +9,7 @@ eval-results/
 .nwave/des/logs
 dist/
 .devtools
-.brain/
+.osabio/
 *.log
-/brain
+/osabio
 docs/linkedin/

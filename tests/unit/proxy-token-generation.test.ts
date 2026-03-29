@@ -2,7 +2,7 @@
  * Unit Tests: Proxy Token Generation (Pure Functions)
  *
  * Tests the pure domain logic for proxy token generation:
- *   - Token format (brp_ prefix + 64 hex chars)
+ *   - Token format (osp_ prefix + 64 hex chars)
  *   - SHA-256 hashing produces correct hash
  *   - Hash never contains raw token
  *   - TTL computation from days to expiry date
@@ -15,9 +15,9 @@ import {
 } from "../../app/src/server/proxy/proxy-token-core";
 
 describe("generateProxyToken", () => {
-  it("produces a brp_-prefixed token with 64 hex chars", () => {
+  it("produces a osp_-prefixed token with 64 hex chars", () => {
     const token = generateProxyToken();
-    expect(token).toMatch(/^brp_[0-9a-f]{64}$/);
+    expect(token).toMatch(/^osp_[0-9a-f]{64}$/);
   });
 
   it("produces unique tokens on each call", () => {
@@ -34,14 +34,14 @@ describe("hashProxyToken", () => {
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("never contains the brp_ prefix", () => {
+  it("never contains the osp_ prefix", () => {
     const token = generateProxyToken();
     const hash = hashProxyToken(token);
-    expect(hash).not.toContain("brp_");
+    expect(hash).not.toContain("osp_");
   });
 
   it("produces the same hash for the same input", () => {
-    const token = "brp_abc123def456";
+    const token = "osp_abc123def456";
     const hash1 = hashProxyToken(token);
     const hash2 = hashProxyToken(token);
     expect(hash1).toBe(hash2);

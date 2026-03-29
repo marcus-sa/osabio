@@ -26,10 +26,10 @@
 
 | Force | Analysis |
 |-------|----------|
-| **Push** (current frustration) | Brain's proxy already injects context (decisions, learnings, observations) but NOT tools. Agents in any runtime (OpenClaw, Cursor, etc.) only see their local tools. Integration capabilities are invisible — agents can't create GitHub issues, send Slack messages, or query Linear even when the workspace has those integrations. |
+| **Push** (current frustration) | Osabio's proxy already injects context (decisions, learnings, observations) but NOT tools. Agents in any runtime (OpenClaw, Cursor, etc.) only see their local tools. Integration capabilities are invisible — agents can't create GitHub issues, send Slack messages, or query Linear even when the workspace has those integrations. |
 | **Pull** (desired future) | Proxy resolves identity -> effective toolset -> injects tool definitions additively alongside whatever tools the runtime already provides. Agent sees one unified toolset. Zero configuration per agent. |
 | **Anxiety** (adoption concerns) | "Will injected tools conflict with runtime tools?" "Will tool injection increase latency?" "What if too many tools get injected and confuse the LLM?" |
-| **Habit** (current behavior) | Agents only use tools their runtime provides (filesystem, shell, git). Brain-native context tools are exposed via the CLI MCP server (stdio), not via the proxy. Integration tools don't exist at all. |
+| **Habit** (current behavior) | Agents only use tools their runtime provides (filesystem, shell, git). Osabio-native context tools are exposed via the CLI MCP server (stdio), not via the proxy. Integration tools don't exist at all. |
 
 ---
 

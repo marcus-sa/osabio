@@ -8,7 +8,7 @@
  * Driving ports:
  *   POST /mcp/agent/:sessionId (tools/list, tools/call, create_intent)
  *
- * Auth: X-Brain-Auth proxy token
+ * Auth: X-Osabio-Auth proxy token
  */
 import { describe, expect, it } from "bun:test";
 import { RecordId } from "surrealdb";
@@ -21,7 +21,7 @@ import {
   seedProxyToken,
   createTaskDirectly,
 } from "../shared-fixtures";
-import { BRAIN_READ_TOOL_NAMES, BRAIN_WRITE_TOOL_NAMES } from "../../../app/src/server/mcp/brain-tool-definitions";
+import { OSABIO_READ_TOOL_NAMES, OSABIO_WRITE_TOOL_NAMES } from "../../../app/src/server/mcp/osabio-tool-definitions";
 
 // ── Types ──
 
@@ -41,7 +41,7 @@ type ToolsCallResult = {
 
 // ── Suite Setup ──
 
-const getRuntime = setupAcceptanceSuite("agent_mcp_brain_tools", {
+const getRuntime = setupAcceptanceSuite("agent_mcp_osabio_tools", {
   configOverrides: {
     sandboxAgentEnabled: true,
     sandboxAgentType: "claude",
@@ -62,7 +62,7 @@ function mcpRequest(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Brain-Auth": proxyToken,
+      "X-Osabio-Auth": proxyToken,
     },
     body: JSON.stringify({
       jsonrpc: "2.0",
@@ -74,7 +74,7 @@ function mcpRequest(
 }
 
 async function setupSessionContext(surreal: ReturnType<typeof getRuntime>["surreal"], suffix: string) {
-  const ws = await createWorkspaceDirectly(surreal, `brain_tools_${suffix}`);
+  const ws = await createWorkspaceDirectly(surreal, `osabio_tools_${suffix}`);
   const session = await createAgentSessionDirectly(surreal, ws.workspaceId);
   const proxyToken = await seedProxyToken(
     surreal, ws.identityId, ws.workspaceId, { sessionId: session.sessionId },
@@ -88,7 +88,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
 
   // ── tools/list ──
 
-  it("tools/list includes all brain read tools without any intent", async () => {
+  it("tools/list includes all osabio read tools without any intent", async () => {
     const { baseUrl, surreal } = getRuntime();
     const ctx = await setupSessionContext(surreal, crypto.randomUUID().slice(0, 8));
 
@@ -99,7 +99,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     const toolNames = body.result!.tools.map((t) => t.name);
 
     // All read tools present
-    for (const name of BRAIN_READ_TOOL_NAMES) {
+    for (const name of OSABIO_READ_TOOL_NAMES) {
       expect(toolNames).toContain(name);
     }
 
@@ -116,11 +116,11 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     const body = (await response.json()) as ToolsListResult;
     const tools = body.result!.tools;
 
-    for (const name of BRAIN_WRITE_TOOL_NAMES) {
+    for (const name of OSABIO_WRITE_TOOL_NAMES) {
       const tool = tools.find((t) => t.name === name);
       expect(tool).toBeDefined();
       expect(tool!.description).toContain("[GATED]");
-      expect(tool!.description).toContain('provider="brain"');
+      expect(tool!.description).toContain('provider="osabio"');
     }
   }, 15_000);
 
@@ -132,7 +132,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     const intent = await createIntentDirectly(surreal, ctx.workspaceId, ctx.identityId, {
       goal: "Create observations during code review",
       status: "authorized",
-      actionSpec: { provider: "brain", action: "create_observation", params: {} },
+      actionSpec: { provider: "osabio", action: "create_observation", params: {} },
       evaluation: {
         decision: "APPROVE", risk_score: 5, reason: "Brain-native write",
         evaluated_at: new Date(), policy_only: true,
@@ -142,7 +142,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:brain:create_observation" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:osabio:create_observation" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, ctx.sessionId);
@@ -234,7 +234,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     expect(body.error!.data).toBeDefined();
     const data = body.error!.data as { tool: string; action_spec_template: { provider: string } };
     expect(data.tool).toBe("create_observation");
-    expect(data.action_spec_template.provider).toBe("brain");
+    expect(data.action_spec_template.provider).toBe("osabio");
   }, 15_000);
 
   it("create_observation succeeds after intent authorization", async () => {
@@ -245,7 +245,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     const intent = await createIntentDirectly(surreal, ctx.workspaceId, ctx.identityId, {
       goal: "Log observations during review",
       status: "authorized",
-      actionSpec: { provider: "brain", action: "create_observation", params: {} },
+      actionSpec: { provider: "osabio", action: "create_observation", params: {} },
       evaluation: {
         decision: "APPROVE", risk_score: 5, reason: "Brain-native write",
         evaluated_at: new Date(), policy_only: true,
@@ -255,7 +255,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:brain:create_observation" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:osabio:create_observation" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, ctx.sessionId);
@@ -283,7 +283,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
     const intent = await createIntentDirectly(surreal, ctx.workspaceId, ctx.identityId, {
       goal: "Create tasks for implementation",
       status: "authorized",
-      actionSpec: { provider: "brain", action: "create_work_item", params: {} },
+      actionSpec: { provider: "osabio", action: "create_work_item", params: {} },
       evaluation: {
         decision: "APPROVE", risk_score: 10, reason: "Brain-native write",
         evaluated_at: new Date(), policy_only: true,
@@ -293,7 +293,7 @@ describe("Brain-Native Tools in MCP Agent Endpoint", () => {
       `UPDATE $intent SET authorization_details = $details;`,
       {
         intent: intent.intentRecord,
-        details: [{ type: "brain_action", action: "execute", resource: "mcp_tool:brain:create_work_item" }],
+        details: [{ type: "osabio_action", action: "execute", resource: "mcp_tool:osabio:create_work_item" }],
       },
     );
     await createGatesEdge(surreal, intent.intentId, ctx.sessionId);

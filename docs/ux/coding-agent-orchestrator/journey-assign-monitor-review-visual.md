@@ -1,10 +1,10 @@
 # Journey: Assign Task to Coding Agent → Monitor → Review
 
 ## Actors
-- **User**: Engineering lead / developer using Brain platform
-- **Brain Platform**: The web application
+- **User**: Engineering lead / developer using Osabio platform
+- **Osabio Platform**: The web application
 - **OpenCode Agent**: Coding agent running via OpenCode SDK
-- **Brain MCP Server**: Provides workspace context to the agent
+- **Osabio MCP Server**: Provides workspace context to the agent
 
 ## UI Surface Model (Hybrid Pattern)
 
@@ -107,12 +107,12 @@ Confidence
 | Artifact | Created At | Used At | Source |
 |----------|-----------|---------|--------|
 | `task` record | Pre-existing | Assign (read context) | Knowledge graph |
-| `agent_session` | Assign | Monitor, Review | Brain platform |
+| `agent_session` | Assign | Monitor, Review | Osabio platform |
 | OpenCode `Session` | Assign | Working, Monitor | OpenCode SDK |
-| MCP context packet | Assign | Working | Brain MCP server |
+| MCP context packet | Assign | Working | Osabio MCP server |
 | File changes / diff | Working | Review | Git / OpenCode |
 | Session trace | Working | Review | OpenCode events |
-| `observation` (if blocked) | Working | Monitor | Brain MCP |
+| `observation` (if blocked) | Working | Monitor | Osabio MCP |
 
 ## Error Paths
 
@@ -122,4 +122,4 @@ Confidence
 | OpenCode server unreachable | Session creation fails | Show error, suggest checking opencode status |
 | Agent loops / stalls | Timeout or step count limit | Auto-abort, create observation, notify user |
 | Agent breaks tests | Test failure in agent output | Agent retries or reports blocker |
-| MCP auth failure | 401 from Brain MCP | Log error, agent continues without context |
+| MCP auth failure | 401 from Osabio MCP | Log error, agent continues without context |

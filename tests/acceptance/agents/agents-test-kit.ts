@@ -50,7 +50,7 @@ import {
 // Agent Domain Types
 // ---------------------------------------------------------------------------
 
-export type AgentRuntime = "brain" | "sandbox" | "external";
+export type AgentRuntime = "osabio" | "sandbox" | "external";
 
 export type AuthorityScopeInput = {
   action: string;

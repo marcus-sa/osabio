@@ -8,8 +8,8 @@ describe("createTelemetryConfig", () => {
 
     expect(config).toEqual({
       isEnabled: true,
-      functionId: "brain.extraction",
-      metadata: { service: "brain-server" },
+      functionId: "osabio.extraction",
+      metadata: { service: "osabio-server" },
     });
   });
 
@@ -18,7 +18,7 @@ describe("createTelemetryConfig", () => {
       const config = createTelemetryConfig(functionId);
       expect(config.functionId).toBe(functionId);
       expect(config.isEnabled).toBe(true);
-      expect(config.metadata).toEqual({ service: "brain-server" });
+      expect(config.metadata).toEqual({ service: "osabio-server" });
     }
   });
 });

@@ -1,7 +1,7 @@
-# Research: OpenClaw Gateway Protocol Integration for Brain
+# Research: OpenClaw Gateway Protocol Integration for Osabio
 
 **Date**: 2026-03-15
-**Research Question**: Are people running multiple OpenClaw instances? Would it make sense for Brain to support the OpenClaw Gateway Protocol to control and manage them?
+**Research Question**: Are people running multiple OpenClaw instances? Would it make sense for Osabio to support the OpenClaw Gateway Protocol to control and manage them?
 
 ---
 
@@ -77,33 +77,33 @@ The protocol exposes the **full gateway API**: status, channels, models, chat, a
 
 ---
 
-## 3. Would Brain Integration Make Sense?
+## 3. Would Osabio Integration Make Sense?
 
-### What Brain Could Offer OpenClaw Users
+### What Osabio Could Offer OpenClaw Users
 
-Brain's value proposition for OpenClaw users maps directly to their pain points:
+Osabio's value proposition for OpenClaw users maps directly to their pain points:
 
-| OpenClaw Pain Point | Brain Solution |
+| OpenClaw Pain Point | Osabio Solution |
 |---------------------|----------------|
-| **Agents have no shared memory** — each agent's workspace is isolated, sessions don't cross-talk | Brain's knowledge graph gives all agents shared context without session coupling |
-| **No cross-agent coordination** — routing is deterministic (binding rules), not intelligent | Brain's observation/suggestion system enables emergent coordination through shared state |
-| **No decision governance** — agents act within sandbox rules but there's no decision audit trail | Brain tracks every decision with provenance, author, reasoning, and approval chain |
-| **Multi-gateway management is manual** — tier configs, port allocation, secret rotation are all hand-managed | Brain could serve as the control plane that orchestrates multiple gateways |
-| **Context drift across sessions** — compaction and session pruning lose long-term continuity | Brain's persistent graph preserves decisions and learnings across all sessions |
+| **Agents have no shared memory** — each agent's workspace is isolated, sessions don't cross-talk | Osabio's knowledge graph gives all agents shared context without session coupling |
+| **No cross-agent coordination** — routing is deterministic (binding rules), not intelligent | Osabio's observation/suggestion system enables emergent coordination through shared state |
+| **No decision governance** — agents act within sandbox rules but there's no decision audit trail | Osabio tracks every decision with provenance, author, reasoning, and approval chain |
+| **Multi-gateway management is manual** — tier configs, port allocation, secret rotation are all hand-managed | Osabio could serve as the control plane that orchestrates multiple gateways |
+| **Context drift across sessions** — compaction and session pruning lose long-term continuity | Osabio's persistent graph preserves decisions and learnings across all sessions |
 
 ### Integration Architecture Options
 
-#### Option A: Brain as Gateway Protocol Client (Operator)
+#### Option A: Osabio as Gateway Protocol Client (Operator)
 
-Brain connects to one or more OpenClaw Gateways as an `operator` role client via WebSocket. This gives Brain:
+Osabio connects to one or more OpenClaw Gateways as an `operator` role client via WebSocket. This gives Osabio:
 
 - Real-time visibility into agent sessions, status, and chat
 - Ability to send messages/instructions to agents
-- Access to exec approvals (Brain becomes the approval authority)
+- Access to exec approvals (Osabio becomes the approval authority)
 - Session history for graph extraction
 
 ```
-Brain Server
+Osabio Server
   ├─ WS → OpenClaw Gateway 1 (personal tier)
   ├─ WS → OpenClaw Gateway 2 (work tier)
   └─ WS → OpenClaw Gateway 3 (dev tier)
@@ -115,26 +115,26 @@ Brain Server
            └─ Approve/deny exec requests via policy graph
 ```
 
-**Pros**: Full bidirectional control. Brain becomes the "brain" for OpenClaw agents — exactly what it's designed for. Exec approvals map perfectly to Brain's intent/authority scope model.
+**Pros**: Full bidirectional control. Osabio becomes the "brain" for OpenClaw agents — exactly what it's designed for. Exec approvals map perfectly to Osabio's intent/authority scope model.
 
 **Cons**: Requires maintaining a WebSocket client for a moving protocol (v3 today). Tight coupling to OpenClaw's protocol evolution.
 
-#### Option B: Brain as MCP Server for OpenClaw Agents
+#### Option B: Osabio as MCP Server for OpenClaw Agents
 
-OpenClaw already supports MCP. Brain already has an MCP server. OpenClaw agents could connect to Brain's MCP server for context injection — no Gateway Protocol needed.
+OpenClaw already supports MCP. Osabio already has an MCP server. OpenClaw agents could connect to Osabio's MCP server for context injection — no Gateway Protocol needed.
 
 ```
 OpenClaw Agent
-  └─ MCP Client → Brain MCP Server
+  └─ MCP Client → Osabio MCP Server
        ├─ get_context (decisions, constraints, tasks)
        ├─ create_observation
        ├─ resolve_decision
        └─ ask_question
 ```
 
-**Pros**: Already works today. No new protocol to implement. Each OpenClaw agent independently connects to Brain.
+**Pros**: Already works today. No new protocol to implement. Each OpenClaw agent independently connects to Osabio.
 
-**Cons**: No centralized control. Brain can't proactively inject context or approve exec requests. Each agent must be configured individually.
+**Cons**: No centralized control. Osabio can't proactively inject context or approve exec requests. Each agent must be configured individually.
 
 #### Option C: Hybrid — MCP for Context + Gateway Protocol for Control
 
@@ -142,16 +142,16 @@ Use MCP for the data plane (context injection, decision logging) and the Gateway
 
 **This is the recommended approach** — it plays to each protocol's strength.
 
-### Alignment with Brain's Architecture
+### Alignment with Osabio's Architecture
 
-| Brain Concept | OpenClaw Mapping | Fit |
+| Osabio Concept | OpenClaw Mapping | Fit |
 |---------------|-----------------|-----|
-| **Authority Scopes** | Gateway `scopes` + `permissions` | Direct — Brain's tiered authority maps to OpenClaw's operator scopes |
-| **Intent Authorization** | `exec approvals` | Direct — OpenClaw's approval flow is Brain's intent pattern |
+| **Authority Scopes** | Gateway `scopes` + `permissions` | Direct — Osabio's tiered authority maps to OpenClaw's operator scopes |
+| **Intent Authorization** | `exec approvals` | Direct — OpenClaw's approval flow is Osabio's intent pattern |
 | **Agent Sessions** | Gateway sessions + presence | Direct — session tracking already exists in both |
-| **Observations** | Chat history extraction | Good — Brain's extraction pipeline can process OpenClaw chat |
-| **Policy Graph** | Sandbox/tool policy | Strong — Brain policies could drive OpenClaw sandbox config |
-| **Traces** | Session history + tool calls | Good — OpenClaw logs map to Brain's hierarchical traces |
+| **Observations** | Chat history extraction | Good — Osabio's extraction pipeline can process OpenClaw chat |
+| **Policy Graph** | Sandbox/tool policy | Strong — Osabio policies could drive OpenClaw sandbox config |
+| **Traces** | Session history + tool calls | Good — OpenClaw logs map to Osabio's hierarchical traces |
 
 ---
 
@@ -160,28 +160,28 @@ Use MCP for the data plane (context injection, decision logging) and the Gateway
 **Yes, supporting the OpenClaw Gateway Protocol is strategically valuable**, but prioritize in phases:
 
 ### Phase 1: MCP Integration (low effort, immediate value)
-- Document how to connect OpenClaw agents to Brain's existing MCP server
-- This works today with `brain init` — just point OpenClaw's MCP config at Brain
-- Zero new code needed in Brain
+- Document how to connect OpenClaw agents to Osabio's existing MCP server
+- This works today with `osabio init` — just point OpenClaw's MCP config at Osabio
+- Zero new code needed in Osabio
 
 ### Phase 2: Gateway Protocol Observer (medium effort, high value)
 - Implement a read-only Gateway Protocol client (`operator.read` scope)
 - Connect to one or more OpenClaw Gateways
 - Extract decisions, observations, and context from agent chat sessions
-- Feed into Brain's extraction pipeline
+- Feed into Osabio's extraction pipeline
 - Surface cross-agent contradictions via the Observer
 
 ### Phase 3: Gateway Protocol Controller (higher effort, differentiation)
 - Add `operator.write` scope
-- Implement exec approval integration — Brain's policy graph becomes the approval authority
+- Implement exec approval integration — Osabio's policy graph becomes the approval authority
 - Enable proactive context injection into agent sessions
-- Manage multi-gateway fleet configuration from Brain's UI
+- Manage multi-gateway fleet configuration from Osabio's UI
 
 ### Why This Matters
 
-OpenClaw has 302k+ GitHub stars and is the fastest-growing AI agent framework. The community is actively building orchestration tooling (Mission Control has 2.4k stars in months). The pain points — no shared memory, no decision governance, manual multi-gateway management — are exactly what Brain solves.
+OpenClaw has 302k+ GitHub stars and is the fastest-growing AI agent framework. The community is actively building orchestration tooling (Mission Control has 2.4k stars in months). The pain points — no shared memory, no decision governance, manual multi-gateway management — are exactly what Osabio solves.
 
-Brain positioning as **"the brain for your OpenClaw agents"** is a natural GTM narrative that doesn't require replacing anything — just adding the missing coordination layer.
+Osabio positioning as **"the osabio for your OpenClaw agents"** is a natural GTM narrative that doesn't require replacing anything — just adding the missing coordination layer.
 
 ---
 

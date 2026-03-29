@@ -1,8 +1,8 @@
-# Research: SandboxAgent SDK for Brain Agent Execution
+# Research: SandboxAgent SDK for Osabio Agent Execution
 
 **Date**: 2026-03-25
-**Research Question**: Would SandboxAgent SDK be ideal for agent execution in Brain, particularly for governed tool access via MCP config and skills injection via skills config?
-**Prior Art**: `docs/research/brain-native-agent-runtime.md` (concluded Brain should run agents natively)
+**Research Question**: Would SandboxAgent SDK be ideal for agent execution in Osabio, particularly for governed tool access via MCP config and skills injection via skills config?
+**Prior Art**: `docs/research/osabio-native-agent-runtime.md` (concluded Osabio should run agents natively)
 
 ---
 
@@ -64,7 +64,7 @@ await sdk.createSession({ agent: "claude", cwd: "/workspace" });
 
 ### What it does NOT provide
 
-| Brain Need | SandboxAgent Support |
+| Osabio Need | SandboxAgent Support |
 |-----------|---------------------|
 | **Per-tool filtering** (expose only granted tools from an MCP server) | Not supported — entire MCP servers are enabled/disabled, not individual tools |
 | **Dynamic tool injection** based on workspace grants or policy | Not supported — MCP config is static per working directory |
@@ -72,7 +72,7 @@ await sdk.createSession({ agent: "claude", cwd: "/workspace" });
 | **Policy evaluation** before tool execution | Not supported — permission handling is binary approve/reject at the agent level |
 | **Tool governance audit trail** | Not supported — events stream tool calls but no policy evaluation records |
 
-**Critical gap**: Brain's tool registry (#178) requires resolving an agent's effective toolset as `can_use ∪ (possesses → skill_requires)` — the union of direct grants and skill-derived tools. SandboxAgent has no concept of tool-level access control. It exposes entire MCP servers or nothing.
+**Critical gap**: Osabio's tool registry (#178) requires resolving an agent's effective toolset as `can_use ∪ (possesses → skill_requires)` — the union of direct grants and skill-derived tools. SandboxAgent has no concept of tool-level access control. It exposes entire MCP servers or nothing.
 
 Source: [MCP Config Docs](https://sandboxagent.dev/docs/mcp-config)
 
@@ -101,7 +101,7 @@ await sdk.setSkillsConfig("/workspace", "my-skills", {
 
 ### What it does NOT provide
 
-| Brain Need (Issue #177) | SandboxAgent Support |
+| Osabio Need (Issue #177) | SandboxAgent Support |
 |------------------------|---------------------|
 | **Graph-native skills** (SurrealDB `skill` table with lifecycle) | Not supported — skills are filesystem files, not database records |
 | **BM25 trigger matching** (activate skills based on intent) | Not supported — all configured skills are available, no selective activation |
@@ -112,7 +112,7 @@ await sdk.setSkillsConfig("/workspace", "my-skills", {
 | **`possesses` relation** (agent-skill assignment) | Not supported — skills are directory-scoped, not identity-scoped |
 | **Missing tool resolution** (gap detection + MCP server catalog) | Not supported |
 
-**Key insight**: SandboxAgent's skills are static instruction files loaded from repositories. Brain's skills (#177) are graph-native entities with lifecycle management, trigger-based activation, tool bundling, policy governance, and LLM-driven analysis. These are fundamentally different concepts that share the name "skill."
+**Key insight**: SandboxAgent's skills are static instruction files loaded from repositories. Osabio's skills (#177) are graph-native entities with lifecycle management, trigger-based activation, tool bundling, policy governance, and LLM-driven analysis. These are fundamentally different concepts that share the name "skill."
 
 Source: [Skills Config Docs](https://sandboxagent.dev/docs/skills-config)
 
@@ -122,9 +122,9 @@ Source: [Skills Config Docs](https://sandboxagent.dev/docs/skills-config)
 
 ### What SandboxAgent solves well
 
-1. **Sandbox isolation** — Brain needs agents to execute in isolated environments. SandboxAgent abstracts sandbox providers (E2B, Docker, Daytona, Vercel, Cloudflare) behind a single API.
+1. **Sandbox isolation** — Osabio needs agents to execute in isolated environments. SandboxAgent abstracts sandbox providers (E2B, Docker, Daytona, Vercel, Cloudflare) behind a single API.
 
-2. **Agent-agnostic interface** — Brain's orchestrator could swap between Claude Code, Codex, and others without rewriting integration code.
+2. **Agent-agnostic interface** — Osabio's orchestrator could swap between Claude Code, Codex, and others without rewriting integration code.
 
 3. **Session management** — Full session lifecycle over HTTP: `createSession()`, `prompt()`, `resumeSession()`, `destroySession()`. Sessions support multi-turn interaction (unlike Claude Agent SDK's single-query model). The API includes listing sessions, fetching event history with pagination, and runtime config changes (model, mode, thought level).
 
@@ -139,68 +139,68 @@ Source: [Skills Config Docs](https://sandboxagent.dev/docs/skills-config)
 
    This directly unblocks the orchestrator's reject-and-retry flow (`POST .../prompt` currently returns 409 because Claude Agent SDK doesn't support follow-up prompts).
 
-4. **Session restoration** — Automatic recovery from connection loss. When `prompt()` or `resumeSession()` encounters a stale connection, the SDK transparently recreates a fresh session, rebinds the local session ID to the new runtime ID, and replays recent persisted events as context. Configurable via `replayMaxEvents` (default 50) and `replayMaxChars` (default 12,000). This eliminates the need for Brain's orchestrator to handle reconnection logic or agent respawning on transient failures.
+4. **Session restoration** — Automatic recovery from connection loss. When `prompt()` or `resumeSession()` encounters a stale connection, the SDK transparently recreates a fresh session, rebinds the local session ID to the new runtime ID, and replays recent persisted events as context. Configurable via `replayMaxEvents` (default 50) and `replayMaxChars` (default 12,000). This eliminates the need for Osabio's orchestrator to handle reconnection logic or agent respawning on transient failures.
 
-5. **Event streaming** — Universal event schema for tool calls, file edits, and permission requests. Brain could ingest these into its trace graph. Supports both real-time streaming (`session.onEvent()`) and historical pagination (`sdk.getEvents({ sessionId, limit })`).
+5. **Event streaming** — Universal event schema for tool calls, file edits, and permission requests. Osabio could ingest these into its trace graph. Supports both real-time streaming (`session.onEvent()`) and historical pagination (`sdk.getEvents({ sessionId, limit })`).
 
-6. **Permission handling** — Granular permission request/response model: `session.onPermissionRequest()` + `session.respondPermission(id, "once" | "always" | "reject")`. Brain's orchestrator could map this to its intent authorization system — auto-approve tools within granted scope, escalate others to the user.
+6. **Permission handling** — Granular permission request/response model: `session.onPermissionRequest()` + `session.respondPermission(id, "once" | "always" | "reject")`. Osabio's orchestrator could map this to its intent authorization system — auto-approve tools within granted scope, escalate others to the user.
 
-7. **Custom session persistence** — The `SessionPersistDriver` interface (5 methods: `getSession`, `listSessions`, `updateSession`, `listEvents`, `insertEvent`) allows Brain to write a SurrealDB driver, storing session records and events directly in the knowledge graph alongside `agent_session` and trace data. Built-in drivers exist for Postgres, SQLite, IndexedDB, and Rivet, but any backend works. Session restoration (point 4) depends on this driver for event replay.
+7. **Custom session persistence** — The `SessionPersistDriver` interface (5 methods: `getSession`, `listSessions`, `updateSession`, `listEvents`, `insertEvent`) allows Osabio to write a SurrealDB driver, storing session records and events directly in the knowledge graph alongside `agent_session` and trace data. Built-in drivers exist for Postgres, SQLite, IndexedDB, and Rivet, but any backend works. Session restoration (point 4) depends on this driver for event replay.
 
 5. **Credential extraction** — `sandbox-agent credentials extract-env` pulls API keys from local agent configs, useful for sandbox provisioning.
 
-6. **Personal subscription support** — SandboxAgent can detect and use OAuth tokens from users' existing Claude Code / Codex personal subscriptions. Agents run under the user's own auth — no API key management needed for individual users. This is useful for Brain's self-hosted / personal use case where users bring their own subscriptions.
+6. **Personal subscription support** — SandboxAgent can detect and use OAuth tokens from users' existing Claude Code / Codex personal subscriptions. Agents run under the user's own auth — no API key management needed for individual users. This is useful for Osabio's self-hosted / personal use case where users bring their own subscriptions.
 
 ### LLM Credential Models
 
-SandboxAgent supports three credential strategies, relevant to Brain's multi-tenant architecture:
+SandboxAgent supports three credential strategies, relevant to Osabio's multi-tenant architecture:
 
-| Model | Mechanism | Brain Relevance |
+| Model | Mechanism | Osabio Relevance |
 |-------|-----------|-----------------|
-| **Personal subscription** | Auto-detects OAuth tokens from local Claude Code / Codex login. Short-lived tokens, no key management. | Individual users running Brain locally — zero config, agents use the user's own subscription |
-| **API keys** | Pass `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` via `spawn.env` | Brain-managed agents where the workspace provides model access |
-| **Per-tenant gateway** | Scoped API keys per tenant with independent spend tracking and budget limits | Aligns with Brain's proxy spend tracking and per-workspace budget limits |
+| **Personal subscription** | Auto-detects OAuth tokens from local Claude Code / Codex login. Short-lived tokens, no key management. | Individual users running Osabio locally — zero config, agents use the user's own subscription |
+| **API keys** | Pass `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` via `spawn.env` | Osabio-managed agents where the workspace provides model access |
+| **Per-tenant gateway** | Scoped API keys per tenant with independent spend tracking and budget limits | Aligns with Osabio's proxy spend tracking and per-workspace budget limits |
 
-The per-tenant gateway model maps directly to Brain's existing spend tracking architecture (`proxy_spend_cache` + budget limits). Brain could issue scoped keys per workspace/agent and pass them to SandboxAgent, maintaining spend isolation without exposing organizational API keys.
+The per-tenant gateway model maps directly to Osabio's existing spend tracking architecture (`proxy_spend_cache` + budget limits). Osabio could issue scoped keys per workspace/agent and pass them to SandboxAgent, maintaining spend isolation without exposing organizational API keys.
 
-**Credentials and governance are orthogonal.** All LLM requests from coding agents still flow through Brain's proxy for tool filtering, policy evaluation, spend tracking, and trace recording. But the LLM credentials (who pays for inference) can come from any of the three models above. A personal subscription user's OAuth token passes *through* the proxy to the LLM provider — Brain governs the request but the user's own subscription covers the cost. This means Brain doesn't need to provide LLM API keys for self-hosted users while still maintaining full governance.
+**Credentials and governance are orthogonal.** All LLM requests from coding agents still flow through Osabio's proxy for tool filtering, policy evaluation, spend tracking, and trace recording. But the LLM credentials (who pays for inference) can come from any of the three models above. A personal subscription user's OAuth token passes *through* the proxy to the LLM provider — Osabio governs the request but the user's own subscription covers the cost. This means Osabio doesn't need to provide LLM API keys for self-hosted users while still maintaining full governance.
 
 Source: [LLM Credentials Docs](https://sandboxagent.dev/docs/llm-credentials)
 
 ### What SandboxAgent cannot solve
 
-1. **Governed tool access** — Brain's core differentiator is policy-controlled tool access. SandboxAgent exposes entire MCP servers or nothing. Brain needs per-tool filtering based on `can_use` grants, `possesses → skill_requires` derivation, and policy evaluation. This must be implemented in Brain's proxy layer regardless.
+1. **Governed tool access** — Osabio's core differentiator is policy-controlled tool access. SandboxAgent exposes entire MCP servers or nothing. Osabio needs per-tool filtering based on `can_use` grants, `possesses → skill_requires` derivation, and policy evaluation. This must be implemented in Osabio's proxy layer regardless.
 
-2. **Tool credential brokerage** — Brain's OAuth credential management (#178) for integration tools (GitHub, Slack, Jira MCP servers) requires dynamic token injection, refresh flows, and per-identity credential isolation. SandboxAgent only supports static env vars and bearer tokens for MCP server auth. Note: LLM provider credentials are handled separately (see above) and are less of a gap.
+2. **Tool credential brokerage** — Osabio's OAuth credential management (#178) for integration tools (GitHub, Slack, Jira MCP servers) requires dynamic token injection, refresh flows, and per-identity credential isolation. SandboxAgent only supports static env vars and bearer tokens for MCP server auth. Note: LLM provider credentials are handled separately (see above) and are less of a gap.
 
-3. **Graph integration** — Brain's knowledge graph (decisions, observations, tasks, learnings) must be injected into agent context. SandboxAgent has no mechanism for dynamic context injection beyond skills files and MCP servers.
+3. **Graph integration** — Osabio's knowledge graph (decisions, observations, tasks, learnings) must be injected into agent context. SandboxAgent has no mechanism for dynamic context injection beyond skills files and MCP servers.
 
 4. **Skills as graph entities** — Issue #177's design is fundamentally about graph-native skills with trigger matching, tool bundling, version chains, and policy governance. SandboxAgent's file-based skills don't map to this.
 
-5. **Intent authorization** — Brain's intent system (RAR tokens, DPoP, policy graph evaluation) operates before tool execution. SandboxAgent's permission model is a simple approve/reject callback.
+5. **Intent authorization** — Osabio's intent system (RAR tokens, DPoP, policy graph evaluation) operates before tool execution. SandboxAgent's permission model is a simple approve/reject callback.
 
 ---
 
 ## 5. Integration Architecture (If Adopted)
 
-If Brain were to use SandboxAgent, it would serve as the **sandbox execution layer** for all externally-executed agents (coding agents, user-configured custom agents) while Brain's proxy and dynamic MCP endpoint form the **governance control plane**:
+If Osabio were to use SandboxAgent, it would serve as the **sandbox execution layer** for all externally-executed agents (coding agents, user-configured custom agents) while Osabio's proxy and dynamic MCP endpoint form the **governance control plane**:
 
 ```
 Agent (Claude Code / Codex / custom agent in sandbox)
   │
-  ├── LLM API requests → Brain Proxy → spend tracking, credential forwarding → LLM Provider
+  ├── LLM API requests → Osabio Proxy → spend tracking, credential forwarding → LLM Provider
   │                         ↑                                                     ↑
   │                   LLM traffic plane                                    user's own credentials
   │                   (passthrough for tool calls)                         (personal sub / API key / gateway)
   │
-  ├── MCP tool calls → Brain /mcp/agent/<name> → policy, credentials, upstream MCP → tool results
+  ├── MCP tool calls → Osabio /mcp/agent/<name> → policy, credentials, upstream MCP → tool results
   │                         ↑
   │                   tool governance plane
   │                   (per-agent filtered tools/list, governed tools/call)
   │
   └── Native tools (file, bash, git) → execute locally in sandbox (ungoverned passthrough)
 
-Brain Backend
+Osabio Backend
   ├── Proxy (LLM traffic plane)
   │     ├── LLM credential forwarding (personal sub / API key / gateway)
   │     ├── Spend tracking (per-workspace budget limits)
@@ -218,7 +218,7 @@ Brain Backend
         ├── Session lifecycle (create, resume, destroy)
         ├── Agent process management (Claude Code, Codex, etc.)
         ├── Sandbox provider abstraction (E2B, Docker, Daytona)
-        ├── Event streaming → Brain trace graph
+        ├── Event streaming → Osabio trace graph
         └── Session persistence → SurrealDB (custom driver)
 ```
 
@@ -226,25 +226,25 @@ Brain Backend
 
 The proxy and MCP endpoint are separate because they solve different problems:
 
-**LLM traffic (proxy):** The coding agent sends LLM API requests through Brain's proxy URL. The proxy forwards to the LLM provider with the user's credentials, tracks spend, and records traces. The proxy does **not** execute tool calls for coding agents — it is a passthrough for the LLM conversation. Native tools (file read/write, bash, git) execute locally in the sandbox without governance.
+**LLM traffic (proxy):** The coding agent sends LLM API requests through Osabio's proxy URL. The proxy forwards to the LLM provider with the user's credentials, tracks spend, and records traces. The proxy does **not** execute tool calls for coding agents — it is a passthrough for the LLM conversation. Native tools (file read/write, bash, git) execute locally in the sandbox without governance.
 
-**MCP tool calls (dynamic endpoint):** SandboxAgent configures Brain's `/mcp/agent/<name>` as an MCP server via `setMcpConfig()`. The coding agent discovers governed tools via standard `tools/list` (filtered by agent grants) and executes them via `tools/call` (policy evaluation + credential brokerage + upstream forwarding). This uses the standard MCP protocol that Claude Code, Codex, etc. already speak natively.
+**MCP tool calls (dynamic endpoint):** SandboxAgent configures Osabio's `/mcp/agent/<name>` as an MCP server via `setMcpConfig()`. The coding agent discovers governed tools via standard `tools/list` (filtered by agent grants) and executes them via `tools/call` (policy evaluation + credential brokerage + upstream forwarding). This uses the standard MCP protocol that Claude Code, Codex, etc. already speak natively.
 
 **Why not have the proxy execute MCP tools?** The proxy would need to run a partial agent loop — intercept LLM responses, split tool calls into MCP (execute) vs native (pass through), feed MCP results back to the LLM, and only return to the coding agent when native-only calls remain. This creates edge cases when the LLM returns mixed MCP + native tool calls in one response (the proxy can't execute MCP tools while waiting on native results it doesn't have). The dynamic MCP endpoint avoids this entirely — the coding agent routes tool calls to the right destination naturally via standard MCP protocol.
 
-This differs from **Brain-native agents** (chat, PM, observer) where the proxy owns the full agent loop and executes ALL tools. Sandbox-executed agents (coding agents, user-configured custom agents) own their own loop; Brain governs only what it needs to.
+This differs from **Osabio-native agents** (chat, PM, observer) where the proxy owns the full agent loop and executes ALL tools. Sandbox-executed agents (coding agents, user-configured custom agents) own their own loop; Osabio governs only what it needs to.
 
 Skills config delivers activated skills as `SKILL.md` files in the sandbox.
 
 ---
 
-## 6. Comparison: SandboxAgent vs Brain Native Runtime
+## 6. Comparison: SandboxAgent vs Osabio Native Runtime
 
-| Dimension | SandboxAgent | Brain Native (current path) |
+| Dimension | SandboxAgent | Osabio Native (current path) |
 |-----------|-------------|---------------------------|
 | **Agent loop** | Delegates to coding agents (Claude Code, etc.) | Claude Agent SDK `query()` → local Claude Code process |
-| **Tool execution** | Native tools: local in sandbox (passthrough). MCP tools: Brain dynamic endpoint (governed) | Native tools: local in worktree. MCP tools: Brain CLI stdio MCP server |
-| **Tool governance** | MCP tools governed via `/mcp/agent/<name>`. Native tools ungoverned | MCP tools governed via Brain CLI + proxy. Native tools ungoverned (bypassPermissions) |
+| **Tool execution** | Native tools: local in sandbox (passthrough). MCP tools: Osabio dynamic endpoint (governed) | Native tools: local in worktree. MCP tools: Osabio CLI stdio MCP server |
+| **Tool governance** | MCP tools governed via `/mcp/agent/<name>`. Native tools ungoverned | MCP tools governed via Osabio CLI + proxy. Native tools ungoverned (bypassPermissions) |
 | **LLM credentials** | Personal subscription OAuth, API keys, per-tenant gateway | OpenRouter / Ollama via config |
 | **Tool credentials** | Static env vars / bearer tokens | OAuth brokerage with refresh |
 | **Skills** | File-based, static | Graph-native, trigger-activated, tool-bundled |
@@ -270,8 +270,8 @@ Skills config delivers activated skills as `SKILL.md` files in the sandbox.
 
 ### Losses from adopting SandboxAgent
 
-1. **Governance gap** — Brain's entire value proposition (governed autonomy) must still be built on top. SandboxAgent provides no tool-level access control, policy evaluation, or credential brokerage.
-2. **Two governance models** — Brain-native agents use proxy-executed tool loops. Coding agents use dynamic MCP endpoints with native tool passthrough. Same governance logic, different integration patterns to maintain.
+1. **Governance gap** — Osabio's entire value proposition (governed autonomy) must still be built on top. SandboxAgent provides no tool-level access control, policy evaluation, or credential brokerage.
+2. **Two governance models** — Osabio-native agents use proxy-executed tool loops. Coding agents use dynamic MCP endpoints with native tool passthrough. Same governance logic, different integration patterns to maintain.
 3. **Skills impedance** — Two different "skills" concepts (file-based vs graph-native) create confusion and require a translation layer.
 4. **Dependency risk** — Coupling to a 0.3.x/0.4.x SDK from a startup (Rivet) for a core execution path.
 
@@ -281,44 +281,44 @@ Skills config delivers activated skills as `SKILL.md` files in the sandbox.
 
 **Use SandboxAgent as the sandbox execution layer, not as the tool governance layer.**
 
-SandboxAgent solves a real problem Brain has — it needs to run coding agents in isolated environments without building sandbox provider integrations from scratch. But SandboxAgent's MCP config and skills config are **transport mechanisms**, not governance mechanisms.
+SandboxAgent solves a real problem Osabio has — it needs to run coding agents in isolated environments without building sandbox provider integrations from scratch. But SandboxAgent's MCP config and skills config are **transport mechanisms**, not governance mechanisms.
 
 ### Concrete integration pattern
 
-1. **Brain resolves grants** — When spawning an agent session, Brain resolves the agent's effective toolset (`can_use ∪ possesses→skill_requires`), evaluates policies, and prepares credentials.
+1. **Brain resolves grants** — When spawning an agent session, Osabio resolves the agent's effective toolset (`can_use ∪ possesses→skill_requires`), evaluates policies, and prepares credentials.
 
-2. **Brain exposes dynamic MCP endpoint** — Brain registers `/mcp/agent/<name>` which serves only the tools this agent is granted. `tools/list` returns the filtered toolset. `tools/call` evaluates policy, injects credentials, and forwards to upstream MCP servers.
+2. **Brain exposes dynamic MCP endpoint** — Osabio registers `/mcp/agent/<name>` which serves only the tools this agent is granted. `tools/list` returns the filtered toolset. `tools/call` evaluates policy, injects credentials, and forwards to upstream MCP servers.
 
-3. **SandboxAgent configures MCP** — Brain uses `sdk.setMcpConfig()` to point the coding agent at its dynamic MCP endpoint:
+3. **SandboxAgent configures MCP** — Osabio uses `sdk.setMcpConfig()` to point the coding agent at its dynamic MCP endpoint:
    ```typescript
    await sdk.setMcpConfig("/workspace", "brain", {
      type: "remote",
      url: `${brainUrl}/mcp/agent/${agentName}`,
      transport: "sse",
-     headers: { "X-Brain-Auth": agentToken },
+     headers: { "X-Osabio-Auth": agentToken },
    });
    ```
 
-4. **Brain configures proxy** — The coding agent's LLM endpoint is set to Brain's proxy URL for spend tracking and credential forwarding.
+4. **Brain configures proxy** — The coding agent's LLM endpoint is set to Osabio's proxy URL for spend tracking and credential forwarding.
 
-5. **Brain generates skills config** — Brain renders activated skills (from BM25 trigger matching) as `SKILL.md` files in the sandbox filesystem, or serves them via a local MCP server with a `get_skill_content` tool.
+5. **Brain generates skills config** — Osabio renders activated skills (from BM25 trigger matching) as `SKILL.md` files in the sandbox filesystem, or serves them via a local MCP server with a `get_skill_content` tool.
 
 6. **SandboxAgent executes** — The coding agent runs in the sandbox with:
-   - Brain's proxy as its LLM endpoint (spend tracking, credential forwarding)
-   - Brain's dynamic MCP endpoint for governed tools (policy, credentials, upstream forwarding)
+   - Osabio's proxy as its LLM endpoint (spend tracking, credential forwarding)
+   - Osabio's dynamic MCP endpoint for governed tools (policy, credentials, upstream forwarding)
    - Native tools executing locally in the sandbox (ungoverned passthrough)
 
-7. **Brain records traces** — Event stream from SandboxAgent feeds into Brain's trace graph. MCP tool calls are also traced at the endpoint level, giving dual observability.
+7. **Brain records traces** — Event stream from SandboxAgent feeds into Osabio's trace graph. MCP tool calls are also traced at the endpoint level, giving dual observability.
 
 ### What this means for #177
 
-SandboxAgent's skills-config does **not** replace the need to build issue #177. Brain's graph-native skills (trigger matching, tool bundling, version chains, policy governance) are a superset of what SandboxAgent provides. However, SandboxAgent's skills-config provides a convenient **delivery mechanism** — Brain resolves which skills to activate, then uses SandboxAgent's config to make them available in the sandbox.
+SandboxAgent's skills-config does **not** replace the need to build issue #177. Osabio's graph-native skills (trigger matching, tool bundling, version chains, policy governance) are a superset of what SandboxAgent provides. However, SandboxAgent's skills-config provides a convenient **delivery mechanism** — Osabio resolves which skills to activate, then uses SandboxAgent's config to make them available in the sandbox.
 
 ### What this means for MCP tool access
 
-SandboxAgent's MCP config does **not** replace Brain's tool registry (#178) or tool governance. Brain must still resolve per-agent tool grants, broker credentials, and evaluate policies. SandboxAgent's MCP config is the **transport mechanism** — it points the coding agent at Brain's dynamic MCP endpoint (`/mcp/agent/<name>`) where governance happens. The endpoint is a thin layer on top of the same grant resolution and policy evaluation that Brain-native agents already use.
+SandboxAgent's MCP config does **not** replace Osabio's tool registry (#178) or tool governance. Osabio must still resolve per-agent tool grants, broker credentials, and evaluate policies. SandboxAgent's MCP config is the **transport mechanism** — it points the coding agent at Osabio's dynamic MCP endpoint (`/mcp/agent/<name>`) where governance happens. The endpoint is a thin layer on top of the same grant resolution and policy evaluation that Osabio-native agents already use.
 
-The key architectural insight: **one governance implementation, two integration patterns**. Brain-native agents (chat, PM, observer) get governed tools via the proxy's full agent loop. Sandbox-executed agents (coding agents, user-configured custom agents) get governed tools via the dynamic MCP endpoint. Both resolve grants from the same `can_use ∪ possesses→skill_requires` logic and evaluate the same policy graph.
+The key architectural insight: **one governance implementation, two integration patterns**. Osabio-native agents (chat, PM, observer) get governed tools via the proxy's full agent loop. Sandbox-executed agents (coding agents, user-configured custom agents) get governed tools via the dynamic MCP endpoint. Both resolve grants from the same `can_use ∪ possesses→skill_requires` logic and evaluate the same policy graph.
 
 ### Orchestrator refactoring
 
@@ -330,8 +330,8 @@ The orchestrator currently uses `@anthropic-ai/claude-agent-sdk` (`query()`) to 
 |-----------|----------------------|
 | Agent spawn | `query()` from `@anthropic-ai/claude-agent-sdk` → local Claude Code process |
 | Agent options | `buildAgentOptions()` → `cwd`, `maxTurns`, `allowedTools`, `systemPrompt`, `permissionMode` |
-| MCP server | Brain CLI as stdio MCP server (`mcpServers.brain`) within agent process |
-| LLM proxy | `ANTHROPIC_BASE_URL` → Brain proxy `/proxy/llm/anthropic` with `X-Brain-Auth` |
+| MCP server | Osabio CLI as stdio MCP server (`mcpServers.brain`) within agent process |
+| LLM proxy | `ANTHROPIC_BASE_URL` → Osabio proxy `/proxy/llm/anthropic` with `X-Osabio-Auth` |
 | Isolation | Git worktree per session (`agent/<task-slug>-<uuid>` branch) |
 | Events | `AsyncIterable<unknown>` → event bridge → SSE registry |
 | Lifecycle | In-memory handle registry (`AgentHandle` with `abort()`) |
@@ -339,14 +339,14 @@ The orchestrator currently uses `@anthropic-ai/claude-agent-sdk` (`query()`) to 
 
 **Target architecture (SandboxAgent SDK):**
 
-SandboxAgent is not limited to built-in coding agents. It is the execution layer for **any agent configured by workspace users** — coding agents, custom agents with specific tool grants, domain-specific agents with curated skills. All run through the same SandboxAgent session lifecycle with Brain's governance (dynamic MCP endpoint for tools, proxy for LLM traffic).
+SandboxAgent is not limited to built-in coding agents. It is the execution layer for **any agent configured by workspace users** — coding agents, custom agents with specific tool grants, domain-specific agents with curated skills. All run through the same SandboxAgent session lifecycle with Osabio's governance (dynamic MCP endpoint for tools, proxy for LLM traffic).
 
 | Component | SandboxAgent Implementation |
 |-----------|---------------------------|
 | Agent spawn | `sdk.createSession()` → agent process in sandbox (E2B, Docker, etc.) |
 | Agent options | SandboxAgent session config + `sdk.setMcpConfig()` + env vars |
-| MCP server | Brain dynamic MCP endpoint `/mcp/agent/<name>` via remote MCP config |
-| LLM proxy | Same — Brain proxy URL passed as `ANTHROPIC_BASE_URL` env |
+| MCP server | Osabio dynamic MCP endpoint `/mcp/agent/<name>` via remote MCP config |
+| LLM proxy | Same — Osabio proxy URL passed as `ANTHROPIC_BASE_URL` env |
 | Isolation | **Depends on provider** — see isolation section below |
 | Events | SandboxAgent universal event stream → event bridge → SSE registry |
 | Lifecycle | SandboxAgent session API (`createSession`, `prompt`, `resumeSession`, `destroySession`) |
@@ -367,7 +367,7 @@ SandboxAgent is not limited to built-in coding agents. It is the execution layer
 
 **MCP server migration:**
 
-Currently, the Brain CLI runs as a stdio MCP server inside the agent process:
+Currently, the Osabio CLI runs as a stdio MCP server inside the agent process:
 ```typescript
 // Current: stdio MCP server in agent options
 mcpServers: {
@@ -375,41 +375,41 @@ mcpServers: {
     type: "stdio",
     command: brainCliPath,
     args: ["mcp"],
-    env: { BRAIN_WORKSPACE_ID: workspaceId, BRAIN_IDENTITY_ID: identityId },
+    env: { OSABIO_WORKSPACE_ID: workspaceId, OSABIO_IDENTITY_ID: identityId },
   },
 }
 ```
 
-With SandboxAgent, Brain exposes a remote MCP endpoint per agent:
+With SandboxAgent, Osabio exposes a remote MCP endpoint per agent:
 ```typescript
 // Target: remote MCP server via SandboxAgent config
 await sdk.setMcpConfig("/workspace", "brain", {
   type: "remote",
   url: `${brainUrl}/mcp/agent/${agentName}`,
   transport: "sse",
-  headers: { "X-Brain-Auth": agentToken },
+  headers: { "X-Osabio-Auth": agentToken },
 });
 ```
 
-This eliminates the need to bundle the Brain CLI in the sandbox and enables per-agent tool filtering at the endpoint level.
+This eliminates the need to bundle the Osabio CLI in the sandbox and enables per-agent tool filtering at the endpoint level.
 
 **Isolation: local provider does NOT sandbox**
 
 The local provider (`sandbox-agent` local deploy) spawns agent processes directly on the host as child processes — no containers, VMs, chroot, or kernel namespaces. Agents get full access to the host filesystem. The "worktree" in SandboxAgent is just a configurable path (`OPENCODE_COMPAT_WORKTREE`), not a git worktree.
 
-This means Brain's `worktree-manager.ts` is still needed for local deployment to provide git-level isolation per coding session:
+This means Osabio's `worktree-manager.ts` is still needed for local deployment to provide git-level isolation per coding session:
 
-| Provider | Isolation | Brain worktree needed? |
+| Provider | Isolation | Osabio worktree needed? |
 |----------|-----------|----------------------|
-| **Local** | None — direct host process | **Yes** — Brain creates git worktree, passes path as `cwd` to SandboxAgent session |
+| **Local** | None — direct host process | **Yes** — Osabio creates git worktree, passes path as `cwd` to SandboxAgent session |
 | **Docker** | Container with bind mounts | No — mount repo into container |
 | **E2B** | VM (Firecracker) | No — sandboxed filesystem |
 | **Daytona** | Container/VM | No — sandboxed filesystem |
 
-For local deployment, Brain creates the git worktree first, then passes the worktree path as the session's `cwd`:
+For local deployment, Osabio creates the git worktree first, then passes the worktree path as the session's `cwd`:
 
 ```typescript
-// Local provider: Brain still manages worktrees
+// Local provider: Osabio still manages worktrees
 const worktree = await createWorktree(repoPath, taskSlug);
 const session = await sdk.createSession({
   agent: "claude",
@@ -417,13 +417,13 @@ const session = await sdk.createSession({
 });
 ```
 
-For cloud/container providers, the sandbox handles isolation and Brain skips worktree creation.
+For cloud/container providers, the sandbox handles isolation and Osabio skips worktree creation.
 
-Brain-native agents (chat, PM, observer, analytics) remain unchanged — they run in-process with AI SDK and the proxy's full tool loop.
+Osabio-native agents (chat, PM, observer, analytics) remain unchanged — they run in-process with AI SDK and the proxy's full tool loop.
 
 ### Priority consideration
 
-SandboxAgent becomes valuable when Brain needs to run **coding agents** (Claude Code, Codex) in sandboxes for software engineering tasks. If the current focus is on chat agents and knowledge graph management (which run in Brain's own process), SandboxAgent can be deferred until the coding agent use case is prioritized.
+SandboxAgent becomes valuable when Osabio needs to run **coding agents** (Claude Code, Codex) in sandboxes for software engineering tasks. If the current focus is on chat agents and knowledge graph management (which run in Osabio's own process), SandboxAgent can be deferred until the coding agent use case is prioritized.
 
 ---
 
@@ -441,5 +441,5 @@ SandboxAgent becomes valuable when Brain needs to run **coding agents** (Claude 
 - [Agent Sessions Docs](https://sandboxagent.dev/docs/agent-sessions)
 - [Session Restoration Docs](https://sandboxagent.dev/docs/session-restoration)
 - [Session Persistence Docs](https://sandboxagent.dev/docs/session-persistence)
-- [Brain Issue #177: Skills](https://github.com/marcus-sa/brain/issues/177)
-- [Brain Native Agent Runtime Research](docs/research/brain-native-agent-runtime.md)
+- [Brain Issue #177: Skills](https://github.com/marcus-sa/osabio/issues/177)
+- [Brain Native Agent Runtime Research](docs/research/osabio-native-agent-runtime.md)

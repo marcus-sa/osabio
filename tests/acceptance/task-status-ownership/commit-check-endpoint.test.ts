@@ -3,7 +3,7 @@ import { RecordId } from "surrealdb";
 import { createTestUserWithMcp, fetchJson, setupAcceptanceSuite } from "../acceptance-test-kit";
 
 /**
- * US-3: brain commit-check parses task refs and sets tasks to done.
+ * US-3: osabio commit-check parses task refs and sets tasks to done.
  *
  * Tests the server endpoint POST /api/mcp/:workspaceId/commits/post-check
  * which accepts a commit message, extracts task refs (regex fast path),

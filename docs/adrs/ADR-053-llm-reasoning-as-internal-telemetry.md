@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-Brain's Observer agent and Intent Authorizer both invoke LLMs to produce structured verdicts (verification, peer review, contradiction detection, anomaly evaluation, authorization risk assessment). Each verdict includes a `reasoning` field -- the LLM's chain-of-thought explaining why it reached its conclusion.
+Osabio's Observer agent and Intent Authorizer both invoke LLMs to produce structured verdicts (verification, peer review, contradiction detection, anomaly evaluation, authorization risk assessment). Each verdict includes a `reasoning` field -- the LLM's chain-of-thought explaining why it reached its conclusion.
 
 Currently this reasoning is:
 - **Used at runtime** (e.g. `applyLlmVerdict` copies `llmVerdict.reasoning` into `VerificationResult.text`, `evaluateAnomalies` returns per-entity `reasoning` used in observation text construction)

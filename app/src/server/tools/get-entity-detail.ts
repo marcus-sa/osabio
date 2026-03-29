@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { RecordId, type Surreal } from "surrealdb";
 import { ALL_ENTITY_TABLES, getEntityDetail, parseRecordIdString } from "../graph/queries";
-import { getEntityDetailSchema } from "../mcp/brain-tool-definitions";
+import { getEntityDetailSchema } from "../mcp/osabio-tool-definitions";
 import { requireToolContext } from "./helpers";
 import type { ChatToolDeps } from "./types";
 

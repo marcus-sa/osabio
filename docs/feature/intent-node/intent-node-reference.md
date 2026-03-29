@@ -1,6 +1,6 @@
 # Intent Node: Technical Reference
 
-The intent node is the system through which coding agents interact with the Brain knowledge graph. It has two pipelines that serve different purposes at different points in the agent lifecycle:
+The intent node is the system through which coding agents interact with the Osabio knowledge graph. It has two pipelines that serve different purposes at different points in the agent lifecycle:
 
 1. **Context Pipeline** — resolves an agent's natural-language intent to the right scope of graph context
 2. **Evaluation Pipeline** — authorizes a concrete agent action through policy checks, LLM risk assessment, and optional human veto

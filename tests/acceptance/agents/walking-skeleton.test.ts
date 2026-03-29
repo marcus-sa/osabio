@@ -72,7 +72,7 @@ describe("Walking Skeleton: External Agent CRUD", () => {
 
     // And a proxy token is generated with the expected prefix
     expect(body.proxy_token).toBeDefined();
-    expect(body.proxy_token!.startsWith("brp_")).toBe(true);
+    expect(body.proxy_token!.startsWith("osp_")).toBe(true);
 
     // And the agent appears in the workspace registry
     const listResponse = await listAgentsViaHttp(baseUrl, user, workspaceId);
@@ -174,10 +174,10 @@ describe("Walking Skeleton: Agent Registry Listing", () => {
   it("admin sees all agents in the workspace grouped by runtime type", async () => {
     const { baseUrl, surreal } = getRuntime();
 
-    // Given a workspace with brain agents and custom agents
+    // Given a workspace with osabio agents and custom agents
     const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "ws4");
 
-    // And the workspace has brain agents (system agents)
+    // And the workspace has osabio agents (system agents)
     await seedBrainAgent(surreal, workspaceId, "Observer", { agentType: "observer" });
     await seedBrainAgent(surreal, workspaceId, "Chat Agent", { agentType: "chat_agent" });
 
@@ -196,10 +196,10 @@ describe("Walking Skeleton: Agent Registry Listing", () => {
     expect(listResponse.status).toBe(200);
     const listBody = (await listResponse.json()) as { agents: AgentListItem[] };
 
-    // And agents include both brain and external runtime types
-    const brainAgents = listBody.agents.filter((a) => a.runtime === "brain");
+    // And agents include both osabio and external runtime types
+    const osabioAgents = listBody.agents.filter((a) => a.runtime === "osabio");
     const externalAgents = listBody.agents.filter((a) => a.runtime === "external");
-    expect(brainAgents.length).toBeGreaterThanOrEqual(2);
+    expect(osabioAgents.length).toBeGreaterThanOrEqual(2);
     expect(externalAgents.length).toBeGreaterThanOrEqual(1);
     expect(externalAgents.some((a) => a.name === "Inventory Scanner")).toBe(true);
   }, 120_000);

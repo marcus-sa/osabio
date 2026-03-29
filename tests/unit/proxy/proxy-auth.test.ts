@@ -19,7 +19,7 @@ import {
 
 function createHeaders(token: string): Headers {
   const headers = new Headers();
-  headers.set("X-Brain-Auth", token);
+  headers.set("X-Osabio-Auth", token);
   return headers;
 }
 

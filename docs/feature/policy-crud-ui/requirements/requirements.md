@@ -8,7 +8,7 @@
 
 ## 1. Business Context
 
-Brain's policy system was delivered as backend infrastructure in the policy-node feature. The evaluation pipeline, graph relations, and SurrealDB schema are operational. However, there is no HTTP API for policy management and no UI for creating, viewing, or managing policies. Only developers with direct database access can create or modify policies.
+Osabio's policy system was delivered as backend infrastructure in the policy-node feature. The evaluation pipeline, graph relations, and SurrealDB schema are operational. However, there is no HTTP API for policy management and no UI for creating, viewing, or managing policies. Only developers with direct database access can create or modify policies.
 
 This feature closes the gap by exposing policy CRUD through REST endpoints and building a management UI that enables non-developer org admins to govern agent behavior without code deployments.
 

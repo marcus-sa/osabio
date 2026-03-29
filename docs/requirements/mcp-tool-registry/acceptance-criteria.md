@@ -29,7 +29,7 @@ Then the system rejects with a duplicate name error
 
 ```gherkin
 Given a connected MCP server serving 5 tools via tools/list
-When Brain fetches the tool list
+When Osabio fetches the tool list
 Then 5 mcp_tool records are created with name, description, input_schema, and output_schema (when present) from the response
 And tools with destructiveHint=true get risk_level "high"
 And tools with readOnlyHint=true get risk_level "low"
@@ -39,7 +39,7 @@ And tools without hints get risk_level "medium"
 ```gherkin
 Given a connected MCP server that supports listChanged notifications
 When the server pushes notifications/tools/list_changed
-Then Brain re-fetches tools/list
+Then Osabio re-fetches tools/list
 And diffs against stored mcp_tool records
 And creates new tools, updates changed schemas, marks removed tools as disabled
 ```
@@ -70,12 +70,12 @@ Then the 11th call returns rate limit error with reset time
 ```gherkin
 Given credential_provider "github" with auth_method="oauth2" in the workspace
 When user initiates connection
-Then Brain redirects to authorization_url with client_id, scopes, state, redirect_uri
+Then Osabio redirects to authorization_url with client_id, scopes, state, redirect_uri
 ```
 
 ```gherkin
 Given the provider redirects back with authorization_code
-When Brain exchanges the code at token_url
+When Osabio exchanges the code at token_url
 Then a connected_account is created with encrypted access_token and refresh_token
 And status is "active"
 And scopes reflect what was granted
@@ -114,7 +114,7 @@ And the LLM request contains runtime tools ["read_file", "write_file"]
 When the proxy processes the request
 Then the forwarded request tools[] contains all 4 tools
 And runtime tools are unmodified (same schema, same position)
-And Brain-managed tools have correct name, description, input_schema from mcp_tool records
+And Osabio-managed tools have correct name, description, input_schema from mcp_tool records
 ```
 
 ```gherkin
@@ -136,7 +136,7 @@ Then no tools are added to the request (only runtime tools remain)
 ## AC-6: Proxy Tool Call Routing [US-6, FR-5]
 
 ```gherkin
-Given the LLM returns tool_call for "search_entities" (Brain-native)
+Given the LLM returns tool_call for "search_entities" (Osabio-native)
 When the proxy intercepts the tool call
 Then the proxy executes the graph query directly
 And returns the result to the LLM
@@ -150,7 +150,7 @@ Then the proxy routes to credential resolution (see AC-7)
 ```
 
 ```gherkin
-Given the LLM returns tool_call for "read_file" (unknown to Brain)
+Given the LLM returns tool_call for "read_file" (unknown to Osabio)
 When the proxy intercepts the tool call
 Then the proxy passes the tool call through to the runtime
 And does not write a trace record for it
@@ -232,7 +232,7 @@ And writes trace with denial reason
 ## AC-9: Tool Call Tracing [US-9, FR-13]
 
 ```gherkin
-Given any Brain-managed tool call (native or integration)
+Given any Osabio-managed tool call (native or integration)
 When the proxy executes the call
 Then a trace record is created with:
   | field       | value                              |
@@ -333,7 +333,7 @@ And active accounts show a "Revoke" action
 
 ```gherkin
 Given the admin enters an MCP server URL and clicks "Connect"
-When Brain calls tools/list and discovers 5 tools
+When Osabio calls tools/list and discovers 5 tools
 Then a review screen shows the 5 discovered tools with names, descriptions, and suggested risk_levels
 And the admin can accept or skip individual tools before import
 And accepted tools become mcp_tool records in the workspace

@@ -4,16 +4,16 @@
 
 ```gherkin
 Feature: OpenTelemetry SDK initialization and exporter configuration
-  As a developer/operator of the Brain platform
+  As a developer/operator of the Osabio platform
   I need the OTEL SDK to initialize at startup with appropriate exporters
   So that all downstream instrumentation has a functioning telemetry pipeline
 
   Background:
-    Given the Brain server application is configured to start
+    Given the Osabio server application is configured to start
 
   Scenario: Console exporter active by default in development
     Given no OTEL environment variables are set
-    When the Brain server starts and processes a request to POST /api/chat/messages
+    When the Osabio server starts and processes a request to POST /api/chat/messages
     Then span data appears in the terminal console output
     And the span includes resource attribute service.name "brain"
     And the span includes the HTTP method and route
@@ -21,7 +21,7 @@ Feature: OpenTelemetry SDK initialization and exporter configuration
   Scenario: OTLP exporter active when endpoint is configured
     Given OTEL_EXPORTER_OTLP_ENDPOINT is set to "http://collector:4318"
     And OTEL_SERVICE_NAME is set to "brain-prod"
-    When the Brain server starts
+    When the Osabio server starts
     Then the TracerProvider uses OTLPTraceExporter targeting "http://collector:4318"
     And the MeterProvider uses OTLPMetricExporter targeting "http://collector:4318"
     And the LoggerProvider uses OTLPLogExporter targeting "http://collector:4318"
@@ -29,7 +29,7 @@ Feature: OpenTelemetry SDK initialization and exporter configuration
 
   Scenario: Graceful degradation when OTEL SDK fails to initialize
     Given the Bun runtime has an incompatibility with the OTEL async hooks API
-    When the Brain server starts
+    When the Osabio server starts
     Then the server starts successfully and accepts HTTP requests
     And a warning "OTEL SDK failed to initialize, telemetry disabled" appears in console
     And all tracer.startSpan calls return no-op spans
@@ -38,7 +38,7 @@ Feature: OpenTelemetry SDK initialization and exporter configuration
 
   Scenario: All three providers initialize (Tracer, Meter, Logger)
     Given default server configuration
-    When the Brain server starts
+    When the Osabio server starts
     Then TracerProvider is active and can create spans
     And MeterProvider is active and can create metric instruments
     And LoggerProvider is active and can emit log records
@@ -55,7 +55,7 @@ Feature: OpenTelemetry SDK initialization and exporter configuration
 
 ```gherkin
 Feature: Remove Pino structured logging and replace with OTEL Logs API
-  As a developer maintaining the Brain codebase
+  As a developer maintaining the Osabio codebase
   I need Pino removed and all logging migrated to the OTEL Logs API
   So that the codebase has a single telemetry system with trace-correlated logs
 
@@ -68,7 +68,7 @@ Feature: Remove Pino structured logging and replace with OTEL Logs API
 
   Scenario: Startup messages visible without Pino
     Given Pino has been removed
-    When Marcus starts the Brain server with "bun run dev"
+    When Marcus starts the Osabio server with "bun run dev"
     Then the server port number appears in console output
     And the database connection status appears in console output
     And migration status appears in console output
@@ -153,7 +153,7 @@ Feature: Enable experimental_telemetry on every AI SDK call
   Scenario: Extraction generateObject emits telemetry span
     Given a user sends message "We need to migrate the billing API to tRPC" to workspace "ws-marcus-dev"
     When the extraction pipeline calls generateObject with experimental_telemetry enabled
-    Then a span is emitted with attribute ai.telemetry.functionId "brain.extraction.generate"
+    Then a span is emitted with attribute ai.telemetry.functionId "osabio.extraction.generate"
     And the span includes ai.model.id matching the configured EXTRACTION_MODEL
     And the span includes ai.usage.promptTokens as a positive integer
     And the span includes ai.usage.completionTokens as a positive integer
@@ -162,26 +162,26 @@ Feature: Enable experimental_telemetry on every AI SDK call
   Scenario: Chat agent streamText emits telemetry span
     Given Marcus has an active conversation in workspace "ws-marcus-dev"
     When the chat agent calls streamText with experimental_telemetry enabled
-    Then a span is emitted with attribute ai.telemetry.functionId "brain.chat.stream"
+    Then a span is emitted with attribute ai.telemetry.functionId "osabio.chat.stream"
     And the span duration covers the full streaming time
     And the span includes total token usage after streaming completes
 
   Scenario: PM subagent generateObject emits telemetry span
     Given the chat agent invokes the PM subagent with intent "plan_work"
     When the PM agent calls generateObject with experimental_telemetry enabled
-    Then a span is emitted with attribute ai.telemetry.functionId "brain.pm.agent"
+    Then a span is emitted with attribute ai.telemetry.functionId "osabio.pm.agent"
     And the span is a child of the chat agent's tool invocation span
 
   Scenario: Observer verification emits telemetry span
     Given the observer scans the graph and finds a potential contradiction
     When it calls generateObject to verify the observation
-    Then a span is emitted with attribute ai.telemetry.functionId "brain.observer.verify"
+    Then a span is emitted with attribute ai.telemetry.functionId "osabio.observer.verify"
     And the span includes the model ID and token counts
 
   Scenario: Behavior scorer emits telemetry span
     Given a behavior scoring request is made for workspace "ws-marcus-dev"
     When the scorer calls generateObject with experimental_telemetry enabled
-    Then a span is emitted with attribute ai.telemetry.functionId "brain.behavior.score"
+    Then a span is emitted with attribute ai.telemetry.functionId "osabio.behavior.score"
 
   Scenario: All call sites verified for telemetry coverage
     Given a developer audits all generateObject and streamText calls in the codebase
@@ -218,7 +218,7 @@ Feature: Distributed tracing for HTTP request lifecycle
   Scenario: Root span created for chat message request
     Given Marcus sends a POST request to /api/chat/messages in workspace "ws-marcus-dev"
     When the request completes with status 200
-    Then a root span "brain.http.request" exists
+    Then a root span "osabio.http.request" exists
     And the span has attribute http.method: "POST"
     And the span has attribute http.route: "/api/chat/messages"
     And the span has attribute http.status_code: 200
@@ -227,9 +227,9 @@ Feature: Distributed tracing for HTTP request lifecycle
   Scenario: Pipeline child spans nest under root
     Given Marcus sends a chat message that triggers extraction and chat agent
     When the request completes
-    Then span "brain.extraction.pipeline" is a child of the root HTTP span
-    And span "brain.chat.agent" is a child of the root HTTP span
-    And the AI SDK span for extraction is a child of "brain.extraction.pipeline"
+    Then span "osabio.extraction.pipeline" is a child of the root HTTP span
+    And span "osabio.chat.agent" is a child of the root HTTP span
+    And the AI SDK span for extraction is a child of "osabio.extraction.pipeline"
     And all child span start/end times fall within the root span duration
 
   Scenario: Trace waterfall reveals bottleneck
@@ -254,7 +254,7 @@ Feature: Distributed tracing for HTTP request lifecycle
   Scenario: Entity search request traced
     Given Marcus sends a GET request to /api/entities/search?q=authentication
     When the request completes with status 200 in 120ms
-    Then a root span "brain.http.request" exists with method GET and route "/api/entities/search"
+    Then a root span "osabio.http.request" exists with method GET and route "/api/entities/search"
     And the span duration is approximately 120ms
 
   Scenario: Context propagation across async boundaries
@@ -278,49 +278,49 @@ Feature: OTEL metrics for health monitoring and cost attribution
   Scenario: LLM call latency recorded as histogram
     Given the extraction pipeline calls generateObject and the call takes 2341ms
     When the call completes successfully
-    Then the brain.llm.duration histogram records value 2341
-    And the recording has attribute functionId: "brain.extraction.generate"
+    Then the osabio.llm.duration histogram records value 2341
+    And the recording has attribute functionId: "osabio.extraction.generate"
     And the recording has attribute model matching the configured EXTRACTION_MODEL
 
   Scenario: Prompt tokens recorded as counter
     Given a generateObject call uses 1847 prompt tokens
     When the call completes
-    Then brain.llm.tokens.prompt increments by 1847
+    Then osabio.llm.tokens.prompt increments by 1847
     And the increment has attribute functionId matching the call's function ID
 
   Scenario: Completion tokens recorded as counter
     Given a generateObject call produces 423 completion tokens
     When the call completes
-    Then brain.llm.tokens.completion increments by 423
+    Then osabio.llm.tokens.completion increments by 423
     And the increment has attribute functionId matching the call's function ID
 
   Scenario: LLM error recorded as counter
-    Given a generateObject call to brain.observer.verify fails with error type "timeout"
+    Given a generateObject call to osabio.observer.verify fails with error type "timeout"
     When the error is caught
-    Then brain.llm.errors increments by 1
-    And the increment has attributes functionId: "brain.observer.verify" and error_type: "timeout"
+    Then osabio.llm.errors increments by 1
+    And the increment has attributes functionId: "osabio.observer.verify" and error_type: "timeout"
 
   Scenario: HTTP request duration recorded as histogram
     Given a GET request to /api/entities/search completes in 120ms with status 200
     When the response is sent
-    Then brain.http.duration histogram records value 120
+    Then osabio.http.duration histogram records value 120
     And the recording has attributes method: "GET", route: "/api/entities/search", status_code: "200"
 
   Scenario: HTTP request count recorded as counter
     Given 50 requests have been processed in the last minute
     When the metric export interval fires
-    Then brain.http.requests counter reflects 50 total increments
+    Then osabio.http.requests counter reflects 50 total increments
     And each increment has method, route, and status_code attributes
 
   Scenario: Entity extraction count recorded
     Given the extraction pipeline produces 3 task entities and 2 decision entities
     When the entities are persisted
-    Then brain.extraction.entities increments by 3 with attribute entity_type: "task"
-    And brain.extraction.entities increments by 2 with attribute entity_type: "decision"
+    Then osabio.extraction.entities increments by 3 with attribute entity_type: "task"
+    And osabio.extraction.entities increments by 2 with attribute entity_type: "decision"
 
   Scenario: Token counters enable cost attribution by function
     Given the system has processed 100 messages over 7 days
-    When Marcus queries brain.llm.tokens.prompt grouped by functionId
+    When Marcus queries osabio.llm.tokens.prompt grouped by functionId
     Then he sees separate totals for each function (extraction.generate, chat.stream, pm.agent, etc.)
     And the per-function totals sum to the overall total
 

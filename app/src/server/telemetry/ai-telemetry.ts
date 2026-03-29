@@ -33,7 +33,7 @@ export function createTelemetryConfig(functionId: FunctionId): AiTelemetryConfig
   return {
     isEnabled: true,
     functionId,
-    metadata: { service: "brain-server" },
+    metadata: { service: "osabio-server" },
   };
 }
 

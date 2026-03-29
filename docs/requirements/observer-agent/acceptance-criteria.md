@@ -95,7 +95,7 @@ Scenario: Observes edge accepts intent
 
 ## AC-4: Idempotency (Story 8) — Deferred
 
-Tracked in [#134](https://github.com/marcus-sa/brain/issues/134)
+Tracked in [#134](https://github.com/marcus-sa/osabio/issues/134)
 
 ## AC-5: Graph scan (Story 7)
 

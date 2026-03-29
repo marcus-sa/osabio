@@ -7,11 +7,11 @@
 
 ## Summary
 
-Delivered the agent management feature (Release 1 / Walking Skeleton): workspace admins can register external agents with configurable authority scopes, view agent details, and delete agents with full graph cleanup. The feature replaces the closed `agent_type` enum with a `runtime` field (`brain | sandbox | external`) and introduces a transactional creation flow that atomically provisions agent records, identities, graph edges, authority scopes, and proxy tokens.
+Delivered the agent management feature (Release 1 / Walking Skeleton): workspace admins can register external agents with configurable authority scopes, view agent details, and delete agents with full graph cleanup. The feature replaces the closed `agent_type` enum with a `runtime` field (`osabio | sandbox | external`) and introduces a transactional creation flow that atomically provisions agent records, identities, graph edges, authority scopes, and proxy tokens.
 
 ## Business Context
 
-Brain's agent fleet was previously code-deployed only (brain agents like observer, architect, PM agent). External tools (Cursor, Aider, Codex, Claude Code) connected via MCP but had no first-class identity or configurable authority. This feature gives workspace admins a self-service registry to onboard external agents with explicit, per-agent authority scopes — moving from implicit trust to governed autonomy.
+Osabio's agent fleet was previously code-deployed only (osabio agents like observer, architect, PM agent). External tools (Cursor, Aider, Codex, Claude Code) connected via MCP but had no first-class identity or configurable authority. This feature gives workspace admins a self-service registry to onboard external agents with explicit, per-agent authority scopes — moving from implicit trust to governed autonomy.
 
 ## Key Decisions
 
@@ -20,7 +20,7 @@ Brain's agent fleet was previously code-deployed only (brain agents like observe
 | ID | Decision | Rationale |
 |----|----------|-----------|
 | D1 | Runtime-based taxonomy replaces `agent_type` enum | `agent_type` conflated runtime model with role identity; three runtime values map to existing code paths |
-| D2 | Brain agents are read-only in UI | Code-deployed system agents; UI modification would create inconsistency |
+| D2 | Osabio agents are read-only in UI | Code-deployed system agents; UI modification would create inconsistency |
 | D3 | Authority scopes via `authorized_to` edges per-agent | Per-identity overrides already exist (migration 0020); avoids template inheritance complexity |
 | D6 | Proxy token shown once at creation | Security best practice; only hash stored |
 | D7 | All scopes default to "propose" | Safe by default; explicit opt-in for autonomous actions |

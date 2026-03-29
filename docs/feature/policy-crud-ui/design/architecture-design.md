@@ -21,13 +21,13 @@ C4Context
     Person(reviewer, "Reviewer", "Reviews intent evaluations and policy traces")
     Person(auditor, "Auditor", "Verifies compliance via version history")
 
-    System(brain, "Brain", "Knowledge graph operating system")
+    System(osabio, "Osabio", "Knowledge graph operating system")
     System_Ext(agent, "Coding Agent", "MCP-connected agent (read-only policy access)")
 
-    Rel(admin, brain, "Creates/activates/deprecates policies")
-    Rel(reviewer, brain, "Views policy traces on intents")
-    Rel(auditor, brain, "Browses version history and diffs")
-    Rel(agent, brain, "Reads active policies via MCP")
+    Rel(admin, osabio, "Creates/activates/deprecates policies")
+    Rel(reviewer, osabio, "Views policy traces on intents")
+    Rel(auditor, osabio, "Browses version history and diffs")
+    Rel(agent, osabio, "Reads active policies via MCP")
 ```
 
 ## C4 Container (L2)
@@ -42,7 +42,7 @@ C4Container
         Container(spa, "React SPA", "TanStack Router", "Policy management pages, rule builder, trace viewer")
     }
 
-    Container_Boundary(server, "Brain Server") {
+    Container_Boundary(server, "Osabio Server") {
         Container(api, "Policy API Routes", "Bun HTTP", "CRUD endpoints with auth guard")
         Container(queries, "Policy Queries", "TypeScript", "SurrealDB query functions (existing + new)")
         Container(gate, "Policy Gate", "TypeScript", "Pure evaluation pipeline (existing)")

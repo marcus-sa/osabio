@@ -51,7 +51,7 @@ function createShellStub(options?: {
 describe("Worktree Manager: path construction", () => {
   test("builds worktree path from repo root and task slug", () => {
     const path = buildWorktreePath("/repo", "fix-login-bug");
-    expect(path).toBe("/repo/.brain/worktrees/agent-fix-login-bug");
+    expect(path).toBe("/repo/.osabio/worktrees/agent-fix-login-bug");
   });
 
   test("builds branch name from task slug", () => {
@@ -73,7 +73,7 @@ describe("Worktree Manager: createWorktree", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.worktreePath).toBe(
-        "/repo/.brain/worktrees/agent-fix-login-bug",
+        "/repo/.osabio/worktrees/agent-fix-login-bug",
       );
       expect(result.value.branchName).toBe("agent/fix-login-bug");
     }
@@ -92,7 +92,7 @@ describe("Worktree Manager: createWorktree", () => {
       "add",
       "-b",
       "agent/fix-login-bug",
-      ".brain/worktrees/agent-fix-login-bug",
+      ".osabio/worktrees/agent-fix-login-bug",
     ]);
     expect(calls[0].cwd).toBe("/repo");
   });
@@ -170,7 +170,7 @@ describe("Worktree Manager: removeWorktree", () => {
     expect(calls[0].args).toEqual([
       "worktree",
       "remove",
-      ".brain/worktrees/agent-fix-login-bug",
+      ".osabio/worktrees/agent-fix-login-bug",
       "--force",
     ]);
     expect(calls[1].args).toEqual(["branch", "-D", "agent/fix-login-bug"]);

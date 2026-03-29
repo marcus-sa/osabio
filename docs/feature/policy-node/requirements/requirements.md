@@ -63,9 +63,9 @@ The rule evaluator receives the following intent fields as the evaluation contex
 | `action_spec.params.*` | `unknown` | intent.action_spec.params | `{ "resource": "stripe" }` |
 | `budget_limit.amount` | `number` | intent.budget_limit.amount | `200` |
 | `budget_limit.currency` | `string` | intent.budget_limit.currency | `"USD"` |
-| `authorization_details[N].type` | `string` | Always `"brain_action"` | `"brain_action"` |
-| `authorization_details[N].action` | `string` | BrainAction.action | `"pay"` |
-| `authorization_details[N].resource` | `string` | BrainAction.resource | `"stripe"` |
+| `authorization_details[N].type` | `string` | Always `"osabio_action"` | `"osabio_action"` |
+| `authorization_details[N].action` | `string` | OsabioAction.action | `"pay"` |
+| `authorization_details[N].resource` | `string` | OsabioAction.resource | `"stripe"` |
 | `requester_type` | `string` | identity.type | `"agent"` |
 | `requester_role` | `string` | identity.role | `"code_agent"` |
 

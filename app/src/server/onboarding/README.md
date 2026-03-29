@@ -4,7 +4,7 @@ Guided workspace initialization — walks new users through project setup via a 
 
 ## The Problem
 
-A new user creates a workspace and sees an empty graph. They don't know what to tell Brain about their project, what decisions to surface, or how to structure their work. The onboarding flow guides them through a conversational setup that populates the initial graph state — asking the right questions, suggesting entity types, and transitioning to full chat mode when enough context is established.
+A new user creates a workspace and sees an empty graph. They don't know what to tell Osabio about their project, what decisions to surface, or how to structure their work. The onboarding flow guides them through a conversational setup that populates the initial graph state — asking the right questions, suggesting entity types, and transitioning to full chat mode when enough context is established.
 
 ## What It Does
 

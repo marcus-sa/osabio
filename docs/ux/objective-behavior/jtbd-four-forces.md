@@ -39,7 +39,7 @@
 ## Forces Analysis: Organizational Coherence (X-Ray Auditor)
 
 ### Demand-Generating
-- **Push**: Brain graph has 847 nodes. Marcus noticed 12 decisions from January conversations that never became tasks. 3 features marked "in_progress" have no task children. 5 tasks marked "done" have no outcome observation. This was discovered by accident during a graph visualization session -- no systematic detection.
+- **Push**: Osabio graph has 847 nodes. Marcus noticed 12 decisions from January conversations that never became tasks. 3 features marked "in_progress" have no task children. 5 tasks marked "done" have no outcome observation. This was discovered by accident during a graph visualization session -- no systematic detection.
 - **Pull**: Passive Auditor runs hourly graph queries detecting disconnected patterns. Feed cards: "Decision 'Use tRPC for all new APIs' (Jan 15) has no implementing task after 45 days." Objective progress view shows "Q2 Launch: 3 of 7 key results have no supporting intents this month." Coherence score per project: "Project Alpha: 0.92 coherence, Project Beta: 0.61 coherence."
 
 ### Demand-Reducing

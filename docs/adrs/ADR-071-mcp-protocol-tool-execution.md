@@ -5,7 +5,7 @@ Proposed
 
 ## Context
 
-The proxy pipeline classifies LLM tool calls as brain-native, integration, or unknown (ADR-064, tool-router.ts). Brain-native tools execute via graph queries. Integration tools currently use direct HTTP fetch with `endpoint_url` extracted from the tool's input arguments. This was a placeholder implementation.
+The proxy pipeline classifies LLM tool calls as osabio-native, integration, or unknown (ADR-064, tool-router.ts). Osabio-native tools execute via graph queries. Integration tools currently use direct HTTP fetch with `endpoint_url` extracted from the tool's input arguments. This was a placeholder implementation.
 
 MCP tools do not carry endpoint URLs -- they are hosted by MCP servers and executed via the MCP protocol's `tools/call` JSON-RPC method. The `@modelcontextprotocol/sdk` (MIT, ^1.27.1) is already a project dependency (used for the CLI MCP server). Its client module supports SSE and Streamable HTTP transports.
 

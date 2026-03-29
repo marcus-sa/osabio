@@ -41,7 +41,7 @@ End: Satisfied, complete (session persisted, work merged)
 ```
 +-- Step 1: Configure Sandbox Provider ---------------------------------+
 |                                                                        |
-|  Brain Dashboard > Workspace Settings > Agent Execution                |
+|  Osabio Dashboard > Workspace Settings > Agent Execution                |
 |                                                                        |
 |  Sandbox Provider:  [Local (Git Worktree)]  v                         |
 |                     Docker                                             |
@@ -62,7 +62,7 @@ End: Satisfied, complete (session persisted, work merged)
 
 ## Step 2: Spawn Agent Session
 
-**Actor**: Brain Orchestrator (triggered by user request)
+**Actor**: Osabio Orchestrator (triggered by user request)
 
 ```
 +-- Step 2: Spawn Agent Session ----------------------------------------+
@@ -103,7 +103,7 @@ End: Satisfied, complete (session persisted, work merged)
 ```
 +-- Step 3: First Prompt -----------------------------------------------+
 |                                                                        |
-|  Brain Chat > Coding Session                                           |
+|  Osabio Chat > Coding Session                                           |
 |                                                                        |
 |  Rafael: "Implement rate limiting for the /api/chat/messages endpoint. |
 |           Use sliding window, 100 requests per minute per workspace."  |
@@ -125,7 +125,7 @@ End: Satisfied, complete (session persisted, work merged)
 
 ## Step 4: Monitor Agent Activity
 
-**Actor**: Developer (Rafael Torres) + Brain Governance Feed
+**Actor**: Developer (Rafael Torres) + Osabio Governance Feed
 
 ```
 +-- Step 4: Monitor Activity -------------------------------------------+
@@ -185,7 +185,7 @@ End: Satisfied, complete (session persisted, work merged)
 
 ## Step 6: Session Restoration (Error Path)
 
-**Actor**: Brain Orchestrator (automatic)
+**Actor**: Osabio Orchestrator (automatic)
 
 ```
 +-- Step 6: Session Restoration ----------------------------------------+
@@ -212,7 +212,7 @@ End: Satisfied, complete (session persisted, work merged)
 
 ## Step 7: Conclude Session
 
-**Actor**: Developer (Rafael Torres) + Brain Orchestrator
+**Actor**: Developer (Rafael Torres) + Osabio Orchestrator
 
 ```
 +-- Step 7: Conclude Session -------------------------------------------+

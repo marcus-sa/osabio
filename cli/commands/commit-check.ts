@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { requireConfig } from "../config";
-import { BrainHttpClient } from "../http-client";
+import { OsabioHttpClient } from "../http-client";
 
 // ---------------------------------------------------------------------------
 // Ports (injectable for testing)
@@ -49,7 +49,7 @@ function getLatestCommitMessage(): string {
 
 async function createPostCommitCheck(): Promise<PostCommitCheck> {
   const config = await requireConfig();
-  const client = new BrainHttpClient(config);
+  const client = new OsabioHttpClient(config);
   return async (message: string) => {
     await client.postCheckCommit({ commit_message: message });
   };
@@ -60,7 +60,7 @@ async function createPostCommitCheck(): Promise<PostCommitCheck> {
 // ---------------------------------------------------------------------------
 
 /**
- * brain commit-check
+ * osabio commit-check
  * Post-commit hook: reads latest commit message and sends it to the server
  * for task-ref extraction (task:xxx -> mark task as done).
  * Always exits 0 — never blocks git workflow.

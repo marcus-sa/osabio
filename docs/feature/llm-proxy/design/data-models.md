@@ -10,7 +10,7 @@ The existing `agent_session` table gains one field to support proxy session ID r
 
 ```sql
 -- external_session_id: the client's session identifier (replaces opencode_session_id)
--- Claude Code: metadata.user_id ("session_{uuid}"); Brain-managed: X-Brain-Session header value
+-- Claude Code: metadata.user_id ("session_{uuid}"); Osabio-managed: X-Osabio-Session header value
 DEFINE FIELD OVERWRITE external_session_id ON agent_session TYPE option<string>;
 
 -- Index for session ID lookup: find active session by external ID + workspace
@@ -22,7 +22,7 @@ REMOVE FIELD opencode_session_id ON agent_session;
 
 **Design notes**:
 - `external_session_id` replaces `opencode_session_id` as a generalized client session identifier. The rename reflects that the proxy supports any client, not just OpenCode.
-- The proxy only reads this field to link traces to existing sessions. Session creation is handled by the CLI (`brain init` hooks) and orchestrator.
+- The proxy only reads this field to link traces to existing sessions. Session creation is handled by the CLI (`osabio init` hooks) and orchestrator.
 - The composite index on `(external_session_id, workspace)` optimizes the lookup query used by the trace writer.
 
 ---
@@ -33,7 +33,7 @@ The proxy derives a deterministic conversation ID using UUIDv5 from the request 
 
 ### 2.1 Conversation Records Created by Proxy
 
-The proxy computes `UUIDv5(BRAIN_PROXY_NAMESPACE, system_prompt + "\x00" + first_user_message)` to produce a deterministic UUID. This UUID is used directly as the conversation record ID (`conversation:<uuidv5>`). Same conversation content always produces the same ID — no lookup needed.
+The proxy computes `UUIDv5(OSABIO_PROXY_NAMESPACE, system_prompt + "\x00" + first_user_message)` to produce a deterministic UUID. This UUID is used directly as the conversation record ID (`conversation:<uuidv5>`). Same conversation content always produces the same ID — no lookup needed.
 
 Both proxy-created and UI-created conversations use UUIDs, but UUIDv5 (deterministic, namespace-based) will not collide with UUIDv4 (random) used by the web UI.
 
@@ -62,7 +62,7 @@ CREATE conversation:⟨$conv_id⟩ CONTENT {
 ```
 
 **Design notes**:
-- `$conv_id` is `UUIDv5(BRAIN_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` (null byte separator prevents collisions)
+- `$conv_id` is `UUIDv5(OSABIO_PROXY_NAMESPACE, system_content + "\x00" + first_user_content)` (null byte separator prevents collisions)
 - The deterministic ID eliminates the need for a `content_hash` field or lookup query — the ID itself encodes the content identity
 - `CREATE` is idempotent when the record already exists (SurrealDB returns the existing record)
 - The upsert is the ONLY DB write the proxy performs for correlation (besides the trace itself)
@@ -86,8 +86,8 @@ The link enables:
 
 ```json
 {
-  "brain_context_injected": true,
-  "brain_context_decisions": 3,
+  "osabio_context_injected": true,
+  "osabio_context_decisions": 3,
   "conversation": "conversation:a1b2c3..."
 }
 ```
@@ -139,11 +139,11 @@ The existing `trace` table (migration 0023) has FLEXIBLE `input` and `output` fi
 
 ```json
 {
-  "brain_context_injected": true,
-  "brain_context_decisions": 3,
-  "brain_context_learnings": 2,
-  "brain_context_observations": 1,
-  "brain_context_tokens_est": 680
+  "osabio_context_injected": true,
+  "osabio_context_decisions": 3,
+  "osabio_context_learnings": 2,
+  "osabio_context_observations": 1,
+  "osabio_context_tokens_est": 680
 }
 ```
 
@@ -161,7 +161,7 @@ The existing `trace` table (migration 0023) has FLEXIBLE `input` and `output` fi
 ```
 
 These fields enable the Observer to query intelligence pipeline effectiveness:
-- "How often is context injected?" -- `SELECT count() FROM trace WHERE type = 'llm_call' AND input.brain_context_injected = true GROUP ALL`
+- "How often is context injected?" -- `SELECT count() FROM trace WHERE type = 'llm_call' AND input.osabio_context_injected = true GROUP ALL`
 - "What percentage of responses trigger contradiction candidates?" -- `SELECT count() FROM trace WHERE output.contradiction_tier1_candidates > 0 GROUP ALL`
 - "How many missing decisions detected?" -- `SELECT count() FROM trace WHERE output.missing_decision_confirmed > 0 GROUP ALL`
 
@@ -214,12 +214,12 @@ EmbeddingCacheEntry = {
 
 ## 6. Injected System Block Format
 
-The `<brain-context>` block appended to the Anthropic Messages API `system` field:
+The `<osabio-context>` block appended to the Anthropic Messages API `system` field:
 
 ```json
 {
   "type": "text",
-  "text": "<brain-context workspace=\"acme\" project=\"backend-v2\" session=\"abc-123\" injected_at=\"2026-03-15T10:30:00Z\">\n## Active Decisions\n- [d:7f3a] Standardize on tRPC for all internal APIs (confirmed 2026-03-10)\n\n## Constraints\n- [l:4e1f] All new endpoints must include DPoP authentication\n\n## Open Observations\n- [o:2d5a] WARNING: billing API still uses REST, contradicts tRPC decision d:7f3a\n</brain-context>",
+  "text": "<osabio-context workspace=\"acme\" project=\"backend-v2\" session=\"abc-123\" injected_at=\"2026-03-15T10:30:00Z\">\n## Active Decisions\n- [d:7f3a] Standardize on tRPC for all internal APIs (confirmed 2026-03-10)\n\n## Constraints\n- [l:4e1f] All new endpoints must include DPoP authentication\n\n## Open Observations\n- [o:2d5a] WARNING: billing API still uses REST, contradicts tRPC decision d:7f3a\n</osabio-context>",
   "cache_control": { "type": "ephemeral" }
 }
 ```

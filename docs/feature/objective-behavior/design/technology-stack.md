@@ -2,7 +2,7 @@
 
 ## Principle: Reuse Existing Stack
 
-This feature introduces **zero new dependencies**. All technology choices are "use existing" -- the Brain platform already has every required capability.
+This feature introduces **zero new dependencies**. All technology choices are "use existing" -- the Osabio platform already has every required capability.
 
 | Capability | Technology | Status | License |
 |-----------|-----------|--------|---------|

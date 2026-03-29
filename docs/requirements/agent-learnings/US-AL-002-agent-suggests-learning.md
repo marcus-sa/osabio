@@ -90,7 +90,7 @@ Then no new suggestion is created
 And the Observer does not create an observation about the pattern
 
 ### Scenario: Rate limiting prevents suggestion spam
-Given the Observer has already created 5 learning suggestions this week for workspace "Brain Development"
+Given the Observer has already created 5 learning suggestions this week for workspace "Osabio Development"
 And the weekly suggestion limit per agent per workspace is 5
 When the Observer detects another pattern worth suggesting
 Then no new suggestion is created

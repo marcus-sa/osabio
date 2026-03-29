@@ -24,7 +24,7 @@
 - **Validation**: Acceptance tests verify classification for matched, ambiguous, and none cases
 
 ### Context Injection XML Builder
-- **Source of truth**: `proxy/context-injector.ts` (`buildBrainContextXml`, `buildRecentChangesXml`)
+- **Source of truth**: `proxy/context-injector.ts` (`buildOsabioContextXml`, `buildRecentChangesXml`)
 - **Consumers**: Proxy route
 - **Owner**: Proxy module
 - **Integration risk**: LOW -- XML construction is independent of ranking method. `selectWithinBudget` is pure and reusable.

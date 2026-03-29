@@ -53,11 +53,11 @@ afterEach(() => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const BRAIN_AGENT = {
-  id: "agent-brain-1",
+const OSABIO_AGENT = {
+  id: "agent-osabio-1",
   name: "Extraction Agent",
   description: "Extracts entities from conversations",
-  runtime: "brain",
+  runtime: "osabio",
   model: "haiku",
   identity_id: "id-1",
   created_at: "2026-01-15T10:00:00Z",
@@ -89,20 +89,20 @@ const SANDBOX_AGENT = {
 
 describe("AgentsPage", () => {
   it("renders runtime-grouped sections with agent counts", async () => {
-    stubFetchWithAgents([BRAIN_AGENT, EXTERNAL_AGENT, SANDBOX_AGENT]);
+    stubFetchWithAgents([OSABIO_AGENT, EXTERNAL_AGENT, SANDBOX_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Brain Agents \(1\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Osabio Agents \(1\)/)).toBeInTheDocument();
     });
 
     expect(screen.getByText(/External Agents \(1\)/)).toBeInTheDocument();
     expect(screen.getByText(/Sandbox Agents \(1\)/)).toBeInTheDocument();
   });
 
-  it("shows View button for brain agents, not Edit or Delete", async () => {
-    stubFetchWithAgents([BRAIN_AGENT]);
+  it("shows View button for osabio agents, not Edit or Delete", async () => {
+    stubFetchWithAgents([OSABIO_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
@@ -134,16 +134,16 @@ describe("AgentsPage", () => {
     render(<AgentsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Brain Agents \(0\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Osabio Agents \(0\)/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/No brain agents found/)).toBeInTheDocument();
+    expect(screen.getByText(/No osabio agents found/)).toBeInTheDocument();
     expect(screen.getByText(/No external agents yet/)).toBeInTheDocument();
     expect(screen.getByText(/No sandbox agents yet/)).toBeInTheDocument();
   });
 
   it("displays runtime badge on each agent card", async () => {
-    stubFetchWithAgents([BRAIN_AGENT, EXTERNAL_AGENT]);
+    stubFetchWithAgents([OSABIO_AGENT, EXTERNAL_AGENT]);
     const { AgentsPage } = await import("./agents-page");
     render(<AgentsPage />);
 
@@ -151,7 +151,7 @@ describe("AgentsPage", () => {
       expect(screen.getByText("Extraction Agent")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Brain")).toBeInTheDocument();
+    expect(screen.getByText("Osabio")).toBeInTheDocument();
     expect(screen.getByText("External")).toBeInTheDocument();
   });
 });

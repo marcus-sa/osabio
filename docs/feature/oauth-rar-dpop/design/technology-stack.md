@@ -49,7 +49,7 @@ The entire OAuth RAR + DPoP implementation requires **zero new npm dependencies*
 | Access token signing | `jose.SignJWT` with ES256 | Already in jose |
 | JWKS endpoint | `jose.exportJWK` | Already in jose |
 | Nonce cache (replay protection) | Custom time-windowed Map | Simple data structure, no library needed |
-| brain_action type validation | Zod schemas | Already in project dependencies |
+| osabio_action type validation | Zod schemas | Already in project dependencies |
 
 ## Technology Decisions
 
@@ -60,13 +60,13 @@ Several npm packages implement DPoP proof handling (e.g., `dpop`, `oauth4webapi`
 1. `jose` already covers all JWT/JWK operations needed for DPoP
 2. DPoP proof is a JWT with specific claims -- `jose.SignJWT` + `jose.jwtVerify` handle this directly
 3. Adding a DPoP-specific library creates an unnecessary abstraction layer over `jose`
-4. The Brain's DPoP implementation has custom requirements (brain_action integration, intent binding) that generic libraries do not cover
+4. The Osabio's DPoP implementation has custom requirements (osabio_action integration, intent binding) that generic libraries do not cover
 
 ### Why NOT Separate JWKS for Custom AS
 
 The Custom AS needs its own signing key (separate from Better Auth's JWKS). Options:
 
-1. **Separate JWKS endpoint** (`/api/auth/brain/.well-known/jwks`) -- **Selected**. Clean separation. Resource server fetches AS public key via standard JWKS protocol.
+1. **Separate JWKS endpoint** (`/api/auth/osabio/.well-known/jwks`) -- **Selected**. Clean separation. Resource server fetches AS public key via standard JWKS protocol.
 2. **Shared Better Auth JWKS** -- Rejected. Custom AS tokens have different claims and lifetime from Better Auth tokens. Sharing keys conflates trust boundaries.
 3. **Hardcoded public key in resource server** -- Rejected. No key rotation capability. Violates security best practices.
 

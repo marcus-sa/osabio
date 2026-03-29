@@ -2,34 +2,34 @@ import { existsSync, mkdirSync, unlinkSync, writeFileSync, readFileSync } from "
 import { join } from "node:path";
 import { randomBytes, createHash } from "node:crypto";
 import { findGitRoot, saveRepoConfig, saveGlobalConfig, loadGlobalConfig, loadConfig } from "../config";
-import { BrainHttpClient } from "../http-client";
+import { OsabioHttpClient } from "../http-client";
 import { generateDPoPKeyMaterial } from "../dpop";
 import { mergeProxyEnvSettings, checkSettingsGitignored } from "../proxy-settings";
 import {
-  BRAIN_HOOKS,
-  BRAIN_CLAUDE_MD,
-  BRAIN_COMMANDS,
+  OSABIO_HOOKS,
+  OSABIO_CLAUDE_MD,
+  OSABIO_COMMANDS,
 } from "./init-content";
 
 const DEFAULT_SERVER_URL = "http://localhost:3000";
 
 export async function runInit(): Promise<void> {
-  const serverUrl = process.env.BRAIN_SERVER_URL ?? DEFAULT_SERVER_URL;
-  const workspaceId = process.env.BRAIN_WORKSPACE_ID;
+  const serverUrl = process.env.OSABIO_SERVER_URL ?? DEFAULT_SERVER_URL;
+  const workspaceId = process.env.OSABIO_WORKSPACE_ID;
 
   const gitRoot = findGitRoot(process.cwd());
   if (!gitRoot) {
-    console.error("Not inside a git repository. Run brain init from a project directory.");
+    console.error("Not inside a git repository. Run osabio init from a project directory.");
     process.exit(1);
   }
 
   if (!workspaceId) {
-    console.error("Set BRAIN_WORKSPACE_ID env var to your workspace ID.");
-    console.error("Find it in the Brain web UI or the database.");
+    console.error("Set OSABIO_WORKSPACE_ID env var to your workspace ID.");
+    console.error("Find it in the Osabio web UI or the database.");
     process.exit(1);
   }
 
-  console.log("Brain Init\n──────────\n");
+  console.log("Osabio Init\n───────────\n");
 
   // Step 1: Auth
   await setupAuth(serverUrl, workspaceId, gitRoot);
@@ -93,7 +93,7 @@ export async function setupAuth(
 
   // 1. Verify workspace exists
   try {
-    await BrainHttpClient.listProjects(serverUrl, workspaceId);
+    await OsabioHttpClient.listProjects(serverUrl, workspaceId);
   } catch {
     console.error(`Workspace ${workspaceId} not found on ${serverUrl}`);
     process.exit(1);
@@ -150,7 +150,7 @@ export async function setupAuth(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_name: `brain-cli-${workspaceId.slice(0, 8)}`,
+      client_name: `osabio-cli-${workspaceId.slice(0, 8)}`,
       redirect_uris: [redirectUri],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
@@ -193,7 +193,7 @@ export async function setupAuth(
     callbackTimeoutHandle = setTimeout(() => {
       reject(
         new Error(
-          `Timed out waiting for OAuth callback on ${redirectUri}. Complete browser auth, then retry brain init.`,
+          `Timed out waiting for OAuth callback on ${redirectUri}. Complete browser auth, then retry osabio init.`,
         ),
       );
     }, callbackTimeoutMs);
@@ -289,7 +289,7 @@ export async function setupMcpJson(gitRoot: string): Promise<void> {
     }
   }
 
-  mcp.mcpServers.brain = { command: "brain", args: ["mcp"] };
+  mcp.mcpServers.osabio = { command: "osabio", args: ["mcp"] };
   await Bun.write(mcpPath, JSON.stringify(mcp, null, 2) + "\n");
   console.log("✓ MCP: .mcp.json updated");
 }
@@ -320,16 +320,16 @@ export async function setupClaudeHooks(gitRoot: string): Promise<void> {
   const hooks = (settings.hooks ?? {}) as Record<string, SettingsHookGroup[]>;
   let added = 0;
 
-  for (const [event, hookDefs] of Object.entries(BRAIN_HOOKS)) {
+  for (const [event, hookDefs] of Object.entries(OSABIO_HOOKS)) {
     hooks[event] ??= [];
 
-    const hasBrain = hooks[event].some((group) =>
+    const hasOsabio = hooks[event].some((group) =>
       group.hooks?.some(
-        (h) => h.command?.startsWith("brain ") || h.prompt?.includes("Brain MCP"),
+        (h) => h.command?.startsWith("osabio ") || h.prompt?.includes("Osabio MCP"),
       ),
     );
 
-    if (!hasBrain) {
+    if (!hasOsabio) {
       hooks[event].push({ hooks: hookDefs as HookEntry[] });
       added++;
     }
@@ -344,8 +344,8 @@ export async function setupClaudeHooks(gitRoot: string): Promise<void> {
 // Step 4: CLAUDE.md
 // ---------------------------------------------------------------------------
 
-export const MARKER_START = "<!-- brain-plugin-start -->";
-export const MARKER_END = "<!-- brain-plugin-end -->";
+export const MARKER_START = "<!-- osabio-plugin-start -->";
+export const MARKER_END = "<!-- osabio-plugin-end -->";
 
 export async function setupClaudeMd(gitRoot: string): Promise<void> {
   const claudeMdPath = join(gitRoot, "CLAUDE.md");
@@ -356,20 +356,20 @@ export async function setupClaudeMd(gitRoot: string): Promise<void> {
     content = await file.text();
   }
 
-  const brainBlock = `${MARKER_START}\n${BRAIN_CLAUDE_MD}\n${MARKER_END}`;
+  const osabioBlock = `${MARKER_START}\n${OSABIO_CLAUDE_MD}\n${MARKER_END}`;
 
   const startIdx = content.indexOf(MARKER_START);
   const endIdx = content.indexOf(MARKER_END);
 
   if (startIdx !== -1 && endIdx !== -1) {
-    content = content.slice(0, startIdx) + brainBlock + content.slice(endIdx + MARKER_END.length);
+    content = content.slice(0, startIdx) + osabioBlock + content.slice(endIdx + MARKER_END.length);
   } else {
     const separator = content.length > 0 && !content.endsWith("\n\n") ? "\n\n" : "";
-    content = content + separator + brainBlock + "\n";
+    content = content + separator + osabioBlock + "\n";
   }
 
   await Bun.write(claudeMdPath, content);
-  console.log("✓ CLAUDE.md: Brain plugin instructions added");
+  console.log("✓ CLAUDE.md: Osabio plugin instructions added");
 }
 
 // ---------------------------------------------------------------------------
@@ -389,12 +389,12 @@ export function installGitHooks(gitRoot?: string): void {
   const preCommitPath = join(hooksDir, "pre-commit");
   const postCommitPath = join(hooksDir, "post-commit");
   const preCommitScript = `#!/bin/sh
-# Brain pre-commit hook: check for task completion and unlogged decisions
-brain check-commit
+# Osabio pre-commit hook: check for task completion and unlogged decisions
+osabio check-commit
 `;
   const postCommitScript = `#!/bin/sh
-# Brain post-commit hook: fire-and-forget commit-check
-brain commit-check &
+# Osabio post-commit hook: fire-and-forget commit-check
+osabio commit-check &
 exit 0
 `;
 
@@ -405,24 +405,24 @@ exit 0
     console.log("✓ Git: pre-commit hook already exists");
   }
 
-  // Remove legacy Brain post-commit hook, then install new one
+  // Remove legacy Osabio post-commit hook, then install new one
   if (existsSync(postCommitPath)) {
     const postCommitContent = readFileSync(postCommitPath, "utf-8");
-    const isLegacyBrain =
-      postCommitContent.includes("Brain post-commit hook") &&
-      postCommitContent.includes("brain log-commit");
-    const isCurrentBrain =
-      postCommitContent.includes("Brain post-commit hook") &&
-      postCommitContent.includes("brain commit-check");
-    if (isLegacyBrain) {
+    const isLegacyOsabio =
+      postCommitContent.includes("Osabio post-commit hook") &&
+      postCommitContent.includes("osabio log-commit");
+    const isCurrentOsabio =
+      postCommitContent.includes("Osabio post-commit hook") &&
+      postCommitContent.includes("osabio commit-check");
+    if (isLegacyOsabio) {
       unlinkSync(postCommitPath);
-      console.log("  Removed legacy Brain post-commit hook");
-    } else if (isCurrentBrain) {
+      console.log("  Removed legacy Osabio post-commit hook");
+    } else if (isCurrentOsabio) {
       console.log("✓ Git: post-commit hook already exists");
       return;
     } else {
-      // Non-brain hook — leave it alone
-      console.log("✓ Git: post-commit hook already exists (non-brain)");
+      // Non-osabio hook — leave it alone
+      console.log("✓ Git: post-commit hook already exists (non-osabio)");
       return;
     }
   }
@@ -432,7 +432,7 @@ exit 0
 }
 
 // ---------------------------------------------------------------------------
-// Step 7: Proxy config (.claude/settings.local.json + ~/.brain/config.json)
+// Step 7: Proxy config (.claude/settings.local.json + ~/.osabio/config.json)
 // ---------------------------------------------------------------------------
 
 export async function setupProxyConfig(
@@ -475,14 +475,14 @@ export async function setupProxyConfig(
     return;
   }
 
-  // 3. Store proxy token expiry in ~/.brain/config.json (raw token stays only in settings.local.json)
+  // 3. Store proxy token expiry in ~/.osabio/config.json (raw token stays only in settings.local.json)
   const global = await loadGlobalConfig();
   if (global?.repos[gitRoot]) {
     delete global.repos[gitRoot].proxy_token;
     global.repos[gitRoot].proxy_token_expires_at = proxyTokenExpiresAt;
     await saveGlobalConfig(global);
   } else {
-    console.warn(`  Warning: repo entry for ${gitRoot} not found in ~/.brain/config.json — proxy token expiry tracking will not work.`);
+    console.warn(`  Warning: repo entry for ${gitRoot} not found in ~/.osabio/config.json — proxy token expiry tracking will not work.`);
   }
 
   // 4. Read or create .claude/settings.local.json
@@ -536,7 +536,7 @@ export async function setupCommands(gitRoot: string): Promise<void> {
   if (!existsSync(commandsDir)) mkdirSync(commandsDir, { recursive: true });
 
   let count = 0;
-  for (const [filename, content] of Object.entries(BRAIN_COMMANDS)) {
+  for (const [filename, content] of Object.entries(OSABIO_COMMANDS)) {
     await Bun.write(join(commandsDir, filename), content + "\n");
     count++;
   }

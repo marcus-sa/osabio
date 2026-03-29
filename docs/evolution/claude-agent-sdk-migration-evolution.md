@@ -61,7 +61,7 @@ Replaced `@opencode-ai/sdk` with `@anthropic-ai/claude-agent-sdk` for coding age
 ## Key Technical Notes
 
 - The SDK's `query()` function encapsulates the entire agent loop: tool call parsing, MCP server lifecycle, context window management, compaction triggers, multi-turn conversation state, and abort propagation.
-- Brain MCP server configured as stdio transport in SDK options, eliminating the HTTP relay hop that OpenCode required.
+- Osabio MCP server configured as stdio transport in SDK options, eliminating the HTTP relay hop that OpenCode required.
 - All 6 lifecycle hooks now available as typed TypeScript callbacks (up from 3/6 with OpenCode plugin + 4/6 with Claude Code hooks workaround).
 - `AbortController.abort()` replaces `client.session.abort()` + `proc.kill()`, eliminating process orphaning risk.
 - No port allocation, stdout parsing, or process management code remains.

@@ -57,7 +57,7 @@
 | 50 | M8-Context Injection | Context injection disabled — forwarded without modification | edge | |
 | 51 | M8-Context Injection | Context injection failure — forwarded without modification (fail-open) | error | |
 | 52 | M8-Context Injection | Session cache hit — no DB query on repeated request | edge | |
-| 53 | M8-Context Injection | Array-form system prompt preserved with brain-context appended | edge | |
+| 53 | M8-Context Injection | Array-form system prompt preserved with osabio-context appended | edge | |
 | 54 | M8-Context Injection | Empty workspace — no context block appended | edge | |
 | 55 | M9-Conversation Hash | Identical requests grouped into same conversation | walking_skeleton | |
 | 56 | M9-Conversation Hash | Different content produces different conversation | happy | |
@@ -65,7 +65,7 @@
 | 58 | M9-Conversation Hash | Missing system prompt — trace without conversation link | error | |
 | 59 | M9-Conversation Hash | Missing first user message — trace without conversation link | error | |
 | 60 | M9-Conversation Hash | Multiple turns preserve same conversation identity | happy | |
-| 61 | M10-Session Resolution | Trace linked to agent session via X-Brain-Session header | walking_skeleton | |
+| 61 | M10-Session Resolution | Trace linked to agent session via X-Osabio-Session header | walking_skeleton | |
 | 62 | M10-Session Resolution | Claude Code metadata.user_id session extraction | happy | |
 | 63 | M10-Session Resolution | Unknown client — trace linked to workspace only | edge | |
 | 64 | M10-Session Resolution | Nonexistent session ID — trace linked to workspace only | error | |

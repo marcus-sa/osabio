@@ -2,7 +2,7 @@
 
 ## 1. System Context
 
-Brain is a knowledge graph operating system for autonomous organizations. The sandbox agent integration adds SandboxAgent SDK as the execution layer for coding agents running in isolated sandboxes, while Brain retains full governance control through its proxy and dynamic MCP endpoints.
+Osabio is a knowledge graph operating system for autonomous organizations. The sandbox agent integration adds SandboxAgent SDK as the execution layer for coding agents running in isolated sandboxes, while Osabio retains full governance control through its proxy and dynamic MCP endpoints.
 
 ### Quality Attribute Priorities (from DISCUSS wave)
 
@@ -22,29 +22,29 @@ Brain is a knowledge graph operating system for autonomous organizations. The sa
 | SurrealDB SCHEMAFULL | Every field must be declared; no schemaless shortcuts |
 | No module-level mutable singletons | Session registry must be injected, not global |
 | SandboxAgent SDK 0.x stability | Adapter interface mandatory for isolation |
-| Brain-native agents unchanged | Chat, PM, observer, analytics stay in-process with AI SDK |
+| Osabio-native agents unchanged | Chat, PM, observer, analytics stay in-process with AI SDK |
 
 ## 2. C4 System Context Diagram (L1)
 
 ```mermaid
 C4Context
-  title System Context -- Brain with SandboxAgent Integration
+  title System Context -- Osabio with SandboxAgent Integration
 
   Person(developer, "Developer (Rafael)", "Uses coding agents for implementation tasks")
   Person(admin, "Workspace Admin (Carla)", "Configures workspace sandbox settings")
 
-  System(brain, "Brain", "Knowledge graph OS for autonomous organizations")
+  System(osabio, "Osabio", "Knowledge graph OS for autonomous organizations")
 
   System_Ext(sandbox_agent, "SandboxAgent Server", "Rust binary managing agent processes in sandboxes")
   System_Ext(llm_provider, "LLM Provider", "Anthropic / OpenAI / OpenRouter")
   System_Ext(upstream_mcp, "Upstream MCP Servers", "GitHub, Slack, Jira integrations")
   System_Ext(surrealdb, "SurrealDB", "Knowledge graph storage")
 
-  Rel(developer, brain, "Spawns sessions, sends prompts, reviews work via")
-  Rel(admin, brain, "Configures sandbox provider via")
+  Rel(developer, osabio, "Spawns sessions, sends prompts, reviews work via")
+  Rel(admin, osabio, "Configures sandbox provider via")
   Rel(brain, sandbox_agent, "Creates sessions, sends prompts to")
-  Rel(sandbox_agent, llm_provider, "Routes LLM requests through Brain proxy to")
-  Rel(sandbox_agent, brain, "Routes MCP tool calls to dynamic endpoint on")
+  Rel(sandbox_agent, llm_provider, "Routes LLM requests through Osabio proxy to")
+  Rel(sandbox_agent, osabio, "Routes MCP tool calls to dynamic endpoint on")
   Rel(brain, upstream_mcp, "Forwards governed tool calls to")
   Rel(brain, surrealdb, "Persists sessions, events, traces in")
 ```
@@ -53,17 +53,17 @@ C4Context
 
 ```mermaid
 C4Container
-  title Container Diagram -- Brain Orchestrator with SandboxAgent
+  title Container Diagram -- Osabio Orchestrator with SandboxAgent
 
   Person(developer, "Developer")
 
   Container(web_ui, "Brain Web UI", "React", "Coding session UI with prompt, review, permission controls")
-  Container(brain_server, "Brain Server", "Bun + TypeScript", "HTTP server hosting all routes and agents")
+  Container(brain_server, "Osabio Server", "Bun + TypeScript", "HTTP server hosting all routes and agents")
 
   Container_Boundary(orchestrator_boundary, "Orchestrator Domain") {
     Container(orchestrator, "Orchestrator Module", "TypeScript", "Session lifecycle, event bridge, prompt routing")
-    Container(sandbox_adapter, "SandboxAgent Adapter", "TypeScript", "Narrow interface wrapping SDK methods Brain calls")
-    Container(event_bridge, "Event Bridge", "TypeScript", "Translates SandboxAgent events to Brain StreamEvent + trace records")
+    Container(sandbox_adapter, "SandboxAgent Adapter", "TypeScript", "Narrow interface wrapping SDK methods Osabio calls")
+    Container(event_bridge, "Event Bridge", "TypeScript", "Translates SandboxAgent events to Osabio StreamEvent + trace records")
   }
 
   Container(proxy, "LLM Proxy", "TypeScript", "Spend tracking, credential forwarding, trace recording")
@@ -105,7 +105,7 @@ C4Component
     Component(routes, "Route Handlers", "TypeScript", "HTTP request/response mapping, workspace access guard")
     Component(session_lifecycle, "Session Lifecycle", "TypeScript", "Create, prompt, resume, abort, accept, reject, review flows")
     Component(sandbox_adapter, "SandboxAgent Adapter", "TypeScript", "Narrow port wrapping createSession, prompt, resumeSession, destroySession, onEvent, respondPermission")
-    Component(event_bridge, "Event Bridge (v2)", "TypeScript", "Translates SandboxAgent universal events to Brain StreamEvent variants")
+    Component(event_bridge, "Event Bridge (v2)", "TypeScript", "Translates SandboxAgent universal events to Osabio StreamEvent variants")
     Component(permission_handler, "Permission Handler", "TypeScript", "Maps onPermissionRequest to intent authorization or user prompt")
     Component(worktree_mgr, "Worktree Manager", "TypeScript", "Git worktree create/remove for local provider only")
     Component(assignment_guard, "Assignment Guard", "TypeScript", "Task eligibility validation (unchanged)")
@@ -150,7 +150,7 @@ Developer -> POST /api/orchestrator/:ws/sessions/assign { taskId }
        4. Configure MCP: sandbox_adapter.setMcpConfig("brain", {
             type: "remote",
             url: "/mcp/agent/<session-name>",
-            headers: { "X-Brain-Auth": agentToken }
+            headers: { "X-Osabio-Auth": agentToken }
           })
        5. Register persistence driver on SDK instance
        6. Connect event stream -> event bridge -> SSE registry
@@ -179,7 +179,7 @@ Developer -> POST /api/orchestrator/:ws/sessions/:id/prompt { text }
   -> SDK replays recent events from in-memory driver (max 50 events / 12,000 chars) as context
   -> SDK calls createSession() with fresh sandbox process
   -> SDK rebinds session ID to new runtime ID
-  -> Brain updates agent_session.external_session_id to new runtime ID
+  -> Osabio updates agent_session.external_session_id to new runtime ID
   -> Event bridge reconnects to new event stream
   -> SSE registry notifies client: "Session restored automatically"
   Note: R1 uses SDK's InMemorySessionPersistDriver. SurrealDB persistence driver deferred to cloud providers (#187).
@@ -190,16 +190,16 @@ Developer -> POST /api/orchestrator/:ws/sessions/:id/prompt { text }
 ```
 Coding Agent in Sandbox:
   |
-  |-- LLM API request --> Brain Proxy (/proxy/llm/anthropic)
-  |     -> X-Brain-Auth header for spend tracking
+  |-- LLM API request --> Osabio Proxy (/proxy/llm/anthropic)
+  |     -> X-Osabio-Auth header for spend tracking
   |     -> Forward to LLM provider with credentials
   |     -> Record trace
   |
-  |-- MCP tools/list --> Brain Dynamic MCP Endpoint (/mcp/agent/<name>)
+  |-- MCP tools/list --> Osabio Dynamic MCP Endpoint (/mcp/agent/<name>)
   |     -> Resolve effective toolset (can_use UNION possesses->skill_requires)
   |     -> Return filtered tool list
   |
-  |-- MCP tools/call --> Brain Dynamic MCP Endpoint (/mcp/agent/<name>)
+  |-- MCP tools/call --> Osabio Dynamic MCP Endpoint (/mcp/agent/<name>)
   |     -> Evaluate policy graph
   |     -> Inject OAuth credentials from credential broker
   |     -> Forward to upstream MCP server
@@ -215,7 +215,7 @@ Coding Agent in Sandbox:
 
 ### 6.1 SandboxAgent SDK Integration (HTTP/SSE)
 
-Brain communicates with SandboxAgent Server via HTTP API (REST + SSE). The SDK client library wraps these calls. Brain wraps the SDK behind an adapter interface (see component-boundaries.md).
+Osabio communicates with SandboxAgent Server via HTTP API (REST + SSE). The SDK client library wraps these calls. Osabio wraps the SDK behind an adapter interface (see component-boundaries.md).
 
 - **Protocol**: HTTP/SSE (not WebSocket)
 - **Authentication**: Session-scoped tokens
@@ -224,19 +224,19 @@ Brain communicates with SandboxAgent Server via HTTP API (REST + SSE). The SDK c
 
 ### 6.2 Dynamic MCP Endpoint (MCP Protocol over HTTP)
 
-The coding agent inside the sandbox connects to Brain's `/mcp/agent/<name>` endpoint as a remote MCP server. This uses the standard MCP protocol (SSE transport) that Claude Code and other agents natively speak.
+The coding agent inside the sandbox connects to Osabio's `/mcp/agent/<name>` endpoint as a remote MCP server. This uses the standard MCP protocol (SSE transport) that Claude Code and other agents natively speak.
 
 - **Protocol**: MCP over SSE transport
-- **Authentication**: `X-Brain-Auth` header with per-session agent token
+- **Authentication**: `X-Osabio-Auth` header with per-session agent token
 - **Tool filtering**: `tools/list` returns only the agent's effective toolset
 - **Policy enforcement**: `tools/call` evaluates policy graph before forwarding
 - **Credential injection**: OAuth tokens injected by credential broker per tool call
 
 ### 6.3 Session Persistence
 
-**R1 (local provider):** Session lifecycle state (`agent_session` table) is persisted in SurrealDB. Event persistence for SDK replay uses the built-in `InMemorySessionPersistDriver` — sufficient because Brain and agent processes share the same host lifecycle.
+**R1 (local provider):** Session lifecycle state (`agent_session` table) is persisted in SurrealDB. Event persistence for SDK replay uses the built-in `InMemorySessionPersistDriver` — sufficient because Osabio and agent processes share the same host lifecycle.
 
-**Deferred (cloud providers):** A custom SurrealDB `SessionPersistDriver` with `sandbox_event` table and 100ms write buffering (ADR-077) is needed when sandboxes outlive Brain restarts. Tracked in [#187](https://github.com/marcus-sa/brain/issues/187).
+**Deferred (cloud providers):** A custom SurrealDB `SessionPersistDriver` with `sandbox_event` table and 100ms write buffering (ADR-077) is needed when sandboxes outlive Osabio restarts. Tracked in [#187](https://github.com/marcus-sa/osabio/issues/187).
 
 ## 7. External Integrations
 
@@ -260,8 +260,8 @@ The coding agent inside the sandbox connects to Brain's `/mcp/agent/<name>` endp
 ### For Platform Architect (DEVOPS wave)
 
 - **Development paradigm**: Functional (types-first, composition pipelines, pure core / effect shell)
-- **SandboxAgent Server deployment**: Rust binary must be available alongside Brain server. Local dev: direct binary. Production: containerized (Docker image from Rivet, or custom build).
-- **Port requirements**: SandboxAgent Server listens on port 4100 (configurable). Brain must reach it at `http://localhost:4100` (local) or via Docker network.
+- **SandboxAgent Server deployment**: Rust binary must be available alongside Osabio server. Local dev: direct binary. Production: containerized (Docker image from Rivet, or custom build).
+- **Port requirements**: SandboxAgent Server listens on port 4100 (configurable). Osabio must reach it at `http://localhost:4100` (local) or via Docker network.
 
 **External Integrations Requiring Contract Tests:**
 - SandboxAgent Server (HTTP/SSE API): session lifecycle, event streaming, permission handling. Recommended: consumer-driven contracts via Pact-JS in CI acceptance stage to detect breaking changes in 0.x releases before production.

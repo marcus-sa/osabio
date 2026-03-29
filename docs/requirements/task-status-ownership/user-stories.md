@@ -18,10 +18,10 @@
 **Traces to**: Job 1 (Accurate Task Progress), Job 2 (Reliable Task Tracking)
 **Size**: S
 
-## US-3: Add brain commit-check CLI command
+## US-3: Add osabio commit-check CLI command
 
 **As** a solo developer committing code locally,
-**I want** a `brain commit-check` command that parses task refs from commit messages and sets tasks to done,
+**I want** a `osabio commit-check` command that parses task refs from commit messages and sets tasks to done,
 **So that** task status updates automatically when I commit without needing a remote push.
 
 **Traces to**: Job 1 (Accurate Task Progress)
@@ -29,8 +29,8 @@
 
 ## US-4: Wire commit-check as post-commit hook
 
-**As** a developer using Brain-managed repositories,
-**I want** `brain commit-check` to run automatically as a git post-commit hook,
+**As** a developer using Osabio-managed repositories,
+**I want** `osabio commit-check` to run automatically as a git post-commit hook,
 **So that** I don't have to remember to run it manually after every commit.
 
 **Traces to**: Job 1 (Accurate Task Progress)

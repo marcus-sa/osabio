@@ -2,18 +2,18 @@
  * Proxy Auth Middleware — Resolve Brain auth tokens to workspace + identity
  *
  * Pipeline:
- *   1. Extract X-Brain-Auth header value
+ *   1. Extract X-Osabio-Auth header value
  *   2. SHA-256 hash the raw token
  *   3. Check in-memory TTL cache for cached resolution
  *   4. If cache miss, query proxy_token table for valid (non-expired, non-revoked) record
  *   5. Cache the resolution result
  *   6. Return { workspaceId, identityId } or undefined (pass-through)
  *
- * Driving port: extractBrainAuthToken, resolveProxyAuth
+ * Driving port: extractOsabioAuthToken, resolveProxyAuth
  * Driven port: LookupProxyToken (function signature — SurrealDB adapter)
  *
  * Design:
- *   - Pure core functions (extractBrainAuthToken, resolveProxyAuth logic)
+ *   - Pure core functions (extractOsabioAuthToken, resolveProxyAuth logic)
  *   - Cache injected as dependency (no module-level singletons)
  *   - LookupProxyToken is a function signature (port), not a concrete DB call
  */
@@ -61,10 +61,10 @@ export type TokenCache = Map<string, TokenCacheEntry>;
  * Extract the Brain auth token from request headers.
  * Returns undefined if the header is missing or empty (pass-through to existing auth).
  */
-export function extractBrainAuthToken(
+export function extractOsabioAuthToken(
   headers: Headers,
 ): string | undefined {
-  const value = headers.get("X-Brain-Auth");
+  const value = headers.get("X-Osabio-Auth");
   if (!value || value.trim().length === 0) return undefined;
   return value.trim();
 }
@@ -127,7 +127,7 @@ export type ResolveProxyAuthOptions = {
  *
  * Returns:
  *   - ProxyAuthResult on success (valid, non-expired, non-revoked token)
- *   - undefined when no X-Brain-Auth header is present (pass-through)
+ *   - undefined when no X-Osabio-Auth header is present (pass-through)
  *   - Throws with descriptive message for invalid/expired/revoked tokens
  *
  * @param headers - Request headers
@@ -141,7 +141,7 @@ export async function resolveProxyAuth(
   cache: TokenCache,
   options?: ResolveProxyAuthOptions,
 ): Promise<ProxyAuthResult | undefined> {
-  const rawToken = extractBrainAuthToken(headers);
+  const rawToken = extractOsabioAuthToken(headers);
   if (!rawToken) return undefined;
 
   const tokenHash = hashProxyToken(rawToken);

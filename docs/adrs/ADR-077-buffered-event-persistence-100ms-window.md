@@ -2,7 +2,7 @@
 
 ## Status
 
-Deferred — not needed until cloud provider support (E2B, Docker). For local provider, the SDK's built-in `InMemorySessionPersistDriver` is sufficient since Brain and agent processes share the same host lifecycle. Tracked in [#187](https://github.com/marcus-sa/brain/issues/187).
+Deferred — not needed until cloud provider support (E2B, Docker). For local provider, the SDK's built-in `InMemorySessionPersistDriver` is sufficient since Osabio and agent processes share the same host lifecycle. Tracked in [#187](https://github.com/marcus-sa/osabio/issues/187).
 
 ## Context
 
@@ -37,7 +37,7 @@ Same buffering approach but with a 1-second flush interval.
 Write events to a local file before batching to SurrealDB.
 
 - **Pro**: Zero event loss even on process crash
-- **Con**: Adds filesystem dependency. Doesn't work in cloud sandboxes where Brain process is separate from agent. Over-engineering for the problem scale.
+- **Con**: Adds filesystem dependency. Doesn't work in cloud sandboxes where Osabio process is separate from agent. Over-engineering for the problem scale.
 - **Rejected**: The 100ms window limits exposure to ~5 events at risk. Session restoration works with partial event history. WAL complexity not justified.
 
 ## Consequences

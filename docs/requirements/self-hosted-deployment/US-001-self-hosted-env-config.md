@@ -1,10 +1,10 @@
 # US-001: Self-Hosted Environment Configuration
 
 ## Problem
-Marcus is a platform operator deploying Brain for his 5-person team on an internal server. He finds it impossible to automate deployment because Brain requires manual browser-based signup after every fresh install, which breaks his Docker Compose workflow and forces him to SSH into the server to complete setup.
+Marcus is a platform operator deploying Osabio for his 5-person team on an internal server. He finds it impossible to automate deployment because Osabio requires manual browser-based signup after every fresh install, which breaks his Docker Compose workflow and forces him to SSH into the server to complete setup.
 
 ## Who
-- Platform operator | Deploying Brain via Docker Compose or CI pipeline | Wants zero-touch automated deployment
+- Platform operator | Deploying Osabio via Docker Compose or CI pipeline | Wants zero-touch automated deployment
 
 ## Solution
 Add `SELF_HOSTED`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `WORKTREE_MANAGER_ENABLED` environment variables to the server configuration. Parse them in `config.ts` with validation. When `SELF_HOSTED=true`, require `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
@@ -16,13 +16,13 @@ Add `SELF_HOSTED`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `WORKTREE_MANAGER_ENABLE
 ## Domain Examples
 
 ### 1: Standard self-hosted deploy (Happy Path)
-Marcus sets `SELF_HOSTED=true`, `ADMIN_EMAIL=marcus@nwave.io`, `ADMIN_PASSWORD=correct-horse-battery-staple` in his `.env` file alongside existing Brain config. The server starts and parses all new env vars without error. `config.selfHosted` is `true`, `config.worktreeManagerEnabled` is `false` (default).
+Marcus sets `SELF_HOSTED=true`, `ADMIN_EMAIL=marcus@nwave.io`, `ADMIN_PASSWORD=correct-horse-battery-staple` in his `.env` file alongside existing Osabio config. The server starts and parses all new env vars without error. `config.selfHosted` is `true`, `config.worktreeManagerEnabled` is `false` (default).
 
 ### 2: Self-hosted without credentials (Validation Error)
 Lena sets `SELF_HOSTED=true` but forgets to set `ADMIN_EMAIL`. When the server (or migration) starts, it throws: "ADMIN_EMAIL is required when SELF_HOSTED=true". She adds the missing variable and re-runs successfully.
 
 ### 3: Non-self-hosted mode (Default Behavior)
-Carlos runs Brain in cloud-hosted mode. He does not set `SELF_HOSTED` at all. The config parses with `selfHosted: false` and `worktreeManagerEnabled: false`. Registration remains open. No admin seeding occurs during migration.
+Carlos runs Osabio in cloud-hosted mode. He does not set `SELF_HOSTED` at all. The config parses with `selfHosted: false` and `worktreeManagerEnabled: false`. Registration remains open. No admin seeding occurs during migration.
 
 ## UAT Scenarios (BDD)
 

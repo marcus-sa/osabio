@@ -19,7 +19,7 @@ import {
 describe("validateBridgeExchangeRequest", () => {
   const validInput = {
     authorization_details: [
-      { type: "brain_action", action: "read", resource: "workspace" },
+      { type: "osabio_action", action: "read", resource: "workspace" },
     ],
   };
 
@@ -28,7 +28,7 @@ describe("validateBridgeExchangeRequest", () => {
     expect(result.valid).toBe(true);
     if (result.valid) {
       expect(result.data.authorizationDetails).toHaveLength(1);
-      expect(result.data.authorizationDetails[0].type).toBe("brain_action");
+      expect(result.data.authorizationDetails[0].type).toBe("osabio_action");
       expect(result.data.authorizationDetails[0].action).toBe("read");
       expect(result.data.authorizationDetails[0].resource).toBe("workspace");
     }
@@ -54,7 +54,7 @@ describe("validateBridgeExchangeRequest", () => {
     expect(result.valid).toBe(false);
   });
 
-  it("rejects authorization_details entry without type brain_action", () => {
+  it("rejects authorization_details entry without type osabio_action", () => {
     const result = validateBridgeExchangeRequest({
       authorization_details: [
         { type: "other", action: "read", resource: "workspace" },
@@ -62,14 +62,14 @@ describe("validateBridgeExchangeRequest", () => {
     });
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.error).toContain("brain_action");
+      expect(result.error).toContain("osabio_action");
     }
   });
 
   it("rejects authorization_details entry without action", () => {
     const result = validateBridgeExchangeRequest({
       authorization_details: [
-        { type: "brain_action", resource: "workspace" },
+        { type: "osabio_action", resource: "workspace" },
       ],
     });
     expect(result.valid).toBe(false);
@@ -78,7 +78,7 @@ describe("validateBridgeExchangeRequest", () => {
   it("rejects authorization_details entry without resource", () => {
     const result = validateBridgeExchangeRequest({
       authorization_details: [
-        { type: "brain_action", action: "read" },
+        { type: "osabio_action", action: "read" },
       ],
     });
     expect(result.valid).toBe(false);

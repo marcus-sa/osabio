@@ -10,7 +10,7 @@
  * - JWK thumbprint matched against cnf.jkt
  * - Nonce cache rejects reused jti
  * - Clock skew tolerance (60s past, 5s future)
- * - Type must be "brain_action"
+ * - Type must be "osabio_action"
  * - Action and resource matched exactly
  * - Constraint bounds enforced
  * - Specific error codes returned
@@ -38,7 +38,7 @@ import {
   createMalformedProof,
 } from "./oauth-test-kit";
 
-const getRuntime = setupOAuthSuite("oauth_m3_brain_verification");
+const getRuntime = setupOAuthSuite("oauth_m3_osabio_verification");
 
 // =============================================================================
 // US-005: DPoP Proof Verification at Brain Resource Server
@@ -112,12 +112,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "valid-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting the token with a fresh DPoP proof
@@ -140,12 +140,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "method-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting a proof signed for GET but the request is POST
@@ -173,12 +173,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "uri-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting a proof signed for a different endpoint
@@ -210,12 +210,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "diff-key-agent");
     const keyPairA = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPairA.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPairA.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPairA, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPairA, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting the token with a proof signed by key pair B (stolen token)
@@ -240,12 +240,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "replay-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When the agent creates a proof and uses it for two requests
@@ -288,12 +288,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "clock-past-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting a proof with iat 120 seconds in the past
@@ -327,12 +327,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "clock-future-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting a proof with iat 30 seconds in the future
@@ -366,12 +366,12 @@ describe("DPoP proof validation at Brain boundary", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "no-jwk-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When presenting a proof without the JWK in the header
@@ -411,12 +411,12 @@ describe("Brain verifies operation scope against token authorization", () => {
     const workspace = await createTestWorkspace(baseUrl, user);
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "scope-ok-agent");
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const intentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, keyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, keyPair.thumbprint,
     );
-    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [brainAction]);
+    const tokenResponse = await requestAccessToken(baseUrl, intentId, keyPair, [osabioAction]);
     const { access_token } = (await tokenResponse.json()) as { access_token: string };
 
     // When the agent accesses the matching workspace-context endpoint
@@ -504,22 +504,22 @@ describe("Uniform verification pipeline for all actor types", () => {
     // Given an agent token and a human token both authorized for the same operation
     const user = await createTestUser(baseUrl, "m3-uniform");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     // Agent path: intent -> token
     const agentId = await createAgentIdentity(surreal, workspace.workspaceId, "uniform-agent");
     const agentKeyPair = await generateActorKeyPair();
     const agentIntentId = await seedAuthorizedIntent(
-      surreal, workspace.workspaceId, agentId, brainAction, agentKeyPair.thumbprint,
+      surreal, workspace.workspaceId, agentId, osabioAction, agentKeyPair.thumbprint,
     );
-    const agentTokenResponse = await requestAccessToken(baseUrl, agentIntentId, agentKeyPair, [brainAction]);
+    const agentTokenResponse = await requestAccessToken(baseUrl, agentIntentId, agentKeyPair, [osabioAction]);
     const { access_token: agentToken } = (await agentTokenResponse.json()) as { access_token: string };
 
     // Human path: bridge -> token
     const humanKeyPair = await generateActorKeyPair();
     const { default: bridgeModule } = await import("./oauth-test-kit");
     const bridgeResponse = await (await import("./oauth-test-kit")).exchangeSessionForToken(
-      baseUrl, user.headers, humanKeyPair, brainAction,
+      baseUrl, user.headers, humanKeyPair, osabioAction,
     );
 
     // When both present valid DPoP proofs to the same endpoint

@@ -92,7 +92,7 @@ export async function seedMcpTool(
  * Seed a Brain-native tool (no provider reference).
  * These are tools backed by Brain's own graph queries.
  */
-export async function seedBrainNativeTool(
+export async function seedOsabioNativeTool(
   surreal: Surreal,
   toolId: string,
   options: {
@@ -104,7 +104,7 @@ export async function seedBrainNativeTool(
 ): Promise<string> {
   return seedMcpTool(surreal, toolId, {
     ...options,
-    toolkit: "brain",
+    toolkit: "osabio",
     riskLevel: "low",
   });
 }
@@ -531,7 +531,7 @@ export async function sendProxyRequestWithIdentity(
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
       "x-api-key": options.apiKey ?? "test-api-key",
-      "X-Brain-Auth": proxyToken,
+      "X-Osabio-Auth": proxyToken,
     },
     body,
   });

@@ -4,7 +4,7 @@ import { trace, context, SpanStatusCode, type Span, type Tracer } from "@opentel
 // We test withTracing as a pure higher-order function.
 // Driving port: withTracing(route, method, handler) -> RouteHandler
 // Acceptance criteria verified:
-// 1. Root span "brain.http.request" with method/route/status_code attributes
+// 1. Root span "osabio.http.request" with method/route/status_code attributes
 // 2. x-request-id response header preserved
 // 3. Error responses set span status ERROR and record exception
 // 4. httpDuration and httpRequests metrics recorded per request

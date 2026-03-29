@@ -2,9 +2,9 @@
 
 ## System Overview
 
-Intent-gated MCP is a dynamic per-agent MCP endpoint that gates external tool calls behind intent authorization and policy evaluation. Sandbox coding agents (Claude Code, Codex) interact with Brain through this endpoint, which computes an effective tool scope from the agent's session-linked intents and either forwards authorized calls to upstream MCP servers or guides the agent through intent-based escalation.
+Intent-gated MCP is a dynamic per-agent MCP endpoint that gates external tool calls behind intent authorization and policy evaluation. Sandbox coding agents (Claude Code, Codex) interact with Osabio through this endpoint, which computes an effective tool scope from the agent's session-linked intents and either forwards authorized calls to upstream MCP servers or guides the agent through intent-based escalation.
 
-The endpoint is a new route module within Brain's existing modular monolith, composing existing infrastructure: proxy auth, tool resolver, intent lifecycle, policy gate, RAR verifier, MCP client factory, and trace writer.
+The endpoint is a new route module within Osabio's existing modular monolith, composing existing infrastructure: proxy auth, tool resolver, intent lifecycle, policy gate, RAR verifier, MCP client factory, and trace writer.
 
 ---
 
@@ -18,17 +18,17 @@ C4Context
   Person(admin, "Workspace Admin", "Configures policies and tool grants")
 
   System_Ext(sandbox, "Sandbox Agent", "Coding agent (Claude Code, Codex) running in isolated sandbox")
-  System(brain, "Brain", "Knowledge graph operating system with governed MCP endpoint")
+  System(osabio, "Osabio", "Knowledge graph operating system with governed MCP endpoint")
   System_Ext(github_mcp, "GitHub MCP Server", "Upstream MCP server for GitHub operations")
   System_Ext(stripe_mcp, "Stripe MCP Server", "Upstream MCP server for Stripe operations")
   System_Ext(other_mcp, "Other MCP Servers", "Any registered upstream MCP server")
 
-  Rel(sandbox, brain, "Sends tools/list, tools/call, create_intent via MCP protocol")
+  Rel(sandbox, osabio, "Sends tools/list, tools/call, create_intent via MCP protocol")
   Rel(brain, github_mcp, "Forwards authorized tool calls to")
   Rel(brain, stripe_mcp, "Forwards authorized tool calls to")
   Rel(brain, other_mcp, "Forwards authorized tool calls to")
-  Rel(operator, brain, "Approves/vetoes intents via governance feed")
-  Rel(admin, brain, "Configures policies and tool grants via UI")
+  Rel(operator, osabio, "Approves/vetoes intents via governance feed")
+  Rel(admin, osabio, "Configures policies and tool grants via UI")
 ```
 
 ---
@@ -37,14 +37,14 @@ C4Context
 
 ```mermaid
 C4Container
-  title Container Diagram -- Brain with Intent-Gated MCP
+  title Container Diagram -- Osabio with Intent-Gated MCP
 
   Person(sandbox, "Sandbox Agent")
   Person(operator, "Human Operator")
 
-  Container_Boundary(brain, "Brain Server (Bun)") {
+  Container_Boundary(osabio, "Osabio Server (Bun)") {
     Container(agent_mcp, "Agent MCP Endpoint", "TypeScript", "Dynamic MCP endpoint: tools/list, tools/call, create_intent")
-    Container(proxy_auth, "Proxy Auth", "TypeScript", "Resolves X-Brain-Auth token to session + identity")
+    Container(proxy_auth, "Proxy Auth", "TypeScript", "Resolves X-Osabio-Auth token to session + identity")
     Container(scope_engine, "Scope Engine", "TypeScript", "Computes effective tool scope from gates edges + intents")
     Container(intent_system, "Intent System", "TypeScript", "Intent lifecycle, policy gate, authorizer, status machine")
     Container(mcp_client, "MCP Client Factory", "TypeScript", "Connects to and calls upstream MCP servers")
@@ -58,7 +58,7 @@ C4Container
 
   System_Ext(upstream, "Upstream MCP Servers", "GitHub, Stripe, Jira, etc.")
 
-  Rel(sandbox, agent_mcp, "Sends MCP requests via X-Brain-Auth")
+  Rel(sandbox, agent_mcp, "Sends MCP requests via X-Osabio-Auth")
   Rel(agent_mcp, proxy_auth, "Authenticates request via")
   Rel(agent_mcp, scope_engine, "Computes effective scope via")
   Rel(agent_mcp, intent_system, "Creates and evaluates intents via")
@@ -149,7 +149,7 @@ These decisions are carried forward from the DISCUSS wave and research. They are
 
 ### D1: No DPoP for sandbox agents
 
-Sandbox agents authenticate via `X-Brain-Auth` proxy token only. The existing `proxy-auth.ts` already supports session and intent fields on `proxy_token`. No new auth mechanism needed.
+Sandbox agents authenticate via `X-Osabio-Auth` proxy token only. The existing `proxy-auth.ts` already supports session and intent fields on `proxy_token`. No new auth mechanism needed.
 
 **Rationale**: Sandbox agents are opaque processes that receive env vars. They cannot generate DPoP proofs (which require a private key and proof JWT generation per request). The proxy token is simpler and sufficient -- it binds to a session and workspace.
 
@@ -252,7 +252,7 @@ Every `tools/call` -- success, failure, rejected, or constraint-violated -- prod
 
 ## Deployment Architecture
 
-No deployment changes. The Agent MCP endpoint is a new route registered in `start-server.ts`, running in the same Bun process as all other Brain routes. SurrealDB schema changes are applied via `bun migrate`.
+No deployment changes. The Agent MCP endpoint is a new route registered in `start-server.ts`, running in the same Bun process as all other Osabio routes. SurrealDB schema changes are applied via `bun migrate`.
 
 ---
 

@@ -94,13 +94,13 @@ Server integration tests for backward transitions (unchanged behavior).
 |------------|-----------|------------------|
 | US-1: Remove server in_progress on assignment | 3 | session-no-status-change #1 |
 | US-2: Remove server done on session accept | 2 | session-no-status-change #4 |
-| US-3: brain commit-check | 13 unit + 7 smoke | commit-check-endpoint #1 |
+| US-3: osabio commit-check | 13 unit + 7 smoke | commit-check-endpoint #1 |
 | US-4: Wire as post-commit hook | (see note) | -- |
 | US-5: GitHub done on push | 2 | webhook-status-transitions #1 |
 | US-6: GitHub completed on merge | 4 | webhook-status-transitions #3 |
 | R7: Backward transitions | 3 | -- |
 
-**US-4 note**: Post-commit hook wiring is a shell script integration. It is tested by verifying `brain init` creates the hook file. This is covered by the existing `tests/unit/cli-init.test.ts` pattern -- a new test should be added there when the hook installation code lands.
+**US-4 note**: Post-commit hook wiring is a shell script integration. It is tested by verifying `osabio init` creates the hook file. This is covered by the existing `tests/unit/cli-init.test.ts` pattern -- a new test should be added there when the hook installation code lands.
 
 ## Implementation Sequence
 

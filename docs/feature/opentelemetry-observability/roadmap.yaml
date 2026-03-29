@@ -11,7 +11,7 @@ phases:
     name: 'Install OTEL dependencies and create function ID constants'
     description: >
       Add all @opentelemetry/* packages to package.json. Create telemetry/function-ids.ts
-      with typed constants for the brain.* function ID taxonomy.
+      with typed constants for the osabio.* function ID taxonomy.
     criteria:
       - 'All 11 @opentelemetry/* packages present in package.json dependencies'
       - 'telemetry/function-ids.ts exports typed constants for all 15 function IDs'
@@ -56,7 +56,7 @@ phases:
     name: 'HTTP request tracing wrapper'
     description: >
       Create http/instrumentation.ts with withTracing() replacing withRequestLogging().
-      Root span brain.http.request with method/route/status_code attributes. Record
+      Root span osabio.http.request with method/route/status_code attributes. Record
       httpDuration and httpRequests metrics. Replace all withRequestLogging calls
       in start-server.ts.
     criteria:
@@ -79,7 +79,7 @@ phases:
       - 'All 41 generateObject/streamText calls include experimental_telemetry'
       - 'Each call uses a functionId from the approved taxonomy'
       - 'LLM duration and token counters recorded per call'
-      - 'LLM errors increment brain.llm.errors counter'
+      - 'LLM errors increment osabio.llm.errors counter'
       - 'Telemetry coexists with existing devtools middleware'
     time_estimate: '3h'
     dependencies:

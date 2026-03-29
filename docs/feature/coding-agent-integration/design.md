@@ -46,9 +46,9 @@ The coding agent integration connects external coding agents (Claude Code, Curso
 The config only stores workspace auth. Project mapping is inferred at runtime.
 
 ```bash
-brain init
+osabio init
 # Prompts: Which workspace? → authenticates
-# Stores in ~/.brain/config.json:
+# Stores in ~/.osabio/config.json:
 # { "workspace": "ws:xyz", "api_key": "..." }
 ```
 
@@ -66,7 +66,7 @@ SessionStart hook:
   1. Fetch workspace project list from graph
   2. Pass to agent: "You're working in [cwd]. These projects exist: [list]. Which one?"
   3. Agent responds with project ID (or "create new project: [name]")
-  4. Cache the answer per directory in ~/.brain/dir-cache.json
+  4. Cache the answer per directory in ~/.osabio/dir-cache.json
   5. On subsequent sessions in the same directory, use cached answer (skip agent inference)
 ```
 
@@ -78,10 +78,10 @@ On SessionStart, the plugin calls `get_project_context`. There are two modes:
 
 **Broad session (no task specified):** Agent gets the full project context — all decisions, constraints, active tasks, open questions. This is for exploratory sessions, debugging, or when the agent picks up work organically.
 
-**Task-scoped session (agent started from a task):** When the agent is launched to work on a specific task (e.g., from the feed, from a task card, or via `brain start task:xyz`), the context packet is focused:
+**Task-scoped session (agent started from a task):** When the agent is launched to work on a specific task (e.g., from the feed, from a task card, or via `osabio start task:xyz`), the context packet is focused:
 
 ```
-brain start task:implement-rate-limiting
+osabio start task:implement-rate-limiting
 # or: agent launched from task card in the UI
 ```
 
@@ -195,7 +195,7 @@ If the budget is exhausted, lower-priority items are truncated with a note: "Add
 
 ### Diff Since Last Session
 
-The `recent_changes` field is the most important for returning developers. It answers: "what happened while I was away?" The MCP server tracks the last session end time per directory (stored in `~/.brain/dir-cache.json`) and queries all entity changes after that timestamp.
+The `recent_changes` field is the most important for returning developers. It answers: "what happened while I was away?" The MCP server tracks the last session end time per directory (stored in `~/.osabio/dir-cache.json`) and queries all entity changes after that timestamp.
 
 This means: if the Architect agent had a design conversation with the human at 3pm, and the developer opens Claude Code at 5pm, the context packet includes "Decision confirmed: Use token bucket for rate limiting (confirmed by human via chat, 3:12pm)." The coding agent doesn't need to be told — it already knows.
 
@@ -430,7 +430,7 @@ interface AgentSession {
 
 Instead of intercepting individual file writes via PostToolUse (noisy, redundant — the agent saves files dozens of times during a session), track implementation activity from git commits. A commit is already a natural batch of related changes with a message explaining what was done.
 
-**Two hooks, installed during `brain init`:**
+**Two hooks, installed during `osabio init`:**
 
 **`pre-commit` hook — task resolution check:**
 
@@ -443,10 +443,10 @@ Before the commit is finalized, runs a lightweight LLM check (Haiku) that looks 
 ```bash
 #!/bin/sh
 # .git/hooks/pre-commit
-brain check-commit
+osabio check-commit
 # If it detects unlogged decisions, it can block the commit:
 # "This commit changes the auth approach but no decision was logged. 
-#  Run: brain log-decision 'Switch from JWT to session tokens'"
+#  Run: osabio log-decision 'Switch from JWT to session tokens'"
 ```
 
 The pre-commit hook can also enforce governance: if the commit contradicts a confirmed decision in the graph, it warns the developer before they commit.
@@ -458,10 +458,10 @@ After the commit lands, logs it to the graph:
 ```bash
 #!/bin/sh
 # .git/hooks/post-commit
-brain log-commit
+osabio log-commit
 ```
 
-`brain log-commit` reads the commit and sends it to the MCP server:
+`osabio log-commit` reads the commit and sends it to the MCP server:
 
 ```typescript
 interface CommitActivity {
@@ -620,7 +620,7 @@ When the Architect agent confirms a decision or the Management agent updates a t
 ```json
 {
   "hook": "UserPromptSubmit",
-  "command": "brain system check-for-updates --since=$LAST_CHECK"
+  "command": "osabio system check-for-updates --since=$LAST_CHECK"
 }
 ```
 
@@ -640,10 +640,10 @@ Not all cross-agent updates are equal. The context refresh classifies updates by
 | **Important** | New decision in same project area, task dependency completed | Include in next context refresh (every 10 min or on user prompt) |
 | **Informational** | Task completed in another project, new suggestion created | Include in next SessionStart only |
 
-## Workspace Initialization: `brain init`
+## Workspace Initialization: `osabio init`
 
 ```bash
-$ brain init
+$ osabio init
 
 🧠 Connecting to your workspace...
 
@@ -652,7 +652,7 @@ API key: ••••••••••••
 
 ✅ Connected. Project will be inferred automatically per directory.
 
-Configuration saved to ~/.brain/config.json
+Configuration saved to ~/.osabio/config.json
 Plugin hooks active:
   SessionStart  → infers project, loads context
   PreToolUse    → checks constraints
@@ -689,13 +689,13 @@ POST /mcp/tools/session_start
 POST /mcp/tools/session_end
 ```
 
-Auth: API key per workspace, set during `brain init`, stored in `~/.brain/config.json`.
+Auth: API key per workspace, set during `osabio init`, stored in `~/.osabio/config.json`.
 
 ## Phasing
 
 ### Phase 3 (Weeks 5-6): MCP v1
 
-- `brain init` CLI with workspace auth (project inferred automatically per directory)
+- `osabio init` CLI with workspace auth (project inferred automatically per directory)
 - SessionStart hook → `get_project_context` with token-budgeted context packet
 - Tier 1 read tools: `get_project_context`, `get_active_decisions`
 - Tier 2 reasoning tools: `resolve_decision`, `check_constraints`
@@ -731,6 +731,6 @@ Auth: API key per workspace, set during `brain init`, stored in `~/.brain/config
 
 4. **Context-aware, not context-flooded.** The token budget ensures the context packet is useful, not overwhelming. Most sessions need 2000-4000 tokens of context. The priority ordering ensures the most important information always fits.
 
-5. **Config stores auth, not mapping.** `brain init` sets up workspace authentication once. Project inference happens at runtime — directory name, README, package.json, git remote, previous sessions. If inference fails, the agent asks once and the answer is cached per directory. Zero per-project configuration.
+5. **Config stores auth, not mapping.** `osabio init` sets up workspace authentication once. Project inference happens at runtime — directory name, README, package.json, git remote, previous sessions. If inference fails, the agent asks once and the answer is cached per directory. Zero per-project configuration.
 
 6. **File-to-entity mapping is inferred, not configured.** The system maps file changes to entities based on which task the agent is working on during that session. No manual file pattern mapping needed. As the system observes patterns over time, it gets better at inferring relationships automatically.

@@ -40,7 +40,7 @@ Given the exploration of existing infrastructure:
 1. `mcp_tool` schema + `can_use` relation (J1 minimal)
 2. Proxy tool resolution for identity (J3 core)
 3. Proxy tool injection into LLM request `tools` parameter (J3 core)
-4. Proxy tool_call interception + Brain-native tool execution (J4 partial — no OAuth yet)
+4. Proxy tool_call interception + Osabio-native tool execution (J4 partial — no OAuth yet)
 5. Pass-through for unknown tools (J3 boundary)
 
 This validates the tool injection loop without requiring OAuth credentials. Integration tool execution (J4 full) and provider registration UI (J1 full) layer on afterward.

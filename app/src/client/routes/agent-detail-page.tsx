@@ -7,16 +7,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
-type AgentRuntime = "brain" | "sandbox" | "external";
+type AgentRuntime = "osabio" | "sandbox" | "external";
 
 const RUNTIME_LABELS: Record<AgentRuntime, string> = {
-  brain: "Brain",
+  osabio: "Osabio",
   sandbox: "Sandbox",
   external: "External",
 };
 
 const RUNTIME_VARIANTS: Record<AgentRuntime, "default" | "secondary" | "outline"> = {
-  brain: "default",
+  osabio: "default",
   sandbox: "secondary",
   external: "outline",
 };
@@ -85,7 +85,7 @@ export function AgentDetailPage() {
 
   const { agent, authority_scopes, sessions } = detail;
   const runtime = agent.runtime as AgentRuntime;
-  const isBrain = runtime === "brain";
+  const isBrain = runtime === "osabio";
 
   async function handleDelete() {
     if (!detail) return;

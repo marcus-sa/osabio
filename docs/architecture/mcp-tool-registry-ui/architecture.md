@@ -17,7 +17,7 @@ Adds one new sidebar nav item ("Tool Registry") and a tabbed page at `/tools`.
 - **MCP server management**: connect external MCP servers, `tools/list` discovery with review, selective import, on-demand sync (see [architecture-mcp-discovery.md](./architecture-mcp-discovery.md))
 - **MCP client module**: connect to upstream MCP servers via SSE and Streamable HTTP transports
 - **Tool executor (proxy step 9)**: execute integration-classified tool calls on upstream MCP servers via MCP protocol
-- **Multi-turn loop (proxy step 8.5)**: unified brain-native + integration + unknown handling per iteration
+- **Multi-turn loop (proxy step 8.5)**: unified osabio-native + integration + unknown handling per iteration
 - **OAuth2 callback handler**: backend route to complete the authorization code exchange
 - **Tool CRUD endpoints**: backend routes to list/create/update tools
 - **Grant management endpoints**: backend routes to create/revoke `can_use` edges
@@ -38,15 +38,15 @@ C4Context
   Person(member, "Workspace Member", "Connects accounts, browses tools")
   Person(agent, "Coding Agent", "Claude Code, Cursor, Codex -- sends LLM requests through proxy")
 
-  System(brain, "Brain", "Knowledge graph operating system with proxy, tool registry, and MCP client")
+  System(osabio, "Osabio", "Knowledge graph operating system with proxy, tool registry, and MCP client")
 
   System_Ext(anthropic, "Anthropic Messages API", "LLM inference provider")
   System_Ext(mcpServers, "Upstream MCP Servers", "GitHub MCP, Slack MCP, custom servers")
   System_Ext(oauthProviders, "OAuth2 Providers", "GitHub, Google, Slack authorization servers")
 
-  Rel(admin, brain, "Manages tools and servers via")
-  Rel(member, brain, "Connects accounts via")
-  Rel(agent, brain, "Sends LLM requests through")
+  Rel(admin, osabio, "Manages tools and servers via")
+  Rel(member, osabio, "Connects accounts via")
+  Rel(agent, osabio, "Sends LLM requests through")
   Rel(brain, anthropic, "Forwards LLM requests to")
   Rel(brain, mcpServers, "Discovers tools from and executes tool calls on")
   Rel(brain, oauthProviders, "Exchanges authorization codes with")
@@ -92,9 +92,9 @@ C4Component
   Container_Boundary(proxy, "Anthropic Proxy") {
     Component(auth, "Proxy Auth", "proxy-auth.ts", "Resolves proxy token and workspace")
     Component(resolver, "Tool Resolver", "tool-resolver.ts", "Resolves identity toolset from can_use edges with TTL cache")
-    Component(injector, "Tool Injector", "tool-injector.ts", "Appends Brain tools to request tools[]")
-    Component(router, "Tool Router", "tool-router.ts", "Classifies tool_use blocks as brain-native, integration, or unknown")
-    Component(brainExec, "Brain-Native Executor", "tool-executor.ts", "Executes brain-native tools via graph queries")
+    Component(injector, "Tool Injector", "tool-injector.ts", "Appends Osabio tools to request tools[]")
+    Component(router, "Tool Router", "tool-router.ts", "Classifies tool_use blocks as osabio-native, integration, or unknown")
+    Component(brainExec, "Brain-Native Executor", "tool-executor.ts", "Executes osabio-native tools via graph queries")
     Component(integExec, "Integration Executor", "tool-executor.ts", "Executes integration tools via MCP client")
     Component(credResolver, "Credential Resolver", "credential-resolver.ts", "Resolves and decrypts credentials, builds auth headers")
     Component(mcpClient, "MCP Client", "mcp-client.ts", "Connects to upstream MCP servers, calls tools/call")
@@ -110,7 +110,7 @@ C4Component
   Rel(resolver, injector, "Passes resolved tools to")
   Rel(injector, anthropic, "Sends augmented request to")
   Rel(anthropic, router, "Returns tool_use blocks to")
-  Rel(router, brainExec, "Routes brain-native calls to")
+  Rel(router, brainExec, "Routes osabio-native calls to")
   Rel(router, integExec, "Routes integration calls to")
   Rel(brainExec, surreal, "Executes graph queries on")
   Rel(integExec, credResolver, "Resolves credentials via")
@@ -130,13 +130,13 @@ C4Component
 | 2 | Session Resolution | session-id-resolver.ts | Resolve or create session |
 | 3 | Conversation Hash | session-hash-resolver.ts | Deterministic UUIDv5 from content |
 | 4 | Policy Evaluation | policy-evaluator.ts | Evaluate proxy policies |
-| 5 | Context Injection | context-injector.ts | Inject brain context into system prompt |
+| 5 | Context Injection | context-injector.ts | Inject osabio context into system prompt |
 | 6 | Request Forwarding | anthropic-proxy-route.ts | Forward to Anthropic API |
 | 7 | Tool Resolution | tool-resolver.ts | Resolve identity's effective toolset (cached) |
-| 7.5 | Tool Injection | tool-injector.ts | Append Brain tools to request tools[] |
+| 7.5 | Tool Injection | tool-injector.ts | Append Osabio tools to request tools[] |
 | 8 | Response Read | anthropic-proxy-route.ts | Read full response (non-streaming) |
 | 8.5 | Tool Classification | tool-router.ts | Classify tool_use blocks |
-| **9** | **Tool Execution** | **tool-executor.ts** | **Execute brain-native (graph) + integration (MCP) tools** |
+| **9** | **Tool Execution** | **tool-executor.ts** | **Execute osabio-native (graph) + integration (MCP) tools** |
 | **9.5** | **Result Merge** | **tool-executor.ts** | **Combine all tool_results into single message** |
 | **10** | **Multi-Turn Loop** | **anthropic-proxy-route.ts** | **Send follow-up to LLM, repeat 8-9.5 until text response (max 10 iterations)** |
 | 11 | Trace Capture | trace-writer.ts | Async trace recording |
@@ -206,7 +206,7 @@ app/src/server/
     discovery.ts                         # Discovery service: tools/list + sync algorithm (new)
     oauth-callback.ts                    # OAuth2 callback route handler (new)
   proxy/
-    tool-executor.ts                     # Brain-native + integration execution (revised)
+    tool-executor.ts                     # Osabio-native + integration execution (revised)
     credential-resolver.ts              # Credential resolution chain (existing, reused)
     tool-router.ts                       # Tool classification (existing)
     tool-injector.ts                     # Tool injection (existing)
@@ -320,8 +320,8 @@ New function `executeAllToolCalls` replaces the two-branch pattern:
 
 ```
 executeAllToolCalls(classifiedCalls, brainNativeDeps, integrationDeps, connectionMap)
-  -> partition calls into brain-native, integration, unknown
-  -> execute brain-native via executeBrainNativeTools (existing)
+  -> partition calls into osabio-native, integration, unknown
+  -> execute osabio-native via executeBrainNativeTools (existing)
   -> execute integration via executeIntegrationToolsViaMcp (new)
   -> generate error results for unknown calls
   -> merge all results, ordered by original tool_use block position
@@ -507,11 +507,11 @@ type AddMcpServerInput = {
 ```
 Agent sends LLM request -> Proxy
   -> Step 7: Resolve identity toolset (can_use graph + cache)
-  -> Step 7.5: Inject Brain tools into request tools[]
+  -> Step 7.5: Inject Osabio tools into request tools[]
   -> Step 8: Forward to Anthropic, read response
   -> Step 8.5: Classify tool_use blocks
   -> Step 9: Execute all classified tools:
-       brain-native: graph queries
+       osabio-native: graph queries
        integration: credential resolve -> MCP connect -> tools/call -> sanitize
        unknown: error tool_result
   -> Step 9.5: Merge all tool_results into single message

@@ -4,13 +4,13 @@
 **Researcher**: nw-researcher (Nova)
 **Overall Confidence**: Medium-High
 **Sources Consulted**: 28
-**Decision Context**: Validation research for a 3-phase migration removing vector embeddings from Brain knowledge graph in favor of BM25 fulltext search + graph traversal
+**Decision Context**: Validation research for a 3-phase migration removing vector embeddings from Osabio knowledge graph in favor of BM25 fulltext search + graph traversal
 
 ## Executive Summary
 
-The evidence supports removing embeddings for Brain's four current use cases, with caveats. For a structured, typed knowledge graph with explicit relationships, small-to-medium data volumes, and consistent domain vocabulary, BM25 + graph traversal is a defensible replacement for embedding-based retrieval. The literature consistently shows that (1) BM25 performs competitively with dense retrieval on structured, domain-specific data; (2) explicit graph relationships provide superior precision for multi-hop reasoning that embeddings cannot replicate; and (3) the operational overhead of embedding infrastructure is disproportionate to the marginal recall benefit at Brain's scale.
+The evidence supports removing embeddings for Osabio's four current use cases, with caveats. For a structured, typed knowledge graph with explicit relationships, small-to-medium data volumes, and consistent domain vocabulary, BM25 + graph traversal is a defensible replacement for embedding-based retrieval. The literature consistently shows that (1) BM25 performs competitively with dense retrieval on structured, domain-specific data; (2) explicit graph relationships provide superior precision for multi-hop reasoning that embeddings cannot replicate; and (3) the operational overhead of embedding infrastructure is disproportionate to the marginal recall benefit at Osabio's scale.
 
-However, the research also reveals a genuine gap: **cross-vocabulary semantic matching** (e.g., "authentication" vs. "login" vs. "credential management") is a real limitation of BM25 that stemming alone does not solve. For Brain's current use cases, this gap is mitigated by consistent domain vocabulary within workspaces and the availability of graph traversal as a structural signal. But future use cases -- particularly cross-workspace discovery and semantic clustering -- would require re-introducing embeddings or an equivalent semantic capability.
+However, the research also reveals a genuine gap: **cross-vocabulary semantic matching** (e.g., "authentication" vs. "login" vs. "credential management") is a real limitation of BM25 that stemming alone does not solve. For Osabio's current use cases, this gap is mitigated by consistent domain vocabulary within workspaces and the availability of graph traversal as a structural signal. But future use cases -- particularly cross-workspace discovery and semantic clustering -- would require re-introducing embeddings or an equivalent semantic capability.
 
 **Recommendation: PROCEED with the migration.** The four current use cases are well-served by BM25 + graph traversal. Document the semantic gap as a known limitation and define explicit conditions under which embeddings should be re-introduced.
 
@@ -47,7 +47,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: Cross-referenced across 4 independent sources. The BEIR paper is the primary academic source (NeurIPS 2021 Datasets and Benchmarks Track); practitioner sources consistently cite these findings.
 
-**Analysis**: Brain's knowledge graph contains structured, typed entities with consistent project management vocabulary ("task," "decision," "feature," "observation"). This is precisely the domain where BM25 performs well -- domain-specific, structured, lexically consistent data. The entities Brain searches are not unstructured documents requiring deep semantic understanding; they are typed records with known field structures and controlled vocabulary.
+**Analysis**: Osabio's knowledge graph contains structured, typed entities with consistent project management vocabulary ("task," "decision," "feature," "observation"). This is precisely the domain where BM25 performs well -- domain-specific, structured, lexically consistent data. The entities Osabio searches are not unstructured documents requiring deep semantic understanding; they are typed records with known field structures and controlled vocabulary.
 
 ---
 
@@ -65,7 +65,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: Cross-referenced across 5 independent sources (Paragon, Meilisearch, Machine Learning Mastery, Neo4j, Elastic). All converge on the same conclusion from different perspectives.
 
-**Analysis**: Brain's objective-intent alignment use case (currently pure cosine similarity on embeddings) is a textbook case where graph traversal is superior. The path `task -> belongs_to -> project -> supports -> objective` is a deterministic, explainable lookup. Embedding similarity between an intent description and an objective description is a lossy approximation of this explicit structural relationship. The replacement (graph traversal) is not just adequate -- it is architecturally correct.
+**Analysis**: Osabio's objective-intent alignment use case (currently pure cosine similarity on embeddings) is a textbook case where graph traversal is superior. The path `task -> belongs_to -> project -> supports -> objective` is a deterministic, explainable lookup. Embedding similarity between an intent description and an objective description is a lossy approximation of this explicit structural relationship. The replacement (graph traversal) is not just adequate -- it is architecturally correct.
 
 ---
 
@@ -82,7 +82,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: Primary source is Microsoft Research (arxiv preprint, April 2024). Cross-referenced with official documentation and independent analysis.
 
-**Analysis**: Brain already has the knowledge graph that GraphRAG would need to construct from unstructured text. Brain's graph is pre-built with typed entities and explicit relationships. The migration removes a vector-similarity layer that approximates what the graph already provides precisely. This aligns with Microsoft's finding that graph structure outperforms vector retrieval for relationship-rich data.
+**Analysis**: Osabio already has the knowledge graph that GraphRAG would need to construct from unstructured text. Osabio's graph is pre-built with typed entities and explicit relationships. The migration removes a vector-similarity layer that approximates what the graph already provides precisely. This aligns with Microsoft's finding that graph structure outperforms vector retrieval for relationship-rich data.
 
 ---
 
@@ -97,13 +97,13 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Confidence**: Medium
 
-**Verification**: The 85% recall claim originates from a single source (DigitalOcean tutorial citing an XetHub benchmark). The general claim that the gap is narrow is supported by BEIR results and multiple practitioner reports, but the specific "7 vs 8 results" framing is not independently verified. The 10-30% hybrid improvement figure comes from multiple independent sources but applies to unstructured document retrieval, not Brain's structured use case.
+**Verification**: The 85% recall claim originates from a single source (DigitalOcean tutorial citing an XetHub benchmark). The general claim that the gap is narrow is supported by BEIR results and multiple practitioner reports, but the specific "7 vs 8 results" framing is not independently verified. The 10-30% hybrid improvement figure comes from multiple independent sources but applies to unstructured document retrieval, not Osabio's structured use case.
 
-**Analysis**: The recall gap matters less for Brain because: (1) Brain retrieves typed entities, not unstructured passages -- the search space is smaller and more structured; (2) Graph traversal provides an additional retrieval channel that is orthogonal to both BM25 and embeddings; (3) At Brain's scale (hundreds to low thousands of entities), the absolute number of missed results from a slightly lower recall rate is small.
+**Analysis**: The recall gap matters less for Osabio because: (1) Osabio retrieves typed entities, not unstructured passages -- the search space is smaller and more structured; (2) Graph traversal provides an additional retrieval channel that is orthogonal to both BM25 and embeddings; (3) At Osabio's scale (hundreds to low thousands of entities), the absolute number of missed results from a slightly lower recall rate is small.
 
 ---
 
-### Finding 5: Embedding Infrastructure Imposes Disproportionate Operational Overhead at Brain's Scale
+### Finding 5: Embedding Infrastructure Imposes Disproportionate Operational Overhead at Osabio's Scale
 
 **Evidence**: HNSW indexes require "almost entirely in RAM" residence for low-latency search, with "8GB or larger" memory for 1M rows. Index building "can take 6 minutes" for moderate datasets and "hours for million-row datasets." HNSW was "designed for relatively static datasets" but production systems require frequent updates, causing "memory consumption [to] grow." The SurrealDB v3.0 KNN+WHERE bug forces two-step queries, adding implementation complexity. OpenAI text-embedding-3-small costs $0.02 per 1M tokens, and embedding API latency shows "90th percentile latencies around 500ms, with 99th percentile spikes up to 5 seconds" with "one out of every 2,000 requests" failing.
 
@@ -117,13 +117,13 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: Cross-referenced across 4 independent sources covering different aspects of the infrastructure burden (memory, latency, cost, reliability).
 
-**Analysis**: Brain's current implementation is worse than the general case: it loads 120+ candidates into JS memory and computes cosine similarity in-process, bypassing the HNSW index entirely. The embedding generation adds external API dependency to every entity write. The SurrealDB KNN+WHERE bug adds forced complexity. The migration to BM25 eliminates: (1) external API dependency for writes, (2) HNSW index memory overhead, (3) embedding generation latency on writes, (4) the KNN+WHERE workaround. The dollar cost ($0.02/1M tokens) is trivial, but the latency, reliability, and complexity costs are significant for Brain's architecture.
+**Analysis**: Osabio's current implementation is worse than the general case: it loads 120+ candidates into JS memory and computes cosine similarity in-process, bypassing the HNSW index entirely. The embedding generation adds external API dependency to every entity write. The SurrealDB KNN+WHERE bug adds forced complexity. The migration to BM25 eliminates: (1) external API dependency for writes, (2) HNSW index memory overhead, (3) embedding generation latency on writes, (4) the KNN+WHERE workaround. The dollar cost ($0.02/1M tokens) is trivial, but the latency, reliability, and complexity costs are significant for Osabio's architecture.
 
 ---
 
 ### Finding 6: Anthropic's Contextual Retrieval Research Shows BM25 is Essential Even When Embeddings Are Present
 
-**Evidence**: Anthropic's 2024 "Contextual Retrieval" research found that combining contextual embeddings with contextual BM25 "reduced the top-20-chunk retrieval failure rate by 49%" (from 5.7% to 2.9%). The key insight: "While embedding models excel at capturing semantic relationships, they can miss crucial exact matches." BM25 is "particularly effective for queries that include unique identifiers or technical terms." This research actually strengthens the case for BM25 in Brain's context -- it demonstrates that BM25 catches what embeddings miss, and Brain's queries are heavily identifier/term-oriented.
+**Evidence**: Anthropic's 2024 "Contextual Retrieval" research found that combining contextual embeddings with contextual BM25 "reduced the top-20-chunk retrieval failure rate by 49%" (from 5.7% to 2.9%). The key insight: "While embedding models excel at capturing semantic relationships, they can miss crucial exact matches." BM25 is "particularly effective for queries that include unique identifiers or technical terms." This research actually strengthens the case for BM25 in Osabio's context -- it demonstrates that BM25 catches what embeddings miss, and Osabio's queries are heavily identifier/term-oriented.
 
 **Sources**:
 - [Contextual Retrieval (Anthropic)](https://www.anthropic.com/news/contextual-retrieval) - Accessed 2026-03-19
@@ -134,11 +134,11 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: Primary source is Anthropic's official blog (High tier). Cross-referenced with InfoQ (Medium-High) and DataCamp (Medium-High).
 
-**Analysis (interpretation)**: Anthropic's research is often cited as evidence FOR hybrid search (BM25 + embeddings). However, for Brain's specific context, it actually validates the BM25 side of the equation. Brain's queries search for specific entities by name, type, status, and domain terms -- exactly the queries where BM25 excels. The 49% failure reduction from adding BM25 to embeddings demonstrates that BM25 catches a large class of retrievals that embeddings miss. The reverse direction (what embeddings catch that BM25 misses) matters more for unstructured document retrieval than for structured entity search.
+**Analysis (interpretation)**: Anthropic's research is often cited as evidence FOR hybrid search (BM25 + embeddings). However, for Osabio's specific context, it actually validates the BM25 side of the equation. Osabio's queries search for specific entities by name, type, status, and domain terms -- exactly the queries where BM25 excels. The 49% failure reduction from adding BM25 to embeddings demonstrates that BM25 catches a large class of retrievals that embeddings miss. The reverse direction (what embeddings catch that BM25 misses) matters more for unstructured document retrieval than for structured entity search.
 
 ---
 
-### Finding 7: BM25's Synonym Limitation is Real but Mitigated in Brain's Context
+### Finding 7: BM25's Synonym Limitation is Real but Mitigated in Osabio's Context
 
 **Evidence**: BM25 "does not understand synonyms" -- "heart attack" is different from "myocardial infarction." This is a fundamental, well-documented limitation confirmed by multiple sources. Snowball stemming handles morphological variants (run/running/runs) but not true synonyms (auth/login/credential). The research shows stemming "minimise[s] lexical mismatches" and "often improve[s] the effectiveness of keyword-matching models such as BM25," but "effectiveness varies depending on context" and "traditional stemming methods, focusing solely on individual terms, overlook the richness of contextual information."
 
@@ -152,7 +152,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **Verification**: The synonym limitation is universally acknowledged across all IR literature. No source disputes it.
 
-**Analysis (interpretation)**: For Brain's current use cases, the synonym gap is mitigated by three factors specific to structured knowledge graphs: (1) **Consistent vocabulary within workspaces**: Users and agents creating entities in the same workspace converge on terminology. A workspace that uses "auth" will use "auth" throughout, not switch between "auth" and "login" unpredictably. (2) **Structured metadata**: BM25 searches across title, summary/description, status, and type fields that use controlled vocabulary (task statuses, entity types). (3) **Graph traversal as complementary signal**: When BM25 misses a synonym, graph traversal (e.g., "find all tasks in the authentication feature") catches it via structural relationships. The gap is real but narrow in this specific context.
+**Analysis (interpretation)**: For Osabio's current use cases, the synonym gap is mitigated by three factors specific to structured knowledge graphs: (1) **Consistent vocabulary within workspaces**: Users and agents creating entities in the same workspace converge on terminology. A workspace that uses "auth" will use "auth" throughout, not switch between "auth" and "login" unpredictably. (2) **Structured metadata**: BM25 searches across title, summary/description, status, and type fields that use controlled vocabulary (task statuses, entity types). (3) **Graph traversal as complementary signal**: When BM25 misses a synonym, graph traversal (e.g., "find all tasks in the authentication feature") catches it via structural relationships. The gap is real but narrow in this specific context.
 
 ---
 
@@ -162,7 +162,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **The problem**: When a user searches for "credential management" and relevant entities are titled "auth flow" or "login system," BM25 with stemming will miss them. This is not hypothetical -- it is a documented, fundamental limitation of lexical search.
 
-**Why it matters for Brain**: In proxy context injection (coding agent sessions), a developer working on "OAuth implementation" needs to find decisions about "authentication architecture." If those decisions use different vocabulary, BM25 will miss them.
+**Why it matters for Osabio**: In proxy context injection (coding agent sessions), a developer working on "OAuth implementation" needs to find decisions about "authentication architecture." If those decisions use different vocabulary, BM25 will miss them.
 
 **Mitigation strength**: Medium. Graph traversal partially compensates (the OAuth task and the auth decision likely share a project or feature parent). Stemming covers morphological variants but not true synonyms. The risk is low for workspace-internal search (consistent vocabulary) but higher for cross-feature or cross-project searches.
 
@@ -174,7 +174,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **The problem**: Cross-workspace discovery ("find similar projects across all workspaces"), semantic clustering of observations, and automated categorization of free-form intents all require semantic understanding that BM25 cannot provide.
 
-**Why it matters**: Brain's roadmap includes features that may need semantic similarity. Removing embedding infrastructure now creates re-introduction cost later.
+**Why it matters**: Osabio's roadmap includes features that may need semantic similarity. Removing embedding infrastructure now creates re-introduction cost later.
 
 **Mitigation strength**: High. The migration is designed to be reversible (Adding embeddings back is an additive change, not destructive). The current implementation is broken (doesn't use HNSW index, computes cosine in-process), so the "infrastructure" being removed wasn't functional. Re-introducing embeddings for specific future use cases would be cleaner than maintaining the current broken implementation.
 
@@ -184,7 +184,7 @@ However, the research also reveals a genuine gap: **cross-vocabulary semantic ma
 
 **The problem**: The 2024-2025 consensus across IR research is that hybrid retrieval (BM25 + embeddings) outperforms either method alone by 10-30%. Anthropic's contextual retrieval demonstrates 49% failure reduction with hybrid over embeddings-only. Removing embeddings goes against this consensus.
 
-**Why this is less relevant for Brain**: (1) The 10-30% improvement and Anthropic's results are measured on **unstructured document retrieval**, not structured knowledge graph queries. (2) Brain adds a third retrieval channel (graph traversal) that is unavailable in the benchmarked systems. (3) Brain's current embedding implementation is non-functional (in-process cosine on 120+ loaded candidates), so the comparison is not "working hybrid vs BM25-only" but "broken embedding + working BM25 vs working BM25 + working graph traversal." (4) At Brain's scale (hundreds to low thousands of entities), the absolute recall difference from the percentage gap is likely single-digit entities.
+**Why this is less relevant for Osabio**: (1) The 10-30% improvement and Anthropic's results are measured on **unstructured document retrieval**, not structured knowledge graph queries. (2) Osabio adds a third retrieval channel (graph traversal) that is unavailable in the benchmarked systems. (3) Osabio's current embedding implementation is non-functional (in-process cosine on 120+ loaded candidates), so the comparison is not "working hybrid vs BM25-only" but "broken embedding + working BM25 vs working BM25 + working graph traversal." (4) At Osabio's scale (hundreds to low thousands of entities), the absolute recall difference from the percentage gap is likely single-digit entities.
 
 **Sources**:
 - [Contextual Retrieval (Anthropic)](https://www.anthropic.com/news/contextual-retrieval) - Accessed 2026-03-19
@@ -211,7 +211,7 @@ Three documented limitations affect the BM25 implementation:
 
 3. **`BM25` without explicit parameters returns score=0** -- must always use `BM25(1.2, 0.75)`. A known gotcha, but easily addressed.
 
-**Assessment**: These are implementation friction, not architectural blockers. The BM25 search is already proven in production for Brain's UI entity search. The same patterns extend to the four migration use cases.
+**Assessment**: These are implementation friction, not architectural blockers. The BM25 search is already proven in production for Osabio's UI entity search. The same patterns extend to the four migration use cases.
 
 ### HNSW Index Limitations in SurrealDB v3.0
 
@@ -284,7 +284,7 @@ The migration should be paused or embeddings re-introduced if any of these condi
 
 **Attempted Sources**: arxiv.org searches for "BM25 knowledge graph entity search," "structured data retrieval benchmark BM25 vs embeddings," Google Scholar queries.
 
-**Recommendation**: This gap strengthens the case for post-migration instrumentation. Measure BM25 recall empirically on Brain's data by comparing search results before and after migration on a sample of real queries.
+**Recommendation**: This gap strengthens the case for post-migration instrumentation. Measure BM25 recall empirically on Osabio's data by comparing search results before and after migration on a sample of real queries.
 
 ### Gap 2: No Case Studies of Teams Regretting Embedding Removal
 
@@ -306,7 +306,7 @@ The migration should be paused or embeddings re-introduced if any of these condi
 
 ## Conflicting Information
 
-### Conflict 1: Industry Consensus on Hybrid vs. Brain's BM25-Only Approach
+### Conflict 1: Industry Consensus on Hybrid vs. Osabio's BM25-Only Approach
 
 **Position A**: Hybrid retrieval (BM25 + embeddings) is the recommended approach for production systems, outperforming either method alone by 10-30%.
 - Sources: Anthropic (High), Elastic (Medium-High), multiple practitioner reports (Medium)
@@ -316,7 +316,7 @@ The migration should be paused or embeddings re-introduced if any of these condi
 - Sources: Microsoft GraphRAG (High), Neo4j (Medium-High), Paragon (Medium-High), Meilisearch (Medium-High)
 - Evidence: GraphRAG's 3.4x accuracy improvement; graph traversal's deterministic multi-hop reasoning
 
-**Assessment**: Both positions are correct in their respective contexts. The hybrid consensus applies to unstructured document retrieval. Brain's context includes a pre-built knowledge graph with typed relationships -- a retrieval channel unavailable in the benchmarked systems. The effective comparison is not "BM25-only vs hybrid" but "BM25 + graph traversal vs BM25 + embeddings + graph traversal." The marginal value of embeddings atop BM25 + graph traversal is lower than the marginal value of embeddings atop BM25 alone.
+**Assessment**: Both positions are correct in their respective contexts. The hybrid consensus applies to unstructured document retrieval. Osabio's context includes a pre-built knowledge graph with typed relationships -- a retrieval channel unavailable in the benchmarked systems. The effective comparison is not "BM25-only vs hybrid" but "BM25 + graph traversal vs BM25 + embeddings + graph traversal." The marginal value of embeddings atop BM25 + graph traversal is lower than the marginal value of embeddings atop BM25 alone.
 
 ---
 
@@ -324,7 +324,7 @@ The migration should be paused or embeddings re-introduced if any of these condi
 
 1. **Post-migration instrumentation study**: After Phase 1, instrument BM25 search to track `search.result_count == 0` rates, query reformulation frequency, and user satisfaction. Compare with pre-migration baseline.
 
-2. **Synonym coverage analysis**: Audit Brain's entity corpus for cross-vocabulary patterns. Count how many entity pairs are semantically related but share zero lexical overlap. This quantifies the actual synonym gap risk.
+2. **Synonym coverage analysis**: Audit Osabio's entity corpus for cross-vocabulary patterns. Count how many entity pairs are semantically related but share zero lexical overlap. This quantifies the actual synonym gap risk.
 
 3. **LLM-based query expansion evaluation**: If the synonym gap proves problematic, evaluate using the chat agent's LLM to expand search queries with synonyms before BM25 search (e.g., "auth" -> "auth OR login OR authentication OR credential"). This is cheaper than maintaining embedding infrastructure and could close the gap.
 

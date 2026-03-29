@@ -11,13 +11,13 @@ This research investigates how LLM observability platforms, proxy gateways, and 
 
 The universal pattern is: (1) the client application generates a session/trace ID, (2) passes it with every request as metadata or a header, (3) the platform groups requests by that ID, and (4) the session is considered "ended" implicitly when requests stop arriving -- with no timeout, no heartbeat, and no end signal. Session boundaries are a client-side concern in every platform examined.
 
-This has a direct implication for Brain's LLM proxy: since neither the Anthropic Messages API nor coding agents like Claude Code emit session-end signals, the proxy must use a heuristic approach -- most likely an inactivity timeout -- to trigger post-session analysis. This is the same approach used by web analytics (Google Analytics 30-minute timeout) and OpenTelemetry's general session conventions, which define session end as "typically due to user inactivity or session timeout."
+This has a direct implication for Osabio's LLM proxy: since neither the Anthropic Messages API nor coding agents like Claude Code emit session-end signals, the proxy must use a heuristic approach -- most likely an inactivity timeout -- to trigger post-session analysis. This is the same approach used by web analytics (Google Analytics 30-minute timeout) and OpenTelemetry's general session conventions, which define session end as "typically due to user inactivity or session timeout."
 
 ---
 
 ## Research Methodology
 
-**Search Strategy**: Web searches across official documentation for Langfuse, Helicone, LiteLLM, LangSmith, Braintrust, Datadog LLM Observability, Portkey, OpenTelemetry GenAI semantic conventions, and Google Analytics. Cross-referenced with Claude Code hooks documentation and the Anthropic Messages API.
+**Search Strategy**: Web searches across official documentation for Langfuse, Helicone, LiteLLM, LangSmith, Osabiotrust, Datadog LLM Observability, Portkey, OpenTelemetry GenAI semantic conventions, and Google Analytics. Cross-referenced with Claude Code hooks documentation and the Anthropic Messages API.
 
 **Source Selection Criteria**:
 - Source types: official documentation, open-source repositories, standards bodies, industry technical content
@@ -49,7 +49,7 @@ This has a direct implication for Brain's LLM proxy: since neither the Anthropic
 | LiteLLM | `litellm_session_id` in request metadata | None | Implicit -- metadata grouping |
 | Portkey | `trace_id` and `session_id` in metadata/headers | None | Implicit -- metadata grouping |
 | Datadog | `session_id` derived from `chat_id` or headers | None | Implicit -- grouped by `ml_app` + session |
-| Braintrust | `session_id` in session metadata | None | Implicit -- ID-based grouping |
+| Osabiotrust | `session_id` in session metadata | None | Implicit -- ID-based grouping |
 
 **Sources**:
 - [Langfuse Sessions Documentation](https://langfuse.com/docs/observability/features/sessions) -- official
@@ -108,7 +108,7 @@ const trace = langfuse.trace({
 
 **Key Insight**: Langfuse sessions are best understood as tags, not lifecycle objects. They have no start time, no end time, and no state machine. The session view in the UI simply aggregates all traces that share an ID, sorted by timestamp.
 
-**Analysis**: For Brain's proxy, this confirms that Langfuse (our closest OSS comparator) would not help with session-end detection even if we integrated with it. The session boundary problem is orthogonal to observability platform choice.
+**Analysis**: For Osabio's proxy, this confirms that Langfuse (our closest OSS comparator) would not help with session-end detection even if we integrated with it. The session boundary problem is orthogonal to observability platform choice.
 
 ---
 
@@ -147,7 +147,7 @@ const response = await client.chat.completions.create(
 );
 ```
 
-**Analysis**: Helicone's approach is the most relevant for Brain's proxy because it operates at the HTTP header level -- exactly where a proxy can intercept. However, this requires client-side cooperation (injecting headers). For Claude Code, this could be achieved via `ANTHROPIC_CUSTOM_HEADERS`, but session-end detection remains unsolved by Helicone's model.
+**Analysis**: Helicone's approach is the most relevant for Osabio's proxy because it operates at the HTTP header level -- exactly where a proxy can intercept. However, this requires client-side cooperation (injecting headers). For Claude Code, this could be achieved via `ANTHROPIC_CUSTOM_HEADERS`, but session-end detection remains unsolved by Helicone's model.
 
 ---
 
@@ -240,7 +240,7 @@ The GenAI conventions define:
 - Inactivity timeout: no requests within threshold = session ended
 - Hard timeout: maximum session duration regardless of activity
 
-**Analysis**: The 30-minute inactivity timeout is the most battle-tested session-end heuristic in software. For LLM agent sessions, a shorter timeout is likely appropriate -- coding agent sessions have tighter interaction patterns. INTERPRETATION: A 5-15 minute inactivity timeout would likely work for Brain's proxy, with the exact value configurable per workspace. The session end timestamp should be set retroactively to the last observed request, not to the timeout trigger time.
+**Analysis**: The 30-minute inactivity timeout is the most battle-tested session-end heuristic in software. For LLM agent sessions, a shorter timeout is likely appropriate -- coding agent sessions have tighter interaction patterns. INTERPRETATION: A 5-15 minute inactivity timeout would likely work for Osabio's proxy, with the exact value configurable per workspace. The session end timestamp should be set retroactively to the last observed request, not to the timeout trigger time.
 
 ---
 
@@ -266,7 +266,7 @@ The GenAI conventions define:
 
 **Key Limitation**: `SessionEnd` hooks have a 1.5-second timeout and cannot block termination. They are designed for lightweight cleanup (e.g., flushing logs), not for triggering external workflows. There is no mechanism for Claude Code to notify a proxy that a session has ended.
 
-**Potential Workaround**: A Claude Code hook could be configured to make an HTTP call to the Brain proxy on `SessionEnd`:
+**Potential Workaround**: A Claude Code hook could be configured to make an HTTP call to the Osabio proxy on `SessionEnd`:
 ```json
 {
   "hooks": {
@@ -314,11 +314,11 @@ However, this has significant limitations:
 2. **Idle watchdog** (e.g., 5 min): Detect stalls -- no output activity
 3. **Hard timeout** (e.g., 30 min): Force-end the session regardless of activity
 
-**Analysis**: INTERPRETATION: For Brain's proxy, which only sees API traffic, the most viable heuristic is the inactivity timeout combined with response-content analysis. The proxy can observe `stop_reason` in API responses -- a sequence of `end_turn` stop reasons followed by inactivity is a strong signal that the session has ended naturally. However, this requires parsing response content, not just forwarding it.
+**Analysis**: INTERPRETATION: For Osabio's proxy, which only sees API traffic, the most viable heuristic is the inactivity timeout combined with response-content analysis. The proxy can observe `stop_reason` in API responses -- a sequence of `end_turn` stop reasons followed by inactivity is a strong signal that the session has ended naturally. However, this requires parsing response content, not just forwarding it.
 
 ---
 
-## Synthesis: Recommended Approach for Brain's LLM Proxy
+## Synthesis: Recommended Approach for Osabio's LLM Proxy
 
 Based on the research findings, a tiered session-end detection strategy emerges:
 
@@ -336,7 +336,7 @@ The most reliable and universally applicable mechanism. Configure a per-workspac
 
 For agents that support lifecycle hooks (Claude Code), configure a `SessionEnd` hook that notifies the proxy via HTTP. This provides near-instant session-end detection when available.
 
-**Implementation**: `brain init` configures the Claude Code hook automatically. Other agents can implement the same pattern if they support lifecycle events.
+**Implementation**: `osabio init` configures the Claude Code hook automatically. Other agents can implement the same pattern if they support lifecycle events.
 
 **Advantages**: Near-instant detection. No false positives.
 
@@ -344,7 +344,7 @@ For agents that support lifecycle hooks (Claude Code), configure a `SessionEnd` 
 
 ### Tier 3: Explicit Signal via Custom Header (Optimization, SDK-Integrated)
 
-For agents built on the Vercel AI SDK or custom frameworks, the Brain SDK could send a `X-Brain-Session-End: true` header on the final request. This requires client-side integration but provides clean session boundaries.
+For agents built on the Vercel AI SDK or custom frameworks, the Osabio SDK could send a `X-Osabio-Session-End: true` header on the final request. This requires client-side integration but provides clean session boundaries.
 
 **Advantages**: Clean boundary. Works at the proxy level.
 
@@ -363,9 +363,9 @@ The proxy can analyze the `stop_reason` field in API responses. A `stop_reason: 
 ```
 API Request arrives
   |
-  |-- Extract session ID (from X-Brain-Session header or auth token)
+  |-- Extract session ID (from X-Osabio-Session header or auth token)
   |-- Reset inactivity timer for this session
-  |-- If X-Brain-Session-End header present: trigger immediate end
+  |-- If X-Osabio-Session-End header present: trigger immediate end
   |-- Forward request to Anthropic
   |
   |-- On response: inspect stop_reason
@@ -400,7 +400,7 @@ Post-Session Analysis (Observer)
 | LangSmith Observability Concepts | docs.langchain.com | Medium-High | official | 2026-03-15 | Y |
 | Portkey Tracing | portkey.ai | Medium-High | official | 2026-03-15 | Y |
 | Portkey AI Gateway | portkey.ai | Medium-High | official | 2026-03-15 | Y |
-| Braintrust Advanced Tracing | braintrust.dev | Medium-High | official | 2026-03-15 | Y |
+| Osabiotrust Advanced Tracing | braintrust.dev | Medium-High | official | 2026-03-15 | Y |
 | Datadog LLM Observability SDK | docs.datadoghq.com | High | official | 2026-03-15 | Y |
 | Datadog LLM Observability Terms | docs.datadoghq.com | High | official | 2026-03-15 | Y |
 | OTel Session Conventions | opentelemetry.io | High | standard | 2026-03-15 | Y |
@@ -434,11 +434,11 @@ Post-Session Analysis (Observer)
 
 ### Gap 2: Vercel AI SDK Session Lifecycle
 
-**Issue**: The research did not find documentation on whether the Vercel AI SDK has any session lifecycle concept or hooks. The SDK's observability integrations (Braintrust, LangSmith) rely on the caller to manage session IDs.
+**Issue**: The research did not find documentation on whether the Vercel AI SDK has any session lifecycle concept or hooks. The SDK's observability integrations (Osabiotrust, LangSmith) rely on the caller to manage session IDs.
 
-**Attempted Sources**: WebSearch for "Vercel AI SDK session lifecycle", AI SDK observability docs (Braintrust, LangSmith integrations).
+**Attempted Sources**: WebSearch for "Vercel AI SDK session lifecycle", AI SDK observability docs (Osabiotrust, LangSmith integrations).
 
-**Recommendation**: Review the Vercel AI SDK source code for session-related abstractions. If none exist, Brain's SDK wrapper should add session lifecycle management.
+**Recommendation**: Review the Vercel AI SDK source code for session-related abstractions. If none exist, Osabio's SDK wrapper should add session lifecycle management.
 
 ### Gap 3: Optimal Inactivity Timeout Duration for Coding Agent Sessions
 
@@ -462,11 +462,11 @@ No material conflicts were found. All platforms converge on the same model: clie
 
 2. **Analyze inter-request timing distributions** -- once the proxy is deployed, collect timing data between consecutive requests within the same session. Use this to determine the optimal inactivity timeout and to distinguish "thinking pauses" from "session ended."
 
-3. **Investigate `brain init` hook injection** -- design the `brain init` CLI command to automatically configure Claude Code hooks for session-end notification, creating the Tier 2 optimization transparently during workspace setup.
+3. **Investigate `osabio init` hook injection** -- design the `osabio init` CLI command to automatically configure Claude Code hooks for session-end notification, creating the Tier 2 optimization transparently during workspace setup.
 
 4. **Explore MCP session lifecycle** -- the MCP protocol may define session start/end semantics that could be leveraged. The Claude Code MCP connection lifecycle (SIGINT on new sessions) suggests there may be an observable session boundary at the MCP transport level.
 
-5. **Survey Vercel AI SDK session patterns** -- determine whether the AI SDK's `streamText` / `generateText` APIs can be wrapped with Brain session lifecycle management in a middleware-like pattern.
+5. **Survey Vercel AI SDK session patterns** -- determine whether the AI SDK's `streamText` / `generateText` APIs can be wrapped with Osabio session lifecycle management in a middleware-like pattern.
 
 ---
 
@@ -484,7 +484,7 @@ No material conflicts were found. All platforms converge on the same model: clie
 [10] LangChain. "Observability concepts". LangSmith Documentation. 2026. https://docs.langchain.com/langsmith/observability-concepts. Accessed 2026-03-15.
 [11] Portkey. "Tracing". Portkey Documentation. 2026. https://portkey.ai/docs/product/observability/traces. Accessed 2026-03-15.
 [12] Portkey. "Enterprise-grade AI Gateway". Portkey. 2026. https://portkey.ai/features/ai-gateway. Accessed 2026-03-15.
-[13] Braintrust. "Advanced tracing patterns". Braintrust Documentation. 2026. https://www.braintrust.dev/docs/instrument/advanced-tracing. Accessed 2026-03-15.
+[13] Osabiotrust. "Advanced tracing patterns". Osabiotrust Documentation. 2026. https://www.braintrust.dev/docs/instrument/advanced-tracing. Accessed 2026-03-15.
 [14] Datadog. "LLM Observability SDK Reference". Datadog Documentation. 2026. https://docs.datadoghq.com/llm_observability/instrumentation/sdk/. Accessed 2026-03-15.
 [15] Datadog. "LLM Observability Terms and Concepts". Datadog Documentation. 2026. https://docs.datadoghq.com/llm_observability/terms/. Accessed 2026-03-15.
 [16] OpenTelemetry. "Semantic conventions for session". OpenTelemetry Docs. 2026. https://opentelemetry.io/docs/specs/semconv/general/session/. Accessed 2026-03-15.
@@ -506,5 +506,5 @@ No material conflicts were found. All platforms converge on the same model: clie
 - **Sources Cited**: 24
 - **Cross-References Performed**: 18
 - **Confidence Distribution**: High: 75%, Medium-High: 12.5%, Medium: 12.5%
-- **Output File**: `/Users/marcus/conductor/workspaces/brain-v1/seoul-v1/docs/research/llm-session-boundary-detection.md`
+- **Output File**: `/Users/marcus/conductor/workspaces/osabio-v1/seoul-v1/docs/research/llm-session-boundary-detection.md`
 - **Tool Failures**: WebFetch blocked by hook policy; all web content gathered via WebSearch summaries.

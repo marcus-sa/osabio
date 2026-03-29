@@ -1,7 +1,7 @@
 /**
  * Custom AS Token Endpoint
  *
- * POST /api/auth/token accepting grant_type=urn:brain:intent-authorization.
+ * POST /api/auth/token accepting grant_type=urn:osabio:intent-authorization.
  * Validates DPoP proof, verifies intent status=authorized, matches proof key
  * thumbprint to intent binding, checks authorization_details match.
  * Delegates to token issuer.
@@ -12,7 +12,7 @@
  */
 import { RecordId } from "surrealdb";
 import type { Surreal } from "surrealdb";
-import type { BrainAction } from "./types";
+import type { OsabioAction } from "./types";
 import { findExceededConstraint } from "./rar-verifier";
 import type { IntentRecord } from "../intent/types";
 import type { ServerDependencies } from "../runtime/types";
@@ -35,7 +35,7 @@ import {
 export type TokenRequest = {
   grantType: string;
   intentId: string;
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
 };
 
 type TokenRequestValidation =
@@ -54,7 +54,7 @@ export type ExchangeIntentForTokenInput = {
   surreal: Surreal;
   asSigningKey: import("./as-key-management").AsSigningKey;
   intentId: string;
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
   proofThumbprint: string;
 };
 
@@ -80,7 +80,7 @@ export type ExchangeIntentForTokenResult =
 // Pure Validation: Request Body
 // ---------------------------------------------------------------------------
 
-const GRANT_TYPE = "urn:brain:intent-authorization";
+const GRANT_TYPE = "urn:osabio:intent-authorization";
 
 export function validateTokenRequest(body: unknown): TokenRequestValidation {
   if (!body || typeof body !== "object") {
@@ -141,7 +141,7 @@ export function validateTokenRequest(body: unknown): TokenRequestValidation {
     data: {
       grantType: input.grant_type,
       intentId: (input.intent_id as string).trim(),
-      authorizationDetails: input.authorization_details as BrainAction[],
+      authorizationDetails: input.authorization_details as OsabioAction[],
     },
   };
 }
@@ -178,8 +178,8 @@ export function verifyIntentForTokenIssuance(
 // ---------------------------------------------------------------------------
 
 export function matchAuthorizationDetails(
-  requested: BrainAction[],
-  intentActions: BrainAction[] | undefined,
+  requested: OsabioAction[],
+  intentActions: OsabioAction[] | undefined,
 ): AuthorizationDetailsMatch {
   if (!intentActions) {
     return {

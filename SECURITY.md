@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Brain, please report it responsibly.
+If you discover a security vulnerability in Osabio, please report it responsibly.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
@@ -19,8 +19,8 @@ You should receive an acknowledgment within 48 hours. We will work with you to u
 ## Scope
 
 The following are in scope:
-- Brain server (`app/`)
-- Brain CLI and MCP server (`cli/`)
+- Osabio server (`app/`)
+- Osabio CLI and MCP server (`cli/`)
 - OAuth 2.1 / DPoP / RAR authentication (`app/src/server/orchestrator/`, `app/src/server/mcp/`)
 - SurrealDB schema and queries (`schema/`)
 
@@ -30,4 +30,4 @@ The following are out of scope:
 
 ## Supported Versions
 
-Brain is pre-1.0. Security fixes are applied to the `main` branch only.
+Osabio is pre-1.0. Security fixes are applied to the `main` branch only.

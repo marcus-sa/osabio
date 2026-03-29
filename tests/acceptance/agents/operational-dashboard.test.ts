@@ -101,17 +101,17 @@ describe.skip("Edit Agent Configuration", () => {
     expect(detail.identity.name).toBe("New Name");
   }, 120_000);
 
-  it("editing a brain agent is rejected", async () => {
+  it("editing a osabio agent is rejected", async () => {
     const { baseUrl, surreal } = getRuntime();
-    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "edit-brain");
+    const { user, workspaceId } = await createAgentTestWorkspace(baseUrl, surreal, "edit-osabio");
 
-    // Given a brain agent exists
+    // Given a osabio agent exists
     const { seedBrainAgent } = await import("./agents-test-kit");
     const { agentId } = await seedBrainAgent(surreal, workspaceId, "Chat Agent", {
       agentType: "chat_agent",
     });
 
-    // When the admin attempts to edit the brain agent
+    // When the admin attempts to edit the osabio agent
     const response = await updateAgentViaHttp(baseUrl, user, workspaceId, agentId, {
       description: "Should not be editable",
     });
@@ -248,7 +248,7 @@ describe.skip("Empty States", () => {
 
     // Then the response indicates no custom agents exist
     const body = (await response.json()) as { agents: Array<{ runtime: string }> };
-    const customAgents = body.agents.filter((a) => a.runtime !== "brain");
+    const customAgents = body.agents.filter((a) => a.runtime !== "osabio");
     expect(customAgents.length).toBe(0);
   }, 120_000);
 });

@@ -20,13 +20,13 @@ C4Context
     Person(admin, "Workspace Admin", "Reviews agent reasoning for forensic debugging and compliance")
     Person(agent, "Coding Agent", "Submits intents via MCP/OAuth")
 
-    System(brain, "Brain Platform", "Knowledge graph with agent coordination, observation pipeline, and intent authorization")
+    System(osabio, "Osabio Platform", "Knowledge graph with agent coordination, observation pipeline, and intent authorization")
 
     System_Ext(llm, "LLM Provider", "OpenRouter / Ollama -- generates structured verdicts with reasoning")
     System_Ext(surreal, "SurrealDB", "Graph database storing observations, intents, traces")
 
-    Rel(admin, brain, "Views observation/intent reasoning", "HTTPS")
-    Rel(agent, brain, "Submits intents", "OAuth 2.1 + DPoP")
+    Rel(admin, osabio, "Views observation/intent reasoning", "HTTPS")
+    Rel(agent, osabio, "Submits intents", "OAuth 2.1 + DPoP")
     Rel(brain, llm, "Requests structured verdicts", "HTTPS")
     Rel(brain, surreal, "Persists reasoning fields", "WebSocket RPC")
 ```
@@ -39,7 +39,7 @@ C4Container
 
     Person(admin, "Workspace Admin")
 
-    Container_Boundary(server, "Brain Server (Bun)") {
+    Container_Boundary(server, "Osabio Server (Bun)") {
         Container(observer_agent, "Observer Agent", "TypeScript", "Dispatches entity verification and graph scans")
         Container(observer_llm, "Observer LLM Reasoning", "TypeScript", "generateVerificationVerdict, generatePeerReviewVerdict")
         Container(observer_synthesis, "Observer LLM Synthesis", "TypeScript", "detectContradictions, evaluateAnomalies, synthesizePatterns")

@@ -15,7 +15,7 @@ Prerequisite: All Phase 1 (US-EMB-001, 002, 003) and Phase 2 (US-EMB-004) scenar
 ```gherkin
 Given EMBEDDING_MODEL is not in the environment
 And EMBEDDING_DIMENSION is not in the environment
-When the Brain server starts
+When the Osabio server starts
 Then startup completes successfully
 And all HTTP endpoints respond to requests
 And no embedding-related warnings or errors appear in logs
@@ -84,7 +84,7 @@ And no file references createEmbeddingVector or cosineSimilarity
 ## Scenario 5.5: Entity creation does not generate embeddings
 
 ```gherkin
-Given the Brain server is running without embedding configuration
+Given the Osabio server is running without embedding configuration
 When a new task "Test task for post-migration verification" is created in workspace "Acme Corp"
 Then the task is persisted successfully
 And the task record has no embedding field

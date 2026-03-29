@@ -6,7 +6,7 @@ import {
   resolveWorkspaceProjectRecord,
 } from "../graph/queries";
 import { requireAuthorizedContext } from "../iam/authority";
-import { createQuestionSchema } from "../mcp/brain-tool-definitions";
+import { createQuestionSchema } from "../mcp/osabio-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 export function createCreateQuestionTool(deps: ChatToolDeps) {

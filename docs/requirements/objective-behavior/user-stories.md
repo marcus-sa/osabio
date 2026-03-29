@@ -16,18 +16,18 @@ Enable creating objective nodes in the knowledge graph via chat conversation or 
 ### Domain Examples
 
 #### 1: Happy Path -- Elena creates Q2 launch objective via chat
-Elena sends: "Our Q2 objective is to launch the MCP marketplace with 10 listed integrations by June 30." Brain extracts an objective node with title "Launch MCP Marketplace", target_date 2026-06-30, success_criteria ["10 listed integrations"], priority 90, status "active". Elena sees confirmation with extracted fields.
+Elena sends: "Our Q2 objective is to launch the MCP marketplace with 10 listed integrations by June 30." Osabio extracts an objective node with title "Launch MCP Marketplace", target_date 2026-06-30, success_criteria ["10 listed integrations"], priority 90, status "active". Elena sees confirmation with extracted fields.
 
 #### 2: Edge Case -- Objective without target date
-Elena sends: "We need to improve infrastructure reliability this quarter." Brain creates the objective but prompts: "What is the target date for this objective?" The objective is created with status "active" and no target_date until Elena provides one.
+Elena sends: "We need to improve infrastructure reliability this quarter." Osabio creates the objective but prompts: "What is the target date for this objective?" The objective is created with status "active" and no target_date until Elena provides one.
 
 #### 3: Error/Boundary -- Duplicate objective detection
-Elena sends: "Our goal is to launch the MCP marketplace." Brain detects semantic similarity 0.97 with existing active objective "Launch MCP Marketplace." Instead of creating a duplicate, Brain responds: "An active objective 'Launch MCP Marketplace' already exists. Would you like to update it?"
+Elena sends: "Our goal is to launch the MCP marketplace." Osabio detects semantic similarity 0.97 with existing active objective "Launch MCP Marketplace." Instead of creating a duplicate, Osabio responds: "An active objective 'Launch MCP Marketplace' already exists. Would you like to update it?"
 
 ### UAT Scenarios (BDD)
 
 #### Scenario: Create objective from chat message
-Given Elena Vasquez is in a conversation in workspace "BrainOS"
+Given Elena Vasquez is in a conversation in workspace "OsabioOS"
 When Elena sends "Our Q2 objective is to launch the MCP marketplace with 10 listed integrations by June 30"
 Then an objective node is created with title "Launch MCP Marketplace"
 And the objective has target_date 2026-06-30
@@ -48,11 +48,11 @@ Then no duplicate objective is created
 And Elena sees: "An active objective 'Launch MCP Marketplace' already exists"
 
 #### Scenario: Objective created with workspace scope and embedding
-Given Elena is in workspace "BrainOS"
+Given Elena is in workspace "OsabioOS"
 When an objective is created
-Then the objective has workspace reference to "BrainOS"
+Then the objective has workspace reference to "OsabioOS"
 And the objective has an embedding for semantic matching
-And the objective is only visible within workspace "BrainOS"
+And the objective is only visible within workspace "OsabioOS"
 
 ### Acceptance Criteria
 - [ ] Objective node created from chat with extracted title, target_date, success_criteria, priority
@@ -127,7 +127,7 @@ Then a supports edge is created between intent and selected objective
 And the warning observation is resolved
 
 #### Scenario: No objectives exist in workspace
-Given no objectives exist in workspace "BrainOS"
+Given no objectives exist in workspace "OsabioOS"
 When Coder-Alpha submits an intent
 Then a feed card appears: "No objectives defined. Agent work is untracked."
 And the intent proceeds without alignment check

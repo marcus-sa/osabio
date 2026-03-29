@@ -204,8 +204,8 @@ milestones:
       - step_id: "04-02"
         description: "Inject urgent-context and context-update XML blocks into proxy pipeline, update session last_request_at after each request"
         acceptance_criteria:
-          - "Urgent context injected as <urgent-context> before <brain-context>"
-          - "Context updates injected as <context-update> after <brain-context>"
+          - "Urgent context injected as <urgent-context> before <osabio-context>"
+          - "Context updates injected as <context-update> after <osabio-context>"
           - "Multiple urgent updates consolidated into single block"
           - "agent_session.last_request_at updated after each proxy request"
           - "Current agent generation never cancelled"

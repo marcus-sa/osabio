@@ -1,7 +1,7 @@
 import { RecordId, type Surreal } from "surrealdb";
 import type { IntentRecord, IntentStatus, ActionSpec, BudgetLimit, EvaluationResult } from "./types";
 import type { EvidenceVerificationResult } from "./evidence-types";
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 import type { PolicyTraceEntry } from "../policy/types";
 import { transitionStatus } from "./status-machine";
 
@@ -17,7 +17,7 @@ type CreateIntentParams = {
   requester: RecordId<"identity", string>;
   workspace: RecordId<"workspace", string>;
   expiry?: Date;
-  authorization_details?: BrainAction[];
+  authorization_details?: OsabioAction[];
   dpop_jwk_thumbprint?: string;
   evidence_refs?: RecordId[];
 };

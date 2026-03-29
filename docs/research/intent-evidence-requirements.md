@@ -4,14 +4,14 @@
 
 ## Executive Summary
 
-This research investigates how to require autonomous agents to provide verifiable evidence when submitting intents (authorization requests) in Brain's knowledge graph system. The core security gap is that today's intents contain only free-text `goal` and `reasoning` fields, which a compromised agent can fabricate without constraint. The proposed solution adds `evidence_refs` -- typed references to existing graph records (decisions, tasks, observations, etc.) -- that the evaluator can verify before authorizing execution.
+This research investigates how to require autonomous agents to provide verifiable evidence when submitting intents (authorization requests) in Osabio's knowledge graph system. The core security gap is that today's intents contain only free-text `goal` and `reasoning` fields, which a compromised agent can fabricate without constraint. The proposed solution adds `evidence_refs` -- typed references to existing graph records (decisions, tasks, observations, etc.) -- that the evaluator can verify before authorizing execution.
 
 Three independent bodies of literature support this approach. First, **Proof-Carrying Code** (Necula, 1997; CSFW 2004) establishes the pattern of untrusted code accompanying its own safety proof, shifting the burden of proof to the producer (agent) while keeping the verifier (evaluator) simple and fast. Second, **NIST SP 800-207 (Zero Trust Architecture)** mandates that authorization decisions be grounded in "observable state" rather than claimed identity -- directly supporting graph-grounded verification. Third, **capability-based security** (object-capability model, Macaroons) provides the attenuation and least-authority principles that inform how evidence requirements should scale with risk.
 
 The research proposes a concrete implementation: a new `evidence_refs` field on the intent schema (typed `array<record<decision|task|...>>`), verified by a fast deterministic pipeline (existence, workspace scope, temporal ordering, status liveness) before the LLM evaluator runs. Evidence requirements scale with risk tier -- low-risk actions need 1 reference, high-risk actions need 3+ including authorship independence. A graduated enforcement model addresses the cold-start bootstrapping problem: bootstrap exemption during workspace setup, soft enforcement early on (missing evidence increases risk score), and hard enforcement once the workspace reaches maturity. Five specific counter-attacks (self-referencing, evidence spam, status bypass, timing exploits, colluding agents) are analyzed with concrete mitigations. Performance impact is bounded at 10-30ms additional latency for the verification step, well within the existing 2-5s LLM evaluation budget.
 
 ## Research Methodology
-**Search Strategy**: Web search for academic papers, security standards (NIST, IETF), capability-based security literature, proof-carrying code research, and industry patterns for multi-agent authorization. Local codebase analysis of existing Brain intent system.
+**Search Strategy**: Web search for academic papers, security standards (NIST, IETF), capability-based security literature, proof-carrying code research, and industry patterns for multi-agent authorization. Local codebase analysis of existing Osabio intent system.
 **Source Selection**: Types: academic, official standards, industry leaders, technical docs | Reputation: high/medium-high min | Verification: cross-referencing across independent sources
 **Quality Standards**: Target 3 sources/claim (min 1 authoritative) | All major claims cross-referenced | Avg reputation: 0.85
 
@@ -25,7 +25,7 @@ The research proposes a concrete implementation: a new `evidence_refs` field on 
 **Source**: [Authenticated Delegation and Authorized AI Agents](https://arxiv.org/html/2501.09674v1) - Accessed 2026-03-25
 **Confidence**: High
 **Verification**: [Decentralized Identity Foundation - Authorising Autonomous Agents at Scale](https://blog.identity.foundation/building-ai-trust-at-scale-4/), [NIST SP 800-207 Zero Trust Architecture](https://nvlpubs.nist.gov/nistpubs/specialpublications/NIST.SP.800-207.pdf)
-**Analysis**: The arxiv paper proposes grounding natural language permissions in "structured, machine-readable policy specifications" that are "unambiguous and deterministic, providing verifiable guarantees." This directly maps to Brain's need: replace free-text `goal`/`reasoning` with references to machine-verifiable graph records.
+**Analysis**: The arxiv paper proposes grounding natural language permissions in "structured, machine-readable policy specifications" that are "unambiguous and deterministic, providing verifiable guarantees." This directly maps to Osabio's need: replace free-text `goal`/`reasoning` with references to machine-verifiable graph records.
 
 **Evidence**: NIST SP 800-207 (Zero Trust Architecture) mandates that "access to resources is determined by dynamic policy -- including the observable state of client identity, application/service, and the requesting asset -- and may include other behavioral and environmental attributes." Each access request must be verified against observable system state, not just claimed identity.
 **Source**: [NIST SP 800-207](https://nvlpubs.nist.gov/nistpubs/specialpublications/NIST.SP.800-207.pdf) - Accessed 2026-03-25
@@ -46,15 +46,15 @@ The research proposes a concrete implementation: a new `evidence_refs` field on 
 **Source**: [Necula - Proof-Carrying Code](https://people.eecs.berkeley.edu/~necula/pcc.html) - Accessed 2026-03-25
 **Confidence**: High
 **Verification**: [ACM POPL '97 Proceedings](https://dl.acm.org/doi/10.1145/263699.263712), [Necula - Authorization of PCC (CSFW 2004)](https://people.eecs.berkeley.edu/~necula/Papers/sigpcc_csfw04.pdf)
-**Analysis**: In PCC, the burden of proof is on the producer (the agent), not the consumer (the evaluator). The evaluator only needs a fast validator. Applied to Brain: agents must produce evidence references; the evaluator validates they exist and are relevant. The evaluator does not need to understand the agent's full reasoning -- it checks the evidence chain.
+**Analysis**: In PCC, the burden of proof is on the producer (the agent), not the consumer (the evaluator). The evaluator only needs a fast validator. Applied to Osabio: agents must produce evidence references; the evaluator validates they exist and are relevant. The evaluator does not need to understand the agent's full reasoning -- it checks the evidence chain.
 
 **Evidence**: The CSFW 2004 paper on "A System for Authorization of Proof-Carrying Code" extends PCC to authorization specifically, where proofs accompany requests and the system validates them against established rulesets with trust annotations determining which entities' claims carry weight.
 **Source**: [Authorization of PCC](https://people.eecs.berkeley.edu/~necula/Papers/sigpcc_csfw04.pdf) - Accessed 2026-03-25
 **Confidence**: High
 **Verification**: Cross-referenced with Necula's original PCC work and Appel's Foundational PCC.
 
-**Practical Translation to Brain Intents**:
-- **PCC safety policy** maps to Brain's **policy graph** -- deterministic rules about what actions are permitted
+**Practical Translation to Osabio Intents**:
+- **PCC safety policy** maps to Osabio's **policy graph** -- deterministic rules about what actions are permitted
 - **PCC proof** maps to **evidence_refs** -- the agent's evidence that its intent is grounded in real system state
 - **VCgen/validator** maps to the **intent evaluator** -- fast verification that referenced records exist, are in the correct workspace, and logically support the intent
 - **Trust annotations** map to **authority scopes** -- different agents' evidence carries different weight
@@ -68,7 +68,7 @@ The research proposes a concrete implementation: a new `evidence_refs` field on 
 **Confidence**: Medium (single primary academic source; pattern corroborated by industry practice)
 **Verification**: Corroborated by NIST 800-207 zero trust principles and DIF delegation chain verification patterns.
 
-**Analysis**: Brain's existing graph already has the infrastructure for this. Every entity (decision, task, observation, etc.) has workspace scope, timestamps, and provenance. The verification step is: for each record in evidence_refs, confirm (1) it exists, (2) it belongs to the same workspace, (3) it was created before the intent, (4) its status is not invalidated/superseded.
+**Analysis**: Osabio's existing graph already has the infrastructure for this. Every entity (decision, task, observation, etc.) has workspace scope, timestamps, and provenance. The verification step is: for each record in evidence_refs, confirm (1) it exists, (2) it belongs to the same workspace, (3) it was created before the intent, (4) its status is not invalidated/superseded.
 
 **Proposed Verification Algorithm**:
 ```
@@ -101,7 +101,7 @@ For each ref in evidence_refs:
 **Confidence**: High
 **Verification**: [CNCF TAG Security Assessment](https://tag-security.cncf.io/community/assessments/projects/spiffe-spire/self-assessment/), [HashiCorp - SPIFFE for Agentic AI](https://www.hashicorp.com/en/blog/spiffe-securing-the-identity-of-agentic-ai-and-non-human-actors)
 
-**Analysis - Defense Layers for Brain**:
+**Analysis - Defense Layers for Osabio**:
 | Layer | Mechanism | What it catches |
 |-------|-----------|----------------|
 | 1. Evidence existence | Referential integrity check on evidence_refs | Fabricated references to non-existent records |
@@ -115,14 +115,14 @@ For each ref in evidence_refs:
 
 ### 5. Evidence Schema Design and Requirements
 
-**Core Finding**: Evidence requirements should scale with action risk tier, following the legal analogy of "burden of proof" that increases with stakes. The schema should use a typed reference format consistent with Brain's existing polymorphic `table:id` convention.
+**Core Finding**: Evidence requirements should scale with action risk tier, following the legal analogy of "burden of proof" that increases with stakes. The schema should use a typed reference format consistent with Osabio's existing polymorphic `table:id` convention.
 
 **Evidence**: Legal standards of proof provide a well-established framework for tiered evidence requirements. The principle is: "the more serious the consequences, the higher the standard of proof is likely to be." This ranges from "reasonable suspicion" (lowest) through "preponderance of evidence" to "beyond a reasonable doubt" (highest).
 **Source**: [Understanding Legal Standards of Proof - Nolo](https://www.nolo.com/legal-encyclopedia/legal-standards-proof.html) - Accessed 2026-03-25
 **Confidence**: Medium (analogy from legal domain to software authorization; concept is well-established but translation is interpretive)
 **Verification**: Corroborated by NIST 800-207's risk-adaptive approach and the OCap principle of least authority.
 
-**Analysis**: Applied to Brain's risk tiers (auto_approve threshold <= 30, veto_window 30-100, reject):
+**Analysis**: Applied to Osabio's risk tiers (auto_approve threshold <= 30, veto_window 30-100, reject):
 
 **Proposed Schema Addition to Intent Table**:
 ```sql
@@ -274,13 +274,13 @@ WHERE workspace = $workspace;
 
 **Recommendation**: Evidence verification should be a synchronous, pre-LLM step in the evaluation pipeline. It is cheap (single batched query) and catches the most common attack vectors (non-existent refs, wrong workspace, stale refs) before the expensive LLM evaluation runs. The LLM evaluator then receives the verified evidence as additional context for its risk assessment, improving its reasoning quality.
 
-### 9. Integration with Existing Brain Concepts
+### 9. Integration with Existing Osabio Concepts
 
-**Core Finding**: Evidence-backed intents integrate naturally with Brain's existing entity model, requiring minimal schema changes. The key integration points are: observations (already have `evidence_refs`), decisions (provide authority chain), policies (define evidence requirements), and the Observer (monitors for evidence manipulation).
+**Core Finding**: Evidence-backed intents integrate naturally with Osabio's existing entity model, requiring minimal schema changes. The key integration points are: observations (already have `evidence_refs`), decisions (provide authority chain), policies (define evidence requirements), and the Observer (monitors for evidence manipulation).
 
 **Integration Map**:
 
-| Brain Concept | Integration with Intent Evidence | Direction |
+| Osabio Concept | Integration with Intent Evidence | Direction |
 |---------------|--------------------------------|-----------|
 | **Decisions** | Primary evidence type. A confirmed decision is strong justification for an intent. The decision's `reasoning` and `status=confirmed` provide verifiable grounding. | Evidence -> Intent |
 | **Tasks** | Evidence that work is authorized. An in-progress or completed task linked to a project provides execution context. | Evidence -> Intent |
@@ -291,7 +291,7 @@ WHERE workspace = $workspace;
 | **Observer** | Monitors for evidence manipulation patterns. The Observer's existing anomaly detection (observation spam, contradictions) extends to detecting evidence fabrication. New observation_type: `evidence_anomaly`. | Monitor -> Evidence Integrity |
 | **Learnings** | Evidence quality patterns become learnings. If intents with specific evidence patterns consistently receive low risk scores, this becomes a learning for agents: "include a confirmed decision ref when requesting deployment actions." | Evidence Patterns -> Learning |
 
-**Existing `evidence_refs` on Observations**: Brain's `observation` table already defines `evidence_refs` as `option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>`. The proposed intent `evidence_refs` should use a compatible but not identical type set, since intents reference evidence that justifies the action, while observations reference entities the observation is about.
+**Existing `evidence_refs` on Observations**: Osabio's `observation` table already defines `evidence_refs` as `option<array<record<project | feature | task | decision | question | observation | intent | git_commit>>>`. The proposed intent `evidence_refs` should use a compatible but not identical type set, since intents reference evidence that justifies the action, while observations reference entities the observation is about.
 
 **Policy Gate Extension**: The existing `evaluatePolicyGate()` function in `policy/policy-gate.ts` evaluates deterministic rules. A new rule type could be added:
 ```typescript

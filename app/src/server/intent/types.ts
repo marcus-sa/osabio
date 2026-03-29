@@ -1,5 +1,5 @@
 import type { RecordId } from "surrealdb";
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 import type { PolicyTraceEntry } from "../policy/types";
 import type { EvidenceVerificationResult } from "./evidence-types";
 
@@ -67,7 +67,7 @@ export type IntentRecord = {
   veto_expires_at?: Date;
   veto_reason?: string;
   error_reason?: string;
-  authorization_details?: BrainAction[];
+  authorization_details?: OsabioAction[];
   dpop_jwk_thumbprint?: string;
   token_issued_at?: Date;
   token_expires_at?: Date;

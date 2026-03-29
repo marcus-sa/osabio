@@ -48,7 +48,7 @@ describe("ProxyTokenDialog", () => {
     expect(screen.getByText(/Coding Agent/)).toBeInTheDocument();
   });
 
-  it("shows token-only-once warning and X-Brain-Auth usage instruction", async () => {
+  it("shows token-only-once warning and X-Osabio-Auth usage instruction", async () => {
     const { ProxyTokenDialog } = await import("./proxy-token-dialog");
     const onClose = mock(() => {});
 
@@ -62,7 +62,7 @@ describe("ProxyTokenDialog", () => {
     );
 
     expect(screen.getByText(/shown only once/i)).toBeInTheDocument();
-    expect(screen.getByText(/X-Brain-Auth/)).toBeInTheDocument();
+    expect(screen.getByText(/X-Osabio-Auth/)).toBeInTheDocument();
   });
 
   it("copies token to clipboard when Copy button is clicked", async () => {

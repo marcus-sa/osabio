@@ -1,7 +1,7 @@
 # Journey: Learning Injection at Agent Runtime (Consumption Flow)
 
 ## Overview
-A coding agent starts a new MCP session in the Brain workspace. The system selects relevant active learnings, respects the token budget, resolves priority ordering, and injects them into the system prompt.
+A coding agent starts a new MCP session in the Osabio workspace. The system selects relevant active learnings, respects the token budget, resolves priority ordering, and injects them into the system prompt.
 
 ## Emotional Arc
 - **Start**: Neutral (system process)
@@ -130,7 +130,7 @@ Example for code_agent session:
 |                                                                |
 |  ### Instructions (follow when applicable)                     |
 |  - Always use --no-verify when committing. The pre-commit      |
-|    hook requires brain init which is not available in worktree  |
+|    hook requires osabio init which is not available in worktree  |
 |    environments.                                               |
 |  - Always use -s (GPG sign) when committing.                   |
 |                                                                |

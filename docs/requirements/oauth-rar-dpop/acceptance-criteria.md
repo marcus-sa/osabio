@@ -8,8 +8,8 @@
 | US-002: Intent with DPoP Binding | Job 1 | J1 Step 3 | 3 | 1-2 days |
 | US-003: RAR Token Issuance (Custom AS) | Job 1 | J1 Steps 5-6 | 4 | 2-3 days |
 | US-004: RAR Consent Rendering | Job 2 | J1 Step 4 | 3 | 2 days |
-| US-005: DPoP Verification (Brain Boundary) | Job 3 | J2 Steps 1-4 | 6 | 2-3 days |
-| US-006: RAR Scope Verification (Brain) | Job 3 | J2 Step 5 | 3 | 1-2 days |
+| US-005: DPoP Verification (Osabio Boundary) | Job 3 | J2 Steps 1-4 | 6 | 2-3 days |
+| US-006: RAR Scope Verification (Osabio) | Job 3 | J2 Step 5 | 3 | 1-2 days |
 | US-007: Bridge Token Exchange | Job 4 | Bridge B1-B3 | 4 | 2-3 days |
 | US-008: Managed Agent Identity | Job 4, BR-8 | Bridge + Custom AS | 3 | 1-2 days |
 
@@ -40,18 +40,18 @@
 
 ## US-002: Intent Submission with DPoP Thumbprint Binding
 
-### AC-002.1: Thumbprint Required for All Brain Operations
-- Intent submission endpoint REQUIRES `dpop_jwk_thumbprint` field for ALL Brain operations
+### AC-002.1: Thumbprint Required for All Osabio Operations
+- Intent submission endpoint REQUIRES `dpop_jwk_thumbprint` field for ALL Osabio operations
 - Submission without thumbprint returns 400 -- no exceptions for reads or low-risk operations
 - Derived from: Scenario "Intent rejected for missing DPoP thumbprint"
 
-### AC-002.2: brain_action Required
-- Intent submission endpoint REQUIRES `authorization_details` with `type: "brain_action"`
+### AC-002.2: osabio_action Required
+- Intent submission endpoint REQUIRES `authorization_details` with `type: "osabio_action"`
 - No scope-based intents accepted
-- Derived from: Scenario "Intent submitted with DPoP thumbprint for Brain operation"
+- Derived from: Scenario "Intent submitted with DPoP thumbprint for Osabio operation"
 
 ### AC-002.3: Authorizer Agent Evaluates Rich Intent Objects
-- Authorizer Agent evaluates brain_action intents, never scopes
+- Authorizer Agent evaluates osabio_action intents, never scopes
 - Low-risk operations (reads) auto-approve through the pipeline
 - Derived from: Scenario "Read intent auto-approved by Authorizer Agent"
 
@@ -60,14 +60,14 @@
 ## US-003: RAR Token Issuance with DPoP Binding (Custom AS)
 
 ### AC-003.1: Custom Grant Type
-- Custom AS accepts `grant_type=urn:brain:intent-authorization`
+- Custom AS accepts `grant_type=urn:osabio:intent-authorization`
 - Requires `intent_id` and `authorization_details` parameters
 - Derived from: Scenario "DPoP-bound token issued for authorized intent"
 
-### AC-003.2: Token Claims (brain_action)
+### AC-003.2: Token Claims (osabio_action)
 - Issued token contains `cnf.jkt` matching the DPoP proof key thumbprint
-- Issued token contains `authorization_details` with `type: "brain_action"` matching authorized intent
-- Issued token contains `urn:brain:intent_id` referencing the authorizing intent
+- Issued token contains `authorization_details` with `type: "osabio_action"` matching authorized intent
+- Issued token contains `urn:osabio:intent_id` referencing the authorizing intent
 - Issued token expires in 300 seconds (configurable)
 - Derived from: Scenario "DPoP-bound token issued for authorized intent"
 
@@ -90,10 +90,10 @@
 ## US-004: Human-Readable RAR Consent for Veto Window
 
 ### AC-004.1: Structured Display
-- brain_action authorization_details rendered in human-readable form
+- osabio_action authorization_details rendered in human-readable form
 - Provider-specific formatting (e.g., Stripe amounts in dollars not cents, customer names not IDs)
 - Risk score, Authorizer Agent reasoning, and veto window expiry displayed
-- Derived from: Scenario "Consent notification shows structured brain_action"
+- Derived from: Scenario "Consent notification shows structured osabio_action"
 
 ### AC-004.2: Constrain Action
 - Human can modify authorization_details constraints (e.g., cap amount)
@@ -110,14 +110,14 @@
 
 ---
 
-## US-005: DPoP Proof Verification at Brain Resource Server
+## US-005: DPoP Proof Verification at Osabio Resource Server
 
-### AC-005.1: Brain Rejects Non-DPoP Requests
+### AC-005.1: Osabio Rejects Non-DPoP Requests
 - Bearer tokens rejected with 401 "dpop_required"
 - Session cookies rejected with 401 "dpop_required"
 - Missing Authorization header rejected with 401 "dpop_required"
 - No scope-based authorization attempted
-- Derived from: Scenarios "Session cookie rejected at Brain boundary", "Bearer token rejected at Brain boundary"
+- Derived from: Scenarios "Session cookie rejected at Osabio boundary", "Bearer token rejected at Osabio boundary"
 
 ### AC-005.2: Proof Structure Validation
 - DPoP proof typ must be "dpop+jwt"
@@ -147,17 +147,17 @@
 
 ### AC-005.6: Uniform Pipeline
 - Same verification pipeline for agent tokens and human Bridge tokens
-- No branching on actor type at Brain boundary
-- Derived from: Property "Human and agent tokens are indistinguishable at Brain boundary"
+- No branching on actor type at Osabio boundary
+- Derived from: Property "Human and agent tokens are indistinguishable at Osabio boundary"
 
 ---
 
-## US-006: RAR Operation Scope Verification at Brain Resource Server
+## US-006: RAR Operation Scope Verification at Osabio Resource Server
 
-### AC-006.1: brain_action Type Required
-- authorization_details must contain type "brain_action" -- no scope fallback
-- Tokens without brain_action authorization_details rejected
-- Derived from: Property "Brain only accepts brain_action authorization_details"
+### AC-006.1: osabio_action Type Required
+- authorization_details must contain type "osabio_action" -- no scope fallback
+- Tokens without osabio_action authorization_details rejected
+- Derived from: Property "Brain only accepts osabio_action authorization_details"
 
 ### AC-006.2: Action and Resource Matching
 - Action must match exactly between authorization_details and requested operation
@@ -182,18 +182,18 @@
 ### AC-007.1: Bridge Endpoint Functional
 - Bridge endpoint accepts Better Auth session cookie + DPoP proof + authorization_details
 - Validates Better Auth session is active via API call
-- Issues DPoP-bound token with brain_action authorization_details
-- Derived from: Scenario "Human obtains Brain token via Bridge for graph read"
+- Issues DPoP-bound token with osabio_action authorization_details
+- Derived from: Scenario "Human obtains Osabio token via Bridge for graph read"
 
 ### AC-007.2: Session Validation
 - Expired Better Auth session returns 401 "session_expired"
 - Error includes guidance to redirect to Better Auth login
 - Derived from: Scenario "Bridge rejects expired Better Auth session"
 
-### AC-007.3: Brain Boundary Enforcement
-- Session cookie presented directly to Brain returns 401 "dpop_required"
+### AC-007.3: Osabio Boundary Enforcement
+- Session cookie presented directly to Osabio returns 401 "dpop_required"
 - Error guides client to use the Bridge
-- Derived from: Scenario "Session cookie directly rejected at Brain"
+- Derived from: Scenario "Session cookie directly rejected at Osabio"
 
 ### AC-007.4: Risk-Based Routing for Bridge Operations
 - Low-risk reads auto-approve through Authorizer Agent

@@ -8,7 +8,7 @@
  * Driving ports:
  *   - POST /api/auth/proxy-token (issue proxy tokens)
  *   - POST /proxy/llm/anthropic/v1/messages (proxy with Brain auth)
- *   - CLI config files (~/.brain/config.json, .claude/settings.local.json)
+ *   - CLI config files (~/.osabio/config.json, .claude/settings.local.json)
  */
 import { RecordId, type Surreal } from "surrealdb";
 import {
@@ -46,7 +46,7 @@ export type ProxyTokenResponse = {
 };
 
 /**
- * Request a proxy token from the server, simulating what `brain init` Step 7 does.
+ * Request a proxy token from the server, simulating what `osabio init` Step 7 does.
  *
  * The endpoint validates via Better Auth session cookies (not the Bearer value).
  * Pass sessionHeaders from createProxyTestUser() which contains Cookie header.
@@ -166,9 +166,9 @@ export async function createProxyTestUser(
 // ---------------------------------------------------------------------------
 
 /**
- * Send a proxy request using Brain auth (X-Brain-Auth header) instead of
+ * Send a proxy request using Brain auth (X-Osabio-Auth header) instead of
  * direct Anthropic API key. This is how Claude Code routes through the proxy
- * after `brain init` configures settings.local.json.
+ * after `osabio init` configures settings.local.json.
  */
 export async function sendBrainAuthProxyRequest(
   baseUrl: string,
@@ -192,7 +192,7 @@ export async function sendBrainAuthProxyRequest(
     headers: {
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
-      "X-Brain-Auth": proxyToken,
+      "X-Osabio-Auth": proxyToken,
     },
     body,
   });
@@ -290,7 +290,7 @@ export async function seedExpiredProxyToken(
 // ---------------------------------------------------------------------------
 
 /**
- * Build what brain init Step 7 should write to .claude/settings.local.json.
+ * Build what osabio init Step 7 should write to .claude/settings.local.json.
  * Used for asserting CLI output correctness.
  */
 export function buildExpectedSettingsLocal(
@@ -300,13 +300,13 @@ export function buildExpectedSettingsLocal(
   return {
     env: {
       ANTHROPIC_BASE_URL: `${serverUrl}/proxy/llm/anthropic`,
-      ANTHROPIC_CUSTOM_HEADERS: `X-Brain-Auth: ${proxyToken}`,
+      ANTHROPIC_CUSTOM_HEADERS: `X-Osabio-Auth: ${proxyToken}`,
     },
   };
 }
 
 /**
- * Build what brain init Step 7 should store in ~/.brain/config.json repo entry.
+ * Build what osabio init Step 7 should store in ~/.osabio/config.json repo entry.
  */
 export function buildExpectedRepoConfig(
   proxyToken: string,

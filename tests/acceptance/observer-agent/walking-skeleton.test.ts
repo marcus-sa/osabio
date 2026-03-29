@@ -54,7 +54,7 @@ describe("Walking Skeleton: Task completion triggers observer verification", () 
         title: "Add input validation to signup form",
         description: "Validate email format and password strength on the signup page",
         status: "in_progress",
-        repository: "org/brain",
+        repository: "org/osabio",
       },
     );
 

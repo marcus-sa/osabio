@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "brain": {
-      "command": "./cli/brain.ts",
+    "osabio": {
+      "command": "./cli/osabio.ts",
       "args": [
         "mcp"
       ]

@@ -6,11 +6,11 @@ Superseded by [ADR-008](ADR-008-claude-agent-sdk-over-opencode.md)
 
 ## Context
 
-The Brain CLI already integrates with Claude Code via an MCP stdio server (`brain mcp`) exposing 30+ tools, plus Claude Code hooks for session lifecycle (SessionStart, PreToolUse, UserPromptSubmit, SessionEnd).
+The Osabio CLI already integrates with Claude Code via an MCP stdio server (`osabio mcp`) exposing 30+ tools, plus Claude Code hooks for session lifecycle (SessionStart, PreToolUse, UserPromptSubmit, SessionEnd).
 
 OpenCode supports two integration paths:
-1. **MCP servers** -- configure `brain mcp` in `opencode.json` under `mcp:` key. Zero code changes.
-2. **Native plugins** -- create `.opencode/plugins/brain.ts` using `@opencode-ai/plugin` with custom tools + hooks.
+1. **MCP servers** -- configure `osabio mcp` in `opencode.json` under `mcp:` key. Zero code changes.
+2. **Native plugins** -- create `.opencode/plugins/osabio.ts` using `@opencode-ai/plugin` with custom tools + hooks.
 
 We need to decide which approach to use for the OpenCode integration.
 
@@ -24,12 +24,12 @@ Use **native OpenCode plugin** as the primary integration path, not MCP.
 
 | Capability | MCP in OpenCode | Native Plugin |
 |-----------|----------------|---------------|
-| Custom tools (30+ Brain tools) | Yes (via stdio) | Yes (via `tool()` helper) |
+| Custom tools (30+ Osabio tools) | Yes (via stdio) | Yes (via `tool()` helper) |
 | Session lifecycle hooks | No | Yes (`session.created`, `session.idle`) |
 | Tool interception | No | Yes (`tool.execute.before`) |
 | Compaction context injection | No | Yes (`experimental.session.compacting`) |
 | Transport | Separate subprocess + stdio IPC | In-process function calls |
-| Startup overhead | Spawns `brain mcp` process | Plugin loaded at init |
+| Startup overhead | Spawns `osabio mcp` process | Plugin loaded at init |
 | Error handling | MCP error protocol | Native JS exceptions |
 | Dependencies | None (reuse existing) | `@opencode-ai/plugin` (types only) |
 
@@ -41,15 +41,15 @@ The lifecycle hooks are the decisive factor. Without them:
 
 ### Why keep MCP for Claude Code
 
-Claude Code does not have a plugin system. MCP + hooks in `.claude/settings.json` is the only integration path. The existing `brain mcp` server continues to serve Claude Code unchanged.
+Claude Code does not have a plugin system. MCP + hooks in `.claude/settings.json` is the only integration path. The existing `osabio mcp` server continues to serve Claude Code unchanged.
 
 ### Shared backend, different transports
 
-Both integrations call the same Brain HTTP API (`/api/mcp/:workspaceId/*`) using the same `BrainHttpClient` class. The plugin is a thin adapter layer -- each custom tool maps to one HTTP POST call.
+Both integrations call the same Osabio HTTP API (`/api/mcp/:workspaceId/*`) using the same `OsabioHttpClient` class. The plugin is a thin adapter layer -- each custom tool maps to one HTTP POST call.
 
 ## Alternatives Considered
 
-### Alternative 1: MCP-only (configure `brain mcp` in `opencode.json`)
+### Alternative 1: MCP-only (configure `osabio mcp` in `opencode.json`)
 
 - **Pro**: Zero new code. Reuse existing MCP server as-is.
 - **Con**: No lifecycle hooks. No compaction context. Extra subprocess per agent session. Users must manually start/end sessions.
@@ -61,11 +61,11 @@ Both integrations call the same Brain HTTP API (`/api/mcp/:workspaceId/*`) using
 - **Con**: Two integration mechanisms running simultaneously. MCP subprocess + plugin. More complex debugging. Double the failure modes.
 - **Rejected**: Unnecessary complexity when plugin can handle both tools and hooks.
 
-### Alternative 3: Publish Brain plugin as npm package
+### Alternative 3: Publish Osabio plugin as npm package
 
 - **Pro**: `opencode.json` references `"plugin": ["brain-opencode-plugin"]`. Clean install.
-- **Con**: Requires npm publish pipeline. Version management. Plugin needs local config access (`~/.brain/config.json`). Over-engineering for a single-user product.
-- **Rejected for now**: Start with local plugin dropped by `brain init --opencode`. Can extract to npm later if demand warrants.
+- **Con**: Requires npm publish pipeline. Version management. Plugin needs local config access (`~/.osabio/config.json`). Over-engineering for a single-user product.
+- **Rejected for now**: Start with local plugin dropped by `osabio init --opencode`. Can extract to npm later if demand warrants.
 
 ## Consequences
 
@@ -76,8 +76,8 @@ Both integrations call the same Brain HTTP API (`/api/mcp/:workspaceId/*`) using
 - Single integration mechanism per agent runtime (simpler debugging)
 
 ### Negative
-- Must maintain tool definitions in two places: `cli/mcp-server.ts` (Claude Code) and `.opencode/plugins/brain.ts` (OpenCode)
-- Mitigation: Both import the same `BrainHttpClient` and call the same API endpoints. Tool definitions are thin wrappers.
+- Must maintain tool definitions in two places: `cli/mcp-server.ts` (Claude Code) and `.opencode/plugins/osabio.ts` (OpenCode)
+- Mitigation: Both import the same `OsabioHttpClient` and call the same API endpoints. Tool definitions are thin wrappers.
 - Future mitigation: Extract shared tool metadata into a common definition that generates both MCP tool handlers and OpenCode plugin tools.
 
 ### Neutral

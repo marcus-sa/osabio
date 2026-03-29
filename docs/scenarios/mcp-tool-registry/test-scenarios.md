@@ -22,21 +22,21 @@ Total: 52 scenarios (29 happy path + 23 error/edge/boundary = 44% error coverage
 | 2.1 | Walking Skeleton: Proxy injects granted tools into LLM request | happy | FR-3, FR-4, AC-5 |
 | 2.2 | Runtime tools preserved alongside injected tools | happy | NFR-3 |
 | 2.3 | No tools injected for identity with no grants | boundary | AC-5 |
-| 2.4 | Runtime tool takes precedence over Brain tool with same name | edge | FR-4 |
+| 2.4 | Runtime tool takes precedence over Osabio tool with same name | edge | FR-4 |
 
-### 03 -- Brain-Native Routing (US-6a) [3 scenarios]
+### 03 -- Osabio-Native Routing (US-6a) [3 scenarios]
 
 | # | Scenario | Type | Traces |
 |---|----------|------|--------|
-| 3.1 | Walking Skeleton: Proxy intercepts and executes Brain-native tool call | happy | FR-5, AC-6 |
+| 3.1 | Walking Skeleton: Proxy intercepts and executes Osabio-native tool call | happy | FR-5, AC-6 |
 | 3.2 | Unknown tool call passed through to runtime | boundary | AC-6, NFR-3 |
-| 3.3 | Brain-native tool execution error returns tool_result error | error | FR-5 |
+| 3.3 | Osabio-native tool execution error returns tool_result error | error | FR-5 |
 
 ### 04 -- Tool Call Tracing (US-9) [4 scenarios]
 
 | # | Scenario | Type | Traces |
 |---|----------|------|--------|
-| 4.1 | Walking Skeleton: Brain-native tool call produces trace record | happy | FR-13, AC-9 |
+| 4.1 | Walking Skeleton: Osabio-native tool call produces trace record | happy | FR-13, AC-9 |
 | 4.2 | Trace records success outcome with duration | happy | FR-13, NFR-5 |
 | 4.3 | Unknown tool calls do not produce trace records | boundary | AC-9 |
 | 4.4 | Trace includes identity reference for auditability | happy | NFR-5 |

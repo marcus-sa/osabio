@@ -11,7 +11,7 @@
  *
  * Driving ports:
  *   - POST /api/auth/proxy-token
- *   - POST /proxy/llm/anthropic/v1/messages (with X-Brain-Auth)
+ *   - POST /proxy/llm/anthropic/v1/messages (with X-Osabio-Auth)
  */
 import { describe, expect, it } from "bun:test";
 import {

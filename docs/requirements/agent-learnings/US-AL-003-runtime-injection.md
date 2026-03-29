@@ -17,21 +17,21 @@ At agent session start, query active learnings for the agent type and workspace,
 ## Domain Examples
 
 ### 1: Happy Path -- Code agent session with 4 learnings
-A new code_agent session starts in "Brain Development." The system queries active learnings where target_agents includes "code_agent" and returns 4 records. They are sorted: 3 human-created first (constraint "null", instruction "--no-verify", precedent "integer cents"), then 1 agent-suggested (constraint "KNN two-step"). Total: ~300 tokens, within the 500-token budget. All 4 are injected as a "Workspace Learnings" section grouped by type (Constraints, Instructions, Precedents).
+A new code_agent session starts in "Osabio Development." The system queries active learnings where target_agents includes "code_agent" and returns 4 records. They are sorted: 3 human-created first (constraint "null", instruction "--no-verify", precedent "integer cents"), then 1 agent-suggested (constraint "KNN two-step"). Total: ~300 tokens, within the 500-token budget. All 4 are injected as a "Workspace Learnings" section grouped by type (Constraints, Instructions, Precedents).
 
 ### 2: Edge Case -- Precedent injected only when contextually relevant
-Workspace "Brain Development" has a precedent learning "We migrated from MongoDB to PostgreSQL in Q3 2025" for the architect agent. When the architect starts a session about caching strategy, the precedent's embedding similarity to the current task context is 0.45 (below 0.70 threshold) -- the precedent is NOT injected. When the architect starts a session about database selection, similarity is 0.88 -- the precedent IS injected. Constraints and instructions are always injected regardless of context.
+Workspace "Osabio Development" has a precedent learning "We migrated from MongoDB to PostgreSQL in Q3 2025" for the architect agent. When the architect starts a session about caching strategy, the precedent's embedding similarity to the current task context is 0.45 (below 0.70 threshold) -- the precedent is NOT injected. When the architect starts a session about database selection, similarity is 0.88 -- the precedent IS injected. Constraints and instructions are always injected regardless of context.
 
 ### 3: Edge Case -- Token budget exceeded
 Workspace "Enterprise Project" has 8 constraints (300 tokens), 12 instructions (500 tokens), and 5 precedents (200 tokens) for code_agent. Token budget is 500. All 8 constraints are included first (always, even over budget). Remaining budget (200 tokens) fits 5 of 12 instructions (human-created first, then agent-suggested). No precedents fit. An observation is created: "Learning token budget exceeded. 7 instructions and 5 precedents dropped."
 
 ### 4: Error/Boundary -- No learnings for agent type
-Workspace "Brain Development" has 8 active learnings, but all target only code_agent. When pm_agent starts a session, the query returns zero results. No "Workspace Learnings" section is added to the PM agent prompt -- no empty section, no header, no mention.
+Workspace "Osabio Development" has 8 active learnings, but all target only code_agent. When pm_agent starts a session, the query returns zero results. No "Workspace Learnings" section is added to the PM agent prompt -- no empty section, no header, no mention.
 
 ## UAT Scenarios (BDD)
 
 ### Scenario: Active learnings injected into code_agent system prompt
-Given workspace "Brain Development" has 4 active learnings targeting code_agent
+Given workspace "Osabio Development" has 4 active learnings targeting code_agent
 And 3 are human-created and 1 is agent-suggested
 When a new code_agent session starts
 Then buildSystemPrompt includes a "Workspace Learnings" section
@@ -40,7 +40,7 @@ And learnings are grouped under Constraints, Instructions, and Precedents headin
 And the section starts with "These rules were established by your workspace."
 
 ### Scenario: Learnings injected into MCP context packet
-Given workspace "Brain Development" has 4 active learnings targeting code_agent
+Given workspace "Osabio Development" has 4 active learnings targeting code_agent
 When the MCP context builder prepares a context packet
 Then the packet includes an "Active Learnings" section
 And each learning is prefixed with a type tag: [constraint], [instruction], or [precedent]

@@ -29,7 +29,7 @@ And the session status is "active" or "running"
 1. **HTTP Route** -- `POST /api/orchestrator/:ws/sessions/assign` receives the request
 2. **Session Lifecycle** -- Creates `agent_session` record in SurrealDB, delegates to adapter
 3. **Sandbox Adapter** -- Calls real SandboxAgent SDK `createSession()` against real SandboxAgent Server
-4. **Event Bridge** -- Translates SandboxAgent events to Brain StreamEvent format
+4. **Event Bridge** -- Translates SandboxAgent events to Osabio StreamEvent format
 5. **SSE Registry** -- Delivers events to connected client
 6. **SurrealDB** -- Persists session record with sandbox fields
 
@@ -80,4 +80,4 @@ And external_session_id links to the SandboxAgent runtime session
 - SandboxAgent Server binary available on test runner
 - SandboxAgent SDK npm package installed
 - SurrealDB running (already required by existing acceptance tests)
-- Brain server booted in-process (existing pattern)
+- Osabio server booted in-process (existing pattern)

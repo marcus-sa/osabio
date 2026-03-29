@@ -1,4 +1,4 @@
-# Architecture Design: Remove Embeddings from Brain Knowledge Graph
+# Architecture Design: Remove Embeddings from Osabio Knowledge Graph
 
 **Feature**: Cross-cutting embedding removal
 **Paradigm**: Functional
@@ -10,7 +10,7 @@
 
 ## 1. System Context and Capabilities
 
-Brain is a knowledge graph (SurrealDB) coordinating AI agents. Four use cases currently consume vector embeddings (1536-dim, HNSW indexes, external API). This design replaces all four with BM25 fulltext search and graph traversal, then removes the embedding infrastructure entirely.
+Osabio is a knowledge graph (SurrealDB) coordinating AI agents. Four use cases currently consume vector embeddings (1536-dim, HNSW indexes, external API). This design replaces all four with BM25 fulltext search and graph traversal, then removes the embedding infrastructure entirely.
 
 **Quality attribute priorities** (from DISCUSS wave): reliability > latency > maintainability > testability
 
@@ -26,19 +26,19 @@ Brain is a knowledge graph (SurrealDB) coordinating AI agents. Four use cases cu
 
 ```mermaid
 C4Context
-    title System Context: Brain Knowledge Graph (Current -- With Embeddings)
+    title System Context: Osabio Knowledge Graph (Current -- With Embeddings)
 
     Person(user, "Workspace User", "Interacts via chat UI")
     Person(agent, "Coding Agent", "Interacts via LLM proxy")
 
-    System(brain, "Brain", "Knowledge graph coordinating AI agents")
+    System(osabio, "Osabio", "Knowledge graph coordinating AI agents")
 
     System_Ext(llm, "LLM Provider", "Chat, extraction, scoring")
     System_Ext(embed_api, "Embedding API", "Vector generation for search/alignment/collision")
     System_Ext(surrealdb, "SurrealDB", "Graph DB with HNSW indexes")
 
-    Rel(user, brain, "Sends messages")
-    Rel(agent, brain, "Proxied requests")
+    Rel(user, osabio, "Sends messages")
+    Rel(agent, osabio, "Proxied requests")
     Rel(brain, llm, "Generates responses")
     Rel(brain, embed_api, "Generates 1536-dim embeddings")
     Rel(brain, surrealdb, "KNN + graph queries")
@@ -48,18 +48,18 @@ C4Context
 
 ```mermaid
 C4Context
-    title System Context: Brain Knowledge Graph (Target -- No Embeddings)
+    title System Context: Osabio Knowledge Graph (Target -- No Embeddings)
 
     Person(user, "Workspace User", "Interacts via chat UI")
     Person(agent, "Coding Agent", "Interacts via LLM proxy")
 
-    System(brain, "Brain", "Knowledge graph coordinating AI agents")
+    System(osabio, "Osabio", "Knowledge graph coordinating AI agents")
 
     System_Ext(llm, "LLM Provider", "Chat, extraction, scoring")
     System_Ext(surrealdb, "SurrealDB", "Graph DB with BM25 fulltext indexes")
 
-    Rel(user, brain, "Sends messages")
-    Rel(agent, brain, "Proxied requests")
+    Rel(user, osabio, "Sends messages")
+    Rel(agent, osabio, "Proxied requests")
     Rel(brain, llm, "Generates responses")
     Rel(brain, surrealdb, "BM25 + graph traversal queries")
 ```
@@ -72,7 +72,7 @@ C4Context
 
 ```mermaid
 C4Container
-    title Container: Brain Server (Post-Migration Scope)
+    title Container: Osabio Server (Post-Migration Scope)
 
     Container(http, "HTTP Layer", "Bun.serve", "Routes, auth, tracing")
 
@@ -224,7 +224,7 @@ C4Component
 3. `classifyByRecency()` replaces similarity classification: < 30min = urgent, < 24h = update
 4. Recent changes: time-based query (entities updated since last request) + BM25 relevance
 
-**Unchanged modules**: `estimateTokenCount()`, `selectWithinBudget()`, `buildBrainContextXml()`, `injectBrainContext()`, `injectRecentChanges()`, `buildRecentChangesXml()` -- pure functions operating on scored/classified candidates.
+**Unchanged modules**: `estimateTokenCount()`, `selectWithinBudget()`, `buildOsabioContextXml()`, `injectOsabioContext()`, `injectRecentChanges()`, `buildRecentChangesXml()` -- pure functions operating on scored/classified candidates.
 
 **Recency decay**: `finalScore = bm25Score * decayFactor(updatedAt)` where decay = 1.0 for < 1h, 0.8 for < 24h, 0.5 for < 7d, 0.3 for older. Project proximity boost: * 1.5 if same project.
 
@@ -383,7 +383,7 @@ Re-introduce embeddings if:
 
 ## 11. Deployment Architecture
 
-No deployment changes. Brain remains a modular monolith (Bun.serve + SurrealDB). The migration is application-code + schema only:
+No deployment changes. Osabio remains a modular monolith (Bun.serve + SurrealDB). The migration is application-code + schema only:
 
 - **Phase 1**: `bun migrate` (0062) + deploy updated application code
 - **Phase 2**: Deploy updated proxy context code (no migration)

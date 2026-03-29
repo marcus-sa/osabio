@@ -259,7 +259,7 @@ describe("transformSdkMessage", () => {
     const message: SdkMessage = {
       type: "system",
       subtype: "mcp_server_error",
-      server_name: "brain",
+      server_name: "osabio",
       error: "connection refused",
     };
 
@@ -269,7 +269,7 @@ describe("transformSdkMessage", () => {
       {
         type: "agent_token",
         sessionId,
-        token: '[system] MCP server "brain" failed: connection refused\n',
+        token: '[system] MCP server "osabio" failed: connection refused\n',
       },
     ]);
   });

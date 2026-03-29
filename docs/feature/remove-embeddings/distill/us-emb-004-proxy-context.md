@@ -25,7 +25,7 @@ And no embedding API call was made
 **Implementation notes**:
 - Seed decisions with different `updated_at` timestamps via `seedConfirmedDecision`
 - Send proxy request via `sendProxyRequestWithIntelligence`
-- Verify via trace metadata: `brain_context_injected: true`, `brain_context_decisions >= 2`
+- Verify via trace metadata: `osabio_context_injected: true`, `osabio_context_decisions >= 2`
 - BM25 matches "OAuth" in both decisions, recency weighting boosts the recent one
 
 ---
@@ -69,14 +69,14 @@ And it is ranked lower than same-project items
 ```gherkin
 Given workspace "Acme Corp" has no decisions, learnings, or observations matching "CSS parser unit tests"
 When the proxy processes a message about "writing unit tests for the CSS parser"
-Then no brain-context block is injected into the system prompt
+Then no osabio-context block is injected into the system prompt
 And the original system prompt is passed through unchanged
 And the response completes successfully
 ```
 
 **Implementation notes**:
 - BM25 returns zero results across all entity types
-- Trace metadata shows `brain_context_injected: false` or absent
+- Trace metadata shows `osabio_context_injected: false` or absent
 - Validates fail-open: empty results are not an error
 
 ---
@@ -111,5 +111,5 @@ And higher-ranked decisions are included over lower-ranked ones
 
 **Implementation notes**:
 - `selectWithinBudget` pure function is unchanged -- only ranking input changes
-- Assert `brain_context_tokens_est` in trace metadata is <= 2000
+- Assert `osabio_context_tokens_est` in trace metadata is <= 2000
 - Validates that the selection pipeline works correctly with BM25 scores as input

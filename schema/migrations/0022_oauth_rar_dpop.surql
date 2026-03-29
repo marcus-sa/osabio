@@ -5,7 +5,7 @@
 
 -- Intent table extensions: RAR authorization details
 DEFINE FIELD OVERWRITE authorization_details ON intent TYPE option<array<object>>;
-DEFINE FIELD OVERWRITE authorization_details[*].type ON intent TYPE string ASSERT $value = "brain_action";
+DEFINE FIELD OVERWRITE authorization_details[*].type ON intent TYPE string ASSERT $value = "osabio_action";
 DEFINE FIELD OVERWRITE authorization_details[*].action ON intent TYPE string;
 DEFINE FIELD OVERWRITE authorization_details[*].resource ON intent TYPE string;
 DEFINE FIELD OVERWRITE authorization_details[*].constraints ON intent TYPE option<object> FLEXIBLE;

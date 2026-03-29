@@ -53,7 +53,7 @@ export const createIntentSchema = z.object({
   goal: z.string().describe("What you want to accomplish with this tool"),
   reasoning: z.string().describe("Why this tool is needed for the current task"),
   action_spec: z.object({
-    provider: z.string().describe("The toolkit/provider name (e.g. github, brain)"),
+    provider: z.string().describe("The toolkit/provider name (e.g. github, osabio)"),
     action: z.string().describe("The tool action name"),
     params: z.record(z.string(), z.unknown()).optional().describe("Parameters for the tool call"),
   }),
@@ -221,13 +221,13 @@ export const GET_CONTEXT_TOOL = defineTool(
   getContextSchema,
 );
 
-export const BRAIN_INFRASTRUCTURE_TOOLS: readonly McpToolDefinition[] = [
+export const OSABIO_INFRASTRUCTURE_TOOLS: readonly McpToolDefinition[] = [
   CREATE_INTENT_TOOL,
   GET_CONTEXT_TOOL,
 ];
 
 // Read
-export const BRAIN_READ_TOOLS: readonly McpToolDefinition[] = [
+export const OSABIO_READ_TOOLS: readonly McpToolDefinition[] = [
   defineTool("search_entities",
     "Full-text search across the knowledge graph. Use for finding entities by keyword or topic.",
     searchEntitiesSchema),
@@ -252,7 +252,7 @@ export const BRAIN_READ_TOOLS: readonly McpToolDefinition[] = [
 ];
 
 // Write
-export const BRAIN_WRITE_TOOLS: readonly McpToolDefinition[] = [
+export const OSABIO_WRITE_TOOLS: readonly McpToolDefinition[] = [
   defineTool("create_provisional_decision",
     "Create a provisional decision when no existing answer exists. Use after resolve_decision returns unresolved.",
     createProvisionalDecisionSchema),
@@ -289,18 +289,18 @@ export const BRAIN_WRITE_TOOLS: readonly McpToolDefinition[] = [
 // Name sets
 // ---------------------------------------------------------------------------
 
-export const BRAIN_READ_TOOL_NAMES: ReadonlySet<string> = new Set(
-  BRAIN_READ_TOOLS.map((t) => t.name),
+export const OSABIO_READ_TOOL_NAMES: ReadonlySet<string> = new Set(
+  OSABIO_READ_TOOLS.map((t) => t.name),
 );
 
-export const BRAIN_WRITE_TOOL_NAMES: ReadonlySet<string> = new Set(
-  BRAIN_WRITE_TOOLS.map((t) => t.name),
+export const OSABIO_WRITE_TOOL_NAMES: ReadonlySet<string> = new Set(
+  OSABIO_WRITE_TOOLS.map((t) => t.name),
 );
 
-/** All brain tool names including infrastructure tools (get_context, create_intent). */
-export const ALL_BRAIN_TOOL_NAMES: ReadonlySet<string> = new Set([
-  ...BRAIN_READ_TOOL_NAMES,
-  ...BRAIN_WRITE_TOOL_NAMES,
+/** All osabio tool names including infrastructure tools (get_context, create_intent). */
+export const ALL_OSABIO_TOOL_NAMES: ReadonlySet<string> = new Set([
+  ...OSABIO_READ_TOOL_NAMES,
+  ...OSABIO_WRITE_TOOL_NAMES,
   "get_context",
   "create_intent",
 ]);

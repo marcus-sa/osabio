@@ -4,7 +4,7 @@
  * Replaces the legacy authenticateMcpRequest + requireScope pattern.
  * Uniform pipeline for all actor types (human and agent):
  *   1. authenticateDPoPRequest -- verify DPoP token + proof
- *   2. deriveRequestedAction  -- map HTTP method + path to BrainAction
+ *   2. deriveRequestedAction  -- map HTTP method + path to OsabioAction
  *   3. verifyOperationScope   -- check token's authorization_details
  *
  * Pure function module -- no IO imports beyond downstream ports.
@@ -15,7 +15,7 @@ import { jsonResponse } from "../http/response";
 import { authenticateDPoPRequest, type DPoPVerificationDeps } from "../oauth/dpop-middleware";
 import { deriveRequestedAction } from "../oauth/route-action-map";
 import { verifyOperationScope } from "../oauth/rar-verifier";
-import type { BrainAction, DPoPAuthResult } from "../oauth/types";
+import type { OsabioAction, DPoPAuthResult } from "../oauth/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,8 +40,8 @@ export type DPoPAuthenticator = (
  */
 async function extractRequestConstraints(
   request: Request,
-  requestedAction: BrainAction,
-  authorizedActions: BrainAction[],
+  requestedAction: OsabioAction,
+  authorizedActions: OsabioAction[],
 ): Promise<Record<string, unknown> | undefined> {
   // Find matching authorized action with constraints
   const matchingAuth = authorizedActions.find(
@@ -98,7 +98,7 @@ export async function authenticateAndAuthorize(
     return authResult;
   }
 
-  // Step 2: Derive BrainAction from HTTP method + URL path
+  // Step 2: Derive OsabioAction from HTTP method + URL path
   const url = new URL(request.url);
   const requestedAction = deriveRequestedAction(request.method, url.pathname);
 

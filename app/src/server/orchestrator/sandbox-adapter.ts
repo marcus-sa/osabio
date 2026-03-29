@@ -37,7 +37,7 @@ export type {
 /**
  * Brain-owned session creation request.
  * Extends the SDK's SessionCreateRequest with env for passing environment
- * variables (e.g. ANTHROPIC_BASE_URL, X-Brain-Auth) into the sandbox.
+ * variables (e.g. ANTHROPIC_BASE_URL, X-Osabio-Auth) into the sandbox.
  */
 export type CreateSessionRequest = SessionCreateRequest & {
   env?: Record<string, string>;

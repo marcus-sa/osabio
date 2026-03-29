@@ -16,16 +16,16 @@ When a coding agent works on a task, it modifies files in a git repository. We n
 
 ## Decision
 
-**Git worktrees**: Brain creates a git worktree per task at `.brain/worktrees/agent-{taskSlug}` on branch `agent/{taskSlug}`. The OpenCode client receives `directory: worktreePath` so the agent works entirely within the isolated worktree.
+**Git worktrees**: Brain creates a git worktree per task at `.osabio/worktrees/agent-{taskSlug}` on branch `agent/{taskSlug}`. The OpenCode client receives `directory: worktreePath` so the agent works entirely within the isolated worktree.
 
 Lifecycle:
-- **Assign**: `git worktree add .brain/worktrees/agent-{taskSlug} -b agent/{taskSlug}`
+- **Assign**: `git worktree add .osabio/worktrees/agent-{taskSlug} -b agent/{taskSlug}`
 - **Diff for review**: `git diff main...agent/{taskSlug}` (natural consequence of branch-based isolation)
 - **Accept**: `git merge agent/{taskSlug}` from main, then `git worktree remove` + `git branch -D`
 - **Reject with feedback**: Agent continues in same worktree on same branch
 - **Abort**: `git worktree remove --force` + `git branch -D agent/{taskSlug}`
 
-The `.brain/worktrees/` directory is added to `.gitignore`.
+The `.osabio/worktrees/` directory is added to `.gitignore`.
 
 ## Alternatives Considered
 
@@ -72,14 +72,14 @@ Mount repo as read-only in container, agent writes to overlay filesystem.
 ### Negative
 
 - **Worktree locking**: Git allows only one worktree per branch. If cleanup fails, the branch is locked. Mitigation: force-remove on abort.
-- **Filesystem cleanup**: Orphaned worktrees consume disk. Mitigation: startup cleanup scan matching `.brain/worktrees/agent-*` against active `agent_session` records.
+- **Filesystem cleanup**: Orphaned worktrees consume disk. Mitigation: startup cleanup scan matching `.osabio/worktrees/agent-*` against active `agent_session` records.
 - **Path validation**: Worktree paths must be validated to prevent path traversal. Mitigation: construct paths programmatically from sanitized task slugs, never from user input.
 - **Branch naming collisions**: If the same task is reassigned, the branch name conflicts. Mitigation: append a short suffix (timestamp or counter) if branch already exists, or require prior cleanup.
 
 ### Path Convention
 
 ```
-{repoRoot}/.brain/worktrees/agent-{taskSlug}/    -- worktree directory
+{repoRoot}/.osabio/worktrees/agent-{taskSlug}/    -- worktree directory
 agent/{taskSlug}                                   -- branch name
 ```
 

@@ -7,11 +7,11 @@
 
 ## Summary
 
-Replaced the Claude Agent SDK-specific orchestrator with a universal SandboxAgent SDK integration. Brain now delegates coding agent execution to SandboxAgent Server via an adapter interface, persists session state in SurrealDB (eliminating the module-level mutable registry), and issues governed proxy tokens linking intent authorization to agent sessions.
+Replaced the Claude Agent SDK-specific orchestrator with a universal SandboxAgent SDK integration. Osabio now delegates coding agent execution to SandboxAgent Server via an adapter interface, persists session state in SurrealDB (eliminating the module-level mutable registry), and issues governed proxy tokens linking intent authorization to agent sessions.
 
 ## Business Context
 
-Brain's coding agent orchestrator was tightly coupled to Claude Agent SDK, limiting agent portability. The SandboxAgent SDK (from Rivet) provides a universal API for orchestrating multiple coding agents (Claude Code, Codex, OpenCode, Amp) in sandboxed environments. This integration enables:
+Osabio's coding agent orchestrator was tightly coupled to Claude Agent SDK, limiting agent portability. The SandboxAgent SDK (from Rivet) provides a universal API for orchestrating multiple coding agents (Claude Code, Codex, OpenCode, Amp) in sandboxed environments. This integration enables:
 
 - **Multi-agent portability**: Workspace admins can configure which coding agent to use
 - **Multi-turn sessions**: Agents accept follow-up prompts instead of rejecting with 409
@@ -22,7 +22,7 @@ Brain's coding agent orchestrator was tightly coupled to Claude Agent SDK, limit
 
 ### Phase 1: Foundation (Steps 01-01 to 01-03)
 - Defined adapter port types and mock adapter for test injection
-- Built event bridge translating SandboxAgent universal events to Brain StreamEvent variants
+- Built event bridge translating SandboxAgent universal events to Osabio StreamEvent variants
 - Extended StreamEvent union with permission request variant
 - Schema migration adding provider and session_type fields to agent_session
 
@@ -49,7 +49,7 @@ Brain's coding agent orchestrator was tightly coupled to Claude Agent SDK, limit
 |----|----------|--------|
 | D-01 | SandboxAgent as execution layer only, not governance layer | Provisional |
 | D-02 | Two-plane governance: LLM proxy + dynamic MCP endpoint | Provisional |
-| D-03 | Local provider retains Brain worktree manager | Provisional |
+| D-03 | Local provider retains Osabio worktree manager | Provisional |
 | D-04 | SurrealDB session persistence driver (deferred to cloud providers) | Provisional |
 | D-05 | Three-release slicing strategy | Provisional |
 | D-07 | Adapter interface wraps SDK at SDK level | Provisional |
@@ -85,7 +85,7 @@ Brain's coding agent orchestrator was tightly coupled to Claude Agent SDK, limit
 
 ## Deferred Work
 
-- **SurrealDB persistence driver** for cloud providers (GitHub issue #187) — needed when sandboxes outlive Brain restarts
+- **SurrealDB persistence driver** for cloud providers (GitHub issue #187) — needed when sandboxes outlive Osabio restarts
 - **Intent-gated MCP** — separated into its own feature with full DISCUSS/DESIGN/DISTILL waves completed
 - **Agent portability + provider configuration** (R3) — strategic but not urgent
 

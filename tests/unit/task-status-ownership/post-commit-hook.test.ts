@@ -8,7 +8,7 @@ import { installGitHooks } from "../../../cli/commands/init";
 let gitRoot: string;
 
 beforeEach(() => {
-  gitRoot = mkdtempSync(join(tmpdir(), "brain-post-commit-test-"));
+  gitRoot = mkdtempSync(join(tmpdir(), "osabio-post-commit-test-"));
   execSync("git init", { cwd: gitRoot, stdio: "ignore" });
 });
 
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("installGitHooks post-commit", () => {
-  it("creates post-commit hook with brain commit-check", () => {
+  it("creates post-commit hook with osabio commit-check", () => {
     installGitHooks(gitRoot);
 
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
@@ -25,7 +25,7 @@ describe("installGitHooks post-commit", () => {
 
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain("#!/bin/sh");
-    expect(content).toContain("brain commit-check");
+    expect(content).toContain("osabio commit-check");
   });
 
   it("post-commit hook is executable (mode 755)", () => {
@@ -45,7 +45,7 @@ describe("installGitHooks post-commit", () => {
     expect(content).toContain("exit 0");
   });
 
-  it("does not overwrite existing non-brain post-commit hook", () => {
+  it("does not overwrite existing non-osabio post-commit hook", () => {
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     mkdirSync(join(gitRoot, ".git", "hooks"), { recursive: true });
     writeFileSync(hookPath, "#!/bin/sh\nmy-custom-post-commit\n");
@@ -54,19 +54,19 @@ describe("installGitHooks post-commit", () => {
 
     const content = readFileSync(hookPath, "utf-8");
     expect(content).toContain("my-custom-post-commit");
-    expect(content).not.toContain("brain commit-check");
+    expect(content).not.toContain("osabio commit-check");
   });
 
-  it("replaces legacy brain log-commit hook with new commit-check hook", () => {
+  it("replaces legacy osabio log-commit hook with new commit-check hook", () => {
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     mkdirSync(join(gitRoot, ".git", "hooks"), { recursive: true });
-    writeFileSync(hookPath, "#!/bin/sh\n# Brain post-commit hook\nbrain log-commit\n");
+    writeFileSync(hookPath, "#!/bin/sh\n# Osabio post-commit hook\nosabio log-commit\n");
 
     installGitHooks(gitRoot);
 
     const content = readFileSync(hookPath, "utf-8");
-    expect(content).toContain("brain commit-check");
-    expect(content).not.toContain("brain log-commit");
+    expect(content).toContain("osabio commit-check");
+    expect(content).not.toContain("osabio log-commit");
   });
 
   it("is idempotent on second run", () => {
@@ -75,8 +75,8 @@ describe("installGitHooks post-commit", () => {
 
     const hookPath = join(gitRoot, ".git", "hooks", "post-commit");
     const content = readFileSync(hookPath, "utf-8");
-    // Should still have exactly one brain commit-check reference
-    const matches = content.match(/brain commit-check/g);
+    // Should still have exactly one osabio commit-check reference
+    const matches = content.match(/osabio commit-check/g);
     expect(matches?.length).toBe(1);
   });
 });

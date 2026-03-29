@@ -105,7 +105,7 @@ New routes registered in `runtime/start-server.ts`:
 
 ### `mcp/auth.ts`
 
-**Change**: In R2, replace `urn:brain:agent_type` claim lookup with identity-based role resolution. The identity is already available in the MCP auth context; the role can be read from `identity.role` instead of a JWT claim.
+**Change**: In R2, replace `urn:osabio:agent_type` claim lookup with identity-based role resolution. The identity is already available in the MCP auth context; the role can be read from `identity.role` instead of a JWT claim.
 
 ## Release Scope by Component
 

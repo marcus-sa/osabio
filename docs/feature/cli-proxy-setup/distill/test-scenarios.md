@@ -6,8 +6,8 @@
 
 | # | Scenario | Driving Port | Verifies |
 |---|----------|-------------|----------|
-| S1 | Proxy token issuance | `POST /api/auth/proxy-token` | Server issues `brp_`-prefixed token with 90-day TTL |
-| S2 | Brain-authenticated proxy request | `POST /proxy/llm/anthropic/v1/messages` | X-Brain-Auth token validates, server API key used |
+| S1 | Proxy token issuance | `POST /api/auth/proxy-token` | Server issues `osp_`-prefixed token with 90-day TTL |
+| S2 | Osabio-authenticated proxy request | `POST /proxy/llm/anthropic/v1/messages` | X-Osabio-Auth token validates, server API key used |
 
 ### Milestone 1: Proxy Token Endpoint
 
@@ -27,7 +27,7 @@
 | M2.3 | Rejects expired token | `POST /proxy/llm/anthropic/...` | 401 for expired DB record |
 | M2.4 | Rejects revoked token | `POST /proxy/llm/anthropic/...` | 401 after re-issuance |
 | M2.5 | Backward compat (x-api-key) | `POST /proxy/llm/anthropic/...` | Direct auth still works |
-| M2.6 | Workspace from token, not header | `POST /proxy/llm/anthropic/...` | Spoofed X-Brain-Workspace ignored |
+| M2.6 | Workspace from token, not header | `POST /proxy/llm/anthropic/...` | Spoofed X-Osabio-Workspace ignored |
 
 ### Milestone 3: CLI Settings Configuration
 
@@ -37,14 +37,14 @@
 | M3.2 | Merge with existing | `setupProxyConfig()` | Preserves non-Brain env vars and non-env keys |
 | M3.3 | Re-run updates token | `setupProxyConfig()` | Token replaced, everything else preserved |
 | M3.4 | .gitignore detection | `isGitignored()` | Warns when settings.local.json not gitignored |
-| M3.5 | Config.json storage | `~/.brain/config.json` write | proxy_token + expires_at stored alongside existing |
-| M3.6 | No fallback URL | `setupProxyConfig()` | Base URL always points to Brain proxy |
+| M3.5 | Config.json storage | `~/.osabio/config.json` write | proxy_token + expires_at stored alongside existing |
+| M3.6 | No fallback URL | `setupProxyConfig()` | Base URL always points to Osabio proxy |
 
 ### Milestone 4: Integration Checkpoints
 
 | # | Scenario | Driving Port | Verifies |
 |---|----------|-------------|----------|
-| M4.1 | Trace attribution via Brain auth | Proxy + DB query | Trace in correct workspace |
+| M4.1 | Trace attribution via Osabio auth | Proxy + DB query | Trace in correct workspace |
 | M4.2 | 90-day TTL verification | `POST /api/auth/proxy-token` | Token expires ~90 days out |
 | M4.3 | Expiry detection (< 7 days) | Config check logic | Flags tokens needing refresh |
 | M4.4 | No false expiry alarm (> 7 days) | Config check logic | Does not flag healthy tokens |
@@ -59,7 +59,7 @@
 | Re-run refreshes token | `cli-proxy-token-endpoint.test.ts` + `settings-config` | M1.2, M3.3 |
 | Token has 90-day TTL | `cli-proxy-integration-checkpoints.test.ts` | M4.2 |
 | SessionStart detects expired token | `cli-proxy-integration-checkpoints.test.ts` | M4.3, M4.4, M4.5 |
-| Proxy validates Brain auth | `cli-proxy-auth-middleware.test.ts` | M2.1–M2.6 |
+| Proxy validates Osabio auth | `cli-proxy-auth-middleware.test.ts` | M2.1–M2.6 |
 | Proxy rejects unauthenticated | `cli-proxy-auth-middleware.test.ts` | M2.1 |
 | .gitignore verification | `cli-proxy-settings-config.test.ts` | M3.4 |
 | No fallback to direct Anthropic | `cli-proxy-settings-config.test.ts` | M3.6 |

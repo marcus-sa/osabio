@@ -6,7 +6,7 @@
  * Verifies:
  * - Bridge accepts Better Auth session + DPoP proof + authorization_details
  * - Session validation is performed
- * - Issues DPoP-bound token with brain_action
+ * - Issues DPoP-bound token with osabio_action
  * - Low-risk reads auto-approve
  * - High-risk operations trigger veto window
  * - Expired session rejected with 401
@@ -27,7 +27,7 @@ import {
   updateTaskAction,
   createDecisionAction,
   createProofForRequest,
-  type BrainAction,
+  type OsabioAction,
 } from "./oauth-test-kit";
 
 const getRuntime = setupOAuthSuite("oauth_m4_bridge_exchange");
@@ -46,9 +46,9 @@ describe("Bridge exchange with valid session", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the dashboard exchanges the session for a token to read workspace data
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const response = await exchangeSessionForToken(
-      baseUrl, user.headers, keyPair, brainAction,
+      baseUrl, user.headers, keyPair, osabioAction,
     );
 
     // Then the Bridge issues a DPoP-bound token
@@ -68,9 +68,9 @@ describe("Bridge exchange with valid session", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the bridge issues a token
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const response = await exchangeSessionForToken(
-      baseUrl, user.headers, keyPair, brainAction,
+      baseUrl, user.headers, keyPair, osabioAction,
     );
     expect(response.ok).toBe(true);
     const { access_token } = (await response.json()) as { access_token: string };
@@ -80,10 +80,10 @@ describe("Bridge exchange with valid session", () => {
     const cnf = decoded.cnf as { jkt: string } | undefined;
     expect(cnf?.jkt).toBe(keyPair.thumbprint);
 
-    // And contains the requested brain_action
+    // And contains the requested osabio_action
     const authDetails = decoded.authorization_details as Array<{ type: string }>;
     expect(authDetails).toBeArray();
-    expect(authDetails[0]?.type).toBe("brain_action");
+    expect(authDetails[0]?.type).toBe("osabio_action");
   });
 
   it("low-risk read operation auto-approves without veto window", async () => {
@@ -95,9 +95,9 @@ describe("Bridge exchange with valid session", () => {
     const keyPair = await generateActorKeyPair();
 
     // When the dashboard exchanges the session for a read token
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
     const response = await exchangeSessionForToken(
-      baseUrl, user.headers, keyPair, brainAction,
+      baseUrl, user.headers, keyPair, osabioAction,
     );
 
     // Then the token is issued immediately without entering a veto window
@@ -114,16 +114,16 @@ describe("Bridge exchange with valid session", () => {
     const user = await createTestUser(baseUrl, "m4-access");
     const workspace = await createTestWorkspace(baseUrl, user);
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     const bridgeResponse = await exchangeSessionForToken(
-      baseUrl, user.headers, keyPair, brainAction,
+      baseUrl, user.headers, keyPair, osabioAction,
     );
     expect(bridgeResponse.ok).toBe(true);
     const { access_token } = (await bridgeResponse.json()) as { access_token: string };
 
     // When the human presents the token with a fresh proof to the Brain
-    const brainResponse = await makeDPoPProtectedRequest(
+    const osabioResponse = await makeDPoPProtectedRequest(
       baseUrl,
       `/api/mcp/${workspace.workspaceId}/workspace-context`,
       access_token,
@@ -131,7 +131,7 @@ describe("Bridge exchange with valid session", () => {
     );
 
     // Then the Brain verifies and grants access
-    expect(brainResponse.ok).toBe(true);
+    expect(osabioResponse.ok).toBe(true);
   });
 });
 
@@ -145,8 +145,8 @@ describe("Bridge exchange triggers veto window for high-risk operations", () => 
     const keyPair = await generateActorKeyPair();
 
     // When the dashboard requests a token for creating a decision
-    const riskyAction: BrainAction = {
-      type: "brain_action",
+    const riskyAction: OsabioAction = {
+      type: "osabio_action",
       action: "create",
       resource: "decision",
     };
@@ -185,14 +185,14 @@ describe("Bridge exchange rejection for invalid sessions", () => {
     const keyPair = await generateActorKeyPair();
     const user = await createTestUser(baseUrl, "m4-expired");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     // When the dashboard sends a fabricated/expired session cookie
     const response = await exchangeSessionForToken(
       baseUrl,
       { Cookie: "better-auth.session_token=expired-or-invalid-token" },
       keyPair,
-      brainAction,
+      osabioAction,
     );
 
     // Then the Bridge rejects the request because the session is not valid
@@ -204,7 +204,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
 
     // Given a request to the Bridge without session credentials
     const keyPair = await generateActorKeyPair();
-    const brainAction = readWorkspaceAction("some-workspace");
+    const osabioAction = readWorkspaceAction("some-workspace");
 
     // When sending only a DPoP proof without a session
     const bridgeUri = `${baseUrl}/api/auth/bridge/exchange`;
@@ -217,7 +217,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
         DPoP: proof,
       },
       body: JSON.stringify({
-        authorization_details: [brainAction],
+        authorization_details: [osabioAction],
       }),
     });
 
@@ -231,7 +231,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
     // Given a human with a valid session but no DPoP proof
     const user = await createTestUser(baseUrl, "m4-no-proof");
     const workspace = await createTestWorkspace(baseUrl, user);
-    const brainAction = readWorkspaceAction(workspace.workspaceId);
+    const osabioAction = readWorkspaceAction(workspace.workspaceId);
 
     // When sending the session without a DPoP proof
     const response = await fetch(`${baseUrl}/api/auth/bridge/exchange`, {
@@ -241,7 +241,7 @@ describe("Bridge exchange rejection for invalid sessions", () => {
         ...user.headers,
       },
       body: JSON.stringify({
-        authorization_details: [brainAction],
+        authorization_details: [osabioAction],
       }),
     });
 

@@ -23,14 +23,14 @@ import {
   type ClassifiedTool,
   type EffectiveScope,
 } from "./scope-engine";
-import { buildToolsList, BRAIN_NATIVE_TOOL_NAMES } from "./tools-list-handler";
+import { buildToolsList, OSABIO_NATIVE_TOOL_NAMES } from "./tools-list-handler";
 import { handleToolCall, type ToolCallParams } from "./tools-call-handler";
 import { handleCreateIntent } from "./create-intent-handler";
-import { handleBrainToolCall } from "./brain-tools-handler";
+import { handleOsabioToolCall } from "./osabio-tools-handler";
 import {
-  BRAIN_READ_TOOL_NAMES,
-  BRAIN_WRITE_TOOL_NAMES,
-} from "./brain-tool-definitions";
+  OSABIO_READ_TOOL_NAMES,
+  OSABIO_WRITE_TOOL_NAMES,
+} from "./osabio-tool-definitions";
 import { buildIntentRequiredError } from "./error-response-builder";
 import {
   resolveToolsForIdentity,
@@ -39,7 +39,7 @@ import {
   type ToolResolutionCache,
   type QueryGrantedTools,
 } from "../proxy/tool-resolver";
-import type { BrainAction } from "../oauth/types";
+import type { OsabioAction } from "../oauth/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,7 +65,7 @@ type JsonRpcResponse = {
 
 type IntentRow = {
   id: RecordId<"intent">;
-  authorization_details?: readonly BrainAction[];
+  authorization_details?: readonly OsabioAction[];
 };
 
 // ---------------------------------------------------------------------------
@@ -140,7 +140,7 @@ async function resolveClassifiedTools(
     queryTools,
     toolCache,
   );
-  const classifiedTools = classifyTools(grantedTools, effectiveScope, BRAIN_NATIVE_TOOL_NAMES);
+  const classifiedTools = classifyTools(grantedTools, effectiveScope, OSABIO_NATIVE_TOOL_NAMES);
   return { classifiedTools, effectiveScope };
 }
 
@@ -155,7 +155,7 @@ async function handleToolsList(
   toolCache: ToolResolutionCache,
 ): Promise<unknown> {
   const { classifiedTools, effectiveScope } = await resolveClassifiedTools(context, surreal, queryTools, toolCache);
-  const authorizedBrainWriteTools = computeAuthorizedBrainWriteTools(effectiveScope, BRAIN_WRITE_TOOL_NAMES);
+  const authorizedBrainWriteTools = computeAuthorizedBrainWriteTools(effectiveScope, OSABIO_WRITE_TOOL_NAMES);
   return buildToolsList(classifiedTools, authorizedBrainWriteTools);
 }
 
@@ -200,7 +200,7 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
         case "tools/call": {
           const toolName = (body.params?.name as string) ?? "";
           const toolArgs = body.params?.arguments as Record<string, unknown> ?? {};
-          const brainToolContext = {
+          const osabioToolContext = {
             workspaceId: context.workspaceId,
             identityId: context.identityId,
             sessionId: context.sessionId,
@@ -210,7 +210,7 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           if (toolName === "create_intent") {
             const outcome = await handleCreateIntent(
               toolArgs,
-              brainToolContext,
+              osabioToolContext,
               deps.surreal,
             );
 
@@ -239,9 +239,9 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           }
 
           // Brain read tools: always available, execute directly
-          if (BRAIN_READ_TOOL_NAMES.has(toolName)) {
-            const callResult = await handleBrainToolCall(
-              toolName, toolArgs, true, brainToolContext, { surreal: deps.surreal },
+          if (OSABIO_READ_TOOL_NAMES.has(toolName)) {
+            const callResult = await handleOsabioToolCall(
+              toolName, toolArgs, true, osabioToolContext, { surreal: deps.surreal },
             );
             if (callResult.kind === "success") {
               return jsonResponse(jsonRpcSuccess(requestId, callResult.result), 200);
@@ -253,22 +253,22 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           }
 
           // Brain write tools: require intent authorization
-          if (BRAIN_WRITE_TOOL_NAMES.has(toolName)) {
+          if (OSABIO_WRITE_TOOL_NAMES.has(toolName)) {
             const { effectiveScope } = await resolveClassifiedTools(
               context, deps.surreal, queryTools, toolCache,
             );
             const matchingIntent = findBrainWriteIntent(toolName, effectiveScope);
 
             if (!matchingIntent) {
-              const intentRequiredError = buildIntentRequiredError(toolName, "brain");
+              const intentRequiredError = buildIntentRequiredError(toolName, "osabio");
               return jsonResponse(
                 jsonRpcError(requestId, intentRequiredError.code, intentRequiredError.message, intentRequiredError.data),
                 403,
               );
             }
 
-            const callResult = await handleBrainToolCall(
-              toolName, toolArgs, false, brainToolContext, { surreal: deps.surreal },
+            const callResult = await handleOsabioToolCall(
+              toolName, toolArgs, false, osabioToolContext, { surreal: deps.surreal },
             );
             if (callResult.kind === "success") {
               return jsonResponse(jsonRpcSuccess(requestId, callResult.result), 200);
@@ -290,7 +290,7 @@ export function createAgentMcpHandler(deps: ServerDependencies) {
           const callResult = await handleToolCall(
             callParams,
             classifiedTools,
-            brainToolContext,
+            osabioToolContext,
             {
               surreal: deps.surreal,
               mcpClientFactory: deps.mcpClientFactory,

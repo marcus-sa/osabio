@@ -4,9 +4,9 @@
 Proposed
 
 ## Context
-LLM calls need to be stored for cost attribution, audit provenance, and spend monitoring. The data must support queries like "total cost for task X", "all calls in session Y", and "provenance chain from intent to LLM call". Brain uses SurrealDB as a graph database with SCHEMAFULL tables and RELATE edges.
+LLM calls need to be stored for cost attribution, audit provenance, and spend monitoring. The data must support queries like "total cost for task X", "all calls in session Y", and "provenance chain from intent to LLM call". Osabio uses SurrealDB as a graph database with SCHEMAFULL tables and RELATE edges.
 
-Brain already has a `trace` table — a forensic record of a "unit of thought" (call tree node). It tracks tool calls, messages, subagent spawns, intent submissions, and bridge exchanges. It already has `actor`, `workspace`, `session`, `parent_trace`, `input` (FLEXIBLE object), `output` (FLEXIBLE object), and `duration_ms`.
+Osabio already has a `trace` table — a forensic record of a "unit of thought" (call tree node). It tracks tool calls, messages, subagent spawns, intent submissions, and bridge exchanges. It already has `actor`, `workspace`, `session`, `parent_trace`, `input` (FLEXIBLE object), `output` (FLEXIBLE object), and `duration_ms`.
 
 ## Decision
 Extend the existing `trace` table with `"llm_call"` as a new type and add LLM-specific fields for model, token counts, cost, and stop reason. Do NOT create a separate `llm_trace` table.
@@ -59,7 +59,7 @@ Migration adds `"llm_call"` to the type ASSERT enum, defines the new optional LL
 ### Alternative 3: External observability (Langfuse / OpenTelemetry collector)
 - **What**: Send traces to Langfuse or an OTel collector
 - **Expected impact**: Rich observability UI out of the box
-- **Why insufficient**: Traces would not be part of the Brain knowledge graph. Cannot query "all LLM calls governed by policy X" or "cost of task Y" without cross-system joins. Adds external infrastructure dependency. Brain's value proposition is that all agent activity is in one graph.
+- **Why insufficient**: Traces would not be part of the Osabio knowledge graph. Cannot query "all LLM calls governed by policy X" or "cost of task Y" without cross-system joins. Adds external infrastructure dependency. Osabio's value proposition is that all agent activity is in one graph.
 
 ## Consequences
 - **Positive**: Single trace timeline per session — agent tool calls and LLM calls in one query, ordered by `created_at`

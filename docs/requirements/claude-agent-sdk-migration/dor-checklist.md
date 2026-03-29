@@ -11,8 +11,8 @@
 
 - [x] `@anthropic-ai/claude-agent-sdk` npm package required
 - [x] `ANTHROPIC_API_KEY` environment variable required
-- [x] `brain mcp` CLI command (existing, no changes needed)
-- [x] Brain HTTP API (existing, no changes needed)
+- [x] `osabio mcp` CLI command (existing, no changes needed)
+- [x] Osabio HTTP API (existing, no changes needed)
 - **Evidence**: `requirements.md` Dependencies section
 
 ## 3. Scope boundaries are clear

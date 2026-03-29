@@ -4,7 +4,7 @@
 Proposed
 
 ## Context
-Brain must proxy both Anthropic (Claude Code) and OpenAI-compatible (OpenRouter, Ollama, Cursor) LLM requests. These use different wire formats: Anthropic Messages API vs OpenAI Chat Completions API. SSE event structures and usage extraction differ between the two.
+Osabio must proxy both Anthropic (Claude Code) and OpenAI-compatible (OpenRouter, Ollama, Cursor) LLM requests. These use different wire formats: Anthropic Messages API vs OpenAI Chat Completions API. SSE event structures and usage extraction differ between the two.
 
 ## Decision
 Implement two separate route handler modules (`anthropic-proxy-route.ts`, `openai-proxy-route.ts`) that share common infrastructure (identity resolver, policy evaluator, cost calculator, trace writer) but implement provider-specific request forwarding and SSE usage extraction.

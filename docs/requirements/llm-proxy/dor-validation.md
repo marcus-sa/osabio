@@ -9,7 +9,7 @@
 
 | DoR Item | Status | Evidence |
 |----------|--------|---------|
-| Problem statement clear | PASS | "Priya needs Brain's observability but finds it unacceptable if the proxy adds latency or requires workflow changes" -- domain language, specific pain |
+| Problem statement clear | PASS | "Priya needs Osabio's observability but finds it unacceptable if the proxy adds latency or requires workflow changes" -- domain language, specific pain |
 | User/persona identified | PASS | Priya Chandrasekaran, senior developer, daily Claude Code user, 100-500 API calls/day |
 | 3+ domain examples | PASS | 4 examples: happy path (8-call session), extended thinking/tool use, upstream failure, count_tokens |
 | UAT scenarios (3-7) | PASS | 5 scenarios: streaming passthrough, non-streaming, upstream failure, header forwarding, tool use events |
@@ -84,7 +84,7 @@
 | AC derived from UAT | PASS | 7 AC items derived from scenarios |
 | Right-sized | PASS | 2 days effort, 5 scenarios |
 | Technical notes | PASS | Policy graph integration, caching, rate limiting strategy, error format, agent type detection |
-| Dependencies tracked | PASS | US-LP-002, US-LP-004, Brain policy engine explicit |
+| Dependencies tracked | PASS | US-LP-002, US-LP-004, Osabio policy engine explicit |
 
 **DoR Status**: PASSED
 
@@ -118,7 +118,7 @@
 | AC derived from UAT | PASS | 7 AC items derived from scenarios |
 | Right-sized | PASS | 2 days effort, 4 scenarios |
 | Technical notes | PASS | SurrealQL queries, export formats, batch compliance check, streaming CSV |
-| Dependencies tracked | PASS | US-LP-003, US-LP-005, Brain policy engine explicit |
+| Dependencies tracked | PASS | US-LP-003, US-LP-005, Osabio policy engine explicit |
 
 **DoR Status**: PASSED
 

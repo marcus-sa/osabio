@@ -123,7 +123,7 @@ async function connectToMcpServer(
   const transport = createTransport(url, transportType, headers);
 
   const client = new Client(
-    { name: "brain-tool-registry", version: "1.0.0" },
+    { name: "osabio-tool-registry", version: "1.0.0" },
     { capabilities: {} },
   );
 

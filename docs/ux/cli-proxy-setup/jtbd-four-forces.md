@@ -1,11 +1,11 @@
-# Four Forces Analysis: Brain CLI Proxy Setup
+# Four Forces Analysis: Osabio CLI Proxy Setup
 
 ## Primary Job: Automatic LLM Proxy Routing
 
 | Force | Detail |
 |-------|--------|
 | **Push** (current frustration) | Must manually create `.claude/settings.local.json`, know the header format, know the proxy URL, and manage tokens — error-prone and undocumented |
-| **Pull** (desired future) | Run `brain init`, everything is wired. Every Claude Code session flows through Brain automatically — policy enforcement, tracing, context injection |
+| **Pull** (desired future) | Run `osabio init`, everything is wired. Every Claude Code session flows through Osabio automatically — policy enforcement, tracing, context injection |
 | **Anxiety** (adoption concerns) | "Will this break my existing Claude Code setup?" / "What if the token expires mid-session?" / "Can I disable it easily?" |
 | **Habit** (current behavior) | Using Claude Code directly against Anthropic API — no proxy, no shared context. Muscle memory of `claude` with no extra setup |
 

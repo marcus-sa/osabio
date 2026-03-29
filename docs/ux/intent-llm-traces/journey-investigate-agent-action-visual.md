@@ -5,7 +5,7 @@ Start: Frustrated/Confused | Middle: Focused/Hopeful | End: Relieved/Confident
 
 ## Actors
 
-1. **Carla Navarro** -- workspace admin at a 12-person product team using Brain. She manages 3 projects and reviews Observer findings daily in the feed.
+1. **Carla Navarro** -- workspace admin at a 12-person product team using Osabio. She manages 3 projects and reviews Observer findings daily in the feed.
 2. **Observer Agent** -- autonomous agent that scans the graph for contradictions, staleness, and drift. Consumes reasoning programmatically for self-calibration.
 3. **Behavior Scorer** -- evaluates agent behavioral quality over time using scoring functions and trend analysis.
 

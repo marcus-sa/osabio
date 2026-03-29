@@ -90,7 +90,7 @@ And the learning is no longer returned by prompt injection queries
 And the learning remains visible in the library with "deactivated" badge
 
 ### Scenario: Learning library view with filters
-Given workspace "Brain Development" has 8 active, 2 superseded, and 1 dismissed learning
+Given workspace "Osabio Development" has 8 active, 2 superseded, and 1 dismissed learning
 When Tomas navigates to the learning library
 Then all 11 learnings are listed with status badges
 And filter controls are available for: status, agent type, learning type

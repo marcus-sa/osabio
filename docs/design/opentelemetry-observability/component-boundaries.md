@@ -78,13 +78,13 @@ app/src/server/
 **Creates**: All metric instruments as module-level singletons
 
 **Exports**:
-- `llmDuration` -- Histogram (`brain.llm.duration`, unit: ms)
-- `llmPromptTokens` -- Counter (`brain.llm.tokens.prompt`, unit: tokens)
-- `llmCompletionTokens` -- Counter (`brain.llm.tokens.completion`, unit: tokens)
-- `llmErrors` -- Counter (`brain.llm.errors`, unit: count)
-- `httpDuration` -- Histogram (`brain.http.duration`, unit: ms)
-- `httpRequests` -- Counter (`brain.http.requests`, unit: count)
-- `extractionEntities` -- Counter (`brain.extraction.entities`, unit: count)
+- `llmDuration` -- Histogram (`osabio.llm.duration`, unit: ms)
+- `llmPromptTokens` -- Counter (`osabio.llm.tokens.prompt`, unit: tokens)
+- `llmCompletionTokens` -- Counter (`osabio.llm.tokens.completion`, unit: tokens)
+- `llmErrors` -- Counter (`osabio.llm.errors`, unit: count)
+- `httpDuration` -- Histogram (`osabio.http.duration`, unit: ms)
+- `httpRequests` -- Counter (`osabio.http.requests`, unit: count)
+- `extractionEntities` -- Counter (`osabio.extraction.entities`, unit: count)
 
 **Depends on**:
 - `@opentelemetry/api` (metrics.getMeter or the `meter` from init.ts)
@@ -130,7 +130,7 @@ app/src/server/
 
 ### `telemetry/function-ids.ts` -- Function ID Taxonomy
 
-**Creates**: Typed string constants for the `brain.*` function ID namespace
+**Creates**: Typed string constants for the `osabio.*` function ID namespace
 
 **Exports**: Named constants for each function ID
 
@@ -140,19 +140,19 @@ app/src/server/
 
 **Taxonomy**:
 ```
-brain.extraction.generate
-brain.extraction.dedupe
-brain.chat.agent
-brain.chat.stream
-brain.pm.agent
-brain.observer.verify
-brain.observer.peer-review
-brain.observer.synthesis
-brain.observer.trace-analysis
-brain.behavior.score
-brain.onboarding.generate
-brain.intent.authorize
-brain.analytics.agent
+osabio.extraction.generate
+osabio.extraction.dedupe
+osabio.chat.agent
+osabio.chat.stream
+osabio.pm.agent
+osabio.observer.verify
+osabio.observer.peer-review
+osabio.observer.synthesis
+osabio.observer.trace-analysis
+osabio.behavior.score
+osabio.onboarding.generate
+osabio.intent.authorize
+osabio.analytics.agent
 brain.learning.collision
 brain.descriptions.generate
 ```
@@ -176,7 +176,7 @@ brain.descriptions.generate
 
 **Behavior**:
 1. Generate/extract `requestId` (same logic as current `withRequestLogging`)
-2. Start root span `brain.http.request` with method, route, path, requestId attributes
+2. Start root span `osabio.http.request` with method, route, path, requestId attributes
 3. Run handler within OTEL context (`context.with()`)
 4. On completion: set `http.status_code`, record httpDuration + httpRequests metrics
 5. On error: set span ERROR status, record exception, return 500 response

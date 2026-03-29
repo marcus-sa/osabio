@@ -9,7 +9,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 
 const RUNTIME_SECTIONS: { runtime: AgentRuntime; title: string; emptyText: string }[] = [
-  { runtime: "brain", title: "Brain Agents", emptyText: "No brain agents found. These are system agents that process your conversations and graph." },
+  { runtime: "osabio", title: "Osabio Agents", emptyText: "No osabio agents found. These are system agents that process your conversations and graph." },
   { runtime: "external", title: "External Agents", emptyText: "No external agents yet. Create one to connect an external coding agent via MCP." },
   { runtime: "sandbox", title: "Sandbox Agents", emptyText: "No sandbox agents yet. Configure a sandbox provider in settings to get started." },
 ];

@@ -6,7 +6,7 @@ import {
   resolveWorkspaceProjectRecord,
 } from "../graph/queries";
 import { requireAuthorizedContext } from "../iam/authority";
-import { createProvisionalDecisionSchema } from "../mcp/brain-tool-definitions";
+import { createProvisionalDecisionSchema } from "../mcp/osabio-tool-definitions";
 import type { ChatToolDeps } from "./types";
 
 export function createCreateProvisionalDecisionTool(deps: ChatToolDeps) {

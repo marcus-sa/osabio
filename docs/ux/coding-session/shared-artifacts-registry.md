@@ -4,7 +4,7 @@
 
 ### taskId
 - **Source of truth**: Entity detail panel props (from URL route param, resolved to RecordId)
-- **Consumers**: Assign button onClick, POST /assign body, spawnOpenCode param, /brain-start-task command arg, review page header, task status updates
+- **Consumers**: Assign button onClick, POST /assign body, spawnOpenCode param, /osabio-start-task command arg, review page header, task status updates
 - **Owner**: Entity detail route
 - **Integration risk**: HIGH -- taskId flows through the entire lifecycle; mismatch means wrong task assigned or status updated on wrong record
 - **Validation**: RecordId round-trip test (raw -> RecordId -> raw) at HTTP boundary

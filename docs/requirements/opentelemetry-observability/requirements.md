@@ -2,7 +2,7 @@
 
 ## Feature Overview
 
-Replace Pino structured logging with OpenTelemetry distributed tracing, metrics, and logs across the Brain server. Enable Vercel AI SDK `experimental_telemetry` on all LLM calls. Provide developer/operator visibility into LLM behavior, request lifecycle, operational health, and token costs. Application logging migrates entirely to the OTEL Logs API, giving logs automatic trace correlation (trace_id/span_id) when emitted within a traced context.
+Replace Pino structured logging with OpenTelemetry distributed tracing, metrics, and logs across the Osabio server. Enable Vercel AI SDK `experimental_telemetry` on all LLM calls. Provide developer/operator visibility into LLM behavior, request lifecycle, operational health, and token costs. Application logging migrates entirely to the OTEL Logs API, giving logs automatic trace correlation (trace_id/span_id) when emitted within a traced context.
 
 ## Scope
 
@@ -71,29 +71,29 @@ Every AI SDK call must include a `functionId` from this taxonomy:
 
 | Function ID | Call Site | Description |
 |---|---|---|
-| `brain.extraction.generate` | extraction pipeline | Entity extraction from messages |
-| `brain.extraction.dedupe` | extraction pipeline | Deduplication scoring |
-| `brain.chat.agent` | chat handler | Chat agent tool-use responses |
-| `brain.chat.stream` | chat route | Streaming chat responses |
-| `brain.pm.agent` | PM subagent | Work planning and organization |
-| `brain.observer.verify` | observer | Observation verification |
-| `brain.observer.peer-review` | observer | Peer review cross-validation |
-| `brain.behavior.score` | behavior scorer | Behavior scoring |
-| `brain.onboarding.generate` | onboarding | Onboarding responses |
-| `brain.intent.authorize` | intent auth | Intent authorization |
-| `brain.analytics.agent` | analytics agent | Analytics queries |
+| `osabio.extraction.generate` | extraction pipeline | Entity extraction from messages |
+| `osabio.extraction.dedupe` | extraction pipeline | Deduplication scoring |
+| `osabio.chat.agent` | chat handler | Chat agent tool-use responses |
+| `osabio.chat.stream` | chat route | Streaming chat responses |
+| `osabio.pm.agent` | PM subagent | Work planning and organization |
+| `osabio.observer.verify` | observer | Observation verification |
+| `osabio.observer.peer-review` | observer | Peer review cross-validation |
+| `osabio.behavior.score` | behavior scorer | Behavior scoring |
+| `osabio.onboarding.generate` | onboarding | Onboarding responses |
+| `osabio.intent.authorize` | intent auth | Intent authorization |
+| `osabio.analytics.agent` | analytics agent | Analytics queries |
 
 ## Metrics Definitions
 
 | Metric Name | Type | Unit | Attributes | Purpose |
 |---|---|---|---|---|
-| `brain.llm.duration` | Histogram | ms | functionId, model | LLM call latency distribution |
-| `brain.llm.tokens.prompt` | Counter | tokens | functionId, model | Prompt token usage |
-| `brain.llm.tokens.completion` | Counter | tokens | functionId, model | Completion token usage |
-| `brain.llm.errors` | Counter | count | functionId, model, error_type | LLM call failures |
-| `brain.http.duration` | Histogram | ms | method, route, status_code | HTTP request latency |
-| `brain.http.requests` | Counter | count | method, route, status_code | HTTP request volume |
-| `brain.extraction.entities` | Counter | count | entity_type | Extracted entity volume |
+| `osabio.llm.duration` | Histogram | ms | functionId, model | LLM call latency distribution |
+| `osabio.llm.tokens.prompt` | Counter | tokens | functionId, model | Prompt token usage |
+| `osabio.llm.tokens.completion` | Counter | tokens | functionId, model | Completion token usage |
+| `osabio.llm.errors` | Counter | count | functionId, model, error_type | LLM call failures |
+| `osabio.http.duration` | Histogram | ms | method, route, status_code | HTTP request latency |
+| `osabio.http.requests` | Counter | count | method, route, status_code | HTTP request volume |
+| `osabio.extraction.entities` | Counter | count | entity_type | Extracted entity volume |
 
 ## Migration Strategy
 
@@ -115,7 +115,7 @@ Every AI SDK call must include a `functionId` from this taxonomy:
 ### Log Migration Strategy
 All existing `logInfo`/`logWarn`/`logError`/`logDebug` call sites migrate to the OTEL logger wrapper:
 - `logInfo("event.name", { key: value })` becomes `log.info("event.name", { key: value })` using OTEL Logs API under the hood
-- The wrapper calls `logger.emit({ body, severityText, attributes })` on the OTEL logger obtained via `logs.getLogger('brain-server')`
+- The wrapper calls `logger.emit({ body, severityText, attributes })` on the OTEL logger obtained via `logs.getLogger('osabio-server')`
 - Logs emitted within an active span automatically inherit `trace_id` and `span_id` from the OTEL context -- no manual correlation needed
 - LoggerProvider configured alongside TracerProvider and MeterProvider: console log exporter in dev, OTLP log exporter in prod
 - Startup/config logs emitted before OTEL SDK initialization gracefully degrade to `console.log` output

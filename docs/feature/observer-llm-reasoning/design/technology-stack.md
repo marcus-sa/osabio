@@ -2,7 +2,7 @@
 
 ## Decisions
 
-All technology choices extend the existing Brain stack. No new dependencies introduced.
+All technology choices extend the existing Osabio stack. No new dependencies introduced.
 
 ### LLM Integration
 

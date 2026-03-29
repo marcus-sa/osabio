@@ -56,7 +56,7 @@ Pattern: **Confidence Building** -- progressive trust in feed freshness through 
 |  +-------------------------------------------------------------+ |
 |  | [!] Decision: "Standardize on tRPC for all APIs"             | |
 |  |     Provisional decision awaiting confirmation                | |
-|  |     Project: Brain v1          2 min ago                      | |
+|  |     Project: Osabio v1          2 min ago                      | |
 |  |     [ Confirm ]  [ Override ]  [ Discuss ]                    | |
 |  +-------------------------------------------------------------+ |
 |  | [!] Conflict: Rate limiting <-> Billing API transport         | |

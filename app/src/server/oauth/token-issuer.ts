@@ -2,15 +2,15 @@
  * DPoP-Bound Token Issuer
  *
  * Signs DPoP-bound access tokens with injected AS ES256 key.
- * Token includes sub, cnf.jkt, authorization_details, urn:brain:intent_id,
- * urn:brain:workspace, exp. Default TTL 300s.
+ * Token includes sub, cnf.jkt, authorization_details, urn:osabio:intent_id,
+ * urn:osabio:workspace, exp. Default TTL 300s.
  *
  * Pure function -- no IO imports, no side effects.
  *
  * Step: 02-02
  */
 import * as jose from "jose";
-import type { BrainAction, TokenIssuanceResult } from "./types";
+import type { OsabioAction, TokenIssuanceResult } from "./types";
 import type { AsSigningKey } from "./as-key-management";
 
 // ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ import type { AsSigningKey } from "./as-key-management";
 export type TokenIssuanceInput = {
   sub: string;
   thumbprint: string;
-  authorizationDetails: BrainAction[];
+  authorizationDetails: OsabioAction[];
   intentId: string;
   workspace: string;
   actorType?: "human" | "agent";
@@ -37,8 +37,8 @@ export type TokenIssuanceOptions = {
 // ---------------------------------------------------------------------------
 
 const MAX_TTL_SECONDS = 300;
-const DEFAULT_ISSUER = "https://brain.local";
-const DEFAULT_AUDIENCE = "https://brain.local";
+const DEFAULT_ISSUER = "https://osabio.local";
+const DEFAULT_AUDIENCE = "https://osabio.local";
 
 // ---------------------------------------------------------------------------
 // Pure functions
@@ -56,7 +56,7 @@ function resolveEffectiveTtl(requested?: number): number {
  * The token payload conforms to RFC 9449 (DPoP) and RFC 9396 (RAR):
  * - cnf.jkt binds the token to the actor's DPoP key
  * - authorization_details carries the RAR actions
- * - Custom urn:brain:* claims carry Brain-specific context
+ * - Custom urn:osabio:* claims carry Osabio-specific context
  */
 export async function issueAccessToken(
   signingKey: AsSigningKey,
@@ -73,9 +73,9 @@ export async function issueAccessToken(
   const jwt = await new jose.SignJWT({
     cnf: { jkt: input.thumbprint },
     authorization_details: input.authorizationDetails,
-    "urn:brain:intent_id": input.intentId,
-    "urn:brain:workspace": input.workspace,
-    ...(input.actorType ? { "urn:brain:actor_type": input.actorType } : {}),
+    "urn:osabio:intent_id": input.intentId,
+    "urn:osabio:workspace": input.workspace,
+    ...(input.actorType ? { "urn:osabio:actor_type": input.actorType } : {}),
   })
     .setProtectedHeader({
       alg: "ES256",

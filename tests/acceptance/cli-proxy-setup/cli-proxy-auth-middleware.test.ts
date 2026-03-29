@@ -4,7 +4,7 @@
  * Milestone 2: Brain auth validation at the proxy layer
  *
  * Tests the dual-mode proxy authentication:
- *   - Brain auth (X-Brain-Auth) validates token, uses server API key
+ *   - Brain auth (X-Osabio-Auth) validates token, uses server API key
  *   - Direct auth (x-api-key) still works (backward compatibility)
  *   - Rejects invalid/expired/revoked Brain tokens
  *   - Derives workspace + identity from token (not from headers)
@@ -28,7 +28,7 @@ const getRuntime = setupAcceptanceSuite("cli_proxy_auth_mw");
 // Scenario: Proxy rejects request with missing Brain auth headers
 // ---------------------------------------------------------------------------
 describe("Proxy rejects unauthenticated requests", () => {
-  it("returns 401 when neither X-Brain-Auth nor x-api-key is present", async () => {
+  it("returns 401 when neither X-Osabio-Auth nor x-api-key is present", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a request to the LLM proxy with no auth headers
@@ -56,7 +56,7 @@ describe("Proxy rejects unauthenticated requests", () => {
 // Scenario: Proxy rejects invalid Brain auth token
 // ---------------------------------------------------------------------------
 describe("Proxy rejects invalid tokens", () => {
-  it("returns 401 for a fabricated X-Brain-Auth token", async () => {
+  it("returns 401 for a fabricated X-Osabio-Auth token", async () => {
     const { baseUrl } = getRuntime();
 
     // Given a request with a fabricated Brain auth token
@@ -116,7 +116,7 @@ describe("Proxy rejects invalid tokens", () => {
 // Scenario: Direct auth (backward compatibility) still works
 // ---------------------------------------------------------------------------
 describe("Proxy backward compatibility", () => {
-  it("still accepts x-api-key auth when no X-Brain-Auth is present", async () => {
+  it("still accepts x-api-key auth when no X-Osabio-Auth is present", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const workspaceId = `ws-direct-${crypto.randomUUID()}`;
@@ -130,7 +130,7 @@ describe("Proxy backward compatibility", () => {
       return;
     }
 
-    // When they send a request with x-api-key (no X-Brain-Auth)
+    // When they send a request with x-api-key (no X-Osabio-Auth)
     const response = await sendProxyRequest(baseUrl, {
       model: "claude-sonnet-4-20250514",
       stream: false,
@@ -149,7 +149,7 @@ describe("Proxy backward compatibility", () => {
 // Scenario: Brain auth derives workspace from token, not from headers
 // ---------------------------------------------------------------------------
 describe("Proxy workspace derivation from token", () => {
-  it("uses workspace from the token record, ignoring X-Brain-Workspace header", async () => {
+  it("uses workspace from the token record, ignoring X-Osabio-Workspace header", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     const user = await createProxyTestUser(baseUrl, surreal, "derive");
@@ -161,14 +161,14 @@ describe("Proxy workspace derivation from token", () => {
     const tokenResponse = await requestProxyToken(baseUrl, user.sessionHeaders, user.workspaceId);
     const { proxy_token } = await tokenResponse.json() as { proxy_token: string };
 
-    // When she sends a request with X-Brain-Workspace pointing to workspace B (spoofed)
+    // When she sends a request with X-Osabio-Workspace pointing to workspace B (spoofed)
     const response = await fetch(`${baseUrl}/proxy/llm/anthropic/v1/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
-        "X-Brain-Auth": proxy_token,
-        "X-Brain-Workspace": spoofedWorkspaceId,
+        "X-Osabio-Auth": proxy_token,
+        "X-Osabio-Workspace": spoofedWorkspaceId,
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
