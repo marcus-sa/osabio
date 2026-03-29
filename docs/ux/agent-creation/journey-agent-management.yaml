@@ -1,0 +1,367 @@
+journey:
+  name: "Agent Management"
+  goal: "View, create, configure, and monitor agents within a Brain workspace"
+  personas:
+    - id: elena_vasquez
+      role: "Workspace Admin"
+      context: "Operations lead managing agent fleet across supply chain workflows"
+      motivation: "Ensure agents operate within governance boundaries"
+    - id: rafael_oliveira
+      role: "Developer"
+      context: "Senior engineer building custom agents for quality control"
+      motivation: "Register agents quickly with precise authority configuration"
+
+  emotional_arc:
+    start: "Uncertain/Curious -- What agents exist? Can I add my own?"
+    middle: "Focused/In-Control -- I see what each agent does and how to configure"
+    end: "Confident/Empowered -- Agent is live, governed, and visible in the registry"
+
+steps:
+  - id: 1
+    name: "View Agent Registry"
+    action: "Navigate to Agents page"
+
+    shared_artifacts:
+      - name: agent_list
+        source: "SurrealDB agent table + identity graph traversal"
+        displayed_as: "${agents}"
+        consumers:
+          - "Agent registry page (card grid)"
+          - "Agent count in nav badge"
+          - "Filter tabs (runtime counts)"
+      - name: runtime_type
+        source: "agent.runtime field"
+        displayed_as: "${runtime}"
+        consumers:
+          - "Runtime badge on agent card"
+          - "Filter tabs"
+          - "Card action buttons (conditional)"
+      - name: session_status
+        source: "agent_session.orchestrator_status"
+        displayed_as: "${status}"
+        consumers:
+          - "Sandbox agent card status indicator"
+          - "Agent detail session list"
+
+    emotional_state:
+      entry: "Curious -- what agents exist in my workspace?"
+      exit: "Oriented -- I see the complete fleet, grouped by type"
+
+    integration_checkpoint: |
+      Agent list populated from identity graph traversal:
+      workspace <- member_of <- identity <- identity_agent -> agent
+      Each agent card shows correct runtime badge and action buttons.
+      Brain agents show view-only. Sandbox/external show edit/delete.
+
+    gherkin: |
+      Scenario: View agent registry
+        Given Elena Vasquez navigates to the Agents page
+        And her workspace "Acme Manufacturing" has 6 brain agents, 3 sandbox agents, and 3 external agents
+        When the page loads
+        Then she sees 12 agent cards grouped by runtime type
+        And brain agents display a "View" action only
+        And sandbox agents display "Spawn", "Edit" actions
+        And external agents display "Edit" actions
+        And each card shows the agent name, description, runtime badge, and connection status
+
+  - id: 2
+    name: "Select Runtime Type"
+    action: "Click Create Agent, choose sandbox or external"
+
+    shared_artifacts:
+      - name: selected_runtime
+        source: "User selection in creation dialog"
+        displayed_as: "${runtime}"
+        consumers:
+          - "Creation form (determines which fields appear)"
+          - "Agent record (persisted as agent.runtime)"
+
+    emotional_state:
+      entry: "Purposeful -- I know I need a new agent"
+      exit: "Committed -- I have chosen the right runtime type"
+
+    integration_checkpoint: |
+      Runtime selection determines form fields:
+      - sandbox: shows sandbox_config fields + authority scopes
+      - external: shows authority scopes only
+      Brain option is not available (read-only system agents).
+
+    gherkin: |
+      Scenario: Select sandbox runtime
+        Given Elena clicks "Create Agent"
+        When the creation dialog opens
+        Then she sees two options: Sandbox Agent and External Agent
+        And each option includes a description and "best for" examples
+        And brain agents are explained as system-managed (not creatable)
+
+      Scenario: Select external runtime
+        Given Rafael clicks "Create Agent"
+        When he selects "External Agent"
+        And clicks "Continue"
+        Then the form shows name, description, and authority scope fields
+        And no sandbox configuration fields are displayed
+
+  - id: 3
+    name: "Configure Agent"
+    action: "Fill in agent details, sandbox config (if applicable), and authority scopes"
+
+    shared_artifacts:
+      - name: agent_name
+        source: "User input in creation form"
+        displayed_as: "${name}"
+        consumers:
+          - "Agent record (agent.name)"
+          - "Identity record (identity.name)"
+          - "Agent card title"
+          - "Confirmation dialog"
+      - name: authority_scopes
+        source: "User selection in authority scope table"
+        displayed_as: "${scopes}"
+        consumers:
+          - "authorized_to relation edges"
+          - "Agent detail authority section"
+          - "Confirmation summary"
+      - name: sandbox_config
+        source: "User input in sandbox configuration section"
+        displayed_as: "${sandbox_config}"
+        consumers:
+          - "Agent record (agent.sandbox_config)"
+          - "Sandbox Agent SDK at spawn time"
+          - "Agent detail configuration section"
+      - name: workspace_sandbox_provider
+        source: "workspace.settings.sandbox_provider"
+        displayed_as: "${provider}"
+        consumers:
+          - "Sandbox config validation (must be set)"
+          - "Agent detail provider label"
+
+    emotional_state:
+      entry: "Focused -- I am configuring the agent precisely"
+      exit: "Confident -- the configuration looks correct"
+
+    integration_checkpoint: |
+      For sandbox agents, validate workspace has sandbox_provider configured.
+      Authority scope actions must match available authority_scope records.
+      Agent name must be unique within workspace.
+
+    gherkin: |
+      Scenario: Configure sandbox agent
+        Given Elena has selected "Sandbox Agent" runtime
+        And her workspace has sandbox provider "daytona" configured
+        When she enters name "QC Inspector" and description "Inspects manufacturing quality data"
+        And the form shows image field (cloud provider "daytona")
+        And sets image to "rivetdev/sandbox-agent:0.4.2-full"
+        And selects coding agent "Claude"
+        And adds environment variable QC_API_ENDPOINT = "https://qc.acme-mfg.com/api"
+        And sets authority scope create_observation to "auto"
+        And sets authority scope create_decision to "propose"
+        Then the "Create Agent" button becomes enabled
+
+      Scenario: Configure external agent
+        Given Rafael has selected "External Agent" runtime
+        When he enters name "Compliance Bot" and description "Automated compliance auditor"
+        And sets authority scope create_observation to "auto"
+        And sets authority scope confirm_decision to "blocked"
+        Then the "Create Agent" button becomes enabled
+
+  - id: 4
+    name: "Create Agent (Transaction)"
+    action: "Click Create Agent, system executes 5-step transaction"
+
+    shared_artifacts:
+      - name: agent_record_id
+        source: "SurrealDB CREATE agent response"
+        displayed_as: "${agent_id}"
+        consumers:
+          - "identity_agent relation edge"
+          - "Agent detail page URL"
+          - "Confirmation dialog"
+      - name: identity_record_id
+        source: "SurrealDB CREATE identity response"
+        displayed_as: "${identity_id}"
+        consumers:
+          - "identity_agent relation edge"
+          - "member_of relation edge"
+          - "authorized_to relation edges"
+      - name: proxy_token
+        source: "Proxy token generation (external agents only)"
+        displayed_as: "${token}"
+        consumers:
+          - "Confirmation dialog (shown once)"
+          - "External agent X-Brain-Auth header"
+
+    emotional_state:
+      entry: "Expectant -- submitting the creation"
+      exit: "Relieved/Empowered -- it worked, agent is live"
+
+    integration_checkpoint: |
+      Transaction creates 5 records atomically:
+      1. agent record
+      2. identity record (type: agent)
+      3. identity_agent edge
+      4. member_of edge (identity -> workspace)
+      5. authorized_to edges (one per scope)
+      All succeed or all fail. No partial state.
+      For external agents, proxy token is generated and shown once.
+
+    gherkin: |
+      Scenario: Successful sandbox agent creation
+        Given Elena has configured sandbox agent "QC Inspector" with 5 authority scopes
+        When she clicks "Create Agent"
+        Then the system creates an agent record with runtime "sandbox"
+        And creates an identity record with type "agent"
+        And links identity to agent via identity_agent edge
+        And links identity to workspace "Acme Manufacturing" via member_of edge
+        And creates 5 authorized_to edges matching her scope selections
+        And the confirmation dialog shows all created records
+
+      Scenario: Successful external agent creation with proxy token
+        Given Rafael has configured external agent "Compliance Bot" with 4 authority scopes
+        When he clicks "Create Agent"
+        Then the system creates agent and identity records
+        And generates a proxy token prefixed with "brp_"
+        And the confirmation dialog displays the token with a copy button
+        And warns that the token cannot be retrieved after closing
+
+      Scenario: Creation failure rolls back all records
+        Given Elena has configured sandbox agent "QC Inspector"
+        When she clicks "Create Agent"
+        And the identity creation fails
+        Then no agent record is persisted
+        And no partial edges exist
+        And an error message explains the failure with retry option
+
+  - id: 5
+    name: "Monitor Agent Sessions"
+    action: "View agent detail page, monitor active/idle/completed sessions"
+
+    shared_artifacts:
+      - name: session_list
+        source: "agent_session table WHERE agent matches"
+        displayed_as: "${sessions}"
+        consumers:
+          - "Agent detail session list"
+          - "Active session count on agent card"
+      - name: session_orchestrator_status
+        source: "agent_session.orchestrator_status"
+        displayed_as: "${orchestrator_status}"
+        consumers:
+          - "Session status badge"
+          - "Session grouping (active/idle/completed)"
+      - name: session_last_event
+        source: "agent_session.last_event_at"
+        displayed_as: "${last_event}"
+        consumers:
+          - "Session recency indicator"
+          - "Idle detection"
+
+    emotional_state:
+      entry: "Monitoring -- is my agent working correctly?"
+      exit: "In-control -- I can see everything and take action if needed"
+
+    integration_checkpoint: |
+      Session list queries agent_session with matching agent identifier.
+      Status grouping uses orchestrator_status enum.
+      Idle sessions show resume/feedback actions.
+      Error sessions display error_message field.
+
+    gherkin: |
+      Scenario: View sandbox agent sessions
+        Given Elena navigates to the detail page for "QC Inspector"
+        And the agent has 2 active sessions, 1 idle session, and 3 completed sessions
+        When the page loads
+        Then she sees active sessions with live status and last event timestamp
+        And idle sessions with "Resume" and "Send Feedback" actions
+        And completed sessions with duration and outcome
+
+      Scenario: View external agent connection status
+        Given Rafael navigates to the detail page for "Compliance Bot"
+        When the page loads
+        Then he sees connection status (online/offline based on last proxy request)
+        And a list of recent proxy sessions
+
+  - id: 6
+    name: "Edit Agent"
+    action: "Modify agent configuration or authority scopes"
+
+    shared_artifacts:
+      - name: agent_name
+        source: "agent.name (mutable)"
+        displayed_as: "${name}"
+        consumers:
+          - "Agent card title"
+          - "Identity name (synced)"
+      - name: authority_scopes
+        source: "authorized_to edges (mutable)"
+        displayed_as: "${scopes}"
+        consumers:
+          - "Authority resolution at runtime"
+          - "Agent detail authority section"
+
+    emotional_state:
+      entry: "Purposeful -- I need to adjust this agent's capabilities"
+      exit: "Confident -- changes saved, governance updated"
+
+    integration_checkpoint: |
+      Edit must update agent record AND sync identity name.
+      Authority scope changes must delete old authorized_to edges and create new ones.
+      Active sessions continue with existing authority until session restart.
+
+    gherkin: |
+      Scenario: Edit sandbox agent authority scopes
+        Given Elena opens the edit form for "QC Inspector"
+        When she changes create_decision from "propose" to "auto"
+        And clicks "Save Changes"
+        Then the authorized_to edge for create_decision is updated
+        And the agent detail page reflects the new permission level
+
+      Scenario: Cannot edit brain agent
+        Given Elena views the detail page for brain agent "Observer"
+        Then no "Edit" or "Delete" actions are available
+        And a note explains that brain agents are managed by the system
+
+  - id: 7
+    name: "Delete Agent"
+    action: "Remove agent and all associated records"
+
+    emotional_state:
+      entry: "Deliberate -- I have decided to remove this agent"
+      exit: "Clean -- agent is fully removed, no orphaned records"
+
+    integration_checkpoint: |
+      Delete must remove: agent record, identity record, identity_agent edge,
+      member_of edge, all authorized_to edges.
+      If active sessions exist, warn and require confirmation to terminate.
+      Historical session records are preserved for audit trail.
+
+    gherkin: |
+      Scenario: Delete agent with confirmation
+        Given Elena clicks "Delete" on external agent "Freight Tracker"
+        And the agent has no active sessions
+        When the confirmation dialog appears
+        Then it lists all records that will be removed
+        And she must type the agent name to confirm
+        And clicking "Delete Agent" removes all records atomically
+
+      Scenario: Delete agent with active sessions
+        Given Elena clicks "Delete" on sandbox agent "QC Inspector"
+        And the agent has 2 active sessions
+        When the confirmation dialog appears
+        Then it warns that 2 active sessions will be terminated
+        And lists the sessions by task
+        And requires explicit confirmation to proceed
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: runtime_type
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "Runtime type selected in step 2 must match agent record created in step 4 and displayed in step 1"
+    - artifact: agent_name
+      must_match_across: [3, 4, 5, 6]
+      failure_message: "Agent name from creation form must match agent record, identity record, and all display locations"
+    - artifact: authority_scopes
+      must_match_across: [3, 4, 5, 6]
+      failure_message: "Authority scopes configured in step 3 must produce authorized_to edges in step 4 and display correctly in steps 5-6"
+    - artifact: workspace_sandbox_provider
+      must_match_across: [3, 5]
+      failure_message: "Workspace sandbox provider must be validated during creation and shown in agent detail"
