@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "25a2df9fb95b",
+  "strategy": "manual-commit",
+  "branch": "rename-brain-to-osabio",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/llm-proxy/llm-proxy-test-kit.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/a2df9fb95b/0/metadata.json",
+      "transcript": "/25/a2df9fb95b/0/full.jsonl",
+      "context": "/25/a2df9fb95b/0/context.md",
+      "content_hash": "/25/a2df9fb95b/0/content_hash.txt",
+      "prompt": "/25/a2df9fb95b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
