@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cab229a8937d",
+  "session_id": "0d5d0695-673b-4371-bc85-b6131024a97d",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-29T09:24:53.685551Z",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/agent-task-selection/deliver/.develop-progress.json",
+    "docs/feature/agent-task-selection/deliver/execution-log.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c3792c188bb3",
+  "token_usage": {
+    "input_tokens": 4921,
+    "cache_creation_tokens": 192265,
+    "cache_read_tokens": 3582379,
+    "output_tokens": 14078,
+    "api_call_count": 40
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-29T09:24:53.323304Z",
+    "agent_lines": 10,
+    "human_added": 36,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 46,
+    "agent_percentage": 21.73913043478261
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "cab229a8937d",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/feature/agent-task-selection/deliver/.develop-progress.json",
+    "docs/feature/agent-task-selection/deliver/execution-log.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/b229a8937d/0/metadata.json",
+      "transcript": "/ca/b229a8937d/0/full.jsonl",
+      "context": "/ca/b229a8937d/0/context.md",
+      "content_hash": "/ca/b229a8937d/0/content_hash.txt",
+      "prompt": "/ca/b229a8937d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4921,
+    "cache_creation_tokens": 192265,
+    "cache_read_tokens": 3582379,
+    "output_tokens": 14078,
+    "api_call_count": 40
+  }
+}
