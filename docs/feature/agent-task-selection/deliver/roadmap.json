@@ -1,0 +1,87 @@
+{
+  "roadmap": {
+    "project_id": "agent-task-selection",
+    "created_at": "2026-03-29T09:10:18Z",
+    "total_steps": 3,
+    "phases": 3
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Backend: Wire agentId into assign flow",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Add agent lookup and pass agent name through session creation",
+          "criteria": "GIVEN an assign request with a valid agentId that belongs to the workspace WHEN the orchestrator creates a session THEN the agent_session.agent field contains the looked-up agent name instead of hard-coded 'claude'. GIVEN an assign request without agentId WHEN the orchestrator creates a session THEN the agent_session.agent field defaults to 'claude' (backwards compatible). GIVEN an assign request with an agentId that does not exist in the workspace WHEN the orchestrator processes the request THEN it returns HTTP 404 with a descriptive error message. GIVEN an assign request with an agentId belonging to a different workspace WHEN the orchestrator processes the request THEN it returns HTTP 404.",
+          "test_file": "tests/acceptance/coding-agent-orchestrator/agent-task-selection.test.ts",
+          "scenario_name": "assign with agent ID uses agent name; assign without agent ID defaults to claude; assign with unknown agent ID returns 404; assign with cross-workspace agent ID returns 404",
+          "files_to_modify": [
+            "app/src/server/agents/agent-queries.ts",
+            "app/src/server/orchestrator/routes.ts",
+            "app/src/server/orchestrator/session-lifecycle.ts"
+          ],
+          "time_estimate_minutes": 45,
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Frontend: Agent picker in assign UI",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Add agent picker dropdown and wire agentId to assign request",
+          "criteria": "GIVEN a task in assignable status WHEN the agent status section renders in assign variant THEN it fetches the workspace agent list from GET /api/workspaces/:id/agents and displays a dropdown of sandbox and external agents. GIVEN exactly one assignable agent exists WHEN the dropdown renders THEN that agent is pre-selected. GIVEN no assignable agents exist WHEN the assign section renders THEN it shows a message indicating no agents are available and the assign button is disabled. GIVEN the user selects an agent and clicks assign WHEN the request is sent THEN the request body includes the selected agentId alongside taskId. GIVEN the user clicks assign without selecting an agent (dropdown has no selection) WHEN the request is sent THEN agentId is omitted from the body (backwards-compatible default).",
+          "test_file": "",
+          "scenario_name": "",
+          "files_to_modify": [
+            "app/src/client/graph/orchestrator-api.ts",
+            "app/src/client/components/graph/AgentStatusSection.tsx"
+          ],
+          "time_estimate_minutes": 40,
+          "dependencies": ["01-01"]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Acceptance tests: Agent task selection",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Acceptance tests for assign-with-agent flow",
+          "criteria": "GIVEN a workspace with a registered sandbox agent WHEN POST /api/orchestrator/:workspaceId/assign is called with { taskId, agentId } THEN the created agent_session record has agent field set to the registered agent's name. GIVEN a non-existent agentId WHEN the assign endpoint is called THEN it returns HTTP 404 with error body. GIVEN an agentId belonging to a different workspace WHEN the assign endpoint is called THEN it returns HTTP 404. GIVEN no agentId in the request body WHEN the assign endpoint is called THEN the agent_session.agent field is 'claude' (backwards compatibility).",
+          "test_file": "tests/acceptance/coding-agent-orchestrator/agent-task-selection.test.ts",
+          "scenario_name": "assign with workspace agent sets agent name on session; assign with non-existent agent returns 404; assign with cross-workspace agent returns 404; assign without agentId defaults to claude",
+          "files_to_modify": [
+            "tests/acceptance/coding-agent-orchestrator/agent-task-selection.test.ts"
+          ],
+          "time_estimate_minutes": 35,
+          "dependencies": ["01-01"]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "app/src/server/agents/",
+      "app/src/server/orchestrator/",
+      "app/src/client/graph/",
+      "app/src/client/components/graph/"
+    ],
+    "test_directories": [
+      "tests/acceptance/coding-agent-orchestrator/"
+    ],
+    "excluded_patterns": [
+      "node_modules/**",
+      "dist/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "marcus",
+    "approved_at": "2026-03-29T09:12:00Z"
+  }
+}

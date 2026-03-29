@@ -510,6 +510,47 @@ export async function deleteAgentTransaction(
 }
 
 // ---------------------------------------------------------------------------
+// Lookup agent in workspace
+// ---------------------------------------------------------------------------
+
+type AgentLookupRow = {
+  agent_name: string;
+  agent_runtime: string;
+};
+
+/**
+ * Look up an agent by ID and verify it belongs to the given workspace.
+ *
+ * Uses graph traversal: workspace <- member_of <- identity <- identity_agent -> agent
+ * Returns `{ name, runtime }` if found, throws HttpError(404) otherwise.
+ */
+export async function lookupAgentInWorkspace(
+  surreal: Surreal,
+  agentId: string,
+  workspaceId: string,
+): Promise<{ name: string; runtime: string }> {
+  const workspaceRecord = new RecordId("workspace", workspaceId);
+  const agentRecord = new RecordId("agent", agentId);
+
+  const [rows] = await surreal.query<[AgentLookupRow[]]>(
+    `SELECT out.name AS agent_name, out.runtime AS agent_runtime
+     FROM identity_agent
+     WHERE out = $agent
+     AND in IN (
+       SELECT VALUE in FROM member_of WHERE out = $ws AND in.type = 'agent'
+     )
+     LIMIT 1;`,
+    { agent: agentRecord, ws: workspaceRecord },
+  );
+
+  if (rows.length === 0) {
+    throw new HttpError(404, `Agent ${agentId} not found in workspace ${workspaceId}`);
+  }
+
+  return { name: rows[0].agent_name, runtime: rows[0].agent_runtime };
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

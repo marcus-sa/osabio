@@ -49,6 +49,7 @@ import { createAgentMcpHandler } from "../mcp/agent-mcp-route";
 import { createAnthropicProxyHandler } from "../proxy/anthropic-proxy-route";
 import { createProxyTokenHandler } from "../proxy/proxy-token-route";
 import { createAgentRouteHandlers } from "../agents/agent-route";
+import { lookupAgentInWorkspace } from "../agents/agent-queries";
 import { createSpendApiHandlers } from "../proxy/spend-api";
 import { createAuditApiHandlers } from "../proxy/audit-api";
 import { initTelemetry } from "../telemetry/init";
@@ -143,6 +144,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
     mockAgent: config.orchestratorMockAgent,
     sandboxAgentAdapter: deps.sandboxAgentAdapter,
     sandboxAgentType: config.sandboxAgentType,
+    lookupAgentInWorkspace,
   });
 
   return Bun.serve({

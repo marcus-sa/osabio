@@ -29,6 +29,7 @@ import type {
 } from "./session-lifecycle";
 import { pickDefined } from "./session-lifecycle";
 import type { SseRegistry } from "../streaming/sse-registry";
+import { HttpError } from "../http/errors";
 
 type BrainAction = {
   type: "brain_action";
@@ -73,6 +74,7 @@ export type OrchestratorRouteDeps = {
     workspaceId: string,
     taskId: string,
     authToken: string,
+    agentName?: string,
   ) => Promise<OrchestratorSessionResult>;
   getSessionStatus: (sessionId: string) => Promise<SessionStatusResult>;
   abortSession: (sessionId: string) => Promise<AbortSessionResult>;
@@ -95,7 +97,7 @@ export type OrchestratorRouteDeps = {
 // Request body parsing
 // ---------------------------------------------------------------------------
 
-type AssignBody = { taskId?: string };
+type AssignBody = { taskId?: string; agentId?: string };
 type AcceptBody = { summary?: string };
 type RejectBody = { feedback?: string };
 type PromptBody = { text?: string };
@@ -202,7 +204,7 @@ export function createOrchestratorRouteHandlers(deps: OrchestratorRouteDeps) {
     }
 
     const authToken = extractAuthToken(request);
-    const result = await deps.createSession(workspaceId, body.taskId, authToken);
+    const result = await deps.createSession(workspaceId, body.taskId, authToken, body.agentId);
 
     if (!result.ok) {
       return sessionErrorResponse(result.error);
@@ -333,6 +335,11 @@ export type OrchestratorWiringDeps = {
   mockAgent: boolean;
   sandboxAgentAdapter?: import("./sandbox-adapter").SandboxAgentAdapter;
   sandboxAgentType?: string;
+  lookupAgentInWorkspace?: (
+    surreal: import("surrealdb").Surreal,
+    agentId: string,
+    workspaceId: string,
+  ) => Promise<{ name: string; runtime: string }>;
 };
 
 export function wireOrchestratorRoutes(
@@ -558,7 +565,30 @@ export function wireOrchestratorRoutes(
   };
 
   const routeDeps: OrchestratorRouteDeps = {
-    createSession: async (workspaceId, taskId, authToken) => {
+    createSession: async (workspaceId, taskId, authToken, agentId) => {
+      // Resolve agent name from agentId (if provided)
+      let agentName: string | undefined;
+      if (agentId) {
+        if (!wiringDeps.lookupAgentInWorkspace) {
+          return {
+            ok: false as const,
+            error: { code: "SESSION_ERROR" as const, message: "Agent lookup not configured", httpStatus: 500 },
+          };
+        }
+        try {
+          const agentInfo = await wiringDeps.lookupAgentInWorkspace(wiringDeps.surreal, agentId, workspaceId);
+          agentName = agentInfo.name;
+        } catch (err) {
+          if (err instanceof HttpError) {
+            return {
+              ok: false as const,
+              error: { code: "SESSION_ERROR" as const, message: err.message, httpStatus: err.status },
+            };
+          }
+          throw err;
+        }
+      }
+
       const [adapter, lifecycle, queries, guard] = await Promise.all([
         resolveAdapter(),
         lifecycleImport,
@@ -598,6 +628,7 @@ export function wireOrchestratorRoutes(
         createAgentSession: queries.createAgentSession,
         adapter,
         sandboxAgentType: wiringDeps.sandboxAgentType,
+        agentName,
       });
 
       // After session creation, create the governed proxy token with intent + session
