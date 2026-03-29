@@ -3,7 +3,7 @@
   "checkpoint_id": "4c7b57f7e7b4",
   "strategy": "manual-commit",
   "branch": "rename-brain-to-osabio",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     ".brain/worktrees/agent-add-audit-trail-logging-778cb45a-417c-4416-9e8a-0e1595540b80",
     ".brain/worktrees/agent-add-audit-trail-logging-79d396b9-2b09-4b3f-8fcf-732f51a736fc",
@@ -610,13 +610,20 @@
       "context": "/4c/7b57f7e7b4/0/context.md",
       "content_hash": "/4c/7b57f7e7b4/0/content_hash.txt",
       "prompt": "/4c/7b57f7e7b4/0/prompt.txt"
+    },
+    {
+      "metadata": "/4c/7b57f7e7b4/1/metadata.json",
+      "transcript": "/4c/7b57f7e7b4/1/full.jsonl",
+      "context": "/4c/7b57f7e7b4/1/context.md",
+      "content_hash": "/4c/7b57f7e7b4/1/content_hash.txt",
+      "prompt": "/4c/7b57f7e7b4/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 207,
+    "cache_creation_tokens": 518793,
+    "cache_read_tokens": 22469354,
+    "output_tokens": 59566,
+    "api_call_count": 197
   }
 }

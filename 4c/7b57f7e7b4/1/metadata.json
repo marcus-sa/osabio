@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "4c7b57f7e7b4",
+  "session_id": "78f3bb53-ec49-4bcf-8af8-bcf8e3518ac7",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-29T15:29:24.480443Z",
+  "branch": "rename-brain-to-osabio",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "cli/brain.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e48dc738002",
+  "token_usage": {
+    "input_tokens": 207,
+    "cache_creation_tokens": 518793,
+    "cache_read_tokens": 22469354,
+    "output_tokens": 59566,
+    "api_call_count": 197
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-29T15:29:23.043639Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  }
+}
