@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "bbdaa8b66ebe",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/agent-crud-discover",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/auth/authority.test.ts",
+    "tests/acceptance/extraction/extraction-quality.test.ts",
+    "tests/acceptance/reactive/reactive-test-kit.ts",
+    "tests/acceptance/unified-identity/auth-rewiring.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bb/daa8b66ebe/0/metadata.json",
+      "transcript": "/bb/daa8b66ebe/0/full.jsonl",
+      "context": "/bb/daa8b66ebe/0/context.md",
+      "content_hash": "/bb/daa8b66ebe/0/content_hash.txt",
+      "prompt": "/bb/daa8b66ebe/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 115233,
+    "cache_read_tokens": 5797157,
+    "output_tokens": 24112,
+    "api_call_count": 64
+  }
+}
