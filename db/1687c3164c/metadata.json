@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "db1687c3164c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "docs/research/skills-sandbox-agent-integration.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/1687c3164c/0/metadata.json",
+      "transcript": "/db/1687c3164c/0/full.jsonl",
+      "context": "/db/1687c3164c/0/context.md",
+      "content_hash": "/db/1687c3164c/0/content_hash.txt",
+      "prompt": "/db/1687c3164c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 99,
+    "cache_creation_tokens": 234002,
+    "cache_read_tokens": 4895676,
+    "output_tokens": 48225,
+    "api_call_count": 73
+  }
+}

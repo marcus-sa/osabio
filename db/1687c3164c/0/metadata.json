@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "db1687c3164c",
+  "session_id": "4a8d50b8-fd41-4513-9eea-5c9a15be464e",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T08:20:53.293812Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "docs/research/skills-sandbox-agent-integration.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bb416a60a729",
+  "token_usage": {
+    "input_tokens": 99,
+    "cache_creation_tokens": 234002,
+    "cache_read_tokens": 4895676,
+    "output_tokens": 48225,
+    "api_call_count": 73
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T08:20:52.652158Z",
+    "agent_lines": 613,
+    "human_added": 25728,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 26341,
+    "agent_percentage": 2.3271705705933714
+  }
+}
