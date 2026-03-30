@@ -395,6 +395,36 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           ),
         ),
       },
+      // skill detail/update/delete MUST be after activate/deprecate to avoid :skillId capturing those sub-paths
+      "/api/workspaces/:workspaceId/skills/:skillId": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/skills/:skillId",
+          "GET",
+          (request) => skillHandlers.handleGetDetail(
+            request.params.workspaceId,
+            request.params.skillId,
+            request,
+          ),
+        ),
+        PUT: withTracing(
+          "PUT /api/workspaces/:workspaceId/skills/:skillId",
+          "PUT",
+          (request) => skillHandlers.handleUpdate(
+            request.params.workspaceId,
+            request.params.skillId,
+            request,
+          ),
+        ),
+        DELETE: withTracing(
+          "DELETE /api/workspaces/:workspaceId/skills/:skillId",
+          "DELETE",
+          (request) => skillHandlers.handleDelete(
+            request.params.workspaceId,
+            request.params.skillId,
+            request,
+          ),
+        ),
+      },
       "/api/workspaces/:workspaceId/agents": {
         GET: withTracing(
           "GET /api/workspaces/:workspaceId/agents",

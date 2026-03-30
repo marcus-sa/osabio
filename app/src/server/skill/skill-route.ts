@@ -16,7 +16,7 @@ import { HttpError } from "../http/errors";
 import { jsonError, jsonResponse } from "../http/response";
 import type { ServerDependencies } from "../runtime/types";
 import { resolveWorkspaceRecord } from "../workspace/workspace-scope";
-import { createSkill, listSkills, activateSkill, deprecateSkill } from "./skill-queries";
+import { createSkill, listSkills, getSkillDetail, updateSkill, deleteSkill, activateSkill, deprecateSkill } from "./skill-queries";
 import type { SkillSource, SkillStatus } from "./types";
 import { log } from "../telemetry/logger";
 
@@ -131,6 +131,12 @@ export function createSkillRouteHandlers(deps: ServerDependencies) {
       handleCreateSkill(deps, workspaceId, request),
     handleList: (workspaceId: string, request: Request) =>
       handleListSkills(deps, workspaceId, request),
+    handleGetDetail: (workspaceId: string, skillId: string, request: Request) =>
+      handleGetDetailSkill(deps, workspaceId, skillId, request),
+    handleUpdate: (workspaceId: string, skillId: string, request: Request) =>
+      handleUpdateSkill(deps, workspaceId, skillId, request),
+    handleDelete: (workspaceId: string, skillId: string, request: Request) =>
+      handleDeleteSkill(deps, workspaceId, skillId, request),
     handleActivate: (workspaceId: string, skillId: string, request: Request) =>
       handleActivateSkill(deps, workspaceId, skillId, request),
     handleDeprecate: (workspaceId: string, skillId: string, request: Request) =>
@@ -216,6 +222,117 @@ async function handleListSkills(
   } catch (error) {
     log.error("skill.list.failed", "Failed to list skills", error, { workspaceId });
     return jsonError("failed to list skills", 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/workspaces/:workspaceId/skills/:skillId
+// ---------------------------------------------------------------------------
+
+async function handleGetDetailSkill(
+  deps: ServerDependencies,
+  workspaceId: string,
+  skillId: string,
+  request: Request,
+): Promise<Response> {
+  const identityOrError = await resolveIdentityFromSession(deps, request);
+  if (isResponse(identityOrError)) return identityOrError;
+
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "skill.detail.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+
+  try {
+    const detail = await getSkillDetail(deps.surreal, workspaceId, skillId);
+
+    trace.getActiveSpan()?.setAttribute("skill.detail.skill_id", skillId);
+
+    return jsonResponse(detail, 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+    log.error("skill.detail.failed", "Failed to get skill detail", error, { workspaceId, skillId });
+    return jsonError("failed to get skill detail", 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/workspaces/:workspaceId/skills/:skillId
+// ---------------------------------------------------------------------------
+
+async function handleUpdateSkill(
+  deps: ServerDependencies,
+  workspaceId: string,
+  skillId: string,
+  request: Request,
+): Promise<Response> {
+  const identityOrError = await resolveIdentityFromSession(deps, request);
+  if (isResponse(identityOrError)) return identityOrError;
+
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "skill.update.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("invalid JSON body", 400);
+  }
+
+  if (!body || typeof body !== "object") {
+    return jsonError("request body is required", 400);
+  }
+
+  try {
+    const raw = body as Record<string, unknown>;
+    const result = await updateSkill(deps.surreal, workspaceId, skillId, {
+      name: typeof raw.name === "string" ? raw.name : undefined,
+      description: typeof raw.description === "string" ? raw.description : undefined,
+      version: typeof raw.version === "string" ? raw.version : undefined,
+      source: typeof raw.source === "object" && raw.source ? raw.source as SkillSource : undefined,
+      required_tool_ids: Array.isArray(raw.required_tool_ids) ? raw.required_tool_ids as string[] : undefined,
+    });
+
+    trace.getActiveSpan()?.setAttribute("skill.update.skill_id", skillId);
+
+    return jsonResponse({ skill: result }, 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+    log.error("skill.update.failed", "Failed to update skill", error, { workspaceId, skillId });
+    return jsonError("failed to update skill", 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/workspaces/:workspaceId/skills/:skillId
+// ---------------------------------------------------------------------------
+
+async function handleDeleteSkill(
+  deps: ServerDependencies,
+  workspaceId: string,
+  skillId: string,
+  request: Request,
+): Promise<Response> {
+  const identityOrError = await resolveIdentityFromSession(deps, request);
+  if (isResponse(identityOrError)) return identityOrError;
+
+  const workspaceOrError = await resolveWorkspace(deps, workspaceId, "skill.delete.workspace_resolve.failed");
+  if (isResponse(workspaceOrError)) return workspaceOrError;
+
+  try {
+    await deleteSkill(deps.surreal, workspaceId, skillId);
+
+    trace.getActiveSpan()?.setAttribute("skill.delete.skill_id", skillId);
+
+    return jsonResponse({ deleted: true }, 200);
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return jsonError(error.message, error.status);
+    }
+    log.error("skill.delete.failed", "Failed to delete skill", error, { workspaceId, skillId });
+    return jsonError("failed to delete skill", 500);
   }
 }
 
