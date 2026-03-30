@@ -27,7 +27,7 @@ DEFINE TABLE OVERWRITE skill_requires TYPE RELATION IN skill OUT mcp_tool SCHEMA
 
 -- Relation: identity possesses skill
 DEFINE TABLE OVERWRITE possesses TYPE RELATION IN identity OUT skill SCHEMAFULL;
-DEFINE FIELD OVERWRITE granted_at ON possesses TYPE datetime;
+DEFINE FIELD OVERWRITE granted_at ON possesses TYPE datetime DEFAULT time::now();
 
 -- Relation: skill supersedes skill
 DEFINE TABLE OVERWRITE skill_supersedes TYPE RELATION IN skill OUT skill SCHEMAFULL;

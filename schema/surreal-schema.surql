@@ -1475,7 +1475,7 @@ DEFINE TABLE skill_requires TYPE RELATION IN skill OUT mcp_tool SCHEMAFULL;
 
 -- possesses: identity possesses skill
 DEFINE TABLE possesses TYPE RELATION IN identity OUT skill SCHEMAFULL;
-DEFINE FIELD granted_at ON possesses TYPE datetime;
+DEFINE FIELD granted_at ON possesses TYPE datetime DEFAULT time::now();
 
 -- skill_supersedes: skill version chain
 DEFINE TABLE skill_supersedes TYPE RELATION IN skill OUT skill SCHEMAFULL;
