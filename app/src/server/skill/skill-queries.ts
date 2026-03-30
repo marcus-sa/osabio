@@ -318,7 +318,7 @@ export async function getSkillDetail(
   const skillSql = `SELECT id, name, description, version, status, source, created_by, created_at, updated_at FROM $skill;`;
   const toolsSql = `SELECT out.id AS tool_id, out.name AS tool_name FROM skill_requires WHERE in = $skill;`;
   const agentsSql = `SELECT in.id AS agent_id, in.name AS agent_name FROM possesses WHERE out = $skill;`;
-  const govSql = `SELECT in.id AS policy_id, in.name AS policy_name, in.status AS policy_status FROM governs_skill WHERE out = $skill;`;
+  const govSql = `SELECT in.id AS policy_id, in.title AS policy_name, in.status AS policy_status FROM governs_skill WHERE out = $skill;`;
 
   const [skillRows, toolRows, agentRows, govRows] = await surreal.query<
     [DetailSkillRow[], DetailToolRow[], DetailAgentRow[], DetailGovRow[]]

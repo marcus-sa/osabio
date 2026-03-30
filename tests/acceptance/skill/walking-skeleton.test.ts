@@ -169,7 +169,7 @@ describe("Walking Skeleton 3: Skill lifecycle governs agent creation visibility"
   // WS-3: Lifecycle transitions control availability
   // US-03 + US-07
   // ---------------------------------------------------------------------------
-  it.skip("deprecated skill is excluded from active skill listing used during agent creation", async () => {
+  it("deprecated skill is excluded from active skill listing used during agent creation", async () => {
     const { baseUrl, surreal } = getRuntime();
 
     // Given a workspace with an active skill

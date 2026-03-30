@@ -206,18 +206,25 @@ export async function seedPolicy(
   const policyId = crypto.randomUUID();
   const policyRecord = new RecordId("policy", policyId);
 
+  // Resolve an identity in this workspace for the required created_by field
+  const [identityRows] = await surreal.query<[Array<{ id: RecordId<"identity"> }>]>(
+    `SELECT id FROM identity WHERE workspace = $ws LIMIT 1;`,
+    { ws: workspaceRecord },
+  );
+  const createdBy = identityRows[0]?.id ?? new RecordId("identity", crypto.randomUUID());
+
   await surreal.query(`CREATE $policy CONTENT $content;`, {
     policy: policyRecord,
     content: {
-      name,
+      title: name,
       description: `Test policy: ${name}`,
       status: "active",
       workspace: workspaceRecord,
+      selector: {},
       rules: [],
-      scopes: [],
       version: 1,
+      created_by: createdBy,
       created_at: new Date(),
-      updated_at: new Date(),
     },
   });
 
