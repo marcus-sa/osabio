@@ -1,0 +1,176 @@
+journey:
+  name: "Create Agent with Skills"
+  goal: "Workspace admin creates a new agent equipped with domain expertise and the correct toolset"
+  persona: "Marcus (Workspace Admin) — technical founder, creates specialized agents"
+
+  emotional_arc:
+    start: "Intentional — knows what kind of agent is needed"
+    middle: "Empowered — actively equipping the agent with expertise"
+    end: "Confident — agent is fully configured and ready"
+
+steps:
+  - id: 1
+    name: "Agent Config"
+    action: "Fill in runtime, name, description, model, authority scopes, sandbox config"
+
+    shared_artifacts:
+      - name: "agent_name"
+        source: "Step 1 name input field"
+        displayed_as: "${agent_name}"
+        consumers: ["Step 2 heading", "Step 3 heading", "Success confirmation"]
+      - name: "runtime"
+        source: "Step 1 runtime radio selection"
+        displayed_as: "${runtime}"
+        consumers: ["Step 2 external-agent banner", "Step 3 skill-derived section visibility", "Success confirmation"]
+      - name: "authority_scopes"
+        source: "Step 1 authority scope matrix"
+        displayed_as: "${authority_scopes}"
+        consumers: ["Agent creation transaction"]
+
+    emotional_state:
+      entry: "Focused — familiar form, enhanced version of existing wizard"
+      exit: "Grounded — identity established, ready to add expertise"
+
+    integration_checkpoint: |
+      Agent name must be unique within workspace (validated on blur).
+      Runtime selection determines conditional visibility in steps 2 and 3.
+
+    gherkin: |
+      Scenario: Configure sandbox agent identity
+        Given Marcus is on the Create Agent page
+        When he selects "Sandbox" runtime and enters name "security-auditor"
+        And he fills in description, model, and authority scopes
+        Then the Next button becomes active
+        And sandbox-specific config fields are visible
+
+  - id: 2
+    name: "Skills Setup"
+    action: "Browse and select skills from workspace skill catalog"
+
+    shared_artifacts:
+      - name: "selected_skills"
+        source: "Step 2 skill checklist selections"
+        displayed_as: "${selected_skills}"
+        consumers: ["Step 3 skill-derived tools section", "Agent creation transaction", "Success confirmation"]
+      - name: "skill_count"
+        source: "Derived from selected_skills.length"
+        displayed_as: "${skill_count}"
+        consumers: ["Step 2 count badge", "Success confirmation"]
+      - name: "workspace_skills"
+        source: "GET /api/workspaces/:id/skills?status=active"
+        displayed_as: "Skill checklist items"
+        consumers: ["Step 2 checklist"]
+
+    emotional_state:
+      entry: "Curious — exploring what expertise is available"
+      exit: "Empowered — agent now has domain knowledge"
+
+    integration_checkpoint: |
+      All displayed skills must have status=active.
+      Selected skills array is preserved when navigating back from step 3.
+      Empty state shown when workspace has no active skills.
+
+    gherkin: |
+      Scenario: Assign skills to agent
+        Given Marcus is on Step 2 of Create Agent for "security-auditor"
+        And the workspace has 4 active skills
+        When he checks "security-audit" and "code-review"
+        Then the count badge shows "2 skills selected"
+        And the Next button is active
+
+      Scenario: Skip skills assignment
+        Given Marcus is on Step 2 of Create Agent
+        When he clicks Skip
+        Then he advances to Step 3 with zero skills selected
+
+      Scenario: No skills available
+        Given Marcus is on Step 2 of Create Agent
+        And the workspace has no active skills
+        Then an empty state message is shown with a link to the Skill Library
+        And Skip is the primary action
+
+  - id: 3
+    name: "Tools Review"
+    action: "Review skill-derived tools and optionally select additional tools"
+
+    shared_artifacts:
+      - name: "skill_derived_tools"
+        source: "Resolved from selected_skills -> skill_requires -> mcp_tool"
+        displayed_as: "${skill_derived_tools}"
+        consumers: ["Step 3 skill-derived tools section (read-only)", "Success confirmation"]
+      - name: "additional_tools"
+        source: "Step 3 additional tools checklist selections"
+        displayed_as: "${additional_tools}"
+        consumers: ["Agent creation transaction (can_use edges)", "Success confirmation"]
+      - name: "total_tools"
+        source: "Derived from union(skill_derived_tools, additional_tools)"
+        displayed_as: "${total_tools}"
+        consumers: ["Step 3 summary line", "Success confirmation"]
+
+    emotional_state:
+      entry: "Observant — reviewing what skills imply for tool access"
+      exit: "In control — full visibility of agent capabilities"
+
+    integration_checkpoint: |
+      Skill-derived tools section correctly reflects skill_requires edges for selected skills.
+      Each skill-derived tool shows "via skill X" label.
+      Tools appearing in both skill-derived and additional are not double-counted.
+      Additional tools section shows workspace mcp_tool catalog minus skill-derived tools.
+
+    gherkin: |
+      Scenario: Review skill-derived tools
+        Given Marcus selected "security-audit" and "code-review" in Step 2
+        When he arrives at Step 3
+        Then the skill-derived section shows 4 tools with source skill labels
+        And the skill-derived tools are read-only (not editable)
+
+      Scenario: Select additional tools
+        Given Marcus is on Step 3 with 4 skill-derived tools
+        When he checks "create_branch" and "post_comment" in Additional Tools
+        Then the total effective tools summary shows "6 (4 from skills + 2 additional)"
+
+  - id: 4
+    name: "Create Agent"
+    action: "Submit agent creation with all configuration"
+
+    shared_artifacts:
+      - name: "agent_record"
+        source: "POST /api/agents (atomic transaction)"
+        displayed_as: "Success confirmation"
+        consumers: ["Agent list page", "Agent detail page"]
+
+    emotional_state:
+      entry: "Anticipating — about to commit"
+      exit: "Confident — agent exists and is fully equipped"
+
+    integration_checkpoint: |
+      Atomic transaction creates: agent record, identity, member_of edge,
+      authorized_to edges, possesses edges, can_use edges, proxy token (if external).
+      All selected skills must still be active at transaction time.
+      Success confirmation shows full summary.
+
+    gherkin: |
+      Scenario: Successful agent creation with skills
+        Given Marcus has completed steps 1-3 with name "security-auditor", 2 skills, and 2 additional tools
+        When he clicks "Create Agent"
+        Then the agent is created atomically with all relations
+        And success confirmation shows runtime, skills, and tools summary
+
+      Scenario: Skill deprecated during wizard flow
+        Given Marcus selected "security-audit" in Step 2
+        And the skill was deprecated after he moved to Step 3
+        When he clicks "Create Agent"
+        Then an error explains the skill was deprecated
+        And he can navigate back to Step 2 to update selections
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "agent_name"
+      must_match_across: [1, 2, 3, 4]
+      failure_message: "Agent name displayed in step headings must match the Step 1 input"
+    - artifact: "selected_skills"
+      must_match_across: [2, 3, 4]
+      failure_message: "Skills selected in Step 2 must drive the tool-derived section in Step 3 and the creation transaction"
+    - artifact: "runtime"
+      must_match_across: [1, 2, 3]
+      failure_message: "Runtime selection in Step 1 must control conditional content in Steps 2 and 3"
