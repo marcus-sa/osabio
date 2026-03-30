@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a9462847dd1f",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "schema/surreal-schema.surql"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/462847dd1f/0/metadata.json",
+      "transcript": "/a9/462847dd1f/0/full.jsonl",
+      "context": "/a9/462847dd1f/0/context.md",
+      "content_hash": "/a9/462847dd1f/0/content_hash.txt",
+      "prompt": "/a9/462847dd1f/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 351,
+    "cache_creation_tokens": 283296,
+    "cache_read_tokens": 12411408,
+    "output_tokens": 48246,
+    "api_call_count": 98
+  }
+}

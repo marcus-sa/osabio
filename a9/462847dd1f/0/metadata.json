@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "a9462847dd1f",
+  "session_id": "ad3ade73-25df-457e-a41d-262c2cb4a3bf",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T08:20:10.620254Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "schema/surreal-schema.surql"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bdfde8b530cb",
+  "token_usage": {
+    "input_tokens": 351,
+    "cache_creation_tokens": 283296,
+    "cache_read_tokens": 12411408,
+    "output_tokens": 48246,
+    "api_call_count": 98
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T08:20:09.054471Z",
+    "agent_lines": 0,
+    "human_added": 1691,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 1691,
+    "agent_percentage": 0
+  }
+}
