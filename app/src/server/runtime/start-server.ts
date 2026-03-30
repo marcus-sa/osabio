@@ -35,6 +35,7 @@ import { RecordId } from "surrealdb";
 import { createObserverRouteHandler, createGraphScanRouteHandler } from "../observer/observer-route";
 import { createLearningRouteHandlers } from "../learning/learning-route";
 import { createPolicyRouteHandlers } from "../policy/policy-route";
+import { createSkillRouteHandlers } from "../skill/skill-route";
 import { createObjectiveRouteHandlers } from "../objective/objective-route";
 import { createBehaviorRouteHandlers } from "../behavior/behavior-route";
 import { createProviderRouteHandlers, createAccountRouteHandlers } from "../tool-registry/routes";
@@ -118,6 +119,7 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
   });
   const learningHandlers = createLearningRouteHandlers(deps);
   const policyHandlers = createPolicyRouteHandlers(deps);
+  const skillHandlers = createSkillRouteHandlers(deps);
   const objectiveHandlers = createObjectiveRouteHandlers(deps);
   const behaviorHandlers = createBehaviorRouteHandlers(deps);
   const providerHandlers = createProviderRouteHandlers(deps);
@@ -355,6 +357,40 @@ export function createBrainServer(deps: ServerDependencies): ReturnType<typeof B
           (request) => policyHandlers.handleCreateVersion(
             request.params.workspaceId,
             request.params.policyId,
+            request,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/skills": {
+        GET: withTracing(
+          "GET /api/workspaces/:workspaceId/skills",
+          "GET",
+          (request) => skillHandlers.handleList(request.params.workspaceId, request),
+        ),
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/skills",
+          "POST",
+          (request) => skillHandlers.handleCreate(request.params.workspaceId, request),
+        ),
+      },
+      "/api/workspaces/:workspaceId/skills/:skillId/activate": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/skills/:skillId/activate",
+          "POST",
+          (request) => skillHandlers.handleActivate(
+            request.params.workspaceId,
+            request.params.skillId,
+            request,
+          ),
+        ),
+      },
+      "/api/workspaces/:workspaceId/skills/:skillId/deprecate": {
+        POST: withTracing(
+          "POST /api/workspaces/:workspaceId/skills/:skillId/deprecate",
+          "POST",
+          (request) => skillHandlers.handleDeprecate(
+            request.params.workspaceId,
+            request.params.skillId,
             request,
           ),
         ),
