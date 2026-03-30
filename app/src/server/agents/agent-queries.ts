@@ -20,6 +20,7 @@ import {
   AUTHORITY_ACTIONS,
   type AgentDetail,
   type AgentListItem,
+  type AgentSkillSummary,
   type AuthorityAction,
   type AuthorityPermission,
   type CreateAgentInput,
@@ -28,6 +29,42 @@ import {
   type SandboxConfig,
   type SessionSummary,
 } from "./types";
+
+// ---------------------------------------------------------------------------
+// Skill validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate that all skill IDs exist and have "active" status.
+ * Throws HttpError(409) if any skill is not active (deprecated/draft).
+ * Throws HttpError(409) if any skill does not exist.
+ */
+async function validateSkillsActive(
+  surreal: Surreal,
+  skillIds: string[],
+): Promise<void> {
+  // Query each skill individually in one round-trip
+  const skillStatements = skillIds
+    .map((_, i) => `SELECT id, name, status FROM $skill_${i};`)
+    .join(" ");
+  const skillBindings: Record<string, unknown> = {};
+  for (let i = 0; i < skillIds.length; i++) {
+    skillBindings[`skill_${i}`] = new RecordId("skill", skillIds[i]);
+  }
+
+  const results = await surreal.query(skillStatements, skillBindings) as Array<Array<{ id: RecordId; name: string; status: string }>>;
+
+  for (let i = 0; i < skillIds.length; i++) {
+    const rows = results[i];
+    if (!rows || rows.length === 0) {
+      throw new HttpError(409, `Skill '${skillIds[i]}' not found`);
+    }
+    const skill = rows[0];
+    if (skill.status !== "active") {
+      throw new HttpError(409, `Skill '${skill.name}' is not active (status: ${skill.status})`);
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // List agents
@@ -147,6 +184,11 @@ export async function createAgentTransaction(
     throw new HttpError(409, `Agent name '${input.name}' is already taken in this workspace`);
   }
 
+  // Pre-validate skills: all must exist and be active
+  if (input.skill_ids && input.skill_ids.length > 0) {
+    await validateSkillsActive(surreal, input.skill_ids);
+  }
+
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const agentId = randomUUID();
   const identityId = randomUUID();
@@ -240,7 +282,31 @@ export async function createAgentTransaction(
     );
   }
 
-  // Step 7: For external agents, generate proxy token
+  // Step 7: RELATE identity -> possesses -> skill for each skill_id
+  if (input.skill_ids) {
+    for (let i = 0; i < input.skill_ids.length; i++) {
+      const bindKey = `skill_${i}`;
+      bindings[bindKey] = new RecordId("skill", input.skill_ids[i]);
+      statements.push(
+        `RELATE $identityRecord -> possesses -> $${bindKey}
+         CONTENT { granted_at: $now };`,
+      );
+    }
+  }
+
+  // Step 8: RELATE identity -> can_use -> mcp_tool for each additional_tool_id
+  if (input.additional_tool_ids) {
+    for (let i = 0; i < input.additional_tool_ids.length; i++) {
+      const bindKey = `tool_${i}`;
+      bindings[bindKey] = new RecordId("mcp_tool", input.additional_tool_ids[i]);
+      statements.push(
+        `RELATE $identityRecord -> can_use -> $${bindKey}
+         CONTENT { granted_at: $now };`,
+      );
+    }
+  }
+
+  // Step 9: For external agents, generate proxy token
   let plainToken: string | undefined;
   if (input.runtime === "external") {
     plainToken = generateProxyToken();
@@ -330,6 +396,11 @@ type SessionRow = {
   summary?: string;
 };
 
+type PossessedSkillRow = {
+  skill_id: RecordId<"skill", string>;
+  skill_name: string;
+};
+
 /**
  * Get full agent detail including identity, authority scopes, and
  * recent workspace sessions.
@@ -342,9 +413,9 @@ export async function getAgentDetail(
   const workspaceRecord = new RecordId("workspace", workspaceId);
   const agentRecord = new RecordId("agent", agentId);
 
-  // Query agent, identity, authorized_to edges, and sessions in one round-trip
+  // Query agent, identity, authorized_to edges, sessions, and possessed skills in one round-trip
   const results = await surreal
-    .query<[AgentDetailRow[], IdentityRow[], AuthorizedToRow[], SessionRow[]]>(
+    .query<[AgentDetailRow[], IdentityRow[], AuthorizedToRow[], SessionRow[], PossessedSkillRow[]]>(
       `SELECT id, name, description, runtime, model, sandbox_config, created_at
        FROM $agent;
 
@@ -367,11 +438,17 @@ export async function getAgentDetail(
        FROM agent_session
        WHERE workspace = $ws
        ORDER BY started_at DESC
-       LIMIT 20;`,
+       LIMIT 20;
+
+       SELECT out.id AS skill_id, out.name AS skill_name
+       FROM possesses
+       WHERE in IN (
+         SELECT VALUE in FROM identity_agent WHERE out = $agent
+       );`,
       { agent: agentRecord, ws: workspaceRecord },
     );
 
-  const [agentRows, identityRows, authorizedToRows, sessionRows] = results;
+  const [agentRows, identityRows, authorizedToRows, sessionRows, skillRows] = results;
 
   if (agentRows.length === 0 || identityRows.length === 0) {
     return undefined;
@@ -391,6 +468,11 @@ export async function getAgentDetail(
     ...(agentRow.sandbox_config ? { sandbox_config: agentRow.sandbox_config } : {}),
   };
 
+  const skills: AgentSkillSummary[] = skillRows.map((row) => ({
+    id: row.skill_id.id as string,
+    name: row.skill_name,
+  }));
+
   return {
     agent: agentListItem,
     identity: {
@@ -404,6 +486,7 @@ export async function getAgentDetail(
       permission: row.permission,
     })),
     sessions: sessionRows.map(toSessionSummary),
+    skills,
   };
 }
 
