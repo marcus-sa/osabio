@@ -638,6 +638,9 @@ type WorkspaceSettingsRow = {
     min_tasks?: number;
   };
   evidence_enforcement_transitions?: EnforcementTransitionRow[];
+  settings?: {
+    sandbox_provider?: string;
+  };
 };
 
 type EnforcementTransitionResponse = {
@@ -654,9 +657,11 @@ type WorkspaceSettingsResponse = {
     min_tasks: number;
   };
   transitions: EnforcementTransitionResponse[];
+  sandboxProvider?: string;
 };
 
 const VALID_ENFORCEMENT_MODES: ReadonlySet<string> = new Set(["bootstrap", "soft", "hard"]);
+const VALID_SANDBOX_PROVIDERS: ReadonlySet<string> = new Set(["local", "e2b", "daytona", "docker"]);
 
 async function resolveSessionIdentity(
   deps: ServerDependencies,
@@ -699,7 +704,7 @@ function formatTransition(transition: EnforcementTransitionRow): EnforcementTran
 }
 
 function toSettingsResponse(row: WorkspaceSettingsRow): WorkspaceSettingsResponse {
-  return {
+  const response: WorkspaceSettingsResponse = {
     enforcementMode: row.evidence_enforcement ?? "bootstrap",
     thresholds: {
       min_decisions: row.evidence_enforcement_threshold?.min_decisions ?? 0,
@@ -707,6 +712,10 @@ function toSettingsResponse(row: WorkspaceSettingsRow): WorkspaceSettingsRespons
     },
     transitions: (row.evidence_enforcement_transitions ?? []).map(formatTransition),
   };
+  if (row.settings?.sandbox_provider) {
+    response.sandboxProvider = row.settings.sandbox_provider;
+  }
+  return response;
 }
 
 async function handleGetSettings(
@@ -721,7 +730,7 @@ async function handleGetSettings(
     const workspaceRecord = await resolveWorkspaceRecord(deps.surreal, workspaceId);
 
     const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
-      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions FROM $ws;",
+      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions, settings FROM $ws;",
       { ws: workspaceRecord },
     );
 
@@ -763,15 +772,23 @@ async function handlePutSettings(
     return jsonError("Body must be an object", 400);
   }
 
-  const { enforcementMode, thresholds } = body as {
+  const { enforcementMode, thresholds, sandboxProvider } = body as {
     enforcementMode?: string;
     thresholds?: { min_decisions?: number; min_tasks?: number };
+    sandboxProvider?: string;
   };
 
   // Validate enforcementMode if provided
   if (enforcementMode !== undefined) {
     if (typeof enforcementMode !== "string" || !VALID_ENFORCEMENT_MODES.has(enforcementMode)) {
       return jsonError(`enforcementMode must be one of: bootstrap, soft, hard`, 400);
+    }
+  }
+
+  // Validate sandboxProvider if provided
+  if (sandboxProvider !== undefined) {
+    if (typeof sandboxProvider !== "string" || !VALID_SANDBOX_PROVIDERS.has(sandboxProvider)) {
+      return jsonError(`sandboxProvider must be one of: local, e2b, daytona, docker`, 400);
     }
   }
 
@@ -835,6 +852,11 @@ async function handlePutSettings(
       }
     }
 
+    if (sandboxProvider !== undefined) {
+      setClauses.push("settings.sandbox_provider = $sandboxProvider");
+      bindings.sandboxProvider = sandboxProvider;
+    }
+
     if (setClauses.length === 0) {
       return jsonError("No valid fields to update", 400);
     }
@@ -848,7 +870,7 @@ async function handlePutSettings(
 
     // Read back the updated settings
     const [rows] = await deps.surreal.query<[WorkspaceSettingsRow[]]>(
-      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions FROM $ws;",
+      "SELECT evidence_enforcement, evidence_enforcement_threshold, evidence_enforcement_transitions, settings FROM $ws;",
       { ws: workspaceRecord },
     );
 
