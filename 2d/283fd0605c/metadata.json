@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "2d283fd0605c",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "docs/feature/skills/deliver/.develop-progress.json",
+    "docs/feature/skills/deliver/execution-log.json",
+    "docs/feature/skills/deliver/roadmap.json",
+    "docs/feature/skills/design/adr-001-extend-agent-creation-transaction.md",
+    "docs/feature/skills/design/adr-002-source-reference-architecture.md",
+    "docs/feature/skills/design/adr-003-skill-module-structure.md",
+    "docs/feature/skills/design/architecture.md",
+    "docs/feature/skills/design/review-proof.md",
+    "docs/feature/skills/design/wave-decisions.md",
+    "docs/feature/skills/discover/lean-canvas.md",
+    "docs/feature/skills/discover/opportunity-tree.md",
+    "docs/feature/skills/discover/problem-validation.md",
+    "docs/feature/skills/discover/solution-testing.md",
+    "docs/feature/skills/discover/wave-decisions.md",
+    "docs/feature/skills/discuss/dor-validation.md",
+    "docs/feature/skills/discuss/journey-agent-creation-visual.md",
+    "docs/feature/skills/discuss/journey-agent-creation.feature",
+    "docs/feature/skills/discuss/journey-agent-creation.yaml",
+    "docs/feature/skills/discuss/journey-skill-library-visual.md",
+    "docs/feature/skills/discuss/journey-skill-library.feature",
+    "docs/feature/skills/discuss/journey-skill-library.yaml",
+    "docs/feature/skills/discuss/outcome-kpis.md",
+    "docs/feature/skills/discuss/prioritization.md",
+    "docs/feature/skills/discuss/shared-artifacts-registry.md",
+    "docs/feature/skills/discuss/story-map.md",
+    "docs/feature/skills/discuss/user-stories.md",
+    "docs/feature/skills/discuss/wave-decisions.md",
+    "docs/feature/skills/distill/acceptance-scenarios.md",
+    "docs/feature/skills/distill/wave-decisions.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2d/283fd0605c/0/metadata.json",
+      "transcript": "/2d/283fd0605c/0/full.jsonl",
+      "context": "/2d/283fd0605c/0/context.md",
+      "content_hash": "/2d/283fd0605c/0/content_hash.txt",
+      "prompt": "/2d/283fd0605c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1,
+    "cache_creation_tokens": 615,
+    "cache_read_tokens": 98649,
+    "output_tokens": 192,
+    "api_call_count": 1
+  }
+}
