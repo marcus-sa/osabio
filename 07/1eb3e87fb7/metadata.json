@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "071eb3e87fb7",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-084-extend-agent-creation-transaction.md",
+    "docs/adrs/ADR-085-source-reference-architecture.md",
+    "docs/adrs/ADR-086-skill-module-structure.md",
+    "docs/architecture/skills/architecture.md",
+    "docs/evolution/2026-03-30-skills.md",
+    "docs/scenarios/skills/acceptance-scenarios.md",
+    "docs/ux/skills/journey-agent-creation-visual.md",
+    "docs/ux/skills/journey-agent-creation.yaml",
+    "docs/ux/skills/journey-skill-library-visual.md",
+    "docs/ux/skills/journey-skill-library.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/07/1eb3e87fb7/0/metadata.json",
+      "transcript": "/07/1eb3e87fb7/0/full.jsonl",
+      "context": "/07/1eb3e87fb7/0/context.md",
+      "content_hash": "/07/1eb3e87fb7/0/content_hash.txt",
+      "prompt": "/07/1eb3e87fb7/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 88510,
+    "cache_read_tokens": 1510174,
+    "output_tokens": 6498,
+    "api_call_count": 20
+  }
+}

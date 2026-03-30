@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "071eb3e87fb7",
+  "session_id": "368e9d1f-a89d-47f6-8370-ed3cee3c3695",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T08:37:24.05089Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/adrs/ADR-084-extend-agent-creation-transaction.md",
+    "docs/adrs/ADR-085-source-reference-architecture.md",
+    "docs/adrs/ADR-086-skill-module-structure.md",
+    "docs/architecture/skills/architecture.md",
+    "docs/evolution/2026-03-30-skills.md",
+    "docs/scenarios/skills/acceptance-scenarios.md",
+    "docs/ux/skills/journey-agent-creation-visual.md",
+    "docs/ux/skills/journey-agent-creation.yaml",
+    "docs/ux/skills/journey-skill-library-visual.md",
+    "docs/ux/skills/journey-skill-library.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2d204d7b22de",
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 88510,
+    "cache_read_tokens": 1510174,
+    "output_tokens": 6498,
+    "api_call_count": 20
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T08:37:23.933266Z",
+    "agent_lines": 1642,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1642,
+    "agent_percentage": 100
+  }
+}
