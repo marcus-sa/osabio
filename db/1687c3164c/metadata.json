@@ -3,8 +3,39 @@
   "checkpoint_id": "db1687c3164c",
   "strategy": "manual-commit",
   "branch": "marcus-sa/skills-file-storage",
-  "checkpoints_count": 5,
+  "checkpoints_count": 7,
   "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/des-task-active",
+    ".nwave/des/des-task-active-skills--03-01",
+    "docs/feature/skills/deliver/.develop-progress.json",
+    "docs/feature/skills/deliver/execution-log.json",
+    "docs/feature/skills/design/adr-001-extend-agent-creation-transaction.md",
+    "docs/feature/skills/design/adr-002-source-reference-architecture.md",
+    "docs/feature/skills/design/adr-003-skill-module-structure.md",
+    "docs/feature/skills/design/architecture.md",
+    "docs/feature/skills/design/review-proof.md",
+    "docs/feature/skills/design/wave-decisions.md",
+    "docs/feature/skills/discover/lean-canvas.md",
+    "docs/feature/skills/discover/opportunity-tree.md",
+    "docs/feature/skills/discover/problem-validation.md",
+    "docs/feature/skills/discover/solution-testing.md",
+    "docs/feature/skills/discover/wave-decisions.md",
+    "docs/feature/skills/discuss/dor-validation.md",
+    "docs/feature/skills/discuss/journey-agent-creation-visual.md",
+    "docs/feature/skills/discuss/journey-agent-creation.feature",
+    "docs/feature/skills/discuss/journey-agent-creation.yaml",
+    "docs/feature/skills/discuss/journey-skill-library-visual.md",
+    "docs/feature/skills/discuss/journey-skill-library.feature",
+    "docs/feature/skills/discuss/journey-skill-library.yaml",
+    "docs/feature/skills/discuss/outcome-kpis.md",
+    "docs/feature/skills/discuss/prioritization.md",
+    "docs/feature/skills/discuss/shared-artifacts-registry.md",
+    "docs/feature/skills/discuss/story-map.md",
+    "docs/feature/skills/discuss/user-stories.md",
+    "docs/feature/skills/discuss/wave-decisions.md",
+    "docs/feature/skills/distill/acceptance-scenarios.md",
+    "docs/feature/skills/distill/wave-decisions.md",
     "docs/research/skills-sandbox-agent-integration.md"
   ],
   "sessions": [
@@ -14,13 +45,20 @@
       "context": "/db/1687c3164c/0/context.md",
       "content_hash": "/db/1687c3164c/0/content_hash.txt",
       "prompt": "/db/1687c3164c/0/prompt.txt"
+    },
+    {
+      "metadata": "/db/1687c3164c/1/metadata.json",
+      "transcript": "/db/1687c3164c/1/full.jsonl",
+      "context": "/db/1687c3164c/1/context.md",
+      "content_hash": "/db/1687c3164c/1/content_hash.txt",
+      "prompt": "/db/1687c3164c/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 99,
-    "cache_creation_tokens": 234002,
-    "cache_read_tokens": 4895676,
-    "output_tokens": 48225,
-    "api_call_count": 73
+    "input_tokens": 456,
+    "cache_creation_tokens": 518931,
+    "cache_read_tokens": 18101144,
+    "output_tokens": 97146,
+    "api_call_count": 175
   }
 }
