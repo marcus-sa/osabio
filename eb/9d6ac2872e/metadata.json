@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "eb9d6ac2872e",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/acceptance/observer-llm-reasoning/milestone-2-semantic-verification.test.ts",
+    "tests/acceptance/shared-fixtures.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/eb/9d6ac2872e/0/metadata.json",
+      "transcript": "/eb/9d6ac2872e/0/full.jsonl",
+      "context": "/eb/9d6ac2872e/0/context.md",
+      "content_hash": "/eb/9d6ac2872e/0/content_hash.txt",
+      "prompt": "/eb/9d6ac2872e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 67142,
+    "cache_read_tokens": 6650645,
+    "output_tokens": 28163,
+    "api_call_count": 49
+  }
+}
