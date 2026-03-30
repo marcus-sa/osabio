@@ -18,11 +18,13 @@ type EnforcementTransition = {
 
 type WorkspaceSettings = {
   enforcementMode: string;
+  sandboxProvider?: string;
   thresholds: Record<string, number>;
   transitions?: EnforcementTransition[];
 };
 
 const ENFORCEMENT_MODES = ["bootstrap", "soft", "hard"] as const;
+const SANDBOX_PROVIDERS = ["local", "e2b", "daytona", "docker"] as const;
 
 function useWorkspaceSettings() {
   const workspaceId = useWorkspaceState((s) => s.workspaceId);
@@ -52,7 +54,7 @@ function useWorkspaceSettings() {
   }, [workspaceId]);
 
   const saveSettings = useCallback(
-    async (patch: { enforcementMode?: string; thresholds?: Record<string, number> }) => {
+    async (patch: { enforcementMode?: string; sandboxProvider?: string; thresholds?: Record<string, number> }) => {
       if (!workspaceId) return;
       setError(undefined);
       try {
@@ -185,6 +187,32 @@ export function SettingsPage() {
                 </button>
               </div>
             ) : undefined}
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-4">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">
+              Sandbox Provider
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Provider</span>
+              <Select
+                value={settings.sandboxProvider ?? ""}
+                onValueChange={(value) => {
+                  void saveSettings({ sandboxProvider: value as string });
+                }}
+              >
+                <SelectTrigger aria-label="Sandbox Provider">
+                  <SelectValue placeholder="Not configured" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SANDBOX_PROVIDERS.map((provider) => (
+                    <SelectItem key={provider} value={provider}>
+                      {provider}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {settings.transitions && settings.transitions.length > 0 ? (
