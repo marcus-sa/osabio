@@ -159,8 +159,11 @@ export async function createIdentity(
   const identityRecord = new RecordId("identity", identityId);
   const workspaceRecord = new RecordId("workspace", workspaceId);
 
+  // Batch CREATE + RELATE in a single round-trip to avoid WebSocket concurrency issues
+  // under --concurrent test execution (see AGENTS.md § SurrealDB Query Batching).
   await surreal.query(
-    `CREATE $identity CONTENT $content;`,
+    `CREATE $identity CONTENT $content;
+     RELATE $identity->member_of->$workspace SET added_at = time::now();`,
     {
       identity: identityRecord,
       content: {
@@ -170,12 +173,8 @@ export async function createIdentity(
         workspace: workspaceRecord,
         created_at: new Date(),
       },
+      workspace: workspaceRecord,
     },
-  );
-
-  await surreal.query(
-    `RELATE $identity->member_of->$workspace SET added_at = time::now();`,
-    { identity: identityRecord, workspace: workspaceRecord },
   );
 
   return { identityId, identityRecord };
@@ -213,16 +212,6 @@ export async function createIntentDirectly(
   const traceId = crypto.randomUUID();
   const traceRecord = new RecordId("trace", traceId);
 
-  await surreal.query(`CREATE $trace CONTENT $content;`, {
-    trace: traceRecord,
-    content: {
-      type: "intent_submission",
-      actor: requesterRecord,
-      workspace: workspaceRecord,
-      created_at: new Date(),
-    },
-  });
-
   const intentContent: Record<string, unknown> = {
     goal: opts.goal,
     reasoning: opts.reasoning ?? "Test intent",
@@ -238,10 +227,23 @@ export async function createIntentDirectly(
   if (opts.evaluation !== undefined) intentContent.evaluation = opts.evaluation;
   if (opts.budgetLimit !== undefined) intentContent.budget_limit = opts.budgetLimit;
 
-  await surreal.query(`CREATE $intent CONTENT $content;`, {
-    intent: intentRecord,
-    content: intentContent,
-  });
+  // Batch CREATE trace + CREATE intent in a single round-trip to avoid WebSocket
+  // concurrency issues under --concurrent test execution.
+  await surreal.query(
+    `CREATE $trace CONTENT $traceContent;
+     CREATE $intent CONTENT $intentContent;`,
+    {
+      trace: traceRecord,
+      traceContent: {
+        type: "intent_submission",
+        actor: requesterRecord,
+        workspace: workspaceRecord,
+        created_at: new Date(),
+      },
+      intent: intentRecord,
+      intentContent: intentContent,
+    },
+  );
 
   if (opts.taskId) {
     const taskRecord = new RecordId("task", opts.taskId);

@@ -30,7 +30,6 @@ import {
   setupObserverWorkspace,
   triggerTaskCompletion,
   waitForObservation,
-  getObservationsForEntity,
   createProject,
   createTaskInProject,
   createDecisionInProject,
@@ -113,8 +112,9 @@ describe("Milestone 2: Semantic Contradiction Detection (AC-1.1)", () => {
 
     // And the observation has observes edges to the task
     // (edge to task is verified by waitForObservation finding it via reverse traversal)
-    // The edge to decision is verified separately:
-    const decisionObs = await getObservationsForEntity(surreal, "decision", decisionId);
+    // The edge to decision is verified separately — poll with timeout because the
+    // observes edges may be created asynchronously after the observation itself.
+    const decisionObs = await waitForObservation(surreal, "decision", decisionId, 30_000);
     // At least one observation should link to the decision
     expect(decisionObs.length).toBeGreaterThanOrEqual(1);
   }, 120_000);
