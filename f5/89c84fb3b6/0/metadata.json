@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "f589c84fb3b6",
+  "session_id": "d15139f1-ff2a-4fc4-9cfc-34246ab6ef89",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T11:09:30.5893Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "app/src/client/components/agent/wizard-step-tools.tsx",
+    "app/src/client/routes/agent-create-page.test.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ab4f9b80b22f",
+  "token_usage": {
+    "input_tokens": 2632,
+    "cache_creation_tokens": 85369,
+    "cache_read_tokens": 1854524,
+    "output_tokens": 11231,
+    "api_call_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T11:09:30.378832Z",
+    "agent_lines": 205,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 205,
+    "agent_percentage": 100
+  }
+}
