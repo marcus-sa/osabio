@@ -36,6 +36,16 @@ mock.module("../stores/workspace-state", () => ({
 const originalFetch = globalThis.fetch;
 let fetchCalls: Array<{ url: string; method: string; body?: unknown }> = [];
 
+const EMPTY_SKILLS_RESPONSE = new Response(
+  JSON.stringify({ skills: [] }),
+  { status: 200, headers: { "Content-Type": "application/json" } },
+);
+
+const EMPTY_TOOLS_RESPONSE = new Response(
+  JSON.stringify({ tools: [] }),
+  { status: 200, headers: { "Content-Type": "application/json" } },
+);
+
 function stubFetch(handlers: Record<string, (url: string, init?: RequestInit) => Response>) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -48,6 +58,21 @@ function stubFetch(handlers: Record<string, (url: string, init?: RequestInit) =>
         return handler(url, init);
       }
     }
+
+    // Default stubs for skills and tools list endpoints
+    if (url.includes("/skills")) {
+      return new Response(JSON.stringify({ skills: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/tools")) {
+      return new Response(JSON.stringify({ tools: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     return new Response("Not found", { status: 404 });
   }) as typeof fetch;
 }
@@ -62,30 +87,54 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Navigate from step 1 to step 3 (Tools / Create Agent) by filling name and clicking Next twice. */
+async function navigateToStep3(name: string) {
+  // Fill required name field
+  const nameInput = screen.getByLabelText(/name/i);
+  await userEvent.type(nameInput, name);
+
+  // Step 1 → Step 2
+  const nextButton = screen.getByRole("button", { name: /next/i });
+  await userEvent.click(nextButton);
+
+  // Step 2 → Step 3 (skip skills)
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /skip|next/i })).toBeInTheDocument();
+  });
+  const skipButton = screen.getByRole("button", { name: /skip|next/i });
+  await userEvent.click(skipButton);
+
+  // Wait for step 3 to render
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /create agent/i })).toBeInTheDocument();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe("AgentCreatePage", () => {
   it("shows runtime selection with external and sandbox options", async () => {
+    stubFetch({});
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    // Both runtime option titles are rendered
+    // Both runtime option titles are rendered as radio labels
     expect(screen.getByText("External")).toBeInTheDocument();
     expect(screen.getByText("Sandbox")).toBeInTheDocument();
-    expect(screen.getByText(/choose a runtime/i)).toBeInTheDocument();
   });
 
-  it("shows form fields after selecting a runtime", async () => {
+  it("shows form fields on step 1 with name input and authority scopes", async () => {
+    stubFetch({});
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    // Select external runtime
-    await userEvent.click(screen.getByText("External"));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    });
+    // Step 1 shows name input and authority scopes immediately (sandbox is default runtime)
+    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
     expect(screen.getByText(/authority scopes/i)).toBeInTheDocument();
   });
 
@@ -101,13 +150,6 @@ describe("AgentCreatePage", () => {
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    // Select runtime first
-    await userEvent.click(screen.getByText("External"));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    });
-
     const nameInput = screen.getByLabelText(/name/i);
     await userEvent.type(nameInput, "Existing Agent");
     fireEvent.blur(nameInput);
@@ -118,14 +160,11 @@ describe("AgentCreatePage", () => {
   });
 
   it("renders authority scope form with 11 actions defaulting to propose", async () => {
+    stubFetch({});
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    await userEvent.click(screen.getByText("External"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/authority scopes/i)).toBeInTheDocument();
-    });
+    expect(screen.getByText(/authority scopes/i)).toBeInTheDocument();
 
     // All 11 action labels should appear
     expect(screen.getByText("Create decisions")).toBeInTheDocument();
@@ -142,8 +181,8 @@ describe("AgentCreatePage", () => {
 
     // All radio groups should have "propose" checked by default
     const proposeRadios = screen.getAllByRole("radio", { checked: true });
-    // Each action has one checked radio — there are 11 actions, so 11 checked radios
-    expect(proposeRadios.length).toBe(11);
+    // 11 authority scope radios (propose) + 1 runtime radio (sandbox) = 12
+    expect(proposeRadios.length).toBe(12);
   });
 
   it("posts correct payload to create API on submit", async () => {
@@ -160,7 +199,7 @@ describe("AgentCreatePage", () => {
               agent: {
                 id: "new-agent-1",
                 name: "My Agent",
-                runtime: "external",
+                runtime: "sandbox",
                 identity_id: "id-new",
                 created_at: "2026-03-28T00:00:00Z",
               },
@@ -176,19 +215,11 @@ describe("AgentCreatePage", () => {
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    // Select runtime
-    await userEvent.click(screen.getByText("External"));
+    // Navigate through wizard to step 3
+    await navigateToStep3("My Agent");
 
-    await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    });
-
-    // Fill name
-    await userEvent.type(screen.getByLabelText(/name/i), "My Agent");
-
-    // Submit
-    const createButton = screen.getByRole("button", { name: /create/i });
-    await userEvent.click(createButton);
+    // Submit from step 3
+    await userEvent.click(screen.getByRole("button", { name: /create agent/i }));
 
     await waitFor(() => {
       const postCall = fetchCalls.find(
@@ -197,7 +228,7 @@ describe("AgentCreatePage", () => {
       expect(postCall).toBeDefined();
       expect(postCall!.body).toMatchObject({
         name: "My Agent",
-        runtime: "external",
+        runtime: "sandbox",
         authority_scopes: expect.arrayContaining([
           expect.objectContaining({ action: "create_task", permission: "propose" }),
         ]),
@@ -238,13 +269,12 @@ describe("AgentCreatePage", () => {
 
     // Select external runtime
     await userEvent.click(screen.getByText("External"));
-    await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    });
 
-    // Fill name and submit
-    await userEvent.type(screen.getByLabelText(/name/i), "External Bot");
-    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+    // Navigate through wizard to step 3
+    await navigateToStep3("External Bot");
+
+    // Submit
+    await userEvent.click(screen.getByRole("button", { name: /create agent/i }));
 
     // Proxy token dialog should appear with the token
     await waitFor(() => {
@@ -287,15 +317,11 @@ describe("AgentCreatePage", () => {
     const { AgentCreatePage } = await import("./agent-create-page");
     render(<AgentCreatePage />);
 
-    // Select sandbox runtime
-    await userEvent.click(screen.getByText("Sandbox"));
-    await waitFor(() => {
-      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
-    });
+    // Navigate through wizard to step 3
+    await navigateToStep3("Sandbox Bot");
 
-    // Fill name and submit
-    await userEvent.type(screen.getByLabelText(/name/i), "Sandbox Bot");
-    await userEvent.click(screen.getByRole("button", { name: /create/i }));
+    // Submit
+    await userEvent.click(screen.getByRole("button", { name: /create agent/i }));
 
     // Should navigate to /agents since no proxy_token
     await waitFor(() => {

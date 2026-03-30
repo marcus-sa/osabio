@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { SkillListItem } from "../../hooks/use-skills";
+import { useTools, type ToolListItem } from "../../hooks/use-tools";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -75,12 +77,99 @@ function SkillDerivedToolsList({ tools }: { tools: SkillDerivedTool[] }) {
   );
 }
 
-function AdditionalToolsPlaceholder() {
+function toggleToolId(selectedIds: string[], toolId: string): string[] {
+  return selectedIds.includes(toolId)
+    ? selectedIds.filter((id) => id !== toolId)
+    : [...selectedIds, toolId];
+}
+
+const RISK_COLORS: Record<string, string> = {
+  low: "text-green-600",
+  medium: "text-yellow-600",
+  high: "text-orange-600",
+  critical: "text-red-600",
+};
+
+function ToolChecklistItem({
+  tool,
+  checked,
+  onToggle,
+}: {
+  tool: ToolListItem;
+  checked: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <div className="rounded-lg border border-dashed border-border p-4 text-center">
-      <p className="text-xs text-muted-foreground">
-        Additional tool selection will be available when tool registry listing is implemented.
-      </p>
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="mt-0.5 accent-primary"
+      />
+      <div className="flex flex-1 flex-col gap-0.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{tool.name}</span>
+          <span className="text-xs text-muted-foreground">{tool.toolkit}</span>
+          <span className={`text-[10px] ${RISK_COLORS[tool.risk_level] ?? "text-muted-foreground"}`}>
+            {tool.risk_level}
+          </span>
+        </div>
+        {tool.description ? (
+          <span className="line-clamp-1 text-xs text-muted-foreground">{tool.description}</span>
+        ) : undefined}
+      </div>
+    </label>
+  );
+}
+
+function AdditionalToolsList({
+  tools,
+  selectedIds,
+  onToggle,
+  searchQuery,
+  onSearchChange,
+}: {
+  tools: ToolListItem[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+}) {
+  const filtered = searchQuery.trim()
+    ? tools.filter((t) => {
+        const q = searchQuery.toLowerCase();
+        return t.name.toLowerCase().includes(q) || t.toolkit.toLowerCase().includes(q);
+      })
+    : tools;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {tools.length > 5 ? (
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Filter tools..."
+          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      ) : undefined}
+      <div className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
+        {filtered.length === 0 ? (
+          <p className="py-2 text-center text-xs text-muted-foreground">
+            {searchQuery.trim() ? "No tools match your filter." : "No additional tools available."}
+          </p>
+        ) : (
+          filtered.map((tool) => (
+            <ToolChecklistItem
+              key={tool.id}
+              tool={tool}
+              checked={selectedIds.includes(tool.id)}
+              onToggle={() => onToggle(tool.id)}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -89,13 +178,20 @@ export function WizardStepTools({
   selectedSkillIds,
   skills,
   additionalToolIds,
-  onChangeAdditionalToolIds: _onChangeAdditionalToolIds,
+  onChangeAdditionalToolIds,
   onBack,
   onSubmit,
   isSubmitting,
   error,
 }: WizardStepToolsProps) {
   const derivedTools = deriveToolsFromSkills(selectedSkillIds, skills);
+  const derivedToolIds = new Set(derivedTools.map((t) => t.id));
+
+  const { tools: allTools, isLoading: isLoadingTools } = useTools();
+  const availableTools = allTools.filter((t) => t.status === "active" && !derivedToolIds.has(t.id));
+
+  const [searchQuery, setSearchQuery] = useState("");
+
   const totalEffectiveTools = derivedTools.length + additionalToolIds.length;
 
   return (
@@ -111,10 +207,33 @@ export function WizardStepTools({
         <SkillDerivedToolsList tools={derivedTools} />
       </div>
 
-      {/* Additional tools (editable - placeholder for MVP) */}
+      {/* Additional tools from registry */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">Additional Tools</h3>
-        <AdditionalToolsPlaceholder />
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Additional Tools</h3>
+          {additionalToolIds.length > 0 ? (
+            <Badge variant="secondary">{additionalToolIds.length} selected</Badge>
+          ) : undefined}
+        </div>
+        {isLoadingTools ? (
+          <div className="rounded-lg border border-border p-4 text-center">
+            <p className="text-xs text-muted-foreground">Loading tools...</p>
+          </div>
+        ) : availableTools.length === 0 ? (
+          <div className="rounded-lg border border-border bg-muted/50 p-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              No additional tools available in this workspace.
+            </p>
+          </div>
+        ) : (
+          <AdditionalToolsList
+            tools={availableTools}
+            selectedIds={additionalToolIds}
+            onToggle={(id) => onChangeAdditionalToolIds(toggleToolId(additionalToolIds, id))}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        )}
       </div>
 
       {/* Summary */}
