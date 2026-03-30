@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5daca669f983",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 9,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/skill/skill-route.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5d/aca669f983/0/metadata.json",
+      "transcript": "/5d/aca669f983/0/full.jsonl",
+      "context": "/5d/aca669f983/0/context.md",
+      "content_hash": "/5d/aca669f983/0/content_hash.txt",
+      "prompt": "/5d/aca669f983/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 313,
+    "cache_creation_tokens": 249806,
+    "cache_read_tokens": 5803337,
+    "output_tokens": 31745,
+    "api_call_count": 61
+  }
+}
