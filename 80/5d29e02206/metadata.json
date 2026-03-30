@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "805d29e02206",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/skill/agent-creation-with-skills.test.ts",
+    "tests/acceptance/skill/walking-skeleton.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/80/5d29e02206/0/metadata.json",
+      "transcript": "/80/5d29e02206/0/full.jsonl",
+      "context": "/80/5d29e02206/0/context.md",
+      "content_hash": "/80/5d29e02206/0/content_hash.txt",
+      "prompt": "/80/5d29e02206/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 333,
+    "cache_creation_tokens": 261083,
+    "cache_read_tokens": 9219767,
+    "output_tokens": 39605,
+    "api_call_count": 81
+  }
+}

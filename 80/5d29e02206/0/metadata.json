@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "805d29e02206",
+  "session_id": "ad3ade73-25df-457e-a41d-262c2cb4a3bf",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T07:55:28.91325Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/acceptance/skill/agent-creation-with-skills.test.ts",
+    "tests/acceptance/skill/walking-skeleton.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "45f90a814762",
+  "token_usage": {
+    "input_tokens": 333,
+    "cache_creation_tokens": 261083,
+    "cache_read_tokens": 9219767,
+    "output_tokens": 39605,
+    "api_call_count": 81
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T07:55:27.940304Z",
+    "agent_lines": 556,
+    "human_added": 99,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 655,
+    "agent_percentage": 84.88549618320612
+  }
+}
