@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "5ac57e7536db",
+  "session_id": "ad3ade73-25df-457e-a41d-262c2cb4a3bf",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-30T07:48:49.44142Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/src/server/runtime/start-server.ts",
+    "app/src/server/skill/skill-queries.ts",
+    "app/src/server/skill/skill-route.ts",
+    "tests/acceptance/skill/skill-crud.test.ts",
+    "tests/acceptance/skill/skill-lifecycle.test.ts",
+    "tests/acceptance/skill/skill-test-kit.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "45f90a814762",
+  "token_usage": {
+    "input_tokens": 331,
+    "cache_creation_tokens": 259627,
+    "cache_read_tokens": 8870320,
+    "output_tokens": 37154,
+    "api_call_count": 79
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-30T07:48:48.12732Z",
+    "agent_lines": 1465,
+    "human_added": 42,
+    "human_modified": 39,
+    "human_removed": 0,
+    "total_committed": 1546,
+    "agent_percentage": 94.76067270375161
+  }
+}
