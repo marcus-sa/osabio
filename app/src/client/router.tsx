@@ -17,6 +17,9 @@ import { ToolRegistryPage } from "./routes/tool-registry-page";
 import { AgentsPage } from "./routes/agents-page";
 import { AgentCreatePage } from "./routes/agent-create-page";
 import { AgentDetailPage } from "./routes/agent-detail-page";
+import { SkillLibraryPage } from "./routes/skill-library-page";
+import { SkillCreatePage } from "./routes/skill-create-page";
+import { SkillDetailPage } from "./routes/skill-detail-page";
 import { SettingsPage } from "./routes/settings-page";
 import { SignInPage } from "./routes/sign-in-page";
 import { ConsentPage } from "./routes/consent-page";
@@ -219,6 +222,24 @@ const agentDetailRoute = createRoute({
   component: AgentDetailPage,
 });
 
+const skillsRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/skills",
+  component: SkillLibraryPage,
+});
+
+const skillCreateRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/skills/new",
+  component: SkillCreatePage,
+});
+
+const skillDetailRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "/skills/$skillId",
+  component: SkillDetailPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "/settings",
@@ -228,7 +249,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   signInRoute,
   consentRoute,
-  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute, agentsRoute, agentCreateRoute, agentDetailRoute, settingsRoute]),
+  authLayout.addChildren([homeRoute, chatRoute, chatConversationRoute, graphRoute, reviewRoute, learningsRoute, policiesRoute, policyDetailRoute, toolsRoute, agentsRoute, agentCreateRoute, agentDetailRoute, skillsRoute, skillCreateRoute, skillDetailRoute, settingsRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

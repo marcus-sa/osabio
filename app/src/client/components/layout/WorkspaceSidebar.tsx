@@ -28,6 +28,7 @@ export function WorkspaceSidebar({
   const isPolicies = matchRoute({ to: "/policies" });
   const isTools = matchRoute({ to: "/tools" });
   const isAgents = matchRoute({ to: "/agents" });
+  const isSkills = matchRoute({ to: "/skills" });
   const isSettings = matchRoute({ to: "/settings" });
   const { pendingCount } = usePendingLearningCount();
 
@@ -75,6 +76,7 @@ export function WorkspaceSidebar({
       <Link to="/policies" className={navItemClass(isPolicies)}>Policies</Link>
       <Link to="/tools" className={navItemClass(isTools)}>Tools</Link>
       <Link to="/agents" className={navItemClass(isAgents)}>Agents</Link>
+      <Link to="/skills" className={navItemClass(isSkills)}>Skills</Link>
       <Link to="/settings" className={navItemClass(isSettings)}>Settings</Link>
 
       <Separator className="my-1" />
