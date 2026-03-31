@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "7db162f5ffc2",
+  "session_id": "9d0cdec3-2905-454b-938e-e6495245d9fe",
+  "strategy": "manual-commit",
+  "created_at": "2026-03-31T14:36:09.429081Z",
+  "branch": "marcus-sa/skills-file-storage",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".nwave/des-config.json",
+    ".nwave/des/deliver-session.json",
+    ".nwave/des/des-task-active-skills--01-04",
+    ".nwave/des/des-task-active-skills--02-01",
+    "conductor.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d46297159d82",
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 56624,
+    "cache_read_tokens": 744031,
+    "output_tokens": 2831,
+    "api_call_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-03-31T14:36:09.362487Z",
+    "agent_lines": 2,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 100
+  }
+}
