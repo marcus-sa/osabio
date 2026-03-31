@@ -36,16 +36,6 @@ mock.module("../stores/workspace-state", () => ({
 const originalFetch = globalThis.fetch;
 let fetchCalls: Array<{ url: string; method: string; body?: unknown }> = [];
 
-const EMPTY_SKILLS_RESPONSE = new Response(
-  JSON.stringify({ skills: [] }),
-  { status: 200, headers: { "Content-Type": "application/json" } },
-);
-
-const EMPTY_TOOLS_RESPONSE = new Response(
-  JSON.stringify({ tools: [] }),
-  { status: 200, headers: { "Content-Type": "application/json" } },
-);
-
 function stubFetch(handlers: Record<string, (url: string, init?: RequestInit) => Response>) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;

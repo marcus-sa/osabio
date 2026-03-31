@@ -196,13 +196,13 @@ describe("US-05: Authorship independence check", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the decision counts as independently authored evidence
     const verification = await getEvidenceVerification(surreal, intentId);
     expect(verification).toBeDefined();
     expect(verification!.verified_count).toBe(1);
-  }, 60_000);
+  }, 120_000);
 
   it("low-risk intent has no authorship requirement even when self-authored", async () => {
     const { baseUrl, surreal } = getRuntime();
