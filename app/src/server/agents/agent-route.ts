@@ -191,6 +191,8 @@ async function handleCreateAgent(
     ...(body.model && typeof body.model === "string" ? { model: body.model } : {}),
     ...(body.sandbox_config ? { sandbox_config: body.sandbox_config as CreateAgentInput["sandbox_config"] } : {}),
     ...(body.authority_scopes ? { authority_scopes: body.authority_scopes as CreateAgentInput["authority_scopes"] } : {}),
+    ...(Array.isArray(body.skill_ids) ? { skill_ids: body.skill_ids as string[] } : {}),
+    ...(Array.isArray(body.additional_tool_ids) ? { additional_tool_ids: body.additional_tool_ids as string[] } : {}),
   };
 
   try {

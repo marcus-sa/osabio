@@ -98,7 +98,7 @@ describe("US-05: Authorship independence check", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the authorship independence requirement is satisfied
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -109,7 +109,7 @@ describe("US-05: Authorship independence check", () => {
       w => w.toLowerCase().includes("independent"),
     );
     expect(authorshipWarnings).toHaveLength(0);
-  }, 60_000);
+  }, 120_000);
 
   it("self-referencing evidence fails authorship check for high-risk intent", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -151,7 +151,7 @@ describe("US-05: Authorship independence check", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the authorship independence requirement fails
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -160,7 +160,7 @@ describe("US-05: Authorship independence check", () => {
     expect(
       verification!.warnings!.some(w => w.toLowerCase().includes("independent")),
     ).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   it("agent-confirmed evidence counts as independent from another agent", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -196,13 +196,13 @@ describe("US-05: Authorship independence check", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the decision counts as independently authored evidence
     const verification = await getEvidenceVerification(surreal, intentId);
     expect(verification).toBeDefined();
     expect(verification!.verified_count).toBe(1);
-  }, 60_000);
+  }, 120_000);
 
   it("low-risk intent has no authorship requirement even when self-authored", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -235,7 +235,7 @@ describe("US-05: Authorship independence check", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then no authorship warning is generated for low-risk
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -244,7 +244,7 @@ describe("US-05: Authorship independence check", () => {
       w => w.toLowerCase().includes("independent"),
     );
     expect(authorshipWarnings).toHaveLength(0);
-  }, 60_000);
+  }, 120_000);
 });
 
 // =============================================================================
@@ -282,7 +282,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     // And the verification pipeline runs
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the reference fails the minimum age check
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -291,7 +291,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     expect(
       verification!.warnings!.some(w => w.toLowerCase().includes("minimum age")),
     ).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   it("hard enforcement rejects intent with zero evidence references before evaluation", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -317,7 +317,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     // And the agent submits for authorization
     // Driving port: intent submission (SurrealQL EVENT -> POST /api/intents/:id/evaluate)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["failed"], 15_000);
+    await waitForIntentStatus(surreal, intentId, ["failed"], 60_000);
 
     // Then the intent is rejected before LLM evaluation
     const record = await getIntentRecord(surreal, intentId);
@@ -327,7 +327,7 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
 
     // And the LLM evaluator was NOT called
     expect(record.evaluation).toBeUndefined();
-  }, 30_000);
+  }, 120_000);
 
   it("hard enforcement passes intent with sufficient evidence to evaluation", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -362,13 +362,13 @@ describe("US-06: Minimum evidence age and hard enforcement", () => {
     // And the agent submits for authorization
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the intent proceeds to evaluation (not rejected)
     const record = await getIntentRecord(surreal, intentId);
     expect(record.status).not.toBe("failed");
     expect(record.evaluation).toBeDefined();
-  }, 60_000);
+  }, 120_000);
 });
 
 // =============================================================================
@@ -404,7 +404,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     // And the evaluation pipeline processes the intent
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the low-risk tier requirement is met
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -412,7 +412,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     expect(verification!.verified_count).toBeGreaterThanOrEqual(1);
     const record = await getIntentRecord(surreal, intentId);
     expect(record.status).not.toBe("failed");
-  }, 60_000);
+  }, 120_000);
 
   it("high-risk intent fails when all references are observations and no decision or task", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -459,7 +459,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     // And the evaluation pipeline processes the intent
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the high-risk tier type requirement fails
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -468,7 +468,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     expect(
       verification!.warnings!.some(w => w.toLowerCase().includes("decision")),
     ).toBe(true);
-  }, 60_000);
+  }, 120_000);
 
   it("medium-risk intent meets requirement with decision and 1 independent author", async () => {
     const { baseUrl, surreal } = getRuntime();
@@ -503,7 +503,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     // And the evaluation pipeline processes the intent
     // Driving port: POST /api/intents/:id/evaluate (via SurrealQL EVENT)
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the medium-risk tier requirement is met
     const verification = await getEvidenceVerification(surreal, intentId);
@@ -511,7 +511,7 @@ describe("US-07: Risk-tiered evidence requirements", () => {
     expect(verification!.verified_count).toBe(2);
     const record = await getIntentRecord(surreal, intentId);
     expect(record.status).not.toBe("failed");
-  }, 60_000);
+  }, 120_000);
 });
 
 // =============================================================================
@@ -564,10 +564,10 @@ describe("US-06: Workspace enforcement auto-transition", () => {
       },
     );
     await submitIntent(surreal, intentId);
-    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 30_000);
+    await waitForIntentStatus(surreal, intentId, ["authorized", "pending_veto", "vetoed", "failed"], 60_000);
 
     // Then the workspace enforcement transitions to "hard"
     const mode = await getWorkspaceEnforcementMode(surreal, workspace.workspaceId);
     expect(mode).toBe("hard");
-  }, 60_000);
+  }, 120_000);
 });

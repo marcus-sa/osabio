@@ -8,12 +8,20 @@ export type AuthorityScopeInput = {
   permission: AuthorityPermission;
 };
 
+export type SandboxConfigInput = {
+  image?: string;
+  snapshot?: string;
+};
+
 export type CreateAgentInput = {
   name: string;
   description?: string;
   runtime: "sandbox" | "external";
   model?: string;
   authority_scopes?: AuthorityScopeInput[];
+  skill_ids?: string[];
+  additional_tool_ids?: string[];
+  sandbox_config?: SandboxConfigInput;
 };
 
 export type CreateAgentResult = {

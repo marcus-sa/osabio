@@ -1452,5 +1452,41 @@ DEFINE FIELD max_per_day ON governs_tool TYPE option<int>;
 DEFINE INDEX governs_tool_policy ON governs_tool FIELDS in;
 DEFINE INDEX governs_tool_tool ON governs_tool FIELDS out;
 
+-- skill: domain expertise with source reference and lifecycle
+DEFINE TABLE skill SCHEMAFULL;
+DEFINE FIELD name ON skill TYPE string;
+DEFINE FIELD description ON skill TYPE string;
+DEFINE FIELD version ON skill TYPE string;
+DEFINE FIELD status ON skill TYPE string ASSERT $value IN ["draft", "active", "deprecated"];
+DEFINE FIELD workspace ON skill TYPE record<workspace>;
+DEFINE FIELD source ON skill TYPE object;
+DEFINE FIELD source.type ON skill TYPE string ASSERT $value IN ["github", "git"];
+DEFINE FIELD source.source ON skill TYPE string;
+DEFINE FIELD source.ref ON skill TYPE option<string>;
+DEFINE FIELD source.subpath ON skill TYPE option<string>;
+DEFINE FIELD source.skills ON skill TYPE option<array<string>>;
+DEFINE FIELD created_by ON skill TYPE option<record<identity>>;
+DEFINE FIELD created_at ON skill TYPE datetime;
+DEFINE FIELD updated_at ON skill TYPE option<datetime>;
+DEFINE INDEX idx_skill_workspace_name ON skill FIELDS workspace, name;
+
+-- skill_requires: skill requires mcp_tool
+DEFINE TABLE skill_requires TYPE RELATION IN skill OUT mcp_tool SCHEMAFULL;
+
+-- possesses: identity possesses skill
+DEFINE TABLE possesses TYPE RELATION IN identity OUT skill SCHEMAFULL;
+DEFINE FIELD granted_at ON possesses TYPE datetime DEFAULT time::now();
+
+-- skill_supersedes: skill version chain
+DEFINE TABLE skill_supersedes TYPE RELATION IN skill OUT skill SCHEMAFULL;
+
+-- skill_evidence: skill activation evidence
+DEFINE TABLE skill_evidence TYPE RELATION IN skill OUT agent_session | trace | observation SCHEMAFULL;
+DEFINE FIELD added_at ON skill_evidence TYPE datetime;
+
+-- governs_skill: policy governance edge from policy to skill
+DEFINE TABLE governs_skill TYPE RELATION IN policy OUT skill SCHEMAFULL;
+DEFINE FIELD created_at ON governs_skill TYPE datetime;
+
 -- Analytics agent: read-only database user
 DEFINE USER analytics ON DATABASE PASSWORD 'osabio-analytics-readonly' ROLES VIEWER;

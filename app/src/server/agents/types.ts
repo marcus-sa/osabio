@@ -75,6 +75,8 @@ export type CreateAgentInput = {
   model?: string;
   sandbox_config?: SandboxConfig;
   authority_scopes?: AuthorityScopeInput[];
+  skill_ids?: string[];
+  additional_tool_ids?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -101,12 +103,19 @@ export type SessionSummary = {
   summary?: string;
 };
 
+/** Skill summary for agent detail. */
+export type AgentSkillSummary = {
+  id: string;
+  name: string;
+};
+
 /** Full agent detail returned from the detail endpoint. */
 export type AgentDetail = {
   agent: AgentListItem & { sandbox_config?: SandboxConfig };
   identity: { id: string; name: string; type: string; role?: string };
   authority_scopes: Array<{ action: string; permission: string }>;
   sessions: SessionSummary[];
+  skills: AgentSkillSummary[];
 };
 
 /** Result of a successful agent creation. */
