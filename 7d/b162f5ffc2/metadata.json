@@ -3,7 +3,7 @@
   "checkpoint_id": "7db162f5ffc2",
   "strategy": "manual-commit",
   "branch": "marcus-sa/skills-file-storage",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     ".nwave/des-config.json",
     ".nwave/des/deliver-session.json",
@@ -18,13 +18,20 @@
       "context": "/7d/b162f5ffc2/0/context.md",
       "content_hash": "/7d/b162f5ffc2/0/content_hash.txt",
       "prompt": "/7d/b162f5ffc2/0/prompt.txt"
+    },
+    {
+      "metadata": "/7d/b162f5ffc2/1/metadata.json",
+      "transcript": "/7d/b162f5ffc2/1/full.jsonl",
+      "context": "/7d/b162f5ffc2/1/context.md",
+      "content_hash": "/7d/b162f5ffc2/1/content_hash.txt",
+      "prompt": "/7d/b162f5ffc2/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 23,
-    "cache_creation_tokens": 56624,
-    "cache_read_tokens": 744031,
-    "output_tokens": 2831,
-    "api_call_count": 15
+    "input_tokens": 2657,
+    "cache_creation_tokens": 142364,
+    "cache_read_tokens": 2800928,
+    "output_tokens": 14162,
+    "api_call_count": 41
   }
 }
