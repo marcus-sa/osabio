@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "eb6acb8e0a53",
+  "strategy": "manual-commit",
+  "branch": "marcus-sa/update-readme-features",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/eb/6acb8e0a53/0/metadata.json",
+      "transcript": "/eb/6acb8e0a53/0/full.jsonl",
+      "context": "/eb/6acb8e0a53/0/context.md",
+      "content_hash": "/eb/6acb8e0a53/0/content_hash.txt",
+      "prompt": "/eb/6acb8e0a53/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 122748,
+    "cache_read_tokens": 1074344,
+    "output_tokens": 6804,
+    "api_call_count": 20
+  }
+}
