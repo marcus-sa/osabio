@@ -26,21 +26,24 @@ Why a graph, not a message bus. Most platforms try "agent swarms" — agents mes
 
 ```text
 Human Layer
-  → Web Chat / Feed / Graph View / Learning Library / Policy Management / Terminal
+  → Web Chat / Feed / Graph View / Learning Library / Policy Management
+  → Skill Library / Agent Registry / Tool Registry / Terminal
 
 Agent Layer
-  → Architect / Strategist / Management / Coding (MCP) / Design Partner / Observer
+  → Architect / Strategist / Management / Design Partner / Observer
+  → Sandbox Agents (Claude Code, Codex, Aider — isolated runtime)
 
 Graph Layer
   → Projects / Decisions / Tasks / Observations / Features / Questions
   → Suggestions / Conversations / Commits / Intents / Learnings
-  → Objectives / Behaviors / Traces / Policies
+  → Objectives / Behaviors / Traces / Policies / Skills / Agents
 
 Auth Layer
   → OAuth 2.1 / RAR (RFC 9396) / DPoP (RFC 9449) / Better Auth IdP
+  → Evidence-backed intent authorization / Graduated enforcement
 
 Integration Layer
-  → GitHub / Slack / Git Hooks / MCP Protocol / ERC-8004
+  → GitHub / Slack / Git Hooks / MCP Protocol / MCP Tool Registry / ERC-8004
 ```
 
 | Approach | Agent swarms / message buses | Knowledge graph (Osabio) |
@@ -51,7 +54,7 @@ Integration Layer
 | Verification | Assumes API calls work | Continuous telemetry (reality grounding) |
 | Autonomy | "Let it rip" (high risk of loops) | Authority scopes (risk-managed) |
 | Over time | Performance degrades | System gets smarter via learnings |
-| Security | Sandbox isolation (the "box") | Governance graph + sandbox (the "brain") |
+| Security | Sandbox isolation (the "box") | Governance graph + sandbox + evidence-backed intents |
 | Auditing | Log-based (text dumps) | Graph-based (hierarchical traces, machine-readable) |
 
 ## Specialized Agents
@@ -61,18 +64,18 @@ Each agent has a role, a domain, and authority scopes. They coordinate through t
 - **Architect** — Technical decisions, system design, architecture constraints. Checks implementations against what was decided. Resolves conflicts between competing approaches.
 - **Strategist** — Market positioning, pricing, GTM, competitive response. Challenges product decisions against business viability.
 - **Management** — Task tracking, priority management, execution velocity. Flags blocked work, stale decisions, and resource conflicts.
-- **Coding Agents (via MCP)** — Your existing tools (Cursor, Aider, Codex, Claude Code) connected to the graph. Context injected on session start. Decisions, observations, and questions flow back automatically.
-- **Design Partner** — Osabiostorms product ideas, asks probing questions, identifies gaps. Shapes vague ideas into structured projects, features, and decisions.
+- **Sandbox Agents** — Your coding tools (Claude Code, Codex, Aider) running in isolated sandboxed environments with their own runtime, proxy tokens, and MCP connections. Created and managed through the Agent Registry UI with configurable authority scopes (11 actions, each auto/propose/blocked). Agents are assigned to tasks from the orchestrator and execute within intent-gated governance — every tool call goes through scope evaluation before execution.
+- **Design Partner** — Brainstorms product ideas, asks probing questions, identifies gaps. Shapes vague ideas into structured projects, features, and decisions.
 - **Observer** — Continuously scans the graph for contradictions between decisions, stale tasks, status drift, and cross-project conflicts. Findings are verified through LLM reasoning pipelines with confidence scoring and evidence tracking. A peer review layer cross-validates observations to prevent false positives. Synthesizes recurring patterns into actionable suggestions. Proposes learnings from root cause analysis so the system self-corrects.
 
 ## How Coordination Works
 
 No agent messages another agent. They write structured signals to the knowledge graph. The graph makes it visible to the right agent at the right time.
 
-1. **Coding agent notices a contradiction.** While implementing rate limiting, a coding agent detects that `src/billing/api.ts` uses REST — but the graph has a confirmed decision to standardize on tRPC. It logs an observation.
+1. **Sandbox agent notices a contradiction.** While implementing rate limiting, a sandbox agent detects that `src/billing/api.ts` uses REST — but the graph has a confirmed decision to standardize on tRPC. It logs an observation via its intent-gated MCP connection.
 2. **Architect agent sees it on next context load.** The Architect checks the observation against constraints. Confirms the contradiction is real. Generates a suggestion: "Migrate billing API to tRPC, or revisit the standardization decision."
 3. **Suggestion surfaces in your feed.** You see the suggestion with full provenance — the observation, the contradicted decision, the Architect's reasoning. You accept it. A migration task is created with one click.
-4. **Next coding session picks up the task.** The migration task appears in the coding agent's context. It decomposes into subtasks, works through them, and status rolls up automatically. No human copied anything between tabs.
+4. **Next sandbox agent picks up the task.** You assign the migration task to a sandbox agent from the orchestrator. It loads the relevant skills, decomposes into subtasks, and executes — each tool call authorized by evidence-backed intents. Status rolls up automatically. No human copied anything between tabs.
 
 ## Key Concepts
 
@@ -83,12 +86,15 @@ No agent messages another agent. They write structured signals to the knowledge 
 - **Questions** — When an agent doesn't know, it asks instead of guessing. You answer. The answer becomes a decision in the graph.
 - **Conversations** — Every chat produces structured knowledge. Conversations group by project automatically.
 - **Commits** — Code is linked to the decisions and tasks it implements. Contradictions are caught before they land.
-- **Intents** — Every agent action starts as an intent — a structured request in the graph. Intents carry the full authorization context and are evaluated against authority scopes before execution.
-- **Authority Scopes** — Control what each agent can do without asking. Start restrictive. Expand trust over time.
+- **Intents** — Every agent action starts as an intent — a structured request in the graph. Intents require evidence-backed authorization: agents must provide verifiable graph references (`evidence_refs`) that are validated through a deterministic pipeline (existence, workspace scope, temporal ordering, status liveness, authorship independence) before LLM evaluation. Graduated enforcement phases workspaces from bootstrap exemption through soft enforcement (missing evidence elevates risk score) to hard enforcement (insufficient evidence rejects the intent). Workspace admins configure per-action evidence thresholds via policy rules.
+- **Authority Scopes** — Control what each agent can do without asking. 11 configurable actions per agent, each set to auto-approve, propose-for-review, or blocked. Start restrictive. Expand trust over time.
 - **Learnings** — Behavioral rules injected into agent prompts at runtime via JIT loading with token budgets. Learnings follow a lifecycle (`proposed` → `active` → `deactivated`) and can be created by humans, suggested by agents, or proposed by the Observer from root cause analysis. Three-layer collision detection prevents duplicates. Pattern detection identifies recurring issues and suggests learnings automatically. The Learning Library UI lets you browse, filter, approve, edit, and deactivate learnings across all agents.
 - **Objectives** — Strategic goals that give agent work direction. Objectives link to projects, features, and tasks — providing alignment context for every intent. Progress is computed by graph-traversing linked intents. The Observer audits for orphaned decisions and stale objectives via coherence scans.
 - **Behaviors** — Measurable behavioral expectations attached to objectives. Each behavior has a scoring function (LLM-evaluated or definition-matched), trend analysis (drift, improvement, flat-line detection), and a bridge to the learning system that proposes corrective learnings when scores decline. Behaviors feed into policy enforcement — the Authorizer checks behavior scores before granting intent authorization. Workspace admins define behavior definitions with configurable scoring criteria, thresholds, and remediation guidance.
 - **Identity** — One person across all tools. Your Slack, GitHub, and terminal sessions all resolve to the same identity.
+- **Skills** — Graph-native behavioral expertise documents that give agents proactive domain knowledge from their first session. Skills sit between Tools (functional capabilities) and Learnings (reactive corrections) — they encode governed, versionable expertise like "supply chain risk assessment" or "compliance audit procedures." Skills follow a lifecycle (`draft` → `active` → `deprecated`), link to agents via `possesses` edges, and can be governed by policies via `governs_skill` relations. The Skill Library UI lets you create, browse, activate, and assign skills to agents.
+- **Agents** — First-class graph entities representing sandboxed coding agents (Claude Code, Codex, Aider). Each agent has a runtime configuration, sandbox settings, authority scopes, assigned skills, and available tools. Created through a 3-step wizard (Config → Skills → Tools) in the Agent Registry UI. Agents are assigned to tasks and execute in isolated sessions with intent-gated MCP governance.
+- **MCP Tool Registry** — Centralized discovery and management of MCP tools across external servers. Includes OAuth 2.1 discovery (RFC 9728), dynamic client registration, PKCE authorization, and automatic token refresh for authenticated MCP servers. Credentials are encrypted with AES-256-GCM. Workspace admins control tool access through grants and governance policies. The Tool Registry UI provides tabs for providers, accounts, tools, grants, MCP servers, and a discovery review panel for selective import.
 - **Agent Sessions** — Every session is remembered. The next agent knows what the last one did.
 - **Traces** — Every agent execution is a graph-native call tree. Subagent spawns, tool calls, and decisions form a hierarchical trace you can traverse, query, and audit. Forensic debugging is a graph query, not grep.
 - **Policies** — Deterministic governance rules stored as graph nodes, not prompt text. Each policy carries typed rules, scopes, and approval requirements. Policies follow a lifecycle (`draft` → `active` → `deprecated`) with version chains — create a new version and the previous one is superseded atomically. The Policy Management UI lets you create, activate, deprecate, version, diff, and trace policies. The Authorizer evaluates intents against the policy graph before minting tokens — no prompt rewriting needed.
@@ -106,7 +112,7 @@ Autonomous systems don't fail from lack of intelligence. They fail from drift �
 Most autonomous platforms are black boxes. Osabio is a signed logic trace. Every decision, every dollar, every line of code has a provenance chain back to the intent that authorized it.
 
 - **Governance telemetry** — Every decision is a node with a UUID, author, timestamp, and reasoning. Auditors can query the graph directly.
-- **Signed intent chains** — When an agent spends money or merges code, the graph records which intent authorized it, which authority scope permitted it, and which human approved it.
+- **Evidence-backed intent chains** — When an agent spends money or merges code, the graph records which intent authorized it, which evidence justified it, which authority scope permitted it, and which human approved it. Every intent carries verifiable graph references that are validated before authorization — no action without provenance.
 - **Hierarchical traces** — Agent executions are graph-native call trees. A subagent spawn becomes a root trace; each tool call, message, and decision is a child node. Traverse the full execution path with a graph query — from intent to final action.
 - **Policy-as-graph** — Governance rules are versioned graph nodes with typed rules, scopes, and approval requirements. Policies follow a lifecycle with version chains — create, activate, deprecate, and diff through a dedicated management UI. The Authorizer evaluates intents against the policy graph before minting tokens — deterministic, auditable, and updateable without touching a single prompt.
 - **The "Judge" pattern** — High-stakes actions go through an Authorizer Agent that validates intents against policy constraints before minting scoped tokens. The worker never sees master keys.
@@ -129,7 +135,7 @@ The knowledge graph that coordinates your agents shouldn't be a black box you re
 | Frontend | React · Tiptap · Reagraph |
 | Auth | Better Auth · OAuth 2.1 · RAR · DPoP |
 | LLM | Provider-agnostic (OpenRouter · Ollama · BYO keys) |
-| Agents | MCP Server · Git Hooks |
+| Agents | MCP Server · MCP Tool Registry · Sandbox Runtime · Git Hooks |
 
 ## Connect in 60 Seconds
 
@@ -272,6 +278,24 @@ Open `http://localhost:3000`.
 - `GET /api/workspaces/:workspaceId/behaviors/definitions` list behavior definitions
 - `PUT /api/workspaces/:workspaceId/behaviors/definitions/:id` update a behavior definition
 - `DELETE /api/workspaces/:workspaceId/behaviors/definitions/:id` delete a behavior definition
+- `POST /api/workspaces/:workspaceId/agents` create an agent
+- `GET /api/workspaces/:workspaceId/agents` list agents
+- `GET /api/workspaces/:workspaceId/agents/:id` get agent detail
+- `PUT /api/workspaces/:workspaceId/agents/:id` update an agent
+- `DELETE /api/workspaces/:workspaceId/agents/:id` delete an agent
+- `GET /api/workspaces/:workspaceId/skills` list skills
+- `POST /api/workspaces/:workspaceId/skills` create a skill
+- `GET /api/workspaces/:workspaceId/skills/:id` get skill detail
+- `PUT /api/workspaces/:workspaceId/skills/:id` update a skill
+- `POST /api/workspaces/:workspaceId/skills/:id/activate` activate a draft skill
+- `POST /api/workspaces/:workspaceId/skills/:id/deprecate` deprecate an active skill
+- `GET /api/workspaces/:workspaceId/tool-registry/providers` list credential providers
+- `POST /api/workspaces/:workspaceId/tool-registry/providers` create a credential provider
+- `GET /api/workspaces/:workspaceId/tool-registry/tools` list registered MCP tools
+- `POST /api/workspaces/:workspaceId/tool-registry/grants` create a tool access grant
+- `GET /api/workspaces/:workspaceId/tool-registry/servers` list MCP servers
+- `POST /api/workspaces/:workspaceId/tool-registry/servers` register an MCP server
+- `POST /api/workspaces/:workspaceId/tool-registry/servers/:id/discover` discover tools from MCP server
 
 ## MCP + CLI
 
@@ -321,20 +345,27 @@ bun migrate
 ```text
 app/
   server.ts                     # Bun entrypoint
-  src/client/                   # chat/feed/graph/learning-library UI
+  src/client/                   # chat/feed/graph/learning-library/skill-library/agent-registry/tool-registry UI
   src/server/
     observer/                   # graph scanning, LLM verification, peer review, learning diagnosis
-    agents/observer/            # observer agent orchestration + prompt
+    agents/                     # agent CRUD, sandbox adapter, orchestrator agents
     learning/                   # learning CRUD, collision detection, pattern detection
     policy/                     # policy CRUD, validation, versioning, lifecycle
     objective/                  # objective CRUD, alignment evaluator, progress tracking
     behavior/                   # behavior telemetry, scorer, definitions, trend analysis
+    intent/                     # intent creation, evidence verification, graduated enforcement
+    skill/                      # skill CRUD, lifecycle, agent-skill assignment
     chat/                       # chat agent, tools, context
     extraction/                 # extraction pipeline
+    orchestrator/               # sandbox session lifecycle, event bridge, session store
+    mcp/                        # agent MCP route, scope engine, intent-gated tool calls
+    tools/                      # shared AI SDK tool definitions (chat, PM, observer, proxy)
+    tool-registry/              # MCP tool discovery, credential brokerage, governance
+    proxy/                      # proxy compliance, sessions, spend, traces
 cli/                            # osabio CLI + MCP server
 schema/
   surreal-schema.surql          # base schema
-  migrations/                   # versioned migrations
+  migrations/                   # versioned migrations (84+)
 tests/
   unit/                         # deterministic unit tests
   acceptance/                   # acceptance tests (in-process server + isolated DB)
