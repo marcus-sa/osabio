@@ -127,7 +127,7 @@ export function createAuth(surreal: Surreal, config: AuthConfig) {
         loginPage: "/sign-in",
         consentPage: "/consent",
         scopes: allScopes,
-        validAudiences: [config.betterAuthUrl],
+        validAudiences: [new URL(config.betterAuthUrl).origin],
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
         accessTokenExpiresIn: 3600,
