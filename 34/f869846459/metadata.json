@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "34f869846459",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".env.example",
+    ".serena/.gitignore",
+    ".serena/project.yml",
+    "app/src/server/auth/config.ts",
+    "tests/unit/auth/oauth-valid-audiences.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/34/f869846459/0/metadata.json",
+      "transcript": "/34/f869846459/0/full.jsonl",
+      "context": "",
+      "content_hash": "/34/f869846459/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}

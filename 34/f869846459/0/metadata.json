@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.8",
+  "checkpoint_id": "34f869846459",
+  "session_id": "93a489c3-e4e9-4f72-98f0-ee4bac728d98",
+  "strategy": "manual-commit",
+  "created_at": "2026-04-05T08:13:46.363311Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".env.example",
+    ".serena/.gitignore",
+    ".serena/project.yml",
+    "app/src/server/auth/config.ts",
+    "tests/unit/auth/oauth-valid-audiences.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d69cadc1dad8",
+  "checkpoint_transcript_start": 78,
+  "transcript_lines_at_start": 78,
+  "initial_attribution": {
+    "calculated_at": "2026-04-05T08:13:46.3498Z",
+    "agent_lines": 0,
+    "human_added": 7643,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 7643,
+    "agent_percentage": 0
+  }
+}
